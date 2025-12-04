@@ -125,6 +125,23 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             const auto* f64data = op->get_data_ptr<double>();
             auto f32buf = reinterpret_cast<float*>(buf);
             f32buf[0] = static_cast<float>(f64data[0]);
+        } else if (out_dtype == cldnn::data_types::f32 &&
+                   (op->get_output_element_type(0) == ov::element::u16 ||
+                    op->get_output_element_type(0) == ov::element::i16)) {
+            size_t count = ov::shape_size(const_shape);
+            auto f32buf = reinterpret_cast<float*>(buf);
+
+            if (op->get_output_element_type(0) == ov::element::u16) {
+                const auto* u16data = op->get_data_ptr<uint16_t>();
+                for (size_t i = 0; i < count; i++) {
+                    f32buf[i] = static_cast<float>(u16data[i]);
+                }
+            } else {
+                const auto* i16data = op->get_data_ptr<int16_t>();
+                for (size_t i = 0; i < count; i++) {
+                    f32buf[i] = static_cast<float>(i16data[i]);
+                }
+            }
         } else {
             std::memcpy(&buf[0], &data[0], bufSize);
         }
