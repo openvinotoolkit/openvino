@@ -39,6 +39,11 @@ inline uint FUNC(get_scales_offset)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint
 #define INPUT_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT0_TYPE, 1, ptr, offset)
 #define OUTPUT_BLOCK_WRITE(ptr, offset, val) BLOCK_WRITEN(OUTPUT_TYPE, 1, ptr, offset, val)
 
+// [TEMP]
+#define INT4_RANGE 15
+#define INT4_MAX 7
+#define INT4_MIN -8
+
 __attribute__((reqd_work_group_size(SUBGROUP_SIZE, SUBGROUPS_NUMBER, 1)))
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(dynamic_quantize_gpu_kv_cache)(
@@ -90,14 +95,19 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
 
     // If the range of input data is zero, it is adjusted to the minimum value(0.001).
     ACCUMULATOR_TYPE diff_value = max_value == min_value ? (grp_max) : (max_value - min_value);
-    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
-    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
+    // [TEMP]
+    // ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
+    // ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
+    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((INT4_MAX - INT4_MIN) / diff_value);
+    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + INT4_MIN;
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)(scale_tmp);
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
 
 #else
     max_value = work_group_reduce_max(max_value);
-    OUTPUT1_TYPE scale = 127.0h / max_value;
+    // [TEMP]
+    // OUTPUT1_TYPE scale = 127.0h / max_value;
+    OUTPUT1_TYPE scale = 7.0h / max_value;
 #endif
 
 #ifdef APPEND_MODE
@@ -112,6 +122,11 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
         OUTPUT_TYPE res = convert_char_rte(val[i] * scale);
 #endif
         OUTPUT_BLOCK_WRITE(output, output_offset + i * SUBGROUP_SIZE, res);
+        // [TEMP]
+        if ((int)res > INT4_MAX || (int)res < INT4_MIN) {
+            printf("(%d)", (int)res);
+            return;
+        }
     }
 
     const uint scale_idx = FUNC_CALL(get_scales_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, y, x);
