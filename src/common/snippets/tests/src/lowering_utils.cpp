@@ -25,6 +25,7 @@
 #include "snippets/op/fill.hpp"
 #include "snippets/op/reduce.hpp"
 #include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/target_machine.hpp"
 
 
@@ -74,6 +75,7 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     jitters[ov::snippets::op::ReduceMax::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::ReduceSum::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::Reshape::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::Result::get_type_info_static()] = dummy_functor;
 
     for (const auto& elem : custom_opset) {
         jitters[elem] = dummy_functor;
