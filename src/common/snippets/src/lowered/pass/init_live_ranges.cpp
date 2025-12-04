@@ -20,9 +20,9 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/op/perf_count.hpp"
-#include "snippets/op/subgraph.hpp"
 #include "snippets/op/reshape.hpp"
 #include "snippets/op/result.hpp"
+#include "snippets/op/subgraph.hpp"
 
 namespace ov::snippets::lowered::pass {
 namespace {

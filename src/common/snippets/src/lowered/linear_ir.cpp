@@ -447,7 +447,6 @@ LinearIR::exprIt LinearIR::replace_with_node(const std::vector<ExpressionPtr>& o
     }
 
     const auto& last_old_expr = old_exprs.back();
-    // for (size_t i = 0; i < new_node->get_output_size(); ++i) {
     for (size_t i = 0; i < old_exprs.back()->get_output_count(); ++i) {
         snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
             new_node->output(i),
