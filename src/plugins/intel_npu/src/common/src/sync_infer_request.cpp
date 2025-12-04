@@ -241,7 +241,8 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
 }
 
 void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& port,
-                                             const std::vector<ov::SoPtr<ov::ITensor>>& tensors) const {
+                                             const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                                             const bool support_strides) const {
     OPENVINO_ASSERT(!tensors.empty(), "set_input_tensors/set_tensors can't be called with empty tensors");
     OPENVINO_ASSERT(
         tensors.size() != 1,
@@ -310,7 +311,16 @@ void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& p
                         element_type,
                         " and shape ",
                         batched_shape);
-        OPENVINO_ASSERT(item->is_continuous(), "Strides for batched tensors should be default.");
+
+        if (!support_strides) {
+            OPENVINO_ASSERT(
+                item->is_continuous(),
+                "The tensor has a non-contiguous memory layout (custom strides), which is not supported by the "
+                "current driver/compiler version. To use strided tensors, either:\n"
+                "  1. Upgrade to a driver version that supports strides, or\n"
+                "  2. Enable stride support using the 'enable_strides_for' configuration property if this is "
+                "supported.");
+        }
     }
 }
 
@@ -318,7 +328,7 @@ void SyncInferRequest::check_tensors() const {
     const auto& inputs = _compiledModel->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
         if (is_batched_input(i)) {
-            check_batched_tensors(inputs[i], get_user_inputs(i));
+            check_batched_tensors(inputs[i], get_user_inputs(i), _metadata.inputs.at(i).supportsStridedLayout);
             continue;
         }
         if (get_user_input(i)) {
