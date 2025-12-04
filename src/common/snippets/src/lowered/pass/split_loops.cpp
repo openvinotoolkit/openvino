@@ -137,6 +137,7 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
         }
         // Split should be performed from inner to outer loops, to keep the blocking loop order
         // (the new blocking loop must be outermost, as was outermost loop before the split)
+        // NOLINTNEXTLINE(modernize-loop-convert)
         for (auto it = loops_to_split.rbegin(); it != loops_to_split.rend(); ++it) {
             split(linear_ir, it->first, it->second);
             loop_was_split = true;
