@@ -149,7 +149,7 @@ void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
     }
 }
 
-void kv_cache_inst::before_prepare() {
+void kv_cache_inst::recover_outputs() {
     if (_shallow_outputs.size() != _outputs.size())
         _shallow_outputs.resize(_outputs.size());
     // if resources has been moved to shallow in previour execution, try recover it
@@ -163,7 +163,7 @@ void kv_cache_inst::before_prepare() {
     }
 }
 
-void kv_cache_inst::cleanup() {
+void kv_cache_inst::cleanup_outputs() {
     // if there's variable state, it should hold a reference of tensor same as outputs
     if (!get_network().has_variable(variable_id()))
         return;

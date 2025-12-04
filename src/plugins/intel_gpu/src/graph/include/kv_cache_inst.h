@@ -86,8 +86,8 @@ public:
         return max_pad;
     }
     void update_shape_info_tensor(const kernel_impl_params& params) override;
-    void before_prepare() override;
-    void cleanup() override;
+    void recover_outputs();
+    void cleanup_outputs();
 
     typed_primitive_inst(network& network, const kv_cache_node& desc);
     typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}
