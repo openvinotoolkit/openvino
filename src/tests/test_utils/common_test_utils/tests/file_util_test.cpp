@@ -272,21 +272,30 @@ TEST(file_util, path_cast_unicode) {
     EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗7.txt") ==
                 std::filesystem::path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗7.txt").generic_u16string());
 
-#if !defined(_MSC_VER)
+#if !defined(_MSC_VER) && defined(__cpp_lib_char8_t)
     EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗9.txt") ==
                 std::filesystem::path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗9.txt").generic_u8string());
 #endif
+#if defined(__cpp_lib_char8_t)
     EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt") ==
                 std::filesystem::path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt").generic_u8string());
     EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗11.txt") ==
                 std::filesystem::path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗11.txt").generic_u8string());
     EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗12.txt") ==
                 std::filesystem::path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗12.txt").generic_u8string());
+#else
+    EXPECT_EQ(std::string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗14.txt"),
+              std::filesystem::path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗14.txt").generic_u8string());
+    EXPECT_EQ(std::string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗15.txt"),
+              std::filesystem::path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗15.txt").generic_u8string());
+#endif
 
+#if !defined(_MSC_VER)
     EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗8.txt") ==
                 std::filesystem::path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗8.txt").generic_u16string());
     EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗18.txt") ==
                 std::filesystem::path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗18.txt").u32string());
+#endif
 
 #if (defined(_MSC_VER) || \
      !defined(_MSC_VER) && defined(GCC_NOT_USED_OR_VER_AT_LEAST_12_3) && defined(CLANG_NOT_USED_OR_VER_AT_LEAST_17))
@@ -422,12 +431,14 @@ TEST(file_util, path_cast_from_wstring_to_u32string) {
 
 TEST(file_util, path_cast_from_wstring_to_char8_t) {
     // from wchar_t to char8_t
+#if defined(__cpp_lib_char8_t)
     EXPECT_TRUE(std::u8string(u8"") == std::filesystem::path(L"").u8string());
     EXPECT_TRUE(std::u8string(u8"file.txt") == std::filesystem::path(L"file.txt").u8string());
     EXPECT_TRUE(std::u8string(u8"./local/file.txt") == std::filesystem::path(L"./local/file.txt").generic_u8string());
     EXPECT_TRUE(std::u8string(u8"~/local/file.txt") == std::filesystem::path(L"~/local/file.txt").generic_u8string());
     EXPECT_TRUE(std::u8string(u8"/usr/local/file.txt") ==
                 std::filesystem::path(L"/usr/local/file.txt").generic_u8string());
+#endif
 }
 
 TEST(file_util, unicode_path_cast_from_wstring_to_char8_t) {
@@ -473,10 +484,12 @@ protected:
         }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    if defined(__cpp_lib_char8_t)
         {
             std::ofstream outfile(std::filesystem::path(u8"这是_u8.txt"));
             outfile << "This is a test file.";
         }
+#    endif
         {
             std::ofstream outfile(std::filesystem::path(u"这是_u16.txt"));
             outfile << "This is a test file.";
@@ -524,7 +537,9 @@ TEST_F(FileUtilTest, FileSizeNonExistentFileTest) {
 }
 
 TEST_F(FileUtilTest, EmptyFileSizeTest) {
+#if defined(__cpp_lib_char8_t)
     EXPECT_EQ(ov::util::file_size(u8"test_file_0.txt"), 0);
+#endif
     EXPECT_EQ(ov::util::file_size("test_file_0.txt"), 0);
     EXPECT_EQ(ov::util::file_size(u"test_file_0.txt"), 0);
     EXPECT_EQ(ov::util::file_size(U"test_file_0.txt"), 0);
@@ -557,16 +572,20 @@ TEST_F(FileUtilTest, LargeFileSizeTest) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
+#    if defined(__cpp_lib_char8_t)
 TEST_F(FileUtilTest, u8FileSizeTest) {
     EXPECT_EQ(ov::util::file_size(u8"这是_u8.txt"), 20);
     EXPECT_EQ(ov::util::file_size(std::filesystem::path(u8"这是_u8.txt")), 20);
     EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u8.txt")), 20);
 }
+#    endif
 
 TEST_F(FileUtilTest, u16FileSizeTest) {
     EXPECT_EQ(ov::util::file_size("这是_u16.txt"), 20);
+#    if defined(__cpp_lib_char8_t)
     EXPECT_EQ(ov::util::file_size(u8"这是_u16.txt"), 20);
     EXPECT_EQ(ov::util::file_size(std::filesystem::path(u8"这是_u16.txt")), 20);
+#    endif
     EXPECT_EQ(ov::util::file_size(u"这是_u16.txt"), 20);
     EXPECT_EQ(ov::util::file_size(U"这是_u16.txt"), 20);
     EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u16.txt")), 20);
