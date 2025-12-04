@@ -10,6 +10,7 @@
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "openvino/core/memory_util.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -76,13 +77,10 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
         if (auto zero_remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(remote_tensor)) {
             _ptr = zero_remote_tensor->get_original_memory();
         } else {
-            auto remote_properties = remote_tensor->get_properties();
-            auto it_param = remote_properties.find(ov::intel_npu::mem_handle.name());
-            OPENVINO_ASSERT(it_param != remote_properties.end(),
-                            "Parameter with key ",
-                            ov::intel_npu::mem_handle.name(),
-                            " not found");
-            _ptr = remote_properties.at(ov::intel_npu::mem_handle.name()).as<void*>();
+            std::optional<void*> mem_handle_object =
+                zeroUtils::extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
+            OPENVINO_ASSERT("Parameter with key ", ov::intel_npu::mem_handle.name(), " not found");
+            _ptr = static_cast<uint8_t*>(mem_handle_object.value()) + ov::get_tensor_offset(remote_tensor);
         }
     } else {
         _ptr = _user_tensor->data();

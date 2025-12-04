@@ -9,8 +9,10 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "zero_variable_state.hpp"
 
 using namespace intel_npu;
@@ -757,7 +759,12 @@ void ZeroInferRequest::infer_async() {
             if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
                 userBuffer = userZeroRemoteTensor->get_original_memory();
             } else {
-                userBuffer = userRemoteTensor->get_properties().at(ov::intel_npu::mem_handle.name()).as<void*>();
+                std::optional<void*> memHandleObject =
+                    zeroUtils::extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
+                OPENVINO_ASSERT(memHandleObject.has_value(),
+                                "Remote tensor does not have mem_handle property for input index: ",
+                                inputIndex);
+                userBuffer = static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_offset(userRemoteTensor);
             }
         } else {
             userBuffer = userTensor.at(SINGLE_TENSOR)->data();
@@ -810,7 +817,12 @@ void ZeroInferRequest::get_result() {
             if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
                 userBuffer = userZeroRemoteTensor->get_original_memory();
             } else {
-                userBuffer = userRemoteTensor->get_properties().at(ov::intel_npu::mem_handle.name()).as<void*>();
+                std::optional<void*> memHandleObject =
+                    zeroUtils::extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
+                OPENVINO_ASSERT(memHandleObject.has_value(),
+                                "Remote tensor does not have mem_handle property for output index: ",
+                                outputIndex);
+                userBuffer = static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_offset(userRemoteTensor);
             }
         } else {
             userBuffer = userTensor->data();
