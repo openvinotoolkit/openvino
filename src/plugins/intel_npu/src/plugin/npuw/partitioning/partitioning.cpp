@@ -1883,34 +1883,45 @@ void Partitioner::spatial(const std::string& func_name) {
 }
 
 void Partitioner::attention(const std::string& func_name) {
+    LOG_VERB("Partitioner::attention : "<< func_name);
+    LOG_BLOCK();
     ov::npuw::Function& f = P.functions.at(func_name);
 
     // Support only attention at the time
     if (f._tag != "attn") {
         LOG_VERB("No dynamic handling be done to  " << func_name << " in model " << model->get_friendly_name()
                                                     << "...");
+        LOG_VERB("");
         return;
     }
-
-    if (!cfg.get<::intel_npu::NPUW_ATTN>()) {
+    auto attn_hint = ::intel_npu::ATTN_HINT_BASE::parse(cfg.get<::intel_npu::NPUW_ATTN>());
+    if (::intel_npu::npuw::llm::AttentionHint::STATIC == attn_hint) {
         LOG_VERB("Dynamic handling is possible for  " << func_name << " in model " << model->get_friendly_name()
                                                       << " but is disabled explicitly");
         return;
     }
 
-    LOG_VERB("Turn " << func_name << " into dynamic Attention block in model " << model->get_friendly_name() << "...");
-    LOG_BLOCK();
+    LOG_VERB("Turn " << func_name << " into dynamic Attention block(hint="
+        << ::intel_npu::ATTN_HINT_BASE::toString(attn_hint) << ") in model " << model->get_friendly_name() << "...");
+
+    if (attn_hint == ::intel_npu::npuw::llm::AttentionHint::FLASH) {
+        f._flash_attention = ov::npuw::function::FlashAttention::from(f._model);
+        if (f._flash_attention) {
+            LOG_VERB("HFA Done");
+            return;
+        }
+    }
 
     f._attention = ov::npuw::function::Attention::from(f._model);
     if (f._attention) {
-        LOG_VERB("Done");
+        LOG_VERB("Attention Done");
         return;
     }
 
     LOG_WARN("No dynamic ranges found in the ATTN block");
     f._pyramid_attention = ov::npuw::function::PyramidAttention::from(f._model);
     if (f._pyramid_attention) {
-        LOG_VERB("Done");
+        LOG_VERB("Pyramid Done");
         return;
     }
 
