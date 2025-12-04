@@ -306,6 +306,7 @@ OP_CONVERTER(translate_batch_norm_legit_no_stats_fx);
 OP_CONVERTER(translate_cat_fx);
 OP_CONVERTER(translate_copy_fx);
 OP_CONVERTER(translate_cumsum_fx);
+OP_CONVERTER(translate_chunk);
 OP_CONVERTER(translate_chunk_fx);
 OP_CONVERTER(translate_div_fx);
 OP_CONVERTER(translate_div_fx_);
@@ -459,7 +460,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
         {"aten::celu", op::translate_celu},
         {"aten::channel_shuffle", op::translate_channel_shuffle},
-        // aten::chunk - Supported in limited set of patterns
+        {"aten::chunk", op::translate_chunk},  // Handles complex tensors, resolved by PrimListUnpackReplacer
         {"aten::clamp", op::translate_clamp},
         {"aten::clamp_max", op::translate_1to1_match_2_inputs_align_types<opset10::Minimum>},
         {"aten::clamp_min", op::translate_1to1_match_2_inputs_align_types<opset10::Maximum>},
@@ -758,7 +759,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::unbind - Supported in limited set of patterns
         {"aten::unflatten", op::translate_unflatten},
         {"aten::unfold", op::translate_unfold},
-        // aten::unsafe_chunk - Supported in limited set of patterns
+        {"aten::unsafe_chunk", op::translate_chunk},  // Handles complex tensors, resolved by PrimListUnpackReplacer
         {"aten::unsqueeze", common_translators::translate_unsqueeze},
         {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
         {"aten::upsample_bilinear2d", op::translate_upsample_bilinear2d},
