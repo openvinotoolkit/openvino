@@ -461,6 +461,181 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInferWithBatchingU
     }
 }
 
+TEST_P(RoiTensorsTestsRun, CreateRoiBatchedTensorsFromHostTensorAndRunInferWithBatchingUpdateMCL) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto supportedProperties =
+        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isStridedEnabled =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+
+    if (!isStridedEnabled) {
+        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+    }
+
+    auto shape = Shape{2, 2, 2, 2};
+    auto batchedShape = Shape{1, 2, 2, 2};
+    ov::CompiledModel compiled_model;
+    auto model = createModelWithNInputs(element::f32, shape, "N...");
+
+    auto zero_context = core->get_default_context(target_device);
+    auto input_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{3, 10, 10, 10});
+    auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{2, 25, 25, 25});
+
+    auto* input_data = input_host_tensor.data<float>();
+    for (size_t i = 0; i < input_host_tensor.get_size(); ++i) {
+        input_data[i] = 50.0f;
+    }
+
+    auto* output_data = output_host_tensor.data<float>();
+    for (size_t i = 0; i < output_host_tensor.get_size(); ++i) {
+        output_data[i] = 10.0f;
+    }
+
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+
+    ov::Tensor input_roi_tensor1_batched0 = ov::Tensor(input_host_tensor, {1, 4, 4, 4}, {2, 6, 6, 6});
+    ov::Tensor input_roi_tensor1_batched1 = ov::Tensor(input_host_tensor, {2, 4, 4, 4}, {3, 6, 6, 6});
+    std::vector<ov::Tensor> tensors1;
+    tensors1.push_back(input_roi_tensor1_batched0);
+    tensors1.push_back(input_roi_tensor1_batched1);
+    OV_ASSERT_NO_THROW(req.set_tensors("tensor_input0", tensors1););
+
+    ov::Tensor output_roi_tensor1 = ov::Tensor(output_host_tensor, {0, 15, 15, 15}, {2, 17, 17, 17});
+    OV_ASSERT_NO_THROW(req.set_output_tensor(output_roi_tensor1));
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    auto check_out_roi_tensor1 = ov::Tensor(ov::element::f32, shape);
+    output_roi_tensor1.copy_to(check_out_roi_tensor1);
+    auto* check_data = check_out_roi_tensor1.data<float>();
+    for (size_t i = 0; i < check_out_roi_tensor1.get_size(); ++i) {
+        EXPECT_EQ(check_data[i], 51.0f);
+    }
+
+    for (size_t i = 0; i < input_host_tensor.get_size(); ++i) {
+        input_data[i] = 75.0f;
+    }
+
+    ov::Tensor input_roi_tensor2_batched0 = ov::Tensor(input_host_tensor, {0, 2, 3, 4}, {1, 4, 5, 6});
+    ov::Tensor input_roi_tensor2_batched1 = ov::Tensor(input_host_tensor, {1, 2, 3, 4}, {2, 4, 5, 6});
+
+    std::vector<ov::Tensor> tensors2;
+    tensors2.push_back(input_roi_tensor2_batched0);
+    tensors2.push_back(input_roi_tensor2_batched1);
+    OV_ASSERT_NO_THROW(req.set_tensors("tensor_input0", tensors2););
+
+    ov::Tensor output_roi_tensor2 = ov::Tensor(output_host_tensor, {0, 0, 0, 0}, {2, 2, 2, 2});
+    OV_ASSERT_NO_THROW(req.set_output_tensor(output_roi_tensor2));
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    auto check_out_roi_tensor2 = ov::Tensor(ov::element::f32, shape);
+    output_roi_tensor2.copy_to(check_out_roi_tensor2);
+    check_data = check_out_roi_tensor2.data<float>();
+    for (size_t i = 0; i < check_out_roi_tensor2.get_size(); ++i) {
+        EXPECT_EQ(check_data[i], 76.0f);
+    }
+}
+
+TEST_P(RoiTensorsTestsRun, CreateRoiBatchedTensorsFromHostTensorAndRegularTensorAndRunInferWithBatchingUpdateMCL) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto supportedProperties =
+        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isStridedEnabled =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+
+    if (!isStridedEnabled) {
+        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+    }
+
+    auto shape = Shape{2, 2, 2, 2};
+    auto batchedShape = Shape{1, 2, 2, 2};
+    ov::CompiledModel compiled_model;
+    auto model = createModelWithNInputs(element::f32, shape, "N...");
+
+    auto zero_context = core->get_default_context(target_device);
+    auto input_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{3, 10, 10, 10});
+    auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{2, 25, 25, 25});
+    auto* input_data = input_host_tensor.data<float>();
+    for (size_t i = 0; i < input_host_tensor.get_size(); ++i) {
+        input_data[i] = 50.0f;
+    }
+    auto* output_data = output_host_tensor.data<float>();
+    for (size_t i = 0; i < output_host_tensor.get_size(); ++i) {
+        output_data[i] = 10.0f;
+    }
+
+    auto input_regular_tensor = ov::Tensor{ov::element::f32, Shape{1, 10, 10, 10}};
+    input_data = input_regular_tensor.data<float>();
+    for (size_t i = 0; i < input_regular_tensor.get_size(); ++i) {
+        input_data[i] = 50.0f;
+    }
+
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+
+    ov::Tensor input_roi_tensor1_batched0 = ov::Tensor(input_host_tensor, {1, 4, 4, 4}, {2, 6, 6, 6});
+    ov::Tensor input_roi_tensor1_batched1 = ov::Tensor(input_regular_tensor, {0, 4, 4, 4}, {1, 6, 6, 6});
+    std::vector<ov::Tensor> tensors1;
+    tensors1.push_back(input_roi_tensor1_batched0);
+    tensors1.push_back(input_roi_tensor1_batched1);
+    OV_ASSERT_NO_THROW(req.set_tensors("tensor_input0", tensors1););
+
+    ov::Tensor output_roi_tensor1 = ov::Tensor(output_host_tensor, {0, 15, 15, 15}, {2, 17, 17, 17});
+    OV_ASSERT_NO_THROW(req.set_output_tensor(output_roi_tensor1));
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    auto check_out_roi_tensor1 = ov::Tensor(ov::element::f32, shape);
+    output_roi_tensor1.copy_to(check_out_roi_tensor1);
+    auto* check_data = check_out_roi_tensor1.data<float>();
+    for (size_t i = 0; i < check_out_roi_tensor1.get_size(); ++i) {
+        EXPECT_EQ(check_data[i], 51.0f);
+    }
+
+    input_data = input_regular_tensor.data<float>();
+    for (size_t i = 0; i < input_regular_tensor.get_size(); ++i) {
+        input_data[i] = 75.0f;
+    }
+    input_data = input_host_tensor.data<float>();
+    for (size_t i = 0; i < input_host_tensor.get_size(); ++i) {
+        input_data[i] = 75.0f;
+    }
+
+    ov::Tensor input_roi_tensor2_batched0 = ov::Tensor(input_regular_tensor, {0, 2, 3, 4}, {1, 4, 5, 6});
+    ov::Tensor input_roi_tensor2_batched1 = ov::Tensor(input_host_tensor, {1, 2, 3, 4}, {2, 4, 5, 6});
+
+    std::vector<ov::Tensor> tensors2;
+    tensors2.push_back(input_roi_tensor2_batched0);
+    tensors2.push_back(input_roi_tensor2_batched1);
+    OV_ASSERT_NO_THROW(req.set_tensors("tensor_input0", tensors2););
+
+    ov::Tensor output_roi_tensor2 = ov::Tensor(output_host_tensor, {0, 0, 0, 0}, {2, 2, 2, 2});
+    OV_ASSERT_NO_THROW(req.set_output_tensor(output_roi_tensor2));
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    auto check_out_roi_tensor2 = ov::Tensor(ov::element::f32, shape);
+    output_roi_tensor2.copy_to(check_out_roi_tensor2);
+    check_data = check_out_roi_tensor2.data<float>();
+    for (size_t i = 0; i < check_out_roi_tensor2.get_size(); ++i) {
+        EXPECT_EQ(check_data[i], 76.0f);
+    }
+}
+
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpy) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
@@ -859,7 +1034,6 @@ TEST_P(RoiTensorsTestsRun, RunWithRemoteTensor) {
 
     auto check_out_roi_tensor = ov::Tensor(ov::element::f32, shape);
 
-    std::cout << "check_out_roi_tensor.data(): " << check_out_roi_tensor.data() << std::endl;
     output_roi_tensor.copy_to(check_out_roi_tensor);
     auto* check_data = check_out_roi_tensor.data<float>();
     for (size_t i = 0; i < check_out_roi_tensor.get_size(); ++i) {

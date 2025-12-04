@@ -95,13 +95,20 @@ Pipeline::Pipeline(const Config& config,
 
             if (input_tensors.at(io_index).size() > 1) {
                 _logger.debug("Pipeline - set args for input index: %zu", io_index);
-                graph->set_argument_value(desc.indexUsedByDriver, input_tensors.at(io_index).at(i)->data());
+                const auto& tensor = input_tensors.at(io_index).at(i);
+                if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() ||
+                    tensor->get_strides().empty()) {
+                    graph->set_argument_value(desc.indexUsedByDriver, tensor->data());
+                } else {
+                    graph->set_argument_value(desc.indexUsedByDriver,
+                                              tensor->data(),
+                                              get_strides(tensor->get_strides(), tensor->get_element_type().size()));
+                }
                 ++io_index;
                 continue;
             }
 
             const auto& tensor = input_tensors.at(io_index).at(0);
-
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
                 graph->set_argument_value(desc.indexUsedByDriver,
                                           static_cast<unsigned char*>(tensor->data()) +
