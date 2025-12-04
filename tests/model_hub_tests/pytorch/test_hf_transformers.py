@@ -449,6 +449,10 @@ class TestTransformersModel(TestTorchConvertModel):
             model.set_default_language("en_XX")
         if hasattr(model, "config") and hasattr(model.config, "return_loss"):
             model.config.return_loss = False
+        if hasattr(model, "config") and hasattr(model.config, "use_cache"):
+            model.config.use_cache = False
+        if hasattr(model, "config") and hasattr(model.config, "return_dict"):
+            model.config.return_dict = False
         if name_suffix != '':
             model = model._modules[name_suffix]
         if example is None:
