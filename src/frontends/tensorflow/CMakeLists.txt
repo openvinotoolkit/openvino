@@ -4,6 +4,10 @@
 
 add_subdirectory(src)
 
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
+    ov_add_compiler_flags(-Wno-stringop-overflow)
+endif()
+
 if(Python3_Interpreter_FOUND)
     execute_process(
         COMMAND ${Python3_EXECUTABLE} 
