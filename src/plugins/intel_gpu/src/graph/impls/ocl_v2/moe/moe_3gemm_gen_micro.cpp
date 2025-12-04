@@ -142,15 +142,9 @@ static micro::Type convert_type(ov::element::Type t) {
 }
 
 std::mutex MoE3GemmMicroGenerator::mtx;
+std::unordered_map<MoE3GemmMicroGenerator::GemmCacheKey, micro::Package, MoE3GemmMicroGenerator::GemmCacheKeyHash> MoE3GemmMicroGenerator::s_gemm_cache;
 void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params, micro::Package& gemm_moe, MoE3GemmMicroKernelType type) noexcept {
-    // TODO: Remove once micro API is thread safe
     std::lock_guard<std::mutex> l(mtx);
-    // auto moe_cfg = get_moe_cfg(params);
-    const auto& device_info = params.get_device_info();
-    micro::HWInformation hw_info;
-    hw_info.euCount = device_info.execution_units_count;
-    hw_info.gmdid = device_info.ip_version;
-    hw_info.systolicAvailable = device_info.supports_immad;
 
     int wei_idx, scale_idx, zp_idx;
     switch (type) {
@@ -173,6 +167,31 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
         OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");
         break;
     }
+
+    const auto& weight_layout = params.get_input_layout(wei_idx);
+    const auto& scale_layout = params.get_input_layout(scale_idx);
+    const auto& zp_layout = params.get_input_layout(zp_idx);
+
+    MoE3GemmMicroGenerator::GemmCacheKey key;
+    key.weight_shape = weight_layout.get_shape();
+    key.weight_dt = weight_layout.data_type;
+    key.scale_shape = scale_layout.get_shape();
+    key.scale_dt = scale_layout.data_type;
+    key.zp_shape = zp_layout.get_shape();
+    key.zp_dt = zp_layout.data_type;
+
+    auto it = s_gemm_cache.find(key);
+    if (it != s_gemm_cache.end()) {
+        GPU_DEBUG_TRACE_DETAIL << "MoE3GemmMicroGenerator::init_microkernels: hit cache by layout\n";
+        gemm_moe = it->second;
+        return;
+    }
+
+    const auto& device_info = params.get_device_info();
+    micro::HWInformation hw_info;
+    hw_info.euCount = device_info.execution_units_count;
+    hw_info.gmdid = device_info.ip_version;
+    hw_info.systolicAvailable = device_info.supports_immad;
 
     // weight layout example: u4:bfyx:4x3072x8x128:nopad
     const auto& weight_shape = params.get_input_layout(wei_idx).get_shape();
@@ -245,7 +264,10 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     GPU_DEBUG_TRACE_DETAIL << "sizes to select gemm : m : " << m << " n : " << n << " k : " << k << std::endl;
     try {
         /* Ask microkernel provider for microkernel */
-        gemm_moe = micro::select_gemm_microkernel(opts_moe, hw_info, sizes, problem_moe);
+        micro::Package pkg = micro::select_gemm_microkernel(opts_moe, hw_info, sizes, problem_moe);
+        s_gemm_cache.emplace(key, pkg);
+        gemm_moe = std::move(pkg);
+        GPU_DEBUG_TRACE_DETAIL << "MoE3GemmMicroGenerator::init_microkernels: create and cache new micro kernel" << std::endl;
     } catch (const std::runtime_error& ex) {
         OPENVINO_THROW("Can't create moe micro kernel: ", ex.what());
     }
@@ -314,9 +336,6 @@ std::string MoE3GemmMicroGenerator::get_build_options(const kernel_impl_params& 
 
 Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
-    // if (params.is_dynamic())
-    //     args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
-    // auto cfg = get_moe_cfg(params);
     auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
 
     switch (m_type) {

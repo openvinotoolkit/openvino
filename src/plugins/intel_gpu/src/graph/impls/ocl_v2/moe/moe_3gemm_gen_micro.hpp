@@ -66,7 +66,7 @@ public:
     static const moe_3gemm_config get_moe_3gemm_cfg(const kernel_impl_params& params) {
         moe_3gemm_config cfg;
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        cfg.weight_group_size = desc->_config.group_size;
+        cfg.weight_group_size = static_cast<int32_t>(desc->_config.group_size);
         cfg.has_batch_dim = desc->_config.has_batch_dim;
         return cfg;
     }
@@ -77,6 +77,49 @@ public:
     int m_scale_idx;
     int m_zp_idx;
     static std::mutex mtx;
+
+    struct GemmCacheKey {
+        ov::Shape weight_shape;
+        ov::element::Type weight_dt;
+
+        ov::Shape scale_shape;
+        ov::element::Type scale_dt;
+
+        ov::Shape zp_shape;
+        ov::element::Type zp_dt;
+
+        bool operator==(const GemmCacheKey& other) const {
+            return weight_shape == other.weight_shape && weight_dt == other.weight_dt && scale_shape == other.scale_shape && scale_dt == other.scale_dt &&
+                   zp_shape == other.zp_shape && zp_dt == other.zp_dt;
+        }
+    };
+
+    struct GemmCacheKeyHash {
+        size_t operator()(const GemmCacheKey& k) const noexcept {
+            size_t h = 0;
+
+            auto hash_combine = [](size_t& seed, size_t v) {
+                seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            };
+
+            auto hash_shape = [&](const ov::Shape& s) {
+                for (auto v : s) {
+                    hash_combine(h, std::hash<size_t>()(v));
+                }
+            };
+
+            hash_shape(k.weight_shape);
+            hash_shape(k.scale_shape);
+            hash_shape(k.zp_shape);
+
+            hash_combine(h, std::hash<std::string>()(k.weight_dt.to_string()));
+            hash_combine(h, std::hash<std::string>()(k.scale_dt.to_string()));
+            hash_combine(h, std::hash<std::string>()(k.zp_dt.to_string()));
+            return h;
+        }
+    };
+
+    static std::unordered_map<GemmCacheKey, micro::Package, GemmCacheKeyHash> s_gemm_cache;
 };
 #endif
 }  // namespace ov::intel_gpu::ocl
