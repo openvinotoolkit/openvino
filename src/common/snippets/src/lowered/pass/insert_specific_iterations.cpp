@@ -26,7 +26,6 @@
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/op/loop.hpp"
-#include "snippets/op/memory_access.hpp"
 #include "snippets/op/result.hpp"
 #include "snippets/op/horizon_max.hpp"
 #include "snippets/op/horizon_sum.hpp"
@@ -57,7 +56,7 @@ void connect_cloned_body_with_buffers_outside(const LoopManager::LoopBounds& cur
         const auto& original_expr = *original_it;
         // Buffer/Result input can be connected only to outputs of MA ops
         // if (std::dynamic_pointer_cast<modifier::MemoryAccess>(original_expr->get_node())) {
-        if (1) {
+        if (true) {
             for (size_t i = 0; i < original_expr->get_output_count(); i++) {
                 const auto& consumers = original_expr->get_output_port_connector(i)->get_consumers();
                 for (const auto& consumer : consumers) {
@@ -67,7 +66,8 @@ void connect_cloned_body_with_buffers_outside(const LoopManager::LoopBounds& cur
                     const auto h_sum_node = ov::as_type_ptr<op::HorizonSum>(consumer_expr->get_node());
                     const auto h_max_node = ov::as_type_ptr<op::HorizonMax>(consumer_expr->get_node());
                     const auto reshape_node = ov::as_type_ptr<op::Reshape>(consumer_expr->get_node());
-                    if ((buffer_expr || result_node || h_sum_node || h_max_node || reshape_node) && std::find(cur_begin, cur_end, consumer_expr) == cur_end) {
+                    if ((buffer_expr || result_node || h_sum_node || h_max_node || reshape_node) &&
+                        std::find(cur_begin, cur_end, consumer_expr) == cur_end) {
                         std::vector<PortDescriptorPtr> new_descs = {
                             consumer_expr->get_input_port_descriptor(consumer.get_index())->clone()};
                         std::vector<PortConnectorPtr> new_inputs = {result_expr->get_output_port_connector(i)};

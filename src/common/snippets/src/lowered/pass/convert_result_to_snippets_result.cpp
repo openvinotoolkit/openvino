@@ -4,10 +4,9 @@
 
 #include "snippets/lowered/pass/convert_result_to_snippets_result.hpp"
 
-#include <cstddef>
 #include <memory>
-#include <utility>
 
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"

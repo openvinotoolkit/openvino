@@ -264,10 +264,7 @@ void LinearIR::unregister_expression(const ExpressionPtr& expr) {
     }
     if (ov::is_type_any_of<ov::op::v0::Result, snippets::op::Result>(node)) {
         auto match = [&node](const ExpressionPtr& expr) {
-            if (expr->get_node() == node) {
-                return true;
-            }
-            return false;
+            return expr->get_node() == node;
         };
         auto result_it = std::find_if(m_result_expressions.cbegin(), m_result_expressions.cend(), match);
         OPENVINO_ASSERT(result_it != m_result_expressions.cend(),

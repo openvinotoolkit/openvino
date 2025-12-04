@@ -40,7 +40,6 @@ void Reshape::validate_and_infer_types() {
 
 std::shared_ptr<Node> Reshape::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(Reshape);
-    // check_new_args_count(this, new_args);
     return std::make_shared<Reshape>(new_args, m_target_shape);
 }
 
