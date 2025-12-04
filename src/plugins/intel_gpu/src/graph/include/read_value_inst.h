@@ -51,7 +51,7 @@ public:
     typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}
 
     void update_output_memory() override;
-    void cleanup() override;
+    void cleanup_outputs();
 
 protected:
     void on_execute() override;

@@ -762,8 +762,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     for (auto& inst : _exec_order) {
         NODE_DEBUG(*inst);
 
-        inst->before_prepare();
-
         inst->reset_events();
 
         if (inst->is_input()) {
@@ -786,7 +784,19 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // Reset all flags for the next execution
     for (auto& inst : _exec_order) {
         inst->reset_flags();
-        inst->cleanup();
+    }
+}
+
+void network::cleanup_kv_outputs() {
+    for (auto& inst : _read_values) {
+        if (auto rv_inst = std::dynamic_pointer_cast<read_value_inst>(inst)) {
+            rv_inst->cleanup();
+        }
+    }
+    for (auto& inst : _kv_caches) {
+        if (auto kv_inst = std::dynamic_pointer_cast<kv_cache_inst>(inst)) {
+            kv_inst->cleanup();
+        }
     }
 }
 
@@ -955,6 +965,9 @@ void network::allocate_primitive_instance(program_node const& node) {
         if (!users.empty()) {
             is_lora_state = users.front()->is_type<lora>();
         }
+    }
+    if (node.is_type<kv_cache>()) {
+        _kv_caches.push_back(inst);
     }
 
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {

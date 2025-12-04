@@ -186,6 +186,7 @@ public:
     memory& get_output_remote_memory(const primitive_id& id) const;
     bool has_output_remote_memory_ptr(const primitive_id& id) const;
     void reset_output_remote_memory_ptrs();
+    void cleanup_kv_outputs();
 
     memory_pool& get_memory_pool() const {
         return *_memory_pool;
@@ -240,6 +241,7 @@ private:
     ov::intel_gpu::VariablesMap _variables_states;
     ov::intel_gpu::VariablesInfoMap _variables_state_info;
     std::vector<std::shared_ptr<primitive_inst>> _read_values;
+    std::vector<std::shared_ptr<primitive_inst>> _kv_caches;
     std::unordered_map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>> _state_initializers;
 
     program::primitives_info _prims_info;

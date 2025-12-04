@@ -38,7 +38,7 @@ void read_value_inst::on_execute() {
     update_output_memory();
 }
 
-void read_value_inst::cleanup() {
+void read_value_inst::cleanup_outputs() {
     // readvalue simply assign outputs from variablestate, 
     // does not need to keep reference in outputs after execution
     if (!can_be_optimized() || !get_network().has_variable(variable_id()))
