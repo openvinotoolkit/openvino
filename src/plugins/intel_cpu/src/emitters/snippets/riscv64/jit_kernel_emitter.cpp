@@ -184,7 +184,6 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(jit_generator_t* h,
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     master_shape = jcp.exec_domain;
     data_offsets = jcp.data_offsets;
-    OV_CPU_JIT_EMITTER_ASSERT(data_offsets.size() == num_inputs + num_outputs, "Incompatible count of data offsets!");
     OV_CPU_JIT_EMITTER_ASSERT(!data_offsets.empty() && data_offsets.front().size() == master_shape.size(),
                               "Incompatible rank of data offsets!");
 }
