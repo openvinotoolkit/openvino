@@ -599,7 +599,7 @@ const auto matMulParamsBrgemmSmallKDynamicFusing = ::testing::Combine(::testing:
                                                                       ::testing::Values(ElementType::dynamic),
                                                                       ::testing::Values(utils::InputLayerType::PARAMETER),
                                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                                                      ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
+                                                                      ::testing::ValuesIn(filterAdditionalConfig_Brgemm_Small_K()));
 
 const auto testParamsBrgemmSmallKDynamicFusing = ::testing::Combine(matMulParamsBrgemmSmallKDynamicFusing,
                                                                     ::testing::Values(MatMulNodeType::MatMul),
