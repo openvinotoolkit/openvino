@@ -175,8 +175,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         std::shared_ptr<ov::Node> vert_range =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
         vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
-        const auto past_k_node_len = get_dimensions(past_key.get_node_shared_ptr(), {2});
-        vert_range = register_new_node<v1::Add>(vert_range, past_k_node_len);
+        if(is_static_input) {
+            const auto past_k_node_len = get_dimensions(past_key.get_node_shared_ptr(), {2});
+            vert_range = register_new_node<v1::Add>(vert_range, past_k_node_len);
+        } else {
+            vert_range = register_new_node<v1::Add>(vert_range, past_seqlen);
+        }
 
         const auto triu = register_new_node<v1::Greater>(hori_range, vert_range);
         const auto typed_zero = register_new_node(v0::Constant::create(T, ov::Shape{}, {0}));
