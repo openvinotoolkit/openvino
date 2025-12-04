@@ -9,10 +9,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 161.753,
-                        "fp32_ovms": 159.282,
-                        "int8_ov": 411.774,
-                        "int8_ovms": 406.262
+                        "fp32_ov": 161.421,
+                        "fp32_ovms": 159.692,
+                        "int8_ov": 410.288,
+                        "int8_ovms": 405.436
                     }
                 ],
                 "Unit": "FPS",
@@ -22,7 +22,7 @@
     },
     {
         "Platform": "Intel® Xeon® Gold 6238M",
-        "Model": "detectron_COCO-InstanceSegmentation_mask_rcnn_R_50_FPN_3x",
+        "Model": "detectron-v2_mask_rcnn_r_50_fpn_3x",
         "featured_SKU": false,
         "whats_new_model": false,
         "PlatformType": "Server Platforms (Intel® Xeon®)",
@@ -30,10 +30,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 14.741,
-                        "fp32_ovms": 14.687,
-                        "int8_ov": 42.481,
-                        "int8_ovms": 41.398
+                        "fp32_ov": 14.704,
+                        "fp32_ovms": 14.639,
+                        "int8_ov": 42.484,
+                        "int8_ovms": 41.347
                     }
                 ],
                 "Unit": "FPS",
@@ -43,7 +43,7 @@
     },
     {
         "Platform": "Intel® Xeon® Gold 6238M",
-        "Model": "manual_yolo11",
+        "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": false,
         "PlatformType": "Server Platforms (Intel® Xeon®)",
@@ -51,10 +51,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 368.973,
-                        "fp32_ovms": 253.242,
-                        "int8_ov": 778.246,
-                        "int8_ovms": 506.974
+                        "fp32_ov": 369.376,
+                        "fp32_ovms": 253.031,
+                        "int8_ov": 764.138,
+                        "int8_ovms": 502.462
                     }
                 ],
                 "Unit": "FPS",
@@ -72,10 +72,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 3275.067,
-                        "fp32_ovms": 2816.773,
-                        "int8_ov": 10250.761,
-                        "int8_ovms": 7413.038
+                        "fp32_ov": 3262.177,
+                        "fp32_ovms": 2798.412,
+                        "int8_ov": 10232.437,
+                        "int8_ovms": 7391.948
                     }
                 ],
                 "Unit": "FPS",
@@ -93,10 +93,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 575.657,
-                        "fp32_ovms": 566.718,
-                        "int8_ov": 2133.572,
-                        "int8_ovms": 2033.518
+                        "fp32_ov": 575.297,
+                        "fp32_ovms": 566.918,
+                        "int8_ov": 2132.579,
+                        "int8_ovms": 2033.443
                     }
                 ],
                 "Unit": "FPS",
@@ -114,10 +114,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 10.601,
-                        "fp32_ovms": 10.439,
-                        "int8_ov": 40.444,
-                        "int8_ovms": 38.375
+                        "fp32_ov": 10.539,
+                        "fp32_ovms": 10.406,
+                        "int8_ov": 40.369,
+                        "int8_ovms": 38.329
                     }
                 ],
                 "Unit": "FPS",
@@ -135,10 +135,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 182.13,
-                        "fp32_ovms": 182.49,
-                        "int8_ov": 467.737,
-                        "int8_ovms": 460.009
+                        "fp32_ov": 184.277,
+                        "fp32_ovms": 182.473,
+                        "int8_ov": 468.414,
+                        "int8_ovms": 461.101
                     }
                 ],
                 "Unit": "FPS",
@@ -148,7 +148,7 @@
     },
     {
         "Platform": "Intel® Xeon® Platinum 8260M",
-        "Model": "detectron_COCO-InstanceSegmentation_mask_rcnn_R_50_FPN_3x",
+        "Model": "detectron-v2_mask_rcnn_r_50_fpn_3x",
         "featured_SKU": false,
         "whats_new_model": false,
         "PlatformType": "Server Platforms (Intel® Xeon®)",
@@ -156,10 +156,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 16.853,
-                        "fp32_ovms": 16.814,
-                        "int8_ov": 48.434,
-                        "int8_ovms": 47.129
+                        "fp32_ov": 16.91,
+                        "fp32_ovms": 16.827,
+                        "int8_ov": 48.603,
+                        "int8_ovms": 47.216
                     }
                 ],
                 "Unit": "FPS",
@@ -169,7 +169,7 @@
     },
     {
         "Platform": "Intel® Xeon® Platinum 8260M",
-        "Model": "manual_yolo11",
+        "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": false,
         "PlatformType": "Server Platforms (Intel® Xeon®)",
@@ -177,10 +177,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 416.429,
-                        "fp32_ovms": 287.978,
-                        "int8_ov": 856.243,
-                        "int8_ovms": 541.99
+                        "fp32_ov": 418.307,
+                        "fp32_ovms": 286.944,
+                        "int8_ov": 863.093,
+                        "int8_ovms": 540.621
                     }
                 ],
                 "Unit": "FPS",
@@ -198,10 +198,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 3778.861,
-                        "fp32_ovms": 3214.536,
-                        "int8_ov": 12084.817,
-                        "int8_ovms": 7584.17
+                        "fp32_ov": 3814.957,
+                        "fp32_ovms": 3204.445,
+                        "int8_ov": 12062.483,
+                        "int8_ovms": 7549.961
                     }
                 ],
                 "Unit": "FPS",
@@ -219,10 +219,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 638.215,
-                        "fp32_ovms": 637.338,
-                        "int8_ov": 2421.012,
-                        "int8_ovms": 2323.254
+                        "fp32_ov": 646.097,
+                        "fp32_ovms": 639.84,
+                        "int8_ov": 2426.95,
+                        "int8_ovms": 2326.988
                     }
                 ],
                 "Unit": "FPS",
@@ -240,10 +240,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 12.094,
-                        "fp32_ovms": 11.884,
-                        "int8_ov": 46.873,
-                        "int8_ovms": 43.57
+                        "fp32_ov": 12.134,
+                        "fp32_ovms": 11.918,
+                        "int8_ov": 47.041,
+                        "int8_ovms": 43.73
                     }
                 ],
                 "Unit": "FPS",
@@ -261,10 +261,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 35.668,
-                        "fp32_ovms": 34.549,
-                        "int8_ov": 100.71,
-                        "int8_ovms": 99.968
+                        "fp32_ov": 35.39,
+                        "fp32_ovms": 34.572,
+                        "int8_ov": 100.727,
+                        "int8_ovms": 99.353
                     }
                 ],
                 "Unit": "FPS",
@@ -274,7 +274,7 @@
     },
     {
         "Platform": "Intel® Core™ i9-11900K",
-        "Model": "detectron_COCO-InstanceSegmentation_mask_rcnn_R_50_FPN_3x",
+        "Model": "detectron-v2_mask_rcnn_r_50_fpn_3x",
         "featured_SKU": false,
         "whats_new_model": false,
         "PlatformType": "Client Platforms (Intel® Core™)",
@@ -282,10 +282,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 3.097,
-                        "fp32_ovms": 3.106,
-                        "int8_ov": 10.316,
-                        "int8_ovms": 10.186
+                        "fp32_ov": 3.096,
+                        "fp32_ovms": 3.108,
+                        "int8_ov": 10.207,
+                        "int8_ovms": 10.148
                     }
                 ],
                 "Unit": "FPS",
@@ -295,7 +295,7 @@
     },
     {
         "Platform": "Intel® Core™ i9-11900K",
-        "Model": "manual_yolo11",
+        "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": false,
         "PlatformType": "Client Platforms (Intel® Core™)",
@@ -303,10 +303,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 83.783,
-                        "fp32_ovms": 70.678,
-                        "int8_ov": 210.296,
-                        "int8_ovms": 134.698
+                        "fp32_ov": 83.682,
+                        "fp32_ovms": 70.552,
+                        "int8_ov": 209.445,
+                        "int8_ovms": 134.132
                     }
                 ],
                 "Unit": "FPS",
@@ -324,10 +324,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 867.169,
-                        "fp32_ovms": 737.016,
-                        "int8_ov": 2680.265,
-                        "int8_ovms": 2139.983
+                        "fp32_ov": 864.265,
+                        "fp32_ovms": 734.701,
+                        "int8_ov": 2668.255,
+                        "int8_ovms": 2130.51
                     }
                 ],
                 "Unit": "FPS",
@@ -345,10 +345,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 116.026,
-                        "fp32_ovms": 113.814,
-                        "int8_ov": 455.32,
-                        "int8_ovms": 439.632
+                        "fp32_ov": 116.497,
+                        "fp32_ovms": 113.591,
+                        "int8_ov": 454.619,
+                        "int8_ovms": 438.959
                     }
                 ],
                 "Unit": "FPS",
@@ -366,10 +366,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 2.004,
-                        "fp32_ovms": 2.03,
+                        "fp32_ov": 2.002,
+                        "fp32_ovms": 2.028,
                         "int8_ov": 7.829,
-                        "int8_ovms": 7.8
+                        "int8_ovms": 7.798
                     }
                 ],
                 "Unit": "FPS",
@@ -387,10 +387,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 16.841,
-                        "fp32_ovms": 16.644,
-                        "int8_ov": 14.296,
-                        "int8_ovms": 14.218
+                        "fp32_ov": 16.436,
+                        "fp32_ovms": 16.377,
+                        "int8_ov": 14.186,
+                        "int8_ovms": 14.103
                     }
                 ],
                 "Unit": "FPS",
@@ -400,7 +400,7 @@
     },
     {
         "Platform": "Intel® Core™ i3-10100",
-        "Model": "detectron_COCO-InstanceSegmentation_mask_rcnn_R_50_FPN_3x",
+        "Model": "detectron-v2_mask_rcnn_r_50_fpn_3x",
         "featured_SKU": false,
         "whats_new_model": false,
         "PlatformType": "Client Platforms (Intel® Core™)",
@@ -408,10 +408,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 1.396,
-                        "fp32_ovms": 1.447,
-                        "int8_ov": 2.535,
-                        "int8_ovms": 2.564
+                        "fp32_ov": 1.412,
+                        "fp32_ovms": 1.435,
+                        "int8_ov": 2.575,
+                        "int8_ovms": 2.578
                     }
                 ],
                 "Unit": "FPS",
@@ -421,7 +421,7 @@
     },
     {
         "Platform": "Intel® Core™ i3-10100",
-        "Model": "manual_yolo11",
+        "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": false,
         "PlatformType": "Client Platforms (Intel® Core™)",
@@ -429,10 +429,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 40.77,
-                        "fp32_ovms": 35.227,
-                        "int8_ov": 72.885,
-                        "int8_ovms": 55.94
+                        "fp32_ov": 41.381,
+                        "fp32_ovms": 35.024,
+                        "int8_ov": 72.493,
+                        "int8_ovms": 55.616
                     }
                 ],
                 "Unit": "FPS",
@@ -450,10 +450,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 436.567,
-                        "fp32_ovms": 372.626,
-                        "int8_ov": 711.324,
-                        "int8_ovms": 612.642
+                        "fp32_ov": 430.69,
+                        "fp32_ovms": 367.515,
+                        "int8_ov": 707.573,
+                        "int8_ovms": 608.902
                     }
                 ],
                 "Unit": "FPS",
@@ -471,10 +471,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 55.271,
-                        "fp32_ovms": 54.504,
-                        "int8_ov": 117.911,
-                        "int8_ovms": 113.747
+                        "fp32_ov": 55.216,
+                        "fp32_ovms": 54.15,
+                        "int8_ov": 117.168,
+                        "int8_ovms": 113.079
                     }
                 ],
                 "Unit": "FPS",
@@ -492,10 +492,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 0.99,
-                        "fp32_ovms": 1.015,
-                        "int8_ov": 1.947,
-                        "int8_ovms": 1.951
+                        "fp32_ov": 0.98,
+                        "fp32_ovms": 1.0,
+                        "int8_ov": 1.936,
+                        "int8_ovms": 1.943
                     }
                 ],
                 "Unit": "FPS",
