@@ -69,6 +69,3 @@ coverage
 
 # Local CI/CD Check Script for OpenVINO
 
-local_ci.ps1
-output.txt
-reproduce_issue.py
