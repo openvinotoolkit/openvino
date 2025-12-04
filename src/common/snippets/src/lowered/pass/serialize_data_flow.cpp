@@ -20,8 +20,8 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/op/serialization_node.hpp"
 #include "snippets/op/result.hpp"
+#include "snippets/op/serialization_node.hpp"
 
 namespace ov::snippets::lowered::pass {
 

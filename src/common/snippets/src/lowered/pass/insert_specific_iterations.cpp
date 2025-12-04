@@ -25,11 +25,11 @@
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/specific_loop_iter_types.hpp"
-#include "snippets/op/loop.hpp"
-#include "snippets/op/result.hpp"
 #include "snippets/op/horizon_max.hpp"
 #include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {
@@ -54,36 +54,32 @@ void connect_cloned_body_with_buffers_outside(const LoopManager::LoopBounds& cur
     for (auto result_it = res_begin, original_it = cur_begin; result_it != res_end; ++result_it, ++original_it) {
         const auto& result_expr = *result_it;
         const auto& original_expr = *original_it;
-        // Buffer/Result input can be connected only to outputs of MA ops
-        // if (std::dynamic_pointer_cast<modifier::MemoryAccess>(original_expr->get_node())) {
-        if (true) {
-            for (size_t i = 0; i < original_expr->get_output_count(); i++) {
-                const auto& consumers = original_expr->get_output_port_connector(i)->get_consumers();
-                for (const auto& consumer : consumers) {
-                    const auto consumer_expr = consumer.get_expr();
-                    const auto buffer_expr = ov::as_type_ptr<BufferExpression>(consumer_expr);
-                    const auto result_node = ov::as_type_ptr<op::Result>(consumer_expr->get_node());
-                    const auto h_sum_node = ov::as_type_ptr<op::HorizonSum>(consumer_expr->get_node());
-                    const auto h_max_node = ov::as_type_ptr<op::HorizonMax>(consumer_expr->get_node());
-                    const auto reshape_node = ov::as_type_ptr<op::Reshape>(consumer_expr->get_node());
-                    if ((buffer_expr || result_node || h_sum_node || h_max_node || reshape_node) &&
-                        std::find(cur_begin, cur_end, consumer_expr) == cur_end) {
-                        std::vector<PortDescriptorPtr> new_descs = {
-                            consumer_expr->get_input_port_descriptor(consumer.get_index())->clone()};
-                        std::vector<PortConnectorPtr> new_inputs = {result_expr->get_output_port_connector(i)};
-                        OutputVector new_op_inputs = {result_expr->get_node()->output(i)};
-                        for (size_t j = 0; j < consumer_expr->get_input_count(); ++j) {
-                            const auto& source = consumer_expr->get_input_port_connector(j)->get_source();
-                            new_op_inputs.push_back(source.get_expr()->get_node()->output(source.get_index()));
-                            new_descs.push_back(consumer_expr->get_input_port_descriptor(j)->clone());
-                            new_inputs.push_back(consumer_expr->get_input_port_connector(j));
-                        }
-                        const auto new_buffer_op = consumer_expr->get_node()->clone_with_new_inputs(new_op_inputs);
-                        linear_ir.replace_with_expr(
-                            {consumer_expr},
-                            consumer_expr->clone_with_new_inputs(new_buffer_op, new_inputs, new_descs));
-                        break;
+        for (size_t i = 0; i < original_expr->get_output_count(); i++) {
+            const auto& consumers = original_expr->get_output_port_connector(i)->get_consumers();
+            for (const auto& consumer : consumers) {
+                const auto consumer_expr = consumer.get_expr();
+                const auto buffer_expr = ov::as_type_ptr<BufferExpression>(consumer_expr);
+                const auto result_node = ov::as_type_ptr<op::Result>(consumer_expr->get_node());
+                const auto h_sum_node = ov::as_type_ptr<op::HorizonSum>(consumer_expr->get_node());
+                const auto h_max_node = ov::as_type_ptr<op::HorizonMax>(consumer_expr->get_node());
+                const auto reshape_node = ov::as_type_ptr<op::Reshape>(consumer_expr->get_node());
+                if ((buffer_expr || result_node || h_sum_node || h_max_node || reshape_node) &&
+                    std::find(cur_begin, cur_end, consumer_expr) == cur_end) {
+                    std::vector<PortDescriptorPtr> new_descs = {
+                        consumer_expr->get_input_port_descriptor(consumer.get_index())->clone()};
+                    std::vector<PortConnectorPtr> new_inputs = {result_expr->get_output_port_connector(i)};
+                    OutputVector new_op_inputs = {result_expr->get_node()->output(i)};
+                    for (size_t j = 0; j < consumer_expr->get_input_count(); ++j) {
+                        const auto& source = consumer_expr->get_input_port_connector(j)->get_source();
+                        new_op_inputs.push_back(source.get_expr()->get_node()->output(source.get_index()));
+                        new_descs.push_back(consumer_expr->get_input_port_descriptor(j)->clone());
+                        new_inputs.push_back(consumer_expr->get_input_port_connector(j));
                     }
+                    const auto new_buffer_op = consumer_expr->get_node()->clone_with_new_inputs(new_op_inputs);
+                    linear_ir.replace_with_expr(
+                        {consumer_expr},
+                        consumer_expr->clone_with_new_inputs(new_buffer_op, new_inputs, new_descs));
+                    break;
                 }
             }
         }
