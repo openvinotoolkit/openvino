@@ -725,15 +725,17 @@ TEST_P(RoiTensorsTestsRun, RunWithRemoteTensor) {
     ov::Tensor input_roi_tensor = ov::Tensor(input_remote_tensor, {0, 4, 4, 4}, {1, 6, 6, 6});
     OV_ASSERT_NO_THROW(req.set_input_tensor(input_roi_tensor));
 
-    ov::Tensor output_roi_tensor = ov::Tensor(output_remote_tensor, {2, 4, 5, 6}, {3, 6, 7, 8});
+    ov::Tensor output_roi_tensor = ov::Tensor(output_remote_tensor, {2, 5, 6, 6}, {3, 7, 8, 8});
     OV_ASSERT_NO_THROW(req.set_output_tensor(output_roi_tensor));
 
     OV_ASSERT_NO_THROW(req.infer());
 
     auto check_out_roi_tensor = ov::Tensor(ov::element::f32, shape);
+
+    std::cout << "check_out_roi_tensor.data(): " << check_out_roi_tensor.data() << std::endl;
     output_roi_tensor.copy_to(check_out_roi_tensor);
     auto* check_data = check_out_roi_tensor.data<float>();
-    for (size_t i = 0; i < req.get_output_tensor().get_size(); ++i) {
+    for (size_t i = 0; i < check_out_roi_tensor.get_size(); ++i) {
         EXPECT_EQ(check_data[i], 51.0f);
     }
 }
