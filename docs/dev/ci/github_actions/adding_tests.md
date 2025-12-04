@@ -95,7 +95,7 @@ NVIDIA_Plugin:
   steps:
     - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
       run: |
-        SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/connection-string)"
+        SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
         echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
         echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
         echo "✓ Connection string loaded and masked"
