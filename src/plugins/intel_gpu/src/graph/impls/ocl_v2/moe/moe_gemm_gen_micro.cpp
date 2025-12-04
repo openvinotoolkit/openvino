@@ -51,6 +51,7 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
     auto zp_idx = cfg.weight_zp_idx;
     const auto& weight_shape = params.input_layouts[weight_idx].get_shape();
     if (cfg.is_weight_quantized) {
+        jit.make("IS_WEIGHT_QUANTIZED", 1);
         const auto& scale_shape = params.input_layouts[scale_idx].get_shape();
         const auto& bias_shape = params.input_layouts[bias_idx].get_shape();
         if (has_bias) {
@@ -69,7 +70,6 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
         size_t expert_stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) : (weight_shape[1] * weight_shape[2]);
         if (is_u4_i4) {
             jit.make("EXPERT_STRIDE", expert_stride / 2);
-            jit.make("WEIGHT_COMPRESSED_INT4", 1);
         } else {
             jit.make("EXPERT_STRIDE", expert_stride);
         }
