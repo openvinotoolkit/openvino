@@ -349,6 +349,21 @@ protected:
 };
 
 TEST_P(MatmulWeightsDecompression, Inference) {
+    const auto& [shape_params,
+                 weights_precision,
+                 activations_precision,
+                 transpose_weights,
+                 decompression_sub,
+                 reshape_on_decompression,
+                 extra_multiply,
+                 per_tensor_zp,
+                 param_weights,
+                 dyn_quan_group_size,
+                 abs_threshold_f16] = GetParam();
+    // Skip tests for 4-bit parameter weights because 4-bit transpose is not supported
+    if (param_weights && weights_precision != ov::element::u8) {
+        GTEST_SKIP();
+    }
     SKIP_IF_CURRENT_TEST_IS_DISABLED(); // This is necessary because of check_results
     run();
     check_results();
@@ -363,6 +378,21 @@ protected:
 };
 
 TEST_P(MatmulWeightsDecompressionScalarWeightZp, Inference) {
+    const auto& [shape_params,
+                 weights_precision,
+                 activations_precision,
+                 transpose_weights,
+                 decompression_sub,
+                 reshape_on_decompression,
+                 extra_multiply,
+                 per_tensor_zp,
+                 param_weights,
+                 dyn_quan_group_size,
+                 abs_threshold_f16] = GetParam();
+    // Skip tests for 4-bit parameter weights because 4-bit transpose is not supported
+    if (param_weights && weights_precision != ov::element::u8) {
+        GTEST_SKIP();
+    }
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     check_results();
