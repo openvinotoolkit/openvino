@@ -30,13 +30,13 @@ inline void input_check(const ov::Node* node,
     const auto& rank = node->get_input_partial_shape(idx).rank();
     const auto& tp = node->get_input_element_type(idx);
 
-    auto rank_check = [&](const Rank& rnk) {
-        return rnk.is_dynamic() || empty(allowed_ranks) || is_rank_compatible_any_of(rnk.get_length(), allowed_ranks);
+    auto rank_check = [&](const Rank& rank) {
+        return rank.is_dynamic() || empty(allowed_ranks) || is_rank_compatible_any_of(rank.get_length(), allowed_ranks);
     };
 
-    auto type_check = [&](const Type& t) {
-        return t.is_dynamic() || allowed_types.empty() ||
-               std::find(allowed_types.begin(), allowed_types.end(), t) != allowed_types.end();
+    auto type_check = [&](const Type& type) {
+        auto it = std::find(allowed_types.begin(), allowed_types.end(), tp);
+        return type.is_dynamic() || allowed_types.empty() || it != allowed_types.end();
     };
 
     NODE_VALIDATION_CHECK(node,
@@ -208,11 +208,11 @@ void PagedAttentionExtension::set_out_type(int index, const ov::element::Type& o
     m_output_type[index] = output_type;
 }
 
-const std::shared_ptr<ov::util::PagedCacheManager> PagedAttentionExtension::get_cache_manager() const {
+const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> PagedAttentionExtension::get_cache_manager() const {
     return m_cache_manager;
 }
 
-void PagedAttentionExtension::set_cache_manager(const std::shared_ptr<ov::util::PagedCacheManager> cache_manager) {
+void PagedAttentionExtension::set_cache_manager(const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> cache_manager) {
     m_cache_manager = cache_manager;
 }
 }  // namespace op

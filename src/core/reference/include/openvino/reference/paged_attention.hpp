@@ -12,10 +12,8 @@
 #include <string>
 #include <vector>
 
-#include "openvino/core/paged_cache_manager.hpp"
+#include "openvino/reference/utils/paged_cache_manager.hpp"
 #include "openvino/core/shape.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/op/paged_attention.hpp"
 
 #ifndef PA_DEBUG
 #    define PA_DEBUG 0
@@ -83,17 +81,34 @@ inline int32_t compute_trig_row_index(int32_t rotated_index,
 }  // namespace pa_rotary
 
 inline int32_t find_first_negative_index(const int32_t* data, size_t n) {
-    for (size_t i = 0; i < n; ++i)
-        if (data[i] < 0)
-            return (int32_t)i;
-    return -1;
+    const int32_t* first = data;
+    const int32_t* last  = data + static_cast<std::ptrdiff_t>(n);
+
+    auto it = std::find_if(first, last, [](int32_t v) {
+        return v < 0;
+    });
+
+    if (it == last)
+        return -1;
+
+    return static_cast<int32_t>(std::distance(first, it));
 }
-inline size_t resolve_sequence_index_for_token(size_t token_index, const int32_t* subseq_begins, size_t seq_count) {
-    if (!subseq_begins || seq_count <= 1)
+inline size_t resolve_sequence_index_for_token(
+    size_t token_index,
+    const int32_t* subseq_begins,
+    size_t seq_count) 
+{
+    if (subseq_begins == nullptr || seq_count <= 1)
         return 0;
-    for (size_t s = 0; s < seq_count; ++s)
-        if (token_index >= (size_t)subseq_begins[s] && token_index < (size_t)subseq_begins[s + 1])
+
+    for (size_t s = 0; s + 1 < seq_count; ++s) {
+        const size_t begin = static_cast<size_t>(subseq_begins[s]);
+        const size_t end   = static_cast<size_t>(subseq_begins[s + 1]);
+
+        if (token_index >= begin && token_index < end)
             return s;
+    }
+
     return 0;
 }
 inline int32_t acquire_or_recycle_block_for_sequence(size_t seq_idx,
@@ -140,10 +155,10 @@ struct paged_attention_kernel_context {
 };
 
 struct cache_manager_adapter {
-    ov::util::PagedCacheManager& cm;
+    ov::reference::paged_attention_cache::PagedCacheManager& cm;
     size_t node_id;
 
-    explicit cache_manager_adapter(ov::util::PagedCacheManager& mgr, size_t node_id) : cm(mgr), node_id(node_id) {}
+    explicit cache_manager_adapter(ov::reference::paged_attention_cache::PagedCacheManager& mgr, size_t node_id) : cm(mgr), node_id(node_id) {}
 
     inline void* get_key_cache_base() const {
         return cm.get_cache_blocks().key_base;
@@ -151,6 +166,7 @@ struct cache_manager_adapter {
     inline void* get_value_cache_base() const {
         return cm.get_cache_blocks().value_base;
     }
+
 
     inline const int32_t* get_subsequence_begins_or_null() const {
         auto sv = cm.get_subsequence_begins(node_id);
@@ -307,7 +323,7 @@ inline void accumulate_value_from_new_key(int32_t abs_token_idx,
 
 template <typename T>
 void paged_attention(const size_t node_id,
-                     const std::shared_ptr<ov::util::PagedCacheManager>& cache_manager,
+                     const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager>& cache_manager,
                      T* out,
                      T* out_scores,
                      const T* query,
@@ -317,8 +333,8 @@ void paged_attention(const size_t node_id,
                      const T* value_cache,
                      const int32_t* past_lens,
                      const int32_t* subseq_begins_opt,
-                     int32_t* block_indices,
-                     int32_t* block_indices_begins,
+                     const int32_t* block_indices,
+                     const int32_t* block_indices_begins,
                      const T* scale_opt,
                      const int32_t* sliding_window_opt,
                      const T* alibi_slopes_opt,
@@ -347,8 +363,8 @@ void paged_attention(const size_t node_id,
     ctx.past_lens = past_lens;
     const int32_t* subseq_from_cm = cm.get_subsequence_begins_or_null();
     ctx.subsequence_begins = subseq_begins_opt ? subseq_begins_opt : subseq_from_cm;
-    ctx.block_indices = block_indices;
-    ctx.block_indices_begins = block_indices_begins;
+    ctx.block_indices = const_cast<int32_t*>(block_indices);
+    ctx.block_indices_begins = const_cast<int32_t*>(block_indices_begins);
     ctx.alibi_slopes = alibi_slopes_opt;
     ctx.rotated_block_indices = rotated_block_indices_opt;
     ctx.rotation_deltas = rotation_deltas_opt;

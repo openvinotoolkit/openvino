@@ -15,7 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "openvino/core/aligned_buffer.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -29,10 +29,12 @@
 // The number of elements that fit inside is based on the element type of the cache.
 // That means, since PA needs a key and a value cache, each cache receives half the bytes.
 // This cache size does not include the "utilities" such as vector of available blocks, block indices, ect.
-#define CACHE_SIZE 1000000
 
 namespace ov {
-namespace util {
+namespace reference {
+namespace paged_attention_cache {
+            
+inline constexpr std::size_t CACHE_SIZE = 1000000;
 
 class OPENVINO_API PagedCacheManager {
 public:
@@ -236,5 +238,6 @@ void PagedCacheManager::set_block_scores(size_t node_id,
     set_scores_for_blocks_unlocked(node_id, block_indices, fs.data());
 }
 
-}  // namespace util
+}  // namespace paged_attention_cache
+}  // namespace reference
 }  // namespace ov
