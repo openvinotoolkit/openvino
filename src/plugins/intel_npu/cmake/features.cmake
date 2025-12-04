@@ -11,3 +11,5 @@ if(NOT ENABLE_NPU_PLUGIN_ENGINE AND ENABLE_TESTS)
 endif()
 
 ov_dependent_option(ENABLE_INTEL_NPU_PROTOPIPE "Enable Intel NPU Protopipe tool" ON "ENABLE_INTEL_NPU_INTERNAL" OFF)
+
+ov_option(ENABLE_PLUGIN_COMPILER_DOWNLOAD "Enable VCL compiler prebuit package download for NPU compiler" ON)

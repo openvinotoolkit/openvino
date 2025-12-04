@@ -18,6 +18,10 @@ set(NPU_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 include(cmake/features.cmake)
 
+if(ENABLE_PLUGIN_COMPILER_DOWNLOAD)
+    include(cmake/download_compiler_libs.cmake)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 
 if(ENABLE_NPU_DEBUG_CAPS)
