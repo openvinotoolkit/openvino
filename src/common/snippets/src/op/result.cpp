@@ -4,13 +4,16 @@
 
 #include "snippets/op/result.hpp"
 
+#include <algorithm>
 #include <memory>
-#include <typeindex>
-#include <typeinfo>
 
 #include "itt.hpp"
-#include "openvino/core/descriptor_tensor.hpp"
-#include "openvino/op/util/op_types.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/op.hpp"
+#include "snippets/itt.hpp"
 
 namespace ov::snippets::op {
 
