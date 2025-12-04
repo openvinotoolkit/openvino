@@ -9,6 +9,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "intel_npu/config/options.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "vcl_serializer.hpp"
 
@@ -102,6 +103,10 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelNoWeightsCopy) {
                         ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false));
     // If the size changes significantly, then investigation may be required
     ASSERT_TRUE(serializedModel.first < SERIALIZED_MODEL_THRESHOLD_NO_WEIGHTS_COPY);
+
+    ov::pass::StreamSerialize::DataHeader dataHeader;
+    memcpy(&dataHeader, serializedModel.second.get(), sizeof(dataHeader));
+    ASSERT_TRUE(dataHeader.consts_size == 0);
 }
 
 const std::vector<ov::AnyMap> configs = {
