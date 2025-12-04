@@ -9,8 +9,6 @@
 
 #include "moe_gemm_base.hpp"
 
-// #define ENABLE_ONEDNN_FOR_GPU
-
 namespace ov::intel_gpu::ocl {
 
 #define MOE_INTERNAL_BUFFER_TOPK_IDX                       0   // topk_idx
@@ -48,7 +46,6 @@ struct moe_3gemm_config {
     bool has_batch_dim = false;  // 0 - pa, 1 - non-pa
 };
 
-struct MoE3GemmRuntimeParams : public MoEGemmRuntimeParams {
-};
+struct MoE3GemmRuntimeParams : public MoEGemmRuntimeParams {};
 
 }  // namespace ov::intel_gpu::ocl
