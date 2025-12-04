@@ -124,9 +124,9 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 parameters->emplace_back(parameter);
 
                 // Check if input is complex and wrap in ComplexTypeMark if so
-                bool is_complex = raw_type.is<type::Complex>() ||
-                                  (raw_type.is<type::Tensor>() &&
-                                   raw_type.as<type::Tensor>().element_type.is<type::Complex>());
+                bool is_complex =
+                    raw_type.is<type::Complex>() ||
+                    (raw_type.is<type::Tensor>() && raw_type.as<type::Tensor>().element_type.is<type::Complex>());
                 if (is_complex) {
                     // Extract complex part element type if available
                     element::Type complex_part_type = element::dynamic;
@@ -188,9 +188,9 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     inserted_params.push_back(input);
 
                     // Check if input is complex and wrap in ComplexTypeMark if so
-                    bool is_complex = raw_type.is<type::Complex>() ||
-                                      (raw_type.is<type::Tensor>() &&
-                                       raw_type.as<type::Tensor>().element_type.is<type::Complex>());
+                    bool is_complex =
+                        raw_type.is<type::Complex>() ||
+                        (raw_type.is<type::Tensor>() && raw_type.as<type::Tensor>().element_type.is<type::Complex>());
                     if (is_complex) {
                         // Extract complex part element type if available
                         element::Type complex_part_type = element::dynamic;
