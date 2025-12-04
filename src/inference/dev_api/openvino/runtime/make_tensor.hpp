@@ -95,6 +95,6 @@ OPENVINO_RUNTIME_API ov::SoPtr<ov::ITensor> get_tensor_impl(const ov::Tensor& te
  * @return The offset in bytes from the base memory pointer. Returns 0 if the tensor starts at the
  *         beginning of its memory allocation or if no offset is applicable.
  */
-OPENVINO_RUNTIME_API size_t get_tensor_offset(const ov::SoPtr<ov::ITensor>& tensor);
+OPENVINO_RUNTIME_API size_t get_tensor_data_offset(const ov::SoPtr<ov::ITensor>& tensor);
 
 }  // namespace ov
