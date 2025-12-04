@@ -72,7 +72,7 @@ Performance Information F.A.Q.
         - Auto regressive language
         - 128K
       * - `Phi4-mini-Instruct <https://huggingface.co/microsoft/Phi-4-mini-instruct>`__
-        - Huggingface
+        - Hugginface
         - Auto regressive language
         - 4096
       * - `Qwen-2-VL-7B-instruct <https://huggingface.co/Qwen/Qwen2-VL-7B-instruct>`__
@@ -83,7 +83,7 @@ Performance Information F.A.Q.
         - Huggingface
         - Auto regressive language
         - 32K
-      * - `Stable-Diffusion-V1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
+     * - `Stable-Diffusion-V1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
         - Hugginface
         - Latent Diffusion Model
         - 77
