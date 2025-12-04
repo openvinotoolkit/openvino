@@ -27,6 +27,16 @@ namespace ai_onnx {
 namespace {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INPUT NODES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+// std::shared_ptr<ov::Node> normalize_rank(const std::shared_ptr<ov::Node> & input, const size_t target_rank) {
+//     const auto& input_shape = input->get_partial_shape();
+
+//     if (input_shape.rank().is_static() && input_shape.size() < target_rank) {
+//         auto axes = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+//         return std::make_shared<ov::op::v0::Unsqueeze>(input, axes);
+//     }
+//     return input;
+// }
+
 enum class LSTMInput {
     LSTM_INPUT_X,
     LSTM_INPUT_W,
@@ -53,16 +63,33 @@ struct LSTMNgInputMap {
 
         // Weight tensor for the gates.
         // Shape: [num_directions, 4*hidden_size, input_size]
+        auto input_w = ng_inputs.at(1);
+
+        const auto &input_w_shape = input_w.get_partial_shape();
+
+        if (input_w_shape.rank().is_static() && input_w_shape.size() < 3) {
+            auto axes = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+            input_w = std::make_shared<ov::op::v0::Unsqueeze>(input_w, axes);
+        }
+
         m_input_map[LSTMInput::LSTM_INPUT_W] =
-            ov::op::util::convert_lstm_node_format(ng_inputs.at(1),
+            ov::op::util::convert_lstm_node_format(input_w,
                                                    ov::op::util::LSTMWeightsFormat::IOFC,
                                                    ov::op::util::LSTMWeightsFormat::FICO,
                                                    1);
 
         // The recurrence weight tensor.
         // Shape: [num_directions, 4*hidden_size, hidden_size]
-        m_input_map[LSTMInput::LSTM_INPUT_R] =
-            ov::op::util::convert_lstm_node_format(ng_inputs.at(2),
+        auto input_r = ng_inputs.at(2);
+
+        const auto &input_r_shape = input_r.get_partial_shape();
+        
+        if (input_r_shape.rank().is_static() && input_r_shape.size() < 3) {
+            auto axes = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+            input_r = std::make_shared<ov::op::v0::Unsqueeze>(input_r, axes);
+        }
+
+        m_input_map[LSTMInput::LSTM_INPUT_R] = ov::op::util::convert_lstm_node_format(input_r,
                                                    ov::op::util::LSTMWeightsFormat::IOFC,
                                                    ov::op::util::LSTMWeightsFormat::FICO,
                                                    1);
@@ -218,6 +245,15 @@ ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
     LSTMNgInputMap input_map{node};
     LSTMAttributes attributes{node};
     std::shared_ptr<ov::Node> lstm_sequence;
+
+    std::cout << "dupax LSTM_INPUT_X: " << input_map.at(LSTMInput::LSTM_INPUT_X).get_partial_shape() << std::endl;
+    std::cout << "dupax LSTM_INPUT_W: " << input_map.at(LSTMInput::LSTM_INPUT_W).get_partial_shape() << std::endl;
+    std::cout << "dupax LSTM_INPUT_R: " << input_map.at(LSTMInput::LSTM_INPUT_R).get_partial_shape() << std::endl;
+    std::cout << "dupax LSTM_INPUT_B: " << input_map.at(LSTMInput::LSTM_INPUT_B).get_partial_shape() << std::endl;
+    std::cout << "dupax LSTM_INPUT_SEQ_LENGTHS: " << input_map  .at(LSTMInput::LSTM_INPUT_SEQ_LENGTHS).get_partial_shape()
+              << std::endl; 
+    std::cout << "dupax LSTM_INPUT_INIT_H: " << input_map.at(LSTMInput::LSTM_INPUT_INIT_H).get_partial_shape() << std::endl;
+    std::cout << "dupax LSTM_INPUT_INIT_C: " << input_map.at(LSTMInput::LSTM_INPUT_INIT_C).get_partial_shape() << std::endl;
 
     lstm_sequence = std::make_shared<v5::LSTMSequence>(input_map.at(LSTMInput::LSTM_INPUT_X),
                                                        input_map.at(LSTMInput::LSTM_INPUT_INIT_H),

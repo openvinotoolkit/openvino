@@ -244,6 +244,7 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
 
     for (const auto& node : partially_converted->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<ov::frontend::onnx::ONNXFrameworkNode>(node)) {
+                    *output_stream << "------" << std::endl;
             const auto& attrs = fw_node->get_attrs();
             auto node_name = attrs.get_opset_name() + "." + attrs.get_type_name();
             if (unsupported_operations->count(node_name) > 0) {
@@ -253,6 +254,7 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
             print_unsupported(fw_node);
             unsupported_operations->insert(node_name);
         } else if (const auto& fw_node = ov::as_type_ptr<ov::frontend::onnx::NotSupportedONNXNode>(node)) {
+                    *output_stream << "------" << std::endl;
             const auto& attrs = fw_node->get_attrs();
 
             if (fw_node->additional_error_message().empty()) {
@@ -271,6 +273,7 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
             }
 
         } else if (const auto& if_node = ov::as_type_ptr<ov::op::v8::If>(node)) {
+                    *output_stream << "------" << std::endl;
             collect_translation_exceptions(if_node->get_then_body(),
                                            telemetry,
                                            output_stream,
@@ -309,6 +312,7 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
         }
         *output_stream << "Errors during ONNX translation:";
         for (const auto& failure_message : *failures) {
+                    *output_stream << "========" << std::endl;
             auto pos = failure_message.find_last_not_of('\n');
             *output_stream << std::endl
                            << (pos > 0 && pos < failure_message.length() ? failure_message.substr(0, pos + 1)
