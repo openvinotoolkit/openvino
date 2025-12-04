@@ -37,6 +37,7 @@ target_link_libraries(${TARGET_NAME}
         openvino::npu_al
         openvino::npu_common
         openvino::reference
+        openvino::npu_capabilities
 )
 
 target_include_directories(${TARGET_NAME}
