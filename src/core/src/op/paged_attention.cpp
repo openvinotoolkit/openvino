@@ -208,11 +208,13 @@ void PagedAttentionExtension::set_out_type(int index, const ov::element::Type& o
     m_output_type[index] = output_type;
 }
 
-const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> PagedAttentionExtension::get_cache_manager() const {
+const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager>
+PagedAttentionExtension::get_cache_manager() const {
     return m_cache_manager;
 }
 
-void PagedAttentionExtension::set_cache_manager(const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> cache_manager) {
+void PagedAttentionExtension::set_cache_manager(
+    const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> cache_manager) {
     m_cache_manager = cache_manager;
 }
 }  // namespace op

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/reference/utils/paged_cache_manager.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/reference/utils/paged_cache_manager.hpp"
 
 namespace ov {
 namespace op {
@@ -123,7 +123,8 @@ public:
 
     const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> get_cache_manager() const;
 
-    void set_cache_manager(const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> cache_manager);
+    void set_cache_manager(
+        const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> cache_manager);
 
 protected:
     std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic};

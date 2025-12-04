@@ -12,8 +12,8 @@
 #include <string>
 #include <vector>
 
-#include "openvino/reference/utils/paged_cache_manager.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/reference/utils/paged_cache_manager.hpp"
 
 #ifndef PA_DEBUG
 #    define PA_DEBUG 0
@@ -82,7 +82,7 @@ inline int32_t compute_trig_row_index(int32_t rotated_index,
 
 inline int32_t find_first_negative_index(const int32_t* data, size_t n) {
     const int32_t* first = data;
-    const int32_t* last  = data + static_cast<std::ptrdiff_t>(n);
+    const int32_t* last = data + static_cast<std::ptrdiff_t>(n);
 
     auto it = std::find_if(first, last, [](int32_t v) {
         return v < 0;
@@ -93,17 +93,13 @@ inline int32_t find_first_negative_index(const int32_t* data, size_t n) {
 
     return static_cast<int32_t>(std::distance(first, it));
 }
-inline size_t resolve_sequence_index_for_token(
-    size_t token_index,
-    const int32_t* subseq_begins,
-    size_t seq_count) 
-{
+inline size_t resolve_sequence_index_for_token(size_t token_index, const int32_t* subseq_begins, size_t seq_count) {
     if (subseq_begins == nullptr || seq_count <= 1)
         return 0;
 
     for (size_t s = 0; s + 1 < seq_count; ++s) {
         const size_t begin = static_cast<size_t>(subseq_begins[s]);
-        const size_t end   = static_cast<size_t>(subseq_begins[s + 1]);
+        const size_t end = static_cast<size_t>(subseq_begins[s + 1]);
 
         if (token_index >= begin && token_index < end)
             return s;
@@ -158,7 +154,9 @@ struct cache_manager_adapter {
     ov::reference::paged_attention_cache::PagedCacheManager& cm;
     size_t node_id;
 
-    explicit cache_manager_adapter(ov::reference::paged_attention_cache::PagedCacheManager& mgr, size_t node_id) : cm(mgr), node_id(node_id) {}
+    explicit cache_manager_adapter(ov::reference::paged_attention_cache::PagedCacheManager& mgr, size_t node_id)
+        : cm(mgr),
+          node_id(node_id) {}
 
     inline void* get_key_cache_base() const {
         return cm.get_cache_blocks().key_base;
@@ -166,7 +164,6 @@ struct cache_manager_adapter {
     inline void* get_value_cache_base() const {
         return cm.get_cache_blocks().value_base;
     }
-
 
     inline const int32_t* get_subsequence_begins_or_null() const {
         auto sv = cm.get_subsequence_begins(node_id);

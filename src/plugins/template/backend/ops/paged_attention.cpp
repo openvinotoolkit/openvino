@@ -5,8 +5,8 @@
 #include "openvino/reference/paged_attention.hpp"
 
 #include "evaluate_node.hpp"
-#include "openvino/reference/utils/paged_cache_manager.hpp"
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/reference/utils/paged_cache_manager.hpp"
 
 template <ov::element::Type_t ET>
 bool evaluate(ov::TensorVector& outputs,

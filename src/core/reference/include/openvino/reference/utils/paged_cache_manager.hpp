@@ -15,9 +15,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 
 #ifndef CM_DEBUG
 #    define CM_DEBUG 0
@@ -33,7 +33,7 @@
 namespace ov {
 namespace reference {
 namespace paged_attention_cache {
-            
+
 inline constexpr std::size_t CACHE_SIZE = 1000000;
 
 class OPENVINO_API PagedCacheManager {

@@ -13,7 +13,8 @@
 
 #include "openvino/reference/convert.hpp"
 
-ov::reference::paged_attention_cache::PagedCacheManager::PagedCacheManager(ov::element::Type elem_type, std::size_t total_bytes)
+ov::reference::paged_attention_cache::PagedCacheManager::PagedCacheManager(ov::element::Type elem_type,
+                                                                           std::size_t total_bytes)
     : m_elem_type(elem_type),
       m_total_bytes(total_bytes) {
     // Check for perfect split of bytes
@@ -39,10 +40,10 @@ bool ov::reference::paged_attention_cache::PagedCacheManager::operator_registere
 // registration
 // returns unique node_id id assigned to the given node_id
 size_t ov::reference::paged_attention_cache::PagedCacheManager::register_operator(const size_t block_size,
-                                                      const size_t num_heads,
-                                                      const size_t key_head_size,
-                                                      const size_t value_head_size,
-                                                      const size_t query_head_size) {
+                                                                                  const size_t num_heads,
+                                                                                  const size_t key_head_size,
+                                                                                  const size_t value_head_size,
+                                                                                  const size_t query_head_size) {
     operator_state state;
     state.node_id = m_node_id++;
     compute_operator_cache_geometry(state, block_size, num_heads, key_head_size, value_head_size, query_head_size);
@@ -52,15 +53,18 @@ size_t ov::reference::paged_attention_cache::PagedCacheManager::register_operato
 }
 
 // buffers
-ov::reference::paged_attention_cache::PagedCacheManager::cache_blocks ov::reference::paged_attention_cache::PagedCacheManager::get_cache_blocks() const noexcept {
+ov::reference::paged_attention_cache::PagedCacheManager::cache_blocks
+ov::reference::paged_attention_cache::PagedCacheManager::get_cache_blocks() const noexcept {
     const std::size_t half_bytes = m_total_bytes / 2;
     return cache_blocks{const_cast<void*>(m_key_buffer.get_ptr()),
-        const_cast<void*>(m_value_buffer.get_ptr()), half_bytes, half_bytes};
+                        const_cast<void*>(m_value_buffer.get_ptr()),
+                        half_bytes,
+                        half_bytes};
 }
 
 // per-operator metadata
-ov::reference::paged_attention_cache::PagedCacheManager::subsequence_view ov::reference::paged_attention_cache::PagedCacheManager::get_subsequence_begins(
-    size_t node_id) const {
+ov::reference::paged_attention_cache::PagedCacheManager::subsequence_view
+ov::reference::paged_attention_cache::PagedCacheManager::get_subsequence_begins(size_t node_id) const {
     auto it = m_ops.find(node_id);
     if (it == m_ops.end())
         return {};
@@ -70,12 +74,13 @@ ov::reference::paged_attention_cache::PagedCacheManager::subsequence_view ov::re
 
 // Check if sizes match, initialize empty blocks since we know the size of a block and dtype at this point, prepare a
 // state for a given PA
-void ov::reference::paged_attention_cache::PagedCacheManager::compute_operator_cache_geometry(operator_state& state,
-                                                                  const size_t block_size,
-                                                                  const size_t num_heads,
-                                                                  const size_t key_head_size,
-                                                                  const size_t value_head_size,
-                                                                  const size_t query_head_size) {
+void ov::reference::paged_attention_cache::PagedCacheManager::compute_operator_cache_geometry(
+    operator_state& state,
+    const size_t block_size,
+    const size_t num_heads,
+    const size_t key_head_size,
+    const size_t value_head_size,
+    const size_t query_head_size) {
     if (m_block_size != block_size) {
         if (!m_block_size) {
             m_block_size = block_size;
@@ -136,11 +141,14 @@ void ov::reference::paged_attention_cache::PagedCacheManager::compute_operator_c
 }
 
 // block mgmt
-std::vector<std::size_t> ov::reference::paged_attention_cache::PagedCacheManager::acquire_blocks(size_t node_id, std::size_t block_count) {
+std::vector<std::size_t> ov::reference::paged_attention_cache::PagedCacheManager::acquire_blocks(
+    size_t node_id,
+    std::size_t block_count) {
     return acquire_blocks_unlocked(node_id, block_count);
 }
 
-void ov::reference::paged_attention_cache::PagedCacheManager::release_blocks(size_t node_id, const std::vector<std::size_t>& blocks) {
+void ov::reference::paged_attention_cache::PagedCacheManager::release_blocks(size_t node_id,
+                                                                             const std::vector<std::size_t>& blocks) {
     auto it = m_ops.find(node_id);
     if (it == m_ops.end())
         return;
@@ -168,7 +176,9 @@ void ov::reference::paged_attention_cache::PagedCacheManager::release_blocks(siz
 }
 
 // insert & scoring helpers
-std::vector<std::size_t> ov::reference::paged_attention_cache::PagedCacheManager::acquire_blocks_unlocked(size_t node_id, std::size_t block_count) {
+std::vector<std::size_t> ov::reference::paged_attention_cache::PagedCacheManager::acquire_blocks_unlocked(
+    size_t node_id,
+    std::size_t block_count) {
     if (block_count == 0)
         return {};
     auto it = m_ops.find(node_id);
@@ -202,9 +212,10 @@ std::vector<std::size_t> ov::reference::paged_attention_cache::PagedCacheManager
     return granted;
 }
 
-void ov::reference::paged_attention_cache::PagedCacheManager::copy_blocks_into_buffers_unlocked(const void* key_src_bytes,
-                                                                    const void* value_src_bytes,
-                                                                    const std::vector<std::size_t>& block_idxs) {
+void ov::reference::paged_attention_cache::PagedCacheManager::copy_blocks_into_buffers_unlocked(
+    const void* key_src_bytes,
+    const void* value_src_bytes,
+    const std::vector<std::size_t>& block_idxs) {
     if (block_idxs.empty())
         return;
     const auto* ksrc = static_cast<const unsigned char*>(key_src_bytes);
@@ -218,9 +229,10 @@ void ov::reference::paged_attention_cache::PagedCacheManager::copy_blocks_into_b
     }
 }
 
-void ov::reference::paged_attention_cache::PagedCacheManager::set_scores_for_blocks_unlocked(size_t node_id,
-                                                                 const std::vector<std::size_t>& block_idxs,
-                                                                 const float* scores) {
+void ov::reference::paged_attention_cache::PagedCacheManager::set_scores_for_blocks_unlocked(
+    size_t node_id,
+    const std::vector<std::size_t>& block_idxs,
+    const float* scores) {
     auto it = m_ops.find(node_id);
     if (it == m_ops.end())
         OPENVINO_THROW("PagedCacheManager::set_scores_for_blocks_unlocked: unknown handle");
@@ -301,18 +313,17 @@ void ov::reference::paged_attention_cache::PagedCacheManager::evict_to_target_fr
 }
 
 void* ov::reference::paged_attention_cache::PagedCacheManager::offset_key(std::size_t block_idx) const noexcept {
-    unsigned char* base = static_cast<unsigned char*>(
-        const_cast<void*>(m_key_buffer.get_ptr()));
+    unsigned char* base = static_cast<unsigned char*>(const_cast<void*>(m_key_buffer.get_ptr()));
     return static_cast<void*>(base + block_idx * m_block_bytes);
 }
 
 void* ov::reference::paged_attention_cache::PagedCacheManager::offset_value(std::size_t block_idx) const noexcept {
-    unsigned char* base = static_cast<unsigned char*>(
-        const_cast<void*>(m_value_buffer.get_ptr()));
+    unsigned char* base = static_cast<unsigned char*>(const_cast<void*>(m_value_buffer.get_ptr()));
     return static_cast<void*>(base + block_idx * m_block_bytes);
 }
 
-float ov::reference::paged_attention_cache::PagedCacheManager::cast_score_to_float(ov::element::Type et, const void* src_scalar) noexcept {
+float ov::reference::paged_attention_cache::PagedCacheManager::cast_score_to_float(ov::element::Type et,
+                                                                                   const void* src_scalar) noexcept {
     float dst = 0.0f;
     switch (et) {
     case ov::element::f32:
@@ -350,7 +361,8 @@ float ov::reference::paged_attention_cache::PagedCacheManager::cast_score_to_flo
     return dst;
 }
 
-bool ov::reference::paged_attention_cache::PagedCacheManager::is_element_compatible_with_T(ov::element::Type et, size_t sizeofT) noexcept {
+bool ov::reference::paged_attention_cache::PagedCacheManager::is_element_compatible_with_T(ov::element::Type et,
+                                                                                           size_t sizeofT) noexcept {
     return sizeofT == et.size();
 }
 
@@ -367,7 +379,9 @@ void ov::reference::paged_attention_cache::PagedCacheManager::rebuild_evict_heap
     });
 }
 
-bool ov::reference::paged_attention_cache::PagedCacheManager::heap_less(const std::vector<block_t>& blocks, std::size_t a, std::size_t b) noexcept {
+bool ov::reference::paged_attention_cache::PagedCacheManager::heap_less(const std::vector<block_t>& blocks,
+                                                                        std::size_t a,
+                                                                        std::size_t b) noexcept {
     const float sa = (a < blocks.size()) ? blocks[a].score : std::numeric_limits<float>::infinity();
     const float sb = (b < blocks.size()) ? blocks[b].score : std::numeric_limits<float>::infinity();
     return sa > sb;  // lower score = higher eviction priority
