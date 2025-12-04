@@ -20,7 +20,9 @@ namespace intel_npu {
     nmr_symbol_statement(npuMLIRRuntimePredictOutputShape)      \
     nmr_symbol_statement(npuMLIRRuntimeCreateMemRef)            \
     nmr_symbol_statement(npuMLIRRuntimeDestroyMemRef)           \
-    nmr_symbol_statement(npuMLIRRuntimeSetMemRef)
+    nmr_symbol_statement(npuMLIRRuntimeSetMemRef)               \
+    nmr_symbol_statement(npuMLIRRuntimeParseMemRef)
+
 
 //unsupported symbols with older runtime versions
 #define nmr_weak_symbols_list()

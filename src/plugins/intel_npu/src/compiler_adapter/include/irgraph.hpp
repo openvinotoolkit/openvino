@@ -128,6 +128,8 @@ public:
             }
         }
 
+	void alignWithHandle();
+
     private:
         void createMemRef() {
             auto result =

@@ -35,6 +35,17 @@ void IRGraph::MemRefType::updateStride() {
     }
 }
 
+void IRGraph::MemRefType::alignWithHandle() {
+    if (memRef == nullptr) {
+        return;
+    }
+
+    if(npuMLIRRuntimeParseMemRef(
+        memRef, &basePtr, &data, &offset, sizes.data(), strides.data(), &dimsCount) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+        throw std::runtime_error("Failed to parse MemRef handle");
+    }
+}
+
 IRGraph::GraphArguments::GraphArguments(const GraphArguments& args) {
     *this = args;
 }
@@ -516,6 +527,15 @@ void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
     if (npuMLIRRuntimePredictOutputShape(_engine, inputs.data(), (uint32_t)inputs.size(), outputs.data(), (uint32_t)outputs.size()) !=
         NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute MLIR runtime engine");
+    } else {
+	    // Update MemRefType with the info from handle
+        // for (auto& in : inputDescriptors) {
+        //     in.alignWithHandle();
+        // }
+        for (auto& out : outputDescriptors) {
+            out.alignWithHandle();
+        }
+        _logger.debug("Output shape prediction is done successfully.");
     }
 }
 
