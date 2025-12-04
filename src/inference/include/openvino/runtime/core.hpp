@@ -56,8 +56,10 @@ public:
     explicit Core(const std::string& xml_config_file = {});
 
     /** @brief Constructs an OpenVINO Core instance with devices and their plugins description. */
-    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    explicit Core(const Path& xml_config_file) : Core(xml_config_file.string()) {}
+    explicit Core(const std::filesystem::path& xml_config_file);
+
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
+    explicit Core(const TPath& xml_config_file) : Core(std::string(xml_config_file)) {}
 
     /**
      * @brief Returns device plugins version information.
@@ -847,6 +849,7 @@ public:
     /** @brief Register a new device and plugin that enables this device inside OpenVINO Runtime. */
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     void register_plugin(const Path& plugin_path, const std::string& device_name, const AnyMap& config = {}) {
+        printf("PATH VERSION Register_plugin from:\n");
         register_plugin(plugin_path.string(), device_name, config);
     }
 
@@ -896,6 +899,9 @@ public:
      */
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     void register_plugins(const Path& xml_config_file) {
+        printf("Registering plugins from: %s\n", xml_config_file.string().c_str());
+        std::cout << "Debug info" << std::endl;
+        std::cerr << "Sfsdfsdf" << std::endl;
         register_plugins(xml_config_file.string());
     }
 

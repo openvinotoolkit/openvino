@@ -77,6 +77,16 @@ Core::Core(const std::string& xml_config_file) {
     OV_CORE_CALL_STATEMENT(_impl->register_compile_time_plugins();)
 }
 
+Core::Core(const std::filesystem::path& xml_config_file)
+    : Core(
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+          ov::util::wstring_to_string(xml_config_file.wstring())
+#else
+          xml_config_file.string()
+#endif
+      ) {
+}
+
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
     OV_CORE_CALL_STATEMENT({ return _impl->get_versions(device_name); })}
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -256,6 +266,7 @@ std::vector<std::string> Core::get_available_devices() const {
 }
 
 void Core::register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties) {
+    printf("cpp Register plugin from");
     OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin, device_name, properties););
 }
 
@@ -269,6 +280,7 @@ void Core::unload_plugin(const std::string& device_name) {
 }
 
 void Core::register_plugins(const std::string& xml_config_file) {
+    printf("cpp Registering plugins from: %s\n", xml_config_file.c_str());
     OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(xml_config_file););
 }
 
