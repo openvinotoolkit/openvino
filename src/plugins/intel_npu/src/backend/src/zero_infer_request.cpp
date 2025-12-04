@@ -764,7 +764,8 @@ void ZeroInferRequest::infer_async() {
                 OPENVINO_ASSERT(memHandleObject.has_value(),
                                 "Remote tensor does not have mem_handle property for input index: ",
                                 inputIndex);
-                userBuffer = static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_offset(userRemoteTensor);
+                userBuffer =
+                    static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_data_offset(userRemoteTensor);
             }
         } else {
             userBuffer = userTensor.at(SINGLE_TENSOR)->data();
@@ -822,7 +823,8 @@ void ZeroInferRequest::get_result() {
                 OPENVINO_ASSERT(memHandleObject.has_value(),
                                 "Remote tensor does not have mem_handle property for output index: ",
                                 outputIndex);
-                userBuffer = static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_offset(userRemoteTensor);
+                userBuffer =
+                    static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_data_offset(userRemoteTensor);
             }
         } else {
             userBuffer = userTensor->data();
