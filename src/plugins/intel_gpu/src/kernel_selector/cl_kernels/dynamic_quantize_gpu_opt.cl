@@ -10,6 +10,8 @@
 #error "dynamic_quantize_gpu_opt.cl: Unsupported output dimension"
 #endif
 
+#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
+
 #define VLOAD_N CAT(vload, VEC_SIZE)
 #define VSTORE_N CAT(vstore, VEC_SIZE)
 #define CONVERT_UCHAR_N CAT(convert_uchar, VEC_SIZE)
@@ -22,7 +24,15 @@
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
-#define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
+#if IS_F8
+    #define SCALE_TYPE float
+    #define TO_SCALE_TYPE(x) _convert_float(x)
+    #define ACT_MIN_VAL 0.000000059604645h // min half dtype val
+#else
+    #define SCALE_TYPE half
+    #define TO_SCALE_TYPE(x) _convert_half(x)
+    #define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
+#endif
 
 #if GENERATE_PRECOMPUTED_REDUCTION
     #define FOR_PRECOMPUTED_REDUCTION(x)  x
@@ -30,8 +40,6 @@
     #define FOR_PRECOMPUTED_REDUCTION(x)
 #endif
 
-
-#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
 
 // ***********************************************
 #if DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_SMALL_GS
@@ -84,15 +92,15 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if IS_MXFP
     float out_dt_max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(_convert_float(OUTPUT_VAL_MAX)));
     float max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(max_value));
-    half quan_scale = out_dt_max_val_rounded_down / max_val_rounded_down;
+    SCALE_TYPE quan_scale = out_dt_max_val_rounded_down / max_val_rounded_down;
 #else
-    half quan_scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
+    SCALE_TYPE quan_scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
     FOR_PRECOMPUTED_REDUCTION(int precomputed_reduction = 0);
 #endif // MXFP
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
 #if IS_F8
-        quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, input_0[i] * (half4)quan_scale);
+        quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, convert_float4(input_0[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 4))quan_scale);
         vstore4(quantized_value[i].data, 0, (char*)(&output[output_offset + i * 4]));
 #else
         quantized_value[i] = convert_char4(input_0[i] * (half4)quan_scale);
@@ -106,7 +114,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #else
     const uint output_idx = OUTPUT1_GET_INDEX(b, f, y_grp, 0);
 #endif
-    output_scale[output_idx] = TO_OUTPUT1_TYPE(1.0h / quan_scale);
+    output_scale[output_idx] = TO_OUTPUT1_TYPE(1 / quan_scale);
 
     FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[output_idx] = precomputed_reduction);
 }
@@ -208,7 +216,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
     OUTPUT2_TYPE zp = (OUTPUT2_TYPE)(-min_value * scale);
 #else
-    OUTPUT1_TYPE scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
+    OUTPUT1_TYPE scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
 #endif
 
     val *= scale;
@@ -339,7 +347,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
     OUTPUT2_TYPE zp = (OUTPUT2_TYPE)(-min_value * scale);
 #else
-    OUTPUT1_TYPE scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
+    OUTPUT1_TYPE scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
 #endif
 
 

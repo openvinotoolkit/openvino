@@ -7,7 +7,18 @@
 #include "include/batch_headers/fetch_data.cl"
 
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF
-#define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
+
+#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
+
+#if IS_F8
+    #define SCALE_TYPE float
+    #define TO_SCALE_TYPE(x) _convert_float(x)
+    #define ACT_MIN_VAL 0.000000059604645h // min half dtype val
+#else
+    #define SCALE_TYPE half
+    #define TO_SCALE_TYPE(x) _convert_half(x)
+    #define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
+#endif
 
 #if F8E5M2_OUTPUT
     #define TO_OUTPUT_TYPE_CUSTOM(val)  _convert_fp8e5m2_t_sat(val)
@@ -44,8 +55,6 @@ inline uint FUNC(get_scales_offset)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint
     return FUNC_CALL(get_scales_offset_nt)(OPTIONAL_SHAPE_INFO_TENSOR b, f, y, x);
 #endif
 }
-
-#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
 
 KERNEL(dynamic_quantize_gpu_ref)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -138,9 +147,9 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if IS_MXFP
     float out_dt_max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(_convert_float(OUTPUT_VAL_MAX)));
     float max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(max_val));
-    half scale = out_dt_max_val_rounded_down / max_val_rounded_down;
+    SCALE_TYPE scale = out_dt_max_val_rounded_down / max_val_rounded_down;
 #else
-    half scale = _convert_half(OUTPUT_VAL_MAX) / max_val;
+    SCALE_TYPE scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_val;
 #endif // IS_FP8
 #endif // ASYMMETRIC_QUANTIZATION
 
