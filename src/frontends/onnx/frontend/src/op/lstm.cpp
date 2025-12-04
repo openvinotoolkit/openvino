@@ -13,6 +13,8 @@
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tile.hpp"
 #include "openvino/util/common_util.hpp"
 #include "utils/reshape.hpp"
 #include "utils/split.hpp"
@@ -37,6 +39,32 @@ enum class LSTMInput {
     LSTM_INPUT_P
 };
 
+// Helper function to reduce tensor rank to target_rank by squeezing leading dimensions.
+// Per ONNX specification, LSTM requires rank-3 inputs, so extra dimensions must be == 1.
+// If extra dimensions are != 1 at runtime, Squeeze will fail with a clear error.
+ov::Output<ov::Node> reduce_tensor_rank(const ov::Output<ov::Node>& input, int64_t target_rank) {
+    const auto& input_shape = input.get_partial_shape();
+
+    if (input_shape.rank().is_dynamic()) {
+        return input;
+    }
+
+    const auto input_rank = input_shape.rank().get_length();
+
+    if (input_rank <= target_rank) {
+        return input;
+    }
+
+    // Squeeze all leading dimensions to reduce rank to target_rank
+    std::vector<int64_t> axes_to_squeeze;
+    for (int64_t i = 0; i < input_rank - target_rank; ++i) {
+        axes_to_squeeze.push_back(i);
+    }
+
+    auto axes_const = v0::Constant::create(ov::element::i64, Shape{axes_to_squeeze.size()}, axes_to_squeeze);
+    return std::make_shared<v0::Squeeze>(input, axes_const);
+}
+
 struct LSTMNgInputMap {
     explicit LSTMNgInputMap(const Node& node) {
         const auto& ng_inputs = node.get_ov_inputs();
@@ -48,7 +76,14 @@ struct LSTMNgInputMap {
         // Packed input sequences.
         // ONNX Shape: [seq_length, batch_size, input_size]
         // OpenVino Shape: [batch_size, seq_length, input_size]
-        m_input_map[LSTMInput::LSTM_INPUT_X] = ov::op::util::reorder_axes(ng_inputs.at(0), {1, 0, 2});
+
+        // First reduce rank if needed, THEN reorder axes
+        // This is important because Squeeze changes dimension indices
+        auto input_x = ng_inputs.at(0);
+        input_x = reduce_tensor_rank(input_x, 3);
+        input_x = ov::op::util::reorder_axes(input_x, {1, 0, 2});
+
+        m_input_map[LSTMInput::LSTM_INPUT_X] = input_x;
 
         // Weight tensor for the gates.
         // Shape: [num_directions, 4*hidden_size, input_size]
@@ -124,7 +159,12 @@ struct LSTMNgInputMap {
         // ONNX Shape: [num_directions, batch_size, hidden_size]
         // OpenVino Shape: [batch_size, num_directions, hidden_size]
         if (ng_inputs.size() > 5 && !ov::op::util::is_null(ng_inputs.at(5))) {
-            m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = ov::op::util::reorder_axes(ng_inputs.at(5), {1, 0, 2});
+            auto init_h = ng_inputs.at(5);
+            // First reduce rank, THEN reorder axes
+            init_h = reduce_tensor_rank(init_h, 3);
+            init_h = ov::op::util::reorder_axes(init_h, {1, 0, 2});
+
+            m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = init_h;
         } else {
             auto init_h_shape =
                 std::make_shared<v0::Concat>(ov::OutputVector{batch_size_node, num_directions_node, hidden_size_node},
@@ -137,7 +177,12 @@ struct LSTMNgInputMap {
         // ONNX Shape: [num_directions, batch_size, hidden_size]
         // OpenVino Shape: [batch_size, num_directions, hidden_size]
         if (ng_inputs.size() > 6 && !ov::op::util::is_null(ng_inputs.at(6))) {
-            m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = ov::op::util::reorder_axes(ng_inputs.at(6), {1, 0, 2});
+            auto init_c = ng_inputs.at(6);
+            // First reduce rank, THEN reorder axes
+            init_c = reduce_tensor_rank(init_c, 3);
+            init_c = ov::op::util::reorder_axes(init_c, {1, 0, 2});
+
+            m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = init_c;
         } else {
             auto init_c_shape =
                 std::make_shared<v0::Concat>(ov::OutputVector{batch_size_node, num_directions_node, hidden_size_node},
