@@ -46,7 +46,7 @@ huggingface-hub==0.34.0
 
 # For now, we decided to pin a specific working version of optimum-intel.
 # It will be discussed in the future how to manage versioning of the components properly.
-git+https://github.com/huggingface/optimum-intel.git@8ba536cd0a2bf93e9e88408b0048a7695db5be0b; python_version < "3.12"
+git+https://github.com/huggingface/optimum-intel.git@04db016571d1a19c14918553365ee4c05c8b4697; python_version < "3.12"
 # set 'export HF_HUB_ENABLE_HF_TRANSFER=1' to benefits from hf_transfer
 hf_transfer==0.1.8
 
