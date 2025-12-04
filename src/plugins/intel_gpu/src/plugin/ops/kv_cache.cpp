@@ -32,7 +32,7 @@ void CreateKVCacheOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::
                                 ov::util::normalize(op->get_concat_axis(), rank),
                                 ov::util::normalize(op->get_gather_axis(), rank),
                                 op->get_indirect(),
-                                op->get_trim());
+                                op->get_update_kv());
 
     prim.num_outputs = op->get_output_size();
     prim.output_data_types = get_output_data_types(op);
@@ -50,7 +50,7 @@ void CreateKVCacheCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
                                 ov::util::normalize(op->get_concat_axis(), rank),
                                 ov::util::normalize(op->get_gather_axis(), rank),
                                 op->get_indirect(),
-                                op->get_trim());
+                                op->get_update_kv());
 
     prim.compressed = true;
     prim.quantization_attributes = op->get_quantization_attrs();

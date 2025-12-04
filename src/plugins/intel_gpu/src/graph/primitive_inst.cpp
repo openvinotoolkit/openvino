@@ -1474,7 +1474,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial present_layout : " << present_layout.to_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial past_layout : " << past_layout.to_string() << std::endl;
-    if (desc->trim && _impl_params->kv_cache_trim_length > 0) {
+    if (desc->update_kv && _impl_params->kv_cache_trim_length > 0) {
         GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " kv cache trim_length : " << _impl_params->kv_cache_trim_length << std::endl;
         auto trimmed_past_shape = past_layout.get_shape();
         trimmed_past_shape[sequence_axis] -= _impl_params->kv_cache_trim_length;

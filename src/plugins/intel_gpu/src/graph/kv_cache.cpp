@@ -34,7 +34,7 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
                                            impl_param.get_input_layout(1).get<ShapeType>()};
                                      
     std::unordered_map<size_t, ov::Tensor> const_data;
-    if (desc->trim) {
+    if (desc->update_kv) {
         if(impl_param.memory_deps.count(2) > 0)
         {
             auto past_seq_len_mem = impl_param.memory_deps.at(2);
@@ -62,7 +62,7 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
         op.set_concat_axis(desc->concat_axis);
         op.set_gather_axis(desc->gather_axis);
         op.set_quantization_attrs(desc->quantization_attributes);
-        if (desc->trim) {
+        if (desc->update_kv) {
             if (auto past_dim_updated = ov::op::get_input_const_data_as<ov::PartialShape, int64_t>(&op, 1, ov::make_tensor_accessor(const_data))) {
                 auto past_dim_stored = input_shapes[0][desc->concat_axis];
                 if (past_dim_stored.is_static()) {
@@ -85,7 +85,7 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
         op.set_output_size(desc->num_outputs);
         op.set_concat_axis(desc->concat_axis);
         op.set_gather_axis(desc->gather_axis);
-       if (desc->trim) {
+       if (desc->update_kv) {
             if (auto past_dim_updated = ov::op::get_input_const_data_as<ov::PartialShape, int64_t>(&op, 1, ov::make_tensor_accessor(const_data))) {
                 auto past_dim_stored = input_shapes[0][desc->concat_axis];
                 if (past_dim_stored.is_static()) {

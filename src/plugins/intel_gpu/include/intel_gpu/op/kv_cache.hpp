@@ -71,7 +71,7 @@ public:
     void set_gather_axis(int64_t axis) { m_gather_axis = axis; }
 
     bool get_indirect() const { return m_indirect; }
-    bool get_trim() const { return m_trim; }
+    bool get_update_kv() const { return m_update_kv; }
 
     uint64_t get_trim_length() const { return m_trim_length; }
     void set_trim_length(uint64_t trim_length) { m_trim_length = trim_length; }
@@ -87,7 +87,7 @@ protected:
     int64_t m_concat_axis = 0;
     int64_t m_gather_axis = 0;
     bool m_indirect = false;
-    bool m_trim = false;
+    bool m_update_kv = false;
     uint64_t m_trim_length = 0;
 
     ov::element::Type m_output_type;

@@ -60,7 +60,7 @@ KVCache::KVCache(const Output<Node>& past,
                  int64_t gather_axis,
                  const ov::element::Type output_type)
     : KVCache({past, new_token_data, beam_idx, split_seq, src_idx, dst_idx}, past_variable, true, concat_axis, gather_axis, output_type) {
-    m_trim = true;
+    m_update_kv = true;
     if (m_indirect)
         set_output_size(2);
     validate_and_infer_types();
@@ -75,7 +75,7 @@ KVCache::KVCache(const Output<Node>& past,
                  int64_t concat_axis,
                  const ov::element::Type output_type)
     : KVCache({past, new_token_data, split_seq, src_idx, dst_idx}, past_variable, false, concat_axis, 0, output_type) {
-    m_trim = true;
+    m_update_kv = true;
     m_variable = past_variable;
     validate_and_infer_types();
 }

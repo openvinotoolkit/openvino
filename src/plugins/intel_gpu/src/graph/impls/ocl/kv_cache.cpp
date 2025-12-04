@@ -312,7 +312,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         return layout{beam_table_shape, impl_param.output_layouts[1].data_type, format::get_default_format(beam_table_shape.size())};
     }
 
-    static kernel_selector::reorder_kv_cache_params get_reorder_trim_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+    static kernel_selector::reorder_kv_cache_params get_reorder_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<kv_cache>();
         auto params = get_default_params<kernel_selector::reorder_kv_cache_params>(impl_param, is_shape_agnostic);
 
@@ -352,14 +352,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         const auto inputs_count = 2;
         params.inputs.resize(inputs_count);
         for (size_t i = 0; i < inputs_count; ++i) {
-            auto target_layout = impl_param.input_layouts[i];
-            // Trim the cache
-            /*if (i == 0 && primitive->trim) {
-                auto shape = target_layout.get_partial_shape();
-                shape[axis] = shape[axis] - primitive->trim;
-                target_layout.set_partial_shape(shape);
-            }*/
-            params.inputs[i] = convert_data_tensor(target_layout);
+            params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i]);
         }
 
         params.axis = convert_axis(axis, impl_param.get_output_layout().get_rank());
@@ -510,7 +503,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     static std::unique_ptr<primitive_impl> create(const typed_program_node<kv_cache>& arg, const kernel_impl_params& impl_param) {
         std::vector<kernel_selector::kernel_data> kernels_data;
         if (impl_param.typed_desc<kv_cache>()->input.size() >= 3) {
-            auto reorder_kernel_params = get_reorder_trim_kernel_params(impl_param, impl_param.is_dynamic());
+            auto reorder_kernel_params = get_reorder_kernel_params(impl_param, impl_param.is_dynamic());
             auto& reorder_kernel_selector = kernel_selector::reorder_kv_cache_kernel_selector::Instance();
             kernels_data.push_back(reorder_kernel_selector.get_best_kernel(reorder_kernel_params));
         }
@@ -546,7 +539,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto reorder_kernel_params = get_reorder_trim_kernel_params(impl_param, true);
+        auto reorder_kernel_params = get_reorder_kernel_params(impl_param, true);
         (_kernels_data[reorder_trim_stage].update_dispatch_data_func)(reorder_kernel_params, _kernels_data[reorder_trim_stage]);
         _kernels_data[reorder_trim_stage].kernels[0].skip_execution = (reorder_kernel_params.seq_len == 0) || (reorder_kernel_params.idx_len == 0);
 
