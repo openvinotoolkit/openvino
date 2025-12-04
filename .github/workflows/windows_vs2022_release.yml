@@ -32,6 +32,7 @@ permissions: read-all
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
@@ -56,6 +57,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+          check_names_to_wait: "triage,clang-format,clang-format-aarch64,clang-format-riscv64,ShellCheck,NamingConventionCheck"
 
       - name: Get target branch
         id: set_target_branch
