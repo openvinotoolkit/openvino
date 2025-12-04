@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -166,6 +166,18 @@ struct Npu {
     static constexpr const char* name = "MockNPU";
     static constexpr int num_device_ids = 3;
 };
+struct NpuForPrefill {
+    static constexpr const char* name = "MockNPUForPrefill";
+    static constexpr int num_device_ids = 3;
+};
+struct NpuForGenerate {
+    static constexpr const char* name = "MockNPUForGenerate";
+    static constexpr int num_device_ids = 3;
+};
+struct NpuForLMHead {
+    static constexpr const char* name = "MockNPUForLMHead";
+    static constexpr int num_device_ids = 3;
+};
 struct Cpu {
     static constexpr const char* name = "MockCPU";
     static constexpr int num_device_ids = 2;
@@ -173,6 +185,9 @@ struct Cpu {
 } //namespace mocks
 
 using MockNpuPlugin = testing::NiceMock<MockPluginBase<mocks::Npu>>;
+using MockNpuPluginForPrefill = testing::NiceMock<MockPluginBase<mocks::NpuForPrefill>>;
+using MockNpuPluginForGenerate = testing::NiceMock<MockPluginBase<mocks::NpuForGenerate>>;
+using MockNpuPluginForLMHead = testing::NiceMock<MockPluginBase<mocks::NpuForLMHead>>;
 using MockCpuPlugin = testing::NiceMock<MockPluginBase<mocks::Cpu>>;
 
 }  // namespace tests
