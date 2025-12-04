@@ -44,7 +44,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     const auto byte_size = ov::util::get_memory_size_safe(element_type, _shape);
     OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", element_type, " and shape: ", _shape);
 
-    _bytes_capacity = get_bytes_capacity();
+    _bytes_capacity = get_byte_size();
 
     _mem_ref = ZeroMemPool::get_instance().allocate_zero_memory(_init_structs,
                                                                 byte_size.value(),

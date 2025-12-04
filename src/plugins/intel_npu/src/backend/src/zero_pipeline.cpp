@@ -101,20 +101,32 @@ Pipeline::Pipeline(const Config& config,
             }
 
             const auto& tensor = input_tensors.at(io_index).at(0);
-            graph->set_argument_value(
-                desc.indexUsedByDriver,
-                static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _number_of_command_lists,
-                get_strides(tensor));
+
+            if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
+                graph->set_argument_value(desc.indexUsedByDriver,
+                                          static_cast<unsigned char*>(tensor->data()) +
+                                              (i * tensor->get_byte_size()) / _number_of_command_lists);
+            } else {
+                graph->set_argument_value(desc.indexUsedByDriver,
+                                          static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
+                                          get_strides(tensor->get_strides(), tensor->get_element_type().size()));
+            }
+
             ++io_index;
         }
 
         io_index = 0;
         for (const auto& desc : _graph->get_metadata().outputs) {
             const auto& tensor = output_tensors.at(io_index);
-            graph->set_argument_value(
-                desc.indexUsedByDriver,
-                static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _number_of_command_lists,
-                get_strides(tensor));
+            if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
+                graph->set_argument_value(desc.indexUsedByDriver,
+                                          static_cast<unsigned char*>(tensor->data()) +
+                                              (i * tensor->get_byte_size()) / _number_of_command_lists);
+            } else {
+                graph->set_argument_value(desc.indexUsedByDriver,
+                                          static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
+                                          get_strides(tensor->get_strides(), tensor->get_element_type().size()));
+            }
             ++io_index;
         }
 
@@ -229,10 +241,16 @@ void Pipeline::update_graph_arguments(uint32_t index, const std::shared_ptr<Zero
     const size_t number_of_command_lists = _command_lists.size();
 
     for (size_t i = 0; i < number_of_command_lists; i++) {
-        _command_lists.at(i)->updateMutableCommandList(
-            index,
-            static_cast<const unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / number_of_command_lists,
-            get_strides(tensor));
+        if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
+            _command_lists.at(i)->updateMutableCommandList(index,
+                                                           static_cast<const unsigned char*>(tensor->data()) +
+                                                               (i * tensor->get_byte_size()) / number_of_command_lists);
+        } else {
+            _command_lists.at(i)->updateMutableCommandList(
+                index,
+                static_cast<const unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
+                get_strides(tensor->get_strides(), tensor->get_element_type().size()));
+        }
     }
 };
 
@@ -248,7 +266,14 @@ void Pipeline::update_graph_arguments(uint32_t index,
                     "Command list index is higher than the number of Command lists ",
                     command_list_index);
 
-    _command_lists.at(command_list_index)->updateMutableCommandList(index, tensor->data(), get_strides(tensor));
+    if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
+        _command_lists.at(command_list_index)->updateMutableCommandList(index, tensor->data());
+    } else {
+        _command_lists.at(command_list_index)
+            ->updateMutableCommandList(index,
+                                       tensor->data(),
+                                       get_strides(tensor->get_strides(), tensor->get_element_type().size()));
+    }
 };
 
 std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
@@ -274,28 +299,21 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
     }
 }
 
-std::vector<size_t> Pipeline::get_strides(const std::shared_ptr<ZeroTensor>& tensor) {
-    if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous()) {
-        return {};
-    }
+std::vector<size_t> Pipeline::get_strides(const std::vector<size_t>& strides_in_bytes, size_t element_size) const {
+    std::vector<size_t> element_strides(strides_in_bytes.size());
+    std::transform(strides_in_bytes.rbegin(),
+                   strides_in_bytes.rend(),
+                   element_strides.begin(),
+                   [element_size](size_t byte_stride) {
+                       OPENVINO_ASSERT(byte_stride % element_size == 0,
+                                       "Stride ",
+                                       byte_stride,
+                                       " bytes is not aligned to element size ",
+                                       element_size,
+                                       " bytes. Strides must be multiples of element size.");
 
-    auto ov_strides = tensor->get_strides();
-    if (ov_strides.empty()) {
-        return {};
-    }
-
-    auto element_size = tensor->get_element_type().size();
-    std::vector<size_t> element_strides(ov_strides.size());
-    std::transform(ov_strides.rbegin(), ov_strides.rend(), element_strides.begin(), [element_size](size_t byte_stride) {
-        OPENVINO_ASSERT(byte_stride % element_size == 0,
-                        "Stride ",
-                        byte_stride,
-                        " bytes is not aligned to element size ",
-                        element_size,
-                        " bytes. Strides must be multiples of element size.");
-
-        return byte_stride / element_size;
-    });
+                       return byte_stride / element_size;
+                   });
 
     return element_strides;
 };

@@ -35,7 +35,7 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
 protected:
-    std::vector<size_t> get_strides(const std::shared_ptr<ZeroTensor>& tensor);
+    std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, size_t element_size) const;
 
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;
