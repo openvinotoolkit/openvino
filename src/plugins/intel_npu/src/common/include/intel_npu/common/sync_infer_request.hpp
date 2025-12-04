@@ -135,7 +135,8 @@ protected:
      * @param tensors Input tensors
      */
     void check_batched_tensors(const ov::Output<const ov::Node>& port,
-                               const std::vector<ov::SoPtr<ov::ITensor>>& tensors) const;
+                               const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                               const bool support_strides) const;
 
     /**
      * @brief Check that all tensors are valid. Throws an exception if it's not.
