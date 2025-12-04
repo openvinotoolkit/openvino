@@ -8,10 +8,12 @@
 
 #include <memory>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/shape_util.hpp"
 
-using namespace std;
-using namespace ov;
+namespace ov::test {
+
+using namespace ::testing;
 
 TEST(shape, test_shape_size) {
     ASSERT_EQ(1, shape_size(ov::Shape{}));
@@ -47,19 +49,19 @@ TEST(shape, subscribe_operator) {
     EXPECT_EQ(shape[1], 200);
     EXPECT_EQ(shape[4], 7);
 
-    EXPECT_EQ(shape[-3], 5);
-    EXPECT_EQ(shape[-5], 100);
-    EXPECT_EQ(shape[-4], 200);
-    EXPECT_EQ(shape[-1], 7);
+    EXPECT_EQ(shape(-3), 5);
+    EXPECT_EQ(shape(-5), 100);
+    EXPECT_EQ(shape(-4), 200);
+    EXPECT_EQ(shape(-1), 7);
 }
 
 TEST(shape, at_throw_exception) {
     auto shape = ov::Shape{1, 2, 3, 4, 5, 6, 7};
 
-    EXPECT_THROW(shape.at(7), ov::Exception);
-    EXPECT_THROW(shape.at(1000), ov::Exception);
-    EXPECT_THROW(shape.at(-8), ov::Exception);
-    EXPECT_THROW(shape.at(-80000), ov::Exception);
+    EXPECT_THROW(shape.at(7), std::exception);
+    EXPECT_THROW(shape.at(1000), std::exception);
+    EXPECT_THROW(shape.at(-8), std::exception);
+    EXPECT_THROW(shape.at(-80000), std::exception);
 }
 
 TEST(shape, shape_size_overflow) {
@@ -69,3 +71,4 @@ TEST(shape, shape_size_overflow) {
     EXPECT_EQ(ov::util::shape_size_safe({3, max / 4, 2}), std::nullopt);
     EXPECT_EQ(ov::util::shape_size_safe({3, max / 4}).value(), (3 * (max / 4)));
 }
+}  // namespace ov::test
