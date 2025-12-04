@@ -159,10 +159,9 @@ DnnlMemoryDescPtr DnnlMatMulPrimitive::makeTransposedWeightDescriptor(const Dnnl
         auto dims = desc.get_dims();
         if (transpose) {
             std::swap(dims[dims.size() - 1], dims[dims.size() - 2]);
-            return dims;
         }
 
-        return desc.get_dims();
+        return dims;
     };
 
     auto getFormat = [](const size_t rank, const bool transpose) {
