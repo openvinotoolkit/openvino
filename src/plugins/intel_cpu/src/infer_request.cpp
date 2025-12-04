@@ -170,7 +170,8 @@ static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& 
     } else {
         auto memBlock = mem->getMemoryBlock();
         OPENVINO_ASSERT(memBlock);
-        memBlock->setExtBuff(tensor->data(), tensor->get_byte_size());
+        // Use const cast as as `MemoryBlockPtr` not supports const pointers. The model inputs may have const pointers.
+        memBlock->setExtBuff(const_cast<void*>(std::as_const(*tensor).data()), tensor->get_byte_size());
     }
 }
 
@@ -180,7 +181,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
     if (graph.IsDynamic()) {
         changeInpPtr = [&inputPtrs](const EdgePtr& edge, ov::SoPtr<ov::ITensor>& tensor) {
             change_edge_ptr(edge, tensor);
-            inputPtrs.insert(tensor->data());
+            inputPtrs.insert(std::as_const(*tensor._ptr).data());
         };
     } else {
         changeInpPtr = [](const EdgePtr& edge, ov::SoPtr<ov::ITensor>& tensor) {
@@ -188,10 +189,10 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
         };
     }
 
-    for (auto& it : m_input_external_ptr) {
-        auto inputNodePtr = graph.getInputNodeByIndex(it.first);
-        OPENVINO_ASSERT(inputNodePtr, "Cannot find input tensor with index: ", it.first);
-        if (inputNodePtr->getDstDataAtPort(0) == it.second->data()) {
+    for (auto& [idx, tensor] : m_input_external_ptr) {
+        auto inputNodePtr = graph.getInputNodeByIndex(idx);
+        OPENVINO_ASSERT(inputNodePtr, "Cannot find input tensor with index: ", idx);
+        if (inputNodePtr->getDstDataAtPort(0) == std::as_const(*tensor).data()) {
             continue;
         }
         const auto& childEdges = inputNodePtr->getChildEdges();
@@ -230,7 +231,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
                 if (!e) {
                     OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
                 }
-                changeInpPtr(e, it.second);
+                changeInpPtr(e, tensor);
             }
         }
     }
@@ -364,15 +365,18 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
     OPENVINO_ASSERT(in_tensor, "Failed to set empty tensor for port!");
     auto port = get_internal_port(in_port);
     auto tensor = in_tensor;
+    auto port_found = find_port(in_port);
 
     // WA: legacy api create blob with ANY layout will not set BlockingDesc, which will lead to tensor.get_shape()
     // return empty shape but tensor.get_size() return correct value, and tensor.reshape() cannot update
     // BlockingDesc, so to construct new tensor with original tensor's data, which is only for ov legacy api usage.
     if (in_port.get_partial_shape().is_static() && in_tensor->get_size() > 0 && in_tensor->get_shape().empty() &&
         in_tensor->get_size() == ov::shape_size(in_port.get_shape()) && !in_port.get_shape().empty()) {
-        tensor = ov::make_tensor(in_tensor->get_element_type(), in_port.get_shape(), in_tensor->data());
+        tensor = ov::make_tensor(in_tensor->get_element_type(),
+                                 in_port.get_shape(),
+                                 (port_found.is_input() ? std::as_const(*in_tensor).data() : in_tensor->data()));
     }
-    auto port_found = find_port(in_port);
+
     auto mem_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
     if (port_found.is_input()) {
         auto input_index = port_found.idx;

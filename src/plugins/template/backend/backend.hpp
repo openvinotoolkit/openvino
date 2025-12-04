@@ -52,9 +52,15 @@ public:
     ///     must be sufficient to contain the tensor. The lifetime of the buffer is the
     ///     responsibility of the caller.
     /// \returns shared_ptr to a new backend-specific tensor
+    /// \{
     virtual ov::Tensor create_tensor(const ov::element::Type& element_type,
                                      const Shape& shape,
                                      void* memory_pointer) = 0;
+
+    virtual ov::Tensor create_tensor(const ov::element::Type& element_type,
+                                     const Shape& shape,
+                                     const void* memory_pointer) = 0;
+    /// \}
 
     /// \brief Create a tensor of C type T specific to this backend
     /// \param shape The shape of the tensor

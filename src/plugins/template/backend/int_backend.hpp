@@ -28,6 +28,7 @@ public:
     ov::Tensor create_tensor() override;
 
     ov::Tensor create_tensor(const element::Type& type, const Shape& shape, void* memory_pointer) override;
+    ov::Tensor create_tensor(const element::Type& type, const Shape& shape, const void* memory_pointer) override;
 
     ov::Tensor create_tensor(const element::Type& type, const Shape& shape) override;
 
