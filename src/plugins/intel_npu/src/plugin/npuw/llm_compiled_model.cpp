@@ -836,7 +836,7 @@ void patch_phi3_sliding_mask(const std::shared_ptr<ov::Model>& model) {
 class CutLMHead : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::CutLMHead");
-    CutLMHead(std::shared_ptr<ov::Model>& lm_head_model, const ov::AnyMap& model_rt_info) {
+    CutLMHead(std::shared_ptr<ov::Model>& lm_head_model) {
         // We are interested at first input to MatMul as a cut point
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
 
@@ -882,17 +882,11 @@ public:
             auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_result);
 
             // Some LLMs add intermediate hidden state outputs that can interfere with LM head detection.
-            // Use "hidden_output_name" rt_info to distinguish them from the actual logits output.
+            // Skip Result nodes that were manually added (marked with "manually_added_output" in RT_INFO).
             // For example, Eagle-3 target/draft models add "last_hidden_state" output which should be skipped.
-            if (model_rt_info.count(ov::npuw::LLMCompiledModel::hidden_output_name_key)) {
-                const auto& hidden_output_name =
-                    model_rt_info.at(ov::npuw::LLMCompiledModel::hidden_output_name_key).as<std::string>();
-                const auto& result_output_names = matched_result->output(0).get_names();
-                for (const auto& name : result_output_names) {
-                    if (name == hidden_output_name) {
-                        return false;
-                    }
-                }
+            const auto& rt_info = matched_result->get_rt_info();
+            if (rt_info.count("manually_added_output")) {
+                return false;
             }
 
             // Cut point:
@@ -927,7 +921,7 @@ namespace {
 std::shared_ptr<ov::Model> cut_lm_head(std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
-    rewr.add_matcher<CutLMHead>(lm_head_model, model->get_rt_info());
+    rewr.add_matcher<CutLMHead>(lm_head_model);
     rewr.run_on_model(model);
     if (lm_head_model) {
         lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
