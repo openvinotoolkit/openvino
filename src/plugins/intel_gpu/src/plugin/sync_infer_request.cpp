@@ -533,8 +533,7 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
 
     // Note: currently, using USM Host memory for dGPUs in some scenarios (LLMs) leads to performance degradation,
     // so apply wider USM Host memory type detection only for iGPUs
-    auto user_tensor_mem_type = !generic_remote_tensor ? engine.detect_usm_allocation_type(user_tensor->data())
-                                                       : cldnn::allocation_type::unknown;
+    auto user_tensor_mem_type = !generic_remote_tensor ? engine.detect_usm_allocation_type(user_tensor->data()) : cldnn::allocation_type::unknown;
     auto usm_host_raw_ptr = engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
                             user_tensor_mem_type == cldnn::allocation_type::usm_host;
 
@@ -709,7 +708,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(size_t in
             auto ptr = static_cast<uint8_t*>(merged_tensor->data());
             ov::parallel_for(user_tensors.size(), [&](size_t i) {
                 const auto& tensor = user_tensors.at(i);
-                std::memcpy(ptr + i * tensor->get_byte_size(), static_cast<uint8_t*>(tensor->data()), tensor->get_byte_size());
+                std::memcpy(ptr + i * tensor->get_byte_size(), tensor->data(), tensor->get_byte_size());
             });
         } else {
             const auto& stream = m_graph->get_network()->get_stream();
@@ -788,11 +787,12 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         }
     } else if (is_usm_host_tensor && !convert_needed) {
         if (element_type != ::data_type_for_remote_tensor(element_type)) {
-            m_plugin_inputs[input_idx] = { std::make_shared<RemoteTensorImpl>(m_context,
-                                                                              user_tensor->get_shape(),
-                                                                              ::data_type_for_remote_tensor(element_type),
-                                                                              TensorType::BT_USM_SHARED,
-                                                                              user_tensor->data()), TensorOwner::USER };
+            m_plugin_inputs[input_idx] = {std::make_shared<RemoteTensorImpl>(m_context,
+                                                                             user_tensor->get_shape(),
+                                                                             ::data_type_for_remote_tensor(element_type),
+                                                                             TensorType::BT_USM_SHARED,
+                                                                             user_tensor->data()),
+                                          TensorOwner::USER};
         } else {
             m_plugin_inputs[input_idx] = { usm_host_ptr->get_impl(), user_tensor_wrapper.owner };
         }
@@ -801,7 +801,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     auto user_tensor_mem_type = cldnn::allocation_type::unknown;
     if (!is_remote_tensor_impl && !is_generic_remote) {
-        user_tensor_mem_type = engine.detect_usm_allocation_type(user_tensor_wrapper.ptr->data());
+        user_tensor_mem_type = engine.detect_usm_allocation_type(user_tensor->data());
     }
 
     auto plugin_tensor_mem_type = cldnn::allocation_type::unknown;
@@ -876,7 +876,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         }
     } else {
         if (!is_remote_tensor_impl && !is_generic_remote) {
-            auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
+            auto src_ptr = static_cast<const uint8_t*>(user_tensor->data());
             if (!same_host_mem(memory, src_ptr)) {
                 // WA: Set need_lockable_mem as a blocking argument
                 // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations
