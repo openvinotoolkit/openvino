@@ -47,7 +47,6 @@
 
 using namespace ov;
 using namespace ov::pass;
-using namespace ov::op::util;
 
 namespace {
 bool convertTensorIteratorToSequence(const std::shared_ptr<ov::op::v0::TensorIterator>& ti,
@@ -274,7 +273,7 @@ bool check_condition_increment_pattern(
     }
     const auto& condition_map = condition_matcher.get_pattern_value_map();
     int64_t counter_step = -1;
-    if (!get_constant_value(condition_map.at(counter_step_label).get_node_shared_ptr(), counter_step) ||
+    if (!ov::op::util::get_constant_value(condition_map.at(counter_step_label).get_node_shared_ptr(), counter_step) ||
         counter_step != 1) {
         return false;
     }
@@ -301,7 +300,7 @@ bool check_condition_increment_pattern(
             return false;
         }
         // get initial value of counter
-        if (!get_constant_value(loop->input_value(input_idx).get_node_shared_ptr(), initial_counter)) {
+        if (!ov::op::util::get_constant_value(loop->input_value(input_idx).get_node_shared_ptr(), initial_counter)) {
             return false;
         }
         // suitable counter-parameter is found and checked
@@ -324,7 +323,8 @@ bool check_condition_increment_pattern(
             break;
         }
     } else if (condition_map.count(num_iter_const_label)) {
-        if (!get_constant_value(condition_map.at(num_iter_const_label).get_node_shared_ptr(), num_iters) ||
+        if (!ov::op::util::get_constant_value(condition_map.at(num_iter_const_label).get_node_shared_ptr(),
+                                              num_iters) ||
             num_iters < 1) {
             return false;
         }
@@ -862,7 +862,7 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
         if (output_descs.size() != 1)
             return false;
         const auto body_output_desc =
-            ov::as_type_ptr<op::util::MultiSubGraphOp::BodyOutputDescription>(output_descs[0]);
+            ov::as_type_ptr<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(output_descs[0]);
         if (!body_output_desc || body_output_desc->m_iteration != -1)
             return false;
 
@@ -883,33 +883,36 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
         const auto& loop_output_map = loop_output_matcher.get_pattern_value_map();
 
         int64_t iteration_counter_step = -1;
-        if (!get_constant_value(loop_condition_map.at(iteration_counter_step_label).get_node_shared_ptr(),
-                                iteration_counter_step) ||
+        if (!ov::op::util::get_constant_value(loop_condition_map.at(iteration_counter_step_label).get_node_shared_ptr(),
+                                              iteration_counter_step) ||
             iteration_counter_step != 1)
             return false;
         int64_t sequence_index_step = -1;
-        if (!get_constant_value(loop_condition_map.at(sequence_index_step_label).get_node_shared_ptr(),
-                                sequence_index_step) ||
+        if (!ov::op::util::get_constant_value(loop_condition_map.at(sequence_index_step_label).get_node_shared_ptr(),
+                                              sequence_index_step) ||
             sequence_index_step != 1)
             return false;
 
         int64_t iteration_counter_limit = -1;
-        if (!get_constant_value(loop_condition_map.at(iteration_counter_limit_label).get_node_shared_ptr(),
-                                iteration_counter_limit))
+        if (!ov::op::util::get_constant_value(
+                loop_condition_map.at(iteration_counter_limit_label).get_node_shared_ptr(),
+                iteration_counter_limit))
             return false;
         int64_t sequence_index_limit = -1;
-        if (!get_constant_value(loop_condition_map.at(sequence_index_limit_label).get_node_shared_ptr(),
-                                sequence_index_limit))
+        if (!ov::op::util::get_constant_value(loop_condition_map.at(sequence_index_limit_label).get_node_shared_ptr(),
+                                              sequence_index_limit))
             return false;
         if (iteration_counter_limit != sequence_index_limit)
             return false;
 
         int64_t gather_axis = -1;
-        if (!get_constant_value(loop_output_map.at(gather_axis_label).get_node_shared_ptr(), gather_axis) ||
+        if (!ov::op::util::get_constant_value(loop_output_map.at(gather_axis_label).get_node_shared_ptr(),
+                                              gather_axis) ||
             gather_axis != 0)
             return false;
         int64_t scatter_axis = -1;
-        if (!get_constant_value(loop_output_map.at(scatter_axis_label).get_node_shared_ptr(), scatter_axis) ||
+        if (!ov::op::util::get_constant_value(loop_output_map.at(scatter_axis_label).get_node_shared_ptr(),
+                                              scatter_axis) ||
             scatter_axis != 0)
             return false;
 
@@ -935,7 +938,7 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
         const auto& input_descs = loop->get_input_descriptions();
         for (const auto& desc : input_descs) {
             if (body_parameters[desc->m_body_parameter_index] == X_body) {
-                if (!ov::as_type_ptr<op::util::MultiSubGraphOp::InvariantInputDescription>(desc)) {
+                if (!ov::as_type_ptr<ov::op::util::MultiSubGraphOp::InvariantInputDescription>(desc)) {
                     return false;
                 }
                 if (loop->input_value(desc->m_input_index) != pattern_map.at(scatter_label)) {
@@ -943,7 +946,7 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
                 }
             }
             if (body_parameters[desc->m_body_parameter_index] == H_body) {
-                auto merged_desc = ov::as_type_ptr<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
+                auto merged_desc = ov::as_type_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>(desc);
                 if (!merged_desc) {
                     return false;
                 }
@@ -954,7 +957,7 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
                 }
             }
             if (body_parameters[desc->m_body_parameter_index] == C_body) {
-                auto merged_desc = ov::as_type_ptr<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
+                auto merged_desc = ov::as_type_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>(desc);
                 if (!merged_desc) {
                     return false;
                 }
@@ -965,13 +968,13 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
                 }
             }
             if (body_parameters[desc->m_body_parameter_index] == sequence_index) {
-                auto merged_desc = ov::as_type_ptr<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
+                auto merged_desc = ov::as_type_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>(desc);
                 if (!merged_desc) {
                     return false;
                 }
             }
             if (body_parameters[desc->m_body_parameter_index] == iteration_counter) {
-                auto merged_desc = ov::as_type_ptr<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
+                auto merged_desc = ov::as_type_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>(desc);
                 if (!merged_desc) {
                     return false;
                 }
@@ -1088,7 +1091,7 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
 
         for (auto&& loop_consumer : loop->output(0).get_target_inputs()) {
             auto node = loop_consumer.get_node()->shared_from_this();
-            if (ov::is_type<op::util::ShapeOfBase>(node)) {
+            if (ov::is_type<ov::op::util::ShapeOfBase>(node)) {
                 auto shapeof = std::make_shared<op::v3::ShapeOf>(H_squeezed);
                 auto indices = op::v0::Constant::create(element::i32, Shape{3}, {1, 0, 2});
                 auto shapeof_gather = std::make_shared<op::v8::Gather>(shapeof, indices, zero);
@@ -1328,27 +1331,27 @@ public:
         using namespace ov::pass;
 
         auto data_label = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(3));
-        auto shapeof_label = ov::pass::pattern::wrap_type<op::util::ShapeOfBase>({data_label});
+        auto shapeof_label = ov::pass::pattern::wrap_type<ov::op::util::ShapeOfBase>({data_label});
         auto shapeof_gather_label =
-            ov::pass::pattern::wrap_type<op::util::GatherBase>({shapeof_label,
-                                                                ov::pass::pattern::wrap_type<op::v0::Constant>(),
-                                                                ov::pass::pattern::wrap_type<op::v0::Constant>()});
+            ov::pass::pattern::wrap_type<ov::op::util::GatherBase>({shapeof_label,
+                                                                    ov::pass::pattern::wrap_type<op::v0::Constant>(),
+                                                                    ov::pass::pattern::wrap_type<op::v0::Constant>()});
         auto shapeof_gather2_label =
-            ov::pass::pattern::wrap_type<op::util::GatherBase>({shapeof_gather_label,
-                                                                ov::pass::pattern::wrap_type<op::v0::Constant>(),
-                                                                ov::pass::pattern::wrap_type<op::v0::Constant>()});
+            ov::pass::pattern::wrap_type<ov::op::util::GatherBase>({shapeof_gather_label,
+                                                                    ov::pass::pattern::wrap_type<op::v0::Constant>(),
+                                                                    ov::pass::pattern::wrap_type<op::v0::Constant>()});
         auto reshape_label = ov::pass::pattern::wrap_type<op::v1::Reshape>(
             {shapeof_gather2_label, ov::pass::pattern::wrap_type<op::v0::Constant>()});
         auto range_label =
             ov::pass::pattern::wrap_type<op::v4::Range>({ov::pass::pattern::wrap_type<op::v0::Constant>(),
                                                          reshape_label,
                                                          ov::pass::pattern::wrap_type<op::v0::Constant>()});
-        auto match_node = ov::pass::pattern::wrap_type<op::util::GatherBase>(
+        auto match_node = ov::pass::pattern::wrap_type<ov::op::util::GatherBase>(
             {data_label, range_label, ov::pass::pattern::wrap_type<op::v0::Constant>()});
 
         matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
-            auto gather = ov::as_type_ptr<op::util::GatherBase>(m.get_match_root());
+            auto gather = ov::as_type_ptr<ov::op::util::GatherBase>(m.get_match_root());
             if (!gather)
                 return false;
             auto axis = gather->get_axis();
@@ -1365,9 +1368,10 @@ public:
             const auto shapeof_gather2 = pattern_map.at(shapeof_gather2_label).get_node_shared_ptr();
             int64_t shapeof_gather2_index = -1;
             int64_t shapeof_gather2_axis = -1;
-            if (!get_constant_value(shapeof_gather2->get_input_node_shared_ptr(1), shapeof_gather2_index))
+            if (!ov::op::util::get_constant_value(shapeof_gather2->get_input_node_shared_ptr(1), shapeof_gather2_index))
                 return false;
-            if (!get_constant_value(shapeof_gather2->get_input_node_shared_ptr(2), shapeof_gather2_axis) ||
+            if (!ov::op::util::get_constant_value(shapeof_gather2->get_input_node_shared_ptr(2),
+                                                  shapeof_gather2_axis) ||
                 shapeof_gather2_axis != 0)
                 return false;
             const auto reshape = pattern_map.at(reshape_label).get_node_shared_ptr();
@@ -1377,13 +1381,13 @@ public:
             const auto range = pattern_map.at(range_label).get_node_shared_ptr();
             int64_t range_start = -1;
             int64_t range_step = -1;
-            if (!get_constant_value(range->get_input_node_shared_ptr(0), range_start) || range_start != 0)
+            if (!ov::op::util::get_constant_value(range->get_input_node_shared_ptr(0), range_start) || range_start != 0)
                 return false;
-            if (!get_constant_value(range->get_input_node_shared_ptr(2), range_step) || range_step != 1)
+            if (!ov::op::util::get_constant_value(range->get_input_node_shared_ptr(2), range_step) || range_step != 1)
                 return false;
 
             int64_t gather_axis = -1;
-            if (!get_constant_value(gather->get_input_node_shared_ptr(2), gather_axis) ||
+            if (!ov::op::util::get_constant_value(gather->get_input_node_shared_ptr(2), gather_axis) ||
                 gather_axis != shapeof_gather_indexes[shapeof_gather2_index])
                 return false;
 
@@ -1503,7 +1507,7 @@ ov::pass::FuseReverseLSTMSequence::FuseReverseLSTMSequence() {
         if (squeeze->input_value(0) != lstm->output(0))
             return false;
         int64_t squeeze_axis = -1;
-        if (!get_constant_value(squeeze->get_input_node_shared_ptr(1), squeeze_axis) || squeeze_axis != 1)
+        if (!ov::op::util::get_constant_value(squeeze->get_input_node_shared_ptr(1), squeeze_axis) || squeeze_axis != 1)
             return false;
         auto new_squeeze = node_registry.make<op::v0::Squeeze>(new_lstm->output(0), squeeze->input_value(1));
         const auto match_root = m.get_match_root();
@@ -1511,7 +1515,7 @@ ov::pass::FuseReverseLSTMSequence::FuseReverseLSTMSequence() {
 
         for (auto& consumer : second_transpose->output(0).get_target_inputs()) {
             auto node = consumer.get_node()->shared_from_this();
-            if (ov::is_type<op::util::ShapeOfBase>(node)) {
+            if (ov::is_type<ov::op::util::ShapeOfBase>(node)) {
                 auto shapeof = std::make_shared<op::v3::ShapeOf>(new_lstm_input);
                 replace_node(node, shapeof);
             }
@@ -1546,11 +1550,11 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
     auto lstm_sequence_forward_first_input_label =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_forward_label, data_label});
     auto shapeof_forward_label =
-        ov::pass::pattern::wrap_type<op::util::ShapeOfBase>({lstm_sequence_forward_first_input_label});
+        ov::pass::pattern::wrap_type<ov::op::util::ShapeOfBase>({lstm_sequence_forward_first_input_label});
     auto gather_forward_label =
-        ov::pass::pattern::wrap_type<op::util::GatherBase>({shapeof_forward_label,
-                                                            ov::pass::pattern::wrap_type<op::v0::Constant>(),
-                                                            ov::pass::pattern::wrap_type<op::v0::Constant>()});
+        ov::pass::pattern::wrap_type<ov::op::util::GatherBase>({shapeof_forward_label,
+                                                                ov::pass::pattern::wrap_type<op::v0::Constant>(),
+                                                                ov::pass::pattern::wrap_type<op::v0::Constant>()});
     auto max_sequence_len_forward_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
     auto broadcast_forward_label =
         ov::pass::pattern::wrap_type<op::v3::Broadcast>({max_sequence_len_forward_label, gather_forward_label});
@@ -1575,11 +1579,11 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
     auto lstm_sequence_reverse_first_input_label =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_reverse_label, data_label});
     auto shapeof_reverse_label =
-        ov::pass::pattern::wrap_type<op::util::ShapeOfBase>({lstm_sequence_reverse_first_input_label});
+        ov::pass::pattern::wrap_type<ov::op::util::ShapeOfBase>({lstm_sequence_reverse_first_input_label});
     auto gather_reverse_label =
-        ov::pass::pattern::wrap_type<op::util::GatherBase>({shapeof_reverse_label,
-                                                            ov::pass::pattern::wrap_type<op::v0::Constant>(),
-                                                            ov::pass::pattern::wrap_type<op::v0::Constant>()});
+        ov::pass::pattern::wrap_type<ov::op::util::GatherBase>({shapeof_reverse_label,
+                                                                ov::pass::pattern::wrap_type<op::v0::Constant>(),
+                                                                ov::pass::pattern::wrap_type<op::v0::Constant>()});
     auto max_sequence_len_reverse_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
     auto broadcast_reverse_label =
         ov::pass::pattern::wrap_type<op::v3::Broadcast>({max_sequence_len_reverse_label, gather_reverse_label});
@@ -1626,7 +1630,7 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
         if (squeeze_forward->input_value(0) != lstm_forward->output(0))
             return false;
         int64_t squeeze_forward_axis = -1;
-        if (!get_constant_value(squeeze_forward->get_input_node_shared_ptr(1), squeeze_forward_axis) ||
+        if (!ov::op::util::get_constant_value(squeeze_forward->get_input_node_shared_ptr(1), squeeze_forward_axis) ||
             squeeze_forward_axis != 1)
             return false;
 
@@ -1634,7 +1638,7 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
         if (squeeze_reverse->input_value(0) != lstm_reverse->output(0))
             return false;
         int64_t squeeze_reverse_axis = -1;
-        if (!get_constant_value(squeeze_reverse->get_input_node_shared_ptr(1), squeeze_reverse_axis) ||
+        if (!ov::op::util::get_constant_value(squeeze_reverse->get_input_node_shared_ptr(1), squeeze_reverse_axis) ||
             squeeze_reverse_axis != 1)
             return false;
 
@@ -1684,17 +1688,21 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
             auto gather_forward = pattern_map.at(gather_forward_label);
             int64_t gather_index = -1;
             int64_t gather_axis = -1;
-            if (!get_constant_value(gather_forward->get_input_node_shared_ptr(1), gather_index) || gather_index != 0)
+            if (!ov::op::util::get_constant_value(gather_forward->get_input_node_shared_ptr(1), gather_index) ||
+                gather_index != 0)
                 return false;
-            if (!get_constant_value(gather_forward->get_input_node_shared_ptr(2), gather_axis) || gather_axis != 0)
+            if (!ov::op::util::get_constant_value(gather_forward->get_input_node_shared_ptr(2), gather_axis) ||
+                gather_axis != 0)
                 return false;
 
             auto gather_reverse = pattern_map.at(gather_reverse_label);
             gather_index = -1;
             gather_axis = -1;
-            if (!get_constant_value(gather_reverse->get_input_node_shared_ptr(1), gather_index) || gather_index != 0)
+            if (!ov::op::util::get_constant_value(gather_reverse->get_input_node_shared_ptr(1), gather_index) ||
+                gather_index != 0)
                 return false;
-            if (!get_constant_value(gather_reverse->get_input_node_shared_ptr(2), gather_axis) || gather_axis != 0)
+            if (!ov::op::util::get_constant_value(gather_reverse->get_input_node_shared_ptr(2), gather_axis) ||
+                gather_axis != 0)
                 return false;
 
             from.push_back(max_sequence_len_forward);

@@ -171,7 +171,6 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux(bool num_heads_transposed) {
 }
 
 ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
-    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionGPTNEOX);
 
     // rope pattern matching triggers a little design flaw:
@@ -193,10 +192,10 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
 
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
-    auto x2 = NewGenSlice(x, "half_ndims", int32_max, 1, rank - 1);
+    auto x2 = ov::op::util::NewGenSlice(x, "half_ndims", int32_max, 1, rank - 1);
     auto x2neg = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({x2 | varsplit->output(1), -1.0f},
                                                                     {{"auto_broadcast", "numpy"}});
-    auto x1 = NewGenSlice(x, 0, "half_ndims", 1, rank - 1);
+    auto x1 = ov::op::util::NewGenSlice(x, 0, "half_ndims", 1, rank - 1);
     auto x_rotate_half =
         ov::pass::pattern::wrap_type<ov::op::v0::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
 
@@ -262,7 +261,6 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
 }
 
 ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
-    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionCosSinPreprocess);
 
     auto cos_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches(element::f32));
@@ -277,7 +275,7 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
 
     auto prepare_cos_sin_gptneox = [&](std::shared_ptr<Node> const_tab) {
         auto slice = ov::pass::pattern::wrap_type<ov::op::v8::Slice>({const_tab, {0}, node_batch_size, {1}, {0}});
-        auto strided_slice = NewGenStridedSlice(const_tab, {0}, node_batch_size, {1}, 0);
+        auto strided_slice = ov::op::util::NewGenStridedSlice(const_tab, {0}, node_batch_size, {1}, 0);
         return ov::pass::pattern::wrap_type<ov::op::v6::GatherElements>({strided_slice | slice, gather_positions},
                                                                         {{"axis", 2}});
     };
@@ -290,7 +288,7 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     auto prepare_cos_sin_llama = [&](std::shared_ptr<Node> const_tab) {
         auto ScatterUpdate = ov::pass::pattern::wrap_type<ov::op::v3::ScatterUpdate>({{0, 0, 0}, 2, seq_len, 0});
         auto slice_Slice = ov::pass::pattern::wrap_type<ov::op::v8::Slice>({const_tab, {0}, seq_len, {1}, {2}});
-        auto slice_StridedSlice = NewGenStridedSlice(const_tab, {0, 0, 0}, ScatterUpdate, {1, 1, 1}, 2);
+        auto slice_StridedSlice = ov::op::util::NewGenStridedSlice(const_tab, {0, 0, 0}, ScatterUpdate, {1, 1, 1}, 2);
         auto squeeze = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
             {slice_StridedSlice | slice_Slice, ov::pass::pattern::any_input()},
             ov::pass::pattern::shape_matches("[?, head_dims]"));
@@ -299,7 +297,7 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
 
         // another simplified pattern for gathering at position_ids
         auto slice_Slice2 = ov::pass::pattern::wrap_type<ov::op::v8::Slice>({const_tab, {0}, seq_len, {1}, {0}});
-        auto slice_StridedSlice2 = NewGenStridedSlice(const_tab, {0}, seq_len, {1}, 0);
+        auto slice_StridedSlice2 = ov::op::util::NewGenStridedSlice(const_tab, {0}, seq_len, {1}, 0);
         auto index_Gather2 = ov::pass::pattern::wrap_type<ov::op::v8::Gather>(
             {slice_Slice2 | slice_StridedSlice2, gather_positions_2d, 0},
             {{"batch_dims", 0}});
@@ -353,15 +351,14 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
 
 // only a fraction of head_size is rotary-embedded
 ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
-    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionIOSlicing);
     auto int32_max = std::numeric_limits<std::int32_t>::max();
     auto data = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(4));
     auto varsplit = ov::pass::pattern::wrap_type<ov::op::v1::VariadicSplit>({data, 3, {"ndims", "?"}});
     varsplit->set_output_size(2);
 
-    auto x = NewGenSlice(data, 0, "ndims", 1, 3);
-    auto y = NewGenSlice(data, "ndims", int32_max, 1, 3);
+    auto x = ov::op::util::NewGenSlice(data, 0, "ndims", 1, 3);
+    auto y = ov::op::util::NewGenSlice(data, "ndims", int32_max, 1, 3);
     auto x_emb = ov::pass::pattern::wrap_type<ov::op::internal::RoPE>(
                      {x | varsplit->output(0), ov::pass::pattern::any_input(), ov::pass::pattern::any_input()}) |
                  ov::pass::pattern::wrap_type<ov::op::internal::RoPE>({x | varsplit->output(0),
@@ -403,7 +400,6 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
 
 // gptneox-preprocess of input data
 ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
-    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionPreprocess);
 
     // Pattern for input to be sliced (for models with combined QKV projection)
@@ -412,7 +408,7 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
     auto input_to_trans = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(4));
 
     // Slice input if needed: [B, L, H, S] -> [B, L', H, S]
-    auto input_slice = NewGenSlice(input_to_slice, {"slice_start"}, {"slice_stop"}, 1, 3);
+    auto input_slice = ov::op::util::NewGenSlice(input_to_slice, {"slice_start"}, {"slice_stop"}, 1, 3);
 
     // Transpose input if needed: [B, L, H, S] -> [B, H, L, S]
     auto x = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({input_slice | input_to_trans, {0, 2, 1, 3}});
@@ -479,7 +475,6 @@ static std::shared_ptr<ov::Node> repeat_interleave_pattern(const ov::Output<ov::
 }
 
 ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
-    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionGPTJ);
 
     auto gather_sin_cos = ov::pass::pattern::any_input(ov::pass::pattern::type_matches(ov::element::f32));
@@ -489,13 +484,14 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     auto repeat_interleave_cos = repeat_interleave_pattern(varsplit->output(1));
 
     auto view_Reshape = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(4));
-    auto slice_Slice_965 = NewGenSlice(view_Reshape, 0, "ndims", 1, 3);
+    auto slice_Slice_965 = ov::op::util::NewGenSlice(view_Reshape, 0, "ndims", 1, 3);
     // view_Reshape : B,L,H,S
     auto varsplit_view_Reshape =
         ov::pass::pattern::wrap_type<opset1::VariadicSplit>({view_Reshape, 3, {"ndims", "end"}});
     varsplit_view_Reshape->set_output_size(2);
     // x interleave (-x[:,:,:, 1::2], x[:,:,:, 0::2])
-    auto slice_Slice_1174 = NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 1, INT_MAX, 2, 3);
+    auto slice_Slice_1174 =
+        ov::op::util::NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 1, INT_MAX, 2, 3);
 
     auto neg_Multiply_1177 =
         ov::pass::pattern::wrap_type<opset1::Multiply>({slice_Slice_1174, -1.0f}, {{"auto_broadcast", "numpy"}});
@@ -504,7 +500,8 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         ov::pass::pattern::wrap_type<opset1::Reshape>({neg_Multiply_1177, {"-1", "1", "head_num", "32", "1"}},
                                                       {{"special_zero", false}});
 
-    auto slice_Slice_1168 = NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 0, INT_MAX, 2, 3);
+    auto slice_Slice_1168 =
+        ov::op::util::NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 0, INT_MAX, 2, 3);
     auto Unsqueeze_65525 = ov::pass::pattern::wrap_type<opset1::Unsqueeze>({slice_Slice_1168, -1});
     auto Unsqueeze_28999 =
         ov::pass::pattern::wrap_type<opset1::Reshape>({slice_Slice_1168, {"-1", "1", "head_num", "32", "1"}},
@@ -514,7 +511,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         {{"axis", -1}});
 
     auto ShapeOf_169068 = ov::pass::pattern::wrap_type<opset1::ShapeOf>({stack_1182});
-    auto flatten_Slice_1194 = NewGenSlice(ShapeOf_169068, 0, 3, 1, 0);
+    auto flatten_Slice_1194 = ov::op::util::NewGenSlice(ShapeOf_169068, 0, 3, 1, 0);
     auto flatten_Concat_1197 = ov::pass::pattern::wrap_type<opset1::Concat>({flatten_Slice_1194, {-1}}, {{"axis", 0}});
     // If with special zero, no need to use shapeof to get full shape
     auto flatten_Reshape_1198 = ov::pass::pattern::wrap_type<opset1::Reshape>({stack_1182, flatten_Concat_1197});
@@ -533,7 +530,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     // *cos + *sin
     auto rotary_emb = ov::pass::pattern::wrap_type<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
-    auto slice_Slice_971 = NewGenSlice(view_Reshape, "ndims", INT_MAX, 1, 3);
+    auto slice_Slice_971 = ov::op::util::NewGenSlice(view_Reshape, "ndims", INT_MAX, 1, 3);
     auto result =
         ov::pass::pattern::wrap_type<opset1::Concat>({rotary_emb, slice_Slice_971 | varsplit_view_Reshape->output(1)},
                                                      {{"axis", -1}});
@@ -605,7 +602,6 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
 }
 
 ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
-    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionChatGLM);
 
     //  [seq_length, batch_size, input_size(will be cropped to match hidden state size)]
@@ -642,7 +638,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
         input_key = std::move(cur_key);
     }
 
-    auto slice0 = NewGenSlice(input_key, 0, "ndims", 1, 3);
+    auto slice0 = ov::op::util::NewGenSlice(input_key, 0, "ndims", 1, 3);
     auto var_split0 = ov::pass::pattern::wrap_type<ov::op::v1::VariadicSplit>({input_key, 3, {"ndims", "end"}});
     var_split0->set_output_size(2);
 
@@ -681,7 +677,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
         auto slice2 =
             ov::pass::pattern::wrap_type<ov::op::v8::Slice>({cos_sin_cache, {0, 0}, scatter_update0, {1, 1}, {0}});
         auto ss_stop = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-        auto strided_slice0 = NewGenStridedSlice(cos_sin_cache, {0, 0}, ss_stop | scatter_update0, {1, 1}, 1);
+        auto strided_slice0 =
+            ov::op::util::NewGenStridedSlice(cos_sin_cache, {0, 0}, ss_stop | scatter_update0, {1, 1}, 1);
 
         auto concat1 =
             ov::pass::pattern::wrap_type<ov::op::v0::Concat>({{-1}, {1}, seq_length, {"ndims/2"}, {2}}, {{"axis", 0}});
@@ -700,7 +697,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
             ov::pass::pattern::value_matches("seq_len, batch, 1, ndims/2, 2"));
 
         auto slice3 = ov::pass::pattern::wrap_type<ov::op::v8::Slice>({cos_sin_cache, {0}, seq_length, {1}, {0}});
-        auto strided_slice1 = NewGenStridedSlice(cos_sin_cache, {0}, seq_length, {1}, 0);
+        auto strided_slice1 = ov::op::util::NewGenStridedSlice(cos_sin_cache, {0}, seq_length, {1}, 0);
 
         // [seq_length, 1, batch, half_rotary_dims, 2]
         reshape1 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
@@ -733,7 +730,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
     auto concat2 = ov::pass::pattern::wrap_type<ov::op::v0::Concat>({y_even, y_odd}, {{"axis", -1}});
 
     auto shape_of0 = ov::pass::pattern::wrap_type<ov::op::util::ShapeOfBase>({concat2});
-    auto slice4 = NewGenSlice(shape_of0, 0, 3, 1, 0);
+    auto slice4 = ov::op::util::NewGenSlice(shape_of0, 0, 3, 1, 0);
     auto concat3 = ov::pass::pattern::wrap_type<ov::op::v0::Concat>({slice4, {-1}}, {{"axis", 0}});
 
     std::shared_ptr<ov::Node> const_target_shape6 = nullptr;
@@ -755,7 +752,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
             {concat2, concat3 | const_target_shape6 | const_target_shape7},
             {{"special_zero", true}});
     }
-    auto slice5 = NewGenSlice(input_key, "ndims", INT_MAX, 1, 3);
+    auto slice5 = ov::op::util::NewGenSlice(input_key, "ndims", INT_MAX, 1, 3);
 
     auto concat4 =
         ov::pass::pattern::wrap_type<ov::op::v0::Concat>({reshape2, slice5 | var_split0->output(1)}, {{"axis", -1}});
@@ -839,7 +836,6 @@ static std::shared_ptr<ov::Node> build_ChatGLMHF_interleave_pattern(std::shared_
 }
 
 ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
-    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionChatGLMHF);
 
     auto qk_linear = ov::pass::pattern::any_input(ov::pass::pattern::shape_matches("[?, 1, ?]"));
@@ -857,20 +853,20 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
     auto vsplit_out1 = ov::pass::pattern::wrap_type<op::v1::VariadicSplit>(
         {reshape, 3, ov::pass::pattern::any_input()},
         ov::pass::pattern::output_index_matches(1) && ov::pass::pattern::shape_matches("[?, head_cnt, 1, ndims]"));
-    auto slice_1 = NewGenSlice(reshape, 0, "ndims", 1, 3) | vsplit_out0;
+    auto slice_1 = ov::op::util::NewGenSlice(reshape, 0, "ndims", 1, 3) | vsplit_out0;
 
     auto repeat_interleave_cos = build_ChatGLMHF_interleave_pattern(cos);
     auto repeat_interleave_sin = build_ChatGLMHF_interleave_pattern(sin);
 
     auto multiply = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({slice_1, repeat_interleave_cos},
                                                                        {{"auto_broadcast", "numpy"}});
-    auto slice_2 = NewGenSlice(slice_1, 1, INT_MAX, 2, 3);
+    auto slice_2 = ov::op::util::NewGenSlice(slice_1, 1, INT_MAX, 2, 3);
     auto neg = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({slice_2, -1}, {{"auto_broadcast", "numpy"}});
     auto unsqueeze_1 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
         {neg, ov::pass::pattern::any_input()},
         ov::pass::pattern::shape_matches("[?, head_cnt, 1, ndims/2, 1]"),
         {{"special_zero", false}});
-    auto slice_3 = NewGenSlice(slice_1, 0, INT_MAX, 2, 3);
+    auto slice_3 = ov::op::util::NewGenSlice(slice_1, 0, INT_MAX, 2, 3);
     auto unsqueeze_2 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
         {slice_3, ov::pass::pattern::any_input()},
         ov::pass::pattern::shape_matches("[?, head_cnt, 1, ndims/2, 1]"),
@@ -884,7 +880,7 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
                                                                          {{"auto_broadcast", "numpy"}});
     auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({multiply, multiply_1}, {{"auto_broadcast", "numpy"}});
 
-    auto slice_5 = NewGenSlice(reshape, "ndims", INT_MAX, 1, 3) | vsplit_out1;
+    auto slice_5 = ov::op::util::NewGenSlice(reshape, "ndims", INT_MAX, 1, 3) | vsplit_out1;
     auto result = ov::pass::pattern::wrap_type<ov::op::v0::Concat>({add, slice_5}, {{"axis", -1}});
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
@@ -926,7 +922,6 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
 }
 
 ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
-    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionQwen);
 
     // rotary_emb_cos & rotary_emb_sin are sliced by present kv-length (past-kv-length + cur_len)
@@ -945,7 +940,7 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
         {ListUnpack_410_VariadicSplit, ov::pass::pattern::any_input()},
         ov::pass::pattern::shape_matches("[?, ?, head_cnt, head_size]"),
         {{"special_zero", true}});
-    auto slice_Slice_543 = NewGenSlice(view_Reshape_424, 0, "head_size", 1, 3);
+    auto slice_Slice_543 = ov::op::util::NewGenSlice(view_Reshape_424, 0, "head_size", 1, 3);
 
     auto ShapeOf_485735 = ov::pass::pattern::wrap_type<ov::op::util::ShapeOfBase>({ov::pass::pattern::any_input()}, {});
     auto Multiply_567524 =
@@ -969,7 +964,8 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
                                                           ov::pass::pattern::shape_matches("[?, 1, 1, 128]"),
                                                           {{"special_zero", false}});
 
-    auto slice_StridedSlice_446 = NewGenStridedSlice(rotary_emb_cos, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1);
+    auto slice_StridedSlice_446 =
+        ov::op::util::NewGenStridedSlice(rotary_emb_cos, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1);
     auto mul_Multiply_552 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>(
         {slice_Slice_543, slice_StridedSlice_446 | slice_Slice_446 | reshape_cos_to_expected_layout},
         {{"auto_broadcast", "numpy"}});
@@ -1026,7 +1022,8 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
     auto cat_Concat_593 = ov::pass::pattern::wrap_type<ov::op::v0::Concat>(
         {ListUnpack_586_Squeeze_0 | ListUnpack_Squeeze_0_1, ListUnpack_586_Squeeze | ListUnpack_Squeeze_1},
         {{"axis", -1}});
-    auto slice_StridedSlice_470 = NewGenStridedSlice(rotary_emb_sin, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1);
+    auto slice_StridedSlice_470 =
+        ov::op::util::NewGenStridedSlice(rotary_emb_sin, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1);
     auto slice_Slice_470 =
         ov::pass::pattern::wrap_type<ov::op::v8::Slice>({rotary_emb_sin, Gather_377635 | neg_Multiply, INT_MAX, 1, 1});
     auto gather_sin_by_pos_ids =
@@ -1216,7 +1213,6 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
 }
 
 ov::pass::RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
-    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionGPTOSS);
 
     // gpt-oss style

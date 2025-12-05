@@ -29,7 +29,6 @@
 
 using namespace std;
 using namespace ov::element;
-using namespace ov::op::util;
 
 namespace {
 bool is_equal_consts(const shared_ptr<ov::Node>& l, const shared_ptr<ov::Node>& r) {
@@ -45,7 +44,8 @@ bool is_equal_consts(const shared_ptr<ov::Node>& l, const shared_ptr<ov::Node>& 
     return false;
 }
 
-bool check_WRB(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNCellBase>& cell_2) {
+bool check_WRB(const shared_ptr<ov::op::util::RNNCellBase>& cell_1,
+               const shared_ptr<ov::op::util::RNNCellBase>& cell_2) {
     int64_t idx_W = 2, idx_R = 3, idx_B = 4;
     auto increase_indexes = [&]() {
         ++idx_B;
@@ -79,7 +79,8 @@ bool check_WRB(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNCellBa
     return is_equal;
 }
 
-bool is_equal_cells(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNCellBase>& cell_2) {
+bool is_equal_cells(const shared_ptr<ov::op::util::RNNCellBase>& cell_1,
+                    const shared_ptr<ov::op::util::RNNCellBase>& cell_2) {
     bool is_equal = true;
     auto gru_cell_1 = ov::as_type_ptr<ov::op::v3::GRUCell>(cell_1);
     auto gru_cell_2 = ov::as_type_ptr<ov::op::v3::GRUCell>(cell_2);
@@ -95,14 +96,15 @@ bool is_equal_cells(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNC
     return is_equal;
 }
 
-bool check_lstm_cell(const shared_ptr<RNNCellBase>& prev_cell, const shared_ptr<RNNCellBase>& current_cell) {
+bool check_lstm_cell(const shared_ptr<ov::op::util::RNNCellBase>& prev_cell,
+                     const shared_ptr<ov::op::util::RNNCellBase>& current_cell) {
     // check intermediate C outputs in case of LSTMCell
     // LSTMCell - C -> LSTMCell
     if ((ov::as_type_ptr<ov::op::v4::LSTMCell>(prev_cell) || ov::as_type_ptr<ov::op::v0::LSTMCell>(prev_cell))) {
         const auto& target_inputs = prev_cell->get_output_target_inputs(1);
         bool valid = target_inputs.empty() ||
                      (target_inputs.size() == 1 &&
-                      ov::as_type<RNNCellBase>(target_inputs.begin()->get_node()) == current_cell.get() &&
+                      ov::as_type<ov::op::util::RNNCellBase>(target_inputs.begin()->get_node()) == current_cell.get() &&
                       target_inputs.begin()->get_index() == 2);
 
         // if intermediate C output is connected to other node, except ov::op::v4::LSTMCell,
@@ -112,21 +114,21 @@ bool check_lstm_cell(const shared_ptr<RNNCellBase>& prev_cell, const shared_ptr<
     return true;
 }
 
-shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegistry& cp_from,
-                                        ov::pass::NodeRegistry& cp_to,
-                                        const shared_ptr<RNNCellBase>& current_cell,
-                                        ov::OutputVector& x_to_concat,
-                                        ov::OutputVector& attention_to_concat,
-                                        map<int, ov::Output<ov::Node>>& h_outputs_to_redirect,
-                                        int& cells_cnt,
-                                        const shared_ptr<ov::Node>& axis_1) {
+shared_ptr<ov::op::util::RNNCellBase> find_cell_chain(ov::pass::NodeRegistry& cp_from,
+                                                      ov::pass::NodeRegistry& cp_to,
+                                                      const shared_ptr<ov::op::util::RNNCellBase>& current_cell,
+                                                      ov::OutputVector& x_to_concat,
+                                                      ov::OutputVector& attention_to_concat,
+                                                      map<int, ov::Output<ov::Node>>& h_outputs_to_redirect,
+                                                      int& cells_cnt,
+                                                      const shared_ptr<ov::Node>& axis_1) {
     cells_cnt = 1;
-    shared_ptr<RNNCellBase> current = current_cell;
+    shared_ptr<ov::op::util::RNNCellBase> current = current_cell;
     while (true) {
         cp_from.add(current);
         // check the source node of HiddenState input
         auto prev = current->input_value(1).get_node_shared_ptr();
-        auto prev_cell = ov::as_type_ptr<RNNCellBase>(prev);
+        auto prev_cell = ov::as_type_ptr<ov::op::util::RNNCellBase>(prev);
 
         auto in_X = current->input(0);
         x_to_concat.push_back(cp_to.make<ov::op::v0::Unsqueeze>(in_X.get_source_output(), axis_1));
@@ -150,8 +152,8 @@ shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegistry& cp_from,
 }
 
 bool create_sequence(ov::pass::NodeRegistry& cp_to,
-                     const shared_ptr<RNNCellBase>& first_cell,
-                     const shared_ptr<RNNCellBase>& last_cell,
+                     const shared_ptr<ov::op::util::RNNCellBase>& first_cell,
+                     const shared_ptr<ov::op::util::RNNCellBase>& last_cell,
                      const ov::OutputVector& x_to_concat,
                      const ov::OutputVector& attention_to_concat,
                      const map<int, ov::Output<ov::Node>>& h_outputs_to_redirect,
@@ -300,12 +302,12 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
 ov::pass::SequenceFusion::SequenceFusion() {
     MATCHER_SCOPE(SequenceFusion);
 
-    auto cell = ov::pass::pattern::wrap_type<RNNCellBase>();
+    auto cell = ov::pass::pattern::wrap_type<ov::op::util::RNNCellBase>();
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        NodeRegistry copy_from;
-        NodeRegistry copy_to;
+        ov::pass::NodeRegistry copy_from;
+        ov::pass::NodeRegistry copy_to;
         auto cell = m.get_match_root();
-        shared_ptr<RNNCellBase> current_cell = ov::as_type_ptr<RNNCellBase>(cell);
+        shared_ptr<ov::op::util::RNNCellBase> current_cell = ov::as_type_ptr<ov::op::util::RNNCellBase>(cell);
         if (!current_cell) {
             return false;
         }
@@ -313,7 +315,7 @@ ov::pass::SequenceFusion::SequenceFusion() {
         // GRUCell -> GRUCell (the last cell) -> OtherNode
         // GRUCell (hidden_size = 128) -> GRUCell (hs = 128, the last) -> GRUCell (hs = 64)
         for (const auto& target : cell->get_output_target_inputs(0)) {
-            auto cell_1 = ov::as_type_ptr<RNNCellBase>(target.get_node()->shared_from_this());
+            auto cell_1 = ov::as_type_ptr<ov::op::util::RNNCellBase>(target.get_node()->shared_from_this());
             if (cell_1 && is_equal_cells(cell_1, current_cell)) {
                 return false;
             }
