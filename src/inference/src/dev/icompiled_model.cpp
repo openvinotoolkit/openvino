@@ -8,7 +8,6 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "transformations/utils/utils.hpp"
 
 #if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
 #    include <malloc.h>
@@ -84,9 +83,9 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
         for (const auto& result : model->get_results()) {
             auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                       result->get_output_partial_shape(0));
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            const std::string res_name = ov::op::util::create_ie_output_name(result->input_value(0));
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            const auto& prev_layer = result->input_value(0).get_node_shared_ptr();
+            const std::string res_name = prev_layer->get_friendly_name() +
+                (prev_layer->get_output_size() != 1 ? "." + std::to_string(result->input_value(0).get_index()) : "");
             fake_param->set_friendly_name(res_name);
             fake_param->set_element_type(result->get_element_type());
             fake_param->validate_and_infer_types();

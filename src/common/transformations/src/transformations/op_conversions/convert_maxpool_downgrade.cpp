@@ -7,6 +7,7 @@
 #include "itt.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -24,7 +25,6 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
-#include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
     MATCHER_SCOPE(ConvertMaxPool8ToMaxPool1);
@@ -48,10 +48,6 @@ ov::pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
                                                                      maxpool_v8_node->get_kernel(),
                                                                      maxpool_v8_node->get_rounding_type(),
                                                                      maxpool_v8_node->get_auto_pad());
-
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        auto out_name = ov::op::util::create_ie_output_name(maxpool_v8_node->output(0));
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         maxpool_v1_node->set_friendly_name(maxpool_v8_node->get_friendly_name());
         maxpool_v8_node->output(0).replace(maxpool_v1_node->output(0));
