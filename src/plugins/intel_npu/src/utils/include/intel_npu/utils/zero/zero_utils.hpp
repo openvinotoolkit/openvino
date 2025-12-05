@@ -8,6 +8,8 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
+#include <optional>
+
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
@@ -215,6 +217,16 @@ static inline uint64_t get_l0_context_memory_allocation_id(ze_context_handle_t h
     }
 
     return 0;
+}
+
+template <typename Type>
+std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
+    auto itrHandle = params.find(p.name());
+    if (itrHandle == params.end()) {
+        return std::nullopt;
+    }
+
+    return ov::Any(itrHandle->second).as<Type>();
 }
 
 }  // namespace zeroUtils
