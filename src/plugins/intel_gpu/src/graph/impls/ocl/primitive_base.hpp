@@ -246,6 +246,7 @@ protected:
         if (instance.can_be_optimized()) {
             if (instance.needs_completion_event()) {
                 stream.wait_for_events(events);
+                return instance.is_output() ? stream.create_user_event(true) : nullptr;
             }
             return stream.aggregate_events(events, false, instance.is_output());
         }
