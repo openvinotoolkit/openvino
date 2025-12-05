@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmulMatcher;
 class ov::pass::ConvertWeightCompressedConv1x1ToMatmulMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertWeightCompressedConv1x1ToMatmulMatcher");
-    ConvertWeightCompressedConv1x1ToMatmulMatcher(bool supports_immad);
+    ConvertWeightCompressedConv1x1ToMatmulMatcher();
 };
 
 /**
@@ -38,7 +38,7 @@ public:
 class ov::pass::ConvertWeightCompressedConv1x1ToMatmul : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("ConvertWeightCompressedConv1x1ToMatmul");
-    ConvertWeightCompressedConv1x1ToMatmul(bool supports_immad = false) {
-        add_matcher<ov::pass::ConvertWeightCompressedConv1x1ToMatmulMatcher>(supports_immad);
+    ConvertWeightCompressedConv1x1ToMatmul() {
+        add_matcher<ov::pass::ConvertWeightCompressedConv1x1ToMatmulMatcher>();
     }
 };
