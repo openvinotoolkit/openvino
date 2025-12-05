@@ -491,7 +491,12 @@ int main(int argc, char* argv[]) {
         }
         if (FLAGS_raw_blob) {
             if (FLAGS_d == "NPU") {
-                configs["NPU_EXPORT_RAW_BLOB"] = "YES";
+                // set only if was not previously parsed from config
+                if (configs.find("NPU_EXPORT_RAW_BLOB") == configs.end()) {
+                    configs["NPU_EXPORT_RAW_BLOB"] = "YES";
+                } else {
+                    std::cout << "Ignoring -raw_blob flag already set via -load_config." << std::endl;
+                }
             } else {
                 std::cout << "Ignoring -raw_blob flag used with other device than NPU." << std::endl;
             }
