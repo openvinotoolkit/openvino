@@ -12,7 +12,6 @@
 
 using namespace std;
 using namespace ov;
-using namespace ov::op::util;
 
 pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetectionOutput8() {
     MATCHER_SCOPE(ConvertDetectionOutput1ToDetectionOutput8);

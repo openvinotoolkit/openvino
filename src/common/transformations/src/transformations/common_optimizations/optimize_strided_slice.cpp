@@ -395,7 +395,6 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
 
 ov::pass::SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
     MATCHER_SCOPE(SliceSequenceToSingleSlice);
-    using namespace ov::op::util;
     auto const_axes_1_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto const_axes_2_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto slice_1_pattern = ov::pass::pattern::wrap_type<ov::op::v8::Slice>({ov::pass::pattern::any_input(),
@@ -452,10 +451,10 @@ ov::pass::SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
         auto step = concat_boundaries(slice_1->input_value(3), slice_2->input_value(3));
         auto axes = concat_boundaries(slice_1->input_value(4), slice_2->input_value(4));
         auto one_slice = std::make_shared<ov::op::v8::Slice>(slice_1->input_value(0),
-                                                             try_fold_unary_output(begin),
-                                                             try_fold_unary_output(end),
-                                                             try_fold_unary_output(step),
-                                                             try_fold_unary_output(axes));
+                                                             ov::op::util::try_fold_unary_output(begin),
+                                                             ov::op::util::try_fold_unary_output(end),
+                                                             ov::op::util::try_fold_unary_output(step),
+                                                             ov::op::util::try_fold_unary_output(axes));
 
         ov::copy_runtime_info({slice_1, slice_2}, {one_slice, begin, end, step, axes});
         one_slice->set_friendly_name(slice_2->get_friendly_name());

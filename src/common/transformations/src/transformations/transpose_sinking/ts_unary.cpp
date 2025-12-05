@@ -29,7 +29,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-using namespace ov::op::util;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
@@ -49,7 +48,7 @@ TSUnaryForward::TSUnaryForward() {
 
     // We consider HardSigmoid, Swish, Selu, ConvertLike as unary ops
     // and handle only 0th input of these ops.
-    create_pattern<UnaryElementwiseArithmetic,
+    create_pattern<ov::op::util::UnaryElementwiseArithmetic,
                    ov::op::v0::Clamp,
                    ov::op::v0::Elu,
                    ov::op::v4::SoftPlus,
@@ -82,7 +81,7 @@ TSUnaryBackward::TSUnaryBackward() {
     };
 
     auto unary_with_1_input_label =
-        ov::pass::pattern::wrap_type<UnaryElementwiseArithmetic,
+        ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic,
                                      ov::op::v0::Clamp,
                                      ov::op::v0::Elu,
                                      ov::op::v4::SoftPlus,

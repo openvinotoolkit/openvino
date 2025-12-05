@@ -17,18 +17,17 @@
 
 using namespace std;
 using namespace ov;
-using namespace ov::op::util;
 using namespace ov::element;
-using InvariantD = MultiSubGraphOp::InvariantInputDescription;
-using SlicedD = MultiSubGraphOp::SliceInputDescription;
-using MergedD = MultiSubGraphOp::MergedInputDescription;
-using OutputD = MultiSubGraphOp::BodyOutputDescription;
-using ConcatD = MultiSubGraphOp::ConcatOutputDescription;
+using InvariantD = ov::op::util::MultiSubGraphOp::InvariantInputDescription;
+using SlicedD = ov::op::util::MultiSubGraphOp::SliceInputDescription;
+using MergedD = ov::op::util::MultiSubGraphOp::MergedInputDescription;
+using OutputD = ov::op::util::MultiSubGraphOp::BodyOutputDescription;
+using ConcatD = ov::op::util::MultiSubGraphOp::ConcatOutputDescription;
 
 using ResultPtr = std::shared_ptr<ov::op::v0::Result>;
-using OutputDescPtr = MultiSubGraphOp::OutputDescription::Ptr;
+using OutputDescPtr = ov::op::util::MultiSubGraphOp::OutputDescription::Ptr;
 using OutputDescMap = std::unordered_map<ResultPtr, OutputDescPtr>;
-using InputDescPtr = MultiSubGraphOp::InputDescription::Ptr;
+using InputDescPtr = ov::op::util::MultiSubGraphOp::InputDescription::Ptr;
 using BodyResultIdxMap = std::unordered_map<ResultPtr, uint64_t>;
 
 namespace {
@@ -97,7 +96,8 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
 
         const auto& pattern_to_output = m.get_pattern_value_map();
 
-        auto subgraph = as_type_ptr<SubGraphOp>(pattern_to_output.at(subgraph_label).get_node_shared_ptr());
+        auto subgraph =
+            as_type_ptr<ov::op::util::SubGraphOp>(pattern_to_output.at(subgraph_label).get_node_shared_ptr());
         if (!subgraph) {
             return false;
         }
@@ -105,7 +105,7 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
         const auto& body_params = body_model->get_parameters();
         const auto& body_results = body_model->get_results();
 
-        std::shared_ptr<SubGraphOp> new_node;
+        std::shared_ptr<ov::op::util::SubGraphOp> new_node;
         const auto& subgraph_in_values = subgraph->input_values();
         int64_t body_condition_output_idx = -1;
         int64_t current_iteration_input_idx = -1;

@@ -20,7 +20,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-using namespace ov::op::util;
 ov::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
     MATCHER_SCOPE(EliminateUnsqueezeGather);
     // Remove Unsqueeze + Gather pair, if Gather gathers data by `1` dimension that was previously added by Unsqueeze
@@ -30,7 +29,7 @@ ov::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
                                                                                ov::pass::pattern::consumers_count(1));
     const auto gatherIndices = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
     const auto gatherAxis = ov::pass::pattern::any_input();
-    const auto gather = ov::pass::pattern::wrap_type<GatherBase>({unsqueeze, gatherIndices, gatherAxis});
+    const auto gather = ov::pass::pattern::wrap_type<ov::op::util::GatherBase>({unsqueeze, gatherIndices, gatherAxis});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& patternValue = m.get_pattern_value_map();
@@ -75,12 +74,12 @@ inline bool scalar_with_one_consumer(const Output<Node>& out) {
 ov::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
     MATCHER_SCOPE(EliminateGatherUnsqueeze);
 
-    const auto gather_label = ov::pass::pattern::wrap_type<GatherBase>(scalar_with_one_consumer);
-    const auto be_label =
-        ov::pass::pattern::wrap_type<BinaryElementwiseArithmetic,
-                                     BinaryElementwiseComparison,
-                                     BinaryElementwiseLogical>({gather_label, ov::pass::pattern::any_input()},
-                                                               scalar_with_one_consumer);
+    const auto gather_label = ov::pass::pattern::wrap_type<ov::op::util::GatherBase>(scalar_with_one_consumer);
+    const auto be_label = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic,
+                                                       ov::op::util::BinaryElementwiseComparison,
+                                                       ov::op::util::BinaryElementwiseLogical>(
+        {gather_label, ov::pass::pattern::any_input()},
+        scalar_with_one_consumer);
     const auto or_label = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{gather_label, be_label});
     const auto unsqueeze_label = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>(
         {or_label, ov::pass::pattern::any_input()},
