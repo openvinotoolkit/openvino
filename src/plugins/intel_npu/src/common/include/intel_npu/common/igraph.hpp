@@ -16,6 +16,8 @@
 
 namespace intel_npu {
 
+using AddrSizePair = std::pair<const uint8_t*, uint64_t>;
+
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
     IGraph() = default;
@@ -28,7 +30,7 @@ public:
      * @return A pair made of the size of the main binary object and an optional variable. The optional variable
      * constitues the size of each init binary object if weights separation is enabled.
      */
-    virtual std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const = 0;
+    virtual std::pair<AddrSizePair, std::optional<std::vector<AddrSizePair>>> export_blob() const = 0;
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const Config& config) const = 0;

@@ -4,6 +4,9 @@
 
 #include <gtest/gtest.h>
 
+#include <cstring>
+#include <numeric>
+
 #include "common_test_utils/test_assertions.hpp"
 #include "metadata.hpp"
 #include "openvino/core/version.hpp"
@@ -13,13 +16,12 @@ using namespace intel_npu;
 using MetadataUnitTests = ::testing::Test;
 
 struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
-    MetadataTest(uint64_t blobSize,
-                 const std::optional<OpenvinoVersion>& ovVersion,
+    MetadataTest(const std::optional<OpenvinoVersion>& ovVersion,
                  const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
                  const std::optional<int64_t> batchSize = std::nullopt,
                  const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
                  const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt)
-        : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion, initSizes, batchSize, inputLayouts, outputLayouts) {}
+        : Metadata<CURRENT_METADATA_VERSION>(ovVersion, initSizes, batchSize, inputLayouts, outputLayouts) {}
 
     void set_version(uint32_t newVersion) {
         _version = newVersion;
@@ -40,9 +42,8 @@ TEST_F(MetadataUnitTests, readUnversionedBlob) {
 }
 
 TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlob) {
-    uint64_t blobSize = 0;
     std::stringstream stream;
-    auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION);
+    auto meta = MetadataTest(CURRENT_OPENVINO_VERSION);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
 
@@ -61,16 +62,20 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlob) {
 TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContent) {
     uint64_t blobSize = 64;
     std::stringstream stream;
-    std::vector<uint8_t> content(blobSize, 0);
-    stream.write(reinterpret_cast<const char*>(content.data()), static_cast<std::streamsize>(blobSize));
+    std::vector<uint8_t> content(blobSize);
+    std::iota(content.begin(), content.end(), 0);
 
-    auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION);
+    auto meta = MetadataTest(CURRENT_OPENVINO_VERSION);
     OV_ASSERT_NO_THROW(meta.write(stream));
+
+    stream.write(reinterpret_cast<const char*>(content.data()), static_cast<std::streamsize>(blobSize));
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
     ASSERT_TRUE(storedMeta->is_compatible());
-    ASSERT_TRUE(storedMeta->get_blob_size() == blobSize);
+    ASSERT_EQ(storedMeta->get_blob_offset(),
+              0);  // blob offset for ostreams is included in their current cursor position
+    auto blobOffset = stream.tellg();
 
     stream.seekg(0, std::ios::beg);
     size_t streamSize = MetadataBase::getFileSize(stream);
@@ -78,13 +83,16 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContent) {
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
     ASSERT_TRUE(storedMeta->is_compatible());
-    ASSERT_TRUE(storedMeta->get_blob_size() == blobSize);
+    ASSERT_EQ(storedMeta->get_blob_offset(), blobOffset);
+    ASSERT_EQ(std::memcmp(static_cast<const void*>(content.data()),
+                          static_cast<const void*>(tensor.data<const char>() + blobOffset),
+                          blobSize),
+              0);
 }
 
 TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWeightsSeparation) {
-    uint64_t blobSize = 0;
     std::stringstream stream;
-    auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION, std::vector<uint64_t>{0, 0});
+    auto meta = MetadataTest(CURRENT_OPENVINO_VERSION, std::vector<uint64_t>{0, 0});
 
     OV_ASSERT_NO_THROW(meta.write(stream));
 
@@ -109,15 +117,19 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContentAllAttri
 
     std::stringstream stream;
     std::vector<uint8_t> content(blobSize, 0);
-    stream.write(reinterpret_cast<const char*>(content.data()), static_cast<std::streamsize>(blobSize));
 
-    auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION, initSizes, batchSize, inputLayouts, outputLayouts);
+    auto meta = MetadataTest(CURRENT_OPENVINO_VERSION, initSizes, batchSize, inputLayouts, outputLayouts);
     OV_ASSERT_NO_THROW(meta.write(stream));
+
+    stream.write(reinterpret_cast<const char*>(content.data()), static_cast<std::streamsize>(blobSize));
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
     ASSERT_TRUE(storedMeta->is_compatible());
-    ASSERT_TRUE(storedMeta->get_blob_size() == blobSize);
+    ASSERT_EQ(storedMeta->get_blob_offset(),
+              0);  // blob offset for ostreams is included in their current cursor position
+    auto blobOffset = stream.tellg();
+
     ASSERT_TRUE(storedMeta->get_init_sizes().has_value());
     ASSERT_TRUE(storedMeta->get_init_sizes()->size() == initSizes.size());
     for (size_t i = 0; i < initSizes.size(); ++i) {
@@ -142,7 +154,7 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContentAllAttri
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
     ASSERT_TRUE(storedMeta->is_compatible());
-    ASSERT_TRUE(storedMeta->get_blob_size() == blobSize);
+    ASSERT_EQ(storedMeta->get_blob_offset(), blobOffset);
     ASSERT_TRUE(storedMeta->get_init_sizes().has_value());
     ASSERT_TRUE(storedMeta->get_init_sizes()->size() == initSizes.size());
     for (size_t i = 0; i < initSizes.size(); ++i) {
@@ -163,10 +175,9 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContentAllAttri
 }
 
 TEST_F(MetadataUnitTests, writeAndReadInvalidOpenvinoVersion) {
-    uint64_t blobSize = 0;
     std::stringstream stream;
     OpenvinoVersion wrongOvVersion(0xF0C, 0xACC, 0x1A);
-    auto meta = MetadataTest(blobSize, wrongOvVersion);
+    auto meta = MetadataTest(wrongOvVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
 
@@ -183,9 +194,8 @@ TEST_F(MetadataUnitTests, writeAndReadInvalidOpenvinoVersion) {
 }
 
 TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
-    uint64_t blobSize = 0;
     std::stringstream stream;
-    auto meta = MetadataTest(blobSize, std::nullopt);
+    auto meta = MetadataTest(std::nullopt);
 
     constexpr uint32_t dummyVersion = MetadataBase::make_version(0x00007E57, 0x0000AC3D);
     meta.set_version(dummyVersion);
@@ -201,9 +211,8 @@ TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
 }
 
 TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerMinorVersion) {
-    uint64_t blobSize = 0;
     std::stringstream stream;
-    auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION);
+    auto meta = MetadataTest(CURRENT_OPENVINO_VERSION);
 
     constexpr uint32_t dummyVersion =
         MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION, CURRENT_METADATA_MINOR_VERSION + 1);
@@ -230,10 +239,10 @@ public:
         _version = newVersion;
     }
 
-    MetadataVersionTestFixture() : Metadata<CURRENT_METADATA_VERSION>(0, std::nullopt) {}
+    MetadataVersionTestFixture() : Metadata<CURRENT_METADATA_VERSION>(std::nullopt) {}
 
-    MetadataVersionTestFixture(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion)
-        : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion) {}
+    MetadataVersionTestFixture(std::optional<OpenvinoVersion> ovVersion)
+        : Metadata<CURRENT_METADATA_VERSION>(ovVersion) {}
 
     void TestBody() override {}
 
@@ -255,7 +264,7 @@ TEST_P(MetadataVersionTestFixture, writeAndReadInvalidMetadataVersion) {
     }
 
     OpenvinoVersion dummyOvVersion(0x5A, 0x1A, 0xD);
-    MetadataVersionTestFixture dummyMeta = MetadataVersionTestFixture(0, dummyOvVersion);
+    MetadataVersionTestFixture dummyMeta = MetadataVersionTestFixture(dummyOvVersion);
     dummyMeta.set_version(metaVersion);
 
     OV_ASSERT_NO_THROW(dummyMeta.write(blob));
@@ -284,10 +293,9 @@ INSTANTIATE_TEST_SUITE_P(MetadataUnitTests,
                          MetadataVersionTestFixture::getTestCaseName);
 
 TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerFieldAtEnd) {
-    uint64_t blobSize = 0;
     std::stringstream stream;
     OpenvinoVersion dummyOvVersion(0x0FF, 0xC0FF, 0xEEEE);
-    auto meta = MetadataTest(blobSize, dummyOvVersion);
+    auto meta = MetadataTest(dummyOvVersion);
 
     constexpr uint32_t dummyVersion =
         MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION, CURRENT_METADATA_MINOR_VERSION + 1);
@@ -315,10 +323,9 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerFieldAtEnd) {
 }
 
 TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerFieldAtMiddle) {
-    uint64_t blobSize = 0;
     std::stringstream stream;
     OpenvinoVersion dummyOvVersion(0xFA, 0x1A, 0xFE1);
-    auto meta = MetadataTest(blobSize, dummyOvVersion);
+    auto meta = MetadataTest(dummyOvVersion);
 
     constexpr uint32_t dummyVersion =
         MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION + 1, CURRENT_METADATA_MINOR_VERSION);
@@ -344,10 +351,9 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerFieldAtMiddle) {
 }
 
 TEST_F(MetadataUnitTests, writeAndReadMetadataWithRemovedField) {
-    uint64_t blobSize = 0;
     std::stringstream stream;
     OpenvinoVersion dummyOvVersion(0xBA, 0xB1, 0xC);
-    auto meta = MetadataTest(blobSize, dummyOvVersion);
+    auto meta = MetadataTest(dummyOvVersion);
 
     constexpr uint32_t dummyVersion =
         MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION + 1, CURRENT_METADATA_MINOR_VERSION);

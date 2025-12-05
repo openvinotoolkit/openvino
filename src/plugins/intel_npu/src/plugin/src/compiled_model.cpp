@@ -5,19 +5,20 @@
 #include "compiled_model.hpp"
 
 #include <fstream>
+#include <iterator>
 #include <string_view>
 
 #include "async_infer_request.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
-
 namespace intel_npu {
 
 using intel_npu::envVarStrToBool;
@@ -89,27 +90,80 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
-
-    std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
-    std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
-
-    for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
-        inputLayouts->push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
-    }
-    for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
-        outputLayouts->push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+    if (!stream) {
+        _logger.error("Write blob to stream failed. Blob is broken!");
+        return;
     }
 
-    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
-                                       CURRENT_OPENVINO_VERSION,
-                                       initBlobSizes,
-                                       _batchSize,
-                                       inputLayouts,
-                                       outputLayouts)
-        .write(stream);
+    auto [mainBlobAddrSize, initBlobAddrsSizes] = _graph->export_blob();
+
+    if (_config.get<EXPORT_RAW_BLOB>() == false) {
+        std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
+        std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
+
+        std::optional<std::vector<uint64_t>> initBlobSizes = std::nullopt;
+        if (initBlobAddrsSizes.has_value()) {
+            initBlobSizes->resize(initBlobAddrsSizes->size());
+            std::transform(initBlobAddrsSizes->begin(),
+                           initBlobAddrsSizes->end(),
+                           initBlobSizes->begin(),
+                           [](const std::pair<const uint8_t*, uint64_t>& initAddrSizePair) {
+                               return initAddrSizePair.second;
+                           });
+        }
+
+        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+            inputLayouts->push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+            outputLayouts->push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+
+        Metadata<CURRENT_METADATA_VERSION>(CURRENT_OPENVINO_VERSION,
+                                           std::move(initBlobSizes),
+                                           _batchSize,
+                                           std::move(inputLayouts),
+                                           std::move(outputLayouts))
+            .write(stream);
+    }
+
+    stream.write(reinterpret_cast<const char*>(mainBlobAddrSize.first), mainBlobAddrSize.second);
+
+    size_t alignedMainBlobsize = utils::align_size_to_standard_page_size(mainBlobAddrSize.second);
+    size_t paddingMainBlobSize = alignedMainBlobsize - mainBlobAddrSize.second;
+    if (paddingMainBlobSize > 0) {
+        std::fill_n(std::ostream_iterator<char>(stream), paddingMainBlobSize, 0);
+
+        if (!stream) {
+            _logger.error("Write padding to stream failed. Blob is broken!");
+            return;
+        }
+
+        _logger.info("Main blob size with padding: %ld", alignedMainBlobsize);
+    }
+
+    if (initBlobAddrsSizes.has_value()) {
+        for (const auto& initBlobAddrsSizes : initBlobAddrsSizes.value()) {
+            stream.write(reinterpret_cast<const char*>(initBlobAddrsSizes.first), initBlobAddrsSizes.second);
+
+            size_t alignedInitBlobSize = utils::align_size_to_standard_page_size(initBlobAddrsSizes.second);
+            size_t paddingInitBlobSize = alignedInitBlobSize - initBlobAddrsSizes.second;
+            if (paddingInitBlobSize > 0) {
+                std::fill_n(std::ostream_iterator<char>(stream), paddingInitBlobSize, 0);
+
+                if (!stream) {
+                    _logger.error("Write padding to stream failed. Blob is broken!");
+                    return;
+                }
+
+                _logger.info("Init blob size with padding: %ld", alignedInitBlobSize);
+            }
+        }
+    }
+
+    _logger.info("Write blob to stream successfully.");
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

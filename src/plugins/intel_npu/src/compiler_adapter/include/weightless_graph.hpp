@@ -37,7 +37,7 @@ public:
     /**
      * @brief The main schedule along with the weights initialization ones are exported.
      */
-    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
+    std::pair<AddrSizePair, std::optional<std::vector<AddrSizePair>>> export_blob() const override;
 
     /**
      * @brief The same operations performed within "Graph::initialize", but for all handles. In addition to this, the

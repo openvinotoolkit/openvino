@@ -5,6 +5,7 @@
 
 add_subdirectory(common)
 add_subdirectory(compile_tool)
+add_subdirectory(npu_metadata_parser)
 add_subdirectory(single-image-test)
 
 if (ENABLE_INTEL_NPU_PROTOPIPE)
