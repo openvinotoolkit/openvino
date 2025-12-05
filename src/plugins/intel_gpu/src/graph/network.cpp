@@ -787,6 +787,19 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     }
 }
 
+void network::cleanup_kv_outputs() {
+    for (auto& inst : _read_values) {
+        if (auto rv_inst = std::dynamic_pointer_cast<read_value_inst>(inst)) {
+            rv_inst->cleanup();
+        }
+    }
+    for (auto& inst : _kv_caches) {
+        if (auto kv_inst = std::dynamic_pointer_cast<kv_cache_inst>(inst)) {
+            kv_inst->cleanup();
+        }
+    }
+}
+
 std::vector<primitive_id> network::get_input_ids() const {
     std::vector<primitive_id> ret;
     ret.reserve(_inputs.size());
