@@ -11,7 +11,7 @@
 
 namespace ov {
 namespace test {
-std::string EyeLayerTest::getTestCaseName(testing::TestParamInfo<EyeLayerTestParams> obj) {
+std::string EyeLayerTest::getTestCaseName(const testing::TestParamInfo<EyeLayerTestParams>& obj) {
     const auto& [input_shapes, out_batch_shape, eye_par, model_type, td] = obj.param;
     std::ostringstream result;
     result << "EyeTest_";

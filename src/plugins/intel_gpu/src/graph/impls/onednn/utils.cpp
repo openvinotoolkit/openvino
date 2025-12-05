@@ -356,7 +356,12 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
             // In cldnn::layer, when it is a 3D shape, the values ​​of the XY axes can sometimes be flipped,
             // so the larger value of the two is used.
             dims.push_back(std::max(l.spatial(0), l.spatial(1)));
-            target_fmt = dnnl::memory::format_tag::abc;
+            if (l.get_format() == format::bfyx)
+                target_fmt = dnnl::memory::format_tag::abc;
+            else if (l.get_format() == format::byxf)
+                target_fmt = dnnl::memory::format_tag::acb;
+            else
+                OPENVINO_THROW("[GPU] Unexpected layout format " + l.to_short_string());
         } else {
             auto rank = cldnn::format::dimension(l.format);
             dims = convert_tensor(l.get_tensor(), rank, cldnn::format::is_grouped(l.format));
@@ -817,5 +822,26 @@ bool is_supported_pad(const layout& layout) {
     return (no_spatial_padding && no_batch_padding);
 }
 
+int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
+                                                                const std::function<layout(int32_t)>& get_input_layout,
+                                                                int32_t slope_input_idx) {
+    auto output_layout = get_output_layout();
+    auto slope_layout = get_input_layout(slope_input_idx);
+    auto input_layout = get_input_layout(0);
+    auto output_shape = output_layout.get_shape();
+    auto slope_shape = slope_layout.get_shape();
+    auto input_shape = input_layout.get_shape();
+
+    bool is_scalar = true;
+    for (size_t i = 0; i < slope_shape.size(); i++) {
+        if (slope_shape[i] != 1)
+            is_scalar = false;
+    }
+
+    if (is_scalar)
+        return 0;
+    else
+        return (1 << 1);
+}
 }  // namespace onednn
 }  // namespace cldnn

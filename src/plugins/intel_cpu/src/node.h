@@ -124,8 +124,8 @@ public:
     }
 
     template <typename T,
-              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
-              std::enable_if_t<std::is_base_of_v<ExecutorFactoryLegacy, T>, int> = 0>
+              typename = std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>>,
+              typename = std::enable_if_t<std::is_base_of_v<ExecutorFactoryLegacy, T>>>
     std::shared_ptr<T> getExecutorFactoryAs() {
         auto casted = std::dynamic_pointer_cast<T>(executorFactory);
         OPENVINO_ASSERT(casted, "Cannot dynamically cast ExecutorFactory");
@@ -187,8 +187,8 @@ public:
     struct Tag {};
 
     struct PerfCounters {
-        explicit PerfCounters(const std::string& name)
-            : execute(openvino::itt::handle(name)),
+        PerfCounters()
+            : execute(openvino::itt::handle<Tag<Node, -1>>("Node::execute")),
               getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
               initSupportedPrimitiveDescriptors(
                   openvino::itt::handle<Tag<Node, 1>>("Node::initSupportedPrimitiveDescriptors")),
@@ -202,6 +202,7 @@ public:
 
         template <typename NodeType>
         void buildClassCounters(const std::string& type_name) {
+            execute = openvino::itt::handle<Tag<NodeType, -1>>(type_name + "::execute");
             getSupportedDescriptors = openvino::itt::handle<Tag<NodeType, 0>>(type_name + "::getSupportedDescriptors");
             initSupportedPrimitiveDescriptors =
                 openvino::itt::handle<Tag<NodeType, 1>>(type_name + "::initSupportedPrimitiveDescriptors");
@@ -345,7 +346,6 @@ public:
         StrictNoConst,  // Node produces non-constant subgraph: this type can't be changed and it does not depend on the
                         // parent nodes' ConstantType.
     };
-    ConstantType getConstantType() const;
     void updateConstantType();
     bool isConstant() const;
 
@@ -396,14 +396,6 @@ public:
         fusedWith.clear();
     }
 
-    void mergeWith(const NodePtr& merge) {
-        mergedWith.push_back(merge);
-    }
-
-    const std::vector<NodePtr>& getMergeWith() {
-        return mergedWith;
-    }
-
     const std::vector<NodePtr>& getFusedWith() const {
         return fusedWith;
     }
@@ -424,10 +416,6 @@ public:
 
     const std::string& getOriginalLayers() const {
         return originalLayers;
-    }
-
-    const std::string& getParallelDomain() const {
-        return parallelDomain;
     }
 
     Type getType() const {
@@ -477,27 +465,6 @@ public:
      * @return pointer to parent output memory descriptor with type MemoryDesc
      */
     static MemoryDescPtr getParentOutputMemDesc(const EdgePtr& edge);
-    /**
-     * @brief Returns input selected primitive descriptor on the specified port
-     * must be used after selectOptimalPrimitiveDescriptor stage
-     * @param portNum port number
-     * @return pointer to selected primitive descriptor with type T
-     */
-    template <typename T,
-              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
-              std::enable_if_t<std::is_base_of_v<MemoryDesc, T>, int> = 0>
-    std::shared_ptr<T> getInputMemDescAtPort(size_t portNum) const;
-
-    /**
-     * @brief Returns output selected primitive descriptor on the specified port
-     * must be used after selectOptimalPrimitiveDescriptor stage
-     * @param portNum port number
-     * @return pointer to selected primitive descriptor with type T
-     */
-    template <typename T,
-              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
-              std::enable_if_t<std::is_base_of_v<MemoryDesc, T>, int> = 0>
-    std::shared_ptr<T> getOutputMemDescAtPort(size_t portNum) const;
 
     void selectPrimitiveDescriptorByIndex(int index) {
         if (index < 0 || static_cast<size_t>(index) >= supportedPrimitiveDescriptors.size()) {
@@ -719,7 +686,6 @@ public:
     virtual bool canBeExecutedInInt8() const {
         OPENVINO_THROW_NOT_IMPLEMENTED("canBeExecutedInInt8 not implemented for node with type ",
                                        NameFromType(getType()));
-        return false;
     }
     bool keepOrigPrecision() const {
         return keepOriginalPrecision;
@@ -741,28 +707,22 @@ protected:
         return nullptr;
     }
 
-    using GetPrimitiveMemoryFormatFunc = std::function<DnnlMemoryDescPtr(dnnl::primitive_desc&, size_t)>;
-    std::vector<GetPrimitiveMemoryFormatFunc> internalBlobDesc;
-
     std::vector<Shape> inputShapes;
     std::vector<Shape> outputShapes;
 
     std::vector<NodePtr> fusedWith;
-    std::vector<NodePtr> mergedWith;
 
     int curNumaNode = -1;
 
     void toNumaNode(int numaNodeID);
     virtual void toNumaNodeImpl(int numaNodeID);
 
-    std::string primitivesPriority;
     std::vector<impl_desc_type> customImplPriorities;
     MemoryFormatFilter memoryFormatFilter;
     bool enforceBF16evenForGraphTail = false;
     bool keepOriginalPrecision = false;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
-    std::string parallelDomain;
 
     Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
 
@@ -771,7 +731,7 @@ protected:
          std::vector<Shape> outShapes,
          std::vector<ov::element::Type> originalInputPrecisions,
          std::vector<ov::element::Type> originalOutputPrecisions,
-         const std::string& name,
+         std::string name,
          const GraphContext::CPtr& ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
@@ -829,9 +789,7 @@ protected:
                               const std::vector<PortConfigurator>& outPortConfigs,
                               impl_desc_type implType);
 
-    void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
     virtual void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);
-    void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
     MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc = nullptr);
 
@@ -914,8 +872,6 @@ private:
     std::string typeStr;
     Type type;
     int execIndex = -1;
-
-    std::string typeToStr(Type type);
 
     PerfCount perfCounter;
     PerfCounters profiling;

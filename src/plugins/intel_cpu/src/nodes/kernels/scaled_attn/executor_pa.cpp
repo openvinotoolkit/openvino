@@ -37,6 +37,7 @@
 #include "transpose_kernel.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
+#include "xattention.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
@@ -106,7 +107,7 @@ void transpose_16NxK(TDST* dst,
 #    if defined(HAVE_AVX512F)
 template <typename T,
           ov::element::Type_t SRC_PREC,
-          typename std::enable_if<(SRC_PREC == ov::element::bf16 || SRC_PREC == ov::element::f16) &&
+          typename std::enable_if<any_of(SRC_PREC, ov::element::bf16, ov::element::f16) &&
                                       (SRC_PREC == precision_of<T>::value),
                                   bool>::type = true>
 static void transpose_16NxK(T* dst,
@@ -171,7 +172,7 @@ void transpose_16NxK(TDST* dst,
             size_t src_offset = 0;
             size_t dst_offset = 0;
             while (dst_offset < K) {
-                auto params = reinterpret_cast<float*>(s + src_offset);
+                auto* params = reinterpret_cast<float*>(s + src_offset);
                 attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + sizeof(float) * param_count,
                                                     t + dst_offset,
                                                     group_size,
@@ -228,7 +229,7 @@ static inline void dequant(float* dst,
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          std::enable_if_t<SRC_PREC == ov::element::u4 || SRC_PREC == ov::element::u8, bool> = true>
+          std::enable_if_t<any_of(SRC_PREC, ov::element::u4, ov::element::u8), bool> = true>
 void dequant(TDST* dst,
              void* src,
              const size_t N,
@@ -254,7 +255,7 @@ void dequant(TDST* dst,
             size_t src_offset = 0;
             size_t dst_offset = 0;
             while (dst_offset < K) {
-                auto params = reinterpret_cast<float*>(s + src_offset);
+                auto* params = reinterpret_cast<float*>(s + src_offset);
                 attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + params_offset,
                                                     dst + dst_offset,
                                                     group_size,
@@ -275,7 +276,7 @@ void dequant(TDST* dst,
 #    if defined(HAVE_AVX512F)
 template <
     typename T,
-    typename = typename std::enable_if<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>::type>
+    typename = typename std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
 static void pack_32x32_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
@@ -299,7 +300,7 @@ static void pack_32x32_kernel(T* dst, T* src, size_t dst_stride, size_t src_stri
 
 template <
     typename T,
-    typename = typename std::enable_if<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>::type>
+    typename = typename std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
 static void pack_32x16_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
@@ -320,7 +321,7 @@ static void pack_32x16_kernel(T* dst, T* src, size_t dst_stride, size_t src_stri
 
 template <
     typename T,
-    typename = typename std::enable_if<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>::type>
+    typename = typename std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
 static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride, size_t K) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
@@ -341,9 +342,9 @@ static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_strid
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          typename std::enable_if<precision_of<TDST>::value != ov::element::f32 &&
-                                      (SRC_PREC == ov::element::bf16 || SRC_PREC == ov::element::f16),
-                                  bool>::type = true>
+          typename std::enable_if_t<precision_of<TDST>::value != ov::element::f32 &&
+                                        any_of(SRC_PREC, ov::element::bf16, ov::element::f16),
+                                    bool> = true>
 static void pack_32NxK(TDST* dst,
                        void* src,
                        TDST* tmp,
@@ -583,6 +584,9 @@ struct MHAHelper {
     std::vector<ScoreAggregationInfo> _score_infos;
 
     PlainTensor _block_rotation_coefficient_scratch;
+    // Block size used when generating sparse_attention_mask (0 means unspecified/equal to _block_size)
+    size_t _sparse_mask_block_size = 0;
+    bool _use_softmax_sparse_mask = false;
 
     MHAHelper() {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
@@ -829,13 +833,32 @@ struct MHAHelper {
                               const PlainTensor& alibi_slopes,
                               float* score_output,
                               size_t q_start_idx_score,
-                              const ScoreAggregationInfo* score_info_ptr) {
+                              const ScoreAggregationInfo* score_info_ptr,
+                              size_t batch_in_seq = 0,
+                              const std::vector<PlainTensor>& sparse_attention_mask = {}) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
+        [[maybe_unused]] size_t sparse_scale = 1;
+        [[maybe_unused]] std::function<std::pair<size_t, size_t>(size_t, size_t)> map_to_mask_idx =
+            [](size_t q_blk_rt, size_t k_blk_rt) {
+                return std::pair<size_t, size_t>{q_blk_rt, k_blk_rt};
+            };
+        // Sparse attention mask pointer for current softmax kernel processing
+        uint8_t* xattn_mask = nullptr;
+        if (!sparse_attention_mask.empty()) {
+            if (!(_sparse_mask_block_size == 0 || _sparse_mask_block_size == _block_size)) {
+                sparse_scale = _sparse_mask_block_size / _block_size;
+                map_to_mask_idx = [sparse_scale](size_t q_blk_rt, size_t k_blk_rt) {
+                    size_t q_mask = q_blk_rt / sparse_scale;
+                    size_t k_mask = k_blk_rt / sparse_scale;
+                    return std::pair<size_t, size_t>{q_mask, k_mask};
+                };
+            }
+        }
         for (size_t h = hq_beg; h < hq_end; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
             if (_params.is_sage_attn) {
@@ -850,13 +873,22 @@ struct MHAHelper {
             // 1 1 0 0 ...
             // 1 1 1 0 ...
             // just computing the positions of 1 should be enough
+            // map runtime (block_size) indices to mask (xt_block_size) indices
             for (size_t k_blk = 0; k_blk < cur_kv_len_blocks; k_blk++) {
+                // sparse attention mask filtering
+                if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr) {
+                    auto [q_m, k_m] = map_to_mask_idx(q_blk, k_blk);
+                    if (!sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_m, k_m)[0]) {
+                        // Skip GEMM for this block if mask is false
+                        continue;
+                    }
+                }
                 if (_params.is_sage_attn) {
 #    if defined(OPENVINO_ARCH_X86_64)
                     auto* q_ptr = _quantized_q.ptr<int8_t>(ithr);
                     auto* k_ptr = qk_scratch_b.ptr<int8_t>(k_blk, hk);
-                    int32_t* temp_C = reinterpret_cast<int32_t*>(_output.ptr<float>(ithr, 0, 0, 0));
-                    float* scale_b = reinterpret_cast<float*>(qk_scratch_b.ptr<int8_t>(k_blk, hk, _block_size * S));
+                    auto* temp_C = reinterpret_cast<int32_t*>(_output.ptr<float>(ithr, 0, 0, 0));
+                    auto* scale_b = reinterpret_cast<float*>(qk_scratch_b.ptr<int8_t>(k_blk, hk, _block_size * S));
                     float* dst_f32 = c_ptr + k_blk * _block_size;
                     _qk_gemm[q_cnt - 1]->executeGemm(q_cnt < _block_size,
                                                      q_ptr + sizeof(float),
@@ -897,6 +929,17 @@ struct MHAHelper {
                         start_idx = ncausal - _sliding_window;
                         new_causal = _sliding_window;
                     }
+
+                    // Handle sparse attention mask for sliding window
+                    if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr &&
+                        _use_softmax_sparse_mask) {
+                        // Get the original xattn_mask and calculate offset
+                        auto* original_mask = reinterpret_cast<uint8_t*>(
+                            sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_blk / sparse_scale));
+                        size_t mask_start_offset = start_idx / _sparse_mask_block_size;
+                        xattn_mask = original_mask + mask_start_offset;
+                    }
+
                     attn_softmax_kernel<float>(score + start_idx,
                                                reinterpret_cast<DATA_TYPE*>(score) + start_idx,
                                                revised_d_scale,
@@ -907,7 +950,11 @@ struct MHAHelper {
                                                new_causal,
                                                rnd_up(cur_kv_len, _block_size) - start_idx,
                                                precision_of<DATA_TYPE>::value,
-                                               precision_of<DATA_TYPE>::value);
+                                               precision_of<DATA_TYPE>::value,
+                                               nullptr,
+                                               0.f,
+                                               xattn_mask,
+                                               _sparse_mask_block_size);
 
                     memset(score, 0, sizeof(DATA_TYPE) * start_idx);
                 } else {
@@ -917,6 +964,11 @@ struct MHAHelper {
                     if (alibi_slopes) {
                         alibi_slope = alibi_slopes.ptr<float>()[h];
                         alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
+                    }
+                    if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr &&
+                        _use_softmax_sparse_mask) {
+                        xattn_mask = reinterpret_cast<uint8_t*>(
+                            sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_blk / sparse_scale));
                     }
                     attn_softmax_kernel<float>(score,
                                                reinterpret_cast<DATA_TYPE*>(score),
@@ -929,7 +981,10 @@ struct MHAHelper {
                                                rnd_up(cur_kv_len, _block_size),
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
-                                               alibi_slope);
+                                               nullptr,
+                                               alibi_slope,
+                                               xattn_mask,
+                                               _sparse_mask_block_size);
                 }
                 if (score_output && m >= q_start_idx_score) {
                     auto* score_block_ptr =
@@ -952,6 +1007,13 @@ struct MHAHelper {
 
             // for each weight block, loop through all value block
             for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
+                // sparse attention mask filtering for value blocks
+                if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr) {
+                    auto [q_m, v_m] = map_to_mask_idx(q_blk, v_blk);
+                    if (!sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_m, v_m)[0]) {
+                        continue;
+                    }
+                }
                 DATA_TYPE* v_ptr = nullptr;
                 if (q_is_xf16 || !q_cache_is_same) {
                     v_ptr = wv_scratch_b.ptr<DATA_TYPE>(v_blk, hk);
@@ -1083,7 +1145,8 @@ struct MHAHelper {
                                                new_causal,
                                                rnd_up(cur_kv_len, _block_size) - start_idx,
                                                precision_of<DATA_TYPE>::value,
-                                               precision_of<DATA_TYPE>::value);
+                                               precision_of<DATA_TYPE>::value,
+                                               nullptr);
 
                     memset(score, 0, sizeof(DATA_TYPE) * start_idx);
                 } else {
@@ -1105,6 +1168,7 @@ struct MHAHelper {
                                                rnd_up(cur_kv_len, _block_size),
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
+                                               nullptr,
                                                alibi_slope);
                 }
                 if (score_output && m >= q_start_idx_score) {
@@ -1223,6 +1287,7 @@ struct MHAHelper {
                                            cur_kv_len,
                                            ov::element::f32,
                                            ov::element::f32,
+                                           nullptr,
                                            alibi_slope);
                 if (score_output) {
                     // aligned to cache line to avoid false sharing
@@ -1400,6 +1465,7 @@ struct MHAHelper {
                                        cur_kv_len,
                                        ov::element::f32,
                                        ov::element::f32,
+                                       nullptr,
                                        alibi_slope);
         };
 
@@ -1506,7 +1572,8 @@ struct MHA {
                          const PlainTensor& block_indices,
                          const PlainTensor& block_indices_begins,
                          const PlainTensor& alibi_slopes,
-                         const PlainTensor& score_aggregation_window) {
+                         const PlainTensor& score_aggregation_window,
+                         const std::vector<PlainTensor>& sparse_attention_mask) {
         auto Hk = v_cache.m_dims[1];
 
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
@@ -1524,13 +1591,13 @@ struct MHA {
             const auto batch_in_seq = item.batch_in_seq;
             const auto batch_in_reorder = item.batch_in_reorder;
             const auto kv_block = item.kv_block_id;
-            auto block_number =
+            const auto block_number =
                 block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[batch_in_seq] + kv_block];
             if (block_number < 0) {
                 return;
             }
 
-            size_t ithr = static_cast<size_t>(parallel_get_thread_num());
+            const auto ithr = static_cast<size_t>(parallel_get_thread_num());
             const size_t valid_len = item.valid_block_len;
             if (_helper._params.is_sage_attn) {
 #    if defined(OPENVINO_ARCH_X86_64)
@@ -1640,7 +1707,7 @@ struct MHA {
             const auto batch_in_seq = item.batch_in_seq;
             const auto batch_in_token = subsequence_begins.ptr<int32_t>()[batch_in_seq];
             const auto q_len = static_cast<size_t>(item.q_len);
-            size_t ithr = static_cast<size_t>(parallel_get_thread_num());
+            const auto ithr = static_cast<size_t>(parallel_get_thread_num());
 
             if (q_len == 1) {
                 const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + 1;
@@ -1653,7 +1720,7 @@ struct MHA {
                         score_output = _helper._score_output.template ptr<float>() + score_offset * _helper.H;
                     }
                 }
-
+                // TODO: support second token sparse attention execution
                 _helper.exec_kernel_one_bh(
                     q.slice(0, batch_in_token, batch_in_token),
                     k_cache,
@@ -1760,7 +1827,9 @@ struct MHA {
                     alibi_slopes,
                     score_output,
                     q_start_idx_score,
-                    score_info_ptr);
+                    score_info_ptr,
+                    batch_in_seq,
+                    sparse_attention_mask);
 #    endif
             }
         });
@@ -1797,7 +1866,8 @@ struct MHA {
                     const PlainTensor& block_indices,
                     const PlainTensor& block_indices_begins,
                     const PlainTensor& alibi_slopes,
-                    const PlainTensor& score_aggregation_window) {
+                    const PlainTensor& score_aggregation_window,
+                    const std::vector<PlainTensor>& sparse_attention_mask) {
         _workitems
             .reset(query, past_lens, subsequence_begins, block_indices, block_indices_begins, _helper._block_size);
         if (output_score) {
@@ -1818,8 +1888,10 @@ struct MHA {
                             block_indices,
                             block_indices_begins,
                             alibi_slopes,
-                            score_aggregation_window);
+                            score_aggregation_window,
+                            sparse_attention_mask);
         } else {
+            // TODO: support second token sparse attention execution
             _helper.exec_loop_bhl(query,
                                   present_key,
                                   present_value,
@@ -1841,6 +1913,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
     MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC> _helper;
     MHA<DATA_TYPE, KEY_PREC, VALUE_PREC> _kernel;
     PlainTensor _slot_mapping;
+#    if defined(OPENVINO_ARCH_X86_64)
+    Xattn _xatt;
+#    endif
 
     AttentionExecutor() : _kernel(_helper) {}
 
@@ -1870,8 +1945,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
               PlainTensor& xattention_threshold,
               int32_t& xattention_block_size,
               int32_t& xattention_stride,
+              PlainTensor& sinks,
               PlainTensor& output_emb,
-              PlainTensor& output_score) {
+              PlainTensor& output_score,
+              std::vector<PlainTensor>& sparse_attention_mask) {
         q.reset(inputs[ID_Q]);  // [B_token, H * S]
         k.reset(inputs[ID_K]);
         v.reset(inputs[ID_V]);
@@ -1893,7 +1970,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         size_t inputs_size = inputs.size();
-        OPENVINO_ASSERT(inputs_size == 20);
+        OPENVINO_ASSERT(inputs_size == 21);
         if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
             rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
         }
@@ -1910,6 +1987,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
         xattention_stride = *inputs[ID_XATTENTION_STRIDE]->getDataAs<int32_t>();
         xattention_block_size = *inputs[ID_XATTENTION_BLOCK_SIZE]->getDataAs<int32_t>();
+
+        if (!inputs[ID_SINKS]->getShape().hasZeroDims()) {
+            sinks.reset(inputs[ID_SINKS]);  // [1, 64, 1, 1]
+        }
 
         output_emb.reset(outputs[0]);
         if (outputs.size() == 2) {
@@ -2040,17 +2121,19 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             // Only K entries are needed to be rotated, since position is encoded at the Q^T @ (effective_RoPE_matrix) @
             // K matrix multiplication
             rotation_deltas.assert_dims({rotated_block_indices.size(0), 0}, /* special_zero = */ true);
-            OPENVINO_ASSERT(rotation_deltas.shape()[1] == 1 ||
-                            rotation_deltas.shape()[1] == block_size);  // per-block or per-token granularity
+            OPENVINO_ASSERT(any_of(rotation_deltas.shape()[1], 1U, block_size));  // per-block or per-token granularity
             rotation_trig_lut.assert_dims({0, S}, /* special_zero = */ true);
             init_rotation_coefficient_scratch = true;
         }
         if (xattention_threshold) {
             xattention_threshold.assert_dims({B_seq});
-            OPENVINO_ASSERT(xattention_block_size > 0);
+            OPENVINO_ASSERT(static_cast<size_t>(xattention_block_size) >= block_size &&
+                            static_cast<size_t>(xattention_block_size) % block_size == 0);
             OPENVINO_ASSERT(xattention_stride > 0);
-            // TODO: add assertions on the block size and stride limitations as defined by the
-            // block sparse operation and importance score computation impls
+        }
+
+        if (sinks) {
+            sinks.assert_dims({1, H, 1, 1});
         }
 
         output_emb.assert_dims({B_token, H * SV});
@@ -2058,6 +2141,37 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         // TODO: enable block_size to be multiple of 32
         OPENVINO_ASSERT(block_size == 32, "CPU: block size must be 32, current: ", block_size);
+
+#    if defined(OPENVINO_ARCH_X86_64)
+        // TODO: Support multiple batches. Currently only support B_seq is 1.
+        if (xattention_threshold && q.size(0) > 1 && B_seq == 1) {
+            sparse_attention_mask.resize(B_seq);
+            _xatt.init(B_token, H, 1, S, Hk, xattention_stride, xattention_block_size, q.m_dt);
+            size_t seq_idx = 0;
+            _xatt.estimate(q,
+                           k,
+                           xattention_block_size,
+                           xattention_stride,
+                           xattention_threshold.ptr<float>()[seq_idx],
+                           sparse_attention_mask[seq_idx]);
+
+            // keep original mask granularity; remember its block size for on-the-fly mapping
+            _helper._sparse_mask_block_size = xattention_block_size;
+            // Check sparse_mask_block_size is a multiple of vector length for correct sparse_mask indexing
+#        if defined(HAVE_AVX512F)
+            constexpr size_t vec_len = vec_len_f32_avx512;
+#        elif defined(HAVE_AVX2)
+            constexpr size_t vec_len = vec_len_f32_avx2;
+#        elif defined(OPENVINO_ARCH_ARM64)
+            constexpr size_t vec_len = vec_len_f32_neon;
+#        else
+            constexpr size_t vec_len = 1;
+#        endif
+            if (xattention_block_size % vec_len == 0) {
+                _helper._use_softmax_sparse_mask = true;
+            }
+        }
+#    endif
 
         _helper.init(H,
                      S,
@@ -2148,8 +2262,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         int32_t xattention_block_size = 0;
         int32_t xattention_stride = 0;
 
+        PlainTensor sinks;
+
         PlainTensor output_emb;
         PlainTensor output_score;
+
+        std::vector<PlainTensor>
+            sparse_attention_mask;  // Each vector element corresponds to a batch, and each PlainTensor corresponds to a
+                                    // batch, with shape: [H, q_blocks, k_blocks], type: bool
 
         init(inputs,
              outputs,
@@ -2173,8 +2293,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              xattention_threshold,
              xattention_block_size,
              xattention_stride,
+             sinks,
              output_emb,
-             output_score);
+             output_score,
+             sparse_attention_mask);
 
         if (rotated_block_indices) {
             // Rotate kv cache currently doesn't support quantized cache.
@@ -2200,7 +2322,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 block_indices,
                 block_indices_begins,
                 alibi_slopes,
-                score_aggregation_window);
+                score_aggregation_window,
+                sparse_attention_mask);
     }
 };
 #endif
@@ -2316,7 +2439,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                             value_cache_type);
             executor = std::make_shared<AttentionExecutor<float, ov::element::f16, ov::element::f16>>(params);
         } else {
-            OPENVINO_ASSERT(key_cache_type == ov::element::f32 && value_cache_type == ov::element::f32,
+            OPENVINO_ASSERT(all_of(ov::element::f32, key_cache_type, value_cache_type),
                             "expect kvcache type f32, current: ",
                             key_cache_type,
                             " , ",

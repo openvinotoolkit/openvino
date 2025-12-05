@@ -23,7 +23,7 @@ using parameters = std::vector<std::tuple<int32_t, int32_t, int32_t>>;
 class Convert : public testing::WithParamInterface<ov::test::snippets::ConvertParams>,
                 virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::ConvertParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ConvertParams>& obj);
 
 protected:
     void SetUp() override;

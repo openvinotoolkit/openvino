@@ -75,13 +75,13 @@ bool ov::pass::PushConstantToSubgraph::run_on_model(const std::shared_ptr<Model>
 
     bool result = false;
     for (const auto& op : model->get_ordered_ops()) {
-        const auto multi_sub_graph_op = as_type_ptr<op::util::MultiSubGraphOp>(op);
+        const auto multi_sub_graph_op = as_type_ptr<ov::op::util::MultiSubGraphOp>(op);
         if (!multi_sub_graph_op) {
             continue;
         }
 
         // cache for already constant folded inputs
-        std::map<ov::Output<ov::Node>, std::shared_ptr<op::v0::Constant>> cache;
+        std::map<ov::Output<ov::Node>, std::shared_ptr<ov::op::v0::Constant>> cache;
         // bitmask describing which MultiSubGraphOp's input to remove
         std::vector<bool> remove_inputs_mask(multi_sub_graph_op->get_input_size(), false);
         int num_subgraphs = static_cast<int>(multi_sub_graph_op->get_internal_subgraphs_size());

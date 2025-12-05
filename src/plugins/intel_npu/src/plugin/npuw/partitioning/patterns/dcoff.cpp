@@ -914,50 +914,73 @@ CWAI2::CWAI2(CWAI2::Results scales) {
     register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI2"), std::move(matcher_callback));
 }
 
-// Pattern: Phi-3 4SymW16A/GPTQ for CWAI
-//
-// FIXME: Think how it can be unified with the above
+// Keep the Weight scales as Constants in Graph
+// The patern matching has been generalized for the following cases in the Graph. fp32 (non-compressed), fp16
+// (compressed), slice, non-slice:
 //
 //   "tensor"       "scale"
 //    Const:A       Const:C
 //      i4          f16|f32
-//       :           :
-//       V          :
-//     Convert     :
-//     f16|f32    :
-//        :      :
-//        V      V
-//        Multiply
+//       :             :
+//       V             V
+//     Slice        Convert
+//   (optional)     fp16|f32
+//       :         (optional)
+//       V             :
+//    Convert          V
+//    f16|f32        Slice
+//       :         (optional)
+//       :            :
+//       :          :
+//       :        :
+//       :      :
+//       V      V
+//       Multiply
+//        f16|f32
+//           :
+//           V
+//         MatMul
 //         f16|f32
-
+//
 CWAI3::CWAI3(CWAI3::Results scales) {
     auto constA = opp::wrap_type<ov::op::v0::Constant>();
     auto constC = opp::wrap_type<ov::op::v0::Constant>();
-    auto cvtA = opp::wrap_type<ov::op::v0::Convert>({constA});
-    auto mulply = opp::wrap_type<ov::op::v1::Multiply>({cvtA, constC});
+    auto sliceA = opp::optional<ov::op::v8::Slice>(
+        {constA->output(0), opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+    auto cvtA = opp::wrap_type<ov::op::v0::Convert>({sliceA});
+    auto cvtC = opp::optional<ov::op::v0::Convert>({constC->output(0)});
+    auto sliceC = opp::optional<ov::op::v8::Slice>(
+        {cvtC->output(0), opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+    auto mulply = opp::wrap_type<ov::op::v1::Multiply>({cvtA, sliceC});
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), mulply});
 
     auto matcher_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
-        auto matched_nodeA = node_to_output.at(constA).get_node_shared_ptr();
-        auto matched_nodeC = node_to_output.at(constC).get_node_shared_ptr();
 
-        NPUW_ASSERT(ov::op::util::is_constant(matched_nodeA));
-        NPUW_ASSERT(ov::op::util::is_constant(matched_nodeC));
+        auto matched_node_A = node_to_output.at(constA).get_node_shared_ptr();
+        auto matched_node_C = node_to_output.at(constC).get_node_shared_ptr();
+        auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
 
-        auto matched_valueA = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeA);
-        auto matched_valueC = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeC);
+        auto matched_A = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_A);
+        auto matched_C = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_C);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
-        if ((ov::element::i4 == matched_valueA->get_element_type() ||
-             ov::element::nf4 == matched_valueA->get_element_type()) &&
-            (ov::element::f16 == matched_valueC->get_element_type() ||
-             ov::element::f32 == matched_valueC->get_element_type())) {
-            LOG_DEBUG("Matched: " << matched_valueC);
-            scales.get().push_back(matched_valueC);
+        if ((ov::element::f16 == matched_C->get_element_type() || ov::element::f32 == matched_C->get_element_type()) &&
+            (ov::element::f16 == matched_matmul->get_element_type() ||
+             ov::element::f32 == matched_matmul->get_element_type()) &&
+            (ov::element::i4 == matched_A->get_element_type() || ov::element::nf4 == matched_A->get_element_type() ||
+             ov::element::i8 == matched_A->get_element_type())) {
+            auto matched_C_shape = matched_C->output(0).get_shape();
+
+            if (matched_C_shape.size() == 2 && matched_matmul->get_transpose_b()) {
+                scales.get().push_back(matched_C);
+                LOG_DEBUG("Matched: " << matched_C->get_friendly_name());
+                return false;  // root hasn't changed
+            }
         }
-        return true;
-    };  // matcher_callback
-
-    register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI3"), std::move(matcher_callback));
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(matmul, "TagCWAI3"), std::move(matcher_callback));
 }
 
 // As seen in LLaMa-v2-7b:

@@ -42,7 +42,7 @@ public:
     }
 };
 
-std::string CheckBroadcast::getTestCaseName(testing::TestParamInfo<CheckBroadcastParams> obj) {
+std::string CheckBroadcast::getTestCaseName(const testing::TestParamInfo<CheckBroadcastParams>& obj) {
     const auto& [input_type, test_case_params, target_device] = obj.param;
 
     std::ostringstream result;

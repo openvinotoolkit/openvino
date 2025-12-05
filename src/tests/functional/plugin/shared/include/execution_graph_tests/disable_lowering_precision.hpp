@@ -22,7 +22,7 @@ using ExecGraphDisableLoweringPrecisionSpecificParams = std::tuple<
 class ExecGraphDisableLoweringPrecision : public testing::WithParamInterface<ExecGraphDisableLoweringPrecisionSpecificParams>,
                                  public ov::test::TestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ExecGraphDisableLoweringPrecisionSpecificParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ExecGraphDisableLoweringPrecisionSpecificParams>& obj);
 
 protected:
     void SetUp() override;

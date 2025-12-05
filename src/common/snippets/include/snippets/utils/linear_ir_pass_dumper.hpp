@@ -7,6 +7,7 @@
 #include <utility>
 #ifdef SNIPPETS_DEBUG_CAPS
 
+#    include "openvino/util/common_util.hpp"
 #    include "openvino/util/file_util.hpp"
 #    include "snippets/lowered/linear_ir.hpp"
 #    include "snippets/lowered/pass/serialize_control_flow.hpp"
@@ -17,20 +18,41 @@ namespace ov::snippets {
 
 class LIRPassDump {
 public:
-    explicit LIRPassDump(const lowered::LinearIR& linear_ir, std::string pass_name)
+    enum class DumpMode : uint8_t { Both, SingleDump };
+
+    explicit LIRPassDump(const lowered::LinearIR& linear_ir, std::string pass_name, DumpMode mode = DumpMode::Both)
         : linear_ir(linear_ir),
           pass_name(std::move(pass_name)),
+          dump_mode(mode),
           debug_config(*linear_ir.get_config().debug_config) {
-        dump("_in");
+        if (dump_mode == DumpMode::Both) {
+            dump("_in");
+        } else {
+            dump("");
+        }
     }
     ~LIRPassDump() {
-        dump("_out");
+        if (dump_mode == DumpMode::Both) {
+            dump("_out");
+        }
     }
 
 private:
     void dump(const std::string&& postfix) const {
         static int num = 0;  // just to keep dumped IRs ordered in filesystem
-        const auto pathAndName = debug_config.dumpLIR.dir + "/lir_";
+        auto pathAndName = debug_config.dumpLIR.dir + "/";
+        const auto nm_lower = ov::util::to_lower(debug_config.dumpLIR.name_modifier);
+        if (nm_lower == std::string("subgraph_name")) {
+            auto name_prefix = linear_ir.get_friendly_name();
+            // Replace '/' and ':' characters with '_' to ensure filesystem compatibility
+            // These characters are problematic in file paths
+            std::replace(name_prefix.begin(), name_prefix.end(), '/', '_');
+            std::replace(name_prefix.begin(), name_prefix.end(), ':', '_');
+            pathAndName += name_prefix + "_";
+        } else if (!debug_config.dumpLIR.name_modifier.empty()) {
+            pathAndName += debug_config.dumpLIR.name_modifier + "_";
+        }
+        pathAndName += "lir_";
 
         ov::util::create_directory_recursive(debug_config.dumpLIR.dir);
 
@@ -51,6 +73,7 @@ private:
 
     const lowered::LinearIR& linear_ir;
     const std::string pass_name;
+    const DumpMode dump_mode;
     const DebugCapsConfig& debug_config;
 };
 

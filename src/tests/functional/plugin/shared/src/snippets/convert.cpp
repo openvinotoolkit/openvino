@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string Convert::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ConvertParams> obj) {
+std::string Convert::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ConvertParams>& obj) {
     const auto& [inputShape, types, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;

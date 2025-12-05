@@ -35,16 +35,33 @@ int main() {
     }
 
     {
+        //! [file_mapping]
+        ov::intel_npu::FileDescriptor file_descriptor{"file_name"};
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, file_descriptor);
+        //! [file_mapping]
+    }
+
+    {
         //! [wrap_nt_handle]
         void* shared_buffer = nullptr;
-        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, shared_buffer);
+        ov::intel_npu::MemType memory_type = ov::intel_npu::MemType::SHARED_BUF;
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, shared_buffer, memory_type);
         //! [wrap_nt_handle]
+    }
+
+    {
+        //! [import_cpu_va]
+        void* standard_allocation = nullptr;
+        ov::intel_npu::MemType memory_type = ov::intel_npu::MemType::CPU_VA;
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, standard_allocation, memory_type);
+        //! [import_cpu_va]
     }
 
     {
         //! [wrap_dmabuf_fd]
         int32_t fd_heap = 0;  // create the DMA-BUF System Heap file descriptor
-        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, fd_heap);
+        ov::intel_npu::MemType memory_type = ov::intel_npu::MemType::SHARED_BUF;
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, fd_heap, memory_type);
         //! [wrap_dmabuf_fd]
     }
 

@@ -26,6 +26,7 @@
 #include "dnnl_extension_utils.h"
 #include "edge.h"
 #include "graph_context.h"
+#include "itt.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -75,8 +76,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
       engine(context->getEngine()),
       name(op->get_friendly_name()),
       typeStr(op->get_type_name()),
-      type(TypeFromName(op->get_type_name())),
-      profiling(op->get_friendly_name()) {
+      type(TypeFromName(op->get_type_name())) {
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto& shape = op->get_input_partial_shape(i);
         OPENVINO_ASSERT(!shape.rank().is_dynamic(),
@@ -130,13 +130,12 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
 
     const auto& rtInfo = op->get_rt_info();
     originalLayers = getRTInfoValue(rtInfo, "originalLayersNames");
-    parallelDomain = getRTInfoValue(rtInfo, "parallelDomain");
 
     if (originalLayers.empty()) {
         addOriginalLayer(name);
     }
 
-    primitivesPriority = getImplPriorityValue(op);
+    const auto& primitivesPriority = getImplPriorityValue(op);
     if (!primitivesPriority.empty()) {
         std::istringstream stream(primitivesPriority);
         std::string str;
@@ -195,7 +194,7 @@ Node::Node(const std::string& type,
            std::vector<Shape> outShapes,
            std::vector<ov::element::Type> inputPrecisions,
            std::vector<ov::element::Type> outputPrecisions,
-           const std::string& name,
+           std::string name,
            const GraphContext::CPtr& ctx)
     : inputShapes(std::move(inShapes)),
       outputShapes(std::move(outShapes)),
@@ -205,10 +204,9 @@ Node::Node(const std::string& type,
       originalOutputPrecisions(std::move(outputPrecisions)),
       fusingPort(-1),
       engine(ctx->getEngine()),
-      name(name),
+      name(std::move(name)),
       typeStr(type),
-      type(TypeFromName(type)),
-      profiling(name) {
+      type(TypeFromName(type)) {
     parentEdges.reserve(inputShapes.size());
     childEdges.reserve(outputShapes.size());
 }
@@ -242,7 +240,6 @@ bool Node::isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) {
     return std::all_of(edges.begin(), edges.end(), [](const EdgeWeakPtr& edge) {
         return !edge.lock();
     });
-    return true;
 }
 
 void Node::createPrimitive() {
@@ -813,6 +810,7 @@ void Node::updateDynamicParams() {
                           getName(),
                           " ",
                           getOriginalLayers());
+                context->getCpuParallel()->activate();
                 prepareParams();
             }
         }
@@ -1118,7 +1116,10 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
         Memory memory{engine, newDesc, internalBlob->getData()};
 
         MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
-        node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
+        node::Reorder::reorderData(memory,
+                                   *_ptr,
+                                   context->getParamsCache(),
+                                   context->getCpuParallel()->get_thread_pool());
         return _ptr;
     };
 
@@ -1133,29 +1134,6 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
     }
 
     internalBlobMemory[indx] = ptr;
-}
-
-void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
-    OPENVINO_ASSERT(internalBlobs.size() == intDescs.size(),
-                    "Can't prepare memory for internal blob, internal blob and internal descs number do not match ",
-                    internalBlobs.size(),
-                    " vs ",
-                    intDescs.size());
-
-    internalBlobMemory.clear();
-    for (size_t i = 0; i < internalBlobs.size(); i++) {
-        prepareMemory(intDescs[i], i);
-    }
-}
-
-void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
-    std::vector<DnnlMemoryDescPtr> intDescs;
-    intDescs.reserve(internalBlobDesc.size());
-    for (auto& it : internalBlobDesc) {
-        intDescs.push_back(it(itpd, 0));
-    }
-
-    Node::prepareMemory(intDescs);
 }
 
 MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc) {
@@ -1175,7 +1153,10 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     auto create = [&]() {
         Memory srcMemory{getEngine(), srcWeightDesc, edgeMem->getData()};
         MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), dstWeightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
+        node::Reorder::reorderData(srcMemory,
+                                   *_ptr,
+                                   context->getParamsCache(),
+                                   context->getCpuParallel()->get_thread_pool());
 
         return _ptr;
     };
@@ -1257,12 +1238,8 @@ bool Node::isInPlace() const {
     return inplace == InPlaceType::InPlace;
 }
 
-Node::ConstantType Node::getConstantType() const {
-    return constant;
-}
-
 bool Node::isConstant() const {
-    return getConstantType() == ConstantType::Const;
+    return constant == ConstantType::Const;
 }
 
 void Node::updateConstantType() {
@@ -1302,10 +1279,6 @@ void Node::cleanup() {
     internalBlobs.clear();
 
     for (const auto& it : fusedWith) {
-        it->cleanup();
-    }
-
-    for (const auto& it : mergedWith) {
         it->cleanup();
     }
 }
@@ -1743,8 +1716,8 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
     } else if (any_of(getAlgorithm(), Algorithm::EltwisePowerStatic)) {
         const auto* const power = dynamic_cast<const Eltwise*>(this);
         OPENVINO_ASSERT(power, "Cannot cast ", getName(), " to Eltwise");
-        scales.push_back(power->getBeta());
-        shifts.push_back(power->getGamma());
+        scales.push_back(static_cast<float>(power->getBeta()));
+        shifts.push_back(static_cast<float>(power->getGamma()));
     } else {
         OPENVINO_THROW("Can't fill scale and shifts for node: ", getName(), " with type: ", NameFromType(getType()));
     }

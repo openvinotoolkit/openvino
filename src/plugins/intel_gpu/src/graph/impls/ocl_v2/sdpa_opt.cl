@@ -152,6 +152,9 @@ KERNEL(sdpa_opt)(
 #if HAS_SCALE_INPUT
     const __global SCALE_TYPE* scale,
 #endif
+#if HAS_SINK_INPUT
+    const __global SINK_DATA_T* sink_ptr,
+#endif
     __global OUTPUT_TYPE* output,
 #if IS_KV_COMPRESSED
     const __global KEY_COMPRESSION_SCALE_TYPE* key_scale,
@@ -433,7 +436,12 @@ KERNEL(sdpa_opt)(
                             qk_val[seq_idx] += INPUT0_VAL_MIN;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
                         const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx + seq_idx, start_partition_idx + seq_len);
-                        qk_val[seq_idx] += attn_mask[attn_mask_offset];
+                        INPUT3_TYPE mask_val = attn_mask[attn_mask_offset];
+#ifdef CLAMP_ATTN_MASK_INPUT
+                        // Conditionally clamp attention mask when attention mask differs from SOFTMAX_ACCUMULATOR_TYPE(f32)
+                        mask_val = INPUT3_MAX_FUNC(mask_val, INPUT3_VAL_MIN);
+#endif
+                        qk_val[seq_idx] += mask_val;
 #elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
                         qk_val[seq_idx] += STATIC_SCALAR_ATTN_MASK_VALUE;
 #endif
@@ -473,6 +481,9 @@ KERNEL(sdpa_opt)(
 
                 // Final maximum value of qk after reduction across all subgroups
                 qk_max[seq_idx] = sub_group_reduce_max(qk_max[seq_idx]);
+            #ifdef HAS_SINK_INPUT
+                qk_max[seq_idx] = qk_max[seq_idx] > sink_ptr[b1_idx] ? qk_max[seq_idx] : sink_ptr[b1_idx];
+            #endif
             }
 
             SOFTMAX_ACCUMULATOR_TYPE exp_sum[TARGET_SEQ_LEN_BLOCK_SIZE] = {SOFTMAX_ACCUMULATOR_VAL_ZERO};
@@ -506,6 +517,9 @@ KERNEL(sdpa_opt)(
 
                 // Find the final sum of all exp_sum[seq_idx] values in workgroup
                 exp_sum[seq_idx] = sub_group_reduce_add(exp_sum[seq_idx]);
+                #ifdef HAS_SINK_INPUT
+                exp_sum[seq_idx] += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[b1_idx] - qk_max[seq_idx])));
+                #endif
             }
 
             // const SOFTMAX_ACCUMULATOR_TYPE inv_exp_sum = SOFTMAX_ACCUMULATOR_VAL_ONE / exp_sum[seq_idx];

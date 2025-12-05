@@ -14,13 +14,10 @@ namespace ov::intel_cpu {
 
 // @todo require explicit initialization of all the attributes?
 struct FCAttrs {
-    // @todo probably we don't want with bias flag, since this information is already
-    // a part of src memory descs
-    bool withBias = false;
     bool weightsNonTransposed = false;
     bool sparseWeights = false;
     uint64_t dynamicQuantizationGroupSize = 0;
-    bool nonConstantWeights = false;
+    bool constantWeights = true;
 
     ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::Config::ModelType::Unknown;
 

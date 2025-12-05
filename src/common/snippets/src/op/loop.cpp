@@ -4,7 +4,6 @@
 
 #include "snippets/op/loop.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -23,10 +22,14 @@
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::op {
+LoopBase::LoopBase(const OutputVector& args, bool is_parallel) : Op(args), m_is_parallel(is_parallel) {}
 
-LoopBase::LoopBase(const std::vector<Output<Node>>& args) : Op(args) {}
+bool LoopBase::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("is_parallel", m_is_parallel);
+    return true;
+}
 
-LoopBegin::LoopBegin() {
+LoopBegin::LoopBegin(bool is_parallel) : LoopBase({}, is_parallel) {
     validate_and_infer_types_except_LoopEnd();
 }
 
@@ -47,14 +50,14 @@ void LoopBegin::validate_and_infer_types() {
 
 std::shared_ptr<Node> LoopBegin::clone_with_new_inputs(const OutputVector& inputs) const {
     OPENVINO_ASSERT(inputs.empty(), "LoopBegin should not contain inputs");
-    return std::make_shared<LoopBegin>();
+    return std::make_shared<LoopBegin>(m_is_parallel);
 }
 
 std::shared_ptr<LoopEnd> LoopBegin::get_loop_end() const {
     const auto& last_output_inputs = get_output_target_inputs(0);
-    assert(last_output_inputs.size() == 1 && "LoopBegin has more than one inputs attached to the last output");
+    OPENVINO_ASSERT(last_output_inputs.size() == 1, "LoopBegin has more than one inputs attached to the last output");
     const auto& loop_end = ov::as_type_ptr<LoopEnd>(last_output_inputs.begin()->get_node()->shared_from_this());
-    assert(loop_end != nullptr && "LoopBegin must have LoopEnd connected to its last output");
+    OPENVINO_ASSERT(loop_end != nullptr, "LoopBegin must have LoopEnd connected to its last output");
     return loop_end;
 }
 
@@ -67,8 +70,9 @@ LoopEnd::LoopEnd(const Output<Node>& loop_begin,
                  std::vector<int64_t> element_type_sizes,
                  size_t input_num,
                  size_t output_num,
-                 size_t id)
-    : LoopBase({loop_begin}),
+                 size_t id,
+                 bool is_parallel)
+    : LoopBase({loop_begin}, is_parallel),
       m_is_incremented(std::move(is_incremented)),
       m_ptr_increments(std::move(ptr_increments)),
       m_finalization_offsets(std::move(finalization_offsets)),
@@ -108,6 +112,7 @@ void LoopEnd::validate_and_infer_types() {
 }
 
 bool LoopEnd::visit_attributes(AttributeVisitor& visitor) {
+    LoopBase::visit_attributes(visitor);
     std::vector<int> int_incremented(m_is_incremented.cbegin(), m_is_incremented.cend());
     auto work_amount = utils::value2str(m_work_amount);
     auto ptr_increments = utils::vector2str(m_ptr_increments);
@@ -136,7 +141,8 @@ std::shared_ptr<Node> LoopEnd::clone_with_new_inputs(const OutputVector& inputs)
                                                     m_element_type_sizes,
                                                     m_input_num,
                                                     m_output_num,
-                                                    m_id);
+                                                    m_id,
+                                                    m_is_parallel);
     loop_end->m_evaluate_once = m_evaluate_once;
     return loop_end;
 }
@@ -144,7 +150,7 @@ std::shared_ptr<Node> LoopEnd::clone_with_new_inputs(const OutputVector& inputs)
 std::shared_ptr<LoopBegin> LoopEnd::get_loop_begin() {
     const auto& loop_begin =
         ov::as_type_ptr<LoopBegin>(get_input_source_output(get_input_size() - 1).get_node_shared_ptr());
-    assert(loop_begin != nullptr && "LoopEnd last input is not connected to LoopBegin");
+    OPENVINO_ASSERT(loop_begin != nullptr, "LoopEnd last input is not connected to LoopBegin");
     return loop_begin;
 }
 
@@ -189,11 +195,8 @@ bool LoopEnd::get_evaluate_once() const {
 }
 
 bool LoopEnd::has_dynamic_params() const {
-    auto is_vector_dynamic = [](const std::vector<int64_t>& values) {
-        return std::any_of(values.cbegin(), values.cend(), utils::is_dynamic_value<int64_t>);
-    };
-    return utils::is_dynamic_value(m_work_amount) || is_vector_dynamic(m_ptr_increments) ||
-           is_vector_dynamic(m_finalization_offsets);
+    return utils::is_dynamic_value(m_work_amount) || utils::has_dynamic_values(m_ptr_increments) ||
+           utils::has_dynamic_values(m_finalization_offsets);
 }
 
 void LoopEnd::set_is_incremented(std::vector<bool> is_incremented) {

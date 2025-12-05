@@ -22,7 +22,7 @@ using TileLayerTestParamsSet = typename std::tuple<
 class TileLayerGPUTest : public testing::WithParamInterface<TileLayerTestParamsSet>,
                          public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TileLayerTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<TileLayerTestParamsSet>& obj) {
         TileLayerTestParamsSet basicParamsSet = obj.param;
 
         const auto& [input_shapes, repeats, model_type, is_repeats_const, deviceName] = basicParamsSet;

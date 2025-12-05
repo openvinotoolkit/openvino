@@ -10,7 +10,6 @@
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <set>
 #include <utility>
@@ -95,6 +94,10 @@
 #include "snippets/op/reshape.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include "jit_perf_count_chrono_emitters.hpp"
+#    include "snippets/op/perf_count.hpp"
+#endif
 #include "snippets/op/vector_buffer.hpp"
 #include "snippets/runtime_configurator.hpp"
 #include "snippets/target_machine.hpp"
@@ -209,23 +212,6 @@ public:
 
 namespace intel_cpu::aarch64 {
 
-CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator> h)
-    : h_compiled(std::move(h)) {
-    OPENVINO_ASSERT(h_compiled && h_compiled->jit_ker(), "Got invalid jit generator or kernel was nopt compiled");
-}
-
-const uint8_t* CompiledSnippetCPU::get_code() const {
-    return h_compiled->jit_ker();
-}
-
-size_t CompiledSnippetCPU::get_code_size() const {
-    return h_compiled->getSize();
-}
-
-bool CompiledSnippetCPU::empty() const {
-    return get_code_size() == 0;
-}
-
 CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr cache)
     : TargetMachine(std::make_shared<CPURuntimeConfigurator>(cache)),
       h(new jit_snippet()),
@@ -330,6 +316,12 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     // others
     jitters[snippets::op::Scalar::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_scalar_emitter);
     jitters[snippets::op::Fill::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_fill_emitter);
+#ifdef SNIPPETS_DEBUG_CAPS
+    jitters[snippets::op::PerfCountBegin::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(ov::intel_cpu::aarch64::jit_perf_count_chrono_start_emitter);
+    jitters[snippets::op::PerfCountEnd::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(ov::intel_cpu::aarch64::jit_perf_count_chrono_end_emitter);
+#endif
 }
 
 std::shared_ptr<snippets::TargetMachine> CPUTargetMachine::clone() const {
@@ -428,7 +420,12 @@ ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Outpu
 }
 
 bool CPUGenerator::uses_precompiled_kernel([[maybe_unused]] const std::shared_ptr<snippets::Emitter>& e) const {
-    return false;
+    bool need = false;
+#ifdef SNIPPETS_DEBUG_CAPS
+    need = std::dynamic_pointer_cast<ov::intel_cpu::aarch64::jit_perf_count_chrono_start_emitter>(e) ||
+           std::dynamic_pointer_cast<ov::intel_cpu::aarch64::jit_perf_count_chrono_end_emitter>(e);
+#endif
+    return need;
 }
 
 }  // namespace intel_cpu::aarch64

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import openvino as ov
+from huggingface_hub import snapshot_download
 from openvino._offline_transformations import stateful_to_stateless_transformation
 from optimum.intel import OVModelForCausalLM
 from models_hub_common.utils import retry
@@ -51,7 +52,8 @@ def check_result_desc_tensors(expected_tensors, tensors):
 
 @retry(3, exceptions=(OSError,), delay=1)
 def run_stateful_to_stateless_in_runtime(tmp_path, model_id, model_link):
-    model = OVModelForCausalLM.from_pretrained(model_id, export=True, stateful=True, compile=False)
+    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    model = OVModelForCausalLM.from_pretrained(model_cached, export=True, stateful=True, compile=False)
     assert len(model.model.get_sinks()), f"Input model is not in the expected stateful form because it doesn't have any sinks."
     assert len(get_read_value_ops(model.model)), f"Input model is not in the expected stateful form because it doesn't have any ReadValue operations."
 
@@ -62,7 +64,7 @@ def run_stateful_to_stateless_in_runtime(tmp_path, model_id, model_link):
     assert len(sink_ops) == 0, f"Expected stateless model, but there are sinks found: {sink_ops}"
     assert len(read_value_ops) == 0, f"Expected stateless model, but there are ReadValue operations found: {read_value_ops}"
 
-    stateless_model = OVModelForCausalLM.from_pretrained(model_id, export=True, stateful=False, compile=False)
+    stateless_model = OVModelForCausalLM.from_pretrained(model_cached, export=True, stateful=False, compile=False)
 
     print(model.model)
     print(stateless_model.model)

@@ -59,6 +59,15 @@ constexpr bool implication(bool cause, bool cond) {
     return !cause || !!cond;
 }
 
+template <typename T, typename... Ts>
+constexpr bool all_of_v = std::conjunction_v<std::is_same<T, Ts>...>;
+
+template <typename T, typename... Ts>
+constexpr bool any_of_v = std::disjunction_v<std::is_same<T, Ts>...>;
+
+template <typename T, typename... Ts>
+constexpr bool none_of_v = std::negation_v<std::disjunction<std::is_same<T, Ts>...>>;
+
 template <typename T>
 std::string vec2str(const std::vector<T>& vec) {
     if (!vec.empty()) {
@@ -145,7 +154,7 @@ inline bool dimsEqualWeak(const std::vector<size_t>& lhs,
     return true;
 }
 
-inline ov::element::Type getMaxPrecision(std::vector<ov::element::Type> precisions) {
+inline ov::element::Type getMaxPrecision(const std::vector<ov::element::Type>& precisions) {
     if (!precisions.empty()) {
         return *std::max_element(precisions.begin(),
                                  precisions.end(),

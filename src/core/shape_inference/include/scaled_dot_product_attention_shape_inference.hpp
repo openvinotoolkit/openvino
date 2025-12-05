@@ -18,7 +18,8 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     const auto& inputs_count = input_shapes.size();
     const auto& has_attention_mask_input = inputs_count >= 4;
     const auto& has_scale_input = inputs_count == 5;
-    NODE_VALIDATION_CHECK(op, inputs_count == 3 || has_attention_mask_input || has_scale_input);
+    const auto& has_sink_input = inputs_count == 6;
+    NODE_VALIDATION_CHECK(op, inputs_count == 3 || has_attention_mask_input || has_scale_input || has_sink_input);
     DimType e_dim{};
     DimType l_dim{};
     DimType s_dim{};
@@ -101,6 +102,27 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
                                    input_shapes,
                                    scale_is_scalar || scale_has_one_elem,
                                    "Scale input must be scalar or have 1 element.");
+        }
+    }
+
+    if (has_sink_input) {
+        const auto& sink_shape = input_shapes[5];
+        const auto& sink_rank = sink_shape.rank();
+        const auto& query_shape = input_shapes[0];
+        const auto& query_rank = query_shape.rank();
+        if (sink_rank.is_static() && query_rank.is_static()) {
+            const bool sink_rank_correctness = sink_rank.get_length() == query_rank.get_length();
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   sink_rank_correctness,
+                                   "The rank of sink input shape must be equal to the query input rank.");
+            auto sink_broadcast_dims = TRShape(std::vector<DimType>(sink_shape.begin(), sink_shape.end() - 1));
+            const bool sink_shape_correctness =
+                TRShape::broadcast_merge_into(sink_broadcast_dims,
+                                              TRShape(std::vector<DimType>(query_shape.begin(), query_shape.end() - 1)),
+                                              AutoBroadcastType::NUMPY) &&
+                sink_shape[sink_rank.get_length() - 1].compatible(1);
+            NODE_SHAPE_INFER_CHECK(op, input_shapes, sink_shape_correctness, "Sink input has not compatible shape.");
         }
     }
 

@@ -28,11 +28,9 @@ from tests import (
     xfail_issue_44858,
     xfail_issue_44965,
     xfail_issue_47323,
-    xfail_issue_73538,
     xfail_issue_48052,
     xfail_issue_52463,
     xfail_issue_63033,
-    xfail_issue_63036,
     xfail_issue_63043,
     xfail_issue_63137,
     xfail_issue_69444,
@@ -41,7 +39,6 @@ from tests import (
     xfail_issue_82039,
     xfail_issue_90649,
     skip_bitwise_ui64,
-    xfail_issue_99949,
     xfail_issue_99950,
     xfail_issue_99952,
     xfail_issue_99954,
@@ -159,7 +156,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_33596,
         "OnnxBackendSimpleModelTest.test_sequence_model5_cpu",
-        "OnnxBackendSimpleModelTest.test_sequence_model7_cpu",
         "OnnxBackendSimpleModelTest.test_sequence_model1_cpu",
         "OnnxBackendSimpleModelTest.test_sequence_model3_cpu",
         "OnnxBackendSimpleModelTest.test_sequence_model6_cpu",
@@ -237,10 +233,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_momentum_multiple_cpu",
     ),
     (
-        xfail_issue_73538,
-        "OnnxBackendNodeModelTest.test_onehot_negative_indices_cpu",
-    ),
-    (
         xfail_issue_33488,
         "OnnxBackendNodeModelTest.test_maxunpool_export_with_output_shape_cpu",
         "OnnxBackendNodeModelTest.test_maxunpool_export_without_output_shape_cpu",
@@ -295,7 +287,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_batchnorm_epsilon_training_mode_cpu",
         "OnnxBackendNodeModelTest.test_batchnorm_example_training_mode_cpu",
     ),
-    (xfail_issue_63036, "OnnxBackendNodeModelTest.test_convtranspose_autopad_same_cpu"),
     (
         xfail_issue_63043,
         "OnnxBackendNodeModelTest.test_gru_batchwise_cpu",
@@ -340,10 +331,6 @@ tests_expected_to_fail = [
     ),
     (
         skip_segfault,
-        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_mean_weight_cpu",  # ticket: 81976
-        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_mean_weight_log_prob_cpu",  # ticket: 81976
-        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_none_no_weight_cpu",  # ticket: 81976
-        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_none_no_weight_log_prob_cpu",  # ticket: 81976
         "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis0_cpu",  # ticket: 90649
         "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis1_cpu",  # ticket: 90649
         "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis_negative_1_cpu",  # ticket: 90649
@@ -392,16 +379,9 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_bitwise_xor_ui64_bcast_3v1d_cpu",
     ),
     (
-        xfail_issue_99949,
-        "OnnxBackendNodeModelTest.test_bitwise_not_3d_cpu",
-    ),
-    (
         xfail_issue_99950,
-        "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_chw_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_chw_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_hwc_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_hwc_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_center_crop_pad_crop_negative_axes_hwc_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_negative_axes_hwc_expanded_cpu",
     ),
     (
@@ -446,10 +426,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_resize_downsample_sizes_nearest_not_larger_cpu",
         "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_axes_2_3_cpu",
         "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_axes_3_2_cpu",
-        "OnnxBackendNodeModelTest.test_resize_upsample_scales_nearest_axes_2_3_cpu",
-        "OnnxBackendNodeModelTest.test_resize_upsample_scales_nearest_axes_3_2_cpu",
-        "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_axes_2_3_cpu",
-        "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_axes_3_2_cpu",
         "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_not_larger_cpu",
         "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_not_smaller_cpu",
     ),
@@ -564,11 +540,9 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_125485,
-        "OnnxBackendNodeModelTest.test_affine_grid_2d_align_corners_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_2d_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_cpu",
+        "OnnxBackendNodeModelTest.test_affine_grid_2d_align_corners_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_affine_grid_2d_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_3d_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_expanded_cpu",
     ),
     (

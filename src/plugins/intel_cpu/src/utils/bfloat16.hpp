@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <limits>
 
-#include "utils/cpp/bit_cast.hpp"
+#include "cpp/bit_cast.hpp"
 
 /**
  * The bfloat16_t class can be used as an arithmetic type. All arithmetic operations goes through conversion to the
@@ -51,17 +51,17 @@ public:
     }
 
     static uint16_t round_to_nearest_even(float x) {
-        uint32_t bits = ov::intel_cpu::bit_cast<uint32_t>(x);
+        auto bits = ov::intel_cpu::bit_cast<uint32_t>(x);
         return static_cast<uint16_t>((bits + ((bits & 0x00010000U) >> 1)) >> 16);
     }
 
     static uint16_t round_to_nearest(float x) {
-        uint32_t bits = ov::intel_cpu::bit_cast<uint32_t>(x);
+        auto bits = ov::intel_cpu::bit_cast<uint32_t>(x);
         return static_cast<uint16_t>((bits + 0x8000U) >> 16);
     }
 
     static uint16_t truncate(float x) {
-        uint32_t bits = ov::intel_cpu::bit_cast<uint32_t>(x);
+        auto bits = ov::intel_cpu::bit_cast<uint32_t>(x);
         return static_cast<uint16_t>(bits >> 16);
     }
 

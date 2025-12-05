@@ -10,7 +10,6 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/softmax.hpp"
@@ -19,6 +18,7 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/utils/utils.hpp"
 
 ov::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
     MATCHER_SCOPE(SoftmaxReshapeElimination);
@@ -48,17 +48,9 @@ ov::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
             }
 
             const auto softmax_rank = softmax_shape.rank();
-            int64_t axis = 0;
-            if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(softmax)) {
-                axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), softmax_rank, *softmax);
-            } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(softmax)) {
-                axis = softmax_v1->get_axis();
-            } else {
-                return false;
-            }
-
+            const auto axis = ov::snippets::utils::get_softmax_axis(softmax);
             // Supports only last axis
-            if (axis != softmax_rank.get_length() - 1) {
+            if (!axis || *axis != static_cast<int64_t>(softmax_rank.get_length()) - 1) {
                 return false;
             }
 

@@ -33,19 +33,18 @@
 using namespace ov::test;
 using namespace CPUTestUtils;
 using namespace ov::op;
-using namespace std;
 
 namespace ov {
 namespace test {
 using InputShapes = std::vector<InputShape>;
-using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, ov::AnyMap>;
+using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, bool, ov::AnyMap>;
 
 class PagedAttnTestBase : public testing::WithParamInterface<PagedAttnTestParams>,
                           virtual public ov::test::SubgraphBaseTest,
                           public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTestParams>& obj) {
-        const auto& [inType, inputShapes, extendBlockIndices, additional_config] = obj.param;
+        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, additional_config] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -62,7 +61,8 @@ public:
             result << ")_";
         }
         result << "Prc=" << inType << "_";
-        result << "ExtendBlockIndices=" << extendBlockIndices;
+        result << "ExtendBlockIndices=" << extendBlockIndices << "_";
+        result << "EnableXattn=" << enableXattn << "_";
         result << "config=(";
         for (const auto& configEntry : additional_config) {
             result << configEntry.first << ", " << configEntry.second.as<std::string>() << "_";
@@ -81,6 +81,7 @@ public:
     }
 
     std::shared_ptr<ov::Model> get_model(ov::element::Type data_type,
+                                         bool enable_xattn,
                                          ov::Dimension::value_type head_size = 64,
                                          ov::Dimension::value_type head_num = 8) {
         // q [batch_in_tokens, head_num * head_size]
@@ -108,7 +109,7 @@ public:
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
         auto alibi_slopes = std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
         auto max_context_len =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<float>{128});
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<float>{1024});
         auto score_aggregation_window =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
         auto rotated_block_indices =
@@ -119,10 +120,15 @@ public:
             std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
         auto xattention_threshold =
             std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
+        if (enable_xattn) {
+            xattention_threshold =
+                std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{1}, std::vector<float>{0.9f});
+        }
         auto xattention_block_size =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{64});
         auto xattention_stride =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{8});
+        auto sinks = std::make_shared<ov::op::v0::Constant>(data_type, Shape{0, 0, 0, 0}, std::vector<float>{});
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(OutputVector{q,
@@ -144,7 +150,8 @@ public:
                                                                                      rotation_trig_lut,
                                                                                      xattention_threshold,
                                                                                      xattention_block_size,
-                                                                                     xattention_stride});
+                                                                                     xattention_stride,
+                                                                                     sinks});
         paged_attn->get_rt_info()["num_k_heads"] = head_num;
         paged_attn->get_rt_info()["k_head_size"] = head_size;
         paged_attn->get_rt_info()["num_v_heads"] = head_num;
@@ -230,7 +237,7 @@ public:
     }
 
     void SetUp() override {
-        const auto& [inType, inputShapes, extendBlockIndices, additional_config] = this->GetParam();
+        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, additional_config] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
@@ -243,7 +250,7 @@ public:
         init_input_shapes(inputShapes);
         ov::ParameterVector inputParams;
 
-        function = get_model(inType, 64, 8);
+        function = get_model(inType, enableXattn, 64, 8);
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         functionRefs = get_ref_model(inType, 64, 8);
@@ -309,11 +316,11 @@ public:
             size_t batch_size_in_sequences = 1;
             // The test here simulates pagedAttn calcuation with 1 subsequence
             // idx = 0 means 1st token calculation, idx > 0 means 2nd token calculation
-            int32_t total_blocks = intel_cpu::div_up(past_len_count, 32);
+            int32_t total_blocks = intel_cpu::div_up(qkv_shape[0] * qkv_shape[1] + past_len_count, 32);
             ov::Tensor past_lens(ov::element::i32, {batch_size_in_sequences}),
                 subsequence_begins(ov::element::i32, {batch_size_in_sequences + 1}),
                 block_indices_begins(ov::element::i32, {batch_size_in_sequences + 1}),
-                block_indices(ov::element::i32, {static_cast<size_t>(total_blocks)});
+                block_indices(ov::element::i32, {static_cast<size_t>(total_blocks == 0 ? 1 : total_blocks)});
             int32_t *past_lens_data = reinterpret_cast<int32_t*>(past_lens.data()),
                     *subsequence_begins_data = reinterpret_cast<int32_t*>(subsequence_begins.data()),
                     *block_indices_begins_data = reinterpret_cast<int32_t*>(block_indices_begins.data()),
@@ -330,8 +337,10 @@ public:
                 if (extendBlockIndices)
                     block_indices_begins_data[1] = 2;
                 else
-                    block_indices_begins_data[1] = 1;
-                block_indices_data[0] = 0;
+                    block_indices_begins_data[1] = total_blocks;
+                for (int32_t i = 0; i < total_blocks; i++) {
+                    block_indices_data[i] = i;
+                }
             } else {
                 past_lens_data[0] = past_len_count;
                 subsequence_begins_data[0] = 0;
@@ -385,7 +394,7 @@ public:
         for (const auto& input : compiledModel.inputs()) {
             for (auto& name : input.get_names()) {
                 auto cache_precision = input.get_element_type();
-                const size_t block_nums = 4;
+                const size_t block_nums = 1024 / 32;
                 ov::PartialShape pshape;
                 if (name.find("key_cache.") == 0) {
                     pshape = input.get_partial_shape();
@@ -438,8 +447,9 @@ public:
 
 TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices, additional_config] = this->GetParam();
-    const bool isSageAttn = intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
+    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, additional_config] = this->GetParam();
+    const bool isSageAttn =
+        intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
@@ -462,15 +472,16 @@ const std::vector<ov::AnyMap> additional_configs = {{{ov::intel_cpu::enable_sage
 const std::vector<InputShapes> inputShapeAndReorders = {  // greedy search
     {
         // L1, B, H, S
-        {{-1, 1, 8, 64}, {{10, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}}},
+        {{-1, 1, 8, 64}, {{256, 1, 8, 64}, {1, 1, 8, 64}}},
         // B, L0, H, S
-        {{-1, 1, 8, 64}, {{0, 1, 8, 64}, {10, 1, 8, 64}, {11, 1, 8, 64}}},
+        {{-1, 1, 8, 64}, {{0, 1, 8, 64}, {256, 1, 8, 64}}},
     }};
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest,
                          PagedAttnVSSDPATest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
                                             ::testing::ValuesIn(inputShapeAndReorders),
+                                            ::testing::Values(true, false),
                                             ::testing::Values(true, false),
                                             ::testing::ValuesIn(additional_configs)),
                          PagedAttnTestBase::getTestCaseName);
@@ -663,8 +674,9 @@ public:
 
 TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices, additional_config] = this->GetParam();
-    const bool isSageAttn = intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
+    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, additional_config] = this->GetParam();
+    const bool isSageAttn =
+        intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
@@ -695,6 +707,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                          PagedAttnVSMatmulTest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16),
                                             ::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(true, false),
                                             ::testing::Values(true, false),
                                             ::testing::ValuesIn(additional_configs)),
                          PagedAttnTestBase::getTestCaseName);

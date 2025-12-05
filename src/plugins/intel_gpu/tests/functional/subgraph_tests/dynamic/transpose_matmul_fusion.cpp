@@ -13,7 +13,7 @@ using TransposeOrderParams = std::tuple<std::vector<int64_t>,  // allowed transp
                                         ov::element::Type>;    // input precision
 class TransposeMatmulFuseTest : public ::testing::Test, public testing::WithParamInterface<TransposeOrderParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TransposeOrderParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposeOrderParams>& obj) {
         const auto& [target_order, input_precision] = obj.param;
 
         std::ostringstream result;
@@ -38,7 +38,7 @@ protected:
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(transpose_a, input_b, false, false);
 
-        auto model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_a, input_b});
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input_a, input_b});
         return model;
     }
 
@@ -91,7 +91,7 @@ using TransposesOrderParams = std::tuple<std::vector<int64_t>,  // transpose_a o
                                         ov::element::Type>;    // input precision
 class TransposeMatmulTransposeFuse3DTest : public ::testing::Test, public testing::WithParamInterface<TransposesOrderParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TransposesOrderParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposesOrderParams>& obj) {
         const auto& [target_order_a, target_order_c, input_precision] = obj.param;
 
         std::ostringstream result;
@@ -125,7 +125,7 @@ protected:
         auto transpose_order_c = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{target_transpose_order_c.size()}, target_transpose_order_c);
         auto transpose_c = std::make_shared<ov::op::v1::Transpose>(matmul, transpose_order_c);
 
-        auto model = std::make_shared<ov::Model>(ov::NodeVector{transpose_c}, ov::ParameterVector{input_a, input_b});
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{transpose_c}, ov::ParameterVector{input_a, input_b});
         return model;
     }
 

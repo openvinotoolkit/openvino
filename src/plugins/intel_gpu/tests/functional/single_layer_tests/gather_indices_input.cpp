@@ -23,7 +23,7 @@ using GatherIndicesInputParams = std::tuple<
 class GatherIndicesInputTest : public testing::WithParamInterface<GatherIndicesInputParams>,
                      virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GatherIndicesInputParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherIndicesInputParams>& obj) {
         const auto& [input_shape, indices_shape, axis_batch_idx, input_precision] = obj.param;
 
         std::ostringstream result;
