@@ -152,18 +152,18 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_offset) {
 }
 
 JitConstants make_type_jit_constants(const std::string& name, const ov::element::Type& value) {
-    std::string type = "undefined";
-    std::string max_val = "undefined";
-    std::string min_val = "undefined";
-    std::string val_one = "undefined";
-    std::string val_zero = "undefined";
-    std::string to_type = "undefined";
-    std::string to_type_sat = "undefined";
-    std::string as_type = "undefined";
-    std::string max_func = "undefined";
-    std::string min_func = "undefined";
-    std::string abs_func = "undefined";
-    std::string type_size = "undefined";
+    std::string type = "dynamic";
+    std::string max_val = "dynamic";
+    std::string min_val = "dynamic";
+    std::string val_one = "dynamic";
+    std::string val_zero = "dynamic";
+    std::string to_type = "dynamic";
+    std::string to_type_sat = "dynamic";
+    std::string as_type = "dynamic";
+    std::string max_func = "dynamic";
+    std::string min_func = "dynamic";
+    std::string abs_func = "dynamic";
+    std::string type_size = "dynamic";
     bool is_fp = false;
     switch (value) {
     case ov::element::i8:

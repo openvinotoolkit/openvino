@@ -10,9 +10,9 @@
 #include <unordered_set>
 #include <vector>
 
-#include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/util/common_util.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -24,12 +24,13 @@
 
 namespace ov::snippets::lowered::pass {
 
-#define INFORMATIVE_ASSERT(cond, ...) OPENVINO_ASSERT((cond), "Failed to validate ExpandedLoops: ", __VA_ARGS__)
+#define INFORMATIVE_ASSERT(cond, ...) \
+    OPENVINO_ASSERT((cond), "Failed to validate Expanded loop with id ", loop_id, ": ", __VA_ARGS__)
 
 namespace {
 bool is_inner_splitted_tail(const ExpressionPtr& loop_expr, const LoopManagerPtr& loop_manager) {
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_expr->get_node());
-    INFORMATIVE_ASSERT(loop_end, "expects LoopEnd");
+    OPENVINO_ASSERT(loop_end, "is_inner_splitted_tail expects LoopEnd");
     const auto loop_id = loop_end->get_id();
     const auto expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loop_manager->get_loop_info(loop_id));
     INFORMATIVE_ASSERT(expanded_loop_info, "expects only ExpandedLoopInfo in LoopManager");
@@ -65,6 +66,7 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
 
     for (const auto& p : loop_map) {
         const auto& expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(p.second);
+        const auto loop_id = p.first;
         INFORMATIVE_ASSERT(expanded_loop_info, "expects only ExpandedLoopInfo in LoopManager");
 
         const auto& current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
@@ -99,20 +101,17 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
     for (const auto& p : initializated_info_map) {
         const auto loop_info = p.first;
         const auto total_info = p.second;
+        const auto loop_id = total_info.id;
         INFORMATIVE_ASSERT(total_info.work_amount == loop_info->get_work_amount(),
-                           "total work amount of expanded loops (",
+                           "total work amount of expanded loops ",
                            total_info.work_amount,
-                           ") is not equal to work amount of unified loop (",
-                           loop_info->get_work_amount(),
-                           ") with ID: ",
-                           total_info.id);
+                           " is not equal to work amount of unified loop ",
+                           loop_info->get_work_amount());
         INFORMATIVE_ASSERT(total_info.finalization_offsets == loop_info->get_finalization_offsets(),
-                           "total finalization offsets of expanded loops (",
-                           ::ov::util::to_string(total_info.finalization_offsets),
-                           ") are not equal to finalization offsets of unified loop (",
-                           ::ov::util::to_string(loop_info->get_finalization_offsets()),
-                           ") with ID: ",
-                           total_info.id);
+                           "total finalization offsets of expanded loops ",
+                           ::ov::util::vector_to_string(total_info.finalization_offsets),
+                           " are not equal to finalization offsets of unified loop ",
+                           ::ov::util::vector_to_string(loop_info->get_finalization_offsets()));
     }
 }
 
@@ -140,15 +139,24 @@ void ValidateExpandedLoops::validate_loop_expressions(const LinearIR& linear_ir)
             INFORMATIVE_ASSERT(loop_end->get_increment() == expanded_loop_info->get_increment(),
                                "incompatible increment of LoopEnd and ExpandedLoopInfo");
             INFORMATIVE_ASSERT(loop_end->get_element_type_sizes() == expanded_loop_info->get_data_sizes(),
-                               "incompatible element sizes of LoopEnd and ExpandedLoopInfo");
+                               "incompatible element sizes of LoopEnd ",
+                               ov::util::vector_to_string(loop_end->get_element_type_sizes()),
+                               " and ExpandedLoopInfo ",
+                               ov::util::vector_to_string(expanded_loop_info->get_data_sizes()));
             INFORMATIVE_ASSERT(loop_end->get_ptr_increments() == expanded_loop_info->get_ptr_increments(),
-                               "incompatible pointer increments of LoopEnd and ExpandedLoopInfo");
+                               "incompatible pointer increments of LoopEnd ",
+                               ov::util::vector_to_string(loop_end->get_ptr_increments()),
+                               " and ExpandedLoopInfo ",
+                               ov::util::vector_to_string(expanded_loop_info->get_ptr_increments()));
             INFORMATIVE_ASSERT(loop_end->get_finalization_offsets() == expanded_loop_info->get_finalization_offsets(),
-                               "incompatible finalization offsets of LoopEnd and ExpandedLoopInfo");
+                               "incompatible finalization offsets of LoopEnd ",
+                               ov::util::vector_to_string(loop_end->get_finalization_offsets()),
+                               " and ExpandedLoopInfo ",
+                               ov::util::vector_to_string(expanded_loop_info->get_finalization_offsets()));
         }
     }
-    INFORMATIVE_ASSERT(unique_loop_ids.size() == loop_manager->get_map().size(),
-                       "incompatible loopIDs of inserted LoopEnd expressions and LoopInfo in LoopManager");
+    OPENVINO_ASSERT(unique_loop_ids.size() == loop_manager->get_map().size(),
+                    "incompatible loopIDs of inserted LoopEnd expressions and LoopInfo in LoopManager");
 }
 
 bool ValidateExpandedLoops::run(LinearIR& linear_ir) {

@@ -40,13 +40,11 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
-#include "openvino/op/mish.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "ov_ops/gather_compressed.hpp"
@@ -196,6 +194,7 @@
 #    include "openvino/op/logical_xor.hpp"
 #    include "openvino/op/maximum.hpp"
 #    include "openvino/op/minimum.hpp"
+#    include "openvino/op/mish.hpp"
 #    include "openvino/op/mod.hpp"
 #    include "openvino/op/negative.hpp"
 #    include "openvino/op/not_equal.hpp"
@@ -207,6 +206,7 @@
 #    include "openvino/op/sigmoid.hpp"
 #    include "openvino/op/sqrt.hpp"
 #    include "openvino/op/squared_difference.hpp"
+#    include "openvino/op/swish.hpp"
 #    include "openvino/op/tanh.hpp"
 #    include "openvino/op/xor.hpp"
 #    include "snippets/utils/utils.hpp"
@@ -230,6 +230,7 @@
 #    include "onednn/dnnl.h"
 #    include "openvino/op/group_normalization.hpp"
 #    include "openvino/op/multiply.hpp"
+#    include "openvino/op/softmax.hpp"
 #    include "openvino/op/subtract.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
 #    include "snippets/pass/split_dimension_m.hpp"
@@ -280,7 +281,6 @@
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "openvino/op/gru_sequence.hpp"
 #    include "openvino/op/lstm_sequence.hpp"
-#    include "openvino/op/softmax.hpp"
 #endif
 
 #if !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_ARM64)
@@ -555,7 +555,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         [](const_node_ptr& node) -> bool {
             const auto consumers = node->get_output_target_inputs(0);
             return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
-                return !ov::is_type<ov::op::v0::MatMul>(consumer.get_node());
+                // @todo cover RNN type of ops as well
+                return !is_type_any_of<ov::op::v0::MatMul,
+                                       ov::op::v1::Convolution,
+                                       ov::op::v1::GroupConvolution,
+                                       ov::op::v1::ConvolutionBackpropData,
+                                       ov::op::v1::GroupConvolutionBackpropData>(consumer.get_node());
             });
         },
         ov::pass::KeepConstAndDecompression);
@@ -1096,7 +1101,6 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionFlux);
-    CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionChatGLMHF);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1191,6 +1195,8 @@ void Transformations::MainSnippets() {
         return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
 #elif defined(OPENVINO_ARCH_ARM64)
         return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
+#elif defined(OPENVINO_ARCH_RISCV64)
+        return true;  // RISC-V with Vector Extension supports snippets
 #endif
         return false;
     };
@@ -1214,6 +1220,9 @@ void Transformations::MainSnippets() {
     // - abi_param1: used for runtime parameters
     // - RSP: stack related register
     size_t available_gprs_count = 14;
+#elif defined(OPENVINO_ARCH_RISCV64)
+    // RISC-V has 32 gprs. Similar to ARM, conservatively use 23 available registers.
+    size_t available_gprs_count = 23;
 #else
     size_t available_gprs_count = 0;
 #endif
@@ -1257,9 +1266,7 @@ void Transformations::MainSnippets() {
                                            mha_token_enable_transpose_on_output,
                                            is_dynamic_mha_token_enabled,
                                            mha_supported_transpose_ranks);
-#if defined(OPENVINO_ARCH_ARM64)
-    TokenizeMLPSeqSnippets::Config mlp_seq_config(tokenization_config);
-#elif defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64)
     auto supported_as_postop = [this](const std::shared_ptr<const ov::op::v0::MatMul>& matmul,
                                       const std::shared_ptr<const ov::Node>& node) {
         if (!pass::FuseBrgemmCPUPostops::can_be_fused_as_postop(node)) {
@@ -1278,7 +1285,6 @@ void Transformations::MainSnippets() {
 #else
     TokenizeMLPSeqSnippets::Config mlp_seq_config(tokenization_config);
 #endif
-
     ov::pass::Manager snippetsManager("CPU:Snippets");
     snippetsManager.set_per_pass_validation(false);
     // if callback needed for better perf, enable SnippetsMarkSkipped, and disable TokenizeFCSnippets.
@@ -1385,7 +1391,7 @@ void Transformations::MainSnippets() {
     };
 #endif  // OPENVINO_ARCH_X86_64
 
-    auto is_supported_op = [](const std::shared_ptr<const ov::Node>& n) -> bool {
+    auto is_supported_op = []([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
 #if defined(OPENVINO_ARCH_ARM64)
         // Power on ARM64 only supports power and swish with scalar second inputs
         auto is_supported_with_scalar_inputs = [](const std::shared_ptr<const ov::Node>& n) {
@@ -1437,6 +1443,9 @@ void Transformations::MainSnippets() {
                                        ov::op::v0::Xor>(n));
         };
         return is_supported(n) || is_supported_with_scalar_inputs(n);
+#elif defined(OPENVINO_ARCH_RISCV64)
+        // Snippets on RISC-V arch are enabled only in tests for now
+        return false;
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64

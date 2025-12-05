@@ -663,6 +663,32 @@ void program::mark_if_data_flow(program_node& node) {
             }
         }
     }
+
+    // Rank promotion for data_flow in static shape models:
+    // - In static-shape models, patterns like Constant -> Convert -> Gemm can
+    //   leave the Convert node non-data_flow even when its output rank (e.g. bfyx)
+    //   is lower than the rank required by the Gemm inputs/outputs (e.g. bfzyx).
+    // - In such cases input_reorder may skip inserting a reorder after Convert,
+    //   which later leads to input dimension mismatch in gemm::calc_output_layout.
+    // - To avoid this, if any Gemm user has an output rank greater than the current
+    //   node rank, we promote this node to data_flow so that required reorders are
+    //   inserted on the legacy path.
+    if (!is_new_shape_infer() && !node.data_flow) {
+        const size_t current_rank = node.get_output_layout().get_rank();
+        for (auto* user : node.get_users()) {
+            if (!user->is_type<gemm>())
+                continue;
+            int port = user->get_port_from_deps(node.id());
+            if (port < 0 || port >= 2)
+                continue;
+
+            size_t user_rank = user->get_output_layout().get_rank();
+            if (user_rank > current_rank) {
+                node.data_flow = true;
+                break;
+            }
+        }
+    }
 }
 
 void program::transfer_memory_to_device() {
@@ -691,8 +717,8 @@ void program::transfer_memory_to_device() {
             }
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
-                // usm_device memory does not provide performance benefits on the LNL platform
-                if (get_engine().get_device_info().arch == gpu_arch::xe2 &&
+                // usm_device memory does not provide performance benefits on the integrated Xe2+ platforms
+                if (get_engine().get_device_info().arch >= gpu_arch::xe2 &&
                     get_engine().get_device_info().dev_type == device_type::integrated_gpu) {
                     return;
                 }
@@ -1438,16 +1464,38 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t opt_deconv_layers_b_fs_zyx_fsv16 = 0;
     size_t opt_deconv_layers_b_fs_yx_fsv16 = 0;
     size_t total_crop_layers = 0;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    bool is_dynamic_batch_onednn_conv = false;
+    size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
 
+    // OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
+    // For dynamic batches, this approach is inefficient.
+    // We plan to switch to byxf for better flexibility across varying batch sizes.
+    // The whitelist below defines the initial target scope (CVS-176149).
+    const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::input_layout::type_id(),
+                                                                              cldnn::permute::type_id(),
+                                                                              cldnn::convolution::type_id(),
+                                                                              cldnn::fully_connected::type_id(),
+                                                                              cldnn::activation::type_id(),
+                                                                              cldnn::softmax::type_id(),
+                                                                              cldnn::reduce::type_id(),
+                                                                              cldnn::reorder::type_id(),
+                                                                              cldnn::eltwise::type_id()};
+#endif
     for (auto& node : get_processing_order()) {
         auto &prim = *node;
         if (prim.type() == cldnn::convolution::type_id()) {
             auto &conv = prim.as<convolution>();
             if (conv.get_primitive()->groups > 1)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
-
-            if (!conv.is_dynamic()) {
-                // In dynamic shape, conv is fixed as a predefined format b_fs_yx_fsv16
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            if (conv.is_dynamic()) {
+                bool is_dynamic_batch = !node->get_output_layout().get_partial_shape()[0].is_static();
+                bool is_fp32_conv = (node->get_input_layout().data_type == data_types::f32) &&
+                                    (node->get_output_layout().data_type == data_types::f32);
+                is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
+            } else {
+#endif
                 auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
                 if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
@@ -1460,7 +1508,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
                 if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
                     total_1x1_fm_conv_layers++;
+#ifdef ENABLE_ONEDNN_FOR_GPU
             }
+#endif
             lo.update_formats_map(conv);
 
             if (conv.weights_zero_points_term() || conv.activations_zero_points_term())
@@ -1602,6 +1652,11 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        if (prim.is_in_data_flow() && (byxf_onednn_conv_whitelist.count(prim.type()) == 0)) {
+            total_non_byxf_onednn_conv_whitelist_layers++;
+        }
+#endif
     }
 
     size_t total_conv_layers = lo.get_total_conv_count();
@@ -1655,15 +1710,18 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     if (engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
         get_config().get_queue_type() == QueueTypes::in_order &&
         enable_onednn_for_tests) {
-            if (engine.get_device_info().supports_immad) {
-                lo.add_all_onednn_impls_optimization_attribute();
-            } else {
-                if (get_config().get_use_onednn()) {
-                    lo.enable_onednn_for<lstm_seq>();
-                    lo.enable_onednn_for<gru_seq>();
-                }
+        if (engine.get_device_info().supports_immad) {
+            lo.add_all_onednn_impls_optimization_attribute();
+        } else {
+            if (get_config().get_use_onednn()) {
+                lo.enable_onednn_for<lstm_seq>();
+                lo.enable_onednn_for<gru_seq>();
             }
         }
+    }
+    bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv && (total_non_byxf_onednn_conv_whitelist_layers == 0);
+    if (should_use_byxf_onednn_conv)
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::byxf_onednn_convolution, 1);
 #endif
 }
 
@@ -1807,12 +1865,8 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     ob << _is_body_program;
     ob << _can_be_optimized;
-    auto onednn_impls_size = get_layout_optimizer().get_all_onednn_impls_optimization_attribute().size();
-    ob << onednn_impls_size;
-    for (const auto& onednn_impl : get_layout_optimizer().get_all_onednn_impls_optimization_attribute()) {
-        ob << prim_map_storage::instance().get_type_string(onednn_impl.first);
-        ob << onednn_impl.second;
-    }
+
+    _layout_optimizer->save(ob);
 
     processing_order.save(ob);
 
@@ -1956,21 +2010,12 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     ib >> _is_body_program;
     ib >> _can_be_optimized;
 
-    size_t num_of_onednn_impls;
-    ib >> num_of_onednn_impls;
-    for (size_t num = 0; num < num_of_onednn_impls; num++) {
-        primitive_id p_id{};
-        bool enabled;
-        ib >> p_id;
-        ib >> enabled;
-        auto ptype_id = prim_map_storage::instance().get_type_id(p_id);
-        get_layout_optimizer().set_value_onednn(ptype_id, enabled);
-    }
+    _layout_optimizer->load(ib);
+    _layout_optimizer->set_implementation_forcing(_config.get_force_implementations());
 
     _loaded_from_cache = true;
 
     processing_order.load(ib, *this);
-    set_layout_optimizer_attributes(*_layout_optimizer);
 
     {
         auto& kernels_cache = get_kernels_cache();
