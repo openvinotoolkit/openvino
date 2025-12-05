@@ -103,6 +103,22 @@ TEST_P(CoreBaseTestP, LoadPluginXML) {
     remove_plugin_xml(xml_file_path);
 }
 
+TEST_P(CoreBaseTestP, registerPlugins) {
+    ov::Core core;
+    std::string mock_plugin_name{"TEST_DEVICE"};
+    const auto xml_file_path = ov::test::utils::to_fs_path(ov::test::utils::getOpenvinoLibDirectory()) /
+                               ov::test::utils::to_fs_path(GetParam());
+
+    create_plugin_xml(xml_file_path, mock_plugin_name);
+    EXPECT_NO_THROW(core.register_plugins(xml_file_path));
+    auto versions = core.get_versions(mock_plugin_name);
+    EXPECT_FALSE(versions.empty());
+    EXPECT_THROW(core.register_plugins(xml_file_path),
+                 ov::Exception,
+                 ::testing::HasSubstr("Device with \"TEST_DEVICE\"  is already registered in the OpenVINO Runtime"));
+    remove_plugin_xml(xml_file_path);
+}
+
 TEST_F(CoreBaseTest, LoadPluginDifferentXMLExtension) {
     std::string xml_file_name = "test_plugin.test";
     std::string xml_file_path =
