@@ -4,6 +4,7 @@
 
 #pragma once
 #include <memory>
+#include <optional>
 
 #include "openvino/openvino.hpp"
 
@@ -28,11 +29,19 @@ bool has_input(const std::shared_ptr<ov::Model>& model, const std::string& name)
 // SDPA-unroll and transpose transformations
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill);
 
+// text-embedding model
+void prepare_text_embedding_model(std::shared_ptr<ov::Model> model, uint32_t seq_len_dim);
+void create_text_embedding_post_model(std::shared_ptr<ov::Model> model,
+                                      std::shared_ptr<ov::Model>& post_model,
+                                      ov::AnyMap& config);
+
 std::shared_ptr<ov::Model> prepare_whisper_prefill_model(std::shared_ptr<ov::Model>& model,
                                                          const uint32_t& max_prompt_size,
                                                          const uint32_t& lhs_seq_size);
 
 std::shared_ptr<ov::Model> prepare_whisper_kvcache_model(std::shared_ptr<ov::Model>& model);
+
+std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name);
 
 // clang-format off
 }  // namespace ov

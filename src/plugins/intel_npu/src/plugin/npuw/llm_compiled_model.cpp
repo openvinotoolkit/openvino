@@ -1101,15 +1101,6 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     return std::make_optional(std::move(desc));
 }
 
-std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
-    if (auto it = config.find(option_name); it != config.end()) {
-        std::optional<ov::Any> found = std::make_optional(it->second);
-        config.erase(it);
-        return found;
-    }
-    return std::nullopt;
-}
-
 void apply_weights_bank_name(ov::AnyMap& config, const std::string& bank_name) {
     auto it = config.find("NPUW_WEIGHTS_BANK");
     if (it != config.end()) {
@@ -1194,6 +1185,10 @@ ov::AnyMap get_default_lm_head_config(const std::optional<NPUDesc>& npudesc) {
     return config;
 }
 
+ov::AnyMap get_default_text_embedding_post_config(const std::optional<NPUDesc>& npudesc) {
+    return get_default_lm_head_config(npudesc);
+}
+
 void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
     for (const auto& [key, value] : rhs) {
         // NB: Overwrite the value if key already exists
@@ -1234,6 +1229,10 @@ void refine_dynamic_props(ov::AnyMap& llm_properties, const std::optional<NPUDes
 }
 
 void update_config_for_whisper(ov::AnyMap& config) {
+    config.erase("NPUW_SLICE_OUT");
+}
+
+void update_config_for_text_embed(ov::AnyMap& config) {
     config.erase("NPUW_SLICE_OUT");
 }
 
@@ -1463,48 +1462,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
     }
 
-    LOG_DEBUG("Creating kvcache model as clone of passed one.");
-    auto kvcache_model = model->clone();
-    LOG_DEBUG("Transform kvcache model from stateful to stateless.");
-    ov::pass::StatefulToStateless().run_on_model(kvcache_model);
-    convert_stateful_lora_to_stateless(kvcache_model);
-    LOG_DEBUG("   ...also convert BF16 to FP16");
-    // Note: we need to identify original bf16 constants for potential weightless deserialization later
-    // And only then do bf16 to f16 transformation
-    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
-    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
-
-    bool shared_head_enabled = m_cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>();
-    std::shared_ptr<ov::Model> lm_head_model = nullptr;
-    if (shared_head_enabled) {
-        LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
-        lm_head_model = cut_lm_head(kvcache_model);
-        if (lm_head_model) {
-            LOG_INFO("Three-model pipeline will be created: LM head will be shared between prefill and generate.");
-        } else {
-            LOG_WARN("Three-model pipeline is requested, but LM head cutting is failed,"
-                     " two-model pipeline will be created!");
-        }
-    } else {
-        LOG_INFO("Two-model pipeline will be created.");
-    }
-
-    LOG_DEBUG("Try patch Phi-3 sliding window mask, if it exists.");
-    patch_phi3_sliding_mask(kvcache_model);
-
-    LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
-    auto prefill_model = kvcache_model->clone();
-    prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
-
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
     // the generate model they're not mutually exclusive
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
     m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
     m_use_chunk_prefill = (prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC && m_prefill_chunk_size > 0);
 
-    const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
-    const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
-    KVAxesPosition axes{batch_dim, seq_len_dim};
     uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
     uint32_t max_generation_token_len = m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>();
@@ -1548,6 +1511,58 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
     LOG_VERB("Maximum prompt length: " << max_prompt_len);
 
+    const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
+    const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
+    KVAxesPosition axes{batch_dim, seq_len_dim};
+
+    LOG_DEBUG("Creating kvcache model as clone of passed one.");
+    auto kvcache_model = model->clone();
+
+    auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
+    m_is_text_embed = use_text_embed_key.value_or(false).as<bool>() == true;
+
+    std::shared_ptr<ov::Model> text_embedding_post_model = nullptr;
+    if (m_is_text_embed) {
+        if (m_use_chunk_prefill) {
+            LOG_DEBUG("Text-Embedding Chunk rebuild");
+            ov::npuw::util::prepare_text_embedding_model(kvcache_model, seq_len_dim);
+        }
+
+        ov::npuw::util::create_text_embedding_post_model(kvcache_model, text_embedding_post_model, other_props);
+    } else {
+        LOG_DEBUG("Transform kvcache model from stateful to stateless.");
+        ov::pass::StatefulToStateless().run_on_model(kvcache_model);
+        convert_stateful_lora_to_stateless(kvcache_model);
+    }
+
+    LOG_DEBUG("   ...also convert BF16 to FP16");
+    // Note: we need to identify original bf16 constants for potential weightless deserialization later
+    // And only then do bf16 to f16 transformation
+    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
+    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
+
+    bool shared_head_enabled = m_cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>();
+    std::shared_ptr<ov::Model> lm_head_model = nullptr;
+    if (shared_head_enabled) {
+        LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
+        lm_head_model = cut_lm_head(kvcache_model);
+        if (lm_head_model) {
+            LOG_INFO("Three-model pipeline will be created: LM head will be shared between prefill and generate.");
+        } else {
+            LOG_WARN("Three-model pipeline is requested, but LM head cutting is failed,"
+                     " two-model pipeline will be created!");
+        }
+    } else {
+        LOG_INFO("Two-model pipeline will be created.");
+    }
+
+    LOG_DEBUG("Try patch Phi-3 sliding window mask, if it exists.");
+    patch_phi3_sliding_mask(kvcache_model);
+
+    LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
+    auto prefill_model = kvcache_model->clone();
+    prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
+
     m_kvcache_desc =
         KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
 
@@ -1562,6 +1577,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                                       m_kvcache_desc.max_prompt_size,
                                                       whisper_lhs_seq_size);  // Whisper decoder model
         ov::npuw::util::prepare_whisper_kvcache_model(kvcache_model);         // Whisper decoder_with_past model
+    }
+
+    if (m_is_text_embed) {
+        m_kvcache_desc = KVCacheDesc{max_prompt_len,
+                                     max_prompt_len + min_response_len,
+                                     0u,
+                                     seq_len_dim,
+                                     max_prompt_len + min_response_len};
     }
 
     LOG_DEBUG("Make prefill model with static shapes");
@@ -1589,6 +1612,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Try parametrize Gemma sliding window mask, if it exists.");
     for (auto& model_variant : generate_model_variants) {
         gemma_transformations(model_variant);
+    }
+
+    if (text_embedding_post_model) {
+        auto input_node = text_embedding_post_model->inputs()[0];
+        NPUW_ASSERT(input_node.get_partial_shape().size() == 3u);
+        auto new_shape = ov::PartialShape({1, m_kvcache_desc.max_prompt_size, input_node.get_partial_shape()[2]});
+        auto mask_shape = ov::PartialShape({1, m_kvcache_desc.max_prompt_size});
+        text_embedding_post_model->reshape({{"input_ids", new_shape}, {"attention_mask", mask_shape}});
     }
 
     if (lm_head_model) {
@@ -1653,18 +1684,23 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
     }
 
-    if (!m_use_chunk_prefill) {
-        NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
-    } else {
-        LOG_DEBUG("Don't remove input key/values from prefill model.");
-        LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
-        prefill_model = redirect_new_kv_to_output(prefill_model);
+    if (!m_is_text_embed) {
+        if (!m_use_chunk_prefill) {
+            NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
+        } else {
+            LOG_DEBUG("Don't remove input key/values from prefill model.");
+            LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
+            prefill_model = redirect_new_kv_to_output(prefill_model);
+        }
     }
 
-    LOG_DEBUG("Optimize generate model to output key/values for new token.");
-    for (size_t i = 0; i < generate_model_variants.size(); ++i) {
-        generate_model_variants[i] = redirect_new_kv_to_output(generate_model_variants[i]);
+    if (!m_is_text_embed) {
+        LOG_DEBUG("Optimize generate model to output key/values for new token.");
+        for (size_t i = 0; i < generate_model_variants.size(); ++i) {
+            generate_model_variants[i] = redirect_new_kv_to_output(generate_model_variants[i]);
+        }
     }
+
     LOG_DEBUG("Converting KV-cache in generate model to FP16.");
     for (size_t i = 0; i < generate_model_variants.size(); ++i) {
         generate_model_variants[i] = cvt_kvcache_to_fp16(generate_model_variants[i]);
@@ -1728,6 +1764,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (m_is_whisper) {
         update_config_for_whisper(prefill_config);
+    }
+
+    if (m_is_text_embed) {
+        update_config_for_text_embed(prefill_config);
     }
 
     if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
@@ -1796,6 +1836,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_lm_head_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
             ov::npuw::ICompiledModel::create(lm_head_model, plugin, lm_head_config));
         NPUW_ASSERT(m_lm_head_compiled);
+    }
+
+    if (text_embedding_post_model) {
+        auto post_config = get_default_text_embedding_post_config(npudesc);
+        merge_config_with(post_config, other_props);
+        m_text_embedding_post_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+            ov::npuw::ICompiledModel::create(text_embedding_post_model, plugin, post_config));
     }
 
     implement_properties();
@@ -1908,6 +1955,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_prefix_caching_max_num_blocks);
         write(model_stream, m_gemma_sliding_window_size);
         write(model_stream, m_is_whisper);
+        write(model_stream, m_is_text_embed);
 
         // Write config
         write(model_stream, m_cfg);
@@ -1930,6 +1978,12 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, is_shared_lm_head);
         if (is_shared_lm_head) {
             m_lm_head_compiled->serialize(model_stream, enc_ctx);
+        }
+
+        const bool is_text_embed_post = m_text_embedding_post_compiled != nullptr;
+        write(model_stream, is_text_embed_post);
+        if (is_text_embed_post) {
+            m_text_embedding_post_compiled->serialize(model_stream, enc_ctx);
         }
     };
 
@@ -2033,6 +2087,11 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
                 compiled->m_lm_head_compiled->m_weights_bank = bank;
                 compiled->m_lm_head_compiled->finalize_weights_bank();
             }
+
+            if (compiled->m_text_embedding_post_compiled) {
+                compiled->m_text_embedding_post_compiled->m_weights_bank = bank;
+                compiled->m_text_embedding_post_compiled->finalize_weights_bank();
+            }
         } else {
             auto bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
@@ -2049,6 +2108,11 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             if (compiled->m_lm_head_compiled) {
                 compiled->m_lm_head_compiled->m_weights_bank = bank;
                 compiled->m_lm_head_compiled->reconstruct_closure();
+            }
+
+            if (compiled->m_text_embedding_post_compiled) {
+                compiled->m_text_embedding_post_compiled->m_weights_bank = bank;
+                compiled->m_text_embedding_post_compiled->reconstruct_closure();
             }
         }
     };
@@ -2132,6 +2196,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_prefix_caching_max_num_blocks);
         read(model_stream, compiled->m_gemma_sliding_window_size);
         read(model_stream, compiled->m_is_whisper);
+        read(model_stream, compiled->m_is_text_embed);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
@@ -2166,6 +2231,14 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_lm_head_compiled =
                 ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
+
+        bool is_text_embed_post = false;
+        read(model_stream, is_text_embed_post);
+        if (is_text_embed_post) {
+            compiled->m_text_embedding_post_compiled =
+                ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+        }
+
         return compiled;
     };
 
@@ -2247,6 +2320,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT, getString),
                           BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
-                          BIND(npuw::whisper::enabled, NPUW_WHISPER, get)});
+                          BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
+                          BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get)});
 #undef BIND
 }
