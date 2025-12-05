@@ -236,11 +236,12 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 
 /**
  * @brief
- * Type: boolean.
- * Apply attention optimizations (e.g. DYNAMIC, PYRAMID, and others) when attention block detected.
- * Default value: true
+ * Type: std::string.
+ * Select attention optimization mode when attention block detected.
+ * Possible values: "DYNAMIC", "STATIC", "PYRAMID", "HFA"
+ * Default value: "STATIC"
  */
-static constexpr ov::Property<bool> attn{"NPUW_ATTN"};
+static constexpr ov::Property<std::string> attn{"NPUW_ATTN"};
 
 /**
  * @brief
@@ -257,15 +258,6 @@ static constexpr ov::Property<bool> attn_dyn{"NPUW_ATTN_DYN"};
  * Default value: false
  */
 static constexpr ov::Property<bool> attn_no_copy{"NPUW_ATTN_NO_COPY"};
-
-/**
- * @brief
- * Type: std::string.
- * Specify attention hint for model compilation.
- * Possible values: "DYNAMIC", "STATIC", "PYRAMID", "HFA"
- * Default value: "STATIC"
- */
-static constexpr ov::Property<std::string> attn_hint{"NPUW_ATTENTION_HINT"};
 
 /**
  * @brief
