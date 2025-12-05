@@ -128,17 +128,11 @@ void pad_hidden_state_input(const ov::SoPtr<ov::ITensor>& padded_hidden_state,
 namespace ov {
 namespace npuw {
 
-void Eagle3Extension::initialize(const ov::AnyMap& rt_info,
+void Eagle3Extension::initialize(bool is_eagle_model,
                                  const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
                                  const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports) {
-    bool is_eagle3_model = false;
-    if (auto it = rt_info.find("eagle3_mode"); it != rt_info.end()) {
-        is_eagle3_model = it->second.as<bool>();
-    }
-
-    if (!is_eagle3_model) {
+    if (!is_eagle_model) {
         m_role = Eagle3ModelRole::None;
-        LOG_DEBUG("Not an Eagle3 model (eagle3_mode not found or false in rt_info)");
         return;
     }
 
@@ -154,9 +148,10 @@ void Eagle3Extension::initialize(const ov::AnyMap& rt_info,
         m_role = Eagle3ModelRole::Target;
         LOG_INFO("Eagle3 Target Model detected");
     } else {
-        OPENVINO_THROW("Eagle3 model flag set in rt_info, but model structure doesn't match Draft or Target pattern. "
-                       "Draft requires: hidden_states, internal_hidden_states inputs + last_hidden_state output. "
-                       "Target requires: last_hidden_state output only.");
+        OPENVINO_THROW(
+            "Eagle3 mode enabled via NPUW_EAGLE property, but model structure doesn't match Draft or Target pattern. "
+            "Draft requires: hidden_states, internal_hidden_states inputs + last_hidden_state output. "
+            "Target requires: last_hidden_state output only.");
     }
 }
 

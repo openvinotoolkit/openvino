@@ -191,7 +191,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     init_pre_alloc_device();
     init_lora_states();
 
-    m_eagle3_ext.initialize(m_npuw_llm_compiled_model->m_model_rt_info, m_prefill_in_ports, m_prefill_out_ports);
+    m_eagle3_ext.initialize(m_npuw_llm_compiled_model->m_is_eagle, m_prefill_in_ports, m_prefill_out_ports);
 
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {

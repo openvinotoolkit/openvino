@@ -125,7 +125,7 @@ private:
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                          const ov::AnyMap& generate_config);
 
-    ov::AnyMap m_model_rt_info;
+    bool m_is_eagle = false;
 };
 
 }  // namespace npuw
