@@ -336,8 +336,7 @@ void fuse_mean_scale(ov::preprocess::PrePostProcessor& preproc, const benchmark_
  */
 class model_sentry {
 public:
-    model_sentry(ov::CompiledModel& compiledModel) :
-        _model(compiledModel) {}
+    model_sentry(ov::CompiledModel& compiledModel) : _model(compiledModel) {}
 
     ~model_sentry() {
         if (_model) {
