@@ -269,6 +269,18 @@ void Core::register_plugin(const std::string& plugin, const std::string& device_
     OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin, device_name, properties););
 }
 
+void Core::register_plugin(const std::filesystem::path& plugin_path,
+                           const std::string& device_name,
+                           const ov::AnyMap& properties) {
+    const auto plugin_path_utf8 =
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        ov::util::wstring_to_string(plugin_path.wstring());
+#else
+        plugin_path.string();
+#endif
+    register_plugin(plugin_path_utf8, device_name, properties);
+}
+
 void Core::unload_plugin(const std::string& device_name) {
     OV_CORE_CALL_STATEMENT({
         ov::DeviceIDParser parser(device_name);

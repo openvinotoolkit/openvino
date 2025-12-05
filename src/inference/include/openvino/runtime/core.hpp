@@ -847,9 +847,13 @@ public:
     void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& config = {});
 
     /** @brief Register a new device and plugin that enables this device inside OpenVINO Runtime. */
-    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    void register_plugin(const Path& plugin_path, const std::string& device_name, const AnyMap& config = {}) {
-        register_plugin(plugin_path.string(), device_name, config);
+    void register_plugin(const std::filesystem::path& plugin_path,
+                         const std::string& device_name,
+                         const ov::AnyMap& config = {});
+
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
+    void register_plugin(const TPath& plugin_path, const std::string& device_name, const AnyMap& config = {}) {
+        register_plugin(std::string(plugin_path), device_name, config);
     }
 
     /**
