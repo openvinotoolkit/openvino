@@ -30,22 +30,30 @@ using namespace ov::pass;
 ov::pass::FuseVectorizedMOE2GEMM::FuseVectorizedMOE2GEMM() {
     MATCHER_SCOPE(FuseVectorizedMOE2GEMM);
 
-    auto experts_input = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto experts_input = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
     auto tile = ov::pass::pattern::wrap_type<ov::op::v0::Tile>({experts_input, ov::pass::pattern::any_input()});
     auto after_tile_reshape = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({tile, ov::pass::pattern::any_input()});
-    auto gate_up_matmul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({after_tile_reshape, ov::pass::pattern::any_input()},
-                                                                 {{"transpose_a", false}, {"transpose_b", true}});
+    auto gate_up_matmul =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({after_tile_reshape, ov::pass::pattern::any_input()},
+                                                         {{"transpose_a", false}, {"transpose_b", true}});
     auto gate_up_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({gate_up_matmul, ov::pass::pattern::any_input()});
 
     // Branch 1: Slice_1 -> Clamp -> Add_1
-    auto slice1 = ov::pass::pattern::wrap_type<ov::op::v8::Slice>(
-        {gate_up_add, ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto slice1 = ov::pass::pattern::wrap_type<ov::op::v8::Slice>({gate_up_add,
+                                                                   ov::pass::pattern::any_input(),
+                                                                   ov::pass::pattern::any_input(),
+                                                                   ov::pass::pattern::any_input(),
+                                                                   ov::pass::pattern::any_input()});
     auto clamp = ov::pass::pattern::wrap_type<ov::op::v0::Clamp>({slice1});
     auto add1 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({clamp, ov::pass::pattern::wrap_const()});
 
     // Branch 2: Slice_2 -> Minimum_1 -> Swish
-    auto slice2 = ov::pass::pattern::wrap_type<ov::op::v8::Slice>(
-        {gate_up_add, ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto slice2 = ov::pass::pattern::wrap_type<ov::op::v8::Slice>({gate_up_add,
+                                                                   ov::pass::pattern::any_input(),
+                                                                   ov::pass::pattern::any_input(),
+                                                                   ov::pass::pattern::any_input(),
+                                                                   ov::pass::pattern::any_input()});
     auto minimum1 = ov::pass::pattern::wrap_type<ov::op::v1::Minimum>({slice2, ov::pass::pattern::wrap_const()});
     auto swish_beta = ov::pass::pattern::wrap_const();
     auto swish = ov::pass::pattern::wrap_type<ov::op::v4::Swish>({minimum1, swish_beta});
@@ -54,22 +62,32 @@ ov::pass::FuseVectorizedMOE2GEMM::FuseVectorizedMOE2GEMM() {
     auto multiply2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add1, swish});
 
     // Down projection
-    auto down_proj_matmul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({multiply2, ov::pass::pattern::any_input()},
-                                                                   {{"transpose_a", false}, {"transpose_b", true}});
-    auto down_proj_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({down_proj_matmul, ov::pass::pattern::wrap_const()});
-    auto end_reshape = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({down_proj_add, ov::pass::pattern::any_input()});
+    auto down_proj_matmul =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({multiply2, ov::pass::pattern::any_input()},
+                                                         {{"transpose_a", false}, {"transpose_b", true}});
+    auto down_proj_add =
+        ov::pass::pattern::wrap_type<ov::op::v1::Add>({down_proj_matmul, ov::pass::pattern::wrap_const()});
+    auto end_reshape =
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({down_proj_add, ov::pass::pattern::any_input()});
 
     // Routing weights/mask
     auto router_topk_indices = ov::pass::pattern::any_input();
-    auto scatter_elements_update = ov::pass::pattern::wrap_type<ov::op::v12::ScatterElementsUpdate>(
-        {ov::pass::pattern::any_input(), router_topk_indices, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto scatter_elements_update =
+        ov::pass::pattern::wrap_type<ov::op::v12::ScatterElementsUpdate>({ov::pass::pattern::any_input(),
+                                                                          router_topk_indices,
+                                                                          ov::pass::pattern::any_input(),
+                                                                          ov::pass::pattern::any_input()});
 
-    auto router_transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({scatter_elements_update, ov::pass::pattern::any_input()});
-    auto router_reshape = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({router_transpose, ov::pass::pattern::any_input()});
-    auto unsqueeze_routing_weights = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>({router_reshape, ov::pass::pattern::any_input()});
+    auto router_transpose =
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({scatter_elements_update, ov::pass::pattern::any_input()});
+    auto router_reshape =
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({router_transpose, ov::pass::pattern::any_input()});
+    auto unsqueeze_routing_weights =
+        ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>({router_reshape, ov::pass::pattern::any_input()});
 
     auto mul3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({end_reshape, unsqueeze_routing_weights});
-    auto reduce_sum = ov::pass::pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, ov::pass::pattern::any_input()}, {{"keep_dims", false}});
+    auto reduce_sum = ov::pass::pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, ov::pass::pattern::any_input()},
+                                                                          {{"keep_dims", false}});
     auto moe_pattern = reduce_sum;
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
@@ -127,35 +145,46 @@ ov::pass::FuseVectorizedMOE2GEMM::FuseVectorizedMOE2GEMM() {
 ov::pass::FuseVectorizedMOE3GEMM::FuseVectorizedMOE3GEMM() {
     MATCHER_SCOPE(FuseVectorizedMOE3GEMM);
 
-    auto experts_input = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto experts_input = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
     auto tile = ov::pass::pattern::wrap_type<ov::op::v0::Tile>({experts_input, ov::pass::pattern::any_input()});
     auto after_tile_reshape = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({tile, ov::pass::pattern::any_input()});
 
     // First GEMM (activation gate)
-    auto gate_matmul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({after_tile_reshape, ov::pass::pattern::any_input()},
-                                                              {{"transpose_a", false}, {"transpose_b", true}});
+    auto gate_matmul =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({after_tile_reshape, ov::pass::pattern::any_input()},
+                                                         {{"transpose_a", false}, {"transpose_b", true}});
     auto swish = ov::pass::pattern::wrap_type<ov::op::v4::Swish>({gate_matmul});
     // Second GEMM (up_projection)
-    auto up_matmul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({after_tile_reshape, ov::pass::pattern::any_input()},
-                                                            {{"transpose_a", false}, {"transpose_b", true}});
+    auto up_matmul =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({after_tile_reshape, ov::pass::pattern::any_input()},
+                                                         {{"transpose_a", false}, {"transpose_b", true}});
     // Join: Multiply (SwiGLU)
     auto swiglu = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({swish, up_matmul});
 
     // Third GEMM (down_projection)
-    auto down_matmul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({swiglu, ov::pass::pattern::any_input()},
-                                                              {{"transpose_a", false}, {"transpose_b", true}});
+    auto down_matmul =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({swiglu, ov::pass::pattern::any_input()},
+                                                         {{"transpose_a", false}, {"transpose_b", true}});
     auto end_reshape = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({down_matmul, ov::pass::pattern::any_input()});
 
     // Routing weights/mask
     auto router_topk_indices = ov::pass::pattern::any_input();
-    auto scatter_elements_update = ov::pass::pattern::wrap_type<ov::op::v12::ScatterElementsUpdate>(
-        {ov::pass::pattern::any_input(), router_topk_indices, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
-    auto router_transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({scatter_elements_update, ov::pass::pattern::any_input()});
-    auto router_reshape = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({router_transpose, ov::pass::pattern::any_input()});
-    auto unsqueeze_routing_weights = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>({router_reshape, ov::pass::pattern::any_input()});
+    auto scatter_elements_update =
+        ov::pass::pattern::wrap_type<ov::op::v12::ScatterElementsUpdate>({ov::pass::pattern::any_input(),
+                                                                          router_topk_indices,
+                                                                          ov::pass::pattern::any_input(),
+                                                                          ov::pass::pattern::any_input()});
+    auto router_transpose =
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({scatter_elements_update, ov::pass::pattern::any_input()});
+    auto router_reshape =
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({router_transpose, ov::pass::pattern::any_input()});
+    auto unsqueeze_routing_weights =
+        ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>({router_reshape, ov::pass::pattern::any_input()});
 
     auto mul3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({end_reshape, unsqueeze_routing_weights});
-    auto reduce_sum = ov::pass::pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, ov::pass::pattern::any_input()}, {{"keep_dims", false}});
+    auto reduce_sum = ov::pass::pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, ov::pass::pattern::any_input()},
+                                                                          {{"keep_dims", false}});
     auto moe_pattern = reduce_sum;
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {

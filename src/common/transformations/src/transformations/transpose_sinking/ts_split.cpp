@@ -157,7 +157,9 @@ TSSplitBackward::TSSplitBackward() {
     MATCHER_SCOPE(TSSplitBackward);
 
     auto transpose_const_label = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), transpose_const_label}, IsSplitSinked);
+    auto transpose_label =
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), transpose_const_label},
+                                                            IsSplitSinked);
 
     matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();

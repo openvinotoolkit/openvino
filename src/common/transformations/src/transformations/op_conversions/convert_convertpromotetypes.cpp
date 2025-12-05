@@ -17,7 +17,8 @@ ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
     auto has_static_defined_type = [](const Output<Node>& output) -> bool {
         return !ov::pass::pattern::type_matches_any({element::dynamic})(output);
     };
-    auto convert_promote_types = ov::pass::pattern::wrap_type<ov::op::v14::ConvertPromoteTypes>(has_static_defined_type);
+    auto convert_promote_types =
+        ov::pass::pattern::wrap_type<ov::op::v14::ConvertPromoteTypes>(has_static_defined_type);
 
     matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto convert_promote_types = ov::as_type_ptr<ov::op::v14::ConvertPromoteTypes>(m.get_match_root());

@@ -127,8 +127,8 @@ ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
     auto input3 = ov::pass::pattern::any_input();
     auto reshape_before =
         ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({input0, input1}, ov::pass::pattern::consumers_count(1));
-    auto permute =
-        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({reshape_before, input2}, ov::pass::pattern::consumers_count(1));
+    auto permute = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({reshape_before, input2},
+                                                                       ov::pass::pattern::consumers_count(1));
     auto reshape_after = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({permute, input3});
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {

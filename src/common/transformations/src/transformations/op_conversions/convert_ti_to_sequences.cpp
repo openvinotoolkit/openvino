@@ -427,12 +427,14 @@ bool check_lstm_cell_pattern(
     create_mul_by_one_pattern(h_param, h_broadcast_value, h_mul, false);
 
     auto xi_common_label = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{xi_reshape_label, x_mul});
-    auto hidden_common_label = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{init_hidden_state_i_label, h_mul});
+    auto hidden_common_label =
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{init_hidden_state_i_label, h_mul});
 
     auto lstm_cell_label = ov::pass::pattern::wrap_type<op::v4::LSTMCell>(
         {xi_common_label, hidden_common_label, init_cell_state_i_label, W_label, R_label, B_label});
     auto unsqueeze_axis_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
-    auto unsqueeze_hidden_state_label = ov::pass::pattern::wrap_type<op::v0::Unsqueeze>({lstm_cell_label, unsqueeze_axis_label});
+    auto unsqueeze_hidden_state_label =
+        ov::pass::pattern::wrap_type<op::v0::Unsqueeze>({lstm_cell_label, unsqueeze_axis_label});
     auto result_hidden_state_label = ov::pass::pattern::wrap_type<op::v0::Result>({unsqueeze_hidden_state_label});
 
     // check that body-graph contains a pattern corresponding LSTMCell
@@ -784,23 +786,25 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
     auto input_transpose_const_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
     auto input_transpose_label =
         ov::pass::pattern::wrap_type<op::v1::Transpose, op::v1::Reshape>({input_label, input_transpose_const_label},
-                                                               ov::pass::pattern::rank_equals(3));
+                                                                         ov::pass::pattern::rank_equals(3));
     auto scatter_indexes_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
-    auto scatter_update_label = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{input_transpose_label, input_label});
+    auto scatter_update_label =
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{input_transpose_label, input_label});
     auto scatter_label = ov::pass::pattern::wrap_type<op::v3::ScatterNDUpdate>(
         {ov::pass::pattern::any_input(), scatter_indexes_label, scatter_update_label});
     auto trip_count_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
     auto cond_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
     auto loop_label = ov::pass::pattern::wrap_type<op::v5::Loop>({trip_count_label,
-                                                        cond_label,
-                                                        ov::pass::pattern::any_input(),
-                                                        ov::pass::pattern::any_input(),
-                                                        ov::pass::pattern::any_input(),
-                                                        ov::pass::pattern::any_input(),
-                                                        ov::pass::pattern::any_input(),
-                                                        scatter_label});
+                                                                  cond_label,
+                                                                  ov::pass::pattern::any_input(),
+                                                                  ov::pass::pattern::any_input(),
+                                                                  ov::pass::pattern::any_input(),
+                                                                  ov::pass::pattern::any_input(),
+                                                                  ov::pass::pattern::any_input(),
+                                                                  scatter_label});
     auto output_transpose_const_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
-    auto output_transpose_label = ov::pass::pattern::wrap_type<op::v1::Transpose>({loop_label, output_transpose_const_label});
+    auto output_transpose_label =
+        ov::pass::pattern::wrap_type<op::v1::Transpose>({loop_label, output_transpose_const_label});
 
     // Loop body pattern:
     auto sequence_index_label = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(0));
@@ -809,8 +813,8 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
     auto iteration_counter_incremented_label =
         ov::pass::pattern::wrap_type<op::v1::Add>({iteration_counter_label, iteration_counter_step_label});
     auto iteration_counter_limit_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
-    auto iteration_counter_less_than_limit_label =
-        ov::pass::pattern::wrap_type<op::v1::Less>({iteration_counter_incremented_label, iteration_counter_limit_label});
+    auto iteration_counter_less_than_limit_label = ov::pass::pattern::wrap_type<op::v1::Less>(
+        {iteration_counter_incremented_label, iteration_counter_limit_label});
     auto sequence_index_step_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
     auto sequence_index_incremented_label =
         ov::pass::pattern::wrap_type<op::v1::Add>({sequence_index_label, sequence_index_step_label});
@@ -832,7 +836,7 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sequence_index_label, sequence_index_reshaped_label});
     auto gather_body_label =
         ov::pass::pattern::wrap_type<ov::op::v8::Gather>({X_body_label, sequence_index_or_label, gather_axis_label},
-                                               ov::pass::pattern::rank_equals(2));
+                                                         ov::pass::pattern::rank_equals(2));
     auto W_label = ov::pass::pattern::any_input();
     auto R_label = ov::pass::pattern::any_input();
     auto B_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
@@ -1325,14 +1329,20 @@ public:
 
         auto data_label = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(3));
         auto shapeof_label = ov::pass::pattern::wrap_type<op::util::ShapeOfBase>({data_label});
-        auto shapeof_gather_label = ov::pass::pattern::wrap_type<op::util::GatherBase>(
-            {shapeof_label, ov::pass::pattern::wrap_type<op::v0::Constant>(), ov::pass::pattern::wrap_type<op::v0::Constant>()});
-        auto shapeof_gather2_label = ov::pass::pattern::wrap_type<op::util::GatherBase>(
-            {shapeof_gather_label, ov::pass::pattern::wrap_type<op::v0::Constant>(), ov::pass::pattern::wrap_type<op::v0::Constant>()});
-        auto reshape_label =
-            ov::pass::pattern::wrap_type<op::v1::Reshape>({shapeof_gather2_label, ov::pass::pattern::wrap_type<op::v0::Constant>()});
-        auto range_label = ov::pass::pattern::wrap_type<op::v4::Range>(
-            {ov::pass::pattern::wrap_type<op::v0::Constant>(), reshape_label, ov::pass::pattern::wrap_type<op::v0::Constant>()});
+        auto shapeof_gather_label =
+            ov::pass::pattern::wrap_type<op::util::GatherBase>({shapeof_label,
+                                                                ov::pass::pattern::wrap_type<op::v0::Constant>(),
+                                                                ov::pass::pattern::wrap_type<op::v0::Constant>()});
+        auto shapeof_gather2_label =
+            ov::pass::pattern::wrap_type<op::util::GatherBase>({shapeof_gather_label,
+                                                                ov::pass::pattern::wrap_type<op::v0::Constant>(),
+                                                                ov::pass::pattern::wrap_type<op::v0::Constant>()});
+        auto reshape_label = ov::pass::pattern::wrap_type<op::v1::Reshape>(
+            {shapeof_gather2_label, ov::pass::pattern::wrap_type<op::v0::Constant>()});
+        auto range_label =
+            ov::pass::pattern::wrap_type<op::v4::Range>({ov::pass::pattern::wrap_type<op::v0::Constant>(),
+                                                         reshape_label,
+                                                         ov::pass::pattern::wrap_type<op::v0::Constant>()});
         auto match_node = ov::pass::pattern::wrap_type<op::util::GatherBase>(
             {data_label, range_label, ov::pass::pattern::wrap_type<op::v0::Constant>()});
 
@@ -1389,24 +1399,25 @@ ov::pass::FuseReverseLSTMSequence::FuseReverseLSTMSequence() {
     MATCHER_SCOPE(FuseReverseLSTMSequence);
 
     auto data_label = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(3));
-    auto first_transpose_label =
-        ov::pass::pattern::wrap_type<op::v1::Transpose, op::v1::Reshape>({data_label, ov::pass::pattern::wrap_type<op::v0::Constant>()},
-                                                               ov::pass::pattern::rank_equals(3));
+    auto first_transpose_label = ov::pass::pattern::wrap_type<op::v1::Transpose, op::v1::Reshape>(
+        {data_label, ov::pass::pattern::wrap_type<op::v0::Constant>()},
+        ov::pass::pattern::rank_equals(3));
     auto input_to_first_reverse_sequence_label =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{first_transpose_label, data_label});
-    auto first_reverse_sequence_label =
-        ov::pass::pattern::wrap_type<op::v0::ReverseSequence>({input_to_first_reverse_sequence_label, ov::pass::pattern::any_input()});
-    auto second_transpose_label =
-        ov::pass::pattern::wrap_type<op::v1::Transpose>({first_reverse_sequence_label, ov::pass::pattern::wrap_type<op::v0::Constant>()});
+    auto first_reverse_sequence_label = ov::pass::pattern::wrap_type<op::v0::ReverseSequence>(
+        {input_to_first_reverse_sequence_label, ov::pass::pattern::any_input()});
+    auto second_transpose_label = ov::pass::pattern::wrap_type<op::v1::Transpose>(
+        {first_reverse_sequence_label, ov::pass::pattern::wrap_type<op::v0::Constant>()});
     auto lstm_label = ov::pass::pattern::wrap_type<op::v5::LSTMSequence>({second_transpose_label,
-                                                                ov::pass::pattern::any_input(),
-                                                                ov::pass::pattern::any_input(),
-                                                                ov::pass::pattern::any_input(),
-                                                                ov::pass::pattern::any_input(),
-                                                                ov::pass::pattern::any_input(),
-                                                                ov::pass::pattern::any_input()},
-                                                               ov::pass::pattern::consumers_count(1));
-    auto squeeze_label = ov::pass::pattern::wrap_type<op::v0::Squeeze>({lstm_label, ov::pass::pattern::wrap_type<op::v0::Constant>()});
+                                                                          ov::pass::pattern::any_input(),
+                                                                          ov::pass::pattern::any_input(),
+                                                                          ov::pass::pattern::any_input(),
+                                                                          ov::pass::pattern::any_input(),
+                                                                          ov::pass::pattern::any_input(),
+                                                                          ov::pass::pattern::any_input()},
+                                                                         ov::pass::pattern::consumers_count(1));
+    auto squeeze_label =
+        ov::pass::pattern::wrap_type<op::v0::Squeeze>({lstm_label, ov::pass::pattern::wrap_type<op::v0::Constant>()});
     auto second_reverse_sequence_label =
         ov::pass::pattern::wrap_type<op::v0::ReverseSequence>({squeeze_label, ov::pass::pattern::any_input()});
 
@@ -1534,52 +1545,58 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
         ov::pass::pattern::wrap_type<op::v1::Transpose>({data_label, ov::pass::pattern::wrap_type<op::v0::Constant>()});
     auto lstm_sequence_forward_first_input_label =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_forward_label, data_label});
-    auto shapeof_forward_label = ov::pass::pattern::wrap_type<op::util::ShapeOfBase>({lstm_sequence_forward_first_input_label});
-    auto gather_forward_label = ov::pass::pattern::wrap_type<op::util::GatherBase>(
-        {shapeof_forward_label, ov::pass::pattern::wrap_type<op::v0::Constant>(), ov::pass::pattern::wrap_type<op::v0::Constant>()});
+    auto shapeof_forward_label =
+        ov::pass::pattern::wrap_type<op::util::ShapeOfBase>({lstm_sequence_forward_first_input_label});
+    auto gather_forward_label =
+        ov::pass::pattern::wrap_type<op::util::GatherBase>({shapeof_forward_label,
+                                                            ov::pass::pattern::wrap_type<op::v0::Constant>(),
+                                                            ov::pass::pattern::wrap_type<op::v0::Constant>()});
     auto max_sequence_len_forward_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
     auto broadcast_forward_label =
         ov::pass::pattern::wrap_type<op::v3::Broadcast>({max_sequence_len_forward_label, gather_forward_label});
     auto const_sequence_lengths_forward_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
-    auto sequence_lengths_forward_label =
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{broadcast_forward_label, const_sequence_lengths_forward_label});
+    auto sequence_lengths_forward_label = std::make_shared<ov::pass::pattern::op::Or>(
+        OutputVector{broadcast_forward_label, const_sequence_lengths_forward_label});
     auto lstm_sequence_forward_label =
         ov::pass::pattern::wrap_type<op::v5::LSTMSequence>({lstm_sequence_forward_first_input_label,
-                                                  ov::pass::pattern::any_input(),
-                                                  ov::pass::pattern::any_input(),
-                                                  sequence_lengths_forward_label,
-                                                  ov::pass::pattern::any_input(),
-                                                  ov::pass::pattern::any_input(),
-                                                  ov::pass::pattern::any_input()});
-    auto squeeze_forward_label =
-        ov::pass::pattern::wrap_type<op::v0::Squeeze>({lstm_sequence_forward_label, ov::pass::pattern::wrap_type<op::v0::Constant>()},
-                                            ov::pass::pattern::rank_equals(3));
+                                                            ov::pass::pattern::any_input(),
+                                                            ov::pass::pattern::any_input(),
+                                                            sequence_lengths_forward_label,
+                                                            ov::pass::pattern::any_input(),
+                                                            ov::pass::pattern::any_input(),
+                                                            ov::pass::pattern::any_input()});
+    auto squeeze_forward_label = ov::pass::pattern::wrap_type<op::v0::Squeeze>(
+        {lstm_sequence_forward_label, ov::pass::pattern::wrap_type<op::v0::Constant>()},
+        ov::pass::pattern::rank_equals(3));
 
     // backward pattern
-    auto transpose_reverse_label =
-        ov::pass::pattern::wrap_type<op::v1::Transpose, op::v1::Reshape>({data_label, ov::pass::pattern::wrap_type<op::v0::Constant>()});
+    auto transpose_reverse_label = ov::pass::pattern::wrap_type<op::v1::Transpose, op::v1::Reshape>(
+        {data_label, ov::pass::pattern::wrap_type<op::v0::Constant>()});
     auto lstm_sequence_reverse_first_input_label =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_reverse_label, data_label});
-    auto shapeof_reverse_label = ov::pass::pattern::wrap_type<op::util::ShapeOfBase>({lstm_sequence_reverse_first_input_label});
-    auto gather_reverse_label = ov::pass::pattern::wrap_type<op::util::GatherBase>(
-        {shapeof_reverse_label, ov::pass::pattern::wrap_type<op::v0::Constant>(), ov::pass::pattern::wrap_type<op::v0::Constant>()});
+    auto shapeof_reverse_label =
+        ov::pass::pattern::wrap_type<op::util::ShapeOfBase>({lstm_sequence_reverse_first_input_label});
+    auto gather_reverse_label =
+        ov::pass::pattern::wrap_type<op::util::GatherBase>({shapeof_reverse_label,
+                                                            ov::pass::pattern::wrap_type<op::v0::Constant>(),
+                                                            ov::pass::pattern::wrap_type<op::v0::Constant>()});
     auto max_sequence_len_reverse_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
     auto broadcast_reverse_label =
         ov::pass::pattern::wrap_type<op::v3::Broadcast>({max_sequence_len_reverse_label, gather_reverse_label});
     auto const_sequence_lengths_reverse_label = ov::pass::pattern::wrap_type<op::v0::Constant>();
-    auto sequence_lengths_reverse_label =
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{broadcast_reverse_label, const_sequence_lengths_reverse_label});
+    auto sequence_lengths_reverse_label = std::make_shared<ov::pass::pattern::op::Or>(
+        OutputVector{broadcast_reverse_label, const_sequence_lengths_reverse_label});
     auto lstm_sequence_reverse_label =
         ov::pass::pattern::wrap_type<op::v5::LSTMSequence>({lstm_sequence_reverse_first_input_label,
-                                                  ov::pass::pattern::any_input(),
-                                                  ov::pass::pattern::any_input(),
-                                                  sequence_lengths_reverse_label,
-                                                  ov::pass::pattern::any_input(),
-                                                  ov::pass::pattern::any_input(),
-                                                  ov::pass::pattern::any_input()});
-    auto squeeze_reverse_label =
-        ov::pass::pattern::wrap_type<op::v0::Squeeze>({lstm_sequence_reverse_label, ov::pass::pattern::wrap_type<op::v0::Constant>()},
-                                            ov::pass::pattern::rank_equals(3));
+                                                            ov::pass::pattern::any_input(),
+                                                            ov::pass::pattern::any_input(),
+                                                            sequence_lengths_reverse_label,
+                                                            ov::pass::pattern::any_input(),
+                                                            ov::pass::pattern::any_input(),
+                                                            ov::pass::pattern::any_input()});
+    auto squeeze_reverse_label = ov::pass::pattern::wrap_type<op::v0::Squeeze>(
+        {lstm_sequence_reverse_label, ov::pass::pattern::wrap_type<op::v0::Constant>()},
+        ov::pass::pattern::rank_equals(3));
 
     auto concat_label = ov::pass::pattern::wrap_type<op::v0::Concat>({squeeze_forward_label, squeeze_reverse_label});
 

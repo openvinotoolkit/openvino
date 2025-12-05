@@ -27,7 +27,8 @@ ov::pass::pattern::op::CompressedWeightsBlock::CompressedWeightsBlock(
     const std::vector<ov::element::Type>& supported_weights_types,
     const std::set<size_t>& supported_weights_ranks)
     : Block({}, {}, "CompressedWeightsBlock") {
-    auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches_any(supported_weights_types));
+    auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(
+        ov::pass::pattern::type_matches_any(supported_weights_types));
     auto convert = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights});
 
     auto sub_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();

@@ -21,7 +21,7 @@
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
-auto compressed_constant = [](const ov::Output<ov::Node>& output) {
+    auto compressed_constant = [](const ov::Output<ov::Node>& output) {
         return (output.get_element_type() == ov::element::u8 || output.get_element_type() == ov::element::i8 ||
                 output.get_element_type() == ov::element::u4 || output.get_element_type() == ov::element::i4) &&
                (output.get_shape().size() == 2 || output.get_shape().size() == 3);
@@ -52,7 +52,8 @@ auto compressed_constant = [](const ov::Output<ov::Node>& output) {
 
     auto dicts_input_m =
         std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, last_convert_m, mul_m});
-    auto gather_m = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({dicts_input_m, ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
+    auto gather_m = ov::pass::pattern::wrap_type<ov::op::v8::Gather>(
+        {dicts_input_m, ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -148,12 +149,15 @@ auto compressed_constant = [](const ov::Output<ov::Node>& output) {
 }
 
 ov::pass::MoveDecompressionAfterGather::MoveDecompressionAfterGather() {
-auto dicts = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches_any({element::f16, element::bf16}));
+    auto dicts = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(
+        ov::pass::pattern::type_matches_any({element::f16, element::bf16}));
     auto convert_predicate = [](ov::Output<ov::Node> output) -> bool {
-        return ov::pass::pattern::consumers_count(1)(output) && ov::pass::pattern::type_matches(ov::element::f32)(output);
+        return ov::pass::pattern::consumers_count(1)(output) &&
+               ov::pass::pattern::type_matches(ov::element::f32)(output);
     };
     auto convert = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({dicts}, convert_predicate);
-    auto gather = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({convert, ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
+    auto gather = ov::pass::pattern::wrap_type<ov::op::v8::Gather>(
+        {convert, ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

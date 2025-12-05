@@ -19,7 +19,8 @@
 ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
     MATCHER_SCOPE(ReluFakeQuantizeFusion);
     auto data_pattern = ov::pass::pattern::any_input();
-    auto relu_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({data_pattern}, ov::pass::pattern::consumers_count(1));
+    auto relu_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v0::Relu>({data_pattern}, ov::pass::pattern::consumers_count(1));
     auto input_low_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({relu_pattern,
                                                                               input_low_pattern,

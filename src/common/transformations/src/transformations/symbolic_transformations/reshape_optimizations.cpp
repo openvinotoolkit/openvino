@@ -18,8 +18,10 @@ using namespace ov::symbol::util;
 ov::pass::ReshapeOptimizations::ReshapeOptimizations() {
     MATCHER_SCOPE(ReshapeOptimizations);
     auto data_label = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto pattern_label = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape() && ov::pass::pattern::class_other_than<ov::op::v0::Constant>());
-    auto reshape_label = ov::pass::pattern::wrap_type<op::v1::Reshape>({data_label, pattern_label}, ov::pass::pattern::has_static_rank());
+    auto pattern_label = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape() &&
+                                                      ov::pass::pattern::class_other_than<ov::op::v0::Constant>());
+    auto reshape_label = ov::pass::pattern::wrap_type<op::v1::Reshape>({data_label, pattern_label},
+                                                                       ov::pass::pattern::has_static_rank());
 
     ov::matcher_pass_callback matcher_pass_callback = [](ov::pass::pattern::Matcher& m) {
         const auto& reshape = ov::as_type_ptr<ov::op::v1::Reshape>(m.get_match_root());

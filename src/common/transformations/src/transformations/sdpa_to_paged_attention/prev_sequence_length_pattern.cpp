@@ -20,9 +20,11 @@ ov::pass::PrevSequenceLengthPattern::PrevSequenceLengthPattern(const std::shared
     // kv-cache state In first case it should replace it by prev_max_seq_len. For the second case, connect to batch_dim.
 
     auto kv_past = ov::pass::pattern::wrap_type<ov::op::v6::ReadValue>({ov::pass::pattern::any_input()});
-    auto kv_gather = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({kv_past, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto kv_gather = ov::pass::pattern::wrap_type<ov::op::v8::Gather>(
+        {kv_past, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
     auto kv_shape = ov::pass::pattern::wrap_type<ov::op::v3::ShapeOf>({kv_gather});
-    auto seq = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({kv_shape, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto seq = ov::pass::pattern::wrap_type<ov::op::v8::Gather>(
+        {kv_shape, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         // TODO: Check that seq has axis that really takes sequence len but not any other dimension -- use symbolics or
@@ -39,9 +41,10 @@ ov::pass::PrevSequenceLengthPattern::PrevSequenceLengthPattern(const std::shared
         auto target_type = gather->get_output_element_type(0);
         std::shared_ptr<ov::Node> replacement;
         if (kv_init_shape[axis].is_static() && kv_init_shape[axis].get_length() == 0) {
-            auto cur_seq_len = std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(unsqueezed_input_ids),
-                                                            ov::op::v0::Constant::create(element::i64, Shape{}, {1}),
-                                                            ov::op::v0::Constant::create(element::i64, Shape{}, {0}));
+            auto cur_seq_len =
+                std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(unsqueezed_input_ids),
+                                                     ov::op::v0::Constant::create(element::i64, Shape{}, {1}),
+                                                     ov::op::v0::Constant::create(element::i64, Shape{}, {0}));
             auto cur_seq_len_i32 = std::make_shared<ov::op::v0::Convert>(cur_seq_len, element::i32);
             auto prev_max_seq_len = std::make_shared<ov::op::v1::Subtract>(max_context_len, cur_seq_len_i32);
             replacement = prev_max_seq_len;

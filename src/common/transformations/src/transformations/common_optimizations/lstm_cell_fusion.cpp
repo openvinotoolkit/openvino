@@ -222,17 +222,21 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
     auto bias_add_label = ov::pass::pattern::wrap_type<ov::op::v1::Add>({matmul_label, bias_label});
     auto axis_label = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto split_label = ov::pass::pattern::wrap_type<ov::op::v1::Split>({bias_add_label, axis_label});
-    auto it_label = ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label});
-    auto ct_label = ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label});
+    auto it_label =
+        ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label});
+    auto ct_label =
+        ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label});
     auto ft_additional_bias_label = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto add_label = ov::pass::pattern::wrap_type<ov::op::v1::Add>({split_label, ft_additional_bias_label});
     auto ft_label = ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({add_label});
-    auto ot_label = ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label});
+    auto ot_label =
+        ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label});
     auto mul_label = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({it_label, ct_label});
     auto c_label = ov::pass::pattern::any_input();
     auto mul1_label = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({ft_label, c_label});
     auto Co_label = ov::pass::pattern::wrap_type<ov::op::v1::Add>({mul_label, mul1_label});
-    auto Co_activation_label = ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({Co_label});
+    auto Co_activation_label =
+        ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({Co_label});
     auto Ho_label = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({Co_activation_label, ot_label});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -551,7 +555,8 @@ ov::pass::LSTMCellFusionWithSplitWeights::LSTMCellFusionWithSplitWeights() {
     auto ft_mul_c_label = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({ft_label, c_label});
     auto ct_label = ov::pass::pattern::wrap_type<ov::op::v1::Add>({ft_mul_c_label, it_mul_c1t_label});
 
-    auto ct_activated_label = ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({ct_label});
+    auto ct_activated_label =
+        ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({ct_label});
     auto ht_label = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({ct_activated_label, ot_label});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {

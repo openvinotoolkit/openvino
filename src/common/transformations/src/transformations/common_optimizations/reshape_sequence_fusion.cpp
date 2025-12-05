@@ -64,8 +64,8 @@ ov::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimin
     MATCHER_SCOPE(ReshapeSequenceFusion);
     auto reshape_input = ov::pass::pattern::any_input();
     auto reshape_a_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto reshape_a =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reshape_input, reshape_a_pattern}, ov::pass::pattern::consumers_count(1));
+    auto reshape_a = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reshape_input, reshape_a_pattern},
+                                                                       ov::pass::pattern::consumers_count(1));
     auto reshape_b_pattern = ov::pass::pattern::any_input();
     auto reshape_b = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reshape_a, reshape_b_pattern});
 

@@ -35,21 +35,25 @@ bool SDPAScaleFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
 }
 
 SDPAScaleFusionPass::SDPAScaleFusionPass() {
-auto q = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(4));
+    auto q = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(4));
     auto k = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(4));
     auto v = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(4));
     auto mask = ov::pass::pattern::any_input();
     auto sdpa_scale = ov::pass::pattern::wrap_const();
-    auto scale_q = ov::pass::pattern::any_input(ov::pass::pattern::shape_matches("[]") || ov::pass::pattern::shape_matches("[1]"));
-    auto scale_k = ov::pass::pattern::any_input(ov::pass::pattern::shape_matches("[]") || ov::pass::pattern::shape_matches("[1]"));
+    auto scale_q =
+        ov::pass::pattern::any_input(ov::pass::pattern::shape_matches("[]") || ov::pass::pattern::shape_matches("[1]"));
+    auto scale_k =
+        ov::pass::pattern::any_input(ov::pass::pattern::shape_matches("[]") || ov::pass::pattern::shape_matches("[1]"));
 
     auto scaled_q = ov::pass::pattern::optional<ov::op::v1::Multiply>({q, scale_q});
     auto scaled_k = ov::pass::pattern::optional<ov::op::v1::Multiply>({k, scale_k});
-    auto sdpa_mask_scale = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask, sdpa_scale},
+    auto sdpa_mask_scale =
+        ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask, sdpa_scale},
                                                                              {{"causal", false}});
-    auto sdpa_mask =
-        ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask}, {{"causal", false}});
-    auto sdpa_simple = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v}, {{"causal", false}});
+    auto sdpa_mask = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask},
+                                                                                          {{"causal", false}});
+    auto sdpa_simple = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v},
+                                                                                            {{"causal", false}});
     auto sdpa = sdpa_simple | sdpa_mask | sdpa_mask_scale;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {

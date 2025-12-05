@@ -22,13 +22,15 @@
 ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     MATCHER_SCOPE(PullTransposeThroughFQUp);
     const auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    const auto convert_p = ov::pass::pattern::optional<ov::op::v0::Convert>(weights, ov::pass::pattern::consumers_count(1));
-    auto m_fq = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({convert_p,
-                                                              ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
-                                                              ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
-                                                              ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
-                                                              ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape())},
-                                                             ov::pass::pattern::consumers_count(1));
+    const auto convert_p =
+        ov::pass::pattern::optional<ov::op::v0::Convert>(weights, ov::pass::pattern::consumers_count(1));
+    auto m_fq = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>(
+        {convert_p,
+         ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
+         ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
+         ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
+         ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape())},
+        ov::pass::pattern::consumers_count(1));
     auto m_transpose_perm = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({m_fq, m_transpose_perm});
 

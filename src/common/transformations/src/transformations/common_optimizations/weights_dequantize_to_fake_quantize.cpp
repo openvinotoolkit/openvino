@@ -19,9 +19,11 @@
 ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     MATCHER_SCOPE(WeightsDequantizeToFakeQuantize);
 
-    const auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches(element::i8));
+    const auto weights =
+        ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches(element::i8));
     const auto convert = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights});
-    const auto sub_c_integer = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches(element::i8));
+    const auto sub_c_integer =
+        ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches(element::i8));
     const auto convert_sub_c_integer = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({sub_c_integer});
     const auto sub_integer = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert, convert_sub_c_integer});
     const auto sub_c = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();

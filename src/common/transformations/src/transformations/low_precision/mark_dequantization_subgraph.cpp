@@ -211,19 +211,23 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
 
     // data input:
     auto input_pattern = ov::pass::pattern::any_input(check_precision(precisions));
-    auto convert_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({input_pattern}, ov::pass::pattern::consumers_count(1));
+    auto convert_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({input_pattern}, ov::pass::pattern::consumers_count(1));
 
     // zero points:
     auto zp_pattern = ov::pass::pattern::any_input();
     auto zp_convert_pattern = ov::pass::pattern::optional<ov::op::v0::Convert>(zp_pattern);
-    auto zp_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({zp_convert_pattern, ov::pass::pattern::any_input()});
+    auto zp_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>(
+        {zp_convert_pattern, ov::pass::pattern::any_input()});
     auto subtract_pattern = ov::pass::pattern::optional<ov::op::v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
     auto scale_pattern = ov::pass::pattern::any_input();
     auto scale_convert_pattern = ov::pass::pattern::optional<ov::op::v0::Convert>(scale_pattern);
-    auto scale_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({scale_convert_pattern, ov::pass::pattern::any_input()});
-    auto multiply_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({subtract_pattern, scale_reshape_pattern});
+    auto scale_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>(
+        {scale_convert_pattern, ov::pass::pattern::any_input()});
+    auto multiply_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) -> bool {
         const auto& pt_map = m.get_pattern_value_map();
@@ -275,19 +279,23 @@ ov::pass::KeepConstPrecision::KeepConstPrecision(const element::TypeVector& prec
 
     // data input:
     auto input_pattern = ov::pass::pattern::any_input();
-    auto convert_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({input_pattern}, ov::pass::pattern::consumers_count(1));
+    auto convert_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({input_pattern}, ov::pass::pattern::consumers_count(1));
 
     // zero points:
     auto zp_pattern = ov::pass::pattern::any_input();
     auto zp_convert_pattern = ov::pass::pattern::optional<ov::op::v0::Convert>(zp_pattern);
-    auto zp_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({zp_convert_pattern, ov::pass::pattern::any_input()});
+    auto zp_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>(
+        {zp_convert_pattern, ov::pass::pattern::any_input()});
     auto subtract_pattern = ov::pass::pattern::optional<ov::op::v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
     auto scale_pattern = ov::pass::pattern::any_input();
     auto scale_convert_pattern = ov::pass::pattern::optional<ov::op::v0::Convert>(scale_pattern);
-    auto scale_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({scale_convert_pattern, ov::pass::pattern::any_input()});
-    auto multiply_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({subtract_pattern, scale_reshape_pattern});
+    auto scale_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>(
+        {scale_convert_pattern, ov::pass::pattern::any_input()});
+    auto multiply_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) -> bool {
         const auto& pt_map = m.get_pattern_value_map();
@@ -324,20 +332,25 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
                                                                    bool add_precision_sensitive_convert) {
     MATCHER_SCOPE(KeepDequantizationPrecision);
 
-    auto input_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches_any(precisions));
-    auto convert_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({input_pattern}, ov::pass::pattern::consumers_count(1));
+    auto input_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches_any(precisions));
+    auto convert_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({input_pattern}, ov::pass::pattern::consumers_count(1));
 
     // zero points:
     auto zp_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto zp_convert_pattern = ov::pass::pattern::optional<ov::op::v0::Convert>(zp_pattern);
-    auto zp_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({zp_convert_pattern, ov::pass::pattern::any_input()});
+    auto zp_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>(
+        {zp_convert_pattern, ov::pass::pattern::any_input()});
     auto subtract_pattern = ov::pass::pattern::optional<ov::op::v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
     auto scale_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto scale_convert_pattern = ov::pass::pattern::optional<ov::op::v0::Convert>(scale_pattern);
-    auto scale_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({scale_convert_pattern, ov::pass::pattern::any_input()});
-    auto multiply_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({subtract_pattern, scale_reshape_pattern});
+    auto scale_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>(
+        {scale_convert_pattern, ov::pass::pattern::any_input()});
+    auto multiply_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pt_map = m.get_pattern_value_map();
@@ -391,7 +404,8 @@ ov::pass::MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& tabl
     auto data_convert = ov::pass::pattern::optional<op::v0::Convert>({data_input});
 
     // 2. Indices input → (optional Convert) → (input to Gather[1])
-    auto indices_input = ov::pass::pattern::wrap_type<op::v0::Constant, op::v0::Parameter>(check_precision(indices_precisions));
+    auto indices_input =
+        ov::pass::pattern::wrap_type<op::v0::Constant, op::v0::Parameter>(check_precision(indices_precisions));
     auto indices_convert = ov::pass::pattern::optional<op::v0::Convert>({indices_input});
 
     // Gather (fp, integral, any)

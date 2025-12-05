@@ -183,15 +183,17 @@ TSSqueezeForward::TSSqueezeForward() {
 
 TSSqueezeBackward::TSSqueezeBackward() {
     MATCHER_SCOPE(TSSqueezeBackward);
-    auto squeeze_with_1_input = ov::pass::pattern::wrap_type<ov::op::v0::Squeeze>({ov::pass::pattern::any_input()}, CheckTransposeConsumers);
-    auto squeeze_label =
-        ov::pass::pattern::wrap_type<ov::op::v0::Squeeze, ov::op::v1::Reshape>({ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                            CheckTransposeConsumers);
+    auto squeeze_with_1_input =
+        ov::pass::pattern::wrap_type<ov::op::v0::Squeeze>({ov::pass::pattern::any_input()}, CheckTransposeConsumers);
+    auto squeeze_label = ov::pass::pattern::wrap_type<ov::op::v0::Squeeze, ov::op::v1::Reshape>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        CheckTransposeConsumers);
     auto pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{squeeze_with_1_input, squeeze_label});
-    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({pattern, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                            [](const Output<Node>& output) -> bool {
-                                                                return ov::pass::pattern::has_static_rank()(output);
-                                                            });
+    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>(
+        {pattern, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        [](const Output<Node>& output) -> bool {
+            return ov::pass::pattern::has_static_rank()(output);
+        });
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();

@@ -86,8 +86,8 @@ ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
 ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
     MATCHER_SCOPE(ReplaceConcatReduceByMinOrMax);
 
-    auto concat_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v0::Concat>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto concat_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Concat>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
     auto reduce_axes_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto reduce_pattern = ov::pass::pattern::wrap_type<ov::op::v1::ReduceMin, ov::op::v1::ReduceMax>(
         {concat_pattern, reduce_axes_pattern});

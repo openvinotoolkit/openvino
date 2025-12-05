@@ -226,12 +226,12 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto subsequence_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto past_lens = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto key_cache_0 = std::make_shared<ov::op::v0::Parameter>(keyCachePrecision,
-                                                           getCacheShape(keyCachePrecision,
-                                                                         numKeyHeads,
-                                                                         keyHeadSize,
-                                                                         keyCacheGroupSize,
-                                                                         blockSize[0],
-                                                                         quantKeybychannel));
+                                                                   getCacheShape(keyCachePrecision,
+                                                                                 numKeyHeads,
+                                                                                 keyHeadSize,
+                                                                                 keyCacheGroupSize,
+                                                                                 blockSize[0],
+                                                                                 quantKeybychannel));
         auto value_cache_0 = std::make_shared<ov::op::v0::Parameter>(
             valueCachePrecision,
             getCacheShape(valueCachePrecision, numKeyHeads, valueHeadSize, valueCacheGroupSize, blockSize[1], false));

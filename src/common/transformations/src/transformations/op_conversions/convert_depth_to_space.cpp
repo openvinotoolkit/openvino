@@ -18,8 +18,8 @@
 
 ov::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
     MATCHER_SCOPE(ConvertDepthToSpace);
-    auto dts_node =
-        ov::pass::pattern::wrap_type<ov::op::v0::DepthToSpace>({ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape())});
+    auto dts_node = ov::pass::pattern::wrap_type<ov::op::v0::DepthToSpace>(
+        {ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape())});
 
     matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto dts_node = ov::as_type_ptr<ov::op::v0::DepthToSpace>(m.get_match_root());

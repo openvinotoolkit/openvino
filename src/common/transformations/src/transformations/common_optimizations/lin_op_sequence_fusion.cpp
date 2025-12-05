@@ -30,7 +30,8 @@ ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
     // Create Add->Multiply pattern where Add has exactly one consumer
     auto m_data = ov::pass::pattern::any_input();
     auto m_add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto m_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_data, m_add_constant}, ov::pass::pattern::consumers_count(1));
+    auto m_add =
+        ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_data, m_add_constant}, ov::pass::pattern::consumers_count(1));
     auto m_mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_add, m_mul_constant});
 
@@ -77,7 +78,8 @@ ov::pass::AddAddFusion::AddAddFusion() {
     // Create Add->Add pattern where first Add has exactly one consumer
     auto m_data = ov::pass::pattern::any_input();
     auto m_add1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto m_add1 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_data, m_add1_constant}, ov::pass::pattern::consumers_count(1));
+    auto m_add1 =
+        ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_data, m_add1_constant}, ov::pass::pattern::consumers_count(1));
     auto m_add2_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_add2 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_add1, m_add2_constant});
 

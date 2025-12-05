@@ -64,13 +64,15 @@ TSInterpolateForward::TSInterpolateForward() {
 TSInterpolateBackward::TSInterpolateBackward() {
     MATCHER_SCOPE(TSInterpolateBackward);
 
-    auto main_node_label = ov::pass::pattern::wrap_type<ov::op::v4::Interpolate>([](const Output<Node>& output) -> bool {
-        return ov::pass::pattern::has_static_rank()(output) && CheckTransposeConsumers(output);
-    });
+    auto main_node_label =
+        ov::pass::pattern::wrap_type<ov::op::v4::Interpolate>([](const Output<Node>& output) -> bool {
+            return ov::pass::pattern::has_static_rank()(output) && CheckTransposeConsumers(output);
+        });
 
     auto transpose_const_label = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
-    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
+    auto transpose_label =
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
                                                             [](const Output<Node>& output) -> bool {
                                                                 return ov::pass::pattern::has_static_rank()(output);
                                                             });

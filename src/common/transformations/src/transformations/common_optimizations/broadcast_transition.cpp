@@ -21,11 +21,13 @@
 
 ov::pass::BroadcastTransition::BroadcastTransition() {
     MATCHER_SCOPE(BroadcastTransition);
-    auto bcast_m =
-        ov::pass::pattern::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>(ov::pass::pattern::consumers_count(1));
+    auto bcast_m = ov::pass::pattern::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>(
+        ov::pass::pattern::consumers_count(1));
     auto eltwise_input_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto eltwise_1 = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({eltwise_input_m, bcast_m});
-    auto eltwise_2 = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({bcast_m, eltwise_input_m});
+    auto eltwise_1 =
+        ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({eltwise_input_m, bcast_m});
+    auto eltwise_2 =
+        ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({bcast_m, eltwise_input_m});
     auto eltwise_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{eltwise_1, eltwise_2});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {

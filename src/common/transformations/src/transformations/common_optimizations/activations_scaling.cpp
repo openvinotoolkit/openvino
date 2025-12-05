@@ -185,7 +185,8 @@ ov::pass::activations_scaling::EliminateScalarMul::EliminateScalarMul() {
     auto mul_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({convert_m, scale_const_m});
     auto mvn_m = ov::pass::pattern::wrap_type<ov::op::v6::MVN>({mul_m, ov::pass::pattern::any_input()});
     auto rms_m = ov::pass::pattern::wrap_type<ov::op::internal::RMS>({mul_m, ov::pass::pattern::any_input()});
-    auto group_norm_m = ov::pass::pattern::wrap_type<ov::op::v12::GroupNormalization>({mul_m, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto group_norm_m = ov::pass::pattern::wrap_type<ov::op::v12::GroupNormalization>(
+        {mul_m, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
     auto shape_of_m = ov::pass::pattern::wrap_type<ov::op::v3::ShapeOf>({mul_m});
     auto norm_m = std::make_shared<Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
 
@@ -239,9 +240,12 @@ ov::pass::activations_scaling::EliminateScalarMul::EliminateScalarMul() {
 ov::pass::activations_scaling::MulShareTransformation::MulShareTransformation() {
     MATCHER_SCOPE(MulShareTransformation);
 
-    auto mvn_m = ov::pass::pattern::wrap_type<ov::op::v6::MVN>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
-    auto rms_m = ov::pass::pattern::wrap_type<ov::op::internal::RMS>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
-    auto group_norm_m = ov::pass::pattern::wrap_type<ov::op::v12::GroupNormalization>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto mvn_m =
+        ov::pass::pattern::wrap_type<ov::op::v6::MVN>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto rms_m = ov::pass::pattern::wrap_type<ov::op::internal::RMS>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto group_norm_m = ov::pass::pattern::wrap_type<ov::op::v12::GroupNormalization>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
     auto shape_of_m = ov::pass::pattern::wrap_type<ov::op::v3::ShapeOf>({ov::pass::pattern::any_input()});
     auto norm_m = std::make_shared<Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
 

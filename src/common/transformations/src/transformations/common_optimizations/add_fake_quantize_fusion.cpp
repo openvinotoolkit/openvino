@@ -27,8 +27,8 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
     MATCHER_SCOPE(AddFakeQuantizeFusion);
     auto input_pattern = ov::pass::pattern::any_input();
     auto const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto add_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Add>({input_pattern, const_pattern}, ov::pass::pattern::consumers_count(1));
+    auto add_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Add>({input_pattern, const_pattern},
+                                                                     ov::pass::pattern::consumers_count(1));
     auto fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({add_pattern,
                                                                               ov::pass::pattern::any_input(),
                                                                               ov::pass::pattern::any_input(),

@@ -116,14 +116,14 @@ pass::ReduceMerge::ReduceMerge() {
     auto reduce_sum_pattern = create_pattern<ov::op::v1::ReduceSum>();
 
     auto pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reducel1_pattern,
-                                                                  reducel2_pattern,
-                                                                  reduce_log_and_pattern,
-                                                                  reduce_log_or_pattern,
-                                                                  reduce_max_pattern,
-                                                                  reduce_mean_pattern,
-                                                                  reduce_min_pattern,
-                                                                  reduce_prod_pattern,
-                                                                  reduce_sum_pattern});
+                                                                            reducel2_pattern,
+                                                                            reduce_log_and_pattern,
+                                                                            reduce_log_or_pattern,
+                                                                            reduce_max_pattern,
+                                                                            reduce_mean_pattern,
+                                                                            reduce_min_pattern,
+                                                                            reduce_prod_pattern,
+                                                                            reduce_sum_pattern});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto node = m.get_match_root();

@@ -74,7 +74,8 @@ public:
         auto broadcast_to_shape =
             ov::op::v0::Constant::create(element::i32, Shape{sinks_broadcast_shape.size()}, broadcast_shape_value);
         auto sinks_param = make_shared<ov::op::v0::Parameter>(element::f16, sinks_shape);
-        m_sinks = make_shared<ov::op::v3::Broadcast>(sinks_param, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        m_sinks =
+            make_shared<ov::op::v3::Broadcast>(sinks_param, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         m_sinks_rank = sinks_broadcast_shape.size();
         params.push_back(sinks_param);
     }
@@ -161,11 +162,12 @@ public:
             // Adjust the code for sinks if you see other values for them.
             // For now, there has been only one model with sinks: gpt-oss
             if (m_sinks_slice_type == SinksSliceType::Slice) {
-                softmax = make_shared<op::v8::Slice>(softmax,
-                                                     ov::op::v0::Constant::create(element::i64, Shape{1}, {0}),
-                                                     ov::op::v0::Constant::create(element::i64, Shape{1}, {-1}),
-                                                     ov::op::v0::Constant::create(element::i64, Shape{1}, {1}),
-                                                     ov::op::v0::Constant::create(element::i64, Shape{1}, {m_sinks_rank - 1}));
+                softmax = make_shared<op::v8::Slice>(
+                    softmax,
+                    ov::op::v0::Constant::create(element::i64, Shape{1}, {0}),
+                    ov::op::v0::Constant::create(element::i64, Shape{1}, {-1}),
+                    ov::op::v0::Constant::create(element::i64, Shape{1}, {1}),
+                    ov::op::v0::Constant::create(element::i64, Shape{1}, {m_sinks_rank - 1}));
             } else {
                 std::vector<int> start(m_sinks_rank, 0);
                 std::vector<int> stop(m_sinks_rank, 0);
@@ -177,13 +179,13 @@ public:
                 begin_mask[begin_mask.size() - 1] = 0;
                 end_mask[end_mask.size() - 1] = 0;
 
-                softmax =
-                    make_shared<op::v1::StridedSlice>(softmax,
-                                                      ov::op::v0::Constant::create(element::i64, Shape{m_sinks_rank}, start),
-                                                      ov::op::v0::Constant::create(element::i64, Shape{m_sinks_rank}, stop),
-                                                      ov::op::v0::Constant::create(element::i64, Shape{m_sinks_rank}, step),
-                                                      begin_mask,
-                                                      end_mask);
+                softmax = make_shared<op::v1::StridedSlice>(
+                    softmax,
+                    ov::op::v0::Constant::create(element::i64, Shape{m_sinks_rank}, start),
+                    ov::op::v0::Constant::create(element::i64, Shape{m_sinks_rank}, stop),
+                    ov::op::v0::Constant::create(element::i64, Shape{m_sinks_rank}, step),
+                    begin_mask,
+                    end_mask);
             }
         }
         auto output = make_shared<op::v0::MatMul>(softmax, nodes[InputType::V]);

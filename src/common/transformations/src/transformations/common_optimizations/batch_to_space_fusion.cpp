@@ -23,25 +23,26 @@
 ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
     MATCHER_SCOPE(BatchToSpaceFusion);
     auto data_pattern = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
-    auto reshape_before_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({data_pattern, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                ov::pass::pattern::rank_equals(4));
-    auto trans_before_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({data_pattern, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                  ov::pass::pattern::rank_equals(4));
+    auto reshape_before_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
+        {data_pattern, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        ov::pass::pattern::rank_equals(4));
+    auto trans_before_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>(
+        {data_pattern, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        ov::pass::pattern::rank_equals(4));
     auto reshape_or_transpose_before_pattern =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_before_pattern, trans_before_pattern});
-    auto depth_to_space_pattern = ov::pass::pattern::wrap_type<ov::op::v0::DepthToSpace>({reshape_or_transpose_before_pattern});
+    auto depth_to_space_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v0::DepthToSpace>({reshape_or_transpose_before_pattern});
     auto starts_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto ends_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto slice_pattern = ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>(
         {depth_to_space_pattern, starts_pattern, ends_pattern, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
-    auto reshape_after_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({slice_pattern, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                ov::pass::pattern::rank_equals(4));
-    auto trans_after_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({slice_pattern, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                  ov::pass::pattern::rank_equals(4));
+    auto reshape_after_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
+        {slice_pattern, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        ov::pass::pattern::rank_equals(4));
+    auto trans_after_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>(
+        {slice_pattern, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        ov::pass::pattern::rank_equals(4));
     auto reshape_or_transpose_after_pattern =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_after_pattern, trans_after_pattern});
 

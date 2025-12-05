@@ -121,7 +121,7 @@ TEST(TransformationTests, TestModelTensorsConsistencyUseShapesFalse) {
 
 TEST_F(TransformationTestsF, SqueezeRemainsSqueezeAfterMOC) {
     {
-auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{30});
+        auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{30});
         auto shape = ov::op::v0::Constant::create(element::i64, Shape{5}, {2, 3, 1, 5, 1});
         auto reshape = std::make_shared<ov::op::v1::Reshape>(input, shape, false);
         auto unsqueeze_axes = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
@@ -140,7 +140,7 @@ TEST_F(TransformationTestsF, MOCTest) {
     std::shared_ptr<ov::Node> weights;
     std::shared_ptr<ov::Node> weights_ref;
     {
-auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
         auto data1 = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
         auto a_mul = std::make_shared<ov::op::v1::Multiply>(data, data1);
         weights = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{3, 5});
@@ -155,7 +155,7 @@ auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialSha
         manager.register_pass<ov::pass::MOCTransformations>(false);
     }
     {
-auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
         auto data1 = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
         auto a_mul = std::make_shared<ov::op::v1::Multiply>(data, data1);
         weights_ref = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{3, 5});

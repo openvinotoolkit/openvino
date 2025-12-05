@@ -41,10 +41,12 @@ protected:
     static std::shared_ptr<Model> transform(const TensorShape& inShape, const TensorType& inType, size_t axis) {
         const auto parameter = std::make_shared<ov::op::v0::Parameter>(inType, inShape);
         const auto unsqueeze =
-            std::make_shared<ov::op::v0::Unsqueeze>(parameter, ov::op::v0::Constant::create(element::i64, Shape{1}, {axis}));
-        const auto gather = std::make_shared<ov::op::v1::Gather>(unsqueeze,
-                                                         ov::op::v0::Constant::create(element::i64, Shape{1}, {0}),
-                                                         ov::op::v0::Constant::create(element::i64, Shape{1}, {axis}));
+            std::make_shared<ov::op::v0::Unsqueeze>(parameter,
+                                                    ov::op::v0::Constant::create(element::i64, Shape{1}, {axis}));
+        const auto gather =
+            std::make_shared<ov::op::v1::Gather>(unsqueeze,
+                                                 ov::op::v0::Constant::create(element::i64, Shape{1}, {0}),
+                                                 ov::op::v0::Constant::create(element::i64, Shape{1}, {axis}));
         const auto relu = std::make_shared<ov::op::v0::Relu>(gather);
         return std::make_shared<Model>(OutputVector{relu}, ParameterVector{parameter}, "Actual");
     }
@@ -100,7 +102,9 @@ TEST_F(TransformationTestsF, GatherUnsqueezeReshape) {
 
         auto gather = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
         auto unsqueeze =
-            std::make_shared<ov::op::v1::Reshape>(gather, ov::op::v0::Constant::create(element::i32, Shape{1}, {1}), false);
+            std::make_shared<ov::op::v1::Reshape>(gather,
+                                                  ov::op::v0::Constant::create(element::i32, Shape{1}, {1}),
+                                                  false);
         const auto relu = std::make_shared<ov::op::v0::Relu>(unsqueeze);
         model = std::make_shared<Model>(OutputVector{relu}, ParameterVector{data, indices});
         manager.register_pass<pass::EliminateGatherUnsqueeze>();
@@ -200,7 +204,8 @@ TEST_F(TransformationTestsF, GatherUnsqueezes) {
         auto unsqueeze_1 = std::make_shared<ov::op::v0::Unsqueeze>(gather, axis);
         auto unsqueeze_2 = std::make_shared<ov::op::v0::Unsqueeze>(gather, axis);
 
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{unsqueeze_0, unsqueeze_1, unsqueeze_2, axis}, 0);
+        auto concat =
+            std::make_shared<ov::op::v0::Concat>(OutputVector{unsqueeze_0, unsqueeze_1, unsqueeze_2, axis}, 0);
 
         model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data, indices});
         manager.register_pass<pass::SharedOpOptimization>();

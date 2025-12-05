@@ -68,7 +68,8 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize(
     const ov::element::TypeVector& supported_original_precisions,
     const bool ignore_consumers_count_check) {
     MATCHER_SCOPE(ConvertQuantizeDequantize);
-auto data_pattern = ov::pass::pattern::any_input(ov::pass::pattern::type_matches_any(supported_original_precisions));
+    auto data_pattern =
+        ov::pass::pattern::any_input(ov::pass::pattern::type_matches_any(supported_original_precisions));
     auto input_low_pattern = ov::pass::pattern::any_input();
     auto input_high_pattern = ov::pass::pattern::any_input();
     auto output_low_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
@@ -76,18 +77,21 @@ auto data_pattern = ov::pass::pattern::any_input(ov::pass::pattern::type_matches
     auto fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>(
         {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
     ov::pass::pattern::op::Predicate convert1_predicate =
-        ignore_consumers_count_check ? ov::pass::pattern::type_matches_any(supported_low_precisions)
-                                     : ov::pass::pattern::type_matches_any(supported_low_precisions) && ov::pass::pattern::consumers_count(1);
+        ignore_consumers_count_check
+            ? ov::pass::pattern::type_matches_any(supported_low_precisions)
+            : ov::pass::pattern::type_matches_any(supported_low_precisions) && ov::pass::pattern::consumers_count(1);
     auto convert1_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({fq_pattern}, convert1_predicate);
     ov::pass::pattern::op::Predicate convert2_predicate =
         ignore_consumers_count_check ? ov::pass::pattern::type_matches_any(supported_original_precisions)
-                                     : ov::pass::pattern::type_matches_any(supported_original_precisions) && ov::pass::pattern::consumers_count(1);
+                                     : ov::pass::pattern::type_matches_any(supported_original_precisions) &&
+                                           ov::pass::pattern::consumers_count(1);
     auto convert2_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({convert1_pattern}, convert2_predicate);
 
     auto zero_point_pattern = ov::pass::pattern::any_input();
     ov::pass::pattern::op::Predicate sub_predicate =
         ignore_consumers_count_check ? ov::pass::pattern::op::Predicate() : ov::pass::pattern::consumers_count(1);
-    auto sub_pattern = ov::pass::pattern::optional<ov::op::v1::Subtract>({convert2_pattern, zero_point_pattern}, sub_predicate);
+    auto sub_pattern =
+        ov::pass::pattern::optional<ov::op::v1::Subtract>({convert2_pattern, zero_point_pattern}, sub_predicate);
     auto scale_pattern = ov::pass::pattern::any_input();
     auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({sub_pattern, scale_pattern});
 

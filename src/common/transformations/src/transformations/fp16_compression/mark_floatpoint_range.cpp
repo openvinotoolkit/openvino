@@ -33,16 +33,16 @@ void ov::pass::erase_range_path(const std::shared_ptr<Node>& node) {
 
 ov::pass::MarkFloatingPointRange::MarkFloatingPointRange() {
     MATCHER_SCOPE(MarkFloatingPointRange);
-// through these nodes
+    // through these nodes
     const auto range_propagating_nodes = ov::pass::pattern::wrap_type<ov::op::v0::Convert,
-                                                            ov::op::v1::Greater,
-                                                            ov::op::v1::GreaterEqual,
-                                                            ov::op::v1::Less,
-                                                            ov::op::v1::LessEqual,
-                                                            ov::op::v1::Reshape,
-                                                            ov::op::v4::Range,
-                                                            ov::op::v0::Squeeze,
-                                                            ov::op::v0::Unsqueeze>();
+                                                                      ov::op::v1::Greater,
+                                                                      ov::op::v1::GreaterEqual,
+                                                                      ov::op::v1::Less,
+                                                                      ov::op::v1::LessEqual,
+                                                                      ov::op::v1::Reshape,
+                                                                      ov::op::v4::Range,
+                                                                      ov::op::v0::Squeeze,
+                                                                      ov::op::v0::Unsqueeze>();
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& node = m.get_match_root();

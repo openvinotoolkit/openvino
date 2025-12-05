@@ -85,17 +85,19 @@ bool IsSpecialPRelu(NodePtr node) {
 TSBinaryBackward::TSBinaryBackward() {
     MATCHER_SCOPE(TSBinaryBackward);
 
-    auto main_node_label = ov::pass::pattern::wrap_type<op::util::BinaryElementwiseArithmetic,
+    auto main_node_label =
+        ov::pass::pattern::wrap_type<op::util::BinaryElementwiseArithmetic,
                                      op::util::BinaryElementwiseComparison,
                                      op::util::BinaryElementwiseLogical,
                                      ov::op::v0::PRelu,
                                      ov::op::v0::FakeQuantize>([](const Output<Node>& output) -> bool {
-        return ov::pass::pattern::has_static_rank()(output) && CheckTransposeConsumers(output);
-    });
+            return ov::pass::pattern::has_static_rank()(output) && CheckTransposeConsumers(output);
+        });
 
     auto transpose_const_label = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
-    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
+    auto transpose_label =
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
                                                             [](const Output<Node>& output) -> bool {
                                                                 return ov::pass::pattern::has_static_rank()(output);
                                                             });

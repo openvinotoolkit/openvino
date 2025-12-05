@@ -17,9 +17,10 @@
 
 ov::pass::MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPrecision() {
     MATCHER_SCOPE(MarkRopeInputsToKeepInMixedPrecision);
-auto cos_tab = ov::pass::pattern::any_input();
+    auto cos_tab = ov::pass::pattern::any_input();
     auto sin_tab = ov::pass::pattern::any_input();
-    auto rope = ov::pass::pattern::wrap_type<ov::op::internal::RoPE>({ov::pass::pattern::any_input(), cos_tab, sin_tab});
+    auto rope =
+        ov::pass::pattern::wrap_type<ov::op::internal::RoPE>({ov::pass::pattern::any_input(), cos_tab, sin_tab});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

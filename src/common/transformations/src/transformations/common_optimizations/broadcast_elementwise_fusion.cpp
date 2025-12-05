@@ -73,7 +73,8 @@ ov::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     MATCHER_SCOPE(BroadcastElementwiseFusion);
     auto broadcast_input = ov::pass::pattern::any_input();
     auto broadcast =
-        ov::pass::pattern::wrap_type<ov::op::v3::Broadcast>({broadcast_input, ov::pass::pattern::any_input()}, ov::pass::pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::v3::Broadcast>({broadcast_input, ov::pass::pattern::any_input()},
+                                                            ov::pass::pattern::consumers_count(1));
     auto eltwise_input = ov::pass::pattern::any_input();
     auto eltwise = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
 
