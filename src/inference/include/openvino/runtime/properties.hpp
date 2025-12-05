@@ -241,6 +241,25 @@ static constexpr Property<std::string, PropertyMutability::RO> model_name{"NETWO
 static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_infer_requests{
     "OPTIMAL_NUMBER_OF_INFER_REQUESTS"};
 
+#ifdef _WIN32
+// Windows uses HANDLE (void*) for file handles
+using FileHandle = void*;
+#else
+// Linux/Unix uses int for file descriptors
+using FileHandle = int;
+#endif
+
+/**
+ * @brief Type definition for file handle getter callback (cross-platform).
+ * Function that takes no arguments and returns a platform-specific file handle.
+ * On Linux/Unix: returns int (file descriptor)
+ * On Windows: returns void* (HANDLE cast to void*)
+ * This is useful for scenarios where file access needs to be controlled externally,
+ * such as Android content providers or Windows restricted file access scenarios.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+using HandleGetterFn = std::function<FileHandle()>;
+
 /**
  * @brief Namespace with hint properties
  */
