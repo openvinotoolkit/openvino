@@ -380,8 +380,8 @@ ref_diff_map = {
 		"ScaledDotProductAttention" : -5,
 		"PagedAttentionExtension" : 5,
 		"Parameter" : 13,
-		"ReadValue" : -5,
-		"Assign" : -5,
+		"ReadValue" : -10,
+		"Assign" : -10,
 	},
 	"optimum-intel-internal-testing/tiny-random-baichuan2-13b" : {
 		"ScaledDotProductAttention" : -2,
@@ -840,8 +840,8 @@ ref_diff_map_optimizations = {
 		"ScaledDotProductAttention" : -5,
 		"PagedAttentionExtension" : 5,
 		"Parameter" : 36,
-		"ReadValue" : -5,
-		"Assign" : -5,
+		"ReadValue" : -10,
+		"Assign" : -10,
 	},
 	"optimum-intel-internal-testing/tiny-random-baichuan2-13b" : {
 		"ScaledDotProductAttention" : -2,
