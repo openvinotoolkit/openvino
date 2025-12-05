@@ -330,12 +330,35 @@ void fuse_mean_scale(ov::preprocess::PrePostProcessor& preproc, const benchmark_
 }  // namespace
 
 /**
+ * Sentry class to ensure the resource releasing from CompiledModel.
+ * Release static oneDNN cache used for inference with release_memory
+ * method. To be called once at the end of inference
+ */
+class model_sentry {
+public:
+    model_sentry(ov::CompiledModel& compiledModel) :
+        my_model(compiledModel) {}
+
+    ~model_sentry() {
+        if (my_model) {
+            my_model.release_memory();
+        }
+    }
+
+private:
+    ov::CompiledModel& my_model;
+};
+
+
+/**
  * @brief The entry point of the benchmark application
  */
 int main(int argc, char* argv[]) {
     std::shared_ptr<StatisticsReport> statistics;
     try {
         ov::CompiledModel compiledModel;
+
+        model_sentry releaser(compiledModel);
 
         // ----------------- 1. Parsing and validating input arguments
         // -------------------------------------------------
@@ -1413,9 +1436,6 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-
-        // release static oneDNN cache used for inference
-        compiledModel.release_memory();
 
         slog::info << "Throughput:          " << double_to_string(fps) << " FPS" << slog::endl;
 
