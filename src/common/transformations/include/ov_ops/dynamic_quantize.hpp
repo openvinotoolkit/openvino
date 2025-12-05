@@ -83,6 +83,16 @@ public:
     static std::vector<ov::PartialShape> shape_infer(const DynamicQuantize* op,
                                                      const std::vector<ov::PartialShape>& input_shapes);
 
+    bool operator==(const DynamicQuantize& rhs) const {
+        return m_attrs.quantization_type == rhs.m_attrs.quantization_type &&
+               m_attrs.quantization_dt == rhs.m_attrs.quantization_dt && m_attrs.scale_dt == rhs.m_attrs.scale_dt &&
+               m_attrs.zp_dt == rhs.m_attrs.zp_dt &&
+               m_attrs.precomputed_reduction_dt == rhs.m_attrs.precomputed_reduction_dt &&
+               m_attrs.precomputed_reduction == rhs.m_attrs.precomputed_reduction &&
+               m_attrs.group_sizes == rhs.m_attrs.group_sizes &&
+               m_attrs.scales_zp_output_order == rhs.m_attrs.scales_zp_output_order &&
+               m_attrs.output_storage_type == rhs.m_attrs.output_storage_type;
+    }
 protected:
     Attributes m_attrs;
 };

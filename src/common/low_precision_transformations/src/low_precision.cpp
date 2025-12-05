@@ -332,7 +332,7 @@ bool LowPrecision::isFunctionQuantized(const std::shared_ptr<const ov::Model>& m
     return false;
 }
 
-bool ov::pass::low_precision::LowPrecision::doesFunctionContainF8DynQuanPatterns(
+bool ov::pass::low_precision::LowPrecision::doesFunctionContainMXFPPatterns(
         const std::shared_ptr<const ov::Model>& model) {
     std::vector<std::shared_ptr<ov::Node>> nodes = model->get_ops();
     for (auto& node : nodes) {

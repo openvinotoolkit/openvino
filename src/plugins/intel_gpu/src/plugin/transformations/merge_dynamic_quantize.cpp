@@ -40,11 +40,11 @@ bool MergeDynamicQuantize::run_on_model(const std::shared_ptr<Model>& model) {
                 continue;
             }
 
-            // TODO: add check
-            //OPENVINO_ASSERT(std::all_of(dq_nodes.begin(), dq_nodes.end(), [&](const std::shared_ptr<ov::op::internal::DynamicQuantize>& n) {
-            //                  return nodes_are_equal(dq_nodes[0], n, {});
-            //              }),
-            //                "DynamicQuantize nodes to be merged are not equal");
+            if (!std::all_of(dq_nodes.begin(), dq_nodes.end(), [&](const std::shared_ptr<ov::op::internal::DynamicQuantize>& n) {
+                    return *dq_nodes[0] == *n;
+                })) {
+                continue;
+            }
 
             auto to_remain = dq_nodes[0];
             for (size_t i = 1; i < dq_nodes.size(); ++i) {
