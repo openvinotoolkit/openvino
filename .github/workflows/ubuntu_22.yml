@@ -378,8 +378,7 @@ jobs:
 
   Keras3_OpenVINO_Backend:
     name: Keras 3 OpenVINO Backend Tests
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
-    if: ${{ 'false' }} # Ticket: 177685
+    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_keras3_backend.yml
     with:
