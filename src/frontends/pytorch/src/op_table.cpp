@@ -264,7 +264,9 @@ OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
 OP_CONVERTER(translate_triu);
+OP_CONVERTER(translate_type_as);
 OP_CONVERTER(translate_tuple_index);
+OP_CONVERTER(translate_tuple_unpack);
 OP_CONVERTER(translate_unflatten);
 OP_CONVERTER(translate_unfold);
 OP_CONVERTER(translate_unique2);
@@ -304,6 +306,7 @@ OP_CONVERTER(translate_batch_norm_legit_no_stats_fx);
 OP_CONVERTER(translate_cat_fx);
 OP_CONVERTER(translate_copy_fx);
 OP_CONVERTER(translate_cumsum_fx);
+OP_CONVERTER(translate_chunk);
 OP_CONVERTER(translate_chunk_fx);
 OP_CONVERTER(translate_div_fx);
 OP_CONVERTER(translate_div_fx_);
@@ -457,7 +460,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
         {"aten::celu", op::translate_celu},
         {"aten::channel_shuffle", op::translate_channel_shuffle},
-        // aten::chunk - Supported in limited set of patterns
+        {"aten::chunk", op::translate_chunk},  // Handles complex tensors, resolved by PrimListUnpackReplacer
         {"aten::clamp", op::translate_clamp},
         {"aten::clamp_max", op::translate_1to1_match_2_inputs_align_types<opset10::Minimum>},
         {"aten::clamp_min", op::translate_1to1_match_2_inputs_align_types<opset10::Maximum>},
@@ -752,12 +755,11 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::transpose", op::quantizable_op<op::translate_transpose>},
         {"aten::tril", op::translate_tril},
         {"aten::triu", op::translate_triu},
-        {"aten::type_as",
-         op::translate_1to1_match_2_inputs<opset10::ConvertLike>},  // TODO: overflow semantics is different
+        {"aten::type_as", op::translate_type_as},
         // aten::unbind - Supported in limited set of patterns
         {"aten::unflatten", op::translate_unflatten},
         {"aten::unfold", op::translate_unfold},
-        // aten::unsafe_chunk - Supported in limited set of patterns
+        {"aten::unsafe_chunk", op::translate_chunk},  // Handles complex tensors, resolved by PrimListUnpackReplacer
         {"aten::unsqueeze", common_translators::translate_unsqueeze},
         {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
         {"aten::upsample_bilinear2d", op::translate_upsample_bilinear2d},
@@ -801,7 +803,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::requires_grad", op::return_false_scalar},
         // prim::TupleConstruct - Supported in limited set of patterns
         {"prim::TupleIndex", op::translate_tuple_index},
-        // prim::TupleUnpack - Supported in limited set of patterns
+        {"prim::TupleUnpack", op::translate_tuple_unpack},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
         {"prim::data", op::skip_node},
         {"quantized::add", op::translate_quantized_add},

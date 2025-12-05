@@ -4,6 +4,7 @@
 
 #include "openvino/op/roll.hpp"
 
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
@@ -18,8 +19,9 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_roll(const NodeContext& context) {
-    num_inputs_check(context, 2, 3);
-    const auto data = context.get_input(0);
+    num_inputs_check(context, 2, 3, true);  // allow_complex = true
+    auto [data, complex] = unwrap_complex(context.get_input(0));
+
     const auto shifts = get_input_concat_if_list(context, 1);
     Output<Node> axes;
     bool on_flattened = context.input_is_none(2);
@@ -37,9 +39,10 @@ OutputVector translate_roll(const NodeContext& context) {
         const auto shape_of_data = std::make_shared<v3::ShapeOf>(data, element::i32);
         const auto reshape = std::make_shared<v1::Reshape>(roll, shape_of_data, false);
         context.mark_nodes({const_minus_1, flat, roll, shape_of_data, reshape});
-        return {reshape};
+        return {wrap_complex(context, reshape, complex)};
     }
-    return {context.mark_node(std::make_shared<v7::Roll>(data, shifts, axes))};
+    auto result = context.mark_node(std::make_shared<v7::Roll>(data, shifts, axes));
+    return {wrap_complex(context, result, complex)};
 };
 
 }  // namespace op
