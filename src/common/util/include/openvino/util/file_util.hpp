@@ -367,5 +367,10 @@ std::filesystem::path make_path(const Source& source) {
     }
 }
 
+inline std::filesystem::path make_plugin_library_name(const std::filesystem::path& path,
+                                                      const std::filesystem::path& input) {
+    return make_path(make_plugin_library_name(path.native(), input.native()));
+}
+
 }  // namespace util
 }  // namespace ov

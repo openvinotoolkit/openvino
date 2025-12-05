@@ -184,7 +184,17 @@ TEST(RegisterPluginTests, registerNewPluginNoThrows) {
     core.unload_plugin(mock_plugin_name);
 }
 
-TEST(RegisterPluginTests, registerNewPluginWithFsPathNoThrows) {
+class RegisterPluginTestP : public ::testing::TestWithParam<ov::test::utils::StringPathVariant> {};
+
+INSTANTIATE_TEST_SUITE_P(paths_variants, RegisterPluginTestP, ::testing::Values("mock_engine", L"mock_engine"));
+
+// #    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+// INSTANTIATE_TEST_SUITE_P(unicode_paths_variants,
+//                          RegisterPluginTestP,
+//                          ::testing::Values("mock_engine_这是", L"mock_engine_这是"));
+// #    endif
+
+TEST_P(RegisterPluginTestP, registerNewPluginNoThrows) {
     ov::Core core;
     auto plugin = std::make_shared<ov::test::utils::MockPlugin>();
     std::shared_ptr<ov::IPlugin> base_plugin = plugin;
@@ -192,9 +202,10 @@ TEST(RegisterPluginTests, registerNewPluginWithFsPathNoThrows) {
     mockPlugin(core, base_plugin, m_so);
 
     std::string mock_plugin_name{"MOCK_HARDWARE_FS"};
-    std::filesystem::path plugin_path =
-        ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                           std::string("mock_engine") + OV_BUILD_POSTFIX);
+    const auto dir_path = ov::test::utils::to_fs_path(ov::test::utils::getExecutableDirectory());
+
+    const auto plugin_path =
+        ov::util::make_plugin_library_name(dir_path, ov::test::utils::to_fs_path(GetParam()).concat(OV_BUILD_POSTFIX));
 
     OV_ASSERT_NO_THROW(core.register_plugin(plugin_path, mock_plugin_name));
     OV_ASSERT_NO_THROW(core.get_property(mock_plugin_name, ov::supported_properties));
