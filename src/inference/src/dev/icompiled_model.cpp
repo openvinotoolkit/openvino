@@ -84,7 +84,8 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                       result->get_output_partial_shape(0));
             const auto& prev_layer = result->input_value(0).get_node_shared_ptr();
-            const std::string res_name = prev_layer->get_friendly_name() +
+            const std::string res_name =
+                prev_layer->get_friendly_name() +
                 (prev_layer->get_output_size() != 1 ? "." + std::to_string(result->input_value(0).get_index()) : "");
             fake_param->set_friendly_name(res_name);
             fake_param->set_element_type(result->get_element_type());
