@@ -224,9 +224,9 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     " expecting ",
                     port.get_shape(),
                     ".");
-    OPENVINO_ASSERT(std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
-                        std::as_const(*tensor).data() != nullptr || is_dynamic,
-                    "Tensor data equal nullptr!");
+    OPENVINO_ASSERT(
+        std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) || tensor->data() != nullptr || is_dynamic,
+        "Tensor data equal nullptr!");
 }
 
 void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& port,

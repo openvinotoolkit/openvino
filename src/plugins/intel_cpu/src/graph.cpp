@@ -1220,7 +1220,7 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
         auto childEdge = node->getChildEdgeAt(0);
         const auto& edgeMemory = childEdge->getMemory();
 
-        const void* ext_data_ptr = std::as_const(*input).data();
+        const void* ext_data_ptr = input->data();
         void* inter_data_ptr = edgeMemory.getData();
 
         if (ext_data_ptr != inter_data_ptr) {

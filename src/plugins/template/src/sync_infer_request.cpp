@@ -185,7 +185,7 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
             m_backend_input_tensors[i] =
                 get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor->get_element_type(),
                                                                                       tensor->get_shape(),
-                                                                                      std::as_const(*tensor).data());
+                                                                                      tensor->data());
         } else {
             OPENVINO_ASSERT(tensor->get_element_type().bitwidth() % 8 == 0,
                             "Template plugin: Unsupported ROI tensor with element type having ",

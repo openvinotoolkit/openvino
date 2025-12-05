@@ -192,7 +192,7 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
         // Perform memory copy
         ov::parallel_for(item.second.size(), [&](size_t i) {
             const auto& tensor = item.second.at(i);
-            memcpy(ptr + i * tensor->get_byte_size(), std::as_const(*tensor).data(), tensor->get_byte_size());
+            memcpy(ptr + i * tensor->get_byte_size(), tensor->data(), tensor->get_byte_size());
         });
         prepared_tensors[item.first] = input_tensor;
     }
@@ -286,7 +286,7 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     port.get_shape(),
                     ".");
     OPENVINO_ASSERT(std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
-                        std::as_const(*tensor).data() != nullptr || is_dynamic,
+                        tensor->data() != nullptr || is_dynamic,
                     "Tensor data equal nullptr!");
 }
 

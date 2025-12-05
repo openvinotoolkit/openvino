@@ -117,7 +117,6 @@ TEST_P(OVInferRequestBatchedTests, SetReadOnlyInputTensorsBase) {
     ov::InferRequest req;
     req = execNet.create_infer_request();
     std::vector<ov::Tensor> tensors;
-    auto exp_tensor = ov::Tensor(element::f32, batch_shape);
     for (auto i = 0; i < batch; ++i) {
         // non contiguous memory (i*2)
         auto tensor = ov::Tensor(element::f32, one_shape, &std::as_const(buffer)[(i * 2) * one_shape_size]);

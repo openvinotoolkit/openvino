@@ -25,12 +25,6 @@ ov::Tensor ov::runtime::interpreter::INTBackend::create_tensor(const element::Ty
     return ov::Tensor(type, shape, memory_pointer);
 }
 
-ov::Tensor ov::runtime::interpreter::INTBackend::create_tensor(const element::Type& type,
-                                                               const Shape& shape,
-                                                               const void* memory_pointer) {
-    return ov::Tensor(type, shape, memory_pointer);
-}
-
 std::shared_ptr<ov::runtime::Executable> ov::runtime::interpreter::INTBackend::compile(
     std::shared_ptr<ov::Model> model) {
     return std::make_shared<INTExecutable>(model);
