@@ -84,6 +84,19 @@ public:
 };
 
 template <typename T>
+constexpr bool supported_eltwise_ref_64bit_types_v = one_of_v<T, int64_t, uint64_t>;
+
+template <typename T, typename Enable = std::enable_if_t<supported_eltwise_ref_64bit_types_v<T>>>
+class EltwiseRef64bExecutor : public EltwiseRefBaseExecutor<T> {
+public:
+    EltwiseRef64bExecutor(const EltwiseRefKey& key);
+
+    void exec(const jit_eltwise_call_args_ptrs& args_ptrs, [[maybe_unused]] const VectorDims& dims_out) override;
+
+    static bool supports([[maybe_unused]] const EltwiseConfig& config);
+};
+
+template <typename T>
 constexpr bool supported_bitwise_ref_types_v = one_of_v<T, int8_t, uint8_t, int16_t, uint16_t, int32_t>;
 
 template <typename T, typename Enable = std::enable_if_t<supported_bitwise_ref_types_v<T>>>
