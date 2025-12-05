@@ -666,6 +666,16 @@ namespace whisper {
 static constexpr ov::Property<bool> enabled{"NPUW_WHISPER"};
 }  // namespace whisper
 
+namespace eagle {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass Eagle3 model for speculative decoding.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_EAGLE"};
+}  // namespace eagle
+
 }  // namespace npuw
 }  // namespace intel_npu
 }  // namespace ov
