@@ -738,11 +738,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
-    if (localConfig.has(ov::intel_npu::enable_strides_for.name())) {
-        convertNamesToIndices(localConfig, model->inputs(), ov::intel_npu::inputs_with_dynamic_strides.name());
-        convertNamesToIndices(localConfig, model->outputs(), ov::intel_npu::outputs_with_dynamic_strides.name());
-    }
-
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
         std::stringstream strStream;
         strStream << mode;
@@ -781,6 +776,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         // Process batching
         std::tie(batchedModel, successfullyDebatched) =
             intel_npu::batch_helpers::handlePluginBatching(model, localConfig, updateBatchMode, originalBatch, _logger);
+    }
+
+    if (localConfig.has(ov::intel_npu::enable_strides_for.name())) {
+        if (model->is_dynamic()) {
+            OPENVINO_ASSERT(
+                !intel_npu::batch_helpers::checkModelDynamicDims(model),
+                "Dynamic shape tensors are not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
+
+            OPENVINO_ASSERT(successfullyDebatched || !localConfig.isAvailable(ov::intel_npu::batch_mode.name()) ||
+                                localConfig.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER,
+                            "Dynamic batching is not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
+        }
+
+        convertNamesToIndices(localConfig, model->inputs(), ov::intel_npu::inputs_with_dynamic_strides.name());
+        convertNamesToIndices(localConfig, model->outputs(), ov::intel_npu::outputs_with_dynamic_strides.name());
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
