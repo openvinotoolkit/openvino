@@ -20,8 +20,8 @@ ov::pass::LeakyReluFusion::LeakyReluFusion() {
     MATCHER_SCOPE(LeakyReluFusion);
     auto data_pattern = ov::pass::pattern::any_input();
     auto alpha_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto multiply_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({data_pattern, alpha_pattern}, ov::pass::pattern::consumers_count(1));
+    auto multiply_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({data_pattern, alpha_pattern},
+                                                                               ov::pass::pattern::consumers_count(1));
     auto max_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Maximum>({data_pattern, multiply_pattern});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {

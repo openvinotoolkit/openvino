@@ -89,7 +89,7 @@ ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecom
 
 std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::decompose(
     std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node) {
-auto query = node->input_value(0);
+    auto query = node->input_value(0);
     auto key = node->input_value(1);
     auto value = node->input_value(2);
     auto q_shape = register_new_node<ov::op::v3::ShapeOf>(query, element::i32);
@@ -135,9 +135,9 @@ auto query = node->input_value(0);
     auto k_last_dim = register_new_node<ov::op::v1::Add>(k_rank, minus_one);
     auto k_next_dim = register_new_node<ov::op::v1::Add>(k_rank, minus_two)->output(0);
     k_rank = register_new_node<ov::op::v0::Squeeze>(k_rank, zero_i);
-    auto minus_inf =
-        register_new_node(ov::op::v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}))
-            ->output(0);
+    auto minus_inf = register_new_node(
+                         ov::op::v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}))
+                         ->output(0);
     auto keep_dim_last = register_new_node<ov::op::v0::Squeeze>(k_next_dim, zero_i);
     auto k_dims_before_transpose = register_new_node<ov::op::v4::Range>(zero_i, keep_dim_last, one_i, element::i32);
 
@@ -177,7 +177,8 @@ auto query = node->input_value(0);
             auto tsl = register_new_node<ov::op::v0::Unsqueeze>(target_s_len, zero_i);
             auto mask_shape = register_new_node<ov::op::v0::Concat>(OutputVector{tsl, ssl}, 0);
             mask = register_new_node<ov::op::v1::Broadcast>(minus_inf, mask_shape);
-            auto horizontal_range = register_new_node<ov::op::v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
+            auto horizontal_range =
+                register_new_node<ov::op::v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
             horizontal_range = register_new_node<ov::op::v0::Unsqueeze>(horizontal_range, zero_i);
             auto stop = register_new_node<ov::op::v1::Add>(target_s_len, one_i);
             auto vertical_range = register_new_node<ov::op::v4::Range>(one_i, stop, one_i, element::i32)->output(0);
@@ -194,8 +195,9 @@ auto query = node->input_value(0);
         auto zero_i = register_new_node(ov::op::v0::Constant::create(element::i32, Shape{1}, {0}));
         auto one_i = register_new_node(ov::op::v0::Constant::create(element::i32, Shape{1}, {1}));
 
-        auto q_last_but_one_dim = register_new_node<ov::op::v1::Subtract>(register_new_node<ov::op::v0::ShapeOf>(q_shape),
-                                                                  ov::op::v0::Constant::create(element::i64, Shape{}, {1}));
+        auto q_last_but_one_dim =
+            register_new_node<ov::op::v1::Subtract>(register_new_node<ov::op::v0::ShapeOf>(q_shape),
+                                                    ov::op::v0::Constant::create(element::i64, Shape{}, {1}));
         auto sink_target_shape_1 = register_new_node<ov::op::v8::Slice>(q_shape, zero_i, q_last_but_one_dim, one_i);
         auto sink_target_shape = register_new_node<ov::op::v0::Concat>(OutputVector{sink_target_shape_1, one_i}, 0);
         auto sink_broadcast = register_new_node<ov::op::v1::Broadcast>(sink, sink_target_shape);

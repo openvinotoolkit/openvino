@@ -29,8 +29,10 @@ ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
     auto pads_end_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto space_to_batch_pattern = ov::pass::pattern::wrap_type<ov::op::v1::SpaceToBatch>(
         {data_pattern, block_shape_pattern, pads_begin_pattern, pads_end_pattern});
-    auto conv_p = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({space_to_batch_pattern, ov::pass::pattern::any_input()});
-    auto gconv_p = ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolution>({space_to_batch_pattern, ov::pass::pattern::any_input()});
+    auto conv_p =
+        ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({space_to_batch_pattern, ov::pass::pattern::any_input()});
+    auto gconv_p = ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolution>(
+        {space_to_batch_pattern, ov::pass::pattern::any_input()});
     auto conv_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{conv_p, gconv_p});
     auto crops_begin_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto crops_end_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();

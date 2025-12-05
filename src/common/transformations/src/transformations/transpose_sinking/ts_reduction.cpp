@@ -91,13 +91,15 @@ TSReductionForward::TSReductionForward() {
 TSReductionBackward::TSReductionBackward() {
     MATCHER_SCOPE(TSReductionBackward);
 
-    auto reduce_label = ov::pass::pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
-        {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-        CheckTransposeConsumers);
-    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({reduce_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                            [](const Output<Node>& output) -> bool {
-                                                                return ov::pass::pattern::has_static_rank()(output);
-                                                            });
+    auto reduce_label =
+        ov::pass::pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
+            {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+            CheckTransposeConsumers);
+    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>(
+        {reduce_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        [](const Output<Node>& output) -> bool {
+            return ov::pass::pattern::has_static_rank()(output);
+        });
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();

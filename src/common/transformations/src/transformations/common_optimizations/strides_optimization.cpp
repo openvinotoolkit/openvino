@@ -171,8 +171,8 @@ ov::pass::ConvStridesPropagation::ConvStridesPropagation() {
 
 ov::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation() {
     MATCHER_SCOPE(SupportedNodesStridesPropagation);
-    auto root =
-        ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic, ov::op::util::BinaryElementwiseArithmetic>();
+    auto root = ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic,
+                                             ov::op::util::BinaryElementwiseArithmetic>();
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();

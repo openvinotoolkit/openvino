@@ -31,34 +31,45 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         return (output_ps.rank().is_static()) && (output_ps.rank().get_length() >= 2);
     };
 
-    auto input_m = ov::pass::pattern::any_input(ov::pass::pattern::all_of({has_real_not_quantized_type, has_at_least_2d_shape, ov::pass::pattern::has_static_dim(1)}));
+    auto input_m = ov::pass::pattern::any_input(ov::pass::pattern::all_of(
+        {has_real_not_quantized_type, has_at_least_2d_shape, ov::pass::pattern::has_static_dim(1)}));
 
-    auto pre_mvn_shape_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::all_of({ov::pass::pattern::rank_equals(1), ov::pass::pattern::has_static_dim(0)}));
-    auto pre_mvn_reshape_m =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({input_m, pre_mvn_shape_const_m},
-                                       ov::pass::pattern::all_of({has_real_not_quantized_type, ov::pass::pattern::rank_equals(3), ov::pass::pattern::has_static_dim(1)}));
+    auto pre_mvn_shape_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(
+        ov::pass::pattern::all_of({ov::pass::pattern::rank_equals(1), ov::pass::pattern::has_static_dim(0)}));
+    auto pre_mvn_reshape_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
+        {input_m, pre_mvn_shape_const_m},
+        ov::pass::pattern::all_of(
+            {has_real_not_quantized_type, ov::pass::pattern::rank_equals(3), ov::pass::pattern::has_static_dim(1)}));
 
-    auto mvn_reduction_axes_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::all_of({ov::pass::pattern::rank_equals(1), ov::pass::pattern::has_static_dim(0)}));
+    auto mvn_reduction_axes_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(
+        ov::pass::pattern::all_of({ov::pass::pattern::rank_equals(1), ov::pass::pattern::has_static_dim(0)}));
     auto mvn_m = ov::pass::pattern::wrap_type<ov::op::v6::MVN>({pre_mvn_reshape_m, mvn_reduction_axes_const_m});
 
-    auto instance_norm_gamma_m = ov::pass::pattern::any_input(ov::pass::pattern::all_of({has_real_not_quantized_type, ov::pass::pattern::has_static_shape()}));
+    auto instance_norm_gamma_m = ov::pass::pattern::any_input(
+        ov::pass::pattern::all_of({has_real_not_quantized_type, ov::pass::pattern::has_static_shape()}));
     auto instance_norm_opt_gamma_m = ov::pass::pattern::optional<ov::op::v1::Multiply>({mvn_m, instance_norm_gamma_m});
 
-    auto instance_norm_beta_m = ov::pass::pattern::any_input(ov::pass::pattern::all_of({has_real_not_quantized_type, ov::pass::pattern::has_static_shape()}));
+    auto instance_norm_beta_m = ov::pass::pattern::any_input(
+        ov::pass::pattern::all_of({has_real_not_quantized_type, ov::pass::pattern::has_static_shape()}));
     auto instance_norm_opt_gamma_opt_beta_m =
         ov::pass::pattern::optional<ov::op::v1::Add>({instance_norm_opt_gamma_m, instance_norm_beta_m});
 
-    auto post_instance_norm_shape_m = ov::pass::pattern::any_input(ov::pass::pattern::all_of({ov::pass::pattern::rank_equals(1), ov::pass::pattern::has_static_dim(0)}));
-    auto post_instance_norm_reshape_m =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({instance_norm_opt_gamma_opt_beta_m, post_instance_norm_shape_m},
-                                       ov::pass::pattern::all_of({has_real_not_quantized_type, has_at_least_2d_shape, ov::pass::pattern::has_static_dim(1)}));
+    auto post_instance_norm_shape_m = ov::pass::pattern::any_input(
+        ov::pass::pattern::all_of({ov::pass::pattern::rank_equals(1), ov::pass::pattern::has_static_dim(0)}));
+    auto post_instance_norm_reshape_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
+        {instance_norm_opt_gamma_opt_beta_m, post_instance_norm_shape_m},
+        ov::pass::pattern::all_of(
+            {has_real_not_quantized_type, has_at_least_2d_shape, ov::pass::pattern::has_static_dim(1)}));
 
-    auto group_norm_gamma_m = ov::pass::pattern::any_input(ov::pass::pattern::all_of({has_real_not_quantized_type, ov::pass::pattern::has_static_shape()}));
+    auto group_norm_gamma_m = ov::pass::pattern::any_input(
+        ov::pass::pattern::all_of({has_real_not_quantized_type, ov::pass::pattern::has_static_shape()}));
     auto group_norm_gamma_multiply_m =
         ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({post_instance_norm_reshape_m, group_norm_gamma_m});
 
-    auto group_norm_beta_m = ov::pass::pattern::any_input(ov::pass::pattern::all_of({has_real_not_quantized_type, ov::pass::pattern::has_static_shape()}));
-    auto group_norm_beta_add_m = ov::pass::pattern::wrap_type<ov::op::v1::Add>({group_norm_gamma_multiply_m, group_norm_beta_m});
+    auto group_norm_beta_m = ov::pass::pattern::any_input(
+        ov::pass::pattern::all_of({has_real_not_quantized_type, ov::pass::pattern::has_static_shape()}));
+    auto group_norm_beta_add_m =
+        ov::pass::pattern::wrap_type<ov::op::v1::Add>({group_norm_gamma_multiply_m, group_norm_beta_m});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

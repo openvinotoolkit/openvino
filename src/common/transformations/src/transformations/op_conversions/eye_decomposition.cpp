@@ -33,8 +33,8 @@ namespace {
 
 /** \brief Check if output is rank one and data type can be i32 or i64. */
 const auto is_rank_one_int_shape = [](const Output<Node>& output) -> bool {
-    return ov::pass::pattern::type_matches_any({element::i32, element::i64})(output) && ov::pass::pattern::has_static_shape()(output) &&
-           ov::pass::pattern::rank_equals(1)(output);
+    return ov::pass::pattern::type_matches_any({element::i32, element::i64})(output) &&
+           ov::pass::pattern::has_static_shape()(output) && ov::pass::pattern::rank_equals(1)(output);
 };
 
 /** \brief Predicate to check eye k node is valid. */

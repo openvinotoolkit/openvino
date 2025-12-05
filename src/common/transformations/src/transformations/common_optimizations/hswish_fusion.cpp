@@ -132,7 +132,8 @@ ov::pass::HSwishFusionWithHSigmoid::HSwishFusionWithHSigmoid() {
     MATCHER_SCOPE(HSwishFusionWithHSigmoid);
     // Replaces a sub-graph x * HSigmoid(x) with a HSwish op.
     auto input = ov::pass::pattern::any_input();
-    auto hsigmoid_pattern = ov::pass::pattern::wrap_type<ov::op::v5::HSigmoid>({input}, ov::pass::pattern::consumers_count(1));
+    auto hsigmoid_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v5::HSigmoid>({input}, ov::pass::pattern::consumers_count(1));
     auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, hsigmoid_pattern});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {

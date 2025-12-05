@@ -101,8 +101,8 @@ std::shared_ptr<ov::pass::pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto select_Gather_1 = wrap_type<ov::op::v8::Gather>(
         {permute_Transpose, expert_id, wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))},
         {{"batch_dims", 0}});
-    auto squeeze_Squeeze_1 =
-        wrap_type<ov::op::v0::Squeeze>({select_Gather_1, wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))});
+    auto squeeze_Squeeze_1 = wrap_type<ov::op::v0::Squeeze>(
+        {select_Gather_1, wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))});
     // NonZero output_type relaxed to accept both i32 and i64
     auto ListUnpack_NonZero_1 = wrap_type<ov::op::v3::NonZero>({squeeze_Squeeze_1});
     auto ListUnpack_Split_1 = wrap_type<ov::op::v1::Split>(
@@ -126,11 +126,13 @@ std::shared_ptr<ov::pass::pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto index_add__Broadcast_16 =
         wrap_type<ov::op::v3::Broadcast>({index_add__Reshape_1, index_add__ShapeOf_14}, {{"mode", "bidirectional"}});
     auto unsqueeze_Unsqueeze_reshape =
-        wrap_type<ov::op::v1::Reshape>({unsqueeze_Unsqueeze, ov::pass::pattern::any_input()}, {{"special_zero", false}});
-    auto index_Gather_2 = wrap_type<ov::op::v8::Gather>({unsqueeze_Unsqueeze_reshape,
-                                                         index_add__Convert_1,
-                                                         wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))},
-                                                        {{"batch_dims", 0}});
+        wrap_type<ov::op::v1::Reshape>({unsqueeze_Unsqueeze, ov::pass::pattern::any_input()},
+                                       {{"special_zero", false}});
+    auto index_Gather_2 =
+        wrap_type<ov::op::v8::Gather>({unsqueeze_Unsqueeze_reshape,
+                                       index_add__Convert_1,
+                                       wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))},
+                                      {{"batch_dims", 0}});
     auto reshape_Reshape_1_0 =
         wrap_type<ov::op::v1::Reshape>({index_Gather_2, ov::pass::pattern::any_input()}, {{"special_zero", true}});
     auto reshape_Reshape_1_1 =
@@ -168,12 +170,12 @@ std::shared_ptr<ov::pass::pattern::op::Block> mlp3_no_bias_swiglu_block(
         wrap_type<ov::op::v1::Multiply>({linear_MatMul_down, index_Reshape_8_1}, {{"auto_broadcast", "numpy"}});
     auto index_add__Broadcast_17 =
         wrap_type<ov::op::v3::Broadcast>({mul_Multiply_2, index_add__ShapeOf_14}, {{"mode", "bidirectional"}});
-    auto index_add__ScatterElementsUpdate_5 =
-        wrap_type<ov::op::v12::ScatterElementsUpdate>({index_add__ScatterElementsUpdate_2,
-                                                       index_add__Broadcast_16,
-                                                       index_add__Broadcast_17,
-                                                       wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))},
-                                                      {{"reduction", "sum"}, {"use_init_val", true}});
+    auto index_add__ScatterElementsUpdate_5 = wrap_type<ov::op::v12::ScatterElementsUpdate>(
+        {index_add__ScatterElementsUpdate_2,
+         index_add__Broadcast_16,
+         index_add__Broadcast_17,
+         wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))},
+        {{"reduction", "sum"}, {"use_init_val", true}});
     auto block = std::make_shared<ov::pass::pattern::op::Block>(
         ov::OutputVector{permute_Transpose, unsqueeze_Unsqueeze, index_Split_out_1, index_Reshape},
         ov::OutputVector{index_add__ScatterElementsUpdate_5},
@@ -257,7 +259,8 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> create_routing_weights_
     auto shape_of = wrap_type<ov::op::v3::ShapeOf>({unsqueeze}, {{"output_type", "i32"}});
     auto split = wrap_type<ov::op::v1::Split>({shape_of, axes.axis0}, {{"num_splits", 3}});
     split->set_output_size(3);
-    auto reshape = wrap_type<ov::op::v1::Reshape>({unsqueeze, ov::pass::pattern::any_input()}, {{"special_zero", true}});
+    auto reshape =
+        wrap_type<ov::op::v1::Reshape>({unsqueeze, ov::pass::pattern::any_input()}, {{"special_zero", true}});
 
     return {split, reshape};
 }

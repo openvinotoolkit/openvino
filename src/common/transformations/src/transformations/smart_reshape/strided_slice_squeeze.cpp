@@ -118,8 +118,10 @@ ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
     auto squeeze_label = ov::pass::pattern::wrap_type<ov::op::v0::Squeeze>(
         {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
         ov::pass::pattern::consumers_count(1));
-    auto ss_label = ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>(
-        {squeeze_label, ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto ss_label = ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>({squeeze_label,
+                                                                            ov::pass::pattern::any_input(),
+                                                                            ov::pass::pattern::any_input(),
+                                                                            ov::pass::pattern::any_input()});
 
     matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) -> bool {
         auto slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(m.get_match_root());

@@ -86,19 +86,24 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
         return !(p_shape.rank().is_dynamic() || p_shape[1].is_dynamic());
     };
 
-    auto concat_1 = ov::pass::pattern::wrap_type<ov::op::v0::Concat>({ov::pass::pattern::any_input(is_first_dim_static), ov::pass::pattern::any_input(is_first_dim_static)});
-    auto matmul_1 = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({concat_1, ov::pass::pattern::any_input(is_first_dim_static)});
+    auto concat_1 = ov::pass::pattern::wrap_type<ov::op::v0::Concat>(
+        {ov::pass::pattern::any_input(is_first_dim_static), ov::pass::pattern::any_input(is_first_dim_static)});
+    auto matmul_1 =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({concat_1, ov::pass::pattern::any_input(is_first_dim_static)});
     auto add_1 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({matmul_1, ov::pass::pattern::any_input()});
     auto optional_bias_add_1 = make_shared<ov::pass::pattern::op::Or>(OutputVector{matmul_1, add_1});
-    auto activation_1 = ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Tanh, ov::op::v0::Sigmoid>({optional_bias_add_1});
+    auto activation_1 =
+        ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Tanh, ov::op::v0::Sigmoid>({optional_bias_add_1});
     auto split = ov::pass::pattern::wrap_type<ov::op::v1::Split>({activation_1, ov::pass::pattern::any_input()});
 
     auto multiply_1 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({split, ov::pass::pattern::any_input()});
     auto concat_2 = ov::pass::pattern::wrap_type<ov::op::v0::Concat>({ov::pass::pattern::any_input(), multiply_1});
-    auto matmul_2 = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({concat_2, ov::pass::pattern::any_input(is_first_dim_static)});
+    auto matmul_2 =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({concat_2, ov::pass::pattern::any_input(is_first_dim_static)});
     auto add_2 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({matmul_2, ov::pass::pattern::any_input()});
     auto optional_bias_add_2 = make_shared<ov::pass::pattern::op::Or>(OutputVector{matmul_2, add_2});
-    auto activation_2 = ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Tanh, ov::op::v0::Sigmoid>({optional_bias_add_2});
+    auto activation_2 =
+        ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Tanh, ov::op::v0::Sigmoid>({optional_bias_add_2});
 
     auto subtract = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({ov::pass::pattern::any_input(), split});
     auto multiply_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({subtract, activation_2});

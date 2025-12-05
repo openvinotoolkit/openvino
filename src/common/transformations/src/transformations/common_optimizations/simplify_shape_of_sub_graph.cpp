@@ -42,7 +42,8 @@ pass::GroupedGatherElimination::GroupedGatherElimination() {
         while (inputs.size() > i + 1) {
             auto curr = inputs[i].get_node_shared_ptr(), next = inputs[i + 1].get_node_shared_ptr();
             if (curr->get_type_info() != next->get_type_info() ||
-                (!is_type<ov::op::v1::Gather>(curr) && !is_type<ov::op::v7::Gather>(curr) && !is_type<ov::op::v8::Gather>(curr)) ||
+                (!is_type<ov::op::v1::Gather>(curr) && !is_type<ov::op::v7::Gather>(curr) &&
+                 !is_type<ov::op::v8::Gather>(curr)) ||
                 (curr->input_value(0) != next->input_value(0))) {
                 ++i;
                 continue;
@@ -76,21 +77,24 @@ pass::GroupedGatherElimination::GroupedGatherElimination() {
             }
 
             // curr and next are the same type of gather which takes data from the same source
-            auto joint_indices =
-                new_ops.add(ov::op::util::make_try_fold<ov::op::v0::Concat>(OutputVector{curr_indices, next_indices}, 0));
+            auto joint_indices = new_ops.add(
+                ov::op::util::make_try_fold<ov::op::v0::Concat>(OutputVector{curr_indices, next_indices}, 0));
             std::shared_ptr<Node> new_gather;
             if (is_type<ov::op::v1::Gather>(curr)) {
-                new_gather = register_new_node<ov::op::v1::Gather>(curr->input_value(0),
-                                                           joint_indices->output(0),
-                                                           ov::op::v0::Constant::create(element::i64, {}, {0})->output(0));
+                new_gather = register_new_node<ov::op::v1::Gather>(
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ov::op::v0::Constant::create(element::i64, {}, {0})->output(0));
             } else if (is_type<ov::op::v7::Gather>(curr)) {
-                new_gather = register_new_node<ov::op::v7::Gather>(curr->input_value(0),
-                                                           joint_indices->output(0),
-                                                           ov::op::v0::Constant::create(element::i64, {}, {0})->output(0));
+                new_gather = register_new_node<ov::op::v7::Gather>(
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ov::op::v0::Constant::create(element::i64, {}, {0})->output(0));
             } else if (is_type<ov::op::v8::Gather>(curr)) {
-                new_gather = register_new_node<ov::op::v8::Gather>(curr->input_value(0),
-                                                           joint_indices->output(0),
-                                                           ov::op::v0::Constant::create(element::i64, {}, {0})->output(0));
+                new_gather = register_new_node<ov::op::v8::Gather>(
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ov::op::v0::Constant::create(element::i64, {}, {0})->output(0));
             } else {
                 OPENVINO_THROW("Unexpected Gather version");
             }
@@ -119,7 +123,9 @@ pass::GroupedGatherElimination::GroupedGatherElimination() {
 pass::GatherNopElimination::GatherNopElimination() {
     MATCHER_SCOPE(GatherNopElimination);
     const auto gather_label = ov::pass::pattern::wrap_type<ov::op::util::GatherBase>(
-        {ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()), ov::pass::pattern::wrap_type<ov::op::v0::Constant>(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
+        {ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
+         ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+         ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
     matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto gather = m.get_match_root();
@@ -186,8 +192,10 @@ pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
     const auto data_pattern = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     const auto indices_pattern = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     const auto axis_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    const auto gather_pattern = ov::pass::pattern::wrap_type<ov::op::util::GatherBase>({data_pattern, indices_pattern, axis_pattern});
-    const auto shape_of_pattern = ov::pass::pattern::wrap_type<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>({gather_pattern});
+    const auto gather_pattern =
+        ov::pass::pattern::wrap_type<ov::op::util::GatherBase>({data_pattern, indices_pattern, axis_pattern});
+    const auto shape_of_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>({gather_pattern});
 
     matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
@@ -201,7 +209,8 @@ pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
 
         auto zero_axis = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{}, {0});
         NodeVector new_ops;
-        auto new_shapeof = std::make_shared<ov::op::v3::ShapeOf>(gather->input_value(0), node->get_output_element_type(0));
+        auto new_shapeof =
+            std::make_shared<ov::op::v3::ShapeOf>(gather->input_value(0), node->get_output_element_type(0));
         new_ops.push_back(new_shapeof);
         std::shared_ptr<Node> replace_op;
         if (indices_rank.get_length() == 0) {

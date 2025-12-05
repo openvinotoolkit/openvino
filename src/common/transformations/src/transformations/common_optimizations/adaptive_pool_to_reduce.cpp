@@ -20,7 +20,8 @@ ov::pass::AdaptivePoolToReduce::AdaptivePoolToReduce() {
     MATCHER_SCOPE(AdaptivePoolToReduce);
     auto data_pattern = ov::pass::pattern::any_input();
     auto out_spatial_shape = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto a_pool = ov::pass::pattern::wrap_type<ov::op::v8::AdaptiveAvgPool, ov::op::v8::AdaptiveMaxPool>({data_pattern, out_spatial_shape});
+    auto a_pool = ov::pass::pattern::wrap_type<ov::op::v8::AdaptiveAvgPool, ov::op::v8::AdaptiveMaxPool>(
+        {data_pattern, out_spatial_shape});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();

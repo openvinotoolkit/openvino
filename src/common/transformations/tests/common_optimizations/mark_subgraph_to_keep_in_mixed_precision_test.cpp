@@ -1367,11 +1367,13 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_disable_for_quant
 
 TEST_F(TransformationTestsF, MarkRandomUniformAsPrecisionSensitive) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2});
-    auto random_uniform = std::make_shared<ov::op::v8::RandomUniform>(param,
-                                                              ov::op::v0::Constant::create(element::f32, {}, {0}),
-                                                              ov::op::v0::Constant::create(element::f32, {}, {1}),
-                                                              element::f32);
-    auto less = std::make_shared<ov::op::v1::Less>(random_uniform, ov::op::v0::Constant::create(element::f32, {1, 1}, {0.5}));
+    auto random_uniform =
+        std::make_shared<ov::op::v8::RandomUniform>(param,
+                                                    ov::op::v0::Constant::create(element::f32, {}, {0}),
+                                                    ov::op::v0::Constant::create(element::f32, {}, {1}),
+                                                    element::f32);
+    auto less =
+        std::make_shared<ov::op::v1::Less>(random_uniform, ov::op::v0::Constant::create(element::f32, {1, 1}, {0.5}));
     auto res = std::make_shared<ov::op::v0::Result>(less);
 
     model = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{param});

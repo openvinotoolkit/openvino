@@ -152,8 +152,8 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
     auto input_pattern = ov::pass::pattern::any_input();
     auto weights_pattern = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto mul_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto matmul_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({input_pattern, weights_pattern}, ov::pass::pattern::consumers_count(1));
+    auto matmul_pattern = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({input_pattern, weights_pattern},
+                                                                           ov::pass::pattern::consumers_count(1));
     auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({matmul_pattern, mul_const_pattern});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {

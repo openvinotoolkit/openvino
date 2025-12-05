@@ -395,14 +395,20 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
 
 ov::pass::SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
     MATCHER_SCOPE(SliceSequenceToSingleSlice);
-using namespace ov::op::util;
-auto const_axes_1_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    using namespace ov::op::util;
+    auto const_axes_1_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto const_axes_2_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto slice_1_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v8::Slice>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), const_axes_1_pattern},
-                             ov::pass::pattern::consumers_count(1));
-    auto slice_2_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v8::Slice>({slice_1_pattern, ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), const_axes_2_pattern});
+    auto slice_1_pattern = ov::pass::pattern::wrap_type<ov::op::v8::Slice>({ov::pass::pattern::any_input(),
+                                                                            ov::pass::pattern::any_input(),
+                                                                            ov::pass::pattern::any_input(),
+                                                                            ov::pass::pattern::any_input(),
+                                                                            const_axes_1_pattern},
+                                                                           ov::pass::pattern::consumers_count(1));
+    auto slice_2_pattern = ov::pass::pattern::wrap_type<ov::op::v8::Slice>({slice_1_pattern,
+                                                                            ov::pass::pattern::any_input(),
+                                                                            ov::pass::pattern::any_input(),
+                                                                            ov::pass::pattern::any_input(),
+                                                                            const_axes_2_pattern});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();

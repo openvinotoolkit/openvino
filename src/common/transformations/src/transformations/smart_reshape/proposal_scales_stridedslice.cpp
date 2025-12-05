@@ -53,8 +53,8 @@ ov::pass::Proposal1Scales::Proposal1Scales() {
         [](const Output<Node>& output) {
             return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
         });
-    auto proposal_label =
-        ov::pass::pattern::wrap_type<ov::op::v0::Proposal>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), reshape_label});
+    auto proposal_label = ov::pass::pattern::wrap_type<ov::op::v0::Proposal>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), reshape_label});
 
     matcher_pass_callback callback = [parameter_label, proposal_label](ov::pass::pattern::Matcher& m) -> bool {
         return crop_scales_for_proposal(m.get_pattern_value_map(), parameter_label, proposal_label);
@@ -77,8 +77,8 @@ ov::pass::Proposal4Scales::Proposal4Scales() {
         [](const Output<Node>& output) {
             return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
         });
-    auto proposal_label =
-        ov::pass::pattern::wrap_type<ov::op::v4::Proposal>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), reshape_label});
+    auto proposal_label = ov::pass::pattern::wrap_type<ov::op::v4::Proposal>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), reshape_label});
 
     matcher_pass_callback callback = [parameter_label, proposal_label](ov::pass::pattern::Matcher& m) -> bool {
         return crop_scales_for_proposal(m.get_pattern_value_map(), parameter_label, proposal_label);

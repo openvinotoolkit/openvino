@@ -154,7 +154,7 @@ ov::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
 ov::pass::GeluFusionWithErfFour::GeluFusionWithErfFour() {
     MATCHER_SCOPE(GeluFusionWithErfFour);
     using namespace ov;
-auto input = ov::pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto mul1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT1_2, 0.001f));
     auto mul1 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul1_constant});
     auto erf = ov::pass::pattern::wrap_type<ov::op::v0::Erf>({mul1});

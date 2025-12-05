@@ -43,18 +43,23 @@ public:
                                    const int64_t& step,
                                    const int64_t& axis) {
         return std::make_shared<ov::op::v8::Slice>(out,
-                                           ov::op::v0::Constant::create(element::i64, Shape{1}, {start}),
-                                           ov::op::v0::Constant::create(element::i64, Shape{1}, {stop}),
-                                           ov::op::v0::Constant::create(element::i64, Shape{1}, {step}),
-                                           ov::op::v0::Constant::create(element::i64, Shape{1}, {axis}));
+                                                   ov::op::v0::Constant::create(element::i64, Shape{1}, {start}),
+                                                   ov::op::v0::Constant::create(element::i64, Shape{1}, {stop}),
+                                                   ov::op::v0::Constant::create(element::i64, Shape{1}, {step}),
+                                                   ov::op::v0::Constant::create(element::i64, Shape{1}, {axis}));
     }
 
     static Output<Node> make_tile(const Output<Node>& out, const std::vector<int64_t>& repeats) {
-        return std::make_shared<ov::op::v0::Tile>(out, ov::op::v0::Constant::create(element::i64, Shape{repeats.size()}, repeats));
+        return std::make_shared<ov::op::v0::Tile>(
+            out,
+            ov::op::v0::Constant::create(element::i64, Shape{repeats.size()}, repeats));
     }
 
     static Output<Node> make_reshape(const Output<Node>& out, const std::vector<int64_t>& order) {
-        return std::make_shared<ov::op::v1::Reshape>(out, ov::op::v0::Constant::create(element::i64, Shape{order.size()}, order), true);
+        return std::make_shared<ov::op::v1::Reshape>(
+            out,
+            ov::op::v0::Constant::create(element::i64, Shape{order.size()}, order),
+            true);
     }
 };
 
@@ -68,7 +73,8 @@ TEST_F(SharedTransformationTestsF, SharedSlice) {
         auto slice_3 = make_slice(data, 1, 2, 3, 3);
         auto slice_4 = make_slice(data, 1, 2, 3, 3);
 
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{slice_0, slice_1, slice_2, slice_3, slice_4}, 0);
+        auto concat =
+            std::make_shared<ov::op::v0::Concat>(OutputVector{slice_0, slice_1, slice_2, slice_3, slice_4}, 0);
         model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
         manager.register_pass<ov::pass::SharedOpOptimization>();
     }
@@ -78,7 +84,8 @@ TEST_F(SharedTransformationTestsF, SharedSlice) {
         auto slice_0 = make_slice(data, 1, 2, 3, 3);
         auto slice_2 = make_slice(data, 1, 3, 3, 3);
 
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{slice_0, slice_0, slice_2, slice_0, slice_0}, 0);
+        auto concat =
+            std::make_shared<ov::op::v0::Concat>(OutputVector{slice_0, slice_0, slice_2, slice_0, slice_0}, 0);
         model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
     }
 }
@@ -181,8 +188,10 @@ TEST_F(SharedTransformationTestsF, SharedRecursively) {
 
 TEST_F(SharedTransformationTestsF, SharedConcat) {
     {
-        auto pre_constant_0 = ov::op::v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
-        auto pre_constant_1 = ov::op::v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
+        auto pre_constant_0 =
+            ov::op::v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
+        auto pre_constant_1 =
+            ov::op::v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1});
         auto post_constant = ov::op::v0::Constant::create(element::f32, Shape{1}, std::vector<float>{3.14f});
 
@@ -194,7 +203,8 @@ TEST_F(SharedTransformationTestsF, SharedConcat) {
         manager.register_pass<ov::pass::SharedOpOptimization>();
     }
     {
-        auto pre_constant_0 = ov::op::v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
+        auto pre_constant_0 =
+            ov::op::v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1});
         auto post_constant = ov::op::v0::Constant::create(element::f32, Shape{1}, std::vector<float>{3.14f});
 
@@ -222,15 +232,15 @@ TEST_F(SharedTransformationTestsF, SharedSliceInThreeGroups) {
         auto slice_2_2 = make_slice(data, 3, 4, 5, 6);
 
         auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{slice_0_0,
-                                                                slice_1_0,
-                                                                slice_2_0,
-                                                                slice_0_1,
-                                                                slice_1_1,
-                                                                slice_2_1,
-                                                                slice_0_2,
-                                                                slice_1_2,
-                                                                slice_2_2},
-                                                   0);
+                                                                        slice_1_0,
+                                                                        slice_2_0,
+                                                                        slice_0_1,
+                                                                        slice_1_1,
+                                                                        slice_2_1,
+                                                                        slice_0_2,
+                                                                        slice_1_2,
+                                                                        slice_2_2},
+                                                           0);
 
         model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
         manager.register_pass<ov::pass::SharedOpOptimization>();
@@ -243,15 +253,15 @@ TEST_F(SharedTransformationTestsF, SharedSliceInThreeGroups) {
         auto slice_2_0 = make_slice(data, 3, 4, 5, 6);
 
         auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{slice_0_0,
-                                                                slice_1_0,
-                                                                slice_2_0,
-                                                                slice_0_0,
-                                                                slice_1_0,
-                                                                slice_2_0,
-                                                                slice_0_0,
-                                                                slice_1_0,
-                                                                slice_2_0},
-                                                   0);
+                                                                        slice_1_0,
+                                                                        slice_2_0,
+                                                                        slice_0_0,
+                                                                        slice_1_0,
+                                                                        slice_2_0,
+                                                                        slice_0_0,
+                                                                        slice_1_0,
+                                                                        slice_2_0},
+                                                           0);
 
         model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
     }
@@ -259,8 +269,10 @@ TEST_F(SharedTransformationTestsF, SharedSliceInThreeGroups) {
 
 TEST_F(SharedTransformationTestsF, SharedConcatCheckOpWithResultIsntReplaced) {
     {
-        auto pre_constant_0 = ov::op::v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
-        auto pre_constant_1 = ov::op::v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
+        auto pre_constant_0 =
+            ov::op::v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
+        auto pre_constant_1 =
+            ov::op::v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1});
         auto post_constant = ov::op::v0::Constant::create(element::f32, Shape{1}, std::vector<float>{3.14f});
 
@@ -355,9 +367,11 @@ TEST_F(SharedTransformationTestsF, Sharedv1Broadcasts) {
         auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
         auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i64, PartialShape::dynamic());
         auto broadcast_v1_0 = std::make_shared<ov::op::v1::Broadcast>(input, target_shape);
-        auto broadcast_v1_1 = std::make_shared<ov::op::v1::Broadcast>(input, target_shape, ov::op::AutoBroadcastType::PDPD);
+        auto broadcast_v1_1 =
+            std::make_shared<ov::op::v1::Broadcast>(input, target_shape, ov::op::AutoBroadcastType::PDPD);
         auto broadcast_v1_2 = std::make_shared<ov::op::v1::Broadcast>(input, target_shape);
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_2}, 0);
+        auto concat =
+            std::make_shared<ov::op::v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_2}, 0);
         model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{input, target_shape});
         manager.register_pass<pass::SharedOpOptimization>();
     }
@@ -365,8 +379,10 @@ TEST_F(SharedTransformationTestsF, Sharedv1Broadcasts) {
         auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
         auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i64, PartialShape::dynamic());
         auto broadcast_v1_0 = std::make_shared<ov::op::v1::Broadcast>(input, target_shape);
-        auto broadcast_v1_1 = std::make_shared<ov::op::v1::Broadcast>(input, target_shape, ov::op::AutoBroadcastType::PDPD);
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_0}, 0);
+        auto broadcast_v1_1 =
+            std::make_shared<ov::op::v1::Broadcast>(input, target_shape, ov::op::AutoBroadcastType::PDPD);
+        auto concat =
+            std::make_shared<ov::op::v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_0}, 0);
         model_ref = std::make_shared<Model>(OutputVector{concat}, ParameterVector{input, target_shape});
     }
 }
@@ -376,9 +392,11 @@ TEST_F(SharedTransformationTestsF, Sharedv3Broadcasts) {
         auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
         auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i64, PartialShape::dynamic());
         auto broadcast_v1_0 = std::make_shared<ov::op::v3::Broadcast>(input, target_shape);
-        auto broadcast_v1_1 = std::make_shared<ov::op::v3::Broadcast>(input, target_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto broadcast_v1_1 =
+            std::make_shared<ov::op::v3::Broadcast>(input, target_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         auto broadcast_v1_2 = std::make_shared<ov::op::v3::Broadcast>(input, target_shape);
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_2}, 0);
+        auto concat =
+            std::make_shared<ov::op::v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_2}, 0);
         model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{input, target_shape});
         manager.register_pass<pass::SharedOpOptimization>();
     }
@@ -386,8 +404,10 @@ TEST_F(SharedTransformationTestsF, Sharedv3Broadcasts) {
         auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
         auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i64, PartialShape::dynamic());
         auto broadcast_v1_0 = std::make_shared<ov::op::v3::Broadcast>(input, target_shape);
-        auto broadcast_v1_1 = std::make_shared<ov::op::v3::Broadcast>(input, target_shape, ov::op::BroadcastType::BIDIRECTIONAL);
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_0}, 0);
+        auto broadcast_v1_1 =
+            std::make_shared<ov::op::v3::Broadcast>(input, target_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto concat =
+            std::make_shared<ov::op::v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_0}, 0);
         model_ref = std::make_shared<Model>(OutputVector{concat}, ParameterVector{input, target_shape});
     }
 }
@@ -497,10 +517,10 @@ OutputVector createShapeNodesInMemory(const std::vector<size_t>& node_order_in_m
     memory.reset(::malloc(node_order_in_memory.size() * sizeof(ov::op::v3::ShapeOf)), ::free);
     for (size_t i = 0; i < node_order_in_memory.size(); ++i) {
         ov::op::v3::ShapeOf* node_addr = static_cast<ov::op::v3::ShapeOf*>(memory.get()) + node_order_in_memory[i];
-        auto node_ptr =
-            std::shared_ptr<ov::op::v3::ShapeOf>(new (node_addr) ov::op::v3::ShapeOf(input, output_type), [](ov::op::v3::ShapeOf* node) {
-                node->ov::op::v3::ShapeOf::~ShapeOf();
-            });
+        auto node_ptr = std::shared_ptr<ov::op::v3::ShapeOf>(new (node_addr) ov::op::v3::ShapeOf(input, output_type),
+                                                             [](ov::op::v3::ShapeOf* node) {
+                                                                 node->ov::op::v3::ShapeOf::~ShapeOf();
+                                                             });
         std::stringstream ss;
         ss << node_name_prefix << i;
         node_ptr->set_friendly_name(ss.str());
@@ -696,10 +716,18 @@ TEST_F(SharedTransformationTestsF, SharedMaxPool) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
-        auto op_1 =
-            std::make_shared<ov::op::v8::MaxPool>(data, Strides{1, 1}, Strides{1, 1}, Shape{1, 1}, Shape{1, 1}, Shape{3, 3});
-        auto op_2 =
-            std::make_shared<ov::op::v8::MaxPool>(data, Strides{1, 1}, Strides{1, 1}, Shape{1, 1}, Shape{1, 1}, Shape{3, 3});
+        auto op_1 = std::make_shared<ov::op::v8::MaxPool>(data,
+                                                          Strides{1, 1},
+                                                          Strides{1, 1},
+                                                          Shape{1, 1},
+                                                          Shape{1, 1},
+                                                          Shape{3, 3});
+        auto op_2 = std::make_shared<ov::op::v8::MaxPool>(data,
+                                                          Strides{1, 1},
+                                                          Strides{1, 1},
+                                                          Shape{1, 1},
+                                                          Shape{1, 1},
+                                                          Shape{3, 3});
 
         auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{op_1, op_2}, 0);
         model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
@@ -708,8 +736,12 @@ TEST_F(SharedTransformationTestsF, SharedMaxPool) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
-        auto op_1 =
-            std::make_shared<ov::op::v8::MaxPool>(data, Strides{1, 1}, Strides{1, 1}, Shape{1, 1}, Shape{1, 1}, Shape{3, 3});
+        auto op_1 = std::make_shared<ov::op::v8::MaxPool>(data,
+                                                          Strides{1, 1},
+                                                          Strides{1, 1},
+                                                          Shape{1, 1},
+                                                          Shape{1, 1},
+                                                          Shape{3, 3});
 
         auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{op_1, op_1}, 0);
         model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
@@ -723,30 +755,30 @@ TEST_F(SharedTransformationTestsF, TopologicalOrder) {
         auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
 
         auto gather_0 = std::make_shared<ov::op::v8::Gather>(shape_of,
-                                                     ov::op::v0::Constant::create(element::i32, {1}, {0}),
-                                                     ov::op::v0::Constant::create(element::i32, {}, {0}));
+                                                             ov::op::v0::Constant::create(element::i32, {1}, {0}),
+                                                             ov::op::v0::Constant::create(element::i32, {}, {0}));
 
         auto gather_1 = std::make_shared<ov::op::v8::Gather>(shape_of,
-                                                     ov::op::v0::Constant::create(element::i32, {1}, {0}),
-                                                     ov::op::v0::Constant::create(element::i32, {}, {0}));
+                                                             ov::op::v0::Constant::create(element::i32, {1}, {0}),
+                                                             ov::op::v0::Constant::create(element::i32, {}, {0}));
 
         auto gather_2 = std::make_shared<ov::op::v8::Gather>(shape_of,
-                                                     ov::op::v0::Constant::create(element::i32, {1}, {0}),
-                                                     ov::op::v0::Constant::create(element::i32, {}, {0}));
+                                                             ov::op::v0::Constant::create(element::i32, {1}, {0}),
+                                                             ov::op::v0::Constant::create(element::i32, {}, {0}));
 
         auto add_0 = std::make_shared<ov::op::v1::Add>(gather_0, gather_0);
         auto add_1 = std::make_shared<ov::op::v1::Add>(gather_1, gather_1);
         auto add_2 = std::make_shared<ov::op::v1::Add>(gather_2, gather_2);
 
-        auto concat_0 =
-            std::make_shared<ov::op::v0::Concat>(OutputVector{gather_0, add_0, ov::op::v0::Constant::create(element::i64, {1}, {0})},
-                                         0);
-        auto concat_1 =
-            std::make_shared<ov::op::v0::Concat>(OutputVector{gather_1, add_1, ov::op::v0::Constant::create(element::i64, {1}, {0})},
-                                         0);
-        auto concat_2 =
-            std::make_shared<ov::op::v0::Concat>(OutputVector{gather_2, add_2, ov::op::v0::Constant::create(element::i64, {1}, {0})},
-                                         0);
+        auto concat_0 = std::make_shared<ov::op::v0::Concat>(
+            OutputVector{gather_0, add_0, ov::op::v0::Constant::create(element::i64, {1}, {0})},
+            0);
+        auto concat_1 = std::make_shared<ov::op::v0::Concat>(
+            OutputVector{gather_1, add_1, ov::op::v0::Constant::create(element::i64, {1}, {0})},
+            0);
+        auto concat_2 = std::make_shared<ov::op::v0::Concat>(
+            OutputVector{gather_2, add_2, ov::op::v0::Constant::create(element::i64, {1}, {0})},
+            0);
 
         auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{concat_0, concat_1}, 0);
         auto output = std::make_shared<ov::op::v0::Concat>(OutputVector{concat, concat_2}, 0);
@@ -758,12 +790,12 @@ TEST_F(SharedTransformationTestsF, TopologicalOrder) {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
         auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
         auto gather_0 = std::make_shared<ov::op::v8::Gather>(shape_of,
-                                                     ov::op::v0::Constant::create(element::i32, {1}, {0}),
-                                                     ov::op::v0::Constant::create(element::i32, {}, {0}));
+                                                             ov::op::v0::Constant::create(element::i32, {1}, {0}),
+                                                             ov::op::v0::Constant::create(element::i32, {}, {0}));
         auto add_0 = std::make_shared<ov::op::v1::Add>(gather_0, gather_0);
-        auto concat_0 =
-            std::make_shared<ov::op::v0::Concat>(OutputVector{gather_0, add_0, ov::op::v0::Constant::create(element::i64, {1}, {0})},
-                                         0);
+        auto concat_0 = std::make_shared<ov::op::v0::Concat>(
+            OutputVector{gather_0, add_0, ov::op::v0::Constant::create(element::i64, {1}, {0})},
+            0);
         auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{concat_0, concat_0}, 0);
         auto output = std::make_shared<ov::op::v0::Concat>(OutputVector{concat, concat_0}, 0);
         model_ref = std::make_shared<ov::Model>(OutputVector{output}, ParameterVector{data});

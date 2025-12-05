@@ -38,7 +38,7 @@ static std::function<bool(ov::Output<ov::Node>)> constant_value(const float targ
 }
 
 RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
-// Detect RMS decomposition pattern
+    // Detect RMS decomposition pattern
     //  x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto x = ov::pass::pattern::any_input();
 

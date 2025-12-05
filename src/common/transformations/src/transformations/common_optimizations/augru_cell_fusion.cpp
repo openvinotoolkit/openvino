@@ -73,8 +73,10 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
         return !(p_shape.rank().is_dynamic() || p_shape[1].is_dynamic());
     };
 
-    auto concat_1 = ov::pass::pattern::wrap_type<ov::op::v0::Concat>({ov::pass::pattern::any_input(is_first_dim_static), ov::pass::pattern::any_input(is_first_dim_static)});
-    auto matmul_1 = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({concat_1, ov::pass::pattern::any_input(is_first_dim_static)});
+    auto concat_1 = ov::pass::pattern::wrap_type<ov::op::v0::Concat>(
+        {ov::pass::pattern::any_input(is_first_dim_static), ov::pass::pattern::any_input(is_first_dim_static)});
+    auto matmul_1 =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({concat_1, ov::pass::pattern::any_input(is_first_dim_static)});
     auto add_1 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({matmul_1, ov::pass::pattern::any_input()});
     // only Sigmoid is supported in the current version of AUGRUCell
     auto sigmoid = ov::pass::pattern::wrap_type<ov::op::v0::Sigmoid>({add_1});
@@ -82,12 +84,14 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
     auto multiply = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({split, ov::pass::pattern::any_input()});
 
     auto concat_2 = ov::pass::pattern::wrap_type<ov::op::v0::Concat>({ov::pass::pattern::any_input(), multiply});
-    auto matmul_2 = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({concat_2, ov::pass::pattern::any_input(is_first_dim_static)});
+    auto matmul_2 =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({concat_2, ov::pass::pattern::any_input(is_first_dim_static)});
     auto add_2 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({matmul_2, ov::pass::pattern::any_input()});
     // only Tanh is supported in the current version of AUGRUCell
     auto tanh = ov::pass::pattern::wrap_type<ov::op::v0::Tanh>({add_2});
 
-    auto subtract_1 = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto subtract_1 = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
     auto multiply_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({subtract_1, split});
     auto subtract_2 = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({ov::pass::pattern::any_input(), multiply_2});
     auto multiply_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({subtract_2, tanh});

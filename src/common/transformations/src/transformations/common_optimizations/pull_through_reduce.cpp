@@ -112,8 +112,8 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
 
     const auto input = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     const auto unsqueeze_axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    const auto unsqueeze =
-        ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>({input, unsqueeze_axes}, ov::pass::pattern::consumers_count(1));
+    const auto unsqueeze = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>({input, unsqueeze_axes},
+                                                                               ov::pass::pattern::consumers_count(1));
     const auto reduce_axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto reduce =
         ov::pass::pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims, ov::op::util::LogicalReductionKeepDims>(
@@ -186,8 +186,8 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
 
     const auto input = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
     const auto reshape_target_shape = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    const auto reshape =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({input, reshape_target_shape}, ov::pass::pattern::consumers_count(1));
+    const auto reshape = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({input, reshape_target_shape},
+                                                                           ov::pass::pattern::consumers_count(1));
     const auto reduce_axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto reduce =
         ov::pass::pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims, ov::op::util::LogicalReductionKeepDims>(

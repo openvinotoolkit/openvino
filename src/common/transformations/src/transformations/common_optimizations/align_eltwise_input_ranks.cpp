@@ -16,10 +16,10 @@
 
 ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
     auto eltwise_pattern = ov::pass::pattern::wrap_type<ov::op::v0::SquaredDifference,
-                                              ov::op::util::BinaryElementwiseComparison,
-                                              ov::op::util::BinaryElementwiseLogical,
-                                              ov::op::util::BinaryElementwiseArithmetic,
-                                              ov::op::v0::FakeQuantize>(ov::pass::pattern::has_static_rank());
+                                                        ov::op::util::BinaryElementwiseComparison,
+                                                        ov::op::util::BinaryElementwiseLogical,
+                                                        ov::op::util::BinaryElementwiseArithmetic,
+                                                        ov::op::v0::FakeQuantize>(ov::pass::pattern::has_static_rank());
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();

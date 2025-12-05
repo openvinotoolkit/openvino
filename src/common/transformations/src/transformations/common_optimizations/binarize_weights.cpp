@@ -61,18 +61,20 @@ pass::BinarizeWeights::BinarizeWeights() {
     MATCHER_SCOPE(BinarizeWeights);
     auto activations_fq_pattern =
         ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({ov::pass::pattern::any_input(),
-                                                      ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
-                                                      ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
-                                                      ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
-                                                      ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                     ov::pass::pattern::consumers_count(1));
-    auto weights_fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
-                                                                            ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
-                                                                            ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
-                                                                            ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
-                                                                            ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                                           ov::pass::pattern::consumers_count(1));
-    auto conv_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({activations_fq_pattern, weights_fq_pattern});
+                                                                ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+                                                               ov::pass::pattern::consumers_count(1));
+    auto weights_fq_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+                                                               ov::pass::pattern::consumers_count(1));
+    auto conv_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({activations_fq_pattern, weights_fq_pattern});
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(m.get_match_root());

@@ -20,7 +20,8 @@ ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
     MATCHER_SCOPE(ConvolutionMultiplyFusion);
     auto input = ov::pass::pattern::any_input();
     auto weights = ov::pass::pattern::any_input(ov::pass::pattern::has_static_dim(0) /* has OIYX layout */);
-    auto conv = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({input, weights}, ov::pass::pattern::consumers_count(1));
+    auto conv =
+        ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({input, weights}, ov::pass::pattern::consumers_count(1));
     auto mul_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::has_static_shape());
     auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({conv, mul_const});
 
@@ -83,7 +84,8 @@ ov::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
     MATCHER_SCOPE(GroupConvolutionMultiplyFusion);
     auto input = ov::pass::pattern::any_input();
     auto weights = ov::pass::pattern::any_input(ov::pass::pattern::has_static_dims({0, 1}) /* has GOIYX layout */);
-    auto conv = ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolution>({input, weights}, ov::pass::pattern::consumers_count(1));
+    auto conv = ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolution>({input, weights},
+                                                                           ov::pass::pattern::consumers_count(1));
     auto mul_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();  // ov::pass::pattern::has_static_shape());
     auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({conv, mul_const});
 
@@ -170,9 +172,11 @@ ov::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiply
     auto input = ov::pass::pattern::any_input();
     auto weights = ov::pass::pattern::any_input(ov::pass::pattern::has_static_dim(1) /* has IOYX layout */);
     auto conv_2_inputs =
-        ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({input, weights}, ov::pass::pattern::consumers_count(1));
-    auto conv_3_inputs = ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({input, weights, ov::pass::pattern::any_input()},
-                                                                                 ov::pass::pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({input, weights},
+                                                                          ov::pass::pattern::consumers_count(1));
+    auto conv_3_inputs = ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>(
+        {input, weights, ov::pass::pattern::any_input()},
+        ov::pass::pattern::consumers_count(1));
     auto conv = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{conv_2_inputs, conv_3_inputs});
     auto mul_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::has_static_shape());
     auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({conv, mul_const});
@@ -245,10 +249,11 @@ ov::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDa
     auto input = ov::pass::pattern::any_input();
     auto weights = ov::pass::pattern::any_input(ov::pass::pattern::has_static_dims({0, 2}) /* has GIOYX layout */);
     auto conv_2_inputs =
-        ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolutionBackpropData>({input, weights}, ov::pass::pattern::consumers_count(1));
-    auto conv_3_inputs =
-        ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolutionBackpropData>({input, weights, ov::pass::pattern::any_input()},
-                                                                     ov::pass::pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolutionBackpropData>({input, weights},
+                                                                               ov::pass::pattern::consumers_count(1));
+    auto conv_3_inputs = ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolutionBackpropData>(
+        {input, weights, ov::pass::pattern::any_input()},
+        ov::pass::pattern::consumers_count(1));
     auto conv = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{conv_2_inputs, conv_3_inputs});
     auto mul_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::has_static_shape());
     auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({conv, mul_const});

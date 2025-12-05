@@ -245,7 +245,8 @@ pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
     auto pad_node_pattern = ov::pass::pattern::wrap_type<ov::op::util::PadBase>(
         {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
         ov::pass::pattern::consumers_count(1));
-    auto conv_pattern = ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({pad_node_pattern, filter_pattern});
+    auto conv_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({pad_node_pattern, filter_pattern});
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();

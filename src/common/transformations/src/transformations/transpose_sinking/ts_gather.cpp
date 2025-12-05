@@ -154,12 +154,16 @@ TSGatherForward::TSGatherForward() {
 TSGatherBackward::TSGatherBackward() {
     MATCHER_SCOPE(TSGatherBackward);
 
-    auto gather_label = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                      CheckTransposeConsumers);
-    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({gather_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                            [](const Output<Node>& output) -> bool {
-                                                                return ov::pass::pattern::has_static_rank()(output);
-                                                            });
+    auto gather_label =
+        ov::pass::pattern::wrap_type<ov::op::v8::Gather>({ov::pass::pattern::any_input(),
+                                                          ov::pass::pattern::any_input(),
+                                                          ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+                                                         CheckTransposeConsumers);
+    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>(
+        {gather_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        [](const Output<Node>& output) -> bool {
+            return ov::pass::pattern::has_static_rank()(output);
+        });
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();

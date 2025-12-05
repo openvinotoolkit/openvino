@@ -92,20 +92,21 @@ public:
 class DetectCompressedWeights : public MatcherPass {
 public:
     DetectCompressedWeights() {
-        auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches_any({ov::element::i4,
-                                                                                           ov::element::u4,
-                                                                                           ov::element::i8,
-                                                                                           ov::element::u8,
-                                                                                           ov::element::nf4,
-                                                                                           ov::element::f8e4m3,
-                                                                                           ov::element::f8e5m2}));
+        auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(
+            ov::pass::pattern::type_matches_any({ov::element::i4,
+                                                 ov::element::u4,
+                                                 ov::element::i8,
+                                                 ov::element::u8,
+                                                 ov::element::nf4,
+                                                 ov::element::f8e4m3,
+                                                 ov::element::f8e5m2}));
         auto convert = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights});
         auto zero_point_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
         auto zero_point = ov::pass::pattern::optional<ov::op::v0::Convert>(zero_point_const);
         auto subtract = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert, zero_point});
         auto subtract_or_convert = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{convert, subtract});
-        auto multiply =
-            ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({subtract_or_convert, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
+        auto multiply = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>(
+            {subtract_or_convert, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             return true;

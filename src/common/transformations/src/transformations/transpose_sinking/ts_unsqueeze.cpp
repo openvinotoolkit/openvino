@@ -196,13 +196,14 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
 TSUnsqueezeBackward::TSUnsqueezeBackward() {
     MATCHER_SCOPE(TSUnsqueezeBackward);
 
-    auto unsqueeze_label =
-        ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>({ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                              CheckTransposeConsumers);
-    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({unsqueeze_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                            [](const Output<Node>& output) -> bool {
-                                                                return ov::pass::pattern::has_static_rank()(output);
-                                                            });
+    auto unsqueeze_label = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        CheckTransposeConsumers);
+    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>(
+        {unsqueeze_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        [](const Output<Node>& output) -> bool {
+            return ov::pass::pattern::has_static_rank()(output);
+        });
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();

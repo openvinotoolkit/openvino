@@ -346,7 +346,8 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::prop::Binary");
     Binary() {
         MATCHER_SCOPE(Binary);
-        auto pattern_root = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic, ov::op::v0::FakeQuantize>();
+        auto pattern_root =
+            ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic, ov::op::v0::FakeQuantize>();
 
         auto callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& root = m.get_match_root();
@@ -530,9 +531,9 @@ public:
     PassThrough() {
         MATCHER_SCOPE(PassThrough);
         auto pattern_root = ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic,
-                                               ov::op::v0::Convert,
-                                               ov::op::util::PadBase,
-                                               ov::op::v0::PRelu>();
+                                                         ov::op::v0::Convert,
+                                                         ov::op::util::PadBase,
+                                                         ov::op::v0::PRelu>();
 
         auto callback = [=](ov::pass::pattern::Matcher& m) {
             auto root = m.get_match_root();
@@ -643,7 +644,8 @@ public:
         MATCHER_SCOPE(EraseSplitConcat);
         auto input_p = ov::pass::pattern::any_input();
         auto split_p = ov::pass::pattern::wrap_type<ov::op::v1::Split>({input_p, ov::pass::pattern::any_input()});
-        auto pattern_root = ov::pass::pattern::wrap_type<ov::op::v0::Concat>({split_p, split_p, split_p}, need_to_erase_ric);
+        auto pattern_root =
+            ov::pass::pattern::wrap_type<ov::op::v0::Concat>({split_p, split_p, split_p}, need_to_erase_ric);
 
         auto callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
@@ -664,9 +666,9 @@ public:
     EraseGather() {
         MATCHER_SCOPE(EraseGather);
         auto input_p = ov::pass::pattern::any_input();
-        auto pattern_root =
-            ov::pass::pattern::wrap_type<ov::op::v8::Gather>({input_p, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()},
-                                                   need_to_erase_ric);
+        auto pattern_root = ov::pass::pattern::wrap_type<ov::op::v8::Gather>(
+            {input_p, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()},
+            need_to_erase_ric);
         auto callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             auto output = pattern_map.at(pattern_root);
@@ -687,19 +689,20 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::back_prop::Binary");
     Binary() {
         MATCHER_SCOPE(Binary);
-        auto fake_quantize_pattern =
-            ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
-                                                          ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
-                                                          ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
-                                                          ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
-                                                          ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())},
-                                                         ov::pass::pattern::has_static_rank());
+        auto fake_quantize_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>(
+            {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+             ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+             ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+             ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+             ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())},
+            ov::pass::pattern::has_static_rank());
         auto binary_elementwise_pattern = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
-            {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()), ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())},
+            {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+             ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())},
             ov::pass::pattern::has_static_rank());
 
-        auto pattern_root =
-            std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fake_quantize_pattern, binary_elementwise_pattern});
+        auto pattern_root = std::make_shared<ov::pass::pattern::op::Or>(
+            OutputVector{fake_quantize_pattern, binary_elementwise_pattern});
 
         auto callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& root = m.get_match_root();

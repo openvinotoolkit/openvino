@@ -19,14 +19,15 @@
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
-std::vector<element::Type> activation_types{ov::element::u8, ov::element::i8};
+    std::vector<element::Type> activation_types{ov::element::u8, ov::element::i8};
     std::vector<element::Type> weights_types{ov::element::i8};
 
     auto activations_m = ov::pass::pattern::any_input(ov::pass::pattern::type_matches_any(activation_types));
     auto weights_m = ov::pass::pattern::any_input();
     auto bias_m = ov::pass::pattern::any_input();
 
-    auto fully_connected_m = ov::pass::pattern::wrap_type<ov::op::internal::FullyConnected>({activations_m, weights_m, bias_m});
+    auto fully_connected_m =
+        ov::pass::pattern::wrap_type<ov::op::internal::FullyConnected>({activations_m, weights_m, bias_m});
     auto dequantization_scales_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto multiply_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({fully_connected_m, dequantization_scales_m});
 

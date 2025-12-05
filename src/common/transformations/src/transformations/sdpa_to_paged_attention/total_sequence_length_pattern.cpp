@@ -39,12 +39,14 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
     MATCHER_SCOPE(TotalSequenceLengthPattern);
 
     auto kv_past = ov::pass::pattern::wrap_type<ov::op::v6::ReadValue>({ov::pass::pattern::any_input()});
-    auto kv_gather = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({kv_past, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto kv_gather = ov::pass::pattern::wrap_type<ov::op::v8::Gather>(
+        {kv_past, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
     auto kv_current = ov::pass::pattern::any_input();
     auto kv_concat = ov::pass::pattern::wrap_type<ov::op::v0::Concat>({kv_gather, kv_current});
     auto kv_shape = ov::pass::pattern::wrap_type<ov::op::v3::ShapeOf>({kv_concat});
     auto gather_idx_label = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto seq = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({kv_shape, gather_idx_label, ov::pass::pattern::any_input()});
+    auto seq =
+        ov::pass::pattern::wrap_type<ov::op::v8::Gather>({kv_shape, gather_idx_label, ov::pass::pattern::any_input()});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         // TODO: Check that seq has axis that really takes sequence len but not any other dimension --
@@ -115,17 +117,22 @@ ov::pass::TotalSequenceLengthPatternQwen::TotalSequenceLengthPatternQwen(
     MATCHER_SCOPE(TotalSequenceLengthPatternQwen);
 
     auto p_input_ids = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>();
-    auto p_unsqueeze = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>({p_input_ids, ov::pass::pattern::any_input()});
-    auto p_opt_reshape_1 = ov::pass::pattern::optional<ov::op::v1::Reshape>({p_unsqueeze, ov::pass::pattern::any_input()});
+    auto p_unsqueeze =
+        ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>({p_input_ids, ov::pass::pattern::any_input()});
+    auto p_opt_reshape_1 =
+        ov::pass::pattern::optional<ov::op::v1::Reshape>({p_unsqueeze, ov::pass::pattern::any_input()});
     auto p_opt_convert_1 = ov::pass::pattern::optional<ov::op::v0::Convert>(p_opt_reshape_1);
     auto p_kv_shape_current = ov::pass::pattern::wrap_type<ov::op::v3::ShapeOf>({p_opt_convert_1});
-    auto p_seq_current = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({p_kv_shape_current, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto p_seq_current = ov::pass::pattern::wrap_type<ov::op::v8::Gather>(
+        {p_kv_shape_current, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
     auto p_opt_convert_2 = ov::pass::pattern::optional<ov::op::v0::Convert>(p_seq_current);
 
     auto p_max_context_len = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>();
-    auto p_prev_max_seq_len = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({p_max_context_len, ov::pass::pattern::any_input()});
+    auto p_prev_max_seq_len =
+        ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({p_max_context_len, ov::pass::pattern::any_input()});
     auto p_opt_convert_3 = ov::pass::pattern::optional<ov::op::v0::Convert>(p_prev_max_seq_len);
-    auto p_opt_reshape_2 = ov::pass::pattern::optional<ov::op::v1::Reshape>({p_opt_convert_3, ov::pass::pattern::any_input()});
+    auto p_opt_reshape_2 =
+        ov::pass::pattern::optional<ov::op::v1::Reshape>({p_opt_convert_3, ov::pass::pattern::any_input()});
     auto p_total_seq = ov::pass::pattern::wrap_type<ov::op::v1::Add>({p_opt_convert_2, p_opt_reshape_2});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
@@ -150,12 +157,15 @@ ov::pass::TotalSequenceLengthPatternCodeGen2::TotalSequenceLengthPatternCodeGen2
     MATCHER_SCOPE(TotalSequenceLengthPatternCodeGen2);
 
     auto p_max_context_len = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>();
-    auto p_sub = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({p_max_context_len, ov::pass::pattern::any_input()});
+    auto p_sub =
+        ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({p_max_context_len, ov::pass::pattern::any_input()});
     auto p_conv = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({p_sub});
 
-    auto p_var_split = ov::pass::pattern::wrap_type<ov::op::v1::VariadicSplit>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto p_var_split = ov::pass::pattern::wrap_type<ov::op::v1::VariadicSplit>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
     auto p_kv_shape_current = ov::pass::pattern::wrap_type<ov::op::v3::ShapeOf>({p_var_split});
-    auto p_gather = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({p_kv_shape_current, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto p_gather = ov::pass::pattern::wrap_type<ov::op::v8::Gather>(
+        {p_kv_shape_current, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
     auto p_total_seq = ov::pass::pattern::wrap_type<ov::op::v1::Add>({p_gather, p_conv});
 
     matcher_pass_callback callback = [=, &max_context_len](ov::pass::pattern::Matcher& m) {
