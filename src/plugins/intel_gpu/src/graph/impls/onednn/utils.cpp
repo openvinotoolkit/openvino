@@ -10,6 +10,38 @@
 namespace cldnn {
 namespace onednn {
 
+#ifdef GPU_DEBUG_CONFIG
+static std::string memory_desc_to_string(const dnnl::memory::desc& desc) {
+    auto get_format_tag_from_desc = [](const dnnl::memory::desc& d) {
+        if (d.get_format_kind() != dnnl::memory::format_kind::blocked) {
+            return dnnl::memory::format_tag::undef;
+        }
+        for (int tag = 0; tag < static_cast<int>(dnnl::memory::format_tag::format_tag_last); ++tag) {
+            auto format_tag = static_cast<dnnl::memory::format_tag>(tag);
+            try {
+                dnnl::memory::desc test_desc(d.get_dims(), d.get_data_type(), format_tag);
+                if (test_desc == d) {
+                    return format_tag;
+                }
+            } catch (...) {
+                continue;
+            }
+        }
+        return dnnl::memory::format_tag::undef;
+    };
+
+    std::stringstream ss;
+    ss << dnnl_dt2str(static_cast<dnnl_data_type_t>(desc.get_data_type())) << ":";
+    ss << dnnl_fmt_tag2str(static_cast<dnnl_format_tag_t>(get_format_tag_from_desc(desc))) << ":";
+    for (int i = 0; i < desc.get_ndims(); i++) {
+        ss << (i ? "x" : "") << desc.get_dims()[i];
+    }
+
+    return ss.str();
+}
+
+#endif  // GPU_DEBUG_CONFIG
+
 template <typename T>
 cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
     auto engine = zp_memory->get_engine();
@@ -292,6 +324,12 @@ get_conv_memory_descs(cldnn::layout input_layout, cldnn::layout weights_layout, 
         ? layout_to_memory_desc_blocked(output_layout, target_fmt)
         : layout_to_memory_desc(output_layout, target_fmt);
 
+#ifdef GPU_DEBUG_CONFIG
+    GPU_DEBUG_TRACE_DETAIL << "input: " << input_layout.to_short_string() << " -> " << memory_desc_to_string(input_desc) << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "weights: " << weights_layout.to_short_string() << " -> " << memory_desc_to_string(weights_desc) << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "output: " << output_layout.to_short_string() << " -> " << memory_desc_to_string(output_desc) << std::endl;
+#endif
+
     return {input_desc, weights_desc, output_desc};
 }
 
@@ -355,141 +393,90 @@ public:
     }
 
     dnnl::memory::desc build() const {
-        auto dims = calculate_dims();
+        auto [dims, updated_fmt] = calculate_dims();
         auto dt = convert_data_type(_layout.data_type);
 
         if (_use_strides) {
             OPENVINO_ASSERT(!_flatten, "The padded layout cannot be flattened.");
-            auto strides = calculate_strides();
+            auto strides = calculate_strides(updated_fmt);
             return dnnl::memory::desc(dims, dt, strides);
+        } else {
+            dnnl::memory::format_tag fmt = updated_fmt == dnnl::memory::format_tag::undef ? convert_data_format(_layout.format) : updated_fmt;
+            dnnl::memory::desc res(dims, dt, fmt);
+            return res;
         }
-
-        auto result_fmt = get_valid_format_tag();
-        return dnnl::memory::desc(dims, dt, result_fmt);
     }
 
 private:
-    dnnl::memory::dims calculate_dims() const {
-        // Handle flattened cases
-        if (_flatten) {
-            auto dims = flatten_tensor(_layout.get_tensor());
-            if (_target_fmt == dnnl::memory::format_tag::ab) {
-                dims.insert(dims.begin(), 1);
-            }
-            return dims;
-        }
-
-        // Handle specific format tags
-        if (_target_fmt != dnnl::memory::format_tag::undef) {
-            return calculate_dims_by_format();
-        }
-
-        // Handle default case with pre-calculated shape_rank
-        return calculate_default_dims();
-    }
-
-    dnnl::memory::dims calculate_dims_by_format() const {
+    std::pair<dnnl::memory::dims, dnnl::memory::format_tag> calculate_dims() const {
         dnnl::memory::dims dims;
-
-        switch (_target_fmt) {
-            case dnnl::memory::format_tag::ab:
-                dims.push_back(_layout.batch());
-                dims.push_back(_layout.get_tensor().count() / _layout.batch());
-                break;
-
-            case dnnl::memory::format_tag::abc:
-                dims.push_back(_layout.batch());
-                dims.push_back(_layout.feature());
-                dims.push_back(_layout.spatial(1));
-                break;
-
-            case dnnl::memory::format_tag::acb:
-                dims.push_back(_layout.batch());
-                dims.push_back(_layout.spatial(1));
-                dims.push_back(_layout.feature());
-                break;
-
-            case dnnl::memory::format_tag::abdc:
-                dims.push_back(_layout.batch());
-                dims.push_back(_layout.feature());
-                dims.push_back(_layout.spatial(0));
-                dims.push_back(_layout.spatial(1));
-                break;
-
-            case dnnl::memory::format_tag::abced:
-                dims.push_back(_layout.batch());
-                dims.push_back(_layout.feature());
-                dims.push_back(_layout.spatial(2));
-                dims.push_back(_layout.spatial(0));
-                dims.push_back(_layout.spatial(1));
-                break;
-
-            case dnnl::memory::format_tag::abcdfe:
-                dims.push_back(_layout.batch());
-                dims.push_back(_layout.feature());
-                dims.push_back(_layout.spatial(3));
-                dims.push_back(_layout.spatial(2));
-                dims.push_back(_layout.spatial(0));
-                dims.push_back(_layout.spatial(1));
-                break;
-
-            case dnnl::memory::format_tag::ba:
-                dims.push_back(_layout.feature());
-                dims.push_back(_layout.get_tensor().count() / _layout.feature());
-                break;
-
-            default: {
-                auto rank = cldnn::format::dimension(_layout.format);
-                dims = convert_tensor(_layout.get_tensor(), rank, cldnn::format::is_grouped(_layout.format));
-                break;
-            }
-        }
-
-        return dims;
-    }
-
-    dnnl::memory::dims calculate_default_dims() const {
-        if (_shape_rank == 3 && !_need_blocked && !_is_grouped) {
-            dnnl::memory::dims dims;
+        auto fmt_tag = _target_fmt;
+        if (fmt_tag == dnnl::memory::format_tag::ab && _flatten) {
+            dims = flatten_tensor(_layout.get_tensor());
+            dims.insert(dims.begin(), 1);
+        } else if (fmt_tag == dnnl::memory::format_tag::ab) {
+            dims.push_back(_layout.batch());
+            dims.push_back(_layout.get_tensor().count() / _layout.batch());
+        } else if (fmt_tag == dnnl::memory::format_tag::abc) {
             dims.push_back(_layout.batch());
             dims.push_back(_layout.feature());
-            // In cldnn::layer, when it is a 3D shape, the values of the XY axes can sometimes be flipped,
-            // so the larger value of the two is used.
-            dims.push_back(std::max(_layout.spatial(0), _layout.spatial(1)));
-            return dims;
-        }
-
-        auto rank = cldnn::format::dimension(_layout.format);
-        return convert_tensor(_layout.get_tensor(), rank, cldnn::format::is_grouped(_layout.format));
-    }
-
-    // Select the valid format tag, handling 3D special case
-    dnnl::memory::format_tag get_valid_format_tag() const {
-        // Handle 3D tensor special case
-        if (_target_fmt == dnnl::memory::format_tag::undef &&
-            _shape_rank == 3 && !_need_blocked && !_is_grouped) {
-            if (_layout.get_format() == format::bfyx) {
-                return dnnl::memory::format_tag::abc;
-            } else if (_layout.get_format() == format::byxf) {
-                return dnnl::memory::format_tag::acb;
+            dims.push_back(_layout.spatial(1));
+        } else if (fmt_tag == dnnl::memory::format_tag::acb) {
+            dims.push_back(_layout.batch());
+            dims.push_back(_layout.spatial(1));
+            dims.push_back(_layout.feature());
+        } else if (fmt_tag == dnnl::memory::format_tag::abdc) {
+            dims.push_back(_layout.batch());
+            dims.push_back(_layout.feature());
+            dims.push_back(_layout.spatial(0));
+            dims.push_back(_layout.spatial(1));
+        } else if (fmt_tag == dnnl::memory::format_tag::abced) {
+            dims.push_back(_layout.batch());
+            dims.push_back(_layout.feature());
+            dims.push_back(_layout.spatial(2));
+            dims.push_back(_layout.spatial(0));
+            dims.push_back(_layout.spatial(1));
+        } else if (fmt_tag == dnnl::memory::format_tag::abcdfe) {
+            dims.push_back(_layout.batch());
+            dims.push_back(_layout.feature());
+            dims.push_back(_layout.spatial(3));
+            dims.push_back(_layout.spatial(2));
+            dims.push_back(_layout.spatial(0));
+            dims.push_back(_layout.spatial(1));
+        } else if (fmt_tag == dnnl::memory::format_tag::ba) {
+            dims.push_back(_layout.feature());
+            dims.push_back(_layout.get_tensor().count() / _layout.feature());
+        } else if (_flatten) {
+            dims = flatten_tensor(_layout.get_tensor());
+        } else {
+            // clDNN expresses 3d tensor with 4d format. This code is to use 3d format on oneDNN for such case.
+            // However, if the memory::desc to be converted is related to another blocked format, it should be expanded to a 4d tensor.
+            auto shape_rank = _layout.is_dynamic() ?
+                static_cast<size_t>(_layout.get_partial_shape().rank().get_length()) : _layout.get_shape().size();
+            if (shape_rank == 3 && !_need_blocked && !_is_grouped) {
+                dims.push_back(_layout.batch());
+                dims.push_back(_layout.feature());
+                // In cldnn::layer, when it is a 3D shape, the values ​​of the XY axes can sometimes be flipped,
+                // so the larger value of the two is used.
+                dims.push_back(std::max(_layout.spatial(0), _layout.spatial(1)));
+                if (_layout.get_format() == format::bfyx)
+                    fmt_tag = dnnl::memory::format_tag::abc;
+                else if (_layout.get_format() == format::byxf)
+                    fmt_tag = dnnl::memory::format_tag::acb;
+                else
+                    OPENVINO_THROW("[GPU] Unexpected layout format " + _layout.to_short_string());
             } else {
-                OPENVINO_THROW("[GPU] Unexpected layout format " + _layout.to_short_string());
+                auto rank = cldnn::format::dimension(_layout.format);
+                dims = convert_tensor(_layout.get_tensor(), rank, cldnn::format::is_grouped(_layout.format));
             }
         }
-
-        // Convert undef to actual format from layout
-        if (_target_fmt == dnnl::memory::format_tag::undef) {
-            return convert_data_format(_layout.format);
-        }
-
-        return _target_fmt;
+        return {dims, fmt_tag};
     }
 
-    dnnl::memory::dims calculate_strides() const {
+    dnnl::memory::dims calculate_strides(dnnl::memory::format_tag fmt) const {
         auto padded_dims = _layout.get_padded_dims();
         dnnl::memory::dims strides;
-
-        switch (_target_fmt) {
+        switch (fmt) {
             case dnnl::memory::format_tag::ab:
                 strides.push_back(1);
                 strides.push_back(padded_dims[0]);
