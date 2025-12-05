@@ -330,12 +330,33 @@ void fuse_mean_scale(ov::preprocess::PrePostProcessor& preproc, const benchmark_
 }  // namespace
 
 /**
+ * Sentry class to ensure the resource releasing from CompiledModel.
+ * Release static global oneDNN cache used for inference with release_memory
+ * method. To be called once at the end of inference.
+ */
+class ModelSentry {
+public:
+    ModelSentry(ov::CompiledModel& compiledModel) : _model(compiledModel) {}
+
+    ~ModelSentry() {
+        if (_model) {
+            _model.release_memory();
+        }
+    }
+
+private:
+    ov::CompiledModel _model;
+};
+
+/**
  * @brief The entry point of the benchmark application
  */
 int main(int argc, char* argv[]) {
     std::shared_ptr<StatisticsReport> statistics;
     try {
         ov::CompiledModel compiledModel;
+
+        ModelSentry releaser(compiledModel);
 
         // ----------------- 1. Parsing and validating input arguments
         // -------------------------------------------------
