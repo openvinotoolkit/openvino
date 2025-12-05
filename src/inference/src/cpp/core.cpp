@@ -266,7 +266,6 @@ std::vector<std::string> Core::get_available_devices() const {
 }
 
 void Core::register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties) {
-    printf("cpp Register plugin from");
     OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin, device_name, properties););
 }
 
@@ -280,8 +279,17 @@ void Core::unload_plugin(const std::string& device_name) {
 }
 
 void Core::register_plugins(const std::string& xml_config_file) {
-    printf("cpp Registering plugins from: %s\n", xml_config_file.c_str());
     OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(xml_config_file););
+}
+
+void Core::register_plugins(const std::filesystem::path& xml_config_file) {
+    register_plugins(
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        ov::util::wstring_to_string(xml_config_file.wstring())
+#else
+        xml_config_file.string()
+#endif
+    );
 }
 
 RemoteContext Core::create_context(const std::string& device_name, const AnyMap& params) {

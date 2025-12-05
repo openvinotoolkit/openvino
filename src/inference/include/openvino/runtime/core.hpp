@@ -849,7 +849,6 @@ public:
     /** @brief Register a new device and plugin that enables this device inside OpenVINO Runtime. */
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     void register_plugin(const Path& plugin_path, const std::string& device_name, const AnyMap& config = {}) {
-        printf("PATH VERSION Register_plugin from:\n");
         register_plugin(plugin_path.string(), device_name, config);
     }
 
@@ -897,12 +896,11 @@ public:
     /** @brief Registers a device plugin to the OpenVINO Runtime Core instance using an XML configuration file with
      * plugins description.
      */
-    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    void register_plugins(const Path& xml_config_file) {
-        printf("Registering plugins from: %s\n", xml_config_file.string().c_str());
-        std::cout << "Debug info" << std::endl;
-        std::cerr << "Sfsdfsdf" << std::endl;
-        register_plugins(xml_config_file.string());
+    void register_plugins(const std::filesystem::path& xml_config_file);
+
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
+    void register_plugins(const TPath& xml_config_file) {
+        register_plugins(std::string(xml_config_file));
     }
 
     /**
