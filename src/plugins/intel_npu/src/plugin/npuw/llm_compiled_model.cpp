@@ -1101,15 +1101,6 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     return std::make_optional(std::move(desc));
 }
 
-std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
-    if (auto it = config.find(option_name); it != config.end()) {
-        std::optional<ov::Any> found = std::make_optional(it->second);
-        config.erase(it);
-        return found;
-    }
-    return std::nullopt;
-}
-
 void apply_weights_bank_name(ov::AnyMap& config, const std::string& bank_name) {
     auto it = config.find("NPUW_WEIGHTS_BANK");
     if (it != config.end()) {
@@ -1537,8 +1528,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             ov::npuw::util::prepare_text_embedding_model(kvcache_model, seq_len_dim);
         }
 
-        auto post_type = pop_option(other_props, std::string("NPUW_TEXT_EMBED_POST_TYPE"));
-        ov::npuw::util::create_text_embedding_post_model(kvcache_model, text_embedding_post_model, post_type);
+        ov::npuw::util::create_text_embedding_post_model(kvcache_model, text_embedding_post_model, other_props);
     } else {
         LOG_DEBUG("Transform kvcache model from stateful to stateless.");
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
