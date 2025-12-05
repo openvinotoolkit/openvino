@@ -647,6 +647,15 @@ public:
 #    pragma GCC diagnostic pop
 #endif
 
+std::optional<ov::Any> ov::npuw::util::pop_option(ov::AnyMap& config, const std::string& option_name) {
+    if (auto it = config.find(option_name); it != config.end()) {
+        std::optional<ov::Any> found = std::make_optional(it->second);
+        config.erase(it);
+        return found;
+    }
+    return std::nullopt;
+}
+
 bool ov::npuw::util::has_input(const std::shared_ptr<ov::Model>& model, const std::string& name) {
     auto inputs = model->inputs();
     auto it = std::find_if(inputs.begin(), inputs.end(), [&](const auto& port) {
@@ -837,11 +846,21 @@ std::shared_ptr<ov::op::Op> get_last_token_pooling_op(std::shared_ptr<ov::Model>
     return std::make_shared<op::v8::Gather>(last_hidden_state_node, subtract, one, 1);
 }
 
+std::shared_ptr<ov::op::Op> normalize_output(std::shared_ptr<ov::op::Op> last_hidden_state_node) {
+    using namespace ov;
+
+    auto axis_const = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector{1});
+    return std::make_shared<op::v0::NormalizeL2>(last_hidden_state_node,
+                                                 axis_const,
+                                                 static_cast<float>(1e-7),
+                                                 op::EpsMode::MAX);
+}
+
 }  // namespace
 
 void ov::npuw::util::create_text_embedding_post_model(std::shared_ptr<ov::Model> model,
                                                       std::shared_ptr<ov::Model>& post_model,
-                                                      std::optional<ov::Any>& post_type_any) {
+                                                      ov::AnyMap& config) {
     auto output_node = model->outputs()[0];
     auto input_param =
         std::make_shared<ov::op::v0::Parameter>(output_node.get_element_type(), output_node.get_partial_shape());
@@ -850,7 +869,9 @@ void ov::npuw::util::create_text_embedding_post_model(std::shared_ptr<ov::Model>
     auto attention_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
     set_node_name(attention_mask, "attention_mask");
 
-    auto post_type = post_type_any.value_or(std::string("last_token")).as<std::string>();
+    auto post_type_opt = pop_option(config, std::string("NPUW_TEXT_EMBED_POST_TYPE"));
+    auto post_type = post_type_opt.value_or(std::string("last_token")).as<std::string>();
+
     std::shared_ptr<ov::op::Op> post_output;
     if (post_type == "cls") {
         post_output = get_cls_pooling_op(input_param);
@@ -859,8 +880,13 @@ void ov::npuw::util::create_text_embedding_post_model(std::shared_ptr<ov::Model>
     } else if (post_type == "last_token") {
         post_output = get_last_token_pooling_op(model, input_param, attention_mask);
     }
-
     OPENVINO_ASSERT(post_output != nullptr);
+
+    auto is_to_normalize_opt = pop_option(config, std::string("NPUW_TEXT_EMBED_NORMALIZE"));
+    auto is_to_normalize = is_to_normalize_opt.value_or(true).as<bool>();
+    if (is_to_normalize) {
+        post_output = normalize_output(post_output);
+    }
 
     auto result_node = std::make_shared<ov::op::v0::Result>(post_output);
     post_model =
