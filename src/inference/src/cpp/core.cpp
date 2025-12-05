@@ -77,6 +77,16 @@ Core::Core(const std::string& xml_config_file) {
     OV_CORE_CALL_STATEMENT(_impl->register_compile_time_plugins();)
 }
 
+Core::Core(const std::filesystem::path& xml_config_file)
+    : Core(
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+          ov::util::wstring_to_string(xml_config_file.wstring())
+#else
+          xml_config_file.string()
+#endif
+      ) {
+}
+
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
     OV_CORE_CALL_STATEMENT({ return _impl->get_versions(device_name); })}
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -259,6 +269,18 @@ void Core::register_plugin(const std::string& plugin, const std::string& device_
     OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin, device_name, properties););
 }
 
+void Core::register_plugin(const std::filesystem::path& plugin_path,
+                           const std::string& device_name,
+                           const ov::AnyMap& properties) {
+    const auto plugin_path_utf8 =
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        ov::util::wstring_to_string(plugin_path.wstring());
+#else
+        plugin_path.string();
+#endif
+    register_plugin(plugin_path_utf8, device_name, properties);
+}
+
 void Core::unload_plugin(const std::string& device_name) {
     OV_CORE_CALL_STATEMENT({
         ov::DeviceIDParser parser(device_name);
@@ -270,6 +292,16 @@ void Core::unload_plugin(const std::string& device_name) {
 
 void Core::register_plugins(const std::string& xml_config_file) {
     OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(xml_config_file););
+}
+
+void Core::register_plugins(const std::filesystem::path& xml_config_file) {
+    register_plugins(
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        ov::util::wstring_to_string(xml_config_file.wstring())
+#else
+        xml_config_file.string()
+#endif
+    );
 }
 
 RemoteContext Core::create_context(const std::string& device_name, const AnyMap& params) {

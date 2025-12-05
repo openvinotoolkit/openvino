@@ -672,7 +672,7 @@ void regclass_Core(py::module m) {
             )");
 
     cls.def("register_plugins",
-            &ov::Core::register_plugins,
+            static_cast<void (ov::Core::*)(const std::string&)>(&ov::Core::register_plugins),
             py::arg("xml_config_file"),
             R"(
                 Registers a device plugin to OpenVINO Runtime Core instance using XML configuration
