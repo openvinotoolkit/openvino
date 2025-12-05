@@ -46,6 +46,13 @@ ref_diff_map = {
 		"ReadValue" : -4,
 		"ScaledDotProductAttention" : -2,
 	},
+	"optimum-intel-internal-testing/tiny-mixtral-AWQ-4bit" : {
+		"Assign" : -4,
+		"PagedAttentionExtension" : 2,
+		"Parameter" : 7,
+		"ReadValue" : -4,
+		"ScaledDotProductAttention" : -2,
+	},
 	"optimum-intel-internal-testing/tiny-random-BlenderbotModel" : {
 		"Assign" : -4,
 		"PagedAttentionExtension" : 2,
@@ -491,6 +498,13 @@ ref_diff_map_optimizations = {
 		"ScaledDotProductAttention" : -2,
 	},
 	"optimum-intel-internal-testing/tiny-mixtral" : {
+		"Assign" : -4,
+		"PagedAttentionExtension" : 2,
+		"Parameter" : 24,
+		"ReadValue" : -4,
+		"ScaledDotProductAttention" : -2,
+	},
+	"optimum-intel-internal-testing/tiny-mixtral-AWQ-4bit" : {
 		"Assign" : -4,
 		"PagedAttentionExtension" : 2,
 		"Parameter" : 24,
