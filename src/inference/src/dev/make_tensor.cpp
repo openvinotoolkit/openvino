@@ -592,7 +592,7 @@ ov::SoPtr<ov::ITensor> get_tensor_impl(const ov::Tensor& tensor) {
 }
 
 size_t get_tensor_data_offset(const ov::SoPtr<ov::ITensor>& tensor) {
-    if (auto tensor_impl = std::dynamic_pointer_cast<BaseRoiTensor>(tensor._ptr)) {
+    if (auto tensor_impl = dynamic_cast<const BaseRoiTensor*>(tensor._ptr.get())) {
         return tensor_impl->get_offset();
     }
     return 0;
