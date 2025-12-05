@@ -11,7 +11,6 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/softmax.hpp"
@@ -29,14 +28,12 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 
-using namespace ov;
 using namespace ov::op;
 using namespace ov::pass;
-using namespace ov::pass::pattern;
 
 namespace {
 
-std::shared_ptr<Node> normalize_rank(const Output<Node>& output, int64_t target_rank) {
+std::shared_ptr<ov::Node> normalize_rank(const ov::Output<ov::Node>& output, int64_t target_rank) {
     auto pshape = output.get_partial_shape();
     int64_t cur_rank = pshape.rank().is_dynamic() ? 0 : pshape.rank().get_length();
     if (cur_rank >= target_rank)
@@ -47,8 +44,8 @@ std::shared_ptr<Node> normalize_rank(const Output<Node>& output, int64_t target_
     for (int64_t i = 0; i < target_rank - cur_rank; ++i)
         axes.push_back(i);
 
-    auto axes_const = ov::op::v0::Constant::create(element::i64, Shape{axes.size()}, axes);
-    auto unsqueezed = ov::op::util::make_try_fold<ov::op::v0::Unsqueeze>(output.get_node_shared_ptr(), axes_const);
+    auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+    auto unsqueezed = util::make_try_fold<v0::Unsqueeze>(output.get_node_shared_ptr(), axes_const);
 
     std::cout << "Normalized node: " << unsqueezed->get_friendly_name() << " shape: " << unsqueezed->get_output_partial_shape(0) << std::endl;
     return unsqueezed;
@@ -65,7 +62,7 @@ std::shared_ptr<Node> normalize_rank(const Output<Node>& output, int64_t target_
  * @param axis The axis along which to concatenate the tensors. Default is 0.
  * @return A shared pointer to the resulting Concat node.
  */
-std::shared_ptr<Node> concat_any(const ov::OutputVector& inputs, int64_t axis = -1, int64_t rank = 0) {
+std::shared_ptr<ov::Node> concat_any(const ov::OutputVector& inputs, int64_t axis = -1, int64_t rank = 0) {
     int64_t max_rank = rank;
     
     for (const auto& t : inputs) {
@@ -74,13 +71,13 @@ std::shared_ptr<Node> concat_any(const ov::OutputVector& inputs, int64_t axis = 
             max_rank = std::max(max_rank, r.get_length());
     }
 
-    OutputVector normalized;
+    ov::OutputVector normalized;
     for (const auto& t : inputs) {
         normalized.push_back(normalize_rank(t, max_rank));
         std::cout << "Input node for concat: " << t.get_node()->get_friendly_name() << " shape: " << normalized.back().get_node()->get_output_partial_shape(0) << std::endl;
     }
     
-    auto concat = ov::op::util::make_try_fold<v0::Concat>(normalized, axis);
+    auto concat = util::make_try_fold<v0::Concat>(normalized, axis);
     
     std::cout << "Concat node: " << concat->get_friendly_name() << " shape: " << concat->get_output_partial_shape(0) << std::endl;
 
@@ -99,6 +96,8 @@ bool PackGQA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<ov::pass::MergeKVCaches>();
     manager.register_pass<ov::pass::Serialize>("PackGQA_MergeKVCaches.xml", "PackGQA_MergeKVCaches.bin");
     manager.register_pass<ov::pass::MergeTwoUnrolledRoPEConcat>();
+    manager.register_pass<ov::pass::Serialize>("PackGQA_MergeTwoUnrolledRoPEConcat.xml", "PackGQA_MergeTwoUnrolledRoPEConcat.bin");
+    manager.register_pass<ov::pass::MergeMatMulBiasConcat>();
     manager.register_pass<ov::pass::Serialize>("PackGQA_after.xml", "PackGQA_after.bin");
     manager.register_pass<ov::pass::ConcatFusion>();
     manager.register_pass<ov::pass::ConstantFolding>();
@@ -110,7 +109,7 @@ bool PackGQA::run_on_model(const std::shared_ptr<ov::Model>& model) {
 // Helper to skip optional nodes
 template<typename T>
 std::shared_ptr<ov::Node> skip_node(const std::shared_ptr<ov::Node>& node) {
-    if (auto reduce = as_type_ptr<T>(node)) {
+    if (auto reduce = ov::as_type_ptr<T>(node)) {
         return reduce->input_value(0).get_node_shared_ptr();
     }
     return node;
@@ -118,12 +117,12 @@ std::shared_ptr<ov::Node> skip_node(const std::shared_ptr<ov::Node>& node) {
 
         
 // Helper function to extract scale node (supports both Divide and Multiply)
-static std::shared_ptr<Node> get_scale(const std::shared_ptr<ov::Node>& bias_node) {
+static std::shared_ptr<ov::Node> get_scale(const std::shared_ptr<ov::Node>& bias_node) {
     auto input_node = bias_node->input_value(0).get_node_shared_ptr();
-    if (auto div = as_type_ptr<v1::Divide>(input_node)) {
+    if (auto div = ov::as_type_ptr<v1::Divide>(input_node)) {
         return div;
     }
-    if (auto mul = as_type_ptr<v1::Multiply>(input_node)) {
+    if (auto mul = ov::as_type_ptr<v1::Multiply>(input_node)) {
         return mul;
     }
     return nullptr;
@@ -161,26 +160,26 @@ MergeTwoUnrolledSDPAAdd::MergeTwoUnrolledSDPAAdd() {
     
     // Helper to create SDPA pattern
     auto create_sdpa_pattern = [&]() {
-        auto q = any_input(); 
-        auto k = any_input();
-        auto v = any_input();
-        auto k_scale = optional<v1::Multiply>({k, any_input()});
-        auto qk = wrap_type<v0::MatMul>({q, k_scale});
-        auto qk_scale = optional<v1::Divide,v1::Multiply>({qk, any_input()});
-        auto bias_add = wrap_type<v1::Add>({qk_scale, any_input()});
-        auto softmax = wrap_type<v8::Softmax>({bias_add});
-        auto qkv = wrap_type<v0::MatMul>({softmax, v});
-        auto qkv_reshaped = optional<v1::Reshape>({qkv, any_input()});
-        auto proj = any_input();
-        auto matmul = wrap_type<v0::MatMul>({qkv_reshaped, proj});
-        auto matmul_reduced = optional<v1::ReduceSum>({matmul, any_input()});
+        auto q = pattern::any_input(); 
+        auto k = pattern::any_input();
+        auto v = pattern::any_input();
+        auto k_scale = pattern::optional<v1::Multiply>({k, pattern::any_input()});
+        auto qk = pattern::wrap_type<v0::MatMul>({q, k_scale});
+        auto qk_scale = pattern::optional<v1::Divide,v1::Multiply>({qk, pattern::any_input()});
+        auto bias_add = pattern::wrap_type<v1::Add>({qk_scale, pattern::any_input()});
+        auto softmax = pattern::wrap_type<v8::Softmax>({bias_add});
+        auto qkv = pattern::wrap_type<v0::MatMul>({softmax, v});
+        auto qkv_reshaped = pattern::optional<v1::Reshape>({qkv, pattern::any_input()});
+        auto proj = pattern::any_input();
+        auto matmul = pattern::wrap_type<v0::MatMul>({qkv_reshaped, proj});
+        auto matmul_reduced = pattern::optional<v1::ReduceSum>({matmul, pattern::any_input()});
         return matmul_reduced;
     };
     
     auto sdpa_lhs = create_sdpa_pattern();
     auto sdpa_rhs = create_sdpa_pattern();
     
-    auto add = wrap_type<v1::Add>({sdpa_lhs, sdpa_rhs});
+    auto add = pattern::wrap_type<v1::Add>({sdpa_lhs, sdpa_rhs});
 
     auto m = std::make_shared<pattern::Matcher>(add, "MergeTwoUnrolledSDPAAdd");
     register_matcher(m, [=](pattern::Matcher& matcher) {
@@ -298,17 +297,17 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
     // Helper to create SDPA pattern
     auto create_rope_pattern = [&]() {
         pattern_nodes nodes;
-        auto input = any_input();
-        nodes.input = wrap_type<v1::Reshape>({input, any_input()});
-        auto var_split = wrap_type<v1::VariadicSplit>({nodes.input, any_input(), any_input()});
+        auto input = pattern::any_input();
+        nodes.input = pattern::wrap_type<v1::Reshape>({input, pattern::any_input()});
+        auto var_split = pattern::wrap_type<v1::VariadicSplit>({nodes.input, pattern::any_input(), pattern::any_input()});
         var_split->set_output_size(2);
         
-        nodes.scale = wrap_type<v0::Negative>({var_split->output(1)});
-        auto concat = wrap_type<v0::Concat>({nodes.scale, var_split->output(0)});
-        nodes.mul_l= wrap_type<v1::Multiply>({concat, any_input()});
-        nodes.mul_r = wrap_type<v1::Multiply>({nodes.input, any_input()});
-        nodes.add = wrap_type<v1::Add>({nodes.mul_r, nodes.mul_l});  // todo: use mul_2 as 2nd input
-        auto reshape = wrap_type<v1::Reshape>({nodes.add, any_input()});
+        nodes.scale = pattern::wrap_type<v0::Negative>({var_split->output(1)});
+        auto concat = pattern::wrap_type<v0::Concat>({nodes.scale, var_split->output(0)});
+        nodes.mul_l= pattern::wrap_type<v1::Multiply>({concat, pattern::any_input()});
+        nodes.mul_r = pattern::wrap_type<v1::Multiply>({nodes.input, pattern::any_input()});
+        nodes.add = pattern::wrap_type<v1::Add>({nodes.mul_r, nodes.mul_l});  // todo: use mul_2 as 2nd input
+        auto reshape = pattern::wrap_type<v1::Reshape>({nodes.add, pattern::any_input()});
         nodes.output = std::make_shared<pattern::op::Or>(OutputVector{reshape, nodes.add});
 
         return nodes;
@@ -317,7 +316,7 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
     auto rope_lhs = create_rope_pattern();
     auto rope_rhs = create_rope_pattern();
     
-    auto concat = wrap_type<v0::Concat>({rope_lhs.output, rope_rhs.output});
+    auto concat = pattern::wrap_type<v0::Concat>({rope_lhs.output, rope_rhs.output});
 
     auto m = std::make_shared<pattern::Matcher>(concat, "MergeTwoUnrolledRoPEConcat");
     register_matcher(m, [=](pattern::Matcher& matcher) {
@@ -355,18 +354,18 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
         size_t head_axis = 1;
         size_t rank = 4;  // Assuming 4D tensors [batch, heads, seq_len, dim]
         
-        auto input_fused = concat_any(OutputVector{reshape_lhs->input_value(0), reshape_rhs->input_value(0)}, head_axis, rank);
+        auto input_fused = concat_any(ov::OutputVector{reshape_lhs->input_value(0), reshape_rhs->input_value(0)}, head_axis, rank);
         
         auto mul_down_1_lhs_input = mul_down_1_lhs->input_value(1);
         auto mul_down_2_lhs_input = mul_down_2_lhs->input_value(1);
         auto mul_down_1_rhs_input = mul_down_1_rhs->input_value(1);
         auto mul_down_2_rhs_input = mul_down_2_rhs->input_value(1);
         
-        auto mul_down_input_l_fused = mul_down_1_lhs_input == mul_down_1_rhs_input ? mul_down_1_lhs_input : concat_any(OutputVector{mul_down_1_lhs_input, mul_down_1_rhs_input}, head_axis, rank);
-        auto mul_down_input_r_fused = mul_down_2_lhs_input == mul_down_2_rhs_input ? mul_down_2_lhs_input : concat_any(OutputVector{mul_down_2_lhs_input, mul_down_2_rhs_input}, head_axis, rank);
+        auto mul_down_input_l_fused = mul_down_1_lhs_input == mul_down_1_rhs_input ? mul_down_1_lhs_input : concat_any(ov::OutputVector{mul_down_1_lhs_input, mul_down_1_rhs_input}, head_axis, rank);
+        auto mul_down_input_r_fused = mul_down_2_lhs_input == mul_down_2_rhs_input ? mul_down_2_lhs_input : concat_any(ov::OutputVector{mul_down_2_lhs_input, mul_down_2_rhs_input}, head_axis, rank);
         
         std::cout << "Replace input node: " << reshape_lhs->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name() << " shape: " << std::endl;
-        auto reshape_shape = op::v0::Constant::create(element::i64, Shape{input_fused->get_output_shape(0).size()}, input_fused->get_output_shape(0));
+        auto reshape_shape = v0::Constant::create(element::i64, Shape{input_fused->get_output_shape(0).size()}, input_fused->get_output_shape(0));
         auto reshape_fused = reshape_lhs->copy_with_new_inputs({input_fused, reshape_shape});
         replace_node(reshape_lhs, reshape_fused);
         
@@ -385,24 +384,101 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
     });
 }
 
+MergeMatMulBiasConcat::MergeMatMulBiasConcat() {
+    MATCHER_SCOPE(MergeMatMulBiasConcat);
+    
+    struct pattern_nodes {
+        std::shared_ptr<Node> matmul;
+        std::shared_ptr<Node> multiply;
+        std::shared_ptr<Node> add;
+        std::shared_ptr<Node> output;
+    };
+    
+    // Helper to create SDPA pattern
+    auto create_matmul_bias_pattern = [&](const std::shared_ptr<Node>& input) {
+        pattern_nodes nodes;
+        nodes.multiply = pattern::optional<v1::Multiply>({pattern::any_input(), pattern::any_input()});
+        nodes.matmul = pattern::wrap_type<v0::MatMul>({input, nodes.multiply});
+        nodes.add = pattern::wrap_type<v1::Add>({nodes.matmul, pattern::any_input()});
+        auto reshape = pattern::wrap_type<v1::Reshape,v0::Unsqueeze>({nodes.add, pattern::any_input()});
+        nodes.output = std::make_shared<pattern::op::Or>(OutputVector{reshape, nodes.add});
+        
+        return nodes;
+    };
+    
+    auto input = pattern::any_input();
+    auto mm_bias_lhs = create_matmul_bias_pattern(input);
+    auto mm_bias_rhs = create_matmul_bias_pattern(input);
+    
+    auto concat = pattern::wrap_type<v0::Concat>({mm_bias_lhs.output, mm_bias_rhs.output});
+    auto m = std::make_shared<pattern::Matcher>(concat, "MergeMatMulBiasConcat");
+    register_matcher(m, [=](pattern::Matcher& matcher) {
+        std::cout << "MergeMatMulBiasConcat transformation is started." << std::endl;
+        
+        auto pm = matcher.get_pattern_value_map();
+        
+        auto concat_node = std::dynamic_pointer_cast<v0::Concat>(matcher.get_match_root());
+        if (!concat_node)
+            return false;
+        
+        auto mm_lhs = as_type_ptr<v0::MatMul>(pm[mm_bias_lhs.matmul].get_node_shared_ptr());
+        auto mm_rhs = as_type_ptr<v0::MatMul>(pm[mm_bias_rhs.matmul].get_node_shared_ptr());
+        if (!mm_lhs || !mm_rhs) {
+            return false;
+        }        
+            
+        auto add_lhs = as_type_ptr<v1::Add>(pm[mm_bias_lhs.add].get_node_shared_ptr());
+        auto add_rhs = as_type_ptr<v1::Add>(pm[mm_bias_rhs.add].get_node_shared_ptr());
+        if (!add_lhs || !add_rhs)
+            return false;
+            
+        // Concatenate along head axis (1)
+        std::cout << "Concatenating Input tensors" << std::endl;
+        size_t head_axis = 1;
+        size_t rank = 4;  // Assuming 4D tensors [batch, heads, seq_len, dim]
+        
+        
+        auto scale_lhs = ov::as_type_ptr<v1::Multiply>(pm[mm_bias_lhs.multiply].get_node_shared_ptr());
+        auto scale_rhs = ov::as_type_ptr<v1::Multiply>(pm[mm_bias_rhs.multiply].get_node_shared_ptr());
+        std::shared_ptr<ov::Node> weights_fused = nullptr;
+        if (scale_lhs && scale_rhs) {
+            auto scale_fused = concat_any(OutputVector{scale_lhs->input_value(1), scale_rhs->input_value(1)}, head_axis, rank);
+            auto multiply_lhs_input = scale_lhs->input_value(0);
+            auto multiply_rhs_input = scale_rhs->input_value(0);
+            auto multiply_input_fused = concat_any(OutputVector{multiply_lhs_input, multiply_rhs_input}, head_axis, rank);
+            weights_fused = scale_lhs->copy_with_new_inputs({multiply_input_fused, scale_fused});
+        } else {
+            weights_fused = concat_any(OutputVector{mm_lhs->input_value(1), mm_rhs->input_value(1)}, head_axis, rank);
+        }
+        auto mm_fused = mm_lhs->copy_with_new_inputs({mm_lhs->input_value(0), weights_fused});
+
+        auto bias_fused = concat_any(OutputVector{add_lhs->input_value(1), add_rhs->input_value(1)}, head_axis, rank);
+        auto add_fused = add_lhs->copy_with_new_inputs({mm_fused, bias_fused});
+        
+        replace_node(concat_node, add_fused);
+        
+        return true;
+    });
+}
+
 MergeKVCaches::MergeKVCaches() {
     MATCHER_SCOPE(MergeKVCaches);
     
     // Helper to create cache pattern
     auto create_cache_pattern = [&]() {
-        auto cache_input = any_input();
-        auto input = any_input();
-        auto concat = wrap_type<v0::Concat>({cache_input, input});
+        auto cache_input = pattern::any_input();
+        auto input = pattern::any_input();
+        auto concat = pattern::wrap_type<v0::Concat>({cache_input, input});
         return concat;
     };
     
     auto cache_lhs = create_cache_pattern();
     auto cache_rhs = create_cache_pattern();
     
-    auto slice_lhs = wrap_type<v1::StridedSlice>({cache_lhs, any_input(), any_input(), any_input()});
-    auto slice_rhs = wrap_type<v1::StridedSlice>({cache_rhs, any_input(), any_input(), any_input()});
+    auto slice_lhs = pattern::wrap_type<v1::StridedSlice>({cache_lhs, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto slice_rhs = pattern::wrap_type<v1::StridedSlice>({cache_rhs, pattern::any_input(), pattern::any_input(), pattern::any_input()});
     
-    auto concat = wrap_type<v0::Concat>({cache_lhs, cache_rhs});
+    auto concat = pattern::wrap_type<v0::Concat>({cache_lhs, cache_rhs});
 
     auto m = std::make_shared<pattern::Matcher>(concat, "MergeKVCaches");
     register_matcher(m, [=](pattern::Matcher& matcher) {
@@ -414,8 +490,8 @@ MergeKVCaches::MergeKVCaches() {
         if (!concat_node)
             return false;
         
-        auto concat_cache_lhs = as_type_ptr<v0::Concat>(pm[cache_lhs].get_node_shared_ptr());
-        auto concat_cache_rhs = as_type_ptr<v0::Concat>(pm[cache_rhs].get_node_shared_ptr());
+        auto concat_cache_lhs = ov::as_type_ptr<v0::Concat>(pm[cache_lhs].get_node_shared_ptr());
+        auto concat_cache_rhs = ov::as_type_ptr<v0::Concat>(pm[cache_rhs].get_node_shared_ptr());
         if (!concat_cache_lhs || !concat_cache_rhs)
             return false;
           
@@ -431,8 +507,8 @@ MergeKVCaches::MergeKVCaches() {
         // spliting cache output
         int64_t len_lhs = concat_node->input_value(0).get_shape()[head_axis];
         int64_t len_rhs = concat_node->input_value(1).get_shape()[head_axis];
-        auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, std::vector<int64_t>({head_axis}));
-        auto sizes = ov::op::v0::Constant::create(element::i64, Shape{2}, {len_lhs, len_rhs});
+        auto axis = v0::Constant::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>({head_axis}));
+        auto sizes = v0::Constant::create(ov::element::i64, ov::Shape{2}, {len_lhs, len_rhs});
         auto split_out = std::make_shared<v1::VariadicSplit>(concat_merged, axis, sizes);
         
         replace_node(concat_node, concat_merged);
