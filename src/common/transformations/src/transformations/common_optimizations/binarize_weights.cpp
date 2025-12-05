@@ -60,21 +60,21 @@ static std::vector<float> quantize_weights(const Shape& weights_shape,
 pass::BinarizeWeights::BinarizeWeights() {
     MATCHER_SCOPE(BinarizeWeights);
     auto activations_fq_pattern =
-        pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::any_input(),
-                                                      pattern::wrap_type<ov::op::v0::Constant>(),
-                                                      pattern::wrap_type<ov::op::v0::Constant>(),
-                                                      pattern::wrap_type<ov::op::v0::Constant>(),
-                                                      pattern::wrap_type<ov::op::v0::Constant>()},
-                                                     pattern::consumers_count(1));
-    auto weights_fq_pattern = pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::wrap_type<ov::op::v0::Constant>(),
-                                                                            pattern::wrap_type<ov::op::v0::Constant>(),
-                                                                            pattern::wrap_type<ov::op::v0::Constant>(),
-                                                                            pattern::wrap_type<ov::op::v0::Constant>(),
-                                                                            pattern::wrap_type<ov::op::v0::Constant>()},
-                                                                           pattern::consumers_count(1));
-    auto conv_pattern = pattern::wrap_type<ov::op::v1::Convolution>({activations_fq_pattern, weights_fq_pattern});
+        ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({ov::pass::pattern::any_input(),
+                                                      ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                      ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                      ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                      ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+                                                     ov::pass::pattern::consumers_count(1));
+    auto weights_fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                            ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                            ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                            ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                            ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+                                                                           ov::pass::pattern::consumers_count(1));
+    auto conv_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({activations_fq_pattern, weights_fq_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(m.get_match_root());
         if (!conv)
             return false;
@@ -208,6 +208,6 @@ pass::BinarizeWeights::BinarizeWeights() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

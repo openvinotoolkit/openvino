@@ -21,7 +21,7 @@
 ov::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
     MATCHER_SCOPE(SoftPlusDecomposition);
     // decomposes SoftPlus(x) operation into ln(exp(x) + 1.0)
-    auto input = pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto softplus = std::make_shared<ov::op::v4::SoftPlus>(input);
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {

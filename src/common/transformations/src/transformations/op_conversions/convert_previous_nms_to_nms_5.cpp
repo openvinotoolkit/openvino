@@ -121,7 +121,7 @@ NMSAttributes get_nms_attrs(const std::shared_ptr<ov::Node>& root) {
     return attrs;
 }
 
-bool callback_func(pass::pattern::Matcher& m, pass::MatcherPass* impl) {
+bool callback_func(ov::pass::pattern::Matcher& m, pass::MatcherPass* impl) {
     auto root = m.get_match_root();
 
     auto attrs = get_nms_attrs(root);
@@ -155,33 +155,33 @@ bool callback_func(pass::pattern::Matcher& m, pass::MatcherPass* impl) {
 
 ov::pass::ConvertNMS4ToNMS5::ConvertNMS4ToNMS5() {
     MATCHER_SCOPE(ConvertNMS4ToNMS5);
-    auto nms = pattern::wrap_type<ov::op::v4::NonMaxSuppression>();
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    auto nms = ov::pass::pattern::wrap_type<ov::op::v4::NonMaxSuppression>();
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         return callback_func(m, this);
     };
 
-    auto m = std::make_shared<pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ov::pass::ConvertNMS3ToNMS5::ConvertNMS3ToNMS5() {
     MATCHER_SCOPE(ConvertNMS3ToNMS5);
-    auto nms = pattern::wrap_type<ov::op::v3::NonMaxSuppression>();
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    auto nms = ov::pass::pattern::wrap_type<ov::op::v3::NonMaxSuppression>();
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         return callback_func(m, this);
     };
 
-    auto m = std::make_shared<pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ov::pass::ConvertNMS1ToNMS5::ConvertNMS1ToNMS5() {
     MATCHER_SCOPE(ConvertNMS1ToNMS5);
-    auto nms = pattern::wrap_type<ov::op::v1::NonMaxSuppression>();
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    auto nms = ov::pass::pattern::wrap_type<ov::op::v1::NonMaxSuppression>();
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         return callback_func(m, this);
     };
 
-    auto m = std::make_shared<pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }

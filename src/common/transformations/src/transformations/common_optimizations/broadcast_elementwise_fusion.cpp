@@ -71,11 +71,11 @@ bool can_eliminate_broadcast(const ov::Output<ov::Node>& eltwise,
 
 ov::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     MATCHER_SCOPE(BroadcastElementwiseFusion);
-    auto broadcast_input = pattern::any_input();
+    auto broadcast_input = ov::pass::pattern::any_input();
     auto broadcast =
-        pattern::wrap_type<ov::op::v3::Broadcast>({broadcast_input, pattern::any_input()}, pattern::consumers_count(1));
-    auto eltwise_input = pattern::any_input();
-    auto eltwise = pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
+        ov::pass::pattern::wrap_type<ov::op::v3::Broadcast>({broadcast_input, ov::pass::pattern::any_input()}, ov::pass::pattern::consumers_count(1));
+    auto eltwise_input = ov::pass::pattern::any_input();
+    auto eltwise = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_value = m.get_pattern_value_map();

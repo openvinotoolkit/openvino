@@ -24,7 +24,7 @@
 ov::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
     MATCHER_SCOPE(HSwishFusionWithReluDiv);
     // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) / 6 with a HSwish op.
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto add = std::make_shared<ov::op::v1::Add>(input, add_constant);
     auto relu = std::make_shared<ov::op::v0::Relu>(add);
@@ -79,7 +79,7 @@ ov::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
 ov::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
     MATCHER_SCOPE(HSwishFusionWithReluMul);
     // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) * const(1/6) with a HSwish op.
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto add = std::make_shared<ov::op::v1::Add>(input, add_constant);
     auto relu = std::make_shared<ov::op::v0::Relu>(add);
@@ -131,9 +131,9 @@ ov::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
 ov::pass::HSwishFusionWithHSigmoid::HSwishFusionWithHSigmoid() {
     MATCHER_SCOPE(HSwishFusionWithHSigmoid);
     // Replaces a sub-graph x * HSigmoid(x) with a HSwish op.
-    auto input = pattern::any_input();
-    auto hsigmoid_pattern = pattern::wrap_type<ov::op::v5::HSigmoid>({input}, pattern::consumers_count(1));
-    auto mul_pattern = pattern::wrap_type<ov::op::v1::Multiply>({input, hsigmoid_pattern});
+    auto input = ov::pass::pattern::any_input();
+    auto hsigmoid_pattern = ov::pass::pattern::wrap_type<ov::op::v5::HSigmoid>({input}, ov::pass::pattern::consumers_count(1));
+    auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, hsigmoid_pattern});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -154,7 +154,7 @@ ov::pass::HSwishFusionWithHSigmoid::HSwishFusionWithHSigmoid() {
 ov::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
     MATCHER_SCOPE(HSwishFusionWithClampMul);
     // Replaces a sub-graph (Clamp(x + 3, 0, 6) * x) with a HSwish * 6.
-    const auto input = pass::pattern::any_input();
+    const auto input = ov::pass::pattern::any_input();
     const auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({input, add_constant});
     const auto clamp = ov::pass::pattern::wrap_type<ov::op::v0::Clamp>({add});

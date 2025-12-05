@@ -23,29 +23,28 @@
 
 ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
     MATCHER_SCOPE(LoraSubgraphFusion);
-    using namespace pass::pattern;
-    auto lora_input_m = any_input();
-    auto transpose_const1_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto transpose1_m = optional<ov::op::v1::Transpose>({lora_input_m, transpose_const1_m}, consumers_count(1));
+auto lora_input_m = ov::pass::pattern::any_input();
+    auto transpose_const1_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::consumers_count(1));
+    auto transpose1_m = ov::pass::pattern::optional<ov::op::v1::Transpose>({lora_input_m, transpose_const1_m}, ov::pass::pattern::consumers_count(1));
 
-    auto read_value1_m = wrap_type<ov::op::util::ReadValueBase>();
-    auto convert1_m = optional<ov::op::v0::Convert>(read_value1_m, consumers_count(1));
-    auto matmul1_m = wrap_type<ov::op::v0::MatMul>({transpose1_m, convert1_m}, consumers_count(1));
+    auto read_value1_m = ov::pass::pattern::wrap_type<ov::op::util::ReadValueBase>();
+    auto convert1_m = ov::pass::pattern::optional<ov::op::v0::Convert>(read_value1_m, ov::pass::pattern::consumers_count(1));
+    auto matmul1_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({transpose1_m, convert1_m}, ov::pass::pattern::consumers_count(1));
 
-    auto read_value2_m = wrap_type<ov::op::util::ReadValueBase>();
-    auto convert2_m = optional<ov::op::v0::Convert>(read_value2_m, consumers_count(1));
-    auto multiply_m = wrap_type<ov::op::v1::Multiply>({matmul1_m, convert2_m}, consumers_count(1));
+    auto read_value2_m = ov::pass::pattern::wrap_type<ov::op::util::ReadValueBase>();
+    auto convert2_m = ov::pass::pattern::optional<ov::op::v0::Convert>(read_value2_m, ov::pass::pattern::consumers_count(1));
+    auto multiply_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({matmul1_m, convert2_m}, ov::pass::pattern::consumers_count(1));
 
-    auto read_value3_m = wrap_type<ov::op::util::ReadValueBase>();
-    auto convert3_m = optional<ov::op::v0::Convert>(read_value3_m, consumers_count(1));
-    auto matmul2_m = wrap_type<ov::op::v0::MatMul>({multiply_m, convert3_m}, consumers_count(1));
+    auto read_value3_m = ov::pass::pattern::wrap_type<ov::op::util::ReadValueBase>();
+    auto convert3_m = ov::pass::pattern::optional<ov::op::v0::Convert>(read_value3_m, ov::pass::pattern::consumers_count(1));
+    auto matmul2_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({multiply_m, convert3_m}, ov::pass::pattern::consumers_count(1));
 
-    auto transpose_const2_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto transpose2_m = optional<ov::op::v1::Transpose>({matmul2_m, transpose_const2_m}, consumers_count(1));
-    auto main_flow_m = wrap_type<ov::op::v0::MatMul, ov::op::v1::Convolution>({lora_input_m, any_input()});
-    auto add_m = wrap_type<ov::op::v1::Add>({transpose2_m, main_flow_m});
+    auto transpose_const2_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::consumers_count(1));
+    auto transpose2_m = ov::pass::pattern::optional<ov::op::v1::Transpose>({matmul2_m, transpose_const2_m}, ov::pass::pattern::consumers_count(1));
+    auto main_flow_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul, ov::op::v1::Convolution>({lora_input_m, ov::pass::pattern::any_input()});
+    auto add_m = ov::pass::pattern::wrap_type<ov::op::v1::Add>({transpose2_m, main_flow_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& lora_input = pattern_map.at(lora_input_m);
         const auto& matmul1 = pattern_map.at(matmul1_m);
@@ -114,6 +113,6 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(add_m, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(add_m, matcher_name);
     this->register_matcher(m, callback);
 }

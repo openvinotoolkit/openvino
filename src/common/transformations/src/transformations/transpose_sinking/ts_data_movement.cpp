@@ -19,7 +19,6 @@
 #include "transformations/transpose_sinking/ts_utils.hpp"
 
 using namespace ov;
-using namespace ov::pass::pattern;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
@@ -74,19 +73,19 @@ TSDataMovementBackward::TSDataMovementBackward() {
     MATCHER_SCOPE(TSDataMovementBackward);
 
     auto main_node_label =
-        wrap_type<op::util::PadBase, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>(
+        ov::pass::pattern::wrap_type<op::util::PadBase, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>(
             [](const Output<Node>& output) -> bool {
-                return has_static_rank()(output) && CheckTransposeConsumers(output);
+                return ov::pass::pattern::has_static_rank()(output) && CheckTransposeConsumers(output);
             });
 
-    auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
+    auto transpose_const_label = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
-    auto transpose_label = wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
+    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
                                                             [](const Output<Node>& output) -> bool {
-                                                                return has_static_rank()(output);
+                                                                return ov::pass::pattern::has_static_rank()(output);
                                                             });
 
-    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
             as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
@@ -120,6 +119,6 @@ TSDataMovementBackward::TSDataMovementBackward() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

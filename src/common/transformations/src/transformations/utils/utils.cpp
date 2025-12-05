@@ -147,18 +147,16 @@ bool has_f16_constants(const std::shared_ptr<const ov::Model>& function) {
 }
 
 bool is_large_language_model(const ov::Model& model, std::function<bool(std::shared_ptr<ov::Node>)> func) {
-    using namespace ov::pass::pattern;
-
-    const auto past = wrap_type<ov::op::v6::ReadValue>();
+const auto past = ov::pass::pattern::wrap_type<ov::op::v6::ReadValue>();
     const auto convert_past = ov::pass::pattern::optional<ov::op::v0::Convert>(past);
-    const auto beam_idx = wrap_type<ov::op::v0::Parameter>();
-    const auto gather_past = wrap_type<ov::op::v8::Gather>({convert_past, beam_idx, wrap_type<ov::op::v0::Constant>()});
+    const auto beam_idx = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>();
+    const auto gather_past = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({convert_past, beam_idx, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
     const auto gather_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(gather_past);
     const auto concat_past_input =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{convert_past, gather_convert});
-    const auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
+    const auto concat = ov::pass::pattern::wrap_type<ov::op::v0::Concat>({concat_past_input, ov::pass::pattern::any_input()});
     const auto convert_present = ov::pass::pattern::optional<ov::op::v0::Convert>(concat);
-    const auto present = wrap_type<ov::op::v6::Assign>({convert_present});
+    const auto present = ov::pass::pattern::wrap_type<ov::op::v6::Assign>({convert_present});
     const auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
 
     for (const auto& op : model.get_ops()) {
@@ -589,7 +587,7 @@ std::shared_ptr<ov::Node> NewGenSlice(const std::shared_ptr<ov::Node>& data,
     begin_mask[axis] = 0;
     end_mask[axis] = 0;
 
-    auto opt2 = pattern::wrap_type<ov::op::v1::StridedSlice>({data, begin, end, stride},
+    auto opt2 = ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>({data, begin, end, stride},
                                                              {{"begin_mask", begin_mask},
                                                               {"end_mask", end_mask},
                                                               {"new_axis_mask", new_axis_mask},
@@ -607,10 +605,8 @@ std::tuple<std::shared_ptr<ov::Node>,
            std::shared_ptr<ov::Node>>
 match_multi_query_bcst(const std::shared_ptr<ov::Node>& kv) {
     using namespace ov::pass;
-    using namespace ov::pass::pattern;
-
-    auto reshape_kv = wrap_type<ov::op::v1::Reshape>({kv, any_input()});
-    auto unsqueeze_kv = wrap_type<ov::op::v0::Unsqueeze>({kv, any_input()});
+auto reshape_kv = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({kv, ov::pass::pattern::any_input()});
+    auto unsqueeze_kv = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>({kv, ov::pass::pattern::any_input()});
 
     auto check_one = [](const Output<Node>& output) -> bool {
         auto node = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
@@ -622,15 +618,15 @@ match_multi_query_bcst(const std::shared_ptr<ov::Node>& kv) {
             return i == 1.0F;
         });
     };
-    auto constant_bcst = wrap_type<ov::op::v0::Constant>(check_one);
+    auto constant_bcst = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_one);
 
     auto computed_bcst =
-        wrap_type<ov::op::v1::Broadcast>({constant_bcst, any_input(), any_input()}, {{"mode", "numpy"}});
+        ov::pass::pattern::wrap_type<ov::op::v1::Broadcast>({constant_bcst, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()}, {{"mode", "numpy"}});
 
-    auto multiply_kv = wrap_type<ov::op::v1::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
-    auto computed_bcst3 = wrap_type<ov::op::v3::Broadcast>({unsqueeze_kv, any_input()}, {{"mode", "bidirectional"}});
+    auto multiply_kv = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
+    auto computed_bcst3 = ov::pass::pattern::wrap_type<ov::op::v3::Broadcast>({unsqueeze_kv, ov::pass::pattern::any_input()}, {{"mode", "bidirectional"}});
 
-    auto result = wrap_type<ov::op::v1::Reshape>({multiply_kv | computed_bcst3, any_input()});
+    auto result = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({multiply_kv | computed_bcst3, ov::pass::pattern::any_input()});
     return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv, computed_bcst3);
 }
 

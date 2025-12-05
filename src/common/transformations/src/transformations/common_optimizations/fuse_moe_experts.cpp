@@ -87,82 +87,82 @@ bool is_slice_to_end(const std::shared_ptr<Node>& node) {
 }
 
 // Pattern matching for individual expert computation block with SwiGLU activation
-std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
+std::shared_ptr<ov::pass::pattern::op::Block> mlp3_no_bias_swiglu_block(
     const Output<Node>& permute_Transpose,    // Transpose -> OneHot -> TopK -> Softmax -> MatMul -> Hidden States
     const Output<Node>& unsqueeze_Unsqueeze,  // Unsqueeze -> Reshape -> Hidden States
     const Output<Node>&
         index_Split_out_1,             // Split -> Unsqueeze -> Divide -> TopK -> Softmax -> MatMul -> Hidden States
     const Output<Node>& index_Reshape  // Reshape -> Divide -> TopK -> Softmax -> MatMul -> Hidden States
 ) {
-    auto index_add__ScatterElementsUpdate_2 = pattern::any_input();
+    auto index_add__ScatterElementsUpdate_2 = ov::pass::pattern::any_input();
     auto shape_const = wrap_type<ov::op::v0::Constant>();
     auto expert_id = wrap_type<ov::op::v0::Constant>();
     auto slice_end_const = wrap_type<ov::op::v0::Constant>();
     auto select_Gather_1 = wrap_type<ov::op::v8::Gather>(
-        {permute_Transpose, expert_id, wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))},
+        {permute_Transpose, expert_id, wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))},
         {{"batch_dims", 0}});
     auto squeeze_Squeeze_1 =
-        wrap_type<ov::op::v0::Squeeze>({select_Gather_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))});
+        wrap_type<ov::op::v0::Squeeze>({select_Gather_1, wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))});
     // NonZero output_type relaxed to accept both i32 and i64
     auto ListUnpack_NonZero_1 = wrap_type<ov::op::v3::NonZero>({squeeze_Squeeze_1});
     auto ListUnpack_Split_1 = wrap_type<ov::op::v1::Split>(
-        {ListUnpack_NonZero_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))},
+        {ListUnpack_NonZero_1, wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))},
         {{"num_splits", 2}});
     ListUnpack_Split_1->set_output_size(2);
     auto ListUnpack_Squeeze_0_1 = wrap_type<ov::op::v0::Squeeze>(
-        {ListUnpack_Split_1->output(1), wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))});
+        {ListUnpack_Split_1->output(1), wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))});
     // Convert is optional - pattern matches both with and without type conversion
     auto index_add__Convert_1 = wrap_type<ov::op::v0::Convert>({ListUnpack_Squeeze_0_1}) | ListUnpack_Squeeze_0_1;
     auto index_add__Reshape_1 = wrap_type<ov::op::v1::Reshape>(
-        {index_add__Convert_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("-1, 1"))},
+        {index_add__Convert_1, wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("-1, 1"))},
         {{"special_zero", false}});
     auto index_add__Slice_1 =
         wrap_type<ov::op::v8::Slice>({index_add__ScatterElementsUpdate_2,
-                                      wrap_type<ov::op::v0::Constant>(pattern::value_matches("0, 0")),
+                                      wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0, 0")),
                                       slice_end_const,
-                                      wrap_type<ov::op::v0::Constant>(pattern::value_matches("1, 1")),
-                                      wrap_type<ov::op::v0::Constant>(pattern::value_matches("0, 1"))});
+                                      wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("1, 1")),
+                                      wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0, 1"))});
     auto index_add__ShapeOf_14 = wrap_type<ov::op::v3::ShapeOf>({index_add__Slice_1}, {{"output_type", "i32"}});
     auto index_add__Broadcast_16 =
         wrap_type<ov::op::v3::Broadcast>({index_add__Reshape_1, index_add__ShapeOf_14}, {{"mode", "bidirectional"}});
     auto unsqueeze_Unsqueeze_reshape =
-        wrap_type<ov::op::v1::Reshape>({unsqueeze_Unsqueeze, pattern::any_input()}, {{"special_zero", false}});
+        wrap_type<ov::op::v1::Reshape>({unsqueeze_Unsqueeze, ov::pass::pattern::any_input()}, {{"special_zero", false}});
     auto index_Gather_2 = wrap_type<ov::op::v8::Gather>({unsqueeze_Unsqueeze_reshape,
                                                          index_add__Convert_1,
-                                                         wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))},
+                                                         wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))},
                                                         {{"batch_dims", 0}});
     auto reshape_Reshape_1_0 =
-        wrap_type<ov::op::v1::Reshape>({index_Gather_2, pattern::any_input()}, {{"special_zero", true}});
+        wrap_type<ov::op::v1::Reshape>({index_Gather_2, ov::pass::pattern::any_input()}, {{"special_zero", true}});
     auto reshape_Reshape_1_1 =
-        wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_0, pattern::any_input()}, {{"special_zero", true}});
+        wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_0, ov::pass::pattern::any_input()}, {{"special_zero", true}});
     auto reshape_Reshape_1_2 =
-        wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_1, pattern::any_input()}, {{"special_zero", true}});
+        wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_1, ov::pass::pattern::any_input()}, {{"special_zero", true}});
 
     auto reshape_Reshape_1 =
         wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_2, shape_const}, {{"special_zero", true}});
-    auto gate_proj_weight = pattern::any_input(pattern::rank_equals(2));
+    auto gate_proj_weight = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(2));
     auto linear_MatMul_gate = wrap_type<ov::op::v0::MatMul>({reshape_Reshape_1, gate_proj_weight},
                                                             {{"transpose_a", false}, {"transpose_b", true}});
     auto silu_Swish = wrap_type<ov::op::v4::Swish>({linear_MatMul_gate});
-    auto up_proj_weight = pattern::any_input(pattern::rank_equals(2));
+    auto up_proj_weight = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(2));
     auto linear_MatMul_up = wrap_type<ov::op::v0::MatMul>({reshape_Reshape_1, up_proj_weight},
                                                           {{"transpose_a", false}, {"transpose_b", true}});
     auto mul_Multiply = wrap_type<ov::op::v1::Multiply>({silu_Swish, linear_MatMul_up}, {{"auto_broadcast", "numpy"}});
-    auto down_proj_weight = pattern::any_input(pattern::rank_equals(2));
+    auto down_proj_weight = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(2));
     auto linear_MatMul_down = wrap_type<ov::op::v0::MatMul>({mul_Multiply, down_proj_weight},
                                                             {{"transpose_a", false}, {"transpose_b", true}});
     auto ListUnpack_Squeeze_1 = wrap_type<ov::op::v0::Squeeze>(
-        {ListUnpack_Split_1->output(0), wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))});
+        {ListUnpack_Split_1->output(0), wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))});
     // Convert is optional - pattern matches both with and without type conversion
     auto index_Convert_4 = wrap_type<ov::op::v0::Convert>({ListUnpack_Squeeze_1}) | ListUnpack_Squeeze_1;
     auto index_Multiply_1 =
         wrap_type<ov::op::v1::Multiply>({index_add__Convert_1, index_Split_out_1}, {{"auto_broadcast", "numpy"}});
     auto index_Add_1 = wrap_type<ov::op::v1::Add>({index_Convert_4, index_Multiply_1}, {{"auto_broadcast", "numpy"}});
     auto index_Gather_3 = wrap_type<ov::op::v8::Gather>(
-        {index_Reshape, index_Add_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))},
+        {index_Reshape, index_Add_1, wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))},
         {{"batch_dims", 0}});
     auto index_Reshape_8_1 = wrap_type<ov::op::v1::Reshape>(
-        {index_Gather_3, wrap_type<ov::op::v0::Constant>(pattern::value_matches("0, 1"))},
+        {index_Gather_3, wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0, 1"))},
         {{"special_zero", true}});
     auto mul_Multiply_2 =
         wrap_type<ov::op::v1::Multiply>({linear_MatMul_down, index_Reshape_8_1}, {{"auto_broadcast", "numpy"}});
@@ -172,9 +172,9 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
         wrap_type<ov::op::v12::ScatterElementsUpdate>({index_add__ScatterElementsUpdate_2,
                                                        index_add__Broadcast_16,
                                                        index_add__Broadcast_17,
-                                                       wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))},
+                                                       wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"))},
                                                       {{"reduction", "sum"}, {"use_init_val", true}});
-    auto block = std::make_shared<pattern::op::Block>(
+    auto block = std::make_shared<ov::pass::pattern::op::Block>(
         ov::OutputVector{permute_Transpose, unsqueeze_Unsqueeze, index_Split_out_1, index_Reshape},
         ov::OutputVector{index_add__ScatterElementsUpdate_5},
         "expert_block");
@@ -190,9 +190,9 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
 
 // Helper function to create commonly used axis constants
 struct AxisPatterns {
-    std::shared_ptr<Node> axis0 = wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
-    std::shared_ptr<Node> axis1 = wrap_type<ov::op::v0::Constant>(pattern::value_matches("1"));
-    std::shared_ptr<Node> axis2 = wrap_type<ov::op::v0::Constant>(pattern::value_matches("2"));
+    std::shared_ptr<Node> axis0 = wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"));
+    std::shared_ptr<Node> axis1 = wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("1"));
+    std::shared_ptr<Node> axis2 = wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("2"));
 };
 
 // Helper function to extract a dimension from a tensor shape
@@ -209,12 +209,12 @@ std::shared_ptr<Node> extract_shape_dim(const Output<Node>& input, size_t axis_i
 // Helper function to create router pattern (Softmax -> TopK -> OneHot -> Transpose)
 // This pattern identifies the expert selection logic from router logits
 std::pair<std::shared_ptr<Node>, std::shared_ptr<Node>> create_router_pattern() {
-    auto linear_MatMul = pattern::any_input();
+    auto linear_MatMul = ov::pass::pattern::any_input();
     auto expert_num = wrap_type<ov::op::v0::Constant>();
     auto num_topk = wrap_type<ov::op::v0::Constant>();
-    auto one_hot_on = wrap_type<ov::op::v0::Constant>(pattern::value_matches("1"));
-    auto one_hot_off = wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
-    auto transpose_perm = wrap_type<ov::op::v0::Constant>(pattern::value_matches("2, 1, 0"));
+    auto one_hot_on = wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("1"));
+    auto one_hot_off = wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("0"));
+    auto transpose_perm = wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("2, 1, 0"));
 
     auto softmax = wrap_type<ov::op::v8::Softmax>({linear_MatMul}, {{"axis", 1}});
     auto topk = wrap_type<ov::op::v11::TopK>(
@@ -249,7 +249,7 @@ std::shared_ptr<Node> create_expert_indexing_pattern(const std::shared_ptr<Node>
 std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> create_routing_weights_pattern(
     const std::shared_ptr<Node>& topk,
     const AxisPatterns& axes) {
-    auto reduce_neg1 = wrap_type<ov::op::v0::Constant>(pattern::value_matches("-1"));
+    auto reduce_neg1 = wrap_type<ov::op::v0::Constant>(ov::pass::pattern::value_matches("-1"));
     auto sum_reduce = wrap_type<ov::op::v1::ReduceSum>({topk->output(0), reduce_neg1}, {{"keep_dims", true}});
     auto normalized = wrap_type<ov::op::v1::Divide>({topk->output(0), sum_reduce},
                                                     {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
@@ -257,7 +257,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> create_routing_weights_
     auto shape_of = wrap_type<ov::op::v3::ShapeOf>({unsqueeze}, {{"output_type", "i32"}});
     auto split = wrap_type<ov::op::v1::Split>({shape_of, axes.axis0}, {{"num_splits", 3}});
     split->set_output_size(3);
-    auto reshape = wrap_type<ov::op::v1::Reshape>({unsqueeze, pattern::any_input()}, {{"special_zero", true}});
+    auto reshape = wrap_type<ov::op::v1::Reshape>({unsqueeze, ov::pass::pattern::any_input()}, {{"special_zero", true}});
 
     return {split, reshape};
 }
@@ -277,7 +277,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
     auto index_add__Convert = create_expert_indexing_pattern(permute_Transpose, axes);
 
     // Prepare additional patterns for expert computation
-    auto view_Reshape = pattern::any_input();
+    auto view_Reshape = ov::pass::pattern::any_input();
     auto slice_end = wrap_type<ov::op::v0::Constant>();  // Used in callback for slice validation
 
     // Pattern for hidden states preparation
@@ -293,9 +293,9 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
         mlp3_no_bias_swiglu_block(permute_Transpose, unsqueeze_Unsqueeze, index_Split->output(1), index_Reshape);
 
     // Match the final reshape and residual add after all expert computations
-    auto original_shape = pattern::any_input();
+    auto original_shape = ov::pass::pattern::any_input();
     auto last_reshape = wrap_type<ov::op::v1::Reshape>({expert_scatter, original_shape}, {{"special_zero", false}});
-    auto residual_input = pattern::any_input();
+    auto residual_input = ov::pass::pattern::any_input();
     auto last_add = wrap_type<ov::op::v1::Add>({residual_input, last_reshape}, {{"auto_broadcast", "numpy"}});
 
     auto callback = [=](const std::unordered_map<std::shared_ptr<Node>, std::vector<PatternValueMap>>& matches) {

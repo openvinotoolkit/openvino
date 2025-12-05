@@ -38,62 +38,60 @@ static std::function<bool(ov::Output<ov::Node>)> constant_value(const float targ
 }
 
 RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
-    using namespace ov::pass::pattern;
-
-    // Detect RMS decomposition pattern
+// Detect RMS decomposition pattern
     //  x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
-    auto x = any_input();
+    auto x = ov::pass::pattern::any_input();
 
     // x^2
-    auto const_power = wrap_type<ov::op::v0::Constant>(constant_value(2));
-    auto const_power_convert = pattern::optional<ov::op::v0::Convert>(const_power);
-    auto power = wrap_type<ov::op::v1::Power>({x, const_power_convert});
+    auto const_power = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(constant_value(2));
+    auto const_power_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(const_power);
+    auto power = ov::pass::pattern::wrap_type<ov::op::v1::Power>({x, const_power_convert});
 
     // ReduceMean(x^2,axes)
-    auto mean_axes = wrap_type<ov::op::v0::Constant>(constant_value(-1));
-    auto mean = wrap_type<ov::op::v1::ReduceMean>({power, mean_axes});
+    auto mean_axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(constant_value(-1));
+    auto mean = ov::pass::pattern::wrap_type<ov::op::v1::ReduceMean>({power, mean_axes});
 
     // ReduceMean(x^2,axes)+eps
-    auto eps = wrap_type<ov::op::v0::Constant>();
-    auto eps_convert = pattern::optional<ov::op::v0::Convert>(eps);
-    auto add_eps = wrap_type<ov::op::v1::Add>({mean, eps_convert});
+    auto eps = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto eps_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(eps);
+    auto add_eps = ov::pass::pattern::wrap_type<ov::op::v1::Add>({mean, eps_convert});
 
     // Sqrt(ReduceMean(x^2,axes)+eps)
-    auto sqrt = wrap_type<ov::op::v0::Sqrt>({add_eps});
+    auto sqrt = ov::pass::pattern::wrap_type<ov::op::v0::Sqrt>({add_eps});
 
     // 1/Sqrt(ReduceMean(x^2,axes)+eps)
-    auto const_pow = wrap_type<ov::op::v0::Constant>(constant_value(-1));
-    auto const_pow_convert = pattern::optional<ov::op::v0::Convert>(const_pow);
-    auto pow = wrap_type<ov::op::v1::Power>({sqrt, const_pow_convert});
+    auto const_pow = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(constant_value(-1));
+    auto const_pow_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(const_pow);
+    auto pow = ov::pass::pattern::wrap_type<ov::op::v1::Power>({sqrt, const_pow_convert});
 
-    auto const_div = wrap_type<ov::op::v0::Constant>(constant_value(1));
-    auto const_div_convert = pattern::optional<ov::op::v0::Convert>(const_div);
-    auto div = wrap_type<ov::op::v1::Divide>({const_div_convert, sqrt});
-    auto div_or_pow = std::make_shared<pattern::op::Or>(OutputVector{div, pow});
+    auto const_div = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(constant_value(1));
+    auto const_div_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(const_div);
+    auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({const_div_convert, sqrt});
+    auto div_or_pow = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{div, pow});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
-    auto mul1 = wrap_type<ov::op::v1::Multiply>({x, div_or_pow});
+    auto mul1 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({x, div_or_pow});
 
-    std::shared_ptr<pattern::op::Or> mul_or_div;
+    std::shared_ptr<ov::pass::pattern::op::Or> mul_or_div;
     // TODO: Check div_x pattern failed in CPU CI Pytorch layer test.
     if (enable_div_x) {
         // x / Sqrt(ReduceMean(x^2,axes)+eps)
-        auto div_x = wrap_type<ov::op::v1::Divide>({x, sqrt});
-        mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1, div_x});
+        auto div_x = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({x, sqrt});
+        mul_or_div = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul1, div_x});
     } else {
-        mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1});
+        mul_or_div = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul1});
     }
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
-    auto gamma = wrap_type<ov::op::v0::Constant>();
-    auto gamma_convert = pattern::optional<ov::op::v0::Convert>(gamma);
+    auto gamma = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto gamma_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(gamma);
 
-    auto mul2 = wrap_type<ov::op::v1::Multiply>({gamma_convert, mul_or_div});
+    auto mul2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({gamma_convert, mul_or_div});
 
     std::shared_ptr<ov::Node> comp = mul2;
     if (force_tail_convert) {
         // compress RMS result
-        comp = wrap_type<ov::op::v0::Convert>({mul2});
+        comp = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({mul2});
     }
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {

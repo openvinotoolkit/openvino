@@ -30,11 +30,11 @@ using namespace ov::pass;
 
 template <typename T>
 std::shared_ptr<Node> create_pattern() {
-    auto input = pattern::any_input();
-    auto first_axis = pattern::any_input();
-    auto reduce = pattern::wrap_type<T>({input, first_axis});
-    auto second_axis = pattern::any_input();
-    return pattern::wrap_type<T>({reduce, second_axis});
+    auto input = ov::pass::pattern::any_input();
+    auto first_axis = ov::pass::pattern::any_input();
+    auto reduce = ov::pass::pattern::wrap_type<T>({input, first_axis});
+    auto second_axis = ov::pass::pattern::any_input();
+    return ov::pass::pattern::wrap_type<T>({reduce, second_axis});
 }
 
 template <typename T>
@@ -115,7 +115,7 @@ pass::ReduceMerge::ReduceMerge() {
     auto reduce_prod_pattern = create_pattern<ov::op::v1::ReduceProd>();
     auto reduce_sum_pattern = create_pattern<ov::op::v1::ReduceSum>();
 
-    auto pattern = std::make_shared<pattern::op::Or>(OutputVector{reducel1_pattern,
+    auto pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reducel1_pattern,
                                                                   reducel2_pattern,
                                                                   reduce_log_and_pattern,
                                                                   reduce_log_or_pattern,
@@ -135,6 +135,6 @@ pass::ReduceMerge::ReduceMerge() {
             return false;
         }
     };
-    auto m = std::make_shared<pattern::Matcher>(pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern, matcher_name);
     register_matcher(m, callback);
 }

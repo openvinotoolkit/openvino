@@ -23,9 +23,9 @@
 ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
     MATCHER_SCOPE(ConvertAvgPool14ToAvgPool1);
 
-    const auto avg_pool_v14_pattern = pattern::wrap_type<ov::op::v14::AvgPool>();
+    const auto avg_pool_v14_pattern = ov::pass::pattern::wrap_type<ov::op::v14::AvgPool>();
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto avg_pool_v14 = ov::as_type_ptr<ov::op::v14::AvgPool>(m.get_match_root());
         if (!avg_pool_v14 || transformation_callback(avg_pool_v14)) {
             return false;
@@ -95,6 +95,6 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(avg_pool_v14_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(avg_pool_v14_pattern, matcher_name);
     register_matcher(m, callback);
 }

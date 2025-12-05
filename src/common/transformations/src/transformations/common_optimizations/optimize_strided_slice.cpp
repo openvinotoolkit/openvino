@@ -395,25 +395,22 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
 
 ov::pass::SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
     MATCHER_SCOPE(SliceSequenceToSingleSlice);
-    using namespace ov::op;
-    using namespace ov::op::util;
-    using namespace ov::pass::pattern;
-
-    auto const_axes_1_pattern = wrap_type<v0::Constant>();
-    auto const_axes_2_pattern = wrap_type<v0::Constant>();
+using namespace ov::op::util;
+auto const_axes_1_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_axes_2_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto slice_1_pattern =
-        wrap_type<v8::Slice>({any_input(), any_input(), any_input(), any_input(), const_axes_1_pattern},
-                             consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::v8::Slice>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), const_axes_1_pattern},
+                             ov::pass::pattern::consumers_count(1));
     auto slice_2_pattern =
-        wrap_type<v8::Slice>({slice_1_pattern, any_input(), any_input(), any_input(), const_axes_2_pattern});
+        ov::pass::pattern::wrap_type<ov::op::v8::Slice>({slice_1_pattern, ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), const_axes_2_pattern});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
         auto slice_1 = pattern_to_output.at(slice_1_pattern);
         auto slice_2 = pattern_to_output.at(slice_2_pattern);
 
-        auto const_axes_1 = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(const_axes_1_pattern));
-        auto const_axes_2 = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(const_axes_2_pattern));
+        auto const_axes_1 = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(const_axes_1_pattern));
+        auto const_axes_2 = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(const_axes_2_pattern));
 
         auto axes_1_values = const_axes_1->cast_vector<int64_t>();
         auto axes_2_values = const_axes_2->cast_vector<int64_t>();

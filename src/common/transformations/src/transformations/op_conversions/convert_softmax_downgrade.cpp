@@ -14,10 +14,10 @@
 ov::pass::ConvertSoftMax8ToSoftMax1::ConvertSoftMax8ToSoftMax1() {
     MATCHER_SCOPE(ConvertSoftMax8ToSoftMax1);
 
-    auto input = pattern::any_input(pattern::has_static_rank());
-    auto softmax_v8_pattern = pattern::wrap_type<ov::op::v8::Softmax>({input});
+    auto input = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    auto softmax_v8_pattern = ov::pass::pattern::wrap_type<ov::op::v8::Softmax>({input});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto softmax_v8_node = ov::as_type_ptr<ov::op::v8::Softmax>(m.get_match_root());
         if (!softmax_v8_node)
             return false;
@@ -34,6 +34,6 @@ ov::pass::ConvertSoftMax8ToSoftMax1::ConvertSoftMax8ToSoftMax1() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(softmax_v8_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(softmax_v8_pattern, matcher_name);
     register_matcher(m, callback);
 }

@@ -22,15 +22,15 @@
 ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
     MATCHER_SCOPE(ReduceReshapeFusion);
 
-    const auto reduce_axes = pattern::wrap_type<ov::op::v0::Constant>();
+    const auto reduce_axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto reduce =
-        pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims, ov::op::util::LogicalReductionKeepDims>(
-            {pattern::any_input(), reduce_axes},
-            pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims, ov::op::util::LogicalReductionKeepDims>(
+            {ov::pass::pattern::any_input(), reduce_axes},
+            ov::pass::pattern::consumers_count(1));
     const auto reshape =
-        pattern::wrap_type<ov::op::v1::Reshape>({reduce, pattern::any_input()}, pattern::has_static_shape());
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reduce, ov::pass::pattern::any_input()}, ov::pass::pattern::has_static_shape());
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
         const auto reduce_node =
@@ -72,6 +72,6 @@ ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(reshape, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape, matcher_name);
     register_matcher(m, callback);
 }

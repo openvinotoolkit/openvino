@@ -24,7 +24,7 @@
 ov::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
     MATCHER_SCOPE(HSigmoidFusionWithReluDiv);
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) / 6 with a HSigmoid op.
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({input, add_constant});
     auto relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({add});
@@ -74,7 +74,7 @@ ov::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
 ov::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
     MATCHER_SCOPE(HSigmoidFusionWithReluMul);
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) * const(1/6) with a HSigmoid op.
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({input, add_constant});
     auto relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({add});
@@ -121,7 +121,7 @@ ov::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
 ov::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
     MATCHER_SCOPE(HSigmoidFusionWithoutRelu);
     // Replaces a sub-graph (min(max(x + 3, 0), 6) / 6) with a HSigmoid op.
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({input, add_constant});
     auto max_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
@@ -173,7 +173,7 @@ ov::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
 ov::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
     MATCHER_SCOPE(HSigmoidFusionWithClampMul);
     // Replaces a sub-graph (Clamp(x + 3, 0, 6) * const(1/6)) with a HSigmoid op.
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({input, add_constant});
     auto clamp = ov::pass::pattern::wrap_type<ov::op::v0::Clamp>({add});
@@ -218,7 +218,7 @@ ov::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
 ov::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
     MATCHER_SCOPE(HSigmoidFusionWithClampDiv);
     // Replaces a sub-graph (Clamp(x + 3, 0, 6) / 6) with a HSigmoid op.
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({input, add_constant});
     auto clamp = ov::pass::pattern::wrap_type<ov::op::v0::Clamp>({add});

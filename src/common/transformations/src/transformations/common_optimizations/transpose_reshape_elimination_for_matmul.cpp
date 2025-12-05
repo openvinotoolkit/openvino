@@ -114,12 +114,12 @@ bool check_input_reshape(const std::shared_ptr<ov::op::v1::Reshape>& reshape,
 
 ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMatmul() {
     MATCHER_SCOPE(TransposeReshapeEliminationForMatmul);
-    auto input_1_pattern = pass::pattern::any_input([](const Output<Node>& node) -> bool {
+    auto input_1_pattern = ov::pass::pattern::any_input([](const Output<Node>& node) -> bool {
         const auto& shape = node.get_partial_shape();
         const auto& rank = shape.rank();
         return rank.is_static() && rank.get_length() == 2 && shape.is_static();
     });
-    auto input_2_pattern = pass::pattern::any_input([](const Output<Node>& node) -> bool {
+    auto input_2_pattern = ov::pass::pattern::any_input([](const Output<Node>& node) -> bool {
         return node.get_partial_shape().is_static();
     });
 
@@ -148,7 +148,7 @@ ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMa
     auto transpose_after_pattern =
         ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({reshape_after_pattern, const_transpose_after_pattern});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& input_1 = pattern_value_map.at(input_1_pattern);
         const auto& input_2 = pattern_value_map.at(input_2_pattern);

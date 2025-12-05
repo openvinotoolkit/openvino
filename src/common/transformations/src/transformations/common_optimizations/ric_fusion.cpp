@@ -227,10 +227,10 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::init::SplitConcat");
     SplitConcat(NodeVector& nodes_to_fuse) {
         MATCHER_SCOPE(SplitConcat);
-        auto split_p = pattern::wrap_type<ov::op::v1::Split>();
-        auto pattern_root = pattern::wrap_type<ov::op::v0::Concat>({split_p, split_p, split_p});
+        auto split_p = ov::pass::pattern::wrap_type<ov::op::v1::Split>();
+        auto pattern_root = ov::pass::pattern::wrap_type<ov::op::v0::Concat>({split_p, split_p, split_p});
 
-        auto callback = [=, &nodes_to_fuse](pattern::Matcher& m) {
+        auto callback = [=, &nodes_to_fuse](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(pattern_root).get_node_shared_ptr());
             auto split = ov::as_type_ptr<ov::op::v1::Split>(pattern_map.at(split_p).get_node_shared_ptr());
@@ -274,7 +274,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_root, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -284,12 +284,12 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::init::Gather");
     Gather(NodeVector& nodes_to_fuse) {
         MATCHER_SCOPE(Gather);
-        auto input_p = pattern::any_input(pattern::has_static_rank());
-        auto indices_p = pattern::any_input();
-        auto axis_p = pattern::wrap_type<ov::op::v0::Constant>();
-        auto pattern_root = pattern::wrap_type<ov::op::v8::Gather>({input_p, indices_p, axis_p});
+        auto input_p = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+        auto indices_p = ov::pass::pattern::any_input();
+        auto axis_p = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+        auto pattern_root = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({input_p, indices_p, axis_p});
 
-        auto callback = [=, &nodes_to_fuse](pattern::Matcher& m) {
+        auto callback = [=, &nodes_to_fuse](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& output = pattern_map.at(pattern_root);
 
@@ -333,7 +333,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_root, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -346,9 +346,9 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::prop::Binary");
     Binary() {
         MATCHER_SCOPE(Binary);
-        auto pattern_root = pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic, ov::op::v0::FakeQuantize>();
+        auto pattern_root = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic, ov::op::v0::FakeQuantize>();
 
-        auto callback = [=](pattern::Matcher& m) {
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& root = m.get_match_root();
             const auto& inputs = root->inputs();
 
@@ -422,7 +422,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_root, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -432,10 +432,10 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::prop::Convolution");
     Convolution() {
         MATCHER_SCOPE(Convolution);
-        auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto pattern_root = pattern::wrap_type<ov::op::v1::Convolution>(
-            {input_p, pattern::any_input(pattern::has_static_dim(1 /*output channel*/))});
-        auto callback = [=](pattern::Matcher& m) {
+        auto input_p = ov::pass::pattern::any_input(ric_attr::has<Output<Node>>);
+        auto pattern_root = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>(
+            {input_p, ov::pass::pattern::any_input(ov::pass::pattern::has_static_dim(1 /*output channel*/))});
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
             auto conv = m.get_match_root();
             auto ric = ric_attr::get(conv->input_value(0)).propagate();
             if (ric.get_axis() != 1)
@@ -445,7 +445,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_root, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -455,11 +455,11 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::prop::GroupConvolution");
     GroupConvolution() {
         MATCHER_SCOPE(GroupConvolution);
-        auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto pattern_root = pattern::wrap_type<ov::op::v1::GroupConvolution>(
-            {input_p, pattern::any_input(pattern::has_static_shape())});
+        auto input_p = ov::pass::pattern::any_input(ric_attr::has<Output<Node>>);
+        auto pattern_root = ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolution>(
+            {input_p, ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape())});
 
-        auto callback = [=](pattern::Matcher& m) {
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
             auto conv = m.get_match_root();
             const auto& weights_shape = conv->input_value(1).get_shape();
             const int64_t& group = static_cast<int64_t>(weights_shape.at(0));
@@ -502,7 +502,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_root, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -512,14 +512,14 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::prop::ShapeOf");
     ShapeOf() {
         MATCHER_SCOPE(ShapeOf);
-        auto pattern_root = pattern::wrap_type<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>();
+        auto pattern_root = ov::pass::pattern::wrap_type<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>();
 
-        auto callback = [=](pattern::Matcher& m) {
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
             // Skip propagation for ShapeOf path
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_root, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -529,12 +529,12 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::prop::PassThrough");
     PassThrough() {
         MATCHER_SCOPE(PassThrough);
-        auto pattern_root = pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic,
+        auto pattern_root = ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic,
                                                ov::op::v0::Convert,
                                                ov::op::util::PadBase,
                                                ov::op::v0::PRelu>();
 
-        auto callback = [=](pattern::Matcher& m) {
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
             auto root = m.get_match_root();
             if (!ric_attr::has(root->input_value(0)))
                 return false;
@@ -542,7 +542,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_root, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -552,11 +552,11 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::prop::Transpose");
     Transpose() {
         MATCHER_SCOPE(Transpose);
-        auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto order_p = pattern::wrap_type<ov::op::v0::Constant>();
-        auto pattern_root = pattern::wrap_type<ov::op::v1::Transpose>({input_p, order_p});
+        auto input_p = ov::pass::pattern::any_input(ric_attr::has<Output<Node>>);
+        auto order_p = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+        auto pattern_root = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({input_p, order_p});
 
-        auto callback = [=](pattern::Matcher& m) {
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             auto input = pattern_map.at(input_p);
             auto ric = ric_attr::get(input).propagate();
@@ -571,7 +571,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_root, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -581,8 +581,8 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::prop::Unsupported");
     Unsupported() {
         MATCHER_SCOPE(Unsupported);
-        auto pattern_root = pattern::any_input();
-        auto callback = [=](pattern::Matcher& m) {
+        auto pattern_root = ov::pass::pattern::any_input();
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
             for (const auto& input : m.get_match_root()->input_values()) {
                 if (ric_attr::has(input)) {
                     auto ric = ric_attr::get(input);
@@ -596,7 +596,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_root, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -617,8 +617,8 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::fuse::InsertReverseInputChannel");
     InsertReverseInputChannel(NodeVector& fused_nodes) {
         MATCHER_SCOPE(InsertReverseInputChannel);
-        auto pattern_root = pattern::any_input();
-        auto callback = [&fused_nodes](pattern::Matcher& m) {
+        auto pattern_root = ov::pass::pattern::any_input();
+        auto callback = [&fused_nodes](ov::pass::pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             for (const auto& input : node->inputs()) {
                 if (!ric_attr::has(input))
@@ -631,7 +631,7 @@ public:
             return false;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_root, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -641,11 +641,11 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::fuse::EraseSplitConcat");
     EraseSplitConcat() {
         MATCHER_SCOPE(EraseSplitConcat);
-        auto input_p = pattern::any_input();
-        auto split_p = pattern::wrap_type<ov::op::v1::Split>({input_p, pattern::any_input()});
-        auto pattern_root = pattern::wrap_type<ov::op::v0::Concat>({split_p, split_p, split_p}, need_to_erase_ric);
+        auto input_p = ov::pass::pattern::any_input();
+        auto split_p = ov::pass::pattern::wrap_type<ov::op::v1::Split>({input_p, ov::pass::pattern::any_input()});
+        auto pattern_root = ov::pass::pattern::wrap_type<ov::op::v0::Concat>({split_p, split_p, split_p}, need_to_erase_ric);
 
-        auto callback = [=](pattern::Matcher& m) {
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             auto output = pattern_map.at(pattern_root);
             auto input = pattern_map.at(input_p);
@@ -653,7 +653,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_root, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -663,11 +663,11 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::fuse::EraseGather");
     EraseGather() {
         MATCHER_SCOPE(EraseGather);
-        auto input_p = pattern::any_input();
+        auto input_p = ov::pass::pattern::any_input();
         auto pattern_root =
-            pattern::wrap_type<ov::op::v8::Gather>({input_p, pattern::any_input(), pattern::any_input()},
+            ov::pass::pattern::wrap_type<ov::op::v8::Gather>({input_p, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()},
                                                    need_to_erase_ric);
-        auto callback = [=](pattern::Matcher& m) {
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             auto output = pattern_map.at(pattern_root);
             auto input = pattern_map.at(input_p);
@@ -675,7 +675,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_root, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -688,20 +688,20 @@ public:
     Binary() {
         MATCHER_SCOPE(Binary);
         auto fake_quantize_pattern =
-            pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::any_input(pattern::has_static_rank()),
-                                                          pattern::any_input(pattern::has_static_rank()),
-                                                          pattern::any_input(pattern::has_static_rank()),
-                                                          pattern::any_input(pattern::has_static_rank()),
-                                                          pattern::any_input(pattern::has_static_rank())},
-                                                         pattern::has_static_rank());
-        auto binary_elementwise_pattern = pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
-            {pattern::any_input(pattern::has_static_rank()), pattern::any_input(pattern::has_static_rank())},
-            pattern::has_static_rank());
+            ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+                                                          ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+                                                          ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+                                                          ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+                                                          ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())},
+                                                         ov::pass::pattern::has_static_rank());
+        auto binary_elementwise_pattern = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
+            {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()), ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())},
+            ov::pass::pattern::has_static_rank());
 
         auto pattern_root =
-            std::make_shared<pattern::op::Or>(OutputVector{fake_quantize_pattern, binary_elementwise_pattern});
+            std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fake_quantize_pattern, binary_elementwise_pattern});
 
-        auto callback = [=](pattern::Matcher& m) {
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& root = m.get_match_root();
             const auto& output = root->output(0);
             auto inputs = output.get_target_inputs();
@@ -761,7 +761,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_root, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -771,8 +771,8 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::back_prop::ConvertPassThrough");
     ConvertPassThrough() {
         MATCHER_SCOPE(ConvertPassThrough);
-        auto pattern_root = pattern::wrap_type<ov::op::v0::Convert>(pattern::has_static_rank());
-        auto callback = [=](pattern::Matcher& m) {
+        auto pattern_root = ov::pass::pattern::wrap_type<ov::op::v0::Convert>(ov::pass::pattern::has_static_rank());
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
             auto root = m.get_match_root();
             const auto& output = root->output(0);
             auto consumers = output.get_target_inputs();
@@ -811,7 +811,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_root, matcher_name);
         register_matcher(m, callback);
     }
 };

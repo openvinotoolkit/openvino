@@ -33,8 +33,8 @@ namespace {
 
 /** \brief Check if output is rank one and data type can be i32 or i64. */
 const auto is_rank_one_int_shape = [](const Output<Node>& output) -> bool {
-    return pattern::type_matches_any({element::i32, element::i64})(output) && pattern::has_static_shape()(output) &&
-           pattern::rank_equals(1)(output);
+    return ov::pass::pattern::type_matches_any({element::i32, element::i64})(output) && ov::pass::pattern::has_static_shape()(output) &&
+           ov::pass::pattern::rank_equals(1)(output);
 };
 
 /** \brief Predicate to check eye k node is valid. */
@@ -118,17 +118,17 @@ std::shared_ptr<Node> make_eye_batches(NodeRegistry& reg, const Output<Node>& ey
 EyeDecomposition::EyeDecomposition() {
     MATCHER_SCOPE(EyeDecomposition);
 
-    auto p_height = pattern::any_input();
-    auto p_width = pattern::any_input();
-    auto p_k = pattern::wrap_type<ov::op::v0::Constant>(k_predicate);
-    auto p_batch = pattern::wrap_type<ov::op::v0::Constant>(batch_predicate);
+    auto p_height = ov::pass::pattern::any_input();
+    auto p_width = ov::pass::pattern::any_input();
+    auto p_k = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(k_predicate);
+    auto p_batch = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(batch_predicate);
 
-    auto p_eye_no_batch = pattern::wrap_type<ov::op::v9::Eye>({p_height, p_width, p_k});
-    auto p_eye_batch = pattern::wrap_type<ov::op::v9::Eye>({p_height, p_width, p_k, p_batch});
+    auto p_eye_no_batch = ov::pass::pattern::wrap_type<ov::op::v9::Eye>({p_height, p_width, p_k});
+    auto p_eye_batch = ov::pass::pattern::wrap_type<ov::op::v9::Eye>({p_height, p_width, p_k, p_batch});
 
-    auto p_eye = std::make_shared<pattern::op::Or>(OutputVector{p_eye_batch, p_eye_no_batch});
+    auto p_eye = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{p_eye_batch, p_eye_no_batch});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto m_eye = ov::as_type_ptr<ov::op::v9::Eye>(m.get_match_root());
 
         if ((!m_eye) || transformation_callback(m_eye)) {
@@ -155,7 +155,7 @@ EyeDecomposition::EyeDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(p_eye, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(p_eye, matcher_name);
     register_matcher(m, callback);
 }
 

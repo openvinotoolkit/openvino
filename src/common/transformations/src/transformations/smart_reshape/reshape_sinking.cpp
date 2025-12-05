@@ -28,25 +28,25 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
      *  Reshape output_pattern=(B=1, S, O)      Reshape output_pattern=(0, S, O)
      *     |    shape=[1, S, O]                      |    shape=[B, S, O]
      */
-    auto any_input = pattern::any_input(pattern::has_static_rank());
+    auto any_input = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto reshape_label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
-        {pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-        pattern::rank_equals(2));
+        {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        ov::pass::pattern::rank_equals(2));
 
     auto matmul_label = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>(
         {reshape_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-        pattern::rank_equals(2));
+        ov::pass::pattern::rank_equals(2));
     auto add_label = ov::pass::pattern::wrap_type<ov::op::v1::Add>(
         {matmul_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-        pattern::rank_equals(2));
+        ov::pass::pattern::rank_equals(2));
 
-    auto matmul_or_matmul_add_label = make_shared<pattern::op::Or>(OutputVector{add_label, matmul_label});
+    auto matmul_or_matmul_add_label = make_shared<ov::pass::pattern::op::Or>(OutputVector{add_label, matmul_label});
 
     auto reshape_1_label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
         {matmul_or_matmul_add_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-        pattern::has_static_rank());
+        ov::pass::pattern::has_static_rank());
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
         auto pattern_to_node = m.get_pattern_map();
 
         // check first Reshape eligibility: has a constant output pattern in a form of [-1, K]

@@ -110,7 +110,7 @@ static void remove_strides_property_from_nodes(std::vector<ov::Input<ov::Node>>&
 
 ov::pass::ConvStridesPropagation::ConvStridesPropagation() {
     MATCHER_SCOPE(ConvStridesPropagation);
-    auto data = pattern::any_input([](const Output<Node>& node) -> bool {
+    auto data = ov::pass::pattern::any_input([](const Output<Node>& node) -> bool {
         const auto& shape = node.get_partial_shape();
         const auto& rank = shape.rank();
         if (rank.is_dynamic())
@@ -119,10 +119,10 @@ ov::pass::ConvStridesPropagation::ConvStridesPropagation() {
             return dim.is_static();
         });
     });
-    auto weights = pattern::any_input(pattern::has_static_shape());
-    auto conv_pattern = pattern::wrap_type<ov::op::v1::Convolution>({data, weights});
+    auto weights = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
+    auto conv_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({data, weights});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(m.get_match_root());
         if (!conv)
             return false;
@@ -165,16 +165,16 @@ ov::pass::ConvStridesPropagation::ConvStridesPropagation() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ov::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation() {
     MATCHER_SCOPE(SupportedNodesStridesPropagation);
     auto root =
-        pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic, ov::op::util::BinaryElementwiseArithmetic>();
+        ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic, ov::op::util::BinaryElementwiseArithmetic>();
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
         auto next_ops = ov::op::util::get_node_target_inputs(node);
         bool all_ops_are_valid;
@@ -194,15 +194,15 @@ ov::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(root, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(root, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ov::pass::UnsupportedNodesStridesPropagation::UnsupportedNodesStridesPropagation() {
     MATCHER_SCOPE(UnsupportedNodesStridesPropagation);
-    auto root = pattern::any_input();
+    auto root = ov::pass::pattern::any_input();
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
         auto next_ops = ov::op::util::get_node_target_inputs(node);
         handle_not_equal_stride_props(next_ops);
@@ -211,7 +211,7 @@ ov::pass::UnsupportedNodesStridesPropagation::UnsupportedNodesStridesPropagation
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(root, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(root, matcher_name);
     this->register_matcher(m, callback);
 }
 

@@ -149,14 +149,14 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
 
 pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
     MATCHER_SCOPE(MatMulMultiplyFusion);
-    auto input_pattern = pattern::any_input();
-    auto weights_pattern = pattern::any_input(pattern::has_static_rank());
-    auto mul_const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
+    auto input_pattern = ov::pass::pattern::any_input();
+    auto weights_pattern = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    auto mul_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto matmul_pattern =
-        pattern::wrap_type<ov::op::v0::MatMul>({input_pattern, weights_pattern}, pattern::consumers_count(1));
-    auto mul_pattern = pattern::wrap_type<ov::op::v1::Multiply>({matmul_pattern, mul_const_pattern});
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({input_pattern, weights_pattern}, ov::pass::pattern::consumers_count(1));
+    auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({matmul_pattern, mul_const_pattern});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& weights = pattern_map.at(weights_pattern);
         auto mul = pattern_map.at(mul_pattern).get_node_shared_ptr();
@@ -188,6 +188,6 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(mul_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

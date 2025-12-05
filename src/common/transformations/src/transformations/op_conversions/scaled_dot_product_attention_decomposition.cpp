@@ -89,23 +89,22 @@ ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecom
 
 std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::decompose(
     std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node) {
-    using namespace ov::op;
-    auto query = node->input_value(0);
+auto query = node->input_value(0);
     auto key = node->input_value(1);
     auto value = node->input_value(2);
-    auto q_shape = register_new_node<v3::ShapeOf>(query, element::i32);
-    auto k_shape = register_new_node<v3::ShapeOf>(key, element::i32);
-    auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));
-    auto minus_two = register_new_node(v0::Constant::create(element::i32, Shape{}, {-2}));
-    auto zero_i = register_new_node(v0::Constant::create(element::i32, Shape{}, {0}));
-    auto one_i = register_new_node(v0::Constant::create(element::i32, Shape{}, {1}));
-    auto one_f = register_new_node<v1::ConvertLike>(one_i, query);
-    auto zero_f = register_new_node<v1::ConvertLike>(zero_i, query);
+    auto q_shape = register_new_node<ov::op::v3::ShapeOf>(query, element::i32);
+    auto k_shape = register_new_node<ov::op::v3::ShapeOf>(key, element::i32);
+    auto minus_one = register_new_node(ov::op::v0::Constant::create(element::i32, Shape{}, {-1}));
+    auto minus_two = register_new_node(ov::op::v0::Constant::create(element::i32, Shape{}, {-2}));
+    auto zero_i = register_new_node(ov::op::v0::Constant::create(element::i32, Shape{}, {0}));
+    auto one_i = register_new_node(ov::op::v0::Constant::create(element::i32, Shape{}, {1}));
+    auto one_f = register_new_node<ov::op::v1::ConvertLike>(one_i, query);
+    auto zero_f = register_new_node<ov::op::v1::ConvertLike>(zero_i, query);
 
-    auto build_extract_dim_subgraph = [this, &zero_i](const std::shared_ptr<v3::ShapeOf>& shape_of,
+    auto build_extract_dim_subgraph = [this, &zero_i](const std::shared_ptr<ov::op::v3::ShapeOf>& shape_of,
                                                       const int64_t idx) -> std::shared_ptr<ov::Node> {
-        const auto dim_to_extract_const = v0::Constant::create(element::i32, Shape{}, {idx});
-        const auto gather = std::make_shared<v8::Gather>(shape_of, dim_to_extract_const, zero_i);
+        const auto dim_to_extract_const = ov::op::v0::Constant::create(element::i32, Shape{}, {idx});
+        const auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, dim_to_extract_const, zero_i);
         // When dim_to_extract is static but the whole shape is dynamic,
         // ConstantFolding can't fold ShapeOf->Gather subgraph in this case.
         // So it's better to explicitly extract the needed dimension.
@@ -121,9 +120,9 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     bool has_sink = false;
     if (node->get_input_size() < 5) {
         scale = build_extract_dim_subgraph(q_shape, -1);
-        scale = register_new_node<v1::ConvertLike>(scale, query);
-        auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
-        scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
+        scale = register_new_node<ov::op::v1::ConvertLike>(scale, query);
+        auto sqrt_scale = register_new_node<ov::op::v0::Sqrt>(scale);
+        scale = register_new_node<ov::op::v1::Divide>(one_f, sqrt_scale);
     } else {
         scale = node->input_value(4);
         if (node->get_input_size() == 6) {
@@ -132,30 +131,30 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         }
     }
 
-    auto k_rank = register_new_node<v3::ShapeOf>(k_shape, element::i32)->output(0);
-    auto k_last_dim = register_new_node<v1::Add>(k_rank, minus_one);
-    auto k_next_dim = register_new_node<v1::Add>(k_rank, minus_two)->output(0);
-    k_rank = register_new_node<v0::Squeeze>(k_rank, zero_i);
+    auto k_rank = register_new_node<ov::op::v3::ShapeOf>(k_shape, element::i32)->output(0);
+    auto k_last_dim = register_new_node<ov::op::v1::Add>(k_rank, minus_one);
+    auto k_next_dim = register_new_node<ov::op::v1::Add>(k_rank, minus_two)->output(0);
+    k_rank = register_new_node<ov::op::v0::Squeeze>(k_rank, zero_i);
     auto minus_inf =
-        register_new_node(v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}))
+        register_new_node(ov::op::v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}))
             ->output(0);
-    auto keep_dim_last = register_new_node<v0::Squeeze>(k_next_dim, zero_i);
-    auto k_dims_before_transpose = register_new_node<v4::Range>(zero_i, keep_dim_last, one_i, element::i32);
+    auto keep_dim_last = register_new_node<ov::op::v0::Squeeze>(k_next_dim, zero_i);
+    auto k_dims_before_transpose = register_new_node<ov::op::v4::Range>(zero_i, keep_dim_last, one_i, element::i32);
 
     auto transpose_dims =
-        register_new_node<v0::Concat>(OutputVector{k_dims_before_transpose, k_last_dim, k_next_dim}, 0);
-    auto k_transposed = register_new_node<v1::Transpose>(key, transpose_dims);
+        register_new_node<ov::op::v0::Concat>(OutputVector{k_dims_before_transpose, k_last_dim, k_next_dim}, 0);
+    auto k_transposed = register_new_node<ov::op::v1::Transpose>(key, transpose_dims);
 
     ov::Output<Node> scaled_atten;
     if (can_move_scale_after_matmul(query, k_transposed, scale)) {
-        auto atten = register_new_node<v0::MatMul>(query, k_transposed)->output(0);
-        scaled_atten = register_new_node<v1::Multiply>(atten, scale)->output(0);
+        auto atten = register_new_node<ov::op::v0::MatMul>(query, k_transposed)->output(0);
+        scaled_atten = register_new_node<ov::op::v1::Multiply>(atten, scale)->output(0);
     } else {
-        auto q_scaled = register_new_node<v1::Multiply>(query, scale);
-        scaled_atten = register_new_node<v0::MatMul>(q_scaled, k_transposed)->output(0);
+        auto q_scaled = register_new_node<ov::op::v1::Multiply>(query, scale);
+        scaled_atten = register_new_node<ov::op::v0::MatMul>(q_scaled, k_transposed)->output(0);
     }
 
-    minus_inf = register_new_node<v1::ConvertLike>(minus_inf, scaled_atten);
+    minus_inf = register_new_node<ov::op::v1::ConvertLike>(minus_inf, scaled_atten);
 
     if (node->get_causal() || node->get_input_size() > 3) {
         Output<Node> mask;
@@ -167,50 +166,50 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
             // take part in attention. A float mask of the same type as query, key, value that is added to the attention
             // score.
             if (mask.get_element_type() == element::boolean) {
-                atten_mask = register_new_node<v1::Select>(mask, zero_f, minus_inf);
+                atten_mask = register_new_node<ov::op::v1::Select>(mask, zero_f, minus_inf);
             } else {
                 atten_mask = mask;
             }
         } else {
             auto target_s_len = build_extract_dim_subgraph(q_shape, -2);
             auto source_s_len = build_extract_dim_subgraph(k_shape, -2);
-            auto ssl = register_new_node<v0::Unsqueeze>(source_s_len, zero_i);
-            auto tsl = register_new_node<v0::Unsqueeze>(target_s_len, zero_i);
-            auto mask_shape = register_new_node<v0::Concat>(OutputVector{tsl, ssl}, 0);
-            mask = register_new_node<v1::Broadcast>(minus_inf, mask_shape);
-            auto horizontal_range = register_new_node<v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
-            horizontal_range = register_new_node<v0::Unsqueeze>(horizontal_range, zero_i);
-            auto stop = register_new_node<v1::Add>(target_s_len, one_i);
-            auto vertical_range = register_new_node<v4::Range>(one_i, stop, one_i, element::i32)->output(0);
-            vertical_range = register_new_node<v0::Unsqueeze>(vertical_range, one_i);
-            auto triu = register_new_node<v1::GreaterEqual>(horizontal_range, vertical_range);
-            atten_mask = register_new_node<v1::Select>(triu, mask, zero_f);
+            auto ssl = register_new_node<ov::op::v0::Unsqueeze>(source_s_len, zero_i);
+            auto tsl = register_new_node<ov::op::v0::Unsqueeze>(target_s_len, zero_i);
+            auto mask_shape = register_new_node<ov::op::v0::Concat>(OutputVector{tsl, ssl}, 0);
+            mask = register_new_node<ov::op::v1::Broadcast>(minus_inf, mask_shape);
+            auto horizontal_range = register_new_node<ov::op::v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
+            horizontal_range = register_new_node<ov::op::v0::Unsqueeze>(horizontal_range, zero_i);
+            auto stop = register_new_node<ov::op::v1::Add>(target_s_len, one_i);
+            auto vertical_range = register_new_node<ov::op::v4::Range>(one_i, stop, one_i, element::i32)->output(0);
+            vertical_range = register_new_node<ov::op::v0::Unsqueeze>(vertical_range, one_i);
+            auto triu = register_new_node<ov::op::v1::GreaterEqual>(horizontal_range, vertical_range);
+            atten_mask = register_new_node<ov::op::v1::Select>(triu, mask, zero_f);
         }
-        scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask);
+        scaled_atten = register_new_node<ov::op::v1::Add>(scaled_atten, atten_mask);
     }
 
     if (has_sink) {
-        auto minus_two = register_new_node(v0::Constant::create(element::i32, Shape{1}, {-2}));
-        auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-        auto zero_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {0}));
-        auto one_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+        auto minus_two = register_new_node(ov::op::v0::Constant::create(element::i32, Shape{1}, {-2}));
+        auto minus_one = register_new_node(ov::op::v0::Constant::create(element::i32, Shape{1}, {-1}));
+        auto zero_i = register_new_node(ov::op::v0::Constant::create(element::i32, Shape{1}, {0}));
+        auto one_i = register_new_node(ov::op::v0::Constant::create(element::i32, Shape{1}, {1}));
 
-        auto q_last_but_one_dim = register_new_node<v1::Subtract>(register_new_node<v0::ShapeOf>(q_shape),
-                                                                  v0::Constant::create(element::i64, Shape{}, {1}));
-        auto sink_target_shape_1 = register_new_node<v8::Slice>(q_shape, zero_i, q_last_but_one_dim, one_i);
-        auto sink_target_shape = register_new_node<v0::Concat>(OutputVector{sink_target_shape_1, one_i}, 0);
-        auto sink_broadcast = register_new_node<v1::Broadcast>(sink, sink_target_shape);
+        auto q_last_but_one_dim = register_new_node<ov::op::v1::Subtract>(register_new_node<ov::op::v0::ShapeOf>(q_shape),
+                                                                  ov::op::v0::Constant::create(element::i64, Shape{}, {1}));
+        auto sink_target_shape_1 = register_new_node<ov::op::v8::Slice>(q_shape, zero_i, q_last_but_one_dim, one_i);
+        auto sink_target_shape = register_new_node<ov::op::v0::Concat>(OutputVector{sink_target_shape_1, one_i}, 0);
+        auto sink_broadcast = register_new_node<ov::op::v1::Broadcast>(sink, sink_target_shape);
 
-        auto scaled_attn_sink = register_new_node<v0::Concat>(OutputVector{scaled_atten, sink_broadcast}, -1);
-        scaled_atten = register_new_node<v8::Softmax>(scaled_attn_sink, -1);
+        auto scaled_attn_sink = register_new_node<ov::op::v0::Concat>(OutputVector{scaled_atten, sink_broadcast}, -1);
+        scaled_atten = register_new_node<ov::op::v8::Softmax>(scaled_attn_sink, -1);
 
-        auto prev_seq_len = register_new_node<v8::Gather>(k_shape, minus_two, zero_i);
-        scaled_atten = register_new_node<v8::Slice>(scaled_atten, zero_i, prev_seq_len, one_i, minus_one);
+        auto prev_seq_len = register_new_node<ov::op::v8::Gather>(k_shape, minus_two, zero_i);
+        scaled_atten = register_new_node<ov::op::v8::Slice>(scaled_atten, zero_i, prev_seq_len, one_i, minus_one);
     } else {
-        scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
+        scaled_atten = register_new_node<ov::op::v8::Softmax>(scaled_atten, -1);
     }
 
-    auto result = register_new_node<v0::MatMul>(scaled_atten, value);
+    auto result = register_new_node<ov::op::v0::MatMul>(scaled_atten, value);
     result->set_friendly_name(node->get_friendly_name());
     copy_runtime_info(node, get_new_nodes());
     return result;

@@ -23,12 +23,12 @@ using namespace ov::op::util;
 ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
     MATCHER_SCOPE(SelectWithOneValueCondition);
 
-    auto condition = pattern::wrap_type<ov::op::v0::Constant>();
-    auto then_branch = pattern::any_input();
-    auto else_branch = pattern::any_input();
+    auto condition = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto then_branch = ov::pass::pattern::any_input();
+    auto else_branch = ov::pass::pattern::any_input();
     auto select_pattern = make_shared<ov::op::v1::Select>(condition, then_branch, else_branch);
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         NodeRegistry copy_from;
         NodeRegistry copy_to;
         auto& pattern_map = m.get_pattern_value_map();
@@ -94,6 +94,6 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(select_pattern, matcher_name);
+    auto m = make_shared<ov::pass::pattern::Matcher>(select_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

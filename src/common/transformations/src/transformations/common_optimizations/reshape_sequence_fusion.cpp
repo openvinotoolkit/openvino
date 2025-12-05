@@ -62,14 +62,14 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
 
 ov::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimination) {
     MATCHER_SCOPE(ReshapeSequenceFusion);
-    auto reshape_input = pattern::any_input();
-    auto reshape_a_pattern = pattern::wrap_type<ov::op::v0::Constant>();
+    auto reshape_input = ov::pass::pattern::any_input();
+    auto reshape_a_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto reshape_a =
-        pattern::wrap_type<ov::op::v1::Reshape>({reshape_input, reshape_a_pattern}, pattern::consumers_count(1));
-    auto reshape_b_pattern = pattern::any_input();
-    auto reshape_b = pattern::wrap_type<ov::op::v1::Reshape>({reshape_a, reshape_b_pattern});
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reshape_input, reshape_a_pattern}, ov::pass::pattern::consumers_count(1));
+    auto reshape_b_pattern = ov::pass::pattern::any_input();
+    auto reshape_b = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reshape_a, reshape_b_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto input = pattern_map.at(reshape_input);
         auto reshape = m.get_match_root();

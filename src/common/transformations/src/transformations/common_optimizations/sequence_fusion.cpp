@@ -300,8 +300,8 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
 ov::pass::SequenceFusion::SequenceFusion() {
     MATCHER_SCOPE(SequenceFusion);
 
-    auto cell = pattern::wrap_type<RNNCellBase>();
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    auto cell = ov::pass::pattern::wrap_type<RNNCellBase>();
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         NodeRegistry copy_from;
         NodeRegistry copy_to;
         auto cell = m.get_match_root();
@@ -361,6 +361,6 @@ ov::pass::SequenceFusion::SequenceFusion() {
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(cell, matcher_name);
+    auto m = make_shared<ov::pass::pattern::Matcher>(cell, matcher_name);
     this->register_matcher(m, callback);
 }

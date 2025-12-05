@@ -19,15 +19,15 @@
 ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     MATCHER_SCOPE(WeightsDequantizeToFakeQuantize);
 
-    const auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(pattern::type_matches(element::i8));
+    const auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches(element::i8));
     const auto convert = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights});
-    const auto sub_c_integer = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(pattern::type_matches(element::i8));
+    const auto sub_c_integer = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches(element::i8));
     const auto convert_sub_c_integer = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({sub_c_integer});
     const auto sub_integer = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert, convert_sub_c_integer});
     const auto sub_c = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto sub = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert, sub_c});
-    const auto sub_or_sub_integer = std::make_shared<pattern::op::Or>(OutputVector{sub_integer, sub});
-    const auto sub_or_convert = std::make_shared<pattern::op::Or>(OutputVector{convert, sub_or_sub_integer});
+    const auto sub_or_sub_integer = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sub_integer, sub});
+    const auto sub_or_convert = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{convert, sub_or_sub_integer});
 
     const auto mul_c = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({sub_or_convert, mul_c});

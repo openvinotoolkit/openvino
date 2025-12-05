@@ -21,8 +21,7 @@ namespace ov {
 namespace pass {
 
 GLUFusion::GLUFusion() {
-    using namespace ov::pass::pattern;
-    using ov::pass::pattern::op::Or;
+using ov::pass::pattern::op::Or;
 
     auto last_dim_static = [](const ov::Output<ov::Node>& output) {
         auto out_ps = output.get_node()->get_output_partial_shape(0);
@@ -31,21 +30,21 @@ GLUFusion::GLUFusion() {
 
     // Detect GLU decomposition pattern
     // GLU(Xw, Xv, beta) = (Xw * (1.0 + exp(-beta * Xw))) * Xv
-    auto data_m = any_input(last_dim_static);
+    auto data_m = ov::pass::pattern::any_input(last_dim_static);
 
     // VariadicSplit(X, axis, split_lengths) = Xw, Xv
-    auto axis_const_m = wrap_type<ov::op::v0::Constant>();
-    auto split_lengths_const_m = wrap_type<ov::op::v0::Constant>();
-    auto variadic_split_m = wrap_type<ov::op::v1::VariadicSplit>({data_m, axis_const_m, split_lengths_const_m});
+    auto axis_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto split_lengths_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto variadic_split_m = ov::pass::pattern::wrap_type<ov::op::v1::VariadicSplit>({data_m, axis_const_m, split_lengths_const_m});
     variadic_split_m->set_output_size(2);
 
     // Swish(Xw) = Xw * (1.0 + exp(-beta * Xw))
-    auto swish_m = wrap_type<ov::op::v4::Swish>({variadic_split_m->output(0)});
-    auto gelu_m = wrap_type<ov::op::v7::Gelu>({variadic_split_m->output(0)});
+    auto swish_m = ov::pass::pattern::wrap_type<ov::op::v4::Swish>({variadic_split_m->output(0)});
+    auto gelu_m = ov::pass::pattern::wrap_type<ov::op::v7::Gelu>({variadic_split_m->output(0)});
 
     // Mul(Xw, Xv) = Swish(Xw) * Xv
     auto glu_m = std::make_shared<Or>(OutputVector{swish_m, gelu_m});
-    auto mul_m = wrap_type<ov::op::v1::Multiply>({glu_m, variadic_split_m->output(1)});
+    auto mul_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({glu_m, variadic_split_m->output(1)});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

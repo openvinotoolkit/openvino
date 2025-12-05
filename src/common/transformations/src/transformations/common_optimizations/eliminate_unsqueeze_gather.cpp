@@ -20,26 +20,23 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-using namespace ov::op;
 using namespace ov::op::util;
-using namespace ov::pass::pattern;
-
 ov::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
     MATCHER_SCOPE(EliminateUnsqueezeGather);
     // Remove Unsqueeze + Gather pair, if Gather gathers data by `1` dimension that was previously added by Unsqueeze
-    const auto unsqueezeAxis = any_input();
-    const auto unsqueezeInput = any_input();
-    const auto unsqueeze = wrap_type<v0::Unsqueeze>({unsqueezeInput, unsqueezeAxis}, consumers_count(1));
-    const auto gatherIndices = v0::Constant::create(element::i64, Shape{}, {0});
-    const auto gatherAxis = any_input();
-    const auto gather = wrap_type<GatherBase>({unsqueeze, gatherIndices, gatherAxis});
+    const auto unsqueezeAxis = ov::pass::pattern::any_input();
+    const auto unsqueezeInput = ov::pass::pattern::any_input();
+    const auto unsqueeze = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>({unsqueezeInput, unsqueezeAxis}, ov::pass::pattern::consumers_count(1));
+    const auto gatherIndices = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
+    const auto gatherAxis = ov::pass::pattern::any_input();
+    const auto gather = ov::pass::pattern::wrap_type<GatherBase>({unsqueeze, gatherIndices, gatherAxis});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& patternValue = m.get_pattern_value_map();
         const auto& m_unsqueezeAxis = patternValue.at(unsqueezeAxis);
         const auto& m_gatherAxis = patternValue.at(gatherAxis);
-        const auto& unsqueezeAxisNode = as_type_ptr<v0::Constant>(m_unsqueezeAxis.get_node_shared_ptr());
-        const auto& gatherAxisNode = as_type_ptr<v0::Constant>(m_gatherAxis.get_node_shared_ptr());
+        const auto& unsqueezeAxisNode = as_type_ptr<ov::op::v0::Constant>(m_unsqueezeAxis.get_node_shared_ptr());
+        const auto& gatherAxisNode = as_type_ptr<ov::op::v0::Constant>(m_gatherAxis.get_node_shared_ptr());
 
         if (!unsqueezeAxisNode || !gatherAxisNode) {
             return false;
@@ -66,30 +63,30 @@ ov::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(gather, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(gather, matcher_name);
     register_matcher(m, callback);
 }
 
 inline bool scalar_with_one_consumer(const Output<Node>& out) {
-    return rank_equals(0)(out) && consumers_count(1)(out);
+    return ov::pass::pattern::rank_equals(0)(out) && ov::pass::pattern::consumers_count(1)(out);
 }
 
 ov::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
     MATCHER_SCOPE(EliminateGatherUnsqueeze);
 
-    const auto gather_label = wrap_type<GatherBase>(scalar_with_one_consumer);
-    const auto be_label = wrap_type<BinaryElementwiseArithmetic, BinaryElementwiseComparison, BinaryElementwiseLogical>(
-        {gather_label, any_input()},
+    const auto gather_label = ov::pass::pattern::wrap_type<GatherBase>(scalar_with_one_consumer);
+    const auto be_label = ov::pass::pattern::wrap_type<BinaryElementwiseArithmetic, BinaryElementwiseComparison, BinaryElementwiseLogical>(
+        {gather_label, ov::pass::pattern::any_input()},
         scalar_with_one_consumer);
-    const auto or_label = std::make_shared<pattern::op::Or>(OutputVector{gather_label, be_label});
-    const auto unsqueeze_label = wrap_type<v0::Unsqueeze, v1::Reshape>({or_label, any_input()}, rank_equals(1));
+    const auto or_label = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{gather_label, be_label});
+    const auto unsqueeze_label = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>({or_label, ov::pass::pattern::any_input()}, ov::pass::pattern::rank_equals(1));
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto pattern_nodes = m.get_pattern_map();
         auto& gather = pattern_nodes.at(gather_label);
         auto& unsqueeze = pattern_nodes.at(unsqueeze_label);
-        const auto& indices = ov::op::util::make_try_fold<v1::Reshape>(gather->input_value(1),
-                                                                       v0::Constant::create(element::i32, {1}, {1}),
+        const auto& indices = ov::op::util::make_try_fold<ov::op::v1::Reshape>(gather->input_value(1),
+                                                                       ov::op::v0::Constant::create(element::i32, {1}, {1}),
                                                                        false);
         register_new_node(indices);
         gather->input(1).replace_source_output(indices->output(0));
@@ -103,6 +100,6 @@ ov::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(unsqueeze_label, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(unsqueeze_label, matcher_name);
     register_matcher(m, callback);
 }

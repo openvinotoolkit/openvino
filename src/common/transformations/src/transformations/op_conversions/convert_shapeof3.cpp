@@ -16,9 +16,9 @@
 
 ov::pass::ConvertShapeOf3::ConvertShapeOf3() {
     MATCHER_SCOPE(ConvertShapeOf3);
-    auto shapeof = pattern::wrap_type<ov::op::v3::ShapeOf>();
+    auto shapeof = ov::pass::pattern::wrap_type<ov::op::v3::ShapeOf>();
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto shapeof = ov::as_type_ptr<ov::op::v3::ShapeOf>(m.get_match_root());
         if (!shapeof) {
             return false;

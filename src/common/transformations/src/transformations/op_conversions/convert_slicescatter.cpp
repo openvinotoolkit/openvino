@@ -23,9 +23,9 @@
 ov::pass::ConvertSliceScatter::ConvertSliceScatter() {
     MATCHER_SCOPE(ConvertSliceScatter);
 
-    const auto& slicescatter = pattern::wrap_type<ov::op::v15::SliceScatter>();
+    const auto& slicescatter = ov::pass::pattern::wrap_type<ov::op::v15::SliceScatter>();
 
-    const matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         const auto& slice_node = ov::as_type_ptr<ov::op::v15::SliceScatter>(m.get_match_root());
         if (!slice_node || transformation_callback(slice_node)) {
             return false;
@@ -73,6 +73,6 @@ ov::pass::ConvertSliceScatter::ConvertSliceScatter() {
         return true;
     };
 
-    const auto& m = std::make_shared<pattern::Matcher>(slicescatter, matcher_name);
+    const auto& m = std::make_shared<ov::pass::pattern::Matcher>(slicescatter, matcher_name);
     this->register_matcher(m, callback);
 }

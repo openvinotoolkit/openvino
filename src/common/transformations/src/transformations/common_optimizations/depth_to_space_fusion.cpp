@@ -121,17 +121,17 @@ bool check_depth_first(const ov::PartialShape& shape_input,
 
 ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
     MATCHER_SCOPE(DepthToSpaceFusion);
-    auto input0 = pass::pattern::any_input(pattern::rank_equals(4));
-    auto input1 = pass::pattern::any_input();
-    auto input2 = pass::pattern::any_input();
-    auto input3 = pass::pattern::any_input();
+    auto input0 = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(4));
+    auto input1 = ov::pass::pattern::any_input();
+    auto input2 = ov::pass::pattern::any_input();
+    auto input3 = ov::pass::pattern::any_input();
     auto reshape_before =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({input0, input1}, pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({input0, input1}, ov::pass::pattern::consumers_count(1));
     auto permute =
-        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({reshape_before, input2}, pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({reshape_before, input2}, ov::pass::pattern::consumers_count(1));
     auto reshape_after = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({permute, input3});
 
-    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto reshape_after = ov::as_type_ptr<ov::op::v1::Reshape>(m.get_match_root());
         if (!reshape_after) {
             return false;

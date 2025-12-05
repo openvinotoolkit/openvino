@@ -19,11 +19,11 @@
 ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(StridedSliceSqueeze);
-    auto ss_label = ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>(pattern::consumers_count(1));
+    auto ss_label = ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>(ov::pass::pattern::consumers_count(1));
     auto squeeze_label = ov::pass::pattern::wrap_type<ov::op::v0::Squeeze>(
         {ss_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) -> bool {
         const auto& squeeze = m.get_match_root();
         const auto& const_axes = ov::as_type_ptr<ov::op::v0::Constant>(squeeze->get_input_node_shared_ptr(1));
         auto slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(squeeze->get_input_node_shared_ptr(0));
@@ -116,12 +116,12 @@ ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(SqueezeStridedSlice);
     auto squeeze_label = ov::pass::pattern::wrap_type<ov::op::v0::Squeeze>(
-        {pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-        pattern::consumers_count(1));
+        {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        ov::pass::pattern::consumers_count(1));
     auto ss_label = ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>(
-        {squeeze_label, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+        {squeeze_label, ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) -> bool {
         auto slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(m.get_match_root());
         if (!slice)
             return false;

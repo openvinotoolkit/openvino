@@ -29,16 +29,14 @@
 
 using namespace ov;
 using namespace ov::op::util;
-using namespace ov::pass::pattern::op;
-
 constexpr auto SQRT2 = static_cast<float>(M_SQRT2);
 constexpr auto SQRT1_2 = static_cast<float>(M_SQRT1_2);
 constexpr auto SQRT_2_PI = 0.79788456080286535588f;  // std::sqrt(M_2_PI)
 
 namespace {
 
-Predicate check_value(float ref, float eps = std::numeric_limits<float>::epsilon()) {
-    return Predicate(
+ov::pass::pattern::op::Predicate check_value(float ref, float eps = std::numeric_limits<float>::epsilon()) {
+    return ov::pass::pattern::op::Predicate(
         [=](const Output<Node>& output) -> bool {
             return ov::op::util::has_constant_value<float>(output.get_node_shared_ptr(), ref, eps);
         },
@@ -66,14 +64,14 @@ ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     MATCHER_SCOPE(GeluFusionWithErfOne);
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT2, 0.001f));
     auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
 
     // In case of ConvertDivideWithConstant is applied and Div is converted to Mul
     auto mul_as_div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT1_2, 0.001f));
     auto mul_as_div = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_as_div_constant});
-    auto erf_input = std::make_shared<Or>(ov::OutputVector{div, mul_as_div});
+    auto erf_input = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{div, mul_as_div});
 
     auto erf = ov::pass::pattern::wrap_type<ov::op::v0::Erf>({erf_input});
 
@@ -97,14 +95,14 @@ ov::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
     MATCHER_SCOPE(GeluFusionWithErfTwo);
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT2, 0.001f));
     auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
 
     // In case of ConvertDivideWithConstant is applied and Div is converted to Mul
     auto mul_as_div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT1_2, 0.001f));
     auto mul_as_div = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_as_div_constant});
-    auto erf_input = std::make_shared<Or>(ov::OutputVector{div, mul_as_div});
+    auto erf_input = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{div, mul_as_div});
 
     auto erf = ov::pass::pattern::wrap_type<ov::op::v0::Erf>({erf_input});
     auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(1.0f));
@@ -127,14 +125,14 @@ ov::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
     MATCHER_SCOPE(GeluFusionWithErfThree);
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT2, 0.001f));
     auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
 
     // In case of ConvertDivideWithConstant is applied and Div is converted to Mul
     auto mul_as_div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT1_2, 0.001f));
     auto mul_as_div = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_as_div_constant});
-    auto erf_input = std::make_shared<Or>(ov::OutputVector{div, mul_as_div});
+    auto erf_input = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{div, mul_as_div});
 
     auto erf = ov::pass::pattern::wrap_type<ov::op::v0::Erf>({erf_input});
     auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(1.0f));
@@ -156,25 +154,23 @@ ov::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
 ov::pass::GeluFusionWithErfFour::GeluFusionWithErfFour() {
     MATCHER_SCOPE(GeluFusionWithErfFour);
     using namespace ov;
-    using namespace ov::pass::pattern;
-
-    auto input = any_input();
-    auto mul1_constant = wrap_type<ov::op::v0::Constant>(check_value(SQRT1_2, 0.001f));
-    auto mul1 = wrap_type<ov::op::v1::Multiply>({input, mul1_constant});
-    auto erf = wrap_type<ov::op::v0::Erf>({mul1});
-    auto mul2_constant = wrap_type<ov::op::v0::Constant>(check_value(0.5f));
-    auto mul2 = wrap_type<ov::op::v1::Multiply>({erf, mul2_constant});
-    auto add_constant = wrap_type<ov::op::v0::Constant>(check_value(0.5f));
-    auto add = wrap_type<ov::op::v1::Add>({add_constant, mul2});
+auto input = ov::pass::pattern::any_input();
+    auto mul1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT1_2, 0.001f));
+    auto mul1 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul1_constant});
+    auto erf = ov::pass::pattern::wrap_type<ov::op::v0::Erf>({mul1});
+    auto mul2_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(0.5f));
+    auto mul2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({erf, mul2_constant});
+    auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(0.5f));
+    auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({add_constant, mul2});
 
     // x * (0.5 + 0.5 * erf(x * (1 / sqrt(2))))
-    auto mul3 = wrap_type<ov::op::v1::Multiply>({input, add});
+    auto mul3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, add});
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         return gelu_replacer(m, input);
     };
 
-    auto m = std::make_shared<Matcher>(mul3, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul3, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -183,7 +179,7 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
     // Replaces a sub-graph with a Gelu (ov::op::v0::Tanh) op
     // Gaussian Error Linear Unit, TanH based approximation:
     // x * (0.5 * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715^3]))
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto pow_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(3.0f));
     auto pow = ov::pass::pattern::wrap_type<ov::op::v1::Power>({input, pow_constant});
 
@@ -224,30 +220,30 @@ ov::pass::GeluFusionWithTanhNoPower::GeluFusionWithTanhNoPower() {
     // Replaces a sub-graph with a Gelu (ov::op::v0::Tanh) op
     // x * 0.5 * (1 + tanh((x * 0.044715 * x + 1) * x * sqrt(2 / pi)))
     MATCHER_SCOPE(GeluFusionWithTanhNoPower);
-    auto input = pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
 
-    auto const1 = pattern::wrap_type<ov::op::v0::Constant>(check_value(0.044715f, 0.001f));
-    auto mul1 = pattern::wrap_type<ov::op::v1::Multiply>({input, const1});
+    auto const1 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(0.044715f, 0.001f));
+    auto mul1 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, const1});
 
-    auto mul2 = pattern::wrap_type<ov::op::v1::Multiply>({mul1, input});
+    auto mul2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({mul1, input});
 
-    auto const2 = pattern::wrap_type<ov::op::v0::Constant>(check_value(1.0f));
-    auto add1 = pattern::wrap_type<ov::op::v1::Add>({const2, mul2});
+    auto const2 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(1.0f));
+    auto add1 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({const2, mul2});
 
-    auto const3 = pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT_2_PI, 0.01f));
-    auto mul3 = pattern::wrap_type<ov::op::v1::Multiply>({input, const3});
+    auto const3 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT_2_PI, 0.01f));
+    auto mul3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, const3});
 
-    auto mul4 = pattern::wrap_type<ov::op::v1::Multiply>({add1, mul3});
+    auto mul4 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add1, mul3});
 
-    auto tanh = pattern::wrap_type<ov::op::v0::Tanh>({mul4});
+    auto tanh = ov::pass::pattern::wrap_type<ov::op::v0::Tanh>({mul4});
 
-    auto const4 = pattern::wrap_type<ov::op::v0::Constant>(check_value(1.0f));
-    auto add2 = pattern::wrap_type<ov::op::v1::Add>({tanh, const4});
+    auto const4 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(1.0f));
+    auto add2 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({tanh, const4});
 
-    auto const5 = pattern::wrap_type<ov::op::v0::Constant>(check_value(0.5f));
-    auto mul5 = pattern::wrap_type<ov::op::v1::Multiply>({input, const5});
+    auto const5 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(0.5f));
+    auto mul5 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, const5});
 
-    auto mul6 = pattern::wrap_type<ov::op::v1::Multiply>({add2, mul5});
+    auto mul6 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add2, mul5});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         return gelu_replacer(m, input, ov::op::GeluApproximationMode::TANH);
@@ -261,7 +257,7 @@ ov::pass::GeluFusionWithTanhNoPower2::GeluFusionWithTanhNoPower2() {
     MATCHER_SCOPE(GeluFusionWithTanhNoPower2);
     // Replaces a sub-graph with a Gelu (ov::op::v0::Tanh) op
     // x * (0.5 * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715 * x * x * x])))
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
 
     auto mul_0 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, input});
     auto mul_1 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_0});

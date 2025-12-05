@@ -15,13 +15,13 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
-    auto eltwise_pattern = pattern::wrap_type<ov::op::v0::SquaredDifference,
+    auto eltwise_pattern = ov::pass::pattern::wrap_type<ov::op::v0::SquaredDifference,
                                               ov::op::util::BinaryElementwiseComparison,
                                               ov::op::util::BinaryElementwiseLogical,
                                               ov::op::util::BinaryElementwiseArithmetic,
-                                              ov::op::v0::FakeQuantize>(pattern::has_static_rank());
+                                              ov::op::v0::FakeQuantize>(ov::pass::pattern::has_static_rank());
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
 
         auto fq = as_type<ov::op::v0::FakeQuantize>(node.get());
@@ -65,6 +65,6 @@ ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
         return false;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(eltwise_pattern, "AlignEltwiseInputRanks");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(eltwise_pattern, "AlignEltwiseInputRanks");
     this->register_matcher(m, callback);
 }

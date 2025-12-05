@@ -17,9 +17,9 @@ using namespace ov::op::util;
 pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetectionOutput8() {
     MATCHER_SCOPE(ConvertDetectionOutput1ToDetectionOutput8);
 
-    auto detection_output_v1_pattern = pattern::wrap_type<ov::op::v0::DetectionOutput>();
+    auto detection_output_v1_pattern = ov::pass::pattern::wrap_type<ov::op::v0::DetectionOutput>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto detection_output_v1_node = ov::as_type_ptr<ov::op::v0::DetectionOutput>(m.get_match_root());
         if (!detection_output_v1_node)
             return false;
@@ -67,6 +67,6 @@ pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetect
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(detection_output_v1_pattern, matcher_name);
+    auto m = make_shared<ov::pass::pattern::Matcher>(detection_output_v1_pattern, matcher_name);
     register_matcher(m, callback);
 }

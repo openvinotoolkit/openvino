@@ -25,7 +25,7 @@
 
 ov::pass::PReluFusionNegativeAdd::PReluFusionNegativeAdd() {
     MATCHER_SCOPE(PReluFusionNegativeAdd);
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto relu_pos = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({input});
     auto neg1 = ov::pass::pattern::wrap_type<ov::op::v0::Negative>({input});
     auto relu_neg = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({neg1});
@@ -57,7 +57,7 @@ ov::pass::PReluFusionNegativeAdd::PReluFusionNegativeAdd() {
 
 ov::pass::PReluFusionNegativeSub::PReluFusionNegativeSub() {
     MATCHER_SCOPE(PReluFusionNegativeSub);
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto relu_pos = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({input});
     auto neg1 = ov::pass::pattern::wrap_type<ov::op::v0::Negative>({input});
     auto relu_neg = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({neg1});
@@ -101,7 +101,7 @@ static std::function<bool(ov::Output<ov::Node>)> constant_value(const float targ
 
 ov::pass::PReluFusionMultiplyAdd::PReluFusionMultiplyAdd() {
     MATCHER_SCOPE(PReluFusionMultiplyAdd);
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto relu_pos = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({input});
     auto mul_neg_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(constant_value(-1.0));
     auto mul_neg = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_neg_constant});
@@ -134,7 +134,7 @@ ov::pass::PReluFusionMultiplyAdd::PReluFusionMultiplyAdd() {
 
 ov::pass::PReluFusionMultiplySub::PReluFusionMultiplySub() {
     MATCHER_SCOPE(PReluFusionMultiplySub);
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto relu_pos = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({input});
     auto mul_neg_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(constant_value(-1.0));
     auto mul_neg = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_neg_constant});
@@ -176,17 +176,17 @@ ov::pass::PReluFusionAbsSubMulMulAdd::PReluFusionAbsSubMulMulAdd() {
         return constant && ov::op::util::get_single_value(constant, v) && v == 0.5f;
     };
 
-    const auto input = pass::pattern::any_input();
-    const auto relu = pattern::wrap_type<ov::op::v0::Relu>({input});
-    const auto abs = pattern::wrap_type<ov::op::v0::Abs>({input});
-    const auto sub = pattern::wrap_type<ov::op::v1::Subtract>({input, abs});
-    const auto mul_1_constant = pattern::wrap_type<ov::op::v0::Constant>();
-    const auto mul_1 = pattern::wrap_type<ov::op::v1::Multiply>({sub, mul_1_constant});
-    const auto mul_2_constant = pattern::wrap_type<ov::op::v0::Constant>(equals_half);
-    const auto mul_2 = pattern::wrap_type<ov::op::v1::Multiply>({mul_1, mul_2_constant});
-    const auto add = pattern::wrap_type<ov::op::v1::Add>({mul_2, relu});
+    const auto input = ov::pass::pattern::any_input();
+    const auto relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({input});
+    const auto abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({input});
+    const auto sub = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({input, abs});
+    const auto mul_1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto mul_1 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({sub, mul_1_constant});
+    const auto mul_2_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(equals_half);
+    const auto mul_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({mul_1, mul_2_constant});
+    const auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({mul_2, relu});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         const auto input_output = pattern_to_output.at(input);
         const auto add_node = pattern_to_output.at(add).get_node_shared_ptr();
@@ -204,7 +204,7 @@ ov::pass::PReluFusionAbsSubMulMulAdd::PReluFusionAbsSubMulMulAdd() {
         replace_node(add_node, prelu);
         return true;
     };
-    auto m = make_shared<pattern::Matcher>(add, matcher_name);
+    auto m = make_shared<ov::pass::pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -214,15 +214,15 @@ ov::pass::PReluFusionNegReluMulAdd::PReluFusionNegReluMulAdd() {
     using namespace std;
     using namespace ov;
 
-    const auto input = pass::pattern::any_input();
-    const auto relu_pos = pattern::wrap_type<ov::op::v0::Relu>({input});
-    const auto neg1 = pattern::wrap_type<ov::op::v0::Negative>({input});
-    const auto relu_neg = pattern::wrap_type<ov::op::v0::Relu>({neg1});
-    const auto mul_constant = pattern::wrap_type<ov::op::v0::Constant>();
-    const auto mul = pattern::wrap_type<ov::op::v1::Multiply>({relu_neg, mul_constant});
-    const auto add = pattern::wrap_type<ov::op::v1::Add>({relu_pos, mul});
+    const auto input = ov::pass::pattern::any_input();
+    const auto relu_pos = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({input});
+    const auto neg1 = ov::pass::pattern::wrap_type<ov::op::v0::Negative>({input});
+    const auto relu_neg = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({neg1});
+    const auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({relu_neg, mul_constant});
+    const auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({relu_pos, mul});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         const auto input_output = pattern_to_output.at(input);
         const auto add_node = pattern_to_output.at(add).get_node_shared_ptr();
@@ -238,6 +238,6 @@ ov::pass::PReluFusionNegReluMulAdd::PReluFusionNegReluMulAdd() {
         replace_node(add_node, prelu);
         return true;
     };
-    auto matcher = make_shared<pattern::Matcher>(add, matcher_name);
+    auto matcher = make_shared<ov::pass::pattern::Matcher>(add, matcher_name);
     register_matcher(matcher, callback);
 }

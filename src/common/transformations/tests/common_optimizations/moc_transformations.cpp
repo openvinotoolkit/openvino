@@ -121,17 +121,16 @@ TEST(TransformationTests, TestModelTensorsConsistencyUseShapesFalse) {
 
 TEST_F(TransformationTestsF, SqueezeRemainsSqueezeAfterMOC) {
     {
-        using namespace ov::op;
-        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{30});
-        auto shape = v0::Constant::create(element::i64, Shape{5}, {2, 3, 1, 5, 1});
-        auto reshape = std::make_shared<v1::Reshape>(input, shape, false);
-        auto unsqueeze_axes = v0::Constant::create(element::i64, Shape{1}, {0});
-        auto unsqueeze = std::make_shared<v0::Unsqueeze>(reshape, unsqueeze_axes);
+auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{30});
+        auto shape = ov::op::v0::Constant::create(element::i64, Shape{5}, {2, 3, 1, 5, 1});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input, shape, false);
+        auto unsqueeze_axes = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(reshape, unsqueeze_axes);
 
-        auto squeeze_axes = v0::Constant::create(element::i64, Shape{2}, {3, 5});
-        auto squeeze = std::make_shared<v0::Squeeze>(unsqueeze, squeeze_axes);
+        auto squeeze_axes = ov::op::v0::Constant::create(element::i64, Shape{2}, {3, 5});
+        auto squeeze = std::make_shared<ov::op::v0::Squeeze>(unsqueeze, squeeze_axes);
 
-        auto res = std::make_shared<v0::Result>(squeeze);
+        auto res = std::make_shared<ov::op::v0::Result>(squeeze);
         model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{input});
         manager.register_pass<ov::pass::MOCTransformations>(false);
     }
@@ -141,15 +140,14 @@ TEST_F(TransformationTestsF, MOCTest) {
     std::shared_ptr<ov::Node> weights;
     std::shared_ptr<ov::Node> weights_ref;
     {
-        using namespace ov::op;
-        auto data = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
-        auto data1 = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
-        auto a_mul = std::make_shared<v1::Multiply>(data, data1);
-        weights = std::make_shared<v0::Constant>(element::f32, ov::Shape{3, 5});
-        auto scale = std::make_shared<v0::Constant>(element::f32, ov::Shape{}, 0.194145);
-        auto matmul = std::make_shared<v0::MatMul>(a_mul, weights, false, true);
-        auto mul = std::make_shared<v1::Multiply>(matmul, scale);
-        auto res = std::make_shared<v0::Result>(mul);
+auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
+        auto data1 = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
+        auto a_mul = std::make_shared<ov::op::v1::Multiply>(data, data1);
+        weights = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{3, 5});
+        auto scale = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{}, 0.194145);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(a_mul, weights, false, true);
+        auto mul = std::make_shared<ov::op::v1::Multiply>(matmul, scale);
+        auto res = std::make_shared<ov::op::v0::Result>(mul);
 
         weights->set_friendly_name("self.model.layers.50.mlp.down_proj.weight");
 
@@ -157,15 +155,14 @@ TEST_F(TransformationTestsF, MOCTest) {
         manager.register_pass<ov::pass::MOCTransformations>(false);
     }
     {
-        using namespace ov::op;
-        auto data = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
-        auto data1 = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
-        auto a_mul = std::make_shared<v1::Multiply>(data, data1);
-        weights_ref = std::make_shared<v0::Constant>(element::f32, ov::Shape{3, 5});
-        auto scale = std::make_shared<v0::Constant>(element::f32, ov::Shape{1, 1, 1}, 0.194145);
-        auto matmul = std::make_shared<v0::MatMul>(a_mul, weights_ref, false, true);
-        auto mul = std::make_shared<v1::Multiply>(matmul, scale);
-        auto res = std::make_shared<v0::Result>(mul);
+auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
+        auto data1 = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
+        auto a_mul = std::make_shared<ov::op::v1::Multiply>(data, data1);
+        weights_ref = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{3, 5});
+        auto scale = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1, 1, 1}, 0.194145);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(a_mul, weights_ref, false, true);
+        auto mul = std::make_shared<ov::op::v1::Multiply>(matmul, scale);
+        auto res = std::make_shared<ov::op::v0::Result>(mul);
 
         weights_ref->set_friendly_name("self.model.layers.50.mlp.down_proj.weight");
 

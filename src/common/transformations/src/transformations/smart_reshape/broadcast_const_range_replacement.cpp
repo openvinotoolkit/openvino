@@ -22,11 +22,11 @@
 
 ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
     MATCHER_SCOPE(BroadcastConstRangeReplacement);
-    auto data_input = pattern::wrap_type<ov::op::v0::Constant>();
-    auto target_shape = pattern::any_input();
-    auto broadcast_pattern_node = pattern::wrap_type<ov::op::v3::Broadcast>({data_input, target_shape});
+    auto data_input = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto target_shape = ov::pass::pattern::any_input();
+    auto broadcast_pattern_node = ov::pass::pattern::wrap_type<ov::op::v3::Broadcast>({data_input, target_shape});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto broadcast = m.get_match_root();
         // The transformation was requested only for models with BroadcastType::BIDIRECTIONAL
         // Further analysis is needed for other broadcast modes enablement

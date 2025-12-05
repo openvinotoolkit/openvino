@@ -20,19 +20,19 @@
 
 ov::pass::SubtractFusion::SubtractFusion() {
     MATCHER_SCOPE(SubtractFusion);
-    auto p_input = pattern::any_input();
+    auto p_input = ov::pass::pattern::any_input();
 
-    auto p_mul_const = pattern::wrap_type<ov::op::v0::Constant>();
-    auto p_mul = pattern::wrap_type<ov::op::v1::Multiply>({p_input, p_mul_const});
+    auto p_mul_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto p_mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({p_input, p_mul_const});
 
-    auto p_neg = pattern::wrap_type<ov::op::v0::Negative>({p_input});
+    auto p_neg = ov::pass::pattern::wrap_type<ov::op::v0::Negative>({p_input});
 
-    auto p_mul_or_neg = std::make_shared<pattern::op::Or>(OutputVector({p_mul, p_neg}));
+    auto p_mul_or_neg = std::make_shared<ov::pass::pattern::op::Or>(OutputVector({p_mul, p_neg}));
 
-    auto p_add_input = pattern::any_input();
+    auto p_add_input = ov::pass::pattern::any_input();
     auto p_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({p_add_input, p_mul_or_neg});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         const auto& minuend_input = pattern_to_output.at(p_add_input);
         const auto& subtrahend_input = pattern_to_output.at(p_input);

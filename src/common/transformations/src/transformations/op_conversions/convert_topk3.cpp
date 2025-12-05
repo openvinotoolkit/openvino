@@ -15,9 +15,9 @@
 
 ov::pass::ConvertTopK3::ConvertTopK3() {
     MATCHER_SCOPE(ConvertTopK3);
-    auto topk = pattern::wrap_type<ov::op::v3::TopK>();
+    auto topk = ov::pass::pattern::wrap_type<ov::op::v3::TopK>();
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto topk = ov::as_type_ptr<ov::op::v3::TopK>(m.get_match_root());
         if (!topk) {
             return false;

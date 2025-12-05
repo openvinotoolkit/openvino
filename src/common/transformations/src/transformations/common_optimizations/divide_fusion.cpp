@@ -18,13 +18,13 @@
 
 ov::pass::DivideFusion::DivideFusion() {
     MATCHER_SCOPE(DivideFusion);
-    auto p_pow_input = pattern::any_input();
-    auto p_pow_const = pattern::wrap_type<ov::op::v0::Constant>();
-    auto p_pow = pattern::wrap_type<ov::op::v1::Power>({p_pow_input, p_pow_const});
-    auto p_mul_input = pattern::any_input();
+    auto p_pow_input = ov::pass::pattern::any_input();
+    auto p_pow_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto p_pow = ov::pass::pattern::wrap_type<ov::op::v1::Power>({p_pow_input, p_pow_const});
+    auto p_mul_input = ov::pass::pattern::any_input();
     auto p_mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({p_mul_input, p_pow});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         const auto& minuend_input = pattern_to_output.at(p_mul_input);
         const auto& subtrahend_input = pattern_to_output.at(p_pow_input);

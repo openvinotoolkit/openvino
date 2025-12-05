@@ -16,9 +16,9 @@ ov::pass::ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3::
     ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3() {
     MATCHER_SCOPE(ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3);
 
-    const auto emb_v15_pattern = pattern::wrap_type<ov::op::v15::EmbeddingBagOffsets>();
+    const auto emb_v15_pattern = ov::pass::pattern::wrap_type<ov::op::v15::EmbeddingBagOffsets>();
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto emb_v15 = ov::as_type_ptr<ov::op::v15::EmbeddingBagOffsets>(m.get_match_root());
         if (!emb_v15 || transformation_callback(emb_v15) ||
             emb_v15->get_reduction() != ov::op::v15::EmbeddingBagOffsets::Reduction::SUM) {
@@ -51,6 +51,6 @@ ov::pass::ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3::
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(emb_v15_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(emb_v15_pattern, matcher_name);
     register_matcher(m, callback);
 }

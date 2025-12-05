@@ -33,7 +33,6 @@ using namespace std;
 using namespace testing;
 
 using namespace ov;
-using namespace ov::op;
 using namespace ov::pass;
 using namespace ov::element;
 
@@ -55,7 +54,7 @@ public:
 
     void set_mask(const PartialShape& new_mask_pshape) {
         with_mask = true;
-        m_mask = make_shared<v0::Parameter>(m_type, new_mask_pshape);
+        m_mask = make_shared<ov::op::v0::Parameter>(m_type, new_mask_pshape);
         params.push_back(m_mask);
     }
 
@@ -73,9 +72,9 @@ public:
         m_sinks_slice_type = sinks_slice_type;
         std::vector<size_t> broadcast_shape_value(sinks_broadcast_shape.begin(), sinks_broadcast_shape.end());
         auto broadcast_to_shape =
-            v0::Constant::create(element::i32, Shape{sinks_broadcast_shape.size()}, broadcast_shape_value);
-        auto sinks_param = make_shared<v0::Parameter>(element::f16, sinks_shape);
-        m_sinks = make_shared<v3::Broadcast>(sinks_param, broadcast_to_shape, BroadcastType::BIDIRECTIONAL);
+            ov::op::v0::Constant::create(element::i32, Shape{sinks_broadcast_shape.size()}, broadcast_shape_value);
+        auto sinks_param = make_shared<ov::op::v0::Parameter>(element::f16, sinks_shape);
+        m_sinks = make_shared<ov::op::v3::Broadcast>(sinks_param, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         m_sinks_rank = sinks_broadcast_shape.size();
         params.push_back(sinks_param);
     }
@@ -151,10 +150,10 @@ public:
             attn_scores_with_mask = make_shared<op::v1::Add>(attn_scores_scaled, m_mask);
         }
         if (with_sinks) {
-            attn_scores_with_mask = make_shared<v0::Concat>(OutputVector{attn_scores_with_mask, m_sinks}, -1);
+            attn_scores_with_mask = make_shared<ov::op::v0::Concat>(OutputVector{attn_scores_with_mask, m_sinks}, -1);
             auto reduce_max =
-                make_shared<v1::ReduceMax>(attn_scores_with_mask, op::v0::Constant::create(i64, {}, {-1}));
-            attn_scores_with_mask = make_shared<v1::Subtract>(attn_scores_with_mask, reduce_max);
+                make_shared<ov::op::v1::ReduceMax>(attn_scores_with_mask, op::v0::Constant::create(i64, {}, {-1}));
+            attn_scores_with_mask = make_shared<ov::op::v1::Subtract>(attn_scores_with_mask, reduce_max);
         }
 
         std::shared_ptr<ov::Node> softmax = make_shared<op::v8::Softmax>(attn_scores_with_mask, softmax_axis);
@@ -163,10 +162,10 @@ public:
             // For now, there has been only one model with sinks: gpt-oss
             if (m_sinks_slice_type == SinksSliceType::Slice) {
                 softmax = make_shared<op::v8::Slice>(softmax,
-                                                     v0::Constant::create(element::i64, Shape{1}, {0}),
-                                                     v0::Constant::create(element::i64, Shape{1}, {-1}),
-                                                     v0::Constant::create(element::i64, Shape{1}, {1}),
-                                                     v0::Constant::create(element::i64, Shape{1}, {m_sinks_rank - 1}));
+                                                     ov::op::v0::Constant::create(element::i64, Shape{1}, {0}),
+                                                     ov::op::v0::Constant::create(element::i64, Shape{1}, {-1}),
+                                                     ov::op::v0::Constant::create(element::i64, Shape{1}, {1}),
+                                                     ov::op::v0::Constant::create(element::i64, Shape{1}, {m_sinks_rank - 1}));
             } else {
                 std::vector<int> start(m_sinks_rank, 0);
                 std::vector<int> stop(m_sinks_rank, 0);
@@ -180,9 +179,9 @@ public:
 
                 softmax =
                     make_shared<op::v1::StridedSlice>(softmax,
-                                                      v0::Constant::create(element::i64, Shape{m_sinks_rank}, start),
-                                                      v0::Constant::create(element::i64, Shape{m_sinks_rank}, stop),
-                                                      v0::Constant::create(element::i64, Shape{m_sinks_rank}, step),
+                                                      ov::op::v0::Constant::create(element::i64, Shape{m_sinks_rank}, start),
+                                                      ov::op::v0::Constant::create(element::i64, Shape{m_sinks_rank}, stop),
+                                                      ov::op::v0::Constant::create(element::i64, Shape{m_sinks_rank}, step),
                                                       begin_mask,
                                                       end_mask);
             }
@@ -198,7 +197,7 @@ public:
 
         shared_ptr<Node> mask_input = m_mask;
         if (!with_mask) {
-            mask_input = v0::Constant::create(m_type, {}, {0.f});
+            mask_input = ov::op::v0::Constant::create(m_type, {}, {0.f});
         } else {
             auto mask_input_ps = mask_input->get_output_partial_shape(0);
             auto mask_input_rank = mask_input_ps.size();
@@ -207,8 +206,8 @@ public:
                 auto diff = 2 - mask_input_rank;
                 std::vector<int64_t> axes(diff);
                 std::iota(axes.begin(), axes.end(), 0);
-                auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
-                auto mask_unsqueeze = std::make_shared<v0::Unsqueeze>(mask_input, axes_const);
+                auto axes_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+                auto mask_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(mask_input, axes_const);
                 mask_input = mask_unsqueeze;
             } else {
                 std::vector<int64_t> axes;
@@ -221,8 +220,8 @@ public:
                     }
                 }
                 if (!axes.empty()) {
-                    auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
-                    auto mask_squeeze = std::make_shared<v0::Squeeze>(mask_input, axes_const);
+                    auto axes_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+                    auto mask_squeeze = std::make_shared<ov::op::v0::Squeeze>(mask_input, axes_const);
                     mask_input = mask_squeeze;
                 }
             }
@@ -259,7 +258,7 @@ public:
     }
 
 private:
-    shared_ptr<v0::Parameter> m_mask;
+    shared_ptr<ov::op::v0::Parameter> m_mask;
     shared_ptr<ov::Node> m_sinks;
     size_t m_sinks_rank;
     ParameterVector params;
@@ -1019,9 +1018,9 @@ TEST_F(TransformationTestsF, SDPAFusionTest_Split) {
 
     // Preprocessing callback.
     auto callback = [](auto& nodes) {
-        auto concat = std::make_shared<v0::Concat>(OutputVector{nodes[InputType::Q], nodes[InputType::V]}, 3);
-        auto axis = v0::Constant::create(i64, {}, {3});
-        auto split = std::make_shared<v1::Split>(concat, axis, 2);
+        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{nodes[InputType::Q], nodes[InputType::V]}, 3);
+        auto axis = ov::op::v0::Constant::create(i64, {}, {3});
+        auto split = std::make_shared<ov::op::v1::Split>(concat, axis, 2);
         nodes[InputType::Q] = split->output(0);
         nodes[InputType::V] = split->output(1);
     };
@@ -1204,14 +1203,14 @@ TEST_F(TransformationTestsF, SDPAFusionTest_4dAttentionMaskWithBatch2) {
     // Preprocessing callback.
     auto callback = [](auto& nodes) {
         int64_t axis = 0;
-        auto axes_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
-        nodes[InputType::Q] = std::make_shared<v0::Unsqueeze>(nodes[InputType::Q], axes_node)->output(0);
+        auto axes_node = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+        nodes[InputType::Q] = std::make_shared<ov::op::v0::Unsqueeze>(nodes[InputType::Q], axes_node)->output(0);
 
-        auto axes_node1 = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
-        nodes[InputType::K] = std::make_shared<v0::Unsqueeze>(nodes[InputType::K], axes_node1)->output(0);
+        auto axes_node1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+        nodes[InputType::K] = std::make_shared<ov::op::v0::Unsqueeze>(nodes[InputType::K], axes_node1)->output(0);
 
-        auto axes_node2 = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
-        nodes[InputType::V] = std::make_shared<v0::Unsqueeze>(nodes[InputType::V], axes_node2)->output(0);
+        auto axes_node2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+        nodes[InputType::V] = std::make_shared<ov::op::v0::Unsqueeze>(nodes[InputType::V], axes_node2)->output(0);
     };
 
     // SDPA model.
@@ -1248,8 +1247,8 @@ TEST_F(TransformationTestsF, SDPAFusionTest_KScaledInput) {
 
     // Preprocessing callback that scales the K input
     auto callback = [](auto& nodes) {
-        auto scale_const = v0::Constant::create(f16, Shape{}, {1.f});
-        nodes[InputType::K] = std::make_shared<v1::Multiply>(nodes[InputType::K], scale_const);
+        auto scale_const = ov::op::v0::Constant::create(f16, Shape{}, {1.f});
+        nodes[InputType::K] = std::make_shared<ov::op::v1::Multiply>(nodes[InputType::K], scale_const);
     };
 
     // SDPA model.
@@ -1286,10 +1285,10 @@ TEST_F(TransformationTestsF, SDPAFusionTest_WithConvertAfterScale) {
     SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
 
     auto callback = [](auto& nodes) {
-        auto scale_const = v0::Constant::create(f16, {1}, {0.125f});
-        nodes[InputType::Q] = std::make_shared<v1::Multiply>(nodes[InputType::Q], scale_const);
-        auto mul_k = std::make_shared<v1::Multiply>(nodes[InputType::K], scale_const);
-        nodes[InputType::K] = std::make_shared<v0::Convert>(mul_k, f16);
+        auto scale_const = ov::op::v0::Constant::create(f16, {1}, {0.125f});
+        nodes[InputType::Q] = std::make_shared<ov::op::v1::Multiply>(nodes[InputType::Q], scale_const);
+        auto mul_k = std::make_shared<ov::op::v1::Multiply>(nodes[InputType::K], scale_const);
+        nodes[InputType::K] = std::make_shared<ov::op::v0::Convert>(mul_k, f16);
     };
 
     sdpa.set_preprocessing_callback(callback);
@@ -1355,9 +1354,9 @@ TEST_F(TransformationTestsF, SDPAFusionTest_ConvertedInputs) {
     SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
 
     auto callback = [](auto& nodes) {
-        nodes[InputType::Q] = std::make_shared<v0::Convert>(nodes[InputType::Q], f16);
-        nodes[InputType::K] = std::make_shared<v0::Convert>(nodes[InputType::K], f16);
-        nodes[InputType::V] = std::make_shared<v0::Convert>(nodes[InputType::V], f16);
+        nodes[InputType::Q] = std::make_shared<ov::op::v0::Convert>(nodes[InputType::Q], f16);
+        nodes[InputType::K] = std::make_shared<ov::op::v0::Convert>(nodes[InputType::K], f16);
+        nodes[InputType::V] = std::make_shared<ov::op::v0::Convert>(nodes[InputType::V], f16);
     };
 
     sdpa.set_preprocessing_callback(callback);
