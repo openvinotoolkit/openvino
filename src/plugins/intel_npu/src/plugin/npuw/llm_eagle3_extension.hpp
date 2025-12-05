@@ -46,8 +46,8 @@ public:
                                              const ov::Output<ov::Node>& input,
                                              uint32_t input_size);
 
-    // Detect Eagle3 model role (Draft/Target/None) based on model rt_info and inputs/outputs
-    void initialize(const ov::AnyMap& rt_info,
+    // Detect Eagle3 model role (Draft/Target/None) based on is_eagle flag and inputs/outputs
+    void initialize(bool is_eagle_model,
                     const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
                     const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports);
 

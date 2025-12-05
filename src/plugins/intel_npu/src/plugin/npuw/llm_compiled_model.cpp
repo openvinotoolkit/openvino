@@ -843,22 +843,6 @@ void patch_phi3_sliding_mask(const std::shared_ptr<ov::Model>& model) {
     }
 }
 
-// Filter rt_info to only keep essential keys needed for LLM inference
-ov::AnyMap filter_essential_rt_info(const ov::AnyMap& rt_info) {
-    // Whitelist of rt_info keys that are essential for LLM inference
-    static const std::set<std::string> essential_keys = {
-        "eagle3_mode",
-        // Add other essential keys here as needed
-    };
-
-    ov::AnyMap essential_rt_info;
-    for (const auto& key : essential_keys) {
-        if (rt_info.count(key)) {
-            essential_rt_info[key] = rt_info.at(key);
-        }
-    }
-    return essential_rt_info;
-}
 }  // namespace
 
 class CutLMHead : public ov::pass::MatcherPass {
@@ -1462,8 +1446,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Creating LLMCompiledModel");
     LOG_BLOCK();
 
-    m_model_rt_info = model->get_rt_info();
-
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
 
     const auto npudesc = extract_npu_descriptor(plugin);
@@ -1472,6 +1454,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
     auto use_whisper_key = pop_option(other_props, std::string("NPUW_WHISPER"));
+    auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
     // Solely used for serialization at the moment
     m_non_llm_props = other_props;
 
@@ -1494,6 +1477,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
         m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
+    }
+
+    m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
+    if (m_is_eagle) {
+        LOG_INFO("Eagle3 speculative decoding mode enabled");
     }
 
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
@@ -1941,9 +1929,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_prefix_caching_max_num_blocks);
         write(model_stream, m_gemma_sliding_window_size);
         write(model_stream, m_is_whisper);
-
-        // Serialize only essential rt_info needed for LLM inference
-        write(model_stream, filter_essential_rt_info(m_model_rt_info));
+        write(model_stream, m_is_eagle);
 
         // Write config
         write(model_stream, m_cfg);
@@ -2168,7 +2154,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_prefix_caching_max_num_blocks);
         read(model_stream, compiled->m_gemma_sliding_window_size);
         read(model_stream, compiled->m_is_whisper);
-        read(model_stream, compiled->m_model_rt_info);
+        read(model_stream, compiled->m_is_eagle);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
@@ -2284,6 +2270,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT, getString),
                           BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
-                          BIND(npuw::whisper::enabled, NPUW_WHISPER, get)});
+                          BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
+                          BIND(npuw::eagle::enabled, NPUW_EAGLE, get)});
 #undef BIND
 }
