@@ -101,6 +101,13 @@ public:
     MergeTwoUnrolledRoPEConcat();
 };
 
+class TRANSFORMATIONS_API MergeMatMulBiasConcat : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("MergeMatMulBiasConcat");
+    MergeMatMulBiasConcat();
+};
+
+
 class TRANSFORMATIONS_API MergeKVCaches : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MergeKVCaches");
