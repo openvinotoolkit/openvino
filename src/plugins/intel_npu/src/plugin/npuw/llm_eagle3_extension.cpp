@@ -19,47 +19,34 @@ bool matchEagle3HiddenStatesString(const std::string& input) {
     return input == Eagle3LayerNames::hidden_states;
 }
 
-bool matchEagle3InternalHiddenStatesString(const std::string& input) {
-    return input == Eagle3LayerNames::internal_hidden_states;
-}
-
 ov::PartialShape Eagle3Extension::get_static_input(const std::shared_ptr<ov::Model>& model,
                                                    const ov::Output<ov::Node>& input,
                                                    uint32_t input_size) {
     const auto& input_name = input.get_any_name();
     const auto& input_shape = input.get_partial_shape();
 
-    // Check if this is an Eagle3 internal_hidden_states input
-    if (matchEagle3InternalHiddenStatesString(input_name)) {
-        OPENVINO_ASSERT(input_shape.size() == 3u,
-                        "Eagle3 internal_hidden_states must have 3 dimensions: [batch, seq_len, hidden_size]");
-        OPENVINO_ASSERT(input_shape[2].is_static(),
-                        "Eagle3 internal_hidden_states hidden_size dimension must be static");
-        return ov::PartialShape({1, input_size, input_shape[2]});
-    }
-
     // Check if this is an Eagle3 hidden_states input
     if (matchEagle3HiddenStatesString(input_name)) {
         OPENVINO_ASSERT(input_shape.size() == 3u,
                         "Eagle3 hidden_states must have 3 dimensions: [batch, seq_len, hidden_size]");
 
-        const auto& hidden_dim = input_shape[2];
-        if (hidden_dim.is_static()) {
-            return ov::PartialShape({1, input_size, hidden_dim});
+        if (input_shape[2].is_static()) {
+            return ov::PartialShape({1, input_size, input_shape[2]});
         }
 
-        // Calculate from internal_hidden_states dimension (3x relationship)
-        for (const auto& model_input : model->inputs()) {
-            if (matchEagle3InternalHiddenStatesString(model_input.get_any_name())) {
-                const auto& internal_shape = model_input.get_partial_shape();
-                if (internal_shape.size() == 3u && internal_shape[2].is_static()) {
-                    int64_t internal_hidden_size = internal_shape[2].get_length();
-                    return ov::PartialShape({1, input_size, internal_hidden_size * 3});
+        for (const auto& model_output : model->outputs()) {
+            if (model_output.get_any_name() == Eagle3LayerNames::last_hidden_state) {
+                const auto& output_shape = model_output.get_partial_shape();
+                OPENVINO_ASSERT(output_shape.size() == 3u,
+                                "Eagle3 last_hidden_state must have 3 dimensions: [batch, seq_len, hidden_size]");
+                if (output_shape[2].is_static()) {
+                    return ov::PartialShape({1, input_size, output_shape[2]});
                 }
             }
         }
 
-        OPENVINO_THROW("Eagle3 hidden_states dimension is dynamic but internal_hidden_states not found or not static");
+        OPENVINO_THROW("Eagle3 hidden_states hidden_size dimension is dynamic and "
+                       "could not be inferred from last_hidden_state output");
     }
 
     return ov::PartialShape();
@@ -86,13 +73,6 @@ void Eagle3Extension::store_hidden_state_inputs(
     auto hidden_states_tensor = get_tensor_func(hidden_states_port.value());
     validate_hidden_state_tensor(hidden_states_tensor, "hidden_states");
     m_hidden_states = hidden_states_tensor;
-
-    auto internal_hidden_states_port = util::find_port_by_name(inputs, Eagle3LayerNames::internal_hidden_states);
-    OPENVINO_ASSERT(internal_hidden_states_port.has_value(),
-                    "Eagle3 Draft model requires 'internal_hidden_states' input to be provided by user");
-    auto internal_hidden_states_tensor = get_tensor_func(internal_hidden_states_port.value());
-    validate_hidden_state_tensor(internal_hidden_states_tensor, "internal_hidden_states");
-    m_internal_hidden_states = internal_hidden_states_tensor;
 }
 
 }  // namespace npuw
@@ -138,19 +118,18 @@ void Eagle3Extension::initialize(bool is_eagle_model,
 
     // It's an Eagle3 model, now determine if it's Draft or Target based on inputs/outputs
     bool has_hidden_states_input = in_ports.find(Eagle3LayerNames::hidden_states) != in_ports.end();
-    bool has_internal_hidden_states_input = in_ports.find(Eagle3LayerNames::internal_hidden_states) != in_ports.end();
     bool has_last_hidden_state_output = out_ports.find(Eagle3LayerNames::last_hidden_state) != out_ports.end();
 
-    if (has_hidden_states_input && has_internal_hidden_states_input && has_last_hidden_state_output) {
+    if (has_hidden_states_input && has_last_hidden_state_output) {
         m_role = Eagle3ModelRole::Draft;
         LOG_INFO("Eagle3 Draft Model detected");
-    } else if (!has_hidden_states_input && !has_internal_hidden_states_input && has_last_hidden_state_output) {
+    } else if (!has_hidden_states_input && has_last_hidden_state_output) {
         m_role = Eagle3ModelRole::Target;
         LOG_INFO("Eagle3 Target Model detected");
     } else {
         OPENVINO_THROW(
             "Eagle3 mode enabled via NPUW_EAGLE property, but model structure doesn't match Draft or Target pattern. "
-            "Draft requires: hidden_states, internal_hidden_states inputs + last_hidden_state output. "
+            "Draft requires: hidden_states input + last_hidden_state output. "
             "Target requires: last_hidden_state output only.");
     }
 }
@@ -167,14 +146,6 @@ void Eagle3Extension::prepare_inputs(const std::shared_ptr<ov::IAsyncInferReques
     OPENVINO_ASSERT(m_hidden_states, "Eagle3 Draft model requires hidden_states input tensor to be provided");
     auto padded_hidden_states = request->get_tensor(hidden_states_it->second);
     pad_hidden_state_input(padded_hidden_states, m_hidden_states);
-
-    auto internal_hidden_states_it = in_ports.find(Eagle3LayerNames::internal_hidden_states);
-    OPENVINO_ASSERT(internal_hidden_states_it != in_ports.end(),
-                    "Eagle3 Draft model must have internal_hidden_states input port");
-    OPENVINO_ASSERT(m_internal_hidden_states,
-                    "Eagle3 Draft model requires internal_hidden_states input tensor to be provided");
-    auto padded_internal_hidden_states = request->get_tensor(internal_hidden_states_it->second);
-    pad_hidden_state_input(padded_internal_hidden_states, m_internal_hidden_states);
 }
 
 void Eagle3Extension::update_last_hidden_state(
@@ -232,9 +203,8 @@ void Eagle3Extension::prepare_inputs_for_chunk(
                                       << "] for chunk processing");
     };
 
-    // Process both hidden state inputs using the unified helper
+    // Process hidden state input
     process_hidden_state_chunk(Eagle3LayerNames::hidden_states, m_hidden_states);
-    process_hidden_state_chunk(Eagle3LayerNames::internal_hidden_states, m_internal_hidden_states);
 }
 
 }  // namespace npuw

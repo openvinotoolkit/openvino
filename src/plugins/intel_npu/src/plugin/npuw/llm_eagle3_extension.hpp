@@ -22,19 +22,17 @@ namespace npuw {
 // Layer names for Eagle3 speculative decoding
 struct Eagle3LayerNames {
     static constexpr const char* hidden_states = "hidden_states";
-    static constexpr const char* internal_hidden_states = "internal_hidden_states";
     static constexpr const char* last_hidden_state = "last_hidden_state";
 };
 
 // Utility functions for Eagle3 layer name matching
 bool matchEagle3HiddenStatesString(const std::string& input);
-bool matchEagle3InternalHiddenStatesString(const std::string& input);
 
 // Model roles for Eagle3 speculative decoding
 enum class Eagle3ModelRole {
     None,    ///< Not an Eagle3 model
     Target,  ///< Target model: only outputs last_hidden_state
-    Draft    ///< Draft model: has hidden_states/internal_hidden_states as inputs, and outputs last_hidden_state
+    Draft    ///< Draft model: has hidden_states as input, and outputs last_hidden_state
 };
 
 // Extension for Eagle3 speculative decoding
@@ -64,11 +62,11 @@ public:
         const std::vector<ov::Output<const ov::Node>>& inputs,
         const std::function<ov::SoPtr<ov::ITensor>(const ov::Output<const ov::Node>&)>& get_tensor_func);
 
-    // Prepare Eagle3 input tensors (hidden_states, internal_hidden_states) for draft models
+    // Prepare Eagle3 new input tensors (hidden_states)
     void prepare_inputs(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                         const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports);
 
-    // Prepare Eagle3 input tensors for chunked prefill (draft models), using a token range
+    // Prepare Eagle3 new input tensors for chunked prefill
     void prepare_inputs_for_chunk(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                   const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
                                   uint32_t chunk_start_token,
@@ -82,10 +80,6 @@ public:
         return m_hidden_states;
     }
 
-    ov::SoPtr<ov::ITensor> get_internal_hidden_states() const {
-        return m_internal_hidden_states;
-    }
-
     ov::SoPtr<ov::ITensor> get_last_hidden_state() const {
         return m_last_hidden_state;
     }
@@ -95,9 +89,8 @@ private:
 
     Eagle3ModelRole m_role = Eagle3ModelRole::None;
 
-    ov::SoPtr<ov::ITensor> m_hidden_states;           ///< Draft model input: hidden_states
-    ov::SoPtr<ov::ITensor> m_internal_hidden_states;  ///< Draft model input: internal_hidden_states
-    ov::SoPtr<ov::ITensor> m_last_hidden_state;       ///< Draft/Target model output: last_hidden_state
+    ov::SoPtr<ov::ITensor> m_hidden_states;      ///< Draft model input: hidden_states
+    ov::SoPtr<ov::ITensor> m_last_hidden_state;  ///< Draft/Target model output: last_hidden_state
 };
 
 }  // namespace npuw
