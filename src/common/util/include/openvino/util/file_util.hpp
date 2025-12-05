@@ -365,31 +365,5 @@ inline std::basic_string<C> make_path(const std::basic_string<C>& folder, const 
     return folder + ov::util::FileTraits<C>::file_separator + file;
 }
 
-/**
- * @brief Creates std::filesystem::path provided by source.
- *
- * The purpose of this function is to hide platform specific issue with path creation like on Windows create from
- * literal std::string with unicode characters can lead to different path name than expected.
- *
- * @param source  Source to create path. Supported types are same as for std::filesystem::path constructor.
- * @return std::filesystem::path object.
- */
-template <class Source>
-std::filesystem::path make_path(const Source& source) {
-    if constexpr (std::is_same_v<std::decay_t<Source>, wchar_t*>) {
-        return {std::wstring(source)};
-    } else if constexpr (std::is_same_v<std::filesystem::path::value_type, std::wstring::value_type> &&
-                         std::is_same_v<Source, std::string>) {
-        return {ov::util::string_to_wstring(source)};
-    } else {
-        return {source};
-    }
-}
-
-inline std::filesystem::path make_plugin_library_name(const std::filesystem::path& path,
-                                                      const std::filesystem::path& input) {
-    return make_path(make_plugin_library_name(path.native(), input.native()));
-}
-
 }  // namespace util
 }  // namespace ov
