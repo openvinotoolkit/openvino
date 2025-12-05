@@ -24,10 +24,6 @@ public:
         : ocl_base_event(queue_stamp)
         , _event(ev) {}
 
-    ocl_event(uint64_t duration_nsec, uint64_t queue_stamp = 0)
-        : ocl_base_event(queue_stamp)
-        , duration_nsec(duration_nsec) {}
-
     cl::Event& get() override { return _event; }
 
 private:
@@ -45,7 +41,6 @@ private:
 
 protected:
     cl::Event _event;
-    std::optional<uint64_t> duration_nsec;
 };
 
 struct ocl_events : public ocl_base_event {
