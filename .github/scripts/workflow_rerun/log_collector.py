@@ -61,8 +61,7 @@ def collect_logs_for_run(run: WorkflowRun,
     In that case, we need only 'system.txt' file from each directory
     """
     # Get failed jobs
-    jobs = run.jobs()
-    failed_jobs = [job for job in jobs if job.conclusion == 'failure']
+    failed_jobs = [job for job in run.jobs() if job.conclusion == 'failure']
     LOGGER.info(f'FAILED JOBS: {[job.name for job in failed_jobs]}')
 
     with tempfile.NamedTemporaryFile(suffix='.zip') as temp_file:
