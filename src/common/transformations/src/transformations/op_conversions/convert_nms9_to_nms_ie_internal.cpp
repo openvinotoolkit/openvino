@@ -110,7 +110,8 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
         if (nms_9->output(0).get_element_type() != output_0.get_element_type()) {
             output_0 = std::make_shared<ov::op::v0::Convert>(output_0, nms_9->output(0).get_element_type());
             const auto& prev_layer_0 = nms_9->output(0).get_node_shared_ptr();
-            const std::string friendly_name_0 = prev_layer_0->get_friendly_name() +
+            const std::string friendly_name_0 =
+                prev_layer_0->get_friendly_name() +
                 (prev_layer_0->get_output_size() != 1 ? "." + std::to_string(nms_9->output(0).get_index()) : "");
             output_0.get_node_shared_ptr()->set_friendly_name(friendly_name_0);
             new_ops.emplace_back(output_0.get_node_shared_ptr());
@@ -120,7 +121,8 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
         if (nms_9->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<ov::op::v0::Convert>(output_2, nms_9->output(2).get_element_type());
             const auto& prev_layer_2 = nms_9->output(2).get_node_shared_ptr();
-            const std::string friendly_name_2 = prev_layer_2->get_friendly_name() +
+            const std::string friendly_name_2 =
+                prev_layer_2->get_friendly_name() +
                 (prev_layer_2->get_output_size() != 1 ? "." + std::to_string(nms_9->output(2).get_index()) : "");
             output_2.get_node_shared_ptr()->set_friendly_name(friendly_name_2);
             new_ops.emplace_back(output_2.get_node_shared_ptr());
