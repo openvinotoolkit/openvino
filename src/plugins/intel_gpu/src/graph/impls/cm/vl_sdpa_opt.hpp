@@ -42,10 +42,9 @@ struct VLSDPAOptImplementationManager : public ImplementationManager {
         assert(node.is_type<vl_sdpa>());
         auto& engine = node.get_program().get_engine();
         const auto& config = node.get_program().get_config();
-        const auto& info = engine.get_device_info();
 
         // CM optimized for systolic-array architectures
-        if (!check_cm_jit_support(engine, config) || !info.supports_immad || !config.get_use_cm()) {
+        if (!check_cm_jit_support(engine, config) || !config.get_use_cm()) {
             return false;
         }
 
