@@ -415,6 +415,11 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
         bool is_xf16 = any_of(precision_of<T>::value, ov::element::bf16, ov::element::f16);
         // packed k, v
+        ov::element::Type attn_mask_precision = ov::element::Type(precision_of<T>::value);
+        if (attention_mask) {
+            attn_mask_precision = attention_mask.get_precision();
+        }
+
         parallel_for2d(B, Hk, [&](size_t b, size_t h) {
             T* k_ptr = &present_key.at<T>({b, h, 0, 0});
             T* v_ptr = &present_value.at<T>({b, h, 0, 0});
@@ -451,11 +456,12 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             }
 
             uint8_t* attn_mask_ptr = nullptr;
-            auto attn_mask_stride = 0;
+            size_t attn_mask_stride = 0;
             if (attention_mask) {
-                attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, 0, 0}, true));
+                const size_t mask_head = attention_mask.size(1) > 1 ? h : 0;
+                attn_mask_ptr = static_cast<uint8_t*>(attention_mask.ptr_v(b, mask_head, 0, 0));
                 if (attention_mask.size(2) > 1) {
-                    attn_mask_stride = attention_mask.stride(2) * sizeof(T);
+                    attn_mask_stride = attention_mask.stride_bytes(2);
                 }
             }
             uint8_t* cmask_ptr = nullptr;
@@ -474,18 +480,20 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                 if (sink_input) {
                     sink = &sink_input.at<float>({b, h, m, 0}, true);
                 }
+                uint8_t* attn_mask_row =
+                    attn_mask_ptr && attn_mask_stride ? attn_mask_ptr + m * attn_mask_stride : attn_mask_ptr;
 
                 attn_softmax(reinterpret_cast<void*>(score),
                              reinterpret_cast<T*>(score),
                              d_scale,
                              reinterpret_cast<void*>(alibi_ptr + m * alibi_stride),
-                             attn_mask_ptr + m * attn_mask_stride,
+                             attn_mask_row,
                              cmask_ptr + m * cmask_stride,
                              select_nfltmax_at_0,
                              ncausal,
                              kv_len,
                              precision_of<T>::value,
-                             precision_of<T>::value,
+                             attn_mask_precision,
                              precision_of<T>::value,
                              sink);
             }
@@ -638,6 +646,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
         auto k_stride_s = present_key.stride(3);
 
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
+        ov::element::Type attn_mask_precision = precision;
+        if (attention_mask) {
+            attn_mask_precision = attention_mask.get_precision();
+        }
 
         parallel_for3d(B, H, m_blocks, [&](size_t b, size_t h, size_t m_blk) {
             auto m_start = m_blk * m_block_size;
@@ -657,11 +669,12 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 }
             }
             uint8_t* attn_mask_ptr = nullptr;
-            auto attn_mask_stride = 0;
+            size_t attn_mask_stride = 0;
             if (attention_mask) {
-                attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, 0, 0}, true));
+                const size_t mask_head = attention_mask.size(1) > 1 ? h : 0;
+                attn_mask_ptr = static_cast<uint8_t*>(attention_mask.ptr_v(b, mask_head, 0, 0));
                 if (attention_mask.size(2) > 1) {
-                    attn_mask_stride = attention_mask.stride(2) * sizeof(T);
+                    attn_mask_stride = attention_mask.stride_bytes(2);
                 }
             }
             uint8_t* cmask_ptr = nullptr;
@@ -696,17 +709,19 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                uint8_t* attn_mask_row =
+                    attn_mask_ptr && attn_mask_stride ? attn_mask_ptr + m * attn_mask_stride : attn_mask_ptr;
                 attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * kv_len),
                              qk + (m - m_start) * kv_len,
                              d_scale,
                              reinterpret_cast<void*>(alibi_ptr + m * alibi_stride),
-                             attn_mask_ptr + m * attn_mask_stride,
+                             attn_mask_row,
                              cmask_ptr + m * cmask_stride,
                              select_nfltmax_at_0,
                              ncausal,
                              kv_len,
                              precision,
-                             precision,
+                             attn_mask_precision,
                              precision,
                              nullptr);
             }
