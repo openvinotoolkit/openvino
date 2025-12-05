@@ -44,7 +44,6 @@
 #include "group_normalization_inst.h"
 #include "lora_inst.h"
 #include "broadcast_inst.h"
-#include "dynamic_quantize_inst.h"
 #include <vector>
 #include <map>
 #include <list>

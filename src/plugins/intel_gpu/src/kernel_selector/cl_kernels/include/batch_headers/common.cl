@@ -81,12 +81,12 @@
 #endif
 
 #define DEFINE_VECTOR_CONVERT(target_type, source_type, vector_size) \
-MAKE_VECTOR_TYPE(target_type, vector_size) __attribute__((overloadable)) _convert_##target_type(MAKE_VECTOR_TYPE(source_type, vector_size) val) { \
+MAKE_VECTOR_TYPE(target_type, vector_size) __attribute__((overloadable)) _convert_##target_type##vector_size(MAKE_VECTOR_TYPE(source_type, vector_size) val) { \
     return CAT(convert_, CAT(target_type, vector_size))(val); \
 }
 
 #define DEFINE_VECTOR_IDENTITY(type, vector_size) \
-MAKE_VECTOR_TYPE(type, vector_size) __attribute__((overloadable)) _convert_##type(MAKE_VECTOR_TYPE(type, vector_size) val) { \
+MAKE_VECTOR_TYPE(type, vector_size) __attribute__((overloadable)) _convert_##type##vector_size(MAKE_VECTOR_TYPE(type, vector_size) val) { \
     return val; \
 }
 

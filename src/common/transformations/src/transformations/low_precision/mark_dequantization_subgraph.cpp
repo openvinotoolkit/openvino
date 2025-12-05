@@ -223,7 +223,6 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
     auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
-    std::vector<ov::element::Type> f8_precisions = {ov::element::f8e8m0};
     auto scale_pattern = any_input();
     auto scale_convert_pattern = pattern::optional<v0::Convert>(scale_pattern);
     auto scale_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, any_input()});
