@@ -188,7 +188,6 @@ struct Partitioning {
 
 struct PartitioningContext {
     bool use_host_gather_quant = false;
-    ::intel_npu::npuw::llm::AttentionHint attn_hint = ::intel_npu::npuw::llm::AttentionHint::STATIC;
 };
 
 Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model,
