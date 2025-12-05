@@ -170,7 +170,6 @@ static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& 
     } else {
         auto memBlock = mem->getMemoryBlock();
         OPENVINO_ASSERT(memBlock);
-        // Use const cast as as `MemoryBlockPtr` not supports const pointers. The model inputs may have const pointers.
         memBlock->setExtBuff(tensor->data(), tensor->get_byte_size());
     }
 }
@@ -189,10 +188,10 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
         };
     }
 
-    for (auto& [idx, tensor] : m_input_external_ptr) {
-        auto inputNodePtr = graph.getInputNodeByIndex(idx);
-        OPENVINO_ASSERT(inputNodePtr, "Cannot find input tensor with index: ", idx);
-        if (inputNodePtr->getDstDataAtPort(0) == tensor->data()) {
+    for (auto& it : m_input_external_ptr) {
+        auto inputNodePtr = graph.getInputNodeByIndex(it.first);
+        OPENVINO_ASSERT(inputNodePtr, "Cannot find input tensor with index: ", it.first);
+        if (inputNodePtr->getDstDataAtPort(0) == it.second->data()) {
             continue;
         }
         const auto& childEdges = inputNodePtr->getChildEdges();
@@ -231,7 +230,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
                 if (!e) {
                     OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
                 }
-                changeInpPtr(e, tensor);
+                changeInpPtr(e, it.second);
             }
         }
     }
