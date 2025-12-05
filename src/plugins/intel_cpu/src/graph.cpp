@@ -392,7 +392,7 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
 void Graph::Activate() {
     // @todo It is possible that execution graph is already created in scope of
     // the allocation context collection from the outer graph so the state for inner graph is "Ready"
-    // We probably want to avoid such uncertancy
+    // We probably want to avoid such uncertacy
     // OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status: ", static_cast<int>(status));
     Allocate();
 
@@ -2001,7 +2001,7 @@ void Graph::EnforceInferencePrecision() const {
     // These node types must be forced to be executed in BF16 precision for performance gains
     auto isMandatoryBF16Node = [](const NodePtr& node) -> bool {
         const auto type = node->getType();
-        // Subgraph may contain ьandatory BF16 nodes inside (e.g. MatMuls),
+        // Subgraph may contain mandatory BF16 nodes inside (e.g. MatMuls),
         if (type == Type::Subgraph) {
             const auto subgraph = std::dynamic_pointer_cast<node::Subgraph>(node);
             OPENVINO_ASSERT(subgraph, "Node with Subgraph type can't be casted to Subgraph node");
@@ -2108,7 +2108,8 @@ void Graph::EnforceInferencePrecision() const {
                 }
             }
 
-            // Pattern 2: Gather with integer type on data input
+            // Pattern 2: Gather with an integer type on data input is usually encountered in token embeddings (when
+            // compressed). It's better to preserv token embeddings preprocessing (e.g., normalization) in fp32
             if (node->getType() == Type::Gather) {
                 // Note: ShapeOf subgraphs are excluded from skipping markup
                 // since they are always kept in integer precision
