@@ -1215,8 +1215,8 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         WeightsContext::ConstsCache consts_cache;
         ov::HandleGetterFn handle_getter = nullptr;
         if (is_weightless) {
-            // Check if handle_getter function is provided
-            if (const auto handle_it = properties.find(ov::hint::handle_getter.name()); handle_it != properties.end()) {
+            // Check if weights_handle_getter function is provided
+            if (const auto handle_it = properties.find(ov::intel_npu::npuw::weights_handle_getter.name()); handle_it != properties.end()) {
                 if (handle_it->second.is<ov::HandleGetterFn>()) {
                     handle_getter = handle_it->second.as<ov::HandleGetterFn>();
                 }

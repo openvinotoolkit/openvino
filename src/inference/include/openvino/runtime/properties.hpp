@@ -552,16 +552,6 @@ static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"
 static constexpr Property<std::shared_ptr<const ov::Model>> model{"MODEL_PTR"};
 
 /**
- * @brief This key identifies callback function to get file handle (cross-platform).
- * The callback takes no arguments and returns a platform-specific file handle.
- * On Linux/Unix: returns int (file descriptor)
- * On Windows: returns void* (HANDLE)
- * This is useful for scenarios where file access needs to be controlled externally.
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<HandleGetterFn> handle_getter{"HANDLE_GETTER"};
-
-/**
  * @brief Special key for auto batching feature configuration. Enabled by default
  * @ingroup ov_runtime_cpp_prop_api
  */
