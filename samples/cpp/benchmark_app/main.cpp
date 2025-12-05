@@ -334,11 +334,11 @@ void fuse_mean_scale(ov::preprocess::PrePostProcessor& preproc, const benchmark_
  * Release static global oneDNN cache used for inference with release_memory
  * method. To be called once at the end of inference.
  */
-class model_sentry {
+class ModelSentry {
 public:
-    model_sentry(ov::CompiledModel& compiledModel) : _model(compiledModel) {}
+    ModelSentry(ov::CompiledModel& compiledModel) : _model(compiledModel) {}
 
-    ~model_sentry() {
+    ~ModelSentry() {
         if (_model) {
             _model.release_memory();
         }
@@ -356,7 +356,7 @@ int main(int argc, char* argv[]) {
     try {
         ov::CompiledModel compiledModel;
 
-        model_sentry releaser(compiledModel);
+        ModelSentry releaser(compiledModel);
 
         // ----------------- 1. Parsing and validating input arguments
         // -------------------------------------------------
