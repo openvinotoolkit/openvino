@@ -348,7 +348,6 @@ private:
     ov::CompiledModel _model;
 };
 
-
 /**
  * @brief The entry point of the benchmark application
  */
