@@ -18,9 +18,9 @@
 
 ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     MATCHER_SCOPE(ConvertPadToGroupConvolution);
-    auto neg = ov::pass::pattern::wrap_type<op::util::PadBase>(pattern::has_static_dim(1));
+    auto neg = ov::pass::pattern::wrap_type<op::util::PadBase>(ov::pass::pattern::has_static_dim(1));
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto pad = ov::as_type_ptr<ov::op::util::PadBase>(m.get_match_root());
         if (!pad) {
             return false;

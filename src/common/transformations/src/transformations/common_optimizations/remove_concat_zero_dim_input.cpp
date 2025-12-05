@@ -17,8 +17,8 @@
 
 ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     MATCHER_SCOPE(RemoveConcatZeroDimInput);
-    auto concat_pattern = pattern::wrap_type<ov::op::v0::Concat>();
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    auto concat_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Concat>();
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto concat = m.get_match_root();
         const auto& rt_info = concat->get_rt_info();
         if (rt_info.count(DisableRemoveConcatZeroDimInput::get_type_info_static())) {
@@ -64,7 +64,7 @@ ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
         }
         return inputs_removed;
     };
-    auto m = std::make_shared<pattern::Matcher>(concat_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 

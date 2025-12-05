@@ -22,21 +22,21 @@
 
 ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
     MATCHER_SCOPE(DropoutWithRandomUniformReplacer);
-    const auto shape_pattern = pass::pattern::any_input();
+    const auto shape_pattern = ov::pass::pattern::any_input();
     const auto ru_min_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto ru_max_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto random_uniform_pattern = ov::pass::pattern::wrap_type<ov::op::v8::RandomUniform>(
         {shape_pattern, ru_min_const_pattern, ru_max_const_pattern},
-        pattern::consumers_count(1));
+        ov::pass::pattern::consumers_count(1));
 
-    const auto optional_convert = pattern::optional<ov::op::v0::Convert>(random_uniform_pattern);
+    const auto optional_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(random_uniform_pattern);
     const auto add_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
     const auto add_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Add>({optional_convert, add_const_pattern});
 
     const auto floor_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Floor>({add_pattern});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto random_uniform = pattern_map.at(random_uniform_pattern);
         const auto shape_of = pattern_map.at(shape_pattern);

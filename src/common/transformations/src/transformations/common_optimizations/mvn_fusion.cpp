@@ -41,74 +41,74 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     MATCHER_SCOPE(MVNFusionWithoutConstants);
     // Detect MVN decomposition pattern:
     // (x - ReduceMean(x, axes)) / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps)
-    auto x = pattern::any_input();
+    auto x = ov::pass::pattern::any_input();
 
     // (x - ReduceMean(x, axes))
     //     `------mean1-------'
-    auto mean1_axes = pattern::wrap_type<ov::op::v0::Constant>();
-    auto mean1 = pattern::wrap_type<ov::op::v1::ReduceMean>({x, mean1_axes});
+    auto mean1_axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mean1 = ov::pass::pattern::wrap_type<ov::op::v1::ReduceMean>({x, mean1_axes});
 
     // (x - ReduceMean(x, axes))
     // `-sub1------------------'
-    auto sub1 = pattern::wrap_type<ov::op::v1::Subtract>({x, mean1});
+    auto sub1 = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({x, mean1});
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //                     `---mean2----------'
-    auto mean2_axes = pattern::wrap_type<ov::op::v0::Constant>();
-    auto mean2 = pattern::wrap_type<ov::op::v1::ReduceMean>({x, mean2_axes});
+    auto mean2_axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mean2 = ov::pass::pattern::wrap_type<ov::op::v1::ReduceMean>({x, mean2_axes});
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //                 `-sub2------------------'
-    auto sub2 = pattern::wrap_type<ov::op::v1::Subtract>({x, mean2});
+    auto sub2 = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({x, mean2});
 
-    const auto reuseSub1OrNot = std::make_shared<pattern::op::Or>(OutputVector{sub1, sub2});
-    const auto optionalConvert = pattern::optional<ov::op::v0::Convert>(reuseSub1OrNot);
+    const auto reuseSub1OrNot = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sub1, sub2});
+    const auto optionalConvert = ov::pass::pattern::optional<ov::op::v0::Convert>(reuseSub1OrNot);
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //                 `---------------------power--'
-    auto const_2 = pattern::wrap_type<ov::op::v0::Constant>(value_is_equal_to<float>({2.0}));
-    auto power = pattern::wrap_type<ov::op::v1::Power>({optionalConvert, const_2});
+    auto const_2 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(value_is_equal_to<float>({2.0}));
+    auto power = ov::pass::pattern::wrap_type<ov::op::v1::Power>({optionalConvert, const_2});
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //     `---mean3--------------------------------'
-    auto mean3_axes = pattern::wrap_type<ov::op::v0::Constant>();
-    auto mean3 = pattern::wrap_type<ov::op::v1::ReduceMean>({power, mean3_axes});
+    auto mean3_axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mean3 = ov::pass::pattern::wrap_type<ov::op::v1::ReduceMean>({power, mean3_axes});
 
-    auto const_0_5 = pattern::wrap_type<ov::op::v0::Constant>(value_is_equal_to<float>({0.5}));
-    auto eps = pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_0_5 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(value_is_equal_to<float>({0.5}));
+    auto eps = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     // ------------------- OUTSIDE_SQRT ----------------------
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     // `--Power--------------------------------------'
-    auto power_sqrt_os = pattern::wrap_type<ov::op::v1::Power>({mean3, const_0_5});
-    auto sqrt_os = pattern::wrap_type<ov::op::v0::Sqrt>({mean3});
-    const auto powerOrSqrt_os = std::make_shared<pattern::op::Or>(OutputVector{power_sqrt_os, sqrt_os});
+    auto power_sqrt_os = ov::pass::pattern::wrap_type<ov::op::v1::Power>({mean3, const_0_5});
+    auto sqrt_os = ov::pass::pattern::wrap_type<ov::op::v0::Sqrt>({mean3});
+    const auto powerOrSqrt_os = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{power_sqrt_os, sqrt_os});
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps
     // `----------------------------------------------Add---'
-    auto add_eps_os = pattern::wrap_type<ov::op::v1::Add>({powerOrSqrt_os, eps});
+    auto add_eps_os = ov::pass::pattern::wrap_type<ov::op::v1::Add>({powerOrSqrt_os, eps});
 
     // ------------------- INSIDE_SQRT ----------------------
 
     // (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps))
     // `-----------------------------------------------Add---'
-    auto add_eps_is = pattern::wrap_type<ov::op::v1::Add>({mean3, eps});
+    auto add_eps_is = ov::pass::pattern::wrap_type<ov::op::v1::Add>({mean3, eps});
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     // `--Power--------------------------------------'
-    auto power_sqrt_is = pattern::wrap_type<ov::op::v1::Power>({add_eps_is, const_0_5});
-    auto sqrt_is = pattern::wrap_type<ov::op::v0::Sqrt>({add_eps_is});
-    const auto powerOrSqrt_is = std::make_shared<pattern::op::Or>(OutputVector{power_sqrt_is, sqrt_is});
+    auto power_sqrt_is = ov::pass::pattern::wrap_type<ov::op::v1::Power>({add_eps_is, const_0_5});
+    auto sqrt_is = ov::pass::pattern::wrap_type<ov::op::v0::Sqrt>({add_eps_is});
+    const auto powerOrSqrt_is = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{power_sqrt_is, sqrt_is});
 
-    auto outsideOrInside = std::make_shared<pattern::op::Or>(OutputVector{add_eps_os, powerOrSqrt_is});
+    auto outsideOrInside = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{add_eps_os, powerOrSqrt_is});
 
     // Final Divide
-    auto const_neg_1 = pattern::wrap_type<ov::op::v0::Constant>(value_is_equal_to<float>({-1}));
-    auto power_div = pattern::wrap_type<ov::op::v1::Power>({outsideOrInside, const_neg_1});
-    auto div = pattern::wrap_type<ov::op::v1::Multiply>({sub1, power_div});
+    auto const_neg_1 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(value_is_equal_to<float>({-1}));
+    auto power_div = ov::pass::pattern::wrap_type<ov::op::v1::Power>({outsideOrInside, const_neg_1});
+    auto div = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({sub1, power_div});
 
-    auto div_alt = pattern::wrap_type<ov::op::v1::Divide>({sub1, outsideOrInside});
-    const auto powerMulOrDiv = std::make_shared<pattern::op::Or>(OutputVector{div, div_alt});
+    auto div_alt = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({sub1, outsideOrInside});
+    const auto powerMulOrDiv = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{div, div_alt});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
@@ -205,55 +205,55 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
     MATCHER_SCOPE(MVNFusionWithConstantsInside);
     // Detect MVN decomposition pattern:
     // (x - ReduceMean(x, axes)) * gamma / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps) + beta
-    auto x = pattern::any_input();
+    auto x = ov::pass::pattern::any_input();
 
     // (x - ReduceMean(x, axes))^2
     //     `------mean1-------'
-    auto mean1_axes = pattern::wrap_type<ov::op::v0::Constant>();
-    auto mean1 = pattern::wrap_type<ov::op::v1::ReduceMean>({x, mean1_axes});
+    auto mean1_axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mean1 = ov::pass::pattern::wrap_type<ov::op::v1::ReduceMean>({x, mean1_axes});
 
     // (x - ReduceMean(x, axes))^2
     // `-squared_difference------'
-    auto squared_difference = pattern::wrap_type<ov::op::v0::SquaredDifference>({x, mean1});
+    auto squared_difference = ov::pass::pattern::wrap_type<ov::op::v0::SquaredDifference>({x, mean1});
 
     // 1 / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
     //         `---mean2--------------------------------'
-    auto mean2_axes = pattern::wrap_type<ov::op::v0::Constant>();
-    auto mean2 = pattern::wrap_type<ov::op::v1::ReduceMean>({squared_difference, mean2_axes});
+    auto mean2_axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mean2 = ov::pass::pattern::wrap_type<ov::op::v1::ReduceMean>({squared_difference, mean2_axes});
 
     // 1 / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
     //         `------------------------------------------add--'
-    auto eps = pattern::wrap_type<ov::op::v0::Constant>();
-    auto add_eps = pattern::wrap_type<ov::op::v1::Add>({mean2, eps});
+    auto eps = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto add_eps = ov::pass::pattern::wrap_type<ov::op::v1::Add>({mean2, eps});
 
     // 1 / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
     // `-power-------------------------------------------------'
-    auto const_0_5 = pattern::wrap_type<ov::op::v0::Constant>(value_is_equal_to<float>({-0.5}));
-    auto power = pattern::wrap_type<ov::op::v1::Power>({add_eps, const_0_5});
+    auto const_0_5 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(value_is_equal_to<float>({-0.5}));
+    auto power = ov::pass::pattern::wrap_type<ov::op::v1::Power>({add_eps, const_0_5});
 
     // gamma / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
     // `---mul1----------------------------------------------------'
-    auto gamma = pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul1 = pattern::wrap_type<ov::op::v1::Multiply>({power, gamma});
+    auto gamma = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mul1 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({power, gamma});
 
     // x * gamma / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
     // `---mul2--------------------------------------------------------'
-    auto mul2 = pattern::wrap_type<ov::op::v1::Multiply>({x, mul1});
+    auto mul2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({x, mul1});
 
     // ReduceMean(x, axes) * gamma / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps) - beta
     // `-------------------mul3----------------------------------------------------------'
-    auto mul3 = pattern::wrap_type<ov::op::v1::Multiply>({mul1, mean1});
+    auto mul3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({mul1, mean1});
 
     // beta - ReduceMean(x, axes) * gamma / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
     // `---sub-----------------------------------------------------------------------------------'
-    auto beta = pattern::wrap_type<ov::op::v0::Constant>();
-    auto sub = pattern::wrap_type<ov::op::v1::Subtract>({beta, mul3});
+    auto beta = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto sub = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({beta, mul3});
 
     // Final Add
     // x * gamma / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps) +
     // beta - ReduceMean(x, axes) * gamma / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps) =
     // gamma * (x - ReduceMean(x, axes)) / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps) + beta
-    auto add = pattern::wrap_type<ov::op::v1::Add>({mul2, sub});
+    auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({mul2, sub});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();

@@ -15,24 +15,23 @@
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 using namespace ov;
-using namespace ov::op;
 using namespace std;
 
 TEST_F(TransformationTestsF, ChainedMaximumAC) {
     // A == C
     // Maximum(Maximum(A, B), C) -> Maximum(B, C)
     {
-        auto input = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto input = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
 
-        auto A = make_shared<v3::ShapeOf>(input);
-        auto B = v0::Constant::create(element::i64, {}, {1});
-        auto C = make_shared<v3::ShapeOf>(input);
+        auto A = make_shared<ov::op::v3::ShapeOf>(input);
+        auto B = ov::op::v0::Constant::create(element::i64, {}, {1});
+        auto C = make_shared<ov::op::v3::ShapeOf>(input);
 
-        auto maximum_0 = make_shared<v1::Maximum>(A, B);
-        auto maximum_1 = make_shared<v1::Maximum>(maximum_0, C);
+        auto maximum_0 = make_shared<ov::op::v1::Maximum>(A, B);
+        auto maximum_1 = make_shared<ov::op::v1::Maximum>(maximum_0, C);
 
-        auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
-        auto broadcast = make_shared<v1::Broadcast>(data, maximum_1);
+        auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto broadcast = make_shared<ov::op::v1::Broadcast>(data, maximum_1);
 
         model = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
         manager.set_per_pass_validation(false);
@@ -40,15 +39,15 @@ TEST_F(TransformationTestsF, ChainedMaximumAC) {
         manager.register_pass<pass::ChainedMaximumOptimization>();
     }
     {
-        auto input = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto input = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
 
-        auto B = v0::Constant::create(element::i64, {}, {1});
-        auto C = make_shared<v3::ShapeOf>(input);
+        auto B = ov::op::v0::Constant::create(element::i64, {}, {1});
+        auto C = make_shared<ov::op::v3::ShapeOf>(input);
 
-        auto maximum = make_shared<v1::Maximum>(B, C);
+        auto maximum = make_shared<ov::op::v1::Maximum>(B, C);
 
-        auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
-        auto broadcast = make_shared<v1::Broadcast>(data, maximum);
+        auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto broadcast = make_shared<ov::op::v1::Broadcast>(data, maximum);
 
         model_ref = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
     }
@@ -58,16 +57,16 @@ TEST_F(TransformationTestsF, ChainedMaximumBC) {
     // B == C
     // Maximum(Maximum(A, B), C) -> Maximum(A, C)
     {
-        auto input = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto input = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
 
-        auto A = v0::Constant::create(element::i64, {}, {1});
-        auto B = make_shared<v3::ShapeOf>(input);
-        auto C = make_shared<v3::ShapeOf>(input);
+        auto A = ov::op::v0::Constant::create(element::i64, {}, {1});
+        auto B = make_shared<ov::op::v3::ShapeOf>(input);
+        auto C = make_shared<ov::op::v3::ShapeOf>(input);
 
-        auto maximum_0 = make_shared<v1::Maximum>(A, B);
-        auto maximum_1 = make_shared<v1::Maximum>(maximum_0, C);
-        auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
-        auto broadcast = make_shared<v1::Broadcast>(data, maximum_1);
+        auto maximum_0 = make_shared<ov::op::v1::Maximum>(A, B);
+        auto maximum_1 = make_shared<ov::op::v1::Maximum>(maximum_0, C);
+        auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto broadcast = make_shared<ov::op::v1::Broadcast>(data, maximum_1);
 
         model = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
         manager.set_per_pass_validation(false);
@@ -75,15 +74,15 @@ TEST_F(TransformationTestsF, ChainedMaximumBC) {
         manager.register_pass<pass::ChainedMaximumOptimization>();
     }
     {
-        auto input = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto input = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
 
-        auto A = v0::Constant::create(element::i64, {}, {1});
-        auto C = make_shared<v3::ShapeOf>(input);
+        auto A = ov::op::v0::Constant::create(element::i64, {}, {1});
+        auto C = make_shared<ov::op::v3::ShapeOf>(input);
 
-        auto maximum = make_shared<v1::Maximum>(A, C);
+        auto maximum = make_shared<ov::op::v1::Maximum>(A, C);
 
-        auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
-        auto broadcast = make_shared<v1::Broadcast>(data, maximum);
+        auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto broadcast = make_shared<ov::op::v1::Broadcast>(data, maximum);
 
         model_ref = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
     }
@@ -92,17 +91,17 @@ TEST_F(TransformationTestsF, ChainedMaximumBC) {
 TEST_F(TransformationTestsF, ChainedMaximumNegativeNoLabels) {
     {
         auto shape = PartialShape::dynamic(4);
-        auto input = make_shared<v0::Parameter>(element::f32, shape);
+        auto input = make_shared<ov::op::v0::Parameter>(element::f32, shape);
 
-        auto A = v0::Constant::create(element::i64, {}, {1});
-        auto B = make_shared<v3::ShapeOf>(input);
-        auto C = make_shared<v3::ShapeOf>(input);
+        auto A = ov::op::v0::Constant::create(element::i64, {}, {1});
+        auto B = make_shared<ov::op::v3::ShapeOf>(input);
+        auto C = make_shared<ov::op::v3::ShapeOf>(input);
 
-        auto maximum_0 = make_shared<v1::Maximum>(A, B);
-        auto maximum_1 = make_shared<v1::Maximum>(maximum_0, C);
+        auto maximum_0 = make_shared<ov::op::v1::Maximum>(A, B);
+        auto maximum_1 = make_shared<ov::op::v1::Maximum>(maximum_0, C);
 
-        auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
-        auto broadcast = make_shared<v1::Broadcast>(data, maximum_1);
+        auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto broadcast = make_shared<ov::op::v1::Broadcast>(data, maximum_1);
 
         model = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
         manager.register_pass<pass::ChainedMaximumOptimization>();
@@ -111,18 +110,18 @@ TEST_F(TransformationTestsF, ChainedMaximumNegativeNoLabels) {
 
 TEST_F(TransformationTestsF, ChainedMaximumNegativeDifferentLabels) {
     {
-        auto input_0 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
-        auto input_1 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto input_0 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto input_1 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
 
-        auto A = v0::Constant::create(element::i64, {}, {1});
-        auto B = make_shared<v3::ShapeOf>(input_0);
-        auto C = make_shared<v3::ShapeOf>(input_1);
+        auto A = ov::op::v0::Constant::create(element::i64, {}, {1});
+        auto B = make_shared<ov::op::v3::ShapeOf>(input_0);
+        auto C = make_shared<ov::op::v3::ShapeOf>(input_1);
 
-        auto maximum_0 = make_shared<v1::Maximum>(A, B);
-        auto maximum_1 = make_shared<v1::Maximum>(maximum_0, C);
+        auto maximum_0 = make_shared<ov::op::v1::Maximum>(A, B);
+        auto maximum_1 = make_shared<ov::op::v1::Maximum>(maximum_0, C);
 
-        auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
-        auto broadcast = make_shared<v1::Broadcast>(data, maximum_1);
+        auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto broadcast = make_shared<ov::op::v1::Broadcast>(data, maximum_1);
 
         model = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input_0, input_1, data});
         manager.set_per_pass_validation(false);

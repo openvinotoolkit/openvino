@@ -18,8 +18,6 @@
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 
 using namespace ov;
-using namespace ov::op;
-
 namespace {
 
 using TensorType = ov::element::Type_t;
@@ -41,19 +39,19 @@ public:
 
 protected:
     static std::shared_ptr<Model> transform(const TensorShape& inShape, const TensorType& inType, size_t axis) {
-        const auto parameter = std::make_shared<v0::Parameter>(inType, inShape);
+        const auto parameter = std::make_shared<ov::op::v0::Parameter>(inType, inShape);
         const auto unsqueeze =
-            std::make_shared<v0::Unsqueeze>(parameter, v0::Constant::create(element::i64, Shape{1}, {axis}));
-        const auto gather = std::make_shared<v1::Gather>(unsqueeze,
-                                                         v0::Constant::create(element::i64, Shape{1}, {0}),
-                                                         v0::Constant::create(element::i64, Shape{1}, {axis}));
-        const auto relu = std::make_shared<v0::Relu>(gather);
+            std::make_shared<ov::op::v0::Unsqueeze>(parameter, ov::op::v0::Constant::create(element::i64, Shape{1}, {axis}));
+        const auto gather = std::make_shared<ov::op::v1::Gather>(unsqueeze,
+                                                         ov::op::v0::Constant::create(element::i64, Shape{1}, {0}),
+                                                         ov::op::v0::Constant::create(element::i64, Shape{1}, {axis}));
+        const auto relu = std::make_shared<ov::op::v0::Relu>(gather);
         return std::make_shared<Model>(OutputVector{relu}, ParameterVector{parameter}, "Actual");
     }
 
     static std::shared_ptr<Model> reference(const TensorShape& inShape, const TensorType& inType) {
-        const auto parameter = std::make_shared<v0::Parameter>(inType, inShape);
-        const auto relu = std::make_shared<v0::Relu>(parameter);
+        const auto parameter = std::make_shared<ov::op::v0::Parameter>(inType, inShape);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(parameter);
         return std::make_shared<Model>(OutputVector{relu}, ParameterVector{parameter}, "Reference");
     }
 };
@@ -71,153 +69,153 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_F(TransformationTestsF, GatherUnsqueeze) {
     {
-        auto data = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1});
-        auto indices = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
-        auto axis = v0::Constant::create(element::i32, Shape{}, {0});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{-1});
+        auto indices = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{});
+        auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
 
-        auto gather = std::make_shared<v8::Gather>(data, indices, axis);
-        auto unsqueeze = std::make_shared<v0::Unsqueeze>(gather, axis);
-        const auto relu = std::make_shared<v0::Relu>(unsqueeze);
+        auto gather = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
+        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(gather, axis);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(unsqueeze);
         model = std::make_shared<Model>(OutputVector{relu}, ParameterVector{data, indices});
         manager.register_pass<pass::EliminateGatherUnsqueeze>();
     }
     {
-        auto data = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1});
-        auto indices = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
-        auto axis = v0::Constant::create(element::i32, Shape{}, {0});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{-1});
+        auto indices = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{});
+        auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
 
         auto updated_indices =
-            std::make_shared<v1::Reshape>(indices, v0::Constant::create(element::i32, {1}, {1}), false);
-        auto gather = std::make_shared<v8::Gather>(data, updated_indices, axis);
-        const auto relu = std::make_shared<v0::Relu>(gather);
+            std::make_shared<ov::op::v1::Reshape>(indices, ov::op::v0::Constant::create(element::i32, {1}, {1}), false);
+        auto gather = std::make_shared<ov::op::v8::Gather>(data, updated_indices, axis);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(gather);
         model_ref = std::make_shared<Model>(OutputVector{relu}, ParameterVector{data, indices});
     }
 }
 
 TEST_F(TransformationTestsF, GatherUnsqueezeReshape) {
     {
-        auto data = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1});
-        auto indices = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
-        auto axis = v0::Constant::create(element::i32, Shape{}, {0});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{-1});
+        auto indices = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{});
+        auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
 
-        auto gather = std::make_shared<v8::Gather>(data, indices, axis);
+        auto gather = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
         auto unsqueeze =
-            std::make_shared<v1::Reshape>(gather, v0::Constant::create(element::i32, Shape{1}, {1}), false);
-        const auto relu = std::make_shared<v0::Relu>(unsqueeze);
+            std::make_shared<ov::op::v1::Reshape>(gather, ov::op::v0::Constant::create(element::i32, Shape{1}, {1}), false);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(unsqueeze);
         model = std::make_shared<Model>(OutputVector{relu}, ParameterVector{data, indices});
         manager.register_pass<pass::EliminateGatherUnsqueeze>();
     }
     {
-        auto data = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1});
-        auto indices = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
-        auto axis = v0::Constant::create(element::i32, Shape{}, {0});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{-1});
+        auto indices = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{});
+        auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
 
         auto updated_indices =
-            std::make_shared<v1::Reshape>(indices, v0::Constant::create(element::i32, {1}, {1}), false);
-        auto gather = std::make_shared<v8::Gather>(data, updated_indices, axis);
-        const auto relu = std::make_shared<v0::Relu>(gather);
+            std::make_shared<ov::op::v1::Reshape>(indices, ov::op::v0::Constant::create(element::i32, {1}, {1}), false);
+        auto gather = std::make_shared<ov::op::v8::Gather>(data, updated_indices, axis);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(gather);
         model_ref = std::make_shared<Model>(OutputVector{relu}, ParameterVector{data, indices});
     }
 }
 
 TEST_F(TransformationTestsF, GatherUnsqueezeMul) {
     {
-        auto data = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1});
-        auto indices = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
-        auto axis = v0::Constant::create(element::i32, Shape{}, {0});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{-1});
+        auto indices = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{});
+        auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
 
-        auto gather = std::make_shared<v8::Gather>(data, indices, axis);
+        auto gather = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
 
-        auto scalar = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
-        auto bea = std::make_shared<v1::Multiply>(gather, scalar);
+        auto scalar = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{});
+        auto bea = std::make_shared<ov::op::v1::Multiply>(gather, scalar);
 
-        auto unsqueeze = std::make_shared<v0::Unsqueeze>(bea, axis);
-        const auto relu = std::make_shared<v0::Relu>(unsqueeze);
+        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(bea, axis);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(unsqueeze);
         model = std::make_shared<Model>(OutputVector{relu}, ParameterVector{data, indices, scalar});
         manager.register_pass<pass::EliminateGatherUnsqueeze>();
     }
     {
-        auto data = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1});
-        auto indices = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
-        auto axis = v0::Constant::create(element::i32, Shape{}, {0});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{-1});
+        auto indices = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{});
+        auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
 
         auto updated_indices =
-            std::make_shared<v1::Reshape>(indices, v0::Constant::create(element::i32, {1}, {1}), false);
-        auto gather = std::make_shared<v8::Gather>(data, updated_indices, axis);
+            std::make_shared<ov::op::v1::Reshape>(indices, ov::op::v0::Constant::create(element::i32, {1}, {1}), false);
+        auto gather = std::make_shared<ov::op::v8::Gather>(data, updated_indices, axis);
 
-        auto scalar = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
-        auto bea = std::make_shared<v1::Multiply>(gather, scalar);
+        auto scalar = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{});
+        auto bea = std::make_shared<ov::op::v1::Multiply>(gather, scalar);
 
-        const auto relu = std::make_shared<v0::Relu>(bea);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(bea);
         model_ref = std::make_shared<Model>(OutputVector{relu}, ParameterVector{data, indices, scalar});
     }
 }
 
 TEST_F(TransformationTestsF, GatherUnsqueezesMul) {
     {
-        auto data = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1});
-        auto indices = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
-        auto axis = v0::Constant::create(element::i32, Shape{}, {0});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{-1});
+        auto indices = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{});
+        auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
 
-        auto gather = std::make_shared<v8::Gather>(data, indices, axis);
+        auto gather = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
 
-        auto scalar = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
-        auto bea = std::make_shared<v1::Multiply>(gather, scalar);
+        auto scalar = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{});
+        auto bea = std::make_shared<ov::op::v1::Multiply>(gather, scalar);
 
-        auto unsqueeze_0 = std::make_shared<v0::Unsqueeze>(bea, axis);
-        auto unsqueeze_1 = std::make_shared<v0::Unsqueeze>(bea, axis);
-        auto unsqueeze_2 = std::make_shared<v0::Unsqueeze>(bea, axis);
+        auto unsqueeze_0 = std::make_shared<ov::op::v0::Unsqueeze>(bea, axis);
+        auto unsqueeze_1 = std::make_shared<ov::op::v0::Unsqueeze>(bea, axis);
+        auto unsqueeze_2 = std::make_shared<ov::op::v0::Unsqueeze>(bea, axis);
 
-        auto concat = std::make_shared<v0::Concat>(OutputVector{unsqueeze_0, unsqueeze_1, unsqueeze_2}, 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{unsqueeze_0, unsqueeze_1, unsqueeze_2}, 0);
 
         model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data, indices, scalar});
         manager.register_pass<pass::SimplifyShapeOfSubGraph>();
     }
     {
-        auto data = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1});
-        auto indices = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
-        auto axis = v0::Constant::create(element::i32, Shape{}, {0});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{-1});
+        auto indices = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{});
+        auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
 
         auto updated_indices =
-            std::make_shared<v1::Reshape>(indices, v0::Constant::create(element::i32, {1}, {1}), false);
-        auto gather = std::make_shared<v8::Gather>(data, updated_indices, axis);
+            std::make_shared<ov::op::v1::Reshape>(indices, ov::op::v0::Constant::create(element::i32, {1}, {1}), false);
+        auto gather = std::make_shared<ov::op::v8::Gather>(data, updated_indices, axis);
 
-        auto scalar = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
-        auto bea = std::make_shared<v1::Multiply>(gather, scalar);
+        auto scalar = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{});
+        auto bea = std::make_shared<ov::op::v1::Multiply>(gather, scalar);
 
-        auto concat = std::make_shared<v0::Concat>(OutputVector{bea, bea, bea}, 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{bea, bea, bea}, 0);
 
         model_ref = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data, indices, scalar});
     }
 }
 TEST_F(TransformationTestsF, GatherUnsqueezes) {
     {
-        auto data = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1});
-        auto indices = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
-        auto axis = v0::Constant::create(element::i32, Shape{1}, {0});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{-1});
+        auto indices = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{});
+        auto axis = ov::op::v0::Constant::create(element::i32, Shape{1}, {0});
 
-        auto gather = std::make_shared<v8::Gather>(data, indices, axis);
+        auto gather = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
 
-        auto unsqueeze_0 = std::make_shared<v0::Unsqueeze>(gather, axis);
-        auto unsqueeze_1 = std::make_shared<v0::Unsqueeze>(gather, axis);
-        auto unsqueeze_2 = std::make_shared<v0::Unsqueeze>(gather, axis);
+        auto unsqueeze_0 = std::make_shared<ov::op::v0::Unsqueeze>(gather, axis);
+        auto unsqueeze_1 = std::make_shared<ov::op::v0::Unsqueeze>(gather, axis);
+        auto unsqueeze_2 = std::make_shared<ov::op::v0::Unsqueeze>(gather, axis);
 
-        auto concat = std::make_shared<v0::Concat>(OutputVector{unsqueeze_0, unsqueeze_1, unsqueeze_2, axis}, 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{unsqueeze_0, unsqueeze_1, unsqueeze_2, axis}, 0);
 
         model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data, indices});
         manager.register_pass<pass::SharedOpOptimization>();
         manager.register_pass<pass::EliminateGatherUnsqueeze>();
     }
     {
-        auto data = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1});
-        auto indices = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
-        auto axis = v0::Constant::create(element::i32, Shape{1}, {0});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{-1});
+        auto indices = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{});
+        auto axis = ov::op::v0::Constant::create(element::i32, Shape{1}, {0});
 
         auto updated_indices =
-            std::make_shared<v1::Reshape>(indices, v0::Constant::create(element::i32, {1}, {1}), false);
-        auto gather = std::make_shared<v8::Gather>(data, updated_indices, axis);
+            std::make_shared<ov::op::v1::Reshape>(indices, ov::op::v0::Constant::create(element::i32, {1}, {1}), false);
+        auto gather = std::make_shared<ov::op::v8::Gather>(data, updated_indices, axis);
 
-        auto concat = std::make_shared<v0::Concat>(OutputVector{gather, gather, gather, axis}, 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{gather, gather, gather, axis}, 0);
 
         model_ref = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data, indices});
     }

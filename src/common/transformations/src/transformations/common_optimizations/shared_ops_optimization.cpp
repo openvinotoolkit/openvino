@@ -13,8 +13,6 @@
 
 using namespace std;
 using namespace ov;
-using namespace ov::op;
-
 namespace {
 #define ACCESSOR(type)                                                                \
     void on_adapter(const std::string& name, ValueAccessor<type>& adapter) override { \
@@ -64,8 +62,8 @@ bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs
     for (size_t i = 0; i < input_size; ++i) {
         if (ov::op::util::input_sources_are_equal(lhs, rhs, i))
             continue;
-        auto lhs_constant = as_type<v0::Constant>(lhs->get_input_node_ptr(i));
-        auto rhs_constant = as_type<v0::Constant>(rhs->get_input_node_ptr(i));
+        auto lhs_constant = as_type<ov::op::v0::Constant>(lhs->get_input_node_ptr(i));
+        auto rhs_constant = as_type<ov::op::v0::Constant>(rhs->get_input_node_ptr(i));
         if (!lhs_constant || !rhs_constant)
             return false;
         if (lhs_constant->get_element_type() != rhs_constant->get_element_type())
@@ -191,8 +189,8 @@ bool shape_of_upgrade(const shared_ptr<Model>& model) {
                 if (sub_graph)
                     rewritten = shape_of_upgrade(sub_graph) || rewritten;
             }
-        } else if (auto v1_shape_of = ov::as_type_ptr<v0::ShapeOf>(op)) {
-            auto v3_shape_of = std::make_shared<v3::ShapeOf>(v1_shape_of->input_value(0), element::i64);
+        } else if (auto v1_shape_of = ov::as_type_ptr<ov::op::v0::ShapeOf>(op)) {
+            auto v3_shape_of = std::make_shared<ov::op::v3::ShapeOf>(v1_shape_of->input_value(0), element::i64);
             v3_shape_of->set_friendly_name(v1_shape_of->get_friendly_name());
             ov::replace_output_update_name(v1_shape_of, v3_shape_of);
             rewritten = true;

@@ -151,7 +151,7 @@ NMS9Attributes get_nms9_attrs(const std::shared_ptr<ov::Node>& root) {
     return attrs;
 }
 
-bool nms_to_nms9_callback_func(pass::pattern::Matcher& m, pass::MatcherPass* impl) {
+bool nms_to_nms9_callback_func(ov::pass::pattern::Matcher& m, pass::MatcherPass* impl) {
     auto root = m.get_match_root();
 
     auto attrs = get_nms9_attrs(root);
@@ -195,44 +195,44 @@ bool nms_to_nms9_callback_func(pass::pattern::Matcher& m, pass::MatcherPass* imp
 
 ov::pass::ConvertNMS5ToNMS9::ConvertNMS5ToNMS9() {
     MATCHER_SCOPE(ConvertNMS5ToNMS9);
-    auto nms = pass::pattern::wrap_type<ov::op::v5::NonMaxSuppression>();
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    auto nms = ov::pass::pattern::wrap_type<ov::op::v5::NonMaxSuppression>();
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         return nms_to_nms9_callback_func(m, this);
     };
 
-    auto m = std::make_shared<pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ov::pass::ConvertNMS4ToNMS9::ConvertNMS4ToNMS9() {
     MATCHER_SCOPE(ConvertNMS4ToNMS9);
-    auto nms = pass::pattern::wrap_type<ov::op::v4::NonMaxSuppression>();
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    auto nms = ov::pass::pattern::wrap_type<ov::op::v4::NonMaxSuppression>();
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         return nms_to_nms9_callback_func(m, this);
     };
 
-    auto m = std::make_shared<pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ov::pass::ConvertNMS3ToNMS9::ConvertNMS3ToNMS9() {
     MATCHER_SCOPE(ConvertNMS3ToNMS9);
-    auto nms = pass::pattern::wrap_type<ov::op::v3::NonMaxSuppression>();
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    auto nms = ov::pass::pattern::wrap_type<ov::op::v3::NonMaxSuppression>();
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         return nms_to_nms9_callback_func(m, this);
     };
 
-    auto m = std::make_shared<pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ov::pass::ConvertNMS1ToNMS9::ConvertNMS1ToNMS9() {
     MATCHER_SCOPE(ConvertNMS1ToNMS9);
-    auto nms = pass::pattern::wrap_type<ov::op::v1::NonMaxSuppression>();
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    auto nms = ov::pass::pattern::wrap_type<ov::op::v1::NonMaxSuppression>();
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         return nms_to_nms9_callback_func(m, this);
     };
 
-    auto m = std::make_shared<pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -25,7 +25,7 @@
 
 ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
     MATCHER_SCOPE(NormalizeL2Fusion);
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
 
     auto exp = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto pow = std::make_shared<ov::op::v1::Power>(input, exp);
@@ -35,20 +35,20 @@ ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
     auto eps_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto max = std::make_shared<ov::op::v1::Maximum>(reduce_sum, eps_const);
     auto add = std::make_shared<ov::op::v1::Add>(reduce_sum, eps_const);
-    auto max_or_add = std::make_shared<pattern::op::Or>(OutputVector{max, add});
+    auto max_or_add = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{max, add});
 
     // Sqrt can be represented by Sqrt node or as Power node with exponent 0.5
     auto sqrt = std::make_shared<ov::op::v0::Sqrt>(max_or_add);
     auto exp2 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto pow_as_sqrt = std::make_shared<ov::op::v1::Power>(max_or_add, exp2);
-    auto power_or_sqrt = std::make_shared<pattern::op::Or>(OutputVector{sqrt, pow_as_sqrt});
+    auto power_or_sqrt = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sqrt, pow_as_sqrt});
 
     // divide(input,sqrt(..)) can be represented as mul(input, power(..., -0.5f))
     auto divide = std::make_shared<ov::op::v1::Divide>(input, power_or_sqrt);
     auto exp3 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto reversed_pow_as_sqrt = std::make_shared<ov::op::v1::Power>(max_or_add, exp3);
     auto mul = std::make_shared<ov::op::v1::Multiply>(input, reversed_pow_as_sqrt);
-    auto divide_or_mul = std::make_shared<pattern::op::Or>(OutputVector{divide, mul});
+    auto divide_or_mul = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{divide, mul});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();

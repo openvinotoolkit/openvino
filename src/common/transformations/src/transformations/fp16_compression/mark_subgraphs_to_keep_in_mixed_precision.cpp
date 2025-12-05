@@ -87,7 +87,7 @@ void erase_fq_path(const std::shared_ptr<Node>& node) {
 
 // Marking continues to propagate through these ops.
 const std::shared_ptr<Node> propagate_through_ops =
-    pattern::wrap_type<ov::op::v0::Squeeze,
+    ov::pass::pattern::wrap_type<ov::op::v0::Squeeze,
                        ov::op::v0::Unsqueeze,
                        ov::op::v1::Reshape,
                        op::util::BroadcastBase,
@@ -121,7 +121,7 @@ public:
     PropagateUpMarkToKeepInMixedPrecision() {
         MATCHER_SCOPE(PropagateUpMarkToKeepInMixedPrecision);
 
-        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             bool has_marked_output = false;
             for (const auto& output : node->outputs()) {
@@ -149,7 +149,7 @@ public:
             return true;
         };
 
-        auto m = make_shared<pattern::Matcher>(propagate_through_ops, matcher_name);
+        auto m = make_shared<ov::pass::pattern::Matcher>(propagate_through_ops, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -164,7 +164,7 @@ public:
     PropagateDownMarkToKeepInMixedPrecision() {
         MATCHER_SCOPE(PropagateDownMarkToKeepInMixedPrecision);
 
-        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             if (!node)
                 return false;
@@ -191,7 +191,7 @@ public:
             }
             return is_changed;
         };
-        auto m = make_shared<pattern::Matcher>(propagate_through_ops, matcher_name);
+        auto m = make_shared<ov::pass::pattern::Matcher>(propagate_through_ops, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -202,16 +202,16 @@ public:
     InitMarkReduceOpPath() {
         MATCHER_SCOPE(InitMarkReduceOpPath);
 
-        auto reduce_ops = pattern::wrap_type<ov::op::v1::ReduceSum, ov::op::v1::ReduceMean>();
+        auto reduce_ops = ov::pass::pattern::wrap_type<ov::op::v1::ReduceSum, ov::op::v1::ReduceMean>();
 
-        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             if (!node)
                 return false;
             mark_reduceop_path(node);
             return true;
         };
-        auto m = make_shared<pattern::Matcher>(reduce_ops, matcher_name);
+        auto m = make_shared<ov::pass::pattern::Matcher>(reduce_ops, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -222,7 +222,7 @@ public:
     PropagateMarkUpReduceOpPath() {
         MATCHER_SCOPE(PropagateMarkUpReduceOpPath);
 
-        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             if (!node)
                 return false;
@@ -238,7 +238,7 @@ public:
             }
             return false;
         };
-        auto m = make_shared<pattern::Matcher>(propagate_through_ops, matcher_name);
+        auto m = make_shared<ov::pass::pattern::Matcher>(propagate_through_ops, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -249,9 +249,9 @@ public:
     // only exponent that go into ReduceOp should be marked as precision sensitive and kept in f32
     MarkExp() {
         MATCHER_SCOPE(MarkExp);
-        auto exp_pattern = pattern::wrap_type<ov::op::v0::Exp>();
+        auto exp_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Exp>();
 
-        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             if (!node)
                 return false;
@@ -262,7 +262,7 @@ public:
             disable_fp16_compression(node);
             return true;
         };
-        auto m = make_shared<pattern::Matcher>(exp_pattern, matcher_name);
+        auto m = make_shared<ov::pass::pattern::Matcher>(exp_pattern, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -273,9 +273,9 @@ public:
 
     MarkRandomUniform() {
         MATCHER_SCOPE(MarkRandomUniform);
-        auto random_uniform_pattern = pattern::wrap_type<ov::op::v8::RandomUniform>();
+        auto random_uniform_pattern = ov::pass::pattern::wrap_type<ov::op::v8::RandomUniform>();
 
-        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             if (!node)
                 return false;
@@ -292,7 +292,7 @@ public:
             }
             return false;
         };
-        auto m = make_shared<pattern::Matcher>(random_uniform_pattern, matcher_name);
+        auto m = make_shared<ov::pass::pattern::Matcher>(random_uniform_pattern, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -332,27 +332,27 @@ public:
         // input_1 * Pow(Maximum(input_2, eps), -z)
         // input_1 * Pow(Add(input_2, eps), -z)
 
-        auto input_1 = pattern::any_input();
-        auto input_2 = pattern::any_input();
+        auto input_1 = ov::pass::pattern::any_input();
+        auto input_2 = ov::pass::pattern::any_input();
 
-        auto eps_const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-        auto optional_eps_convert = pattern::optional<ov::op::v0::Convert>(eps_const_pattern);
+        auto eps_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+        auto optional_eps_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(eps_const_pattern);
 
         auto max_or_add =
-            pattern::wrap_type<ov::op::v1::Maximum, ov::op::v1::Add>(OutputVector{input_2, optional_eps_convert});
+            ov::pass::pattern::wrap_type<ov::op::v1::Maximum, ov::op::v1::Add>(OutputVector{input_2, optional_eps_convert});
 
-        auto optional_sqrt = pattern::optional<ov::op::v0::Sqrt>(max_or_add);
+        auto optional_sqrt = ov::pass::pattern::optional<ov::op::v0::Sqrt>(max_or_add);
         // whether is divided directly or after sqrt (e.g. in L2Norm after sqrt, in MVN is divided directly)
         auto divide = std::make_shared<ov::op::v1::Divide>(input_1, optional_sqrt);
 
-        auto pow_exp = pattern::wrap_type<ov::op::v0::Constant>();
-        auto optional_pow_convert = pattern::optional<ov::op::v0::Convert>(pow_exp);
+        auto pow_exp = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+        auto optional_pow_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(pow_exp);
 
         auto pow_pattern = std::make_shared<ov::op::v1::Power>(max_or_add, optional_pow_convert);
         auto mul_pattern = std::make_shared<ov::op::v1::Multiply>(input_1, pow_pattern);
-        auto div_or_mul_to_negative_pow = std::make_shared<pattern::op::Or>(OutputVector{divide, mul_pattern});
+        auto div_or_mul_to_negative_pow = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{divide, mul_pattern});
 
-        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_to_output = m.get_pattern_map();
             if (!m.get_match_root())
                 return false;
@@ -392,7 +392,7 @@ public:
             return true;
         };
 
-        auto m = make_shared<pattern::Matcher>(div_or_mul_to_negative_pow, matcher_name);
+        auto m = make_shared<ov::pass::pattern::Matcher>(div_or_mul_to_negative_pow, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -404,7 +404,7 @@ public:
         MATCHER_SCOPE(PropagateDownDisableSensitivityForQuantized);
 
         // through this nodes
-        const std::shared_ptr<Node> quantization_propagating_nodes = pattern::wrap_type<ov::op::v0::Squeeze,
+        const std::shared_ptr<Node> quantization_propagating_nodes = ov::pass::pattern::wrap_type<ov::op::v0::Squeeze,
                                                                                         ov::op::v0::Unsqueeze,
                                                                                         ov::op::v0::FakeQuantize,
                                                                                         ov::op::v1::Reshape,
@@ -428,7 +428,7 @@ public:
                                                                                         ov::op::v0::Concat,
                                                                                         ov::op::v0::Tile>();
 
-        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             if (!node)
                 return false;
@@ -453,7 +453,7 @@ public:
 
             return is_changed;
         };
-        auto m = make_shared<pattern::Matcher>(quantization_propagating_nodes, matcher_name);
+        auto m = make_shared<ov::pass::pattern::Matcher>(quantization_propagating_nodes, matcher_name);
         register_matcher(m, callback);
     }
 };

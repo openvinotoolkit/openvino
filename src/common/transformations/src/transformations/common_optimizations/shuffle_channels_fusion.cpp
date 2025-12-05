@@ -85,21 +85,21 @@ bool check_shapes(const ov::PartialShape& pshape_input,
 
 ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_constants_check) {
     MATCHER_SCOPE(ShuffleChannelsFusion);
-    auto input = pass::pattern::any_input(pattern::rank_equals(4));
+    auto input = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(4));
     auto reshape_before_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto transpose_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto reshape_after_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
     auto reshape_before_pattern =
         ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({input, reshape_before_const_pattern},
-                                                          pattern::consumers_count(1));
+                                                          ov::pass::pattern::consumers_count(1));
     auto transpose_pattern =
         ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({reshape_before_pattern, transpose_const_pattern},
-                                                            pattern::consumers_count(1));
+                                                            ov::pass::pattern::consumers_count(1));
     auto reshape_after_pattern =
         ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({transpose_pattern, reshape_after_const_pattern});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto data = pattern_map.at(input);

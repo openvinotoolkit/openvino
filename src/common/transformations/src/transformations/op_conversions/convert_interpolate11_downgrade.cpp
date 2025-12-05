@@ -56,9 +56,9 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_v4_inputs(
 ov::pass::ConvertInterpolate11ToInterpolate4::ConvertInterpolate11ToInterpolate4() {
     MATCHER_SCOPE(ConvertInterpolate11ToInterpolate4);
 
-    const auto interpolate_v11_pattern = pattern::wrap_type<ov::op::v11::Interpolate>();
+    const auto interpolate_v11_pattern = ov::pass::pattern::wrap_type<ov::op::v11::Interpolate>();
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto v4_compatible_interpolation_mode = [](const op::util::InterpolateBase::InterpolateMode mode) {
             constexpr std::array<op::util::InterpolateBase::InterpolateMode, 4> allowed_modes = {
                 op::util::InterpolateBase::InterpolateMode::NEAREST,
@@ -101,6 +101,6 @@ ov::pass::ConvertInterpolate11ToInterpolate4::ConvertInterpolate11ToInterpolate4
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(interpolate_v11_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(interpolate_v11_pattern, matcher_name);
     register_matcher(m, callback);
 }

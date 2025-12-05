@@ -22,17 +22,17 @@
 ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     MATCHER_SCOPE(PullTransposeThroughFQUp);
     const auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    const auto convert_p = ov::pass::pattern::optional<ov::op::v0::Convert>(weights, pattern::consumers_count(1));
-    auto m_fq = pattern::wrap_type<ov::op::v0::FakeQuantize>({convert_p,
-                                                              pattern::any_input(pattern::has_static_shape()),
-                                                              pattern::any_input(pattern::has_static_shape()),
-                                                              pattern::any_input(pattern::has_static_shape()),
-                                                              pattern::any_input(pattern::has_static_shape())},
-                                                             pattern::consumers_count(1));
-    auto m_transpose_perm = pattern::wrap_type<ov::op::v0::Constant>();
-    auto m_transpose = pattern::wrap_type<ov::op::v1::Transpose>({m_fq, m_transpose_perm});
+    const auto convert_p = ov::pass::pattern::optional<ov::op::v0::Convert>(weights, ov::pass::pattern::consumers_count(1));
+    auto m_fq = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({convert_p,
+                                                              ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
+                                                              ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
+                                                              ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
+                                                              ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape())},
+                                                             ov::pass::pattern::consumers_count(1));
+    auto m_transpose_perm = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto m_transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({m_fq, m_transpose_perm});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto transpose = pattern_map[m_transpose].get_node_shared_ptr();
         auto fq = pattern_map[m_fq].get_node_shared_ptr();

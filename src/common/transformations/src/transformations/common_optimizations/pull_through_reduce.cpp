@@ -110,16 +110,16 @@ bool have_same_axes(const std::vector<int64_t>& unsqueeze_axes, const std::vecto
 ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
     MATCHER_SCOPE(PullUnsqueezeThroughReduce);
 
-    const auto input = pattern::any_input(pattern::has_static_rank());
-    const auto unsqueeze_axes = pattern::wrap_type<ov::op::v0::Constant>();
+    const auto input = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    const auto unsqueeze_axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto unsqueeze =
-        pattern::wrap_type<ov::op::v0::Unsqueeze>({input, unsqueeze_axes}, pattern::consumers_count(1));
-    const auto reduce_axes = pattern::wrap_type<ov::op::v0::Constant>();
+        ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>({input, unsqueeze_axes}, ov::pass::pattern::consumers_count(1));
+    const auto reduce_axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto reduce =
-        pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims, ov::op::util::LogicalReductionKeepDims>(
+        ov::pass::pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims, ov::op::util::LogicalReductionKeepDims>(
             {unsqueeze, reduce_axes});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         const auto input_node = pattern_map.at(input);
         const auto reduce_node =
@@ -177,23 +177,23 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(reduce, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reduce, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
     MATCHER_SCOPE(PullReshapeThroughReduce);
 
-    const auto input = pattern::any_input(pattern::has_static_shape());
-    const auto reshape_target_shape = pattern::wrap_type<ov::op::v0::Constant>();
+    const auto input = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
+    const auto reshape_target_shape = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto reshape =
-        pattern::wrap_type<ov::op::v1::Reshape>({input, reshape_target_shape}, pattern::consumers_count(1));
-    const auto reduce_axes = pattern::wrap_type<ov::op::v0::Constant>();
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({input, reshape_target_shape}, ov::pass::pattern::consumers_count(1));
+    const auto reduce_axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto reduce =
-        pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims, ov::op::util::LogicalReductionKeepDims>(
+        ov::pass::pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims, ov::op::util::LogicalReductionKeepDims>(
             {reshape, reduce_axes});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         const auto input_node = pattern_map.at(input);
         const auto reduce_node =
@@ -245,6 +245,6 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(reduce, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reduce, matcher_name);
     register_matcher(m, callback);
 }

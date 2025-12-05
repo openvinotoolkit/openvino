@@ -15,8 +15,6 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
-
-using namespace ov::pass::pattern;
 using namespace ov;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
@@ -158,10 +156,10 @@ TSSplitForward::TSSplitForward() {
 TSSplitBackward::TSSplitBackward() {
     MATCHER_SCOPE(TSSplitBackward);
 
-    auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
-    auto transpose_label = wrap_type<ov::op::v1::Transpose>({any_input(), transpose_const_label}, IsSplitSinked);
+    auto transpose_const_label = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), transpose_const_label}, IsSplitSinked);
 
-    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_label_node = pattern_to_output.at(transpose_label).get_node();
 
@@ -222,6 +220,6 @@ TSSplitBackward::TSSplitBackward() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

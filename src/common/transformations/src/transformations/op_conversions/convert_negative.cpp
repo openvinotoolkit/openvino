@@ -19,7 +19,7 @@ ov::pass::ConvertNegative::ConvertNegative() {
     MATCHER_SCOPE(ConvertNegative);
     auto neg = ov::pass::pattern::wrap_type<ov::op::v0::Negative>();
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto neg = ov::as_type_ptr<ov::op::v0::Negative>(m.get_match_root());
         if (!neg) {
             return false;

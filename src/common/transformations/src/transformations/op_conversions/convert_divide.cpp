@@ -61,7 +61,7 @@ ov::pass::ConvertDivide::ConvertDivide() {
     MATCHER_SCOPE(ConvertDivide);
     auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>();
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         return convert_divide(m.get_match_root());
     };
 
@@ -72,9 +72,9 @@ ov::pass::ConvertDivide::ConvertDivide() {
 ov::pass::ConvertDivideWithConstant::ConvertDivideWithConstant() {
     MATCHER_SCOPE(ConvertDivideWithConstant);
     auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>(
-        {pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()});
+        {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         return convert_divide(m.get_match_root());
     };
 

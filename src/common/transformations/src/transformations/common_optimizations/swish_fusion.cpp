@@ -43,7 +43,7 @@ bool check_beta_value(const std::shared_ptr<ov::op::v0::Constant>& constant) {
 ov::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
     MATCHER_SCOPE(SwishFusionWithSigmoid);
     // replaces a sub-graphs x * Sigmoid(x) with a Swish op.
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(input);
     auto mul = std::make_shared<ov::op::v1::Multiply>(input, sigmoid);
 
@@ -68,8 +68,8 @@ ov::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
 ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
     MATCHER_SCOPE(SwishFusionWithSigmoidWithBeta);
     // replaces a sub-graphs x * Sigmoid(x * beta) with a Swish op.
-    auto input = pass::pattern::any_input();
-    auto beta = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
+    auto beta = ov::pass::pattern::any_input();
     auto mul_beta = std::make_shared<ov::op::v1::Multiply>(input, beta);
     auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(mul_beta);
     auto mul = std::make_shared<ov::op::v1::Multiply>(input, sigmoid);
@@ -114,8 +114,8 @@ ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
 ov::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
     MATCHER_SCOPE(SwishFusionWithBeta);
     // replaces a sub-graphs x / (1.0 + exp(-x * beta)) with a Swish op.
-    auto input = pass::pattern::any_input();
-    auto beta = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
+    auto beta = ov::pass::pattern::any_input();
     auto mul = std::make_shared<ov::op::v1::Multiply>(input, beta);
     auto neg = std::make_shared<ov::op::v0::Negative>(mul);
     auto exp = std::make_shared<ov::op::v0::Exp>(neg);
@@ -154,7 +154,7 @@ ov::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
 ov::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
     MATCHER_SCOPE(SwishFusionWithoutBeta);
     // replaces a sub-graphs x / (1.0 + exp(-x)) with a Swish op.
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto neg = std::make_shared<ov::op::v0::Negative>(input);
     auto exp = std::make_shared<ov::op::v0::Exp>(neg);
     auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();

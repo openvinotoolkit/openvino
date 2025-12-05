@@ -94,16 +94,16 @@ static std::tuple<Shape, Shape> new_pooling_pad_values(const std::shared_ptr<ov:
 
 pass::PadFusionAvgPool::PadFusionAvgPool() {
     MATCHER_SCOPE(PadFusionAvgPool);
-    auto data_pattern = pattern::any_input();
-    auto pads_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto pads_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto pad_value_pattern = pattern::any_input();
-    auto pad_node_pattern = pattern::wrap_type<ov::op::util::PadBase>(
+    auto data_pattern = ov::pass::pattern::any_input();
+    auto pads_begin_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pads_end_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pad_value_pattern = ov::pass::pattern::any_input();
+    auto pad_node_pattern = ov::pass::pattern::wrap_type<ov::op::util::PadBase>(
         {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-        pattern::consumers_count(1));
-    auto avg_pool_pattern = pattern::wrap_type<ov::op::v1::AvgPool>({pad_node_pattern});
+        ov::pass::pattern::consumers_count(1));
+    auto avg_pool_pattern = ov::pass::pattern::wrap_type<ov::op::v1::AvgPool>({pad_node_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto pad = ov::as_type_ptr<ov::op::util::PadBase>(pattern_map[pad_node_pattern].get_node_shared_ptr());
@@ -158,7 +158,7 @@ pass::PadFusionAvgPool::PadFusionAvgPool() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(avg_pool_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(avg_pool_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -192,17 +192,17 @@ static std::tuple<CoordinateDiff, CoordinateDiff> new_conv_pad_values(
 
 pass::PadFusionConvolution::PadFusionConvolution() {
     MATCHER_SCOPE(PadFusionConvolution);
-    auto data_pattern = pattern::any_input();
-    auto filter_pattern = pattern::any_input();
-    auto pads_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto pads_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto pad_value_pattern = pattern::any_input();
-    auto pad_node_pattern = pattern::wrap_type<ov::op::util::PadBase>(
+    auto data_pattern = ov::pass::pattern::any_input();
+    auto filter_pattern = ov::pass::pattern::any_input();
+    auto pads_begin_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pads_end_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pad_value_pattern = ov::pass::pattern::any_input();
+    auto pad_node_pattern = ov::pass::pattern::wrap_type<ov::op::util::PadBase>(
         {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-        pattern::consumers_count(1));
-    auto conv_pattern = pattern::wrap_type<ov::op::v1::Convolution>({pad_node_pattern, filter_pattern});
+        ov::pass::pattern::consumers_count(1));
+    auto conv_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({pad_node_pattern, filter_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto filter = pattern_map[filter_pattern];
@@ -231,23 +231,23 @@ pass::PadFusionConvolution::PadFusionConvolution() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
 pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
     MATCHER_SCOPE(PadFusionConvolutionBackpropData);
-    auto data_pattern = pattern::any_input();
-    auto filter_pattern = pattern::any_input();
-    auto pads_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto pads_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto pad_value_pattern = pattern::any_input();
-    auto pad_node_pattern = pattern::wrap_type<ov::op::util::PadBase>(
+    auto data_pattern = ov::pass::pattern::any_input();
+    auto filter_pattern = ov::pass::pattern::any_input();
+    auto pads_begin_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pads_end_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pad_value_pattern = ov::pass::pattern::any_input();
+    auto pad_node_pattern = ov::pass::pattern::wrap_type<ov::op::util::PadBase>(
         {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-        pattern::consumers_count(1));
-    auto conv_pattern = pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({pad_node_pattern, filter_pattern});
+        ov::pass::pattern::consumers_count(1));
+    auto conv_pattern = ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({pad_node_pattern, filter_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto filter = pattern_map[filter_pattern];
@@ -287,23 +287,23 @@ pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
 pass::PadFusionGroupConvolution::PadFusionGroupConvolution() {
     MATCHER_SCOPE(PadFusionGroupConvolution);
-    auto data_pattern = pattern::any_input();
-    auto filter_pattern = pattern::any_input();
-    auto pads_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto pads_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto pad_value_pattern = pattern::any_input();
-    auto pad_node_pattern = pattern::wrap_type<ov::op::util::PadBase>(
+    auto data_pattern = ov::pass::pattern::any_input();
+    auto filter_pattern = ov::pass::pattern::any_input();
+    auto pads_begin_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pads_end_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pad_value_pattern = ov::pass::pattern::any_input();
+    auto pad_node_pattern = ov::pass::pattern::wrap_type<ov::op::util::PadBase>(
         {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-        pattern::consumers_count(1));
-    auto conv_pattern = pattern::wrap_type<ov::op::v1::GroupConvolution>({pad_node_pattern, filter_pattern});
+        ov::pass::pattern::consumers_count(1));
+    auto conv_pattern = ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolution>({pad_node_pattern, filter_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto filter = pattern_map[filter_pattern];
@@ -332,24 +332,24 @@ pass::PadFusionGroupConvolution::PadFusionGroupConvolution() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
 pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropData() {
     MATCHER_SCOPE(PadFusionGroupConvolutionBackpropData);
-    auto data_pattern = pattern::any_input();
-    auto filter_pattern = pattern::any_input();
-    auto pads_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto pads_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto pad_value_pattern = pattern::any_input();
-    auto pad_node_pattern = pattern::wrap_type<ov::op::util::PadBase>(
+    auto data_pattern = ov::pass::pattern::any_input();
+    auto filter_pattern = ov::pass::pattern::any_input();
+    auto pads_begin_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pads_end_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pad_value_pattern = ov::pass::pattern::any_input();
+    auto pad_node_pattern = ov::pass::pattern::wrap_type<ov::op::util::PadBase>(
         {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-        pattern::consumers_count(1));
+        ov::pass::pattern::consumers_count(1));
     auto conv_pattern =
-        pattern::wrap_type<ov::op::v1::GroupConvolutionBackpropData>({pad_node_pattern, filter_pattern});
+        ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolutionBackpropData>({pad_node_pattern, filter_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto filter = pattern_map[filter_pattern];
@@ -389,6 +389,6 @@ pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropDa
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

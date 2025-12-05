@@ -9,18 +9,18 @@
 #include "transformations/rt_info/disable_constant_folding.hpp"
 
 ov::pass::EnableShapeOfConstantFolding::EnableShapeOfConstantFolding(bool check_shape) {
-    auto shape_of = pattern::wrap_type<ov::op::util::ShapeOfBase>([=](const Output<Node>& output) {
+    auto shape_of = ov::pass::pattern::wrap_type<ov::op::util::ShapeOfBase>([=](const Output<Node>& output) {
         const auto& shape = output.get_partial_shape();
         if (!check_shape)
             return true;
         return shape.is_dynamic() || shape_size(shape.get_shape()) != 1;
     });
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         enable_constant_folding(m.get_match_root());
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(shape_of, "EnableShapeOfConstantFolding");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(shape_of, "EnableShapeOfConstantFolding");
     this->register_matcher(m, callback);
 }

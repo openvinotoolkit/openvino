@@ -21,10 +21,10 @@
 ov::pass::ConvertBitwiseAndToLogicalAnd::ConvertBitwiseAndToLogicalAnd() {
     MATCHER_SCOPE(ConvertBitwiseAndToLogicalAnd);
     auto pattern =
-        pattern::wrap_type<ov::op::v13::BitwiseAnd>({pattern::any_input(pattern::type_matches(element::boolean)),
-                                                     pattern::any_input(pattern::type_matches(element::boolean))});
+        ov::pass::pattern::wrap_type<ov::op::v13::BitwiseAnd>({ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::boolean)),
+                                                     ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::boolean))});
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto bitwise = ov::as_type_ptr<ov::op::v13::BitwiseAnd>(m.get_match_root());
         if (!bitwise || transformation_callback(bitwise)) {
             return false;
@@ -40,15 +40,15 @@ ov::pass::ConvertBitwiseAndToLogicalAnd::ConvertBitwiseAndToLogicalAnd() {
 
         return true;
     };
-    auto m = std::make_shared<pattern::Matcher>(pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern, matcher_name);
     register_matcher(m, callback);
 }
 ov::pass::ConvertBitwiseNotToLogicalNot::ConvertBitwiseNotToLogicalNot() {
     MATCHER_SCOPE(ConvertBitwiseNotToLogicalNot);
     auto pattern =
-        pattern::wrap_type<ov::op::v13::BitwiseNot>({pattern::any_input(pattern::type_matches(element::boolean))});
+        ov::pass::pattern::wrap_type<ov::op::v13::BitwiseNot>({ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::boolean))});
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto bitwise = ov::as_type_ptr<ov::op::v13::BitwiseNot>(m.get_match_root());
         if (!bitwise || transformation_callback(bitwise)) {
             return false;
@@ -62,17 +62,17 @@ ov::pass::ConvertBitwiseNotToLogicalNot::ConvertBitwiseNotToLogicalNot() {
 
         return true;
     };
-    auto m = std::make_shared<pattern::Matcher>(pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::pass::ConvertBitwiseOrToLogicalOr::ConvertBitwiseOrToLogicalOr() {
     MATCHER_SCOPE(ConvertBitwiseOrToLogicalOr);
     auto pattern =
-        pattern::wrap_type<ov::op::v13::BitwiseOr>({pattern::any_input(pattern::type_matches(element::boolean)),
-                                                    pattern::any_input(pattern::type_matches(element::boolean))});
+        ov::pass::pattern::wrap_type<ov::op::v13::BitwiseOr>({ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::boolean)),
+                                                    ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::boolean))});
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto bitwise = ov::as_type_ptr<ov::op::v13::BitwiseOr>(m.get_match_root());
         if (!bitwise || transformation_callback(bitwise)) {
             return false;
@@ -88,17 +88,17 @@ ov::pass::ConvertBitwiseOrToLogicalOr::ConvertBitwiseOrToLogicalOr() {
 
         return true;
     };
-    auto m = std::make_shared<pattern::Matcher>(pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::pass::ConvertBitwiseXorToLogicalXor::ConvertBitwiseXorToLogicalXor() {
     MATCHER_SCOPE(ConvertBitwiseXorToLogicalXor);
     auto pattern =
-        pattern::wrap_type<ov::op::v13::BitwiseXor>({pattern::any_input(pattern::type_matches(element::boolean)),
-                                                     pattern::any_input(pattern::type_matches(element::boolean))});
+        ov::pass::pattern::wrap_type<ov::op::v13::BitwiseXor>({ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::boolean)),
+                                                     ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::boolean))});
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto bitwise = ov::as_type_ptr<ov::op::v13::BitwiseXor>(m.get_match_root());
         if (!bitwise || transformation_callback(bitwise)) {
             return false;
@@ -114,6 +114,6 @@ ov::pass::ConvertBitwiseXorToLogicalXor::ConvertBitwiseXorToLogicalXor() {
 
         return true;
     };
-    auto m = std::make_shared<pattern::Matcher>(pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern, matcher_name);
     register_matcher(m, callback);
 }

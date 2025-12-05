@@ -19,9 +19,9 @@
 ov::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
     MATCHER_SCOPE(ConvertSpaceToDepth);
     auto dts =
-        ov::pass::pattern::wrap_type<ov::op::v0::SpaceToDepth>({pattern::any_input(pattern::has_static_shape())});
+        ov::pass::pattern::wrap_type<ov::op::v0::SpaceToDepth>({ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape())});
 
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto std_node = ov::as_type_ptr<ov::op::v0::SpaceToDepth>(m.get_match_root());
         if (!std_node || transformation_callback(std_node)) {
             return false;

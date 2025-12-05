@@ -24,7 +24,7 @@ static bool use_broadcast(const std::shared_ptr<ov::op::v0::Concat>& concat) {
 ov::pass::ConcatToBroadcast::ConcatToBroadcast() {
     MATCHER_SCOPE(ConcatToBroadcast);
 
-    auto concat_label = pattern::wrap_type<ov::op::v0::Concat>([](const Output<Node>& value) {
+    auto concat_label = ov::pass::pattern::wrap_type<ov::op::v0::Concat>([](const Output<Node>& value) {
         auto node = value.get_node_shared_ptr();
         if (node->output(0).get_partial_shape().rank().is_dynamic()) {
             return false;
@@ -42,7 +42,7 @@ ov::pass::ConcatToBroadcast::ConcatToBroadcast() {
         });
     });
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto root_node = pattern_map.at(concat_label).get_node_shared_ptr();
@@ -86,6 +86,6 @@ ov::pass::ConcatToBroadcast::ConcatToBroadcast() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(concat_label, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_label, matcher_name);
     this->register_matcher(m, callback);
 }

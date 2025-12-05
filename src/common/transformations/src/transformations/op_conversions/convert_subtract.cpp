@@ -53,27 +53,27 @@ static bool convert_subtract(const std::shared_ptr<Node>& node) {
 
 pass::ConvertSubtract::ConvertSubtract() {
     MATCHER_SCOPE(ConvertSubtract);
-    auto sub = pattern::wrap_type<ov::op::v1::Subtract>();
+    auto sub = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
         return convert_subtract(node);
     };
 
-    auto m = std::make_shared<pattern::Matcher>(sub, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sub, matcher_name);
     this->register_matcher(m, callback);
 }
 
 pass::ConvertSubtractWithConstant::ConvertSubtractWithConstant() {
     MATCHER_SCOPE(ConvertSubtractWithConstant);
     auto sub =
-        pattern::wrap_type<ov::op::v1::Subtract>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()});
+        ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
         return convert_subtract(node);
     };
 
-    auto m = std::make_shared<pattern::Matcher>(sub, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sub, matcher_name);
     this->register_matcher(m, callback);
 }

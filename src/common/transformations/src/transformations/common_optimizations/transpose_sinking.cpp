@@ -75,16 +75,16 @@ std::shared_ptr<ov::op::v0::Constant> get_reversed_order_constant(
 ov::pass::TransposeEltwise::TransposeEltwise() {
     MATCHER_SCOPE(TransposeEltwise);
 
-    auto eltwise_data_input_p = pattern::any_input();
-    auto eltwise_const_input_p = pattern::wrap_type<ov::op::v0::Constant>();
-    auto eltwise_p = pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
+    auto eltwise_data_input_p = ov::pass::pattern::any_input();
+    auto eltwise_const_input_p = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto eltwise_p = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
         {eltwise_data_input_p, eltwise_const_input_p},
         [](const Output<Node>& output) {
             return ov::is_preprocesing_node(output.get_node_shared_ptr());
         });
     auto transpose_p =
-        pattern::wrap_type<ov::op::v1::Transpose>({eltwise_p, pattern::wrap_type<ov::op::v0::Constant>()},
-                                                  pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({eltwise_p, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+                                                  ov::pass::pattern::consumers_count(1));
 
     auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -126,9 +126,9 @@ ov::pass::TransposeConvert::TransposeConvert() {
     MATCHER_SCOPE(TransposeConvert);
 
     auto transpose_label =
-        pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
-                                                  pattern::consumers_count(1));
-    auto convert_label = pattern::wrap_type<ov::op::v0::Convert>({transpose_label});
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+                                                  ov::pass::pattern::consumers_count(1));
+    auto convert_label = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({transpose_label});
 
     matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -153,12 +153,12 @@ ov::pass::TransposeReduction::TransposeReduction() {
     MATCHER_SCOPE(TransposeReduction);
 
     auto transpose_label =
-        pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
-                                                  pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+                                                  ov::pass::pattern::consumers_count(1));
     auto reduce_or_squeeze_label =
-        pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims,
+        ov::pass::pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims,
                            ov::op::util::LogicalReductionKeepDims,
-                           ov::op::v0::Squeeze>({transpose_label, pattern::wrap_type<ov::op::v0::Constant>()});
+                           ov::op::v0::Squeeze>({transpose_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -224,16 +224,16 @@ ov::pass::TransposeFQReduction::TransposeFQReduction() {
     MATCHER_SCOPE(TransposeFQReduction);
 
     auto transpose_label =
-        pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()});
-    auto fq_label = pattern::wrap_type<ov::op::v0::FakeQuantize>({transpose_label,
-                                                                  pattern::any_input(pattern::has_static_rank()),
-                                                                  pattern::any_input(pattern::has_static_rank()),
-                                                                  pattern::any_input(pattern::has_static_rank()),
-                                                                  pattern::any_input(pattern::has_static_rank())});
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
+    auto fq_label = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({transpose_label,
+                                                                  ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+                                                                  ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+                                                                  ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+                                                                  ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())});
     auto reduce_or_squeeze_label =
-        pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims,
+        ov::pass::pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims,
                            ov::op::util::LogicalReductionKeepDims,
-                           ov::op::v0::Squeeze>({fq_label, pattern::wrap_type<ov::op::v0::Constant>()});
+                           ov::op::v0::Squeeze>({fq_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
@@ -294,10 +294,10 @@ ov::pass::TransposeFuse::TransposeFuse() {
     MATCHER_SCOPE(TransposeFuse);
 
     auto transpose_1 =
-        pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
-                                                  pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+                                                  ov::pass::pattern::consumers_count(1));
     auto transpose_2 =
-        pattern::wrap_type<ov::op::v1::Transpose>({transpose_1, pattern::wrap_type<ov::op::v0::Constant>()});
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({transpose_1, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();

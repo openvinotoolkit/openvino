@@ -20,7 +20,7 @@ ov::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     MATCHER_SCOPE(ConvertBroadcastToTiles);
     auto broadcast = ov::pass::pattern::wrap_type<ov::op::v1::Broadcast>();
 
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto broadcast = ov::as_type_ptr<ov::op::v1::Broadcast>(m.get_match_root());
 
         if (!broadcast) {

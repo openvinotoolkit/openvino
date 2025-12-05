@@ -13,9 +13,9 @@
 ov::pass::ConvertROIAlign3To9::ConvertROIAlign3To9() {
     MATCHER_SCOPE(ConvertROIAlign3To9);
 
-    auto roi_align_v3 = pattern::wrap_type<ov::op::v3::ROIAlign>();
+    auto roi_align_v3 = ov::pass::pattern::wrap_type<ov::op::v3::ROIAlign>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto roi_align_v3_node = ov::as_type_ptr<ov::op::v3::ROIAlign>(m.get_match_root());
         if (!roi_align_v3_node)
             return false;
@@ -55,6 +55,6 @@ ov::pass::ConvertROIAlign3To9::ConvertROIAlign3To9() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(roi_align_v3, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(roi_align_v3, matcher_name);
     register_matcher(m, callback);
 }

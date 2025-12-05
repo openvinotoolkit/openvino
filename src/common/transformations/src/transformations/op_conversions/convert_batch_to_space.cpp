@@ -32,8 +32,8 @@ using namespace ov::element;
 
 void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
     MATCHER_SCOPE(ConvertBatchToSpace_convert_batch_to_space);
-    const auto batch_to_space = pattern::wrap_type<ov::op::v1::BatchToSpace>();
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    const auto batch_to_space = ov::pass::pattern::wrap_type<ov::op::v1::BatchToSpace>();
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         const auto batch_to_space = ov::as_type_ptr<ov::op::v1::BatchToSpace>(m.get_match_root());
         if (!batch_to_space || transformation_callback(batch_to_space)) {
             return false;
@@ -113,14 +113,14 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
         return true;
     };
 
-    const auto m = make_shared<pattern::Matcher>(batch_to_space, matcher_name);
+    const auto m = make_shared<ov::pass::pattern::Matcher>(batch_to_space, matcher_name);
     this->register_matcher(m, callback);
 }
 
 void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
     MATCHER_SCOPE(ConvertBatchToSpace_convert_batch_to_space_by_elements);
-    const auto batch_to_space = pattern::wrap_type<ov::op::v1::BatchToSpace>();
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    const auto batch_to_space = ov::pass::pattern::wrap_type<ov::op::v1::BatchToSpace>();
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         const auto batch_to_space = ov::as_type_ptr<ov::op::v1::BatchToSpace>(m.get_match_root());
         if (!batch_to_space || transformation_callback(batch_to_space)) {
             return false;
@@ -230,6 +230,6 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         return true;
     };
 
-    const auto m = make_shared<pattern::Matcher>(batch_to_space, matcher_name);
+    const auto m = make_shared<ov::pass::pattern::Matcher>(batch_to_space, matcher_name);
     this->register_matcher(m, callback);
 }

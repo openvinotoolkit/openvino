@@ -17,25 +17,22 @@
 
 using namespace std;
 using namespace ov;
-using namespace ov::op;
 using namespace ov::op::util;
 using namespace ov::element;
-using namespace ov::pass::pattern;
-
 using InvariantD = MultiSubGraphOp::InvariantInputDescription;
 using SlicedD = MultiSubGraphOp::SliceInputDescription;
 using MergedD = MultiSubGraphOp::MergedInputDescription;
 using OutputD = MultiSubGraphOp::BodyOutputDescription;
 using ConcatD = MultiSubGraphOp::ConcatOutputDescription;
 
-using ResultPtr = std::shared_ptr<v0::Result>;
+using ResultPtr = std::shared_ptr<ov::op::v0::Result>;
 using OutputDescPtr = MultiSubGraphOp::OutputDescription::Ptr;
 using OutputDescMap = std::unordered_map<ResultPtr, OutputDescPtr>;
 using InputDescPtr = MultiSubGraphOp::InputDescription::Ptr;
 using BodyResultIdxMap = std::unordered_map<ResultPtr, uint64_t>;
 
 namespace {
-std::unordered_set<uint64_t> remove_results(const std::shared_ptr<v0::Parameter>& param,
+std::unordered_set<uint64_t> remove_results(const std::shared_ptr<ov::op::v0::Parameter>& param,
                                             const InputDescPtr& input_desc,
                                             OutputDescMap& output_desc_map,
                                             const BodyResultIdxMap& result_map,
@@ -57,7 +54,7 @@ std::unordered_set<uint64_t> remove_results(const std::shared_ptr<v0::Parameter>
     std::unordered_set<uint64_t> removed_result_inds;
     for (const auto& target_input : param->get_output_target_inputs(0)) {
         const auto& consumer = target_input.get_node()->shared_from_this();
-        const auto& result = ov::as_type_ptr<v0::Result>(consumer);
+        const auto& result = ov::as_type_ptr<ov::op::v0::Result>(consumer);
         if (!result) {
             continue;
         }
@@ -89,9 +86,9 @@ std::unordered_set<uint64_t> remove_results(const std::shared_ptr<v0::Parameter>
 ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
     MATCHER_SCOPE(EliminateLoopInputsOutputs);
 
-    auto subgraph_label = wrap_type<v5::Loop, v0::TensorIterator>();
+    auto subgraph_label = ov::pass::pattern::wrap_type<ov::op::v5::Loop, ov::op::v0::TensorIterator>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         // delete useless Parameter and Result nodes in isolated graph (Parameter->Result)
         // after that, set indices of sliced and invariant inputs
         // and outputs in the resulted SubGraph operation
@@ -112,11 +109,11 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
         const auto& subgraph_in_values = subgraph->input_values();
         int64_t body_condition_output_idx = -1;
         int64_t current_iteration_input_idx = -1;
-        if (auto loop = as_type_ptr<v5::Loop>(subgraph)) {
+        if (auto loop = as_type_ptr<ov::op::v5::Loop>(subgraph)) {
             const auto& trip_count = subgraph_in_values[0];
             const auto& exec_cond = subgraph_in_values[1];
 
-            auto new_loop = make_shared<v5::Loop>(trip_count, exec_cond);
+            auto new_loop = make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
             new_loop->set_special_body_ports(loop->get_special_body_ports());
             new_node = new_loop;
             // condition Result node index may be shifted due to removing
@@ -125,7 +122,7 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
             body_condition_output_idx = loop->get_special_body_ports().body_condition_output_idx;
             current_iteration_input_idx = loop->get_special_body_ports().current_iteration_input_idx;
         } else {
-            new_node = make_shared<v0::TensorIterator>();
+            new_node = make_shared<ov::op::v0::TensorIterator>();
         }
         new_node->set_function(body_model);
 
@@ -269,7 +266,7 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
             }
         }
 
-        if (auto loop = as_type_ptr<v5::Loop>(new_node)) {
+        if (auto loop = as_type_ptr<ov::op::v5::Loop>(new_node)) {
             // update of body condition index is required due to body graph clean-up
             auto special_body_ports = loop->get_special_body_ports();
             if (special_body_ports.body_condition_output_idx >= 0) {
@@ -298,6 +295,6 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
         return true;
     };
 
-    auto m = make_shared<Matcher>(subgraph_label, matcher_name);
+    auto m = make_shared<ov::pass::pattern::Matcher>(subgraph_label, matcher_name);
     this->register_matcher(m, callback);
 }

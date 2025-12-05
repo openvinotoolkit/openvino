@@ -23,21 +23,21 @@
 // Convolution(GroupConvolution) node
 ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
     MATCHER_SCOPE(DilatedConvolutionConverter);
-    auto data_pattern = pattern::any_input();
-    auto block_shape_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto pads_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto pads_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto space_to_batch_pattern = pattern::wrap_type<ov::op::v1::SpaceToBatch>(
+    auto data_pattern = ov::pass::pattern::any_input();
+    auto block_shape_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pads_begin_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pads_end_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto space_to_batch_pattern = ov::pass::pattern::wrap_type<ov::op::v1::SpaceToBatch>(
         {data_pattern, block_shape_pattern, pads_begin_pattern, pads_end_pattern});
-    auto conv_p = pattern::wrap_type<ov::op::v1::Convolution>({space_to_batch_pattern, pattern::any_input()});
-    auto gconv_p = pattern::wrap_type<ov::op::v1::GroupConvolution>({space_to_batch_pattern, pattern::any_input()});
-    auto conv_pattern = std::make_shared<pattern::op::Or>(OutputVector{conv_p, gconv_p});
-    auto crops_begin_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto crops_end_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto batch_to_space_pattern = pattern::wrap_type<ov::op::v1::BatchToSpace>(
-        {conv_pattern, pattern::any_input(), crops_begin_pattern, crops_end_pattern});
+    auto conv_p = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({space_to_batch_pattern, ov::pass::pattern::any_input()});
+    auto gconv_p = ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolution>({space_to_batch_pattern, ov::pass::pattern::any_input()});
+    auto conv_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{conv_p, gconv_p});
+    auto crops_begin_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto crops_end_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto batch_to_space_pattern = ov::pass::pattern::wrap_type<ov::op::v1::BatchToSpace>(
+        {conv_pattern, ov::pass::pattern::any_input(), crops_begin_pattern, crops_end_pattern});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto block_shape =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(block_shape_pattern).get_node_shared_ptr());
@@ -135,6 +135,6 @@ ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(batch_to_space_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(batch_to_space_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

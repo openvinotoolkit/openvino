@@ -21,7 +21,7 @@
 
 ov::pass::MishFusion::MishFusion() {
     MATCHER_SCOPE(MishFusion);
-    auto input = pass::pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
     auto exp = std::make_shared<ov::op::v0::Exp>(input);
     auto add = std::make_shared<ov::op::v1::Add>(exp, ov::pass::pattern::wrap_type<ov::op::v0::Constant>());
     auto log = std::make_shared<ov::op::v0::Log>(add);

@@ -78,13 +78,13 @@ using namespace ov::pass;
 class DetectFakeQuantizeOrFakeConvert : public MatcherPass {
 public:
     DetectFakeQuantizeOrFakeConvert() {
-        auto root = pattern::wrap_type<ov::op::v0::FakeQuantize, ov::op::v13::FakeConvert>();
+        auto root = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize, ov::op::v13::FakeConvert>();
 
-        ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(root, "DetectFakeQuantizeOrFakeConvert");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(root, "DetectFakeQuantizeOrFakeConvert");
         register_matcher(m, callback);
     }
 };
@@ -92,26 +92,26 @@ public:
 class DetectCompressedWeights : public MatcherPass {
 public:
     DetectCompressedWeights() {
-        auto weights = pattern::wrap_type<ov::op::v0::Constant>(pattern::type_matches_any({ov::element::i4,
+        auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches_any({ov::element::i4,
                                                                                            ov::element::u4,
                                                                                            ov::element::i8,
                                                                                            ov::element::u8,
                                                                                            ov::element::nf4,
                                                                                            ov::element::f8e4m3,
                                                                                            ov::element::f8e5m2}));
-        auto convert = pattern::wrap_type<ov::op::v0::Convert>({weights});
-        auto zero_point_const = pattern::wrap_type<ov::op::v0::Constant>();
-        auto zero_point = pattern::optional<ov::op::v0::Convert>(zero_point_const);
-        auto subtract = pattern::wrap_type<ov::op::v1::Subtract>({convert, zero_point});
-        auto subtract_or_convert = std::make_shared<pattern::op::Or>(ov::OutputVector{convert, subtract});
+        auto convert = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights});
+        auto zero_point_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+        auto zero_point = ov::pass::pattern::optional<ov::op::v0::Convert>(zero_point_const);
+        auto subtract = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert, zero_point});
+        auto subtract_or_convert = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{convert, subtract});
         auto multiply =
-            pattern::wrap_type<ov::op::v1::Multiply>({subtract_or_convert, pattern::wrap_type<ov::op::v0::Constant>()});
+            ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({subtract_or_convert, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
-        ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             return true;
         };
 
-        auto m = std::make_shared<pattern::Matcher>(multiply, "DetectCompressedWeights");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(multiply, "DetectCompressedWeights");
         register_matcher(m, callback);
     }
 };
@@ -136,9 +136,9 @@ void ov::pass::compress_model_to_f16(const std::shared_ptr<Model>& model, bool p
 
 ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
     MATCHER_SCOPE(CompressFloatConstantsImpl);
-    auto const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& const_node_pattern = pattern_map.at(const_pattern);
 
@@ -252,6 +252,6 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(const_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(const_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

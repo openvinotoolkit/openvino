@@ -65,8 +65,8 @@ std::vector<int64_t> axes_to_mask(const std::vector<int64_t>& axes, size_t slice
 
 ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
     MATCHER_SCOPE(SliceToStridedSlice);
-    auto slice = pattern::wrap_type<ov::op::v8::Slice>();
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    auto slice = ov::pass::pattern::wrap_type<ov::op::v8::Slice>();
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto slice_node = ov::as_type_ptr<ov::op::v8::Slice>(m.get_match_root());
         if (!slice_node)
             return false;
@@ -150,6 +150,6 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(slice, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(slice, matcher_name);
     register_matcher(m, callback);
 }

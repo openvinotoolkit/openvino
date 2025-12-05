@@ -19,9 +19,9 @@ using namespace ov;
 
 pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type) {
     MATCHER_SCOPE(ConvertMulticlassNmsToMulticlassNmsIE);
-    auto nms = pattern::wrap_type<op::util::MulticlassNmsBase>();
+    auto nms = ov::pass::pattern::wrap_type<op::util::MulticlassNmsBase>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto nms = ov::as_type_ptr<op::util::MulticlassNmsBase>(m.get_match_root());
         if (!nms || transformation_callback(nms)) {
             return false;
@@ -75,6 +75,6 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -20,7 +20,7 @@ using namespace ov;
 
 namespace {
 const auto is_eltwise_supported_type = [](const Output<Node>& output) -> bool {
-    const auto is_single_output = pass::pattern::consumers_count(1);
+    const auto is_single_output = ov::pass::pattern::consumers_count(1);
     return is_single_output(output) && output.get_node()->has_evaluate();
 };
 }  // namespace
@@ -28,9 +28,9 @@ const auto is_eltwise_supported_type = [](const Output<Node>& output) -> bool {
 ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
     MATCHER_SCOPE(AddMultiplyFusion);
     // Create Add->Multiply pattern where Add has exactly one consumer
-    auto m_data = pass::pattern::any_input();
+    auto m_data = ov::pass::pattern::any_input();
     auto m_add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto m_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_data, m_add_constant}, pattern::consumers_count(1));
+    auto m_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_data, m_add_constant}, ov::pass::pattern::consumers_count(1));
     auto m_mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_add, m_mul_constant});
 
@@ -75,9 +75,9 @@ ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
 ov::pass::AddAddFusion::AddAddFusion() {
     MATCHER_SCOPE(AddAddFusion);
     // Create Add->Add pattern where first Add has exactly one consumer
-    auto m_data = pass::pattern::any_input();
+    auto m_data = ov::pass::pattern::any_input();
     auto m_add1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto m_add1 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_data, m_add1_constant}, pattern::consumers_count(1));
+    auto m_add1 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_data, m_add1_constant}, ov::pass::pattern::consumers_count(1));
     auto m_add2_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_add2 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_add1, m_add2_constant});
 
@@ -109,7 +109,7 @@ ov::pass::AddAddFusion::AddAddFusion() {
 ov::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     MATCHER_SCOPE(MultiplyMultiplyFusion);
     // Create Multiply->Multiply pattern where first Multiply has exactly one consumer
-    auto m_data = pass::pattern::any_input();
+    auto m_data = ov::pass::pattern::any_input();
     auto m_mul1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_mul1 =
         ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_data, m_mul1_constant}, is_eltwise_supported_type);

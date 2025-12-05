@@ -29,9 +29,9 @@
 ov::pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
     MATCHER_SCOPE(ConvertMaxPool8ToMaxPool1);
 
-    auto maxpool_v8_pattern = pattern::wrap_type<ov::op::v8::MaxPool>();
+    auto maxpool_v8_pattern = ov::pass::pattern::wrap_type<ov::op::v8::MaxPool>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto maxpool_v8_node = ov::as_type_ptr<ov::op::v8::MaxPool>(m.get_match_root());
 
         if (!maxpool_v8_node || maxpool_v8_node->get_output_target_inputs(1).size() != 0)
@@ -57,15 +57,15 @@ ov::pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(maxpool_v8_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(maxpool_v8_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
     MATCHER_SCOPE(ConvertMaxPool14ToMaxPool8);
-    const auto max_pool_v14_pattern = pattern::wrap_type<ov::op::v14::MaxPool>();
+    const auto max_pool_v14_pattern = ov::pass::pattern::wrap_type<ov::op::v14::MaxPool>();
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         using ov::op::v0::Constant;
         using ov::op::v0::Concat;
         using ov::op::v1::Subtract;
@@ -171,6 +171,6 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(max_pool_v14_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(max_pool_v14_pattern, matcher_name);
     register_matcher(m, callback);
 }

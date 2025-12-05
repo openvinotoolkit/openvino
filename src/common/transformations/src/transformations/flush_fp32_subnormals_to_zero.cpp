@@ -20,9 +20,9 @@ using namespace pass;
 ov::pass::FlushFP32SubnormalsToZero::FlushFP32SubnormalsToZero() {
     MATCHER_SCOPE(FlushFP32SubnormalsToZero);
 
-    auto node_pattern = pattern::wrap_type<ov::op::v0::Constant>();
+    auto node_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = ov::as_type_ptr<ov::op::v0::Constant>(m.get_match_root());
 
         if (!node)
@@ -60,6 +60,6 @@ ov::pass::FlushFP32SubnormalsToZero::FlushFP32SubnormalsToZero() {
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(node_pattern, matcher_name);
+    auto m = make_shared<ov::pass::pattern::Matcher>(node_pattern, matcher_name);
     register_matcher(m, callback);
 }

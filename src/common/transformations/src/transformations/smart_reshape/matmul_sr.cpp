@@ -66,9 +66,9 @@ bool relax_hc_reshape_followed_by_matmul(const ov::pass::pattern::PatternValueMa
 
 ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
     MATCHER_SCOPE(ReshapeAMatMul);
-    auto other_input_label = pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto reshape_input_label = pattern::any_input();
-    auto reshape_pattern_label = pattern::any_input();
+    auto other_input_label = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    auto reshape_input_label = ov::pass::pattern::any_input();
+    auto reshape_pattern_label = ov::pass::pattern::any_input();
     auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {
         return ov::pass::pattern::rank_equals(2)(output) && ov::pass::pattern::consumers_count(1)(output);
     };
@@ -76,7 +76,7 @@ ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
                                                                            reshape_predicate);
     auto matmul_label = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({reshape_label, other_input_label});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
         return relax_hc_reshape_followed_by_matmul(pattern_to_output,
                                                    matmul_label,
@@ -91,9 +91,9 @@ ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
 
 ov::pass::ReshapeBMatMul::ReshapeBMatMul() {
     MATCHER_SCOPE(ReshapeBMatMul);
-    auto other_input_label = pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto reshape_input_label = pattern::any_input();
-    auto reshape_pattern_label = pattern::any_input();
+    auto other_input_label = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    auto reshape_input_label = ov::pass::pattern::any_input();
+    auto reshape_pattern_label = ov::pass::pattern::any_input();
     auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {
         return ov::pass::pattern::rank_equals(2)(output) && ov::pass::pattern::consumers_count(1)(output);
     };
@@ -101,7 +101,7 @@ ov::pass::ReshapeBMatMul::ReshapeBMatMul() {
                                                                            reshape_predicate);
     auto matmul_label = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({other_input_label, reshape_label});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
         return relax_hc_reshape_followed_by_matmul(pattern_to_output,
                                                    matmul_label,
@@ -118,7 +118,7 @@ ov::pass::TransposeMatMul::TransposeMatMul() {
     MATCHER_SCOPE(TransposeMatMul);
     auto matmul_label = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
         if (!matmul)

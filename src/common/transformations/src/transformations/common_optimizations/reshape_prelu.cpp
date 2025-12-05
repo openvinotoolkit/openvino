@@ -17,11 +17,11 @@ using namespace ov::pass;
 
 ReshapePRelu::ReshapePRelu() {
     MATCHER_SCOPE(ReshapePRelu);
-    auto input_m = pattern::any_input(pattern::has_static_rank());
-    auto slope_m = pattern::any_input(pattern::has_static_rank());
-    auto prelu_m = pattern::wrap_type<ov::op::v0::PRelu>({input_m, slope_m});
+    auto input_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    auto slope_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    auto prelu_m = ov::pass::pattern::wrap_type<ov::op::v0::PRelu>({input_m, slope_m});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto prelu = pattern_map.at(prelu_m).get_node_shared_ptr();
         const auto input = pattern_map.at(input_m);

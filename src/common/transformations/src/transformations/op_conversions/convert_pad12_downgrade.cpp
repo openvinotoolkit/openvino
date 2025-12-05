@@ -14,9 +14,9 @@
 ov::pass::ConvertPad12ToPad1::ConvertPad12ToPad1() {
     MATCHER_SCOPE(ConvertPad12ToPad1);
 
-    const auto pad_v12_pattern = pattern::wrap_type<ov::op::v12::Pad>();
+    const auto pad_v12_pattern = ov::pass::pattern::wrap_type<ov::op::v12::Pad>();
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto pad_v12 = ov::as_type_ptr<ov::op::v12::Pad>(m.get_match_root());
         if (!pad_v12 || transformation_callback(pad_v12)) {
             return false;
@@ -46,6 +46,6 @@ ov::pass::ConvertPad12ToPad1::ConvertPad12ToPad1() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(pad_v12_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(pad_v12_pattern, matcher_name);
     register_matcher(m, callback);
 }

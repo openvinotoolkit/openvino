@@ -18,17 +18,13 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-
-using namespace ov::op;
-using namespace ov::pass::pattern;
-
 namespace {
 
 void align_replacement(std::shared_ptr<ov::Node>& replacement,
                        const ov::PartialShape& required_shape,
                        ov::element::Type target_type) {
     if (replacement->get_output_element_type(0) != target_type) {
-        replacement = std::make_shared<v0::Convert>(replacement, target_type);
+        replacement = std::make_shared<ov::op::v0::Convert>(replacement, target_type);
     }
 
     if (replacement->get_output_partial_shape(0) != required_shape && required_shape.rank().is_static()) {
@@ -42,22 +38,22 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
     const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
     MATCHER_SCOPE(TotalSequenceLengthPattern);
 
-    auto kv_past = wrap_type<v6::ReadValue>({any_input()});
-    auto kv_gather = wrap_type<v8::Gather>({kv_past, any_input(), any_input()});
-    auto kv_current = any_input();
-    auto kv_concat = wrap_type<v0::Concat>({kv_gather, kv_current});
-    auto kv_shape = wrap_type<v3::ShapeOf>({kv_concat});
-    auto gather_idx_label = wrap_type<v0::Constant>();
-    auto seq = wrap_type<v8::Gather>({kv_shape, gather_idx_label, any_input()});
+    auto kv_past = ov::pass::pattern::wrap_type<ov::op::v6::ReadValue>({ov::pass::pattern::any_input()});
+    auto kv_gather = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({kv_past, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto kv_current = ov::pass::pattern::any_input();
+    auto kv_concat = ov::pass::pattern::wrap_type<ov::op::v0::Concat>({kv_gather, kv_current});
+    auto kv_shape = ov::pass::pattern::wrap_type<ov::op::v3::ShapeOf>({kv_concat});
+    auto gather_idx_label = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto seq = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({kv_shape, gather_idx_label, ov::pass::pattern::any_input()});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         // TODO: Check that seq has axis that really takes sequence len but not any other dimension --
         //  use symbolic infra or look at the constant input
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto concat = ov::as_type_ptr<v0::Concat>(pattern_map.at(kv_concat).get_node_shared_ptr());
+        auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(kv_concat).get_node_shared_ptr());
         auto gather = pattern_map.at(seq).get_node_shared_ptr();
-        auto gather_idx = ov::as_type_ptr<v0::Constant>(pattern_map.at(gather_idx_label).get_node_shared_ptr());
+        auto gather_idx = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(gather_idx_label).get_node_shared_ptr());
 
         if (!concat || !gather || !gather_idx || !gather_idx) {
             return false;
@@ -110,7 +106,7 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(seq, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(seq, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -118,21 +114,21 @@ ov::pass::TotalSequenceLengthPatternQwen::TotalSequenceLengthPatternQwen(
     const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
     MATCHER_SCOPE(TotalSequenceLengthPatternQwen);
 
-    auto p_input_ids = wrap_type<v0::Parameter>();
-    auto p_unsqueeze = wrap_type<v0::Unsqueeze>({p_input_ids, any_input()});
-    auto p_opt_reshape_1 = optional<v1::Reshape>({p_unsqueeze, any_input()});
-    auto p_opt_convert_1 = optional<v0::Convert>(p_opt_reshape_1);
-    auto p_kv_shape_current = wrap_type<v3::ShapeOf>({p_opt_convert_1});
-    auto p_seq_current = wrap_type<v8::Gather>({p_kv_shape_current, any_input(), any_input()});
-    auto p_opt_convert_2 = optional<v0::Convert>(p_seq_current);
+    auto p_input_ids = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>();
+    auto p_unsqueeze = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>({p_input_ids, ov::pass::pattern::any_input()});
+    auto p_opt_reshape_1 = ov::pass::pattern::optional<ov::op::v1::Reshape>({p_unsqueeze, ov::pass::pattern::any_input()});
+    auto p_opt_convert_1 = ov::pass::pattern::optional<ov::op::v0::Convert>(p_opt_reshape_1);
+    auto p_kv_shape_current = ov::pass::pattern::wrap_type<ov::op::v3::ShapeOf>({p_opt_convert_1});
+    auto p_seq_current = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({p_kv_shape_current, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto p_opt_convert_2 = ov::pass::pattern::optional<ov::op::v0::Convert>(p_seq_current);
 
-    auto p_max_context_len = wrap_type<v0::Parameter>();
-    auto p_prev_max_seq_len = wrap_type<v1::Subtract>({p_max_context_len, any_input()});
-    auto p_opt_convert_3 = optional<v0::Convert>(p_prev_max_seq_len);
-    auto p_opt_reshape_2 = optional<v1::Reshape>({p_opt_convert_3, any_input()});
-    auto p_total_seq = wrap_type<v1::Add>({p_opt_convert_2, p_opt_reshape_2});
+    auto p_max_context_len = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>();
+    auto p_prev_max_seq_len = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({p_max_context_len, ov::pass::pattern::any_input()});
+    auto p_opt_convert_3 = ov::pass::pattern::optional<ov::op::v0::Convert>(p_prev_max_seq_len);
+    auto p_opt_reshape_2 = ov::pass::pattern::optional<ov::op::v1::Reshape>({p_opt_convert_3, ov::pass::pattern::any_input()});
+    auto p_total_seq = ov::pass::pattern::wrap_type<ov::op::v1::Add>({p_opt_convert_2, p_opt_reshape_2});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto total_seq = pattern_map.at(p_total_seq).get_node_shared_ptr();
         std::shared_ptr<Node> replacement = max_context_len;
@@ -145,7 +141,7 @@ ov::pass::TotalSequenceLengthPatternQwen::TotalSequenceLengthPatternQwen(
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(p_total_seq, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(p_total_seq, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -153,16 +149,16 @@ ov::pass::TotalSequenceLengthPatternCodeGen2::TotalSequenceLengthPatternCodeGen2
     const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
     MATCHER_SCOPE(TotalSequenceLengthPatternCodeGen2);
 
-    auto p_max_context_len = wrap_type<v0::Parameter>();
-    auto p_sub = wrap_type<v1::Subtract>({p_max_context_len, any_input()});
-    auto p_conv = wrap_type<v0::Convert>({p_sub});
+    auto p_max_context_len = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>();
+    auto p_sub = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({p_max_context_len, ov::pass::pattern::any_input()});
+    auto p_conv = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({p_sub});
 
-    auto p_var_split = wrap_type<v1::VariadicSplit>({any_input(), any_input(), any_input()});
-    auto p_kv_shape_current = wrap_type<v3::ShapeOf>({p_var_split});
-    auto p_gather = wrap_type<v8::Gather>({p_kv_shape_current, any_input(), any_input()});
-    auto p_total_seq = wrap_type<v1::Add>({p_gather, p_conv});
+    auto p_var_split = ov::pass::pattern::wrap_type<ov::op::v1::VariadicSplit>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto p_kv_shape_current = ov::pass::pattern::wrap_type<ov::op::v3::ShapeOf>({p_var_split});
+    auto p_gather = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({p_kv_shape_current, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto p_total_seq = ov::pass::pattern::wrap_type<ov::op::v1::Add>({p_gather, p_conv});
 
-    matcher_pass_callback callback = [=, &max_context_len](Matcher& m) {
+    matcher_pass_callback callback = [=, &max_context_len](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto total_seq = pattern_map.at(p_total_seq).get_node_shared_ptr();
         std::shared_ptr<Node> replacement = max_context_len;
@@ -175,6 +171,6 @@ ov::pass::TotalSequenceLengthPatternCodeGen2::TotalSequenceLengthPatternCodeGen2
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(p_total_seq, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(p_total_seq, matcher_name);
     register_matcher(m, callback);
 }

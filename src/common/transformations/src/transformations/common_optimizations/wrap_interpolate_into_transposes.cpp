@@ -57,7 +57,7 @@ std::vector<int64_t> build_new_axes(size_t num_of_axes, size_t rank) {
 ov::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
     MATCHER_SCOPE(WrapInterpolateIntoTransposes);
     auto interpolate_pattern = ov::pass::pattern::wrap_type<ov::op::v4::Interpolate>();
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto interpolate = ov::as_type_ptr<ov::op::v4::Interpolate>(m.get_match_root());
         if (!interpolate || interpolate->get_input_partial_shape(0).rank().is_dynamic() ||
             interpolate->inputs().size() != 4)
@@ -106,6 +106,6 @@ ov::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(interpolate_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(interpolate_pattern, matcher_name);
     register_matcher(m, callback);
 }

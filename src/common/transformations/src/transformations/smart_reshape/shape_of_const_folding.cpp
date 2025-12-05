@@ -14,10 +14,10 @@
 
 ov::pass::ShapeOfConstFolding::ShapeOfConstFolding() {
     MATCHER_SCOPE(ShapeOfConstFolding);
-    auto constant_label = pattern::wrap_type<ov::op::v0::Constant>();
-    auto shape_of_label = pattern::wrap_type<op::v0::ShapeOf, ov::op::v3::ShapeOf>({constant_label});
+    auto constant_label = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto shape_of_label = ov::pass::pattern::wrap_type<op::v0::ShapeOf, ov::op::v3::ShapeOf>({constant_label});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
         auto node = m.get_match_root();
         if (auto constant = ov::util::get_constant_from_source(node)) {
             constant->set_friendly_name(node->get_friendly_name());
@@ -29,6 +29,6 @@ ov::pass::ShapeOfConstFolding::ShapeOfConstFolding() {
         return false;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(shape_of_label, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(shape_of_label, matcher_name);
     register_matcher(m, callback);
 }

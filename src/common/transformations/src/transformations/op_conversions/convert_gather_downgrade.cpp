@@ -16,9 +16,9 @@ using namespace ov;
 pass::ConvertGather7ToGather1::ConvertGather7ToGather1() {
     MATCHER_SCOPE(ConvertGather7ToGather1);
 
-    auto gather_v7_pattern = pattern::wrap_type<ov::op::v7::Gather>();
+    auto gather_v7_pattern = ov::pass::pattern::wrap_type<ov::op::v7::Gather>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto gather_v7_node = ov::as_type_ptr<ov::op::v7::Gather>(m.get_match_root());
         if (!gather_v7_node)
             return false;
@@ -35,16 +35,16 @@ pass::ConvertGather7ToGather1::ConvertGather7ToGather1() {
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(gather_v7_pattern, matcher_name);
+    auto m = make_shared<ov::pass::pattern::Matcher>(gather_v7_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
 pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
     MATCHER_SCOPE(ConvertGather8ToGather7);
 
-    auto gather_v8_pattern = pattern::wrap_type<ov::op::v8::Gather>();
+    auto gather_v8_pattern = ov::pass::pattern::wrap_type<ov::op::v8::Gather>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto gather_v8_node = ov::as_type_ptr<ov::op::v8::Gather>(m.get_match_root());
         if (!gather_v8_node)
             return false;
@@ -111,6 +111,6 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(gather_v8_pattern, matcher_name);
+    auto m = make_shared<ov::pass::pattern::Matcher>(gather_v8_pattern, matcher_name);
     register_matcher(m, callback);
 }

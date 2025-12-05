@@ -46,20 +46,19 @@ const auto is_non_const_node = [](const ov::Output<ov::Node>& output) -> bool {
 }  // namespace
 
 using namespace ov::pass::activations_scaling;
-using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;
 
 ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_factor,
                                                                           ov::element::Type scaled_prec) {
     MATCHER_SCOPE(ScaleDownSingleLayer);
 
-    auto activation_m = any_input();
-    auto weights_m = any_input();
-    auto convolution_m = wrap_type<ov::op::v1::Convolution>({activation_m, weights_m});
-    auto matmul_m = wrap_type<ov::op::v0::MatMul>({activation_m, weights_m});
+    auto activation_m = ov::pass::pattern::any_input();
+    auto weights_m = ov::pass::pattern::any_input();
+    auto convolution_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({activation_m, weights_m});
+    auto matmul_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activation_m, weights_m});
     auto scaled_op_m = std::make_shared<Or>(OutputVector{convolution_m, matmul_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         OPENVINO_ASSERT(pattern_map.count(convolution_m) || pattern_map.count(matmul_m),
@@ -180,17 +179,17 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
 ov::pass::activations_scaling::EliminateScalarMul::EliminateScalarMul() {
     MATCHER_SCOPE(EliminateScalarMul);
 
-    auto activation_m = any_input(is_non_const_node);
+    auto activation_m = ov::pass::pattern::any_input(is_non_const_node);
     auto convert_m = ov::pass::pattern::optional<ov::op::v0::Convert>(activation_m);
     auto scale_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(is_scalar_node);
-    auto mul_m = wrap_type<ov::op::v1::Multiply>({convert_m, scale_const_m});
-    auto mvn_m = wrap_type<ov::op::v6::MVN>({mul_m, any_input()});
-    auto rms_m = wrap_type<ov::op::internal::RMS>({mul_m, any_input()});
-    auto group_norm_m = wrap_type<ov::op::v12::GroupNormalization>({mul_m, any_input(), any_input()});
-    auto shape_of_m = wrap_type<ov::op::v3::ShapeOf>({mul_m});
+    auto mul_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({convert_m, scale_const_m});
+    auto mvn_m = ov::pass::pattern::wrap_type<ov::op::v6::MVN>({mul_m, ov::pass::pattern::any_input()});
+    auto rms_m = ov::pass::pattern::wrap_type<ov::op::internal::RMS>({mul_m, ov::pass::pattern::any_input()});
+    auto group_norm_m = ov::pass::pattern::wrap_type<ov::op::v12::GroupNormalization>({mul_m, ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto shape_of_m = ov::pass::pattern::wrap_type<ov::op::v3::ShapeOf>({mul_m});
     auto norm_m = std::make_shared<Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -240,13 +239,13 @@ ov::pass::activations_scaling::EliminateScalarMul::EliminateScalarMul() {
 ov::pass::activations_scaling::MulShareTransformation::MulShareTransformation() {
     MATCHER_SCOPE(MulShareTransformation);
 
-    auto mvn_m = wrap_type<ov::op::v6::MVN>({any_input(), any_input()});
-    auto rms_m = wrap_type<ov::op::internal::RMS>({any_input(), any_input()});
-    auto group_norm_m = wrap_type<ov::op::v12::GroupNormalization>({any_input(), any_input(), any_input()});
-    auto shape_of_m = wrap_type<ov::op::v3::ShapeOf>({any_input()});
+    auto mvn_m = ov::pass::pattern::wrap_type<ov::op::v6::MVN>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto rms_m = ov::pass::pattern::wrap_type<ov::op::internal::RMS>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto group_norm_m = ov::pass::pattern::wrap_type<ov::op::v12::GroupNormalization>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto shape_of_m = ov::pass::pattern::wrap_type<ov::op::v3::ShapeOf>({ov::pass::pattern::any_input()});
     auto norm_m = std::make_shared<Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -314,13 +313,13 @@ ov::pass::activations_scaling::MulShareTransformation::MulShareTransformation() 
 ov::pass::activations_scaling::MoveDownScalarMul::MoveDownScalarMul() {
     MATCHER_SCOPE(MoveDownScalarMul);
 
-    auto activation_b_m = any_input(is_non_const_node);
+    auto activation_b_m = ov::pass::pattern::any_input(is_non_const_node);
     auto mul_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(is_scalar_node);
-    auto mul_b_m = wrap_type<ov::op::v1::Multiply>({activation_b_m, mul_const_m});
-    auto activation_a_m = any_input(is_non_const_node);
-    auto mul_a_m = wrap_type<ov::op::v1::Multiply>({activation_a_m, mul_b_m});
+    auto mul_b_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({activation_b_m, mul_const_m});
+    auto activation_a_m = ov::pass::pattern::any_input(is_non_const_node);
+    auto mul_a_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({activation_a_m, mul_b_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {

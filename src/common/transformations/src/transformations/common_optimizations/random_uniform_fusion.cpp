@@ -21,19 +21,19 @@
 
 ov::pass::RandomUniformFusion::RandomUniformFusion() {
     MATCHER_SCOPE(RandomUniformFusion);
-    const auto data_pattern = pass::pattern::any_input();
-    const auto ru_min_input_pattern = pass::pattern::any_input();
-    const auto ru_max_input_pattern = pass::pattern::any_input();
+    const auto data_pattern = ov::pass::pattern::any_input();
+    const auto ru_min_input_pattern = ov::pass::pattern::any_input();
+    const auto ru_max_input_pattern = ov::pass::pattern::any_input();
     const auto random_uniform_pattern = ov::pass::pattern::wrap_type<ov::op::v8::RandomUniform>(
         {data_pattern, ru_min_input_pattern, ru_max_input_pattern},
-        pattern::consumers_count(1));
+        ov::pass::pattern::consumers_count(1));
     const auto const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto optional_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(random_uniform_pattern);
 
     const auto mul_add_pattern =
         ov::pass::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>({optional_convert, const_pattern});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto data = pattern_map.at(data_pattern);
         const auto random_uniform = pattern_map.at(random_uniform_pattern);

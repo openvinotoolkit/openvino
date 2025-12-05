@@ -13,9 +13,9 @@
 ov::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
     MATCHER_SCOPE(ConvertPriorBox8To0);
 
-    auto prior_box_v8 = pattern::wrap_type<ov::op::v8::PriorBox>();
+    auto prior_box_v8 = ov::pass::pattern::wrap_type<ov::op::v8::PriorBox>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto prior_box_v8_node = ov::as_type_ptr<ov::op::v8::PriorBox>(m.get_match_root());
         if (!prior_box_v8_node)
             return false;
@@ -48,6 +48,6 @@ ov::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(prior_box_v8, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(prior_box_v8, matcher_name);
     register_matcher(m, callback);
 }

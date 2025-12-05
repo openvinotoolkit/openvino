@@ -15,8 +15,8 @@
 
 ov::pass::NonZeroHorizontalFusion::NonZeroHorizontalFusion() {
     MATCHER_SCOPE(NonZeroHorizontalFusion);
-    auto input_m = pass::pattern::any_input(ov::pass::pattern::consumers_more_than(1));
-    auto nonzero_m = pass::pattern::wrap_type<ov::op::v3::NonZero>({input_m});
+    auto input_m = ov::pass::pattern::any_input(ov::pass::pattern::consumers_more_than(1));
+    auto nonzero_m = ov::pass::pattern::wrap_type<ov::op::v3::NonZero>({input_m});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

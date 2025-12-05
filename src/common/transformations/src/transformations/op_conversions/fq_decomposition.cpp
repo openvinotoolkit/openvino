@@ -47,7 +47,7 @@ bool isValidRangesInputs(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
 
 ov::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
     MATCHER_SCOPE(FakeQuantizeDecomposition);
-    auto data = pattern::any_input();
+    auto data = ov::pass::pattern::any_input();
     auto il = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto ih = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto ol = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();

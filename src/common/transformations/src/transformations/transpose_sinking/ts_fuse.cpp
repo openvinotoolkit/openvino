@@ -23,11 +23,11 @@ using namespace ov::pass::transpose_sinking::utils;
 TSFuse::TSFuse() {
     MATCHER_SCOPE(TransposeFuse);
     auto transpose_1_label =
-        pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
                                                   CheckTransposeConsumers);
     auto transpose_2_label =
-        pattern::wrap_type<ov::op::v1::Transpose>({transpose_1_label, pattern::wrap_type<ov::op::v0::Constant>()});
-    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({transpose_1_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose1 = pattern_to_output.at(transpose_1_label);
@@ -76,6 +76,6 @@ TSFuse::TSFuse() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(transpose_2_label, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_2_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

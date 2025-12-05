@@ -22,15 +22,15 @@
 ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
     MATCHER_SCOPE(FakeQuantizeReshapeFusion);
     // for weights only
-    const auto data_p = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(pattern::has_static_shape());
-    const auto convert_p = ov::pass::pattern::optional<ov::op::v0::Convert>(data_p, pattern::consumers_count(1));
+    const auto data_p = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::has_static_shape());
+    const auto convert_p = ov::pass::pattern::optional<ov::op::v0::Convert>(data_p, ov::pass::pattern::consumers_count(1));
     const auto fq_node_p =
         ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({convert_p,
-                                                                pattern::any_input(pattern::has_static_shape()),
-                                                                pattern::any_input(pattern::has_static_shape()),
-                                                                pattern::any_input(pattern::has_static_shape()),
-                                                                pattern::any_input(pattern::has_static_shape())},
-                                                               pattern::consumers_count(1));
+                                                                ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
+                                                                ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
+                                                                ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
+                                                                ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape())},
+                                                               ov::pass::pattern::consumers_count(1));
     const auto reshape_node_p = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
         {fq_node_p, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
         [](const Output<Node>& output) {
@@ -41,7 +41,7 @@ ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
             });
         });
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& fq_node = pattern_map.at(fq_node_p).get_node_shared_ptr();
         const auto& reshape_node = pattern_map.at(reshape_node_p).get_node_shared_ptr();

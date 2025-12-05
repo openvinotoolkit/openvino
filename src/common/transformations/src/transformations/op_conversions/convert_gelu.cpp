@@ -20,9 +20,9 @@
 
 ov::pass::ConvertGELU::ConvertGELU() {
     MATCHER_SCOPE(ConvertGELU);
-    auto gelu = pattern::wrap_type<ov::op::v0::Gelu>();
+    auto gelu = ov::pass::pattern::wrap_type<ov::op::v0::Gelu>();
 
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto gelu = ov::as_type_ptr<ov::op::v0::Gelu>(m.get_match_root());
         if (!gelu || transformation_callback(gelu))
             return false;

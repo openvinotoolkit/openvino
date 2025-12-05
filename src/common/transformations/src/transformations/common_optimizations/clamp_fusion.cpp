@@ -20,18 +20,18 @@
 
 ov::pass::ClampFusion::ClampFusion() {
     MATCHER_SCOPE(ClampFusion);
-    auto data_pattern = pass::pattern::any_input();
+    auto data_pattern = ov::pass::pattern::any_input();
     auto min_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto max_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto max_pattern1 = ov::pass::pattern::wrap_type<ov::op::v1::Maximum>({data_pattern, min_const_pattern},
-                                                                          pattern::consumers_count(1));
+                                                                          ov::pass::pattern::consumers_count(1));
     auto min_pattern1 = ov::pass::pattern::wrap_type<ov::op::v1::Minimum>({max_pattern1, max_const_pattern});
     auto min_pattern2 = ov::pass::pattern::wrap_type<ov::op::v1::Minimum>({data_pattern, max_const_pattern});
     auto max_pattern2 = ov::pass::pattern::wrap_type<ov::op::v1::Maximum>({min_pattern2, min_const_pattern},
-                                                                          pattern::consumers_count(1));
+                                                                          ov::pass::pattern::consumers_count(1));
     auto root = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{min_pattern1, max_pattern2});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map.at(data_pattern);
         auto min_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(min_const_pattern).get_node_shared_ptr());

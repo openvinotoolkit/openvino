@@ -23,70 +23,70 @@ bool CvtReduceBase::is_redundant(ov::Shape input, ov::Shape output) {
 
 ov::pass::ConvertReduceMeanToReshape::ConvertReduceMeanToReshape() {
     MATCHER_SCOPE(ConvertReduceMeanToReshape);
-    auto m = std::make_shared<pattern::Matcher>(
-        pattern::wrap_type<ov::op::v1::ReduceMean>(
-            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<ov::op::v0::Constant>()},
-            pattern::has_static_shape()),
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(
+        ov::pass::pattern::wrap_type<ov::op::v1::ReduceMean>(
+            {ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+            ov::pass::pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_reshape<ov::op::v1::ReduceMean>());
 }
 
 ov::pass::ConvertReduceSumToReshape::ConvertReduceSumToReshape() {
     MATCHER_SCOPE(ConvertReduceSumToReshape);
-    auto m = std::make_shared<pattern::Matcher>(
-        pattern::wrap_type<ov::op::v1::ReduceSum>(
-            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<ov::op::v0::Constant>()},
-            pattern::has_static_shape()),
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(
+        ov::pass::pattern::wrap_type<ov::op::v1::ReduceSum>(
+            {ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+            ov::pass::pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_reshape<ov::op::v1::ReduceSum>());
 }
 
 ov::pass::ConvertReduceProdToReshape::ConvertReduceProdToReshape() {
     MATCHER_SCOPE(ConvertReduceProdToReshape);
-    auto m = std::make_shared<pattern::Matcher>(
-        pattern::wrap_type<ov::op::v1::ReduceProd>(
-            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<ov::op::v0::Constant>()},
-            pattern::has_static_shape()),
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(
+        ov::pass::pattern::wrap_type<ov::op::v1::ReduceProd>(
+            {ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+            ov::pass::pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_reshape<ov::op::v1::ReduceProd>());
 }
 
 ov::pass::ConvertReduceMaxToReshape::ConvertReduceMaxToReshape() {
     MATCHER_SCOPE(ConvertReduceMaxToReshape);
-    auto m = std::make_shared<pattern::Matcher>(
-        pattern::wrap_type<ov::op::v1::ReduceMax>(
-            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<ov::op::v0::Constant>()},
-            pattern::has_static_shape()),
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(
+        ov::pass::pattern::wrap_type<ov::op::v1::ReduceMax>(
+            {ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+            ov::pass::pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_reshape<ov::op::v1::ReduceMax>());
 }
 
 ov::pass::ConvertReduceMinToReshape::ConvertReduceMinToReshape() {
     MATCHER_SCOPE(ConvertReduceMinToReshape);
-    auto m = std::make_shared<pattern::Matcher>(
-        pattern::wrap_type<ov::op::v1::ReduceMin>(
-            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<ov::op::v0::Constant>()},
-            pattern::has_static_shape()),
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(
+        ov::pass::pattern::wrap_type<ov::op::v1::ReduceMin>(
+            {ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+            ov::pass::pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_reshape<ov::op::v1::ReduceMin>());
 }
 
 ov::pass::ConvertReduceLogicalAndToReshape::ConvertReduceLogicalAndToReshape() {
     MATCHER_SCOPE(ConvertReduceLogicalAndToReshape);
-    auto m = std::make_shared<pattern::Matcher>(
-        pattern::wrap_type<ov::op::v1::ReduceLogicalAnd>(
-            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<ov::op::v0::Constant>()},
-            pattern::has_static_shape()),
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(
+        ov::pass::pattern::wrap_type<ov::op::v1::ReduceLogicalAnd>(
+            {ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+            ov::pass::pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_reshape<ov::op::v1::ReduceLogicalAnd>());
 }
 
 ov::pass::ConvertReduceLogicalOrToReshape::ConvertReduceLogicalOrToReshape() {
     MATCHER_SCOPE(ConvertReduceLogicalOrToReshape);
-    auto m = std::make_shared<pattern::Matcher>(
-        pattern::wrap_type<ov::op::v1::ReduceLogicalOr>(
-            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<ov::op::v0::Constant>()},
-            pattern::has_static_shape()),
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(
+        ov::pass::pattern::wrap_type<ov::op::v1::ReduceLogicalOr>(
+            {ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+            ov::pass::pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_reshape<ov::op::v1::ReduceLogicalOr>());
 }

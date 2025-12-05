@@ -29,16 +29,16 @@ using namespace ov;
 
 ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
     MATCHER_SCOPE(BatchNormDecomposition);
-    auto bn_1 = pattern::wrap_type<ov::op::v0::BatchNormInference>({pattern::any_input(),
-                                                                    pattern::any_input(),
-                                                                    pattern::any_input(pattern::has_static_rank()),
-                                                                    pattern::any_input(),
-                                                                    pattern::any_input()});
-    auto bn_5 = pattern::wrap_type<ov::op::v5::BatchNormInference>({pattern::any_input(pattern::has_static_rank()),
-                                                                    pattern::any_input(),
-                                                                    pattern::any_input(),
-                                                                    pattern::any_input(),
-                                                                    pattern::any_input()});
+    auto bn_1 = ov::pass::pattern::wrap_type<ov::op::v0::BatchNormInference>({ov::pass::pattern::any_input(),
+                                                                    ov::pass::pattern::any_input(),
+                                                                    ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+                                                                    ov::pass::pattern::any_input(),
+                                                                    ov::pass::pattern::any_input()});
+    auto bn_5 = ov::pass::pattern::wrap_type<ov::op::v5::BatchNormInference>({ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+                                                                    ov::pass::pattern::any_input(),
+                                                                    ov::pass::pattern::any_input(),
+                                                                    ov::pass::pattern::any_input(),
+                                                                    ov::pass::pattern::any_input()});
     auto bn = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{bn_1, bn_5});
 
     matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {

@@ -22,7 +22,7 @@
 
 ov::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
     MATCHER_SCOPE(LSTMCellDecomposition);
-    auto any_lstm = pattern::wrap_type<ov::op::v0::LSTMCell, ov::op::v4::LSTMCell>();
+    auto any_lstm = ov::pass::pattern::wrap_type<ov::op::v0::LSTMCell, ov::op::v4::LSTMCell>();
 
     matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto lstm_cell = ov::as_type_ptr<op::util::RNNCellBase>(m.get_match_root());

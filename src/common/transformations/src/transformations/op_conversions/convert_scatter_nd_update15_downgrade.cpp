@@ -14,9 +14,9 @@
 ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3::ConvertScatterNDUpdate15ToScatterNDUpdate3() {
     MATCHER_SCOPE(ConvertScatterNDUpdate15ToScatterNDUpdate3);
 
-    const auto scatter_v15_pattern = pattern::wrap_type<ov::op::v15::ScatterNDUpdate>();
+    const auto scatter_v15_pattern = ov::pass::pattern::wrap_type<ov::op::v15::ScatterNDUpdate>();
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto scatter_v15 = ov::as_type_ptr<ov::op::v15::ScatterNDUpdate>(m.get_match_root());
         if (!scatter_v15 || transformation_callback(scatter_v15)) {
             return false;
@@ -35,6 +35,6 @@ ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3::ConvertScatterNDUpdate15To
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(scatter_v15_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(scatter_v15_pattern, matcher_name);
     register_matcher(m, callback);
 }

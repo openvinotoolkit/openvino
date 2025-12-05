@@ -24,13 +24,13 @@
 ov::pass::SoftmaxFusion::SoftmaxFusion() {
     MATCHER_SCOPE(SoftmaxFusion);
 
-    auto data_pattern = pass::pattern::any_input(pass::pattern::has_static_rank());
+    auto data_pattern = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto reduce_max_axes_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto reduce_max_pattern =
         ov::pass::pattern::wrap_type<ov::op::v1::ReduceMax>({data_pattern, reduce_max_axes_pattern});
     auto sub_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({data_pattern, reduce_max_pattern});
 
-    auto exp_input = std::make_shared<pattern::op::Or>(OutputVector{sub_pattern, data_pattern});
+    auto exp_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sub_pattern, data_pattern});
     auto exp_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Exp>({exp_input});
 
     auto reduce_sum_axes_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
@@ -38,7 +38,7 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
         ov::pass::pattern::wrap_type<ov::op::v1::ReduceSum>({exp_pattern, reduce_sum_axes_pattern});
     auto div_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({exp_pattern, reduce_sum_pattern});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root()))
             return false;
 
