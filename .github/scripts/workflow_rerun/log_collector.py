@@ -96,7 +96,7 @@ def collect_logs_for_run(run: WorkflowRun,
                     if p.is_dir() and p.name.startswith(job_filename):
                         LOGGER.debug(f'Keeping system.txt from directory {p} for failed job {job.name}')
                         (p / 'system.txt').rename(logs_dir / f'{job_filename}__system.txt')
-                    elif p.is_file() and p.name.endswith(job_filename + '.txt'):
+                    elif p.is_file() and p.name.endswith(f'{job_filename}.txt'):
                         LOGGER.debug(f'Keeping file {p} for failed job {job.name}')
                         p.rename(logs_dir / p.name)
 
