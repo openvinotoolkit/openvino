@@ -65,8 +65,7 @@ static void create_plugin_xml(const std::filesystem::path& file_name, const std:
     file << ov::util::FileTraits<char>::library_prefix();
     file << "mock_engine";
     file << OV_BUILD_POSTFIX;
-    file << ov::util::FileTraits<char>::dot_symbol;
-    file << ov::util::FileTraits<char>::library_ext();
+    file << ov::util::library_extension().string();
     file << "\" name=\"" << plugin_name << "\"></plugin></plugins></ie>";
     file.flush();
     file.close();
