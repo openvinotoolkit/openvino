@@ -125,19 +125,29 @@ if(ENABLE_PLUGIN_COMPILER)
             if(OS_NAME STREQUAL "Ubuntu")
                 if(OS_VERSION STREQUAL "22.04")
                     # Ubuntu 22.04-specific settings or actions
+                    # set(PLUGIN_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/compiler_libs/ubuntu22.04")
+                    # set(PLUGIN_COMPILER_LIBS_URL "https://github.com/intel/linux-npu-driver/releases/download/v1.26.0/linux-npu-driver-v1.26.0.20251125-19665715237-ubuntu2204.tar.gz")
+                    # set(PLUGIN_COMPILER_LIBS_ZIP "${PLUGIN_COMPILER_LIBS_DIR}/linux-npu-driver-v1.26.0.20251125-19665715237-ubuntu2204.tar.gz")
+                    # set(PLUGIN_COMPILER_LIBS_DEB "${PLUGIN_COMPILER_LIBS_DIR}/intel-driver-compiler-npu_1.26.0.20251125-19665715237_ubuntu22.04_amd64.deb")
+                    # set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/prebuilt_libs_from_v1.26.0.20251125-19665715237-ubuntu2204")
+
+                    # message("===============1===========")
+                    # download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_ZIP}" "${PLUGIN_COMPILER_LIBS_DIR}" "NONE")
+                    # message("===============2===========")
+                    # download_and_extract("" "${PLUGIN_COMPILER_LIBS_DEB}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
+                    # message("===============3===========")
+
+                    # set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu")
+
                     set(PLUGIN_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/compiler_libs/ubuntu22.04")
-                    set(PLUGIN_COMPILER_LIBS_URL "https://github.com/intel/linux-npu-driver/releases/download/v1.26.0/linux-npu-driver-v1.26.0.20251125-19665715237-ubuntu2204.tar.gz")
-                    set(PLUGIN_COMPILER_LIBS_ZIP "${PLUGIN_COMPILER_LIBS_DIR}/linux-npu-driver-v1.26.0.20251125-19665715237-ubuntu2204.tar.gz")
-                    set(PLUGIN_COMPILER_LIBS_DEB "${PLUGIN_COMPILER_LIBS_DIR}/intel-driver-compiler-npu_1.26.0.20251125-19665715237_ubuntu22.04_amd64.deb")
-                    set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/prebuilt_libs_from_v1.26.0.20251125-19665715237-ubuntu2204")
+                    set(PLUGIN_COMPILER_LIBS_URL "https://github.com/openvinotoolkit/npu_compiler/releases/download/npu_ud_2025_44_rc1/l_vpux_compiler_l0_linux_ubuntu_22_04-7_4_3-Release_dyntbb_postcommit_cid_a934b15d7494c4961afd51cf6c896b15d1fabd8c_251119_2122.tar.gz")
+                    set(PLUGIN_COMPILER_LIBS_TAR "${PLUGIN_COMPILER_LIBS_DIR}/l_vpux_compiler_l0_linux_ubuntu_22_04-7_4_3-Release_dyntbb_postcommit_cid_a934b15d7494c4961afd51cf6c896b15d1fabd8c_251119_2122.tar.gz")
+                    set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/7_4_3-Release_dyntbb_postcommit_cid_a934b15d7494c4961afd51cf6c896b15d1fabd8c_251119_212")
 
                     message("===============1===========")
-                    download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_ZIP}" "${PLUGIN_COMPILER_LIBS_DIR}" "NONE")
-                    message("===============2===========")
-                    download_and_extract("" "${PLUGIN_COMPILER_LIBS_DEB}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
-                    message("===============3===========")
+                    download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_TAR}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
+                    set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/cid/lib/")
 
-                    set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu")
                     configure_file(
                         ${PLUGIN_COMPILER_LIB_PATH}/libnpu_driver_compiler.so
                         ${PLUGIN_COMPILER_LIB_PATH}/libopenvino_intel_npu_compiler.so
@@ -150,19 +160,28 @@ if(ENABLE_PLUGIN_COMPILER)
                 elseif(OS_VERSION STREQUAL "24.04")
                     message(STATUS "This is Ubuntu 24.04")
                     # Ubuntu 24.04-specific settings or actions
+                    # set(PLUGIN_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/compiler_libs/ubuntu24.04")
+                    # set(PLUGIN_COMPILER_LIBS_URL "https://github.com/intel/linux-npu-driver/releases/download/v1.26.0/linux-npu-driver-v1.26.0.20251125-19665715237-ubuntu2404.tar.gz")
+                    # set(PLUGIN_COMPILER_LIBS_ZIP "${PLUGIN_COMPILER_LIBS_DIR}/linux-npu-driver-v1.26.0.20251125-19665715237-ubuntu2404.tar.gz")
+                    # set(PLUGIN_COMPILER_LIBS_DEB "${PLUGIN_COMPILER_LIBS_DIR}/intel-driver-compiler-npu_1.26.0.20251125-19665715237_ubuntu24.04_amd64.deb")
+                    # set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/prebuilt_libs_from_v1.26.0.20251125-19665715237-ubuntu2404")
+
+                    # message("===============4===========")
+                    # download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_ZIP}" "${PLUGIN_COMPILER_LIBS_DIR}" "NONE")
+                    # message("===============5===========")
+                    # download_and_extract("" "${PLUGIN_COMPILER_LIBS_DEB}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
+                    # message("===============6===========")
+
+                    # set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu")
+
                     set(PLUGIN_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/compiler_libs/ubuntu24.04")
-                    set(PLUGIN_COMPILER_LIBS_URL "https://github.com/intel/linux-npu-driver/releases/download/v1.26.0/linux-npu-driver-v1.26.0.20251125-19665715237-ubuntu2404.tar.gz")
-                    set(PLUGIN_COMPILER_LIBS_ZIP "${PLUGIN_COMPILER_LIBS_DIR}/linux-npu-driver-v1.26.0.20251125-19665715237-ubuntu2404.tar.gz")
-                    set(PLUGIN_COMPILER_LIBS_DEB "${PLUGIN_COMPILER_LIBS_DIR}/intel-driver-compiler-npu_1.26.0.20251125-19665715237_ubuntu24.04_amd64.deb")
-                    set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/prebuilt_libs_from_v1.26.0.20251125-19665715237-ubuntu2404")
+                    set(PLUGIN_COMPILER_LIBS_URL "https://github.com/openvinotoolkit/npu_compiler/releases/download/npu_ud_2025_44_rc1/l_vpux_compiler_l0_linux_ubuntu_24_04-7_4_3-Release_dyntbb_postcommit_cid_a934b15d7494c4961afd51cf6c896b15d1fabd8c_251119_2204.tar.gz")
+                    set(PLUGIN_COMPILER_LIBS_TAR "${PLUGIN_COMPILER_LIBS_DIR}/l_vpux_compiler_l0_linux_ubuntu_24_04-7_4_3-Release_dyntbb_postcommit_cid_a934b15d7494c4961afd51cf6c896b15d1fabd8c_251119_2204.tar.gz")
+                    set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/7_4_3-Release_dyntbb_postcommit_cid_a934b15d7494c4961afd51cf6c896b15d1fabd8c_251119_2204")
 
                     message("===============4===========")
-                    download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_ZIP}" "${PLUGIN_COMPILER_LIBS_DIR}" "NONE")
-                    message("===============5===========")
-                    download_and_extract("" "${PLUGIN_COMPILER_LIBS_DEB}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
-                    message("===============6===========")
-
-                    set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu")
+                    download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_TAR}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
+                    set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/cid/lib/")
                     configure_file(
                         ${PLUGIN_COMPILER_LIB_PATH}/libnpu_driver_compiler.so
                         ${PLUGIN_COMPILER_LIB_PATH}/libopenvino_intel_npu_compiler.so
