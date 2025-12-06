@@ -1,6 +1,11 @@
 // Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+// Configuration: Enable loop-based Q@K computation to avoid materialized K/V broadcast
+// Set to 1 to enable grouped computation, 0 to use traditional broadcast
+// Disabled by default because NPU compiler optimizations are suboptimal
+#define ENABLE_HFA_LOOP_BASED_COMPUTATION 0
+
 #include "host_flash_attention.hpp"
 
 #include "logging.hpp"
@@ -147,6 +152,149 @@ static HFATileF32Nodes convert_inputs_to_f32(const HFATileInputs& inputs,
 }
 
 // ============================================================================
+// Helper function: Execute flash attention algorithm (unified implementation)
+// Supports both traditional broadcast and loop-based grouped computation
+// ============================================================================
+// Parameters:
+//   use_grouped: If true, uses loop-based grouped computation (Q/P reshape)
+//                If false, uses traditional broadcast K/V approach
+static FlashAttentionResults execute_flash_attention(const HFATileF32Nodes& f32_nodes,
+                                                     const std::shared_ptr<ov::Node>& q_input,
+                                                     const std::shared_ptr<ov::Node>& k_input,
+                                                     const std::shared_ptr<ov::Node>& v_input,
+                                                     size_t batch,
+                                                     size_t num_heads,
+                                                     size_t kv_num_heads,
+                                                     size_t seq_len,
+                                                     size_t tile_size,
+                                                     size_t head_dim,
+                                                     bool use_grouped = false) {
+    FlashAttentionResults results;
+
+    // ========================================================================
+    // Step 1: Compute QK (method differs based on use_grouped flag)
+    // ========================================================================
+    std::shared_ptr<ov::Node> qk;
+
+    if (use_grouped) {
+        // Loop-based grouped computation: Q and K are grouped format
+        // Q_input:  [batch, kv_num_heads, factor * seq_len, head_dim]
+        // K_input:  [batch, kv_num_heads, tile_size, head_dim]
+        // QK_grouped: [batch, kv_num_heads, factor * seq_len, tile_size]
+        auto qk_grouped = std::make_shared<ov::op::v0::MatMul>(q_input, k_input, false, true);
+        qk_grouped->set_friendly_name("qk_grouped");
+
+        // Reshape QK back: [batch, kv_num_heads, factor * seq_len, tile_size] -> [batch, num_heads, seq_len, tile_size]
+        auto qk_reshape_pattern =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                   ov::Shape{4},
+                                                   std::vector<int64_t>{static_cast<int64_t>(batch),
+                                                                        static_cast<int64_t>(num_heads),
+                                                                        static_cast<int64_t>(seq_len),
+                                                                        static_cast<int64_t>(tile_size)});
+        qk = std::make_shared<ov::op::v1::Reshape>(qk_grouped, qk_reshape_pattern, false);
+        qk->set_friendly_name("qk");
+    } else {
+        // Traditional broadcast computation: use broadcast K directly
+        // Q_input:  [batch, num_heads, seq_len, head_dim]
+        // K_input:  [batch, num_heads, tile_size, head_dim] (already broadcast)
+        // QK:       [batch, num_heads, seq_len, tile_size]
+        qk = std::make_shared<ov::op::v0::MatMul>(q_input, k_input, false, true);
+        qk->set_friendly_name("qk");
+    }
+
+    // ========================================================================
+    // Step 2: Flash Attention core algorithm (same for both methods)
+    // ========================================================================
+
+    // qkm = qk + mask
+    auto qkm = std::make_shared<ov::op::v1::Add>(qk, f32_nodes.mask_tile_f32);
+    qkm->set_friendly_name("qkm");
+
+    // maxx = max(past_max, reduce_max(qkm, axis=-1, keepdims=True))
+    auto axes_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+    auto qkm_max = std::make_shared<ov::op::v1::ReduceMax>(qkm, axes_const, true);
+    qkm_max->set_friendly_name("qkm_max");
+
+    results.maxx = std::make_shared<ov::op::v1::Maximum>(qkm_max, f32_nodes.past_max_f32);
+    results.maxx->set_friendly_name("maxx");
+
+    // p = exp(qkm - maxx)
+    auto qkm_sub_maxx = std::make_shared<ov::op::v1::Subtract>(qkm, results.maxx);
+    auto p = std::make_shared<ov::op::v0::Exp>(qkm_sub_maxx);
+    p->set_friendly_name("p");
+
+    // l = reduce_sum(p, axis=-1, keepdims=True)
+    auto l = std::make_shared<ov::op::v1::ReduceSum>(p, axes_const, true);
+    l->set_friendly_name("l");
+
+    // alpha = exp(past_max - maxx)
+    auto past_max_sub_maxx = std::make_shared<ov::op::v1::Subtract>(f32_nodes.past_max_f32, results.maxx);
+    auto alpha = std::make_shared<ov::op::v0::Exp>(past_max_sub_maxx);
+    alpha->set_friendly_name("alpha");
+
+    // d = past_d * alpha + l
+    auto past_d_alpha = std::make_shared<ov::op::v1::Multiply>(f32_nodes.past_d_f32, alpha);
+    results.d = std::make_shared<ov::op::v1::Add>(past_d_alpha, l);
+    results.d->set_friendly_name("d");
+
+    // ========================================================================
+    // Step 3: Compute PV and final accumulator (method differs based on use_grouped flag)
+    // ========================================================================
+
+    auto past_acc_alpha = std::make_shared<ov::op::v1::Multiply>(f32_nodes.past_acc_f32, alpha);
+    std::shared_ptr<ov::Node> pv;
+
+    if (use_grouped) {
+        // Loop-based grouped computation: reshape P, multiply with V, reshape back
+        size_t factor = num_heads / kv_num_heads;
+
+        // Reshape P for grouped V multiplication: [batch, num_heads, seq_len, tile_size]
+        //                                      -> [batch, kv_num_heads, factor * seq_len, tile_size]
+        auto p_reshape_pattern =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                   ov::Shape{4},
+                                                   std::vector<int64_t>{static_cast<int64_t>(batch),
+                                                                        static_cast<int64_t>(kv_num_heads),
+                                                                        static_cast<int64_t>(factor * seq_len),
+                                                                        static_cast<int64_t>(tile_size)});
+        auto p_grouped = std::make_shared<ov::op::v1::Reshape>(p, p_reshape_pattern, false);
+        p_grouped->set_friendly_name("p_grouped");
+
+        // pv_grouped = matmul(p_grouped, v^T)
+        // P_grouped: [batch, kv_num_heads, factor * seq_len, tile_size]
+        // V_input:   [batch, kv_num_heads, head_dim, tile_size]
+        // PV_grouped: [batch, kv_num_heads, factor * seq_len, head_dim]
+        auto pv_grouped = std::make_shared<ov::op::v0::MatMul>(p_grouped, v_input, false, true);
+        pv_grouped->set_friendly_name("pv_grouped");
+
+        // Reshape PV back: [batch, kv_num_heads, factor * seq_len, head_dim] -> [batch, num_heads, seq_len, head_dim]
+        auto pv_reshape_pattern =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                   ov::Shape{4},
+                                                   std::vector<int64_t>{static_cast<int64_t>(batch),
+                                                                        static_cast<int64_t>(num_heads),
+                                                                        static_cast<int64_t>(seq_len),
+                                                                        static_cast<int64_t>(head_dim)});
+        pv = std::make_shared<ov::op::v1::Reshape>(pv_grouped, pv_reshape_pattern, false);
+        pv->set_friendly_name("pv");
+    } else {
+        // Traditional broadcast computation: use broadcast V directly
+        // P:        [batch, num_heads, seq_len, tile_size]
+        // V_input:  [batch, num_heads, head_dim, tile_size] (already broadcast)
+        // PV:       [batch, num_heads, seq_len, head_dim]
+        pv = std::make_shared<ov::op::v0::MatMul>(p, v_input, false, true);
+        pv->set_friendly_name("pv");
+    }
+
+    // acc = past_acc * alpha + pv
+    results.acc = std::make_shared<ov::op::v1::Add>(past_acc_alpha, pv);
+    results.acc->set_friendly_name("acc");
+
+    return results;
+}
+
+// ============================================================================
 // Helper function: Broadcast KV from kv_num_heads to num_heads
 // ============================================================================
 static std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> broadcast_kv_tiles(
@@ -204,58 +352,35 @@ static std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> broadcast
     return {k_tile_broadcast, v_tile_broadcast};
 }
 
+#if ENABLE_HFA_LOOP_BASED_COMPUTATION
 // ============================================================================
-// Helper function: Execute flash attention algorithm (all in f32)
+// Helper function: Reshape Q for grouped computation (loop-based approach)
+// Avoids materializing broadcasted K/V tensors by reshaping Q to match KV heads
 // ============================================================================
-static FlashAttentionResults execute_flash_attention(const HFATileF32Nodes& f32_nodes,
-                                                     const std::shared_ptr<ov::Node>& k_broadcast,
-                                                     const std::shared_ptr<ov::Node>& v_broadcast) {
-    FlashAttentionResults results;
+// Q: [batch, num_heads, seq_len, head_dim] -> [batch, kv_num_heads, factor * seq_len, head_dim]
+// where factor = num_heads / kv_num_heads
+static std::shared_ptr<ov::Node> reshape_q_for_groups(const std::shared_ptr<ov::Node>& q_f32,
+                                                      size_t batch,
+                                                      size_t num_heads,
+                                                      size_t kv_num_heads,
+                                                      size_t seq_len,
+                                                      size_t head_dim) {
+    size_t factor = num_heads / kv_num_heads;
 
-    // qk = matmul(q, k^T)
-    auto qk = std::make_shared<ov::op::v0::MatMul>(f32_nodes.q_f32, k_broadcast, false, true);
-    qk->set_friendly_name("qk");
+    // Reshape Q: [batch, num_heads, seq_len, head_dim] -> [batch, kv_num_heads, factor * seq_len, head_dim]
+    auto q_reshape_pattern =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                               ov::Shape{4},
+                                               std::vector<int64_t>{static_cast<int64_t>(batch),
+                                                                    static_cast<int64_t>(kv_num_heads),
+                                                                    static_cast<int64_t>(factor * seq_len),
+                                                                    static_cast<int64_t>(head_dim)});
+    auto q_grouped = std::make_shared<ov::op::v1::Reshape>(q_f32, q_reshape_pattern, false);
+    q_grouped->set_friendly_name("q_grouped");
 
-    // qkm = qk + mask
-    auto qkm = std::make_shared<ov::op::v1::Add>(qk, f32_nodes.mask_tile_f32);
-    qkm->set_friendly_name("qkm");
-
-    // maxx = max(past_max, reduce_max(qkm, axis=-1, keepdims=True))
-    auto axes_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-    auto qkm_max = std::make_shared<ov::op::v1::ReduceMax>(qkm, axes_const, true);
-    qkm_max->set_friendly_name("qkm_max");
-
-    results.maxx = std::make_shared<ov::op::v1::Maximum>(qkm_max, f32_nodes.past_max_f32);
-    results.maxx->set_friendly_name("maxx");
-
-    // p = exp(qkm - maxx)
-    auto qkm_sub_maxx = std::make_shared<ov::op::v1::Subtract>(qkm, results.maxx);
-    auto p = std::make_shared<ov::op::v0::Exp>(qkm_sub_maxx);
-    p->set_friendly_name("p");
-
-    // l = reduce_sum(p, axis=-1, keepdims=True)
-    auto l = std::make_shared<ov::op::v1::ReduceSum>(p, axes_const, true);
-    l->set_friendly_name("l");
-
-    // alpha = exp(past_max - maxx)
-    auto past_max_sub_maxx = std::make_shared<ov::op::v1::Subtract>(f32_nodes.past_max_f32, results.maxx);
-    auto alpha = std::make_shared<ov::op::v0::Exp>(past_max_sub_maxx);
-    alpha->set_friendly_name("alpha");
-
-    // d = past_d * alpha + l
-    auto past_d_alpha = std::make_shared<ov::op::v1::Multiply>(f32_nodes.past_d_f32, alpha);
-    results.d = std::make_shared<ov::op::v1::Add>(past_d_alpha, l);
-    results.d->set_friendly_name("d");
-
-    // acc = past_acc * alpha + matmul(p, v)
-    auto past_acc_alpha = std::make_shared<ov::op::v1::Multiply>(f32_nodes.past_acc_f32, alpha);
-    auto pv = std::make_shared<ov::op::v0::MatMul>(p, v_broadcast, false, true);
-    pv->set_friendly_name("pv");
-    results.acc = std::make_shared<ov::op::v1::Add>(past_acc_alpha, pv);
-    results.acc->set_friendly_name("acc");
-
-    return results;
+    return q_grouped;
 }
+#endif  // ENABLE_HFA_LOOP_BASED_COMPUTATION
 
 // ============================================================================
 // Helper function: Create final tile model outputs (division, transpose, reshape)
@@ -364,7 +489,36 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     // Convert all inputs to f32
     auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype);
 
-    // Broadcast K and V tiles
+    FlashAttentionResults results;
+
+#if ENABLE_HFA_LOOP_BASED_COMPUTATION
+    // ========================================================================
+    // Loop-based computation: Reshape Q to avoid K/V broadcast materialization
+    // ========================================================================
+    LOG_DEBUG("Using loop-based grouped computation (ENABLED) - avoids K/V broadcast");
+
+    // Reshape Q for grouped computation
+    auto q_grouped = reshape_q_for_groups(f32_nodes.q_f32, batch, num_heads, kv_num_heads, seq_len, head_dim);
+
+    // Execute flash attention with grouped computation (K and V remain 4D, no broadcast)
+    results = execute_flash_attention(f32_nodes,
+                                      q_grouped,             // Q: grouped format
+                                      f32_nodes.k_tile_f32,  // K: original 4D
+                                      f32_nodes.v_tile_f32,  // V: original 4D
+                                      batch,
+                                      num_heads,
+                                      kv_num_heads,
+                                      seq_len,
+                                      tile_size,
+                                      head_dim,
+                                      true);  // use_grouped = true
+#else
+    // ========================================================================
+    // Traditional broadcast-based computation: Materialize K/V broadcast
+    // ========================================================================
+    LOG_DEBUG("Using traditional broadcast computation (DISABLED loop-based) - materializes K/V broadcast");
+
+    // Broadcast K and V tiles from kv_num_heads to num_heads
     auto [k_broadcast, v_broadcast] = broadcast_kv_tiles(f32_nodes.k_tile_f32,
                                                          f32_nodes.v_tile_f32,
                                                          batch,
@@ -373,8 +527,19 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                          tile_size,
                                                          head_dim);
 
-    // Execute flash attention algorithm
-    auto results = execute_flash_attention(f32_nodes, k_broadcast, v_broadcast);
+    // Execute flash attention algorithm with broadcasted K/V
+    results = execute_flash_attention(f32_nodes,
+                                      f32_nodes.q_f32,  // Q: original 4D
+                                      k_broadcast,      // K: broadcast to num_heads
+                                      v_broadcast,      // V: broadcast to num_heads
+                                      batch,
+                                      num_heads,
+                                      kv_num_heads,
+                                      seq_len,
+                                      tile_size,
+                                      head_dim,
+                                      false);  // use_grouped = false
+#endif  // ENABLE_HFA_LOOP_BASED_COMPUTATION
 
     // Create model outputs and name based on tile type
     ov::ResultVector model_results;
