@@ -444,34 +444,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             }
         }
 
-        if (ov::npuw::util::is_set(id, dump_sub_opt, real_id, end_sub_idx)) {
-            LOG_INFO("Dumping Subgraph[" << id << "]");
-            LOG_BLOCK();
-            if (real_id != id) {
-                LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]" << " as it is a function body for Subgraph[" << id
-                                                   << "]");
-            }
-            const auto model_to_dump = m_compiled_submodels[real_id].model;
-            std::string model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                                          (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall) + ".xml";
-            ov::save_model(model_to_dump, model_dump_path);
-            LOG_INFO("Wrote " << model_dump_path);
-
-            // Dump pyramid attention models if present
-            if (m_compiled_submodels[id].pyramid_attention) {
-                LOG_INFO("NOTE: Subgraph[" << id << "] has a pyramid attention mechanism.");
-                const auto& pyramid_attention_models =
-                    m_compiled_submodels[id].pyramid_attention.value()._models_to_compile;
-                for (std::size_t idx = 0; idx < pyramid_attention_models.size(); ++idx) {
-                    std::string pyramid_attention_model_dump_path =
-                        m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                        (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall) + "_pyramid_" +
-                        ov::npuw::util::fmt(idx, pyramid_attention_models.size()) + ".xml";
-                    ov::save_model(pyramid_attention_models[idx], pyramid_attention_model_dump_path);
-                    LOG_INFO("Wrote " << pyramid_attention_model_dump_path);
-                }
-            }
-        }  // if(dump)
+        dump_subgraph_model(id, subgraph._funcall, dump_sub_opt);
     }  // for(orderedSubGraphs)
 
     std::map<std::size_t, std::string> forced_sub_devices{};
@@ -1850,6 +1823,59 @@ void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& de
 
     if (ov::npuw::util::is_set(id, dof_opt, real_idx, end_idx)) {
         ov::npuw::dump_failure(m_compiled_submodels[id].model, device_to_try, extra);
+    }
+}
+
+void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
+                                                  const std::string& funcall,
+                                                  const std::string& dump_sub_opt) {
+    const std::size_t end_sub_idx = m_compiled_submodels.size();
+    const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
+
+    if (!ov::npuw::util::is_set(id, dump_sub_opt, real_id, end_sub_idx)) {
+        return;
+    }
+
+    LOG_INFO("Dumping Subgraph[" << id << "]");
+    LOG_BLOCK();
+    if (real_id != id) {
+        LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]" << " as it is a function body for Subgraph[" << id << "]");
+    }
+    const auto model_to_dump = m_compiled_submodels[real_id].model;
+    std::string model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
+                                  (funcall.empty() ? "" : "_" + funcall) + ".xml";
+    ov::save_model(model_to_dump, model_dump_path);
+    LOG_INFO("Wrote " << model_dump_path);
+
+    // Dump pyramid attention models if present
+    if (m_compiled_submodels[id].pyramid_attention) {
+        LOG_INFO("NOTE: Subgraph[" << id << "] has a pyramid attention mechanism.");
+        const auto& pyramid_attention_models = m_compiled_submodels[id].pyramid_attention.value()._models_to_compile;
+        for (std::size_t idx = 0; idx < pyramid_attention_models.size(); ++idx) {
+            std::string pyramid_attention_model_dump_path =
+                m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
+                (funcall.empty() ? "" : "_" + funcall) + "_pyramid_" +
+                ov::npuw::util::fmt(idx, pyramid_attention_models.size()) + ".xml";
+            ov::save_model(pyramid_attention_models[idx], pyramid_attention_model_dump_path);
+            LOG_INFO("Wrote " << pyramid_attention_model_dump_path);
+        }
+    }
+
+    // Dump host flash attention models if present
+    if (m_compiled_submodels[id].host_flash_attention) {
+        LOG_INFO("NOTE: Subgraph[" << id << "] has a host flash attention mechanism.");
+        const auto& hfa_tile_model = m_compiled_submodels[id].host_flash_attention.value()._tile_model_to_compile;
+        std::string hfa_tile_model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
+                                               (funcall.empty() ? "" : "_" + funcall) + "_hfa_tile.xml";
+        ov::save_model(hfa_tile_model, hfa_tile_model_dump_path);
+        LOG_INFO("Wrote " << hfa_tile_model_dump_path);
+
+        const auto& hfa_final_tile_model =
+            m_compiled_submodels[id].host_flash_attention.value()._final_tile_model_to_compile;
+        std::string hfa_final_tile_model_dump_path = m_name + "_" +
+                                                     ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
+                                                     (funcall.empty() ? "" : "_" + funcall) + "_hfa_final_tile.xml";
+        ov::save_model(hfa_final_tile_model, hfa_final_tile_model_dump_path);
     }
 }
 

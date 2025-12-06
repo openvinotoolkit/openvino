@@ -84,6 +84,7 @@ private:
     void compile_host_flash_attention_model(std::size_t id, const std::string& device);
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
+    void dump_subgraph_model(std::size_t id, const std::string& funcall, const std::string& dump_sub_opt);
 
     void report_io() const;
 
