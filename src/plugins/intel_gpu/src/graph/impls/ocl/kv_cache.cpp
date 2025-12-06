@@ -149,9 +149,8 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         kernel_arguments_data args;
         args.shape_info = instance.shape_info_memory_ptr();
         if (stage == reorder_stage) {
-            // ScatterElementsUpdate: data=past_kv[0], indices=dst_idx[4+offset], updates=gathered_values
-            // For in-place update: input[0]=data, output[0]=updated_data
-            args.inputs = { instance.input_memory_ptr(0), instance.input_memory_ptr(4 + indirect_offset), instance.input_memory_ptr(3 + indirect_offset) };
+            // ScatterElementsUpdate: data=past_kv[0], indices=dst_idx[3+offset], updates=updated_data[4+offset]
+            args.inputs = { instance.input_memory_ptr(0), instance.input_memory_ptr(3 + indirect_offset), instance.input_memory_ptr(4 + indirect_offset) };
             args.outputs = {instance.input_memory_ptr(0)};
         } else if (stage == concat_stage) {
             args.inputs = { instance.input_memory_ptr(0), instance.input_memory_ptr(1) };
@@ -349,25 +348,24 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         const size_t indirect_offset = primitive->indirect ? 1 : 0;
 
         params.inputs.resize(inputs_count);
-        params.inputs[0] = convert_data_tensor(impl_param.input_layouts[0], tensor());  // data: kv_past
-        params.inputs[1] = convert_data_tensor(impl_param.input_layouts[4 + indirect_offset], tensor());  // indices: dst_idx
-        params.inputs[2] = convert_data_tensor(impl_param.input_layouts[3 + indirect_offset], tensor());  // updates: src_idx (gathered values)
+        params.inputs[0] = convert_data_tensor(impl_param.input_layouts[0], tensor()); 
+        params.inputs[1] = convert_data_tensor(impl_param.input_layouts[3 + indirect_offset], tensor());  
+        params.inputs[2] = convert_data_tensor(impl_param.input_layouts[4 + indirect_offset], tensor());
         params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0], tensor());
         
-        // ScatterElementsUpdate always operates along axis dimension
-        params.axis = kernel_selector::scatter_update_axis::Y;  // axis 2 for batch dimension
-        params.mode = kernel_selector::ScatterUpdateReduction::NONE;  // direct replacement, no reduction
-        params.use_init_val = true;  // use existing values in the tensor
+        params.axis = kernel_selector::scatter_update_axis::Y;                   // always update axis 2 which is KV seq_len dimension
+        params.mode = kernel_selector::ScatterUpdateReduction::NONE;  
+        params.use_init_val = true;  
 
-        const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;  // [kv_past, kv_new_token, [beam_idx, [scale_past], [zp_past], beam_table_past]]
-        const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset;  // [kv_present, beam_table_present, compression_scale_present]
+        const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;    // [kv_past, kv_new_token, [beam_idx], past_seq_len, dst_idx, update_data]
+        const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset;  // [kv_present]
         std::map<size_t, size_t> in_tensor_to_offset_map = {
-            {0, in_offsets_map.at(0)},  // kv_past (data)
-            {1, in_offsets_map.at(4 + indirect_offset)},  // dst_idx (indices)
-            {2, in_offsets_map.at(3 + indirect_offset)},  // src_idx (updates)
+            {0, in_offsets_map.at(0)}, 
+            {1, in_offsets_map.at(3 + indirect_offset)},  
+            {2, in_offsets_map.at(4 + indirect_offset)},
         };
         std::map<size_t, size_t> out_tensor_to_offset_map = {
-            {0, in_offsets_map.at(0)},  // kv_present
+            {0, in_offsets_map.at(0)}, 
         };
 
         params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
@@ -580,7 +578,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             (_kernels_data[reorder_stage].update_dispatch_data_func)(scatter_kernel_params, _kernels_data[reorder_stage]);
             // Skip execution if indices tensor is empty
             const size_t indirect_offset = impl_param.typed_desc<kv_cache>()->indirect ? 1 : 0;
-            _kernels_data[reorder_stage].kernels[0].skip_execution = impl_param.get_input_layout(4 + indirect_offset).count() == 0;
+            _kernels_data[reorder_stage].kernels[0].skip_execution = impl_param.get_input_layout(3 + indirect_offset).count() == 0;
         }
 
         // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future

@@ -42,8 +42,8 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
     auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
     auto processed_read = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
     auto dst_idx = wrap_type<ov::op::v0::Parameter>();
-    auto gather_valid = wrap_type<ov::op::v8::Gather>(); 
-    auto reorder_past = wrap_type<ov::op::v3::ScatterElementsUpdate>({processed_read, dst_idx, gather_valid, wrap_type<ov::op::v0::Constant>()});
+    auto gather_update = wrap_type<ov::op::v8::Gather>(); 
+    auto reorder_past = wrap_type<ov::op::v3::ScatterElementsUpdate>({processed_read, dst_idx, gather_update, wrap_type<ov::op::v0::Constant>()});
     auto trim_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{processed_read, reorder_past});
     auto start = wrap_type<ov::op::v0::Constant>();
     auto past_seq_len = any_input();
@@ -98,8 +98,8 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
                 kv_cache_node = std::make_shared<op::KVCache>(pattern_map.at(gather_past).get_node_shared_ptr(),
                                                           concat_node->input(1).get_source_output(),
                                                           pattern_map.at(past_seq_len).get_node_shared_ptr(),
-                                                          pattern_map.at(gather_valid).get_node_shared_ptr(),
                                                           pattern_map.at(dst_idx).get_node_shared_ptr(),
+                                                          pattern_map.at(gather_update).get_node_shared_ptr(),
                                                           variable,
                                                           concat_axis,
                                                           new_read_value_node->get_output_element_type(0));
@@ -117,8 +117,8 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
                 kv_cache_node = std::make_shared<op::KVCache>(new_read_value_node,
                                                           concat_node->input(1).get_source_output(),
                                                           pattern_map.at(past_seq_len).get_node_shared_ptr(),
-                                                          pattern_map.at(gather_valid).get_node_shared_ptr(),
                                                           pattern_map.at(dst_idx).get_node_shared_ptr(),
+                                                          pattern_map.at(gather_update).get_node_shared_ptr(),
                                                           variable,
                                                           concat_axis,
                                                           new_read_value_node->get_output_element_type(0));
