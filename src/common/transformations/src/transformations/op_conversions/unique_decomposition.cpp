@@ -52,9 +52,9 @@ Output<Node> get_elements_number_1d(const ov::Output<ov::Node>& output,
 ov::pass::UniqueDecomposition::UniqueDecomposition() {
     MATCHER_SCOPE(UniqueDecomposition);
 
-    auto unique = pattern::wrap_type<ov::op::v10::Unique>();
+    auto unique = ov::pass::pattern::wrap_type<ov::op::v10::Unique>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& matcher) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& matcher) {
         NodeRegistry rg;
 
         auto unique_node = ov::as_type_ptr<ov::op::v10::Unique>(matcher.get_match_root());
@@ -204,6 +204,6 @@ ov::pass::UniqueDecomposition::UniqueDecomposition() {
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(unique, matcher_name);
+    auto m = make_shared<ov::pass::pattern::Matcher>(unique, matcher_name);
     this->register_matcher(m, callback);
 }

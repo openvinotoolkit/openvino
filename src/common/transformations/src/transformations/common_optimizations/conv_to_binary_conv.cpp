@@ -39,16 +39,16 @@ static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) 
 ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
     MATCHER_SCOPE(ConvToBinaryConv);
     auto fq_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::any_input(),
-                                                                pattern::any_input(),
-                                                                pattern::any_input(),
+        ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({ov::pass::pattern::any_input(),
+                                                                ov::pass::pattern::any_input(),
+                                                                ov::pass::pattern::any_input(),
                                                                 ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
                                                                 ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                               pattern::consumers_count(1));
+                                                               ov::pass::pattern::consumers_count(1));
     auto conv_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>(
         {fq_pattern, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(m.get_match_root());
         if (!conv)
             return false;

@@ -15,9 +15,9 @@ ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3::
     ConvertScatterElementsUpdate12ToScatterElementsUpdate3() {
     MATCHER_SCOPE(ConvertScatterElementsUpdate12ToScatterElementsUpdate3);
 
-    const auto seu_v12_pattern = pattern::wrap_type<ov::op::v12::ScatterElementsUpdate>();
+    const auto seu_v12_pattern = ov::pass::pattern::wrap_type<ov::op::v12::ScatterElementsUpdate>();
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto seu_v12 = ov::as_type_ptr<ov::op::v12::ScatterElementsUpdate>(m.get_match_root());
         if (!seu_v12 || transformation_callback(seu_v12) ||
             seu_v12->get_reduction() != ov::op::v12::ScatterElementsUpdate::Reduction::NONE) {
@@ -36,6 +36,6 @@ ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3::
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(seu_v12_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(seu_v12_pattern, matcher_name);
     register_matcher(m, callback);
 }

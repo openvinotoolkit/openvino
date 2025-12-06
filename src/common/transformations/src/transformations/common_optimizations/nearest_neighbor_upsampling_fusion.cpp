@@ -274,13 +274,13 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     //      4) 'axes' input as a constant with the value [1, 2, ..., r - 2].
     //
     // Of course, the replacement shouldn't be done, if all S_i are equal to 1.
-    auto input = pass::pattern::any_input(pattern::has_static_shape());
-    auto concat_1 = pattern::wrap_type<ov::op::v0::Concat>();
-    auto concat_2 = pattern::wrap_type<ov::op::v0::Concat>();
-    auto reshape_1 = pattern::wrap_type<ov::op::v1::Reshape>({input, concat_1});
-    auto mul_const = pattern::wrap_type<ov::op::v0::Constant>(pattern::has_static_shape());
-    auto mul = pattern::wrap_type<ov::op::v1::Multiply>({reshape_1, mul_const});
-    auto reshape_2 = pattern::wrap_type<ov::op::v1::Reshape>({mul, concat_2});
+    auto input = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
+    auto concat_1 = ov::pass::pattern::wrap_type<ov::op::v0::Concat>();
+    auto concat_2 = ov::pass::pattern::wrap_type<ov::op::v0::Concat>();
+    auto reshape_1 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({input, concat_1});
+    auto mul_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::has_static_shape());
+    auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({reshape_1, mul_const});
+    auto reshape_2 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({mul, concat_2});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();

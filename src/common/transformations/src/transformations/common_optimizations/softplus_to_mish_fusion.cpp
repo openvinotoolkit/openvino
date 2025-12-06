@@ -18,9 +18,9 @@
 
 ov::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
     MATCHER_SCOPE(SoftPlusToMishFusion);
-    auto input = pass::pattern::any_input();
-    auto softplus = ov::pass::pattern::wrap_type<ov::op::v4::SoftPlus>({input}, pattern::consumers_count(1));
-    auto tanh = ov::pass::pattern::wrap_type<ov::op::v0::Tanh>({softplus}, pattern::consumers_count(1));
+    auto input = ov::pass::pattern::any_input();
+    auto softplus = ov::pass::pattern::wrap_type<ov::op::v4::SoftPlus>({input}, ov::pass::pattern::consumers_count(1));
+    auto tanh = ov::pass::pattern::wrap_type<ov::op::v0::Tanh>({softplus}, ov::pass::pattern::consumers_count(1));
     auto mul = std::make_shared<ov::op::v1::Multiply>(input, tanh);
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {

@@ -20,7 +20,7 @@
 ov::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndReshape() {
     MATCHER_SCOPE(SkipGatherBeforeTransposeAndReshape);
 
-    auto input_m = pass::pattern::any_input(ov::pass::pattern::has_static_dim(0));
+    auto input_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_dim(0));
 
     auto indices_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto axis_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
@@ -32,7 +32,7 @@ ov::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndResha
     auto reshape_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto reshape_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({transpose_m, reshape_const_m});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& input = pattern_map.at(input_m);
         if (input.get_partial_shape()[0] != 1) {

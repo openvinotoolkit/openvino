@@ -62,9 +62,9 @@ bool make_compatible_shape(const ov::PartialShape& input_shape, std::vector<size
 
 ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
     MATCHER_SCOPE(ConvertBroadcast3);
-    auto broadcast = pattern::wrap_type<ov::op::v3::Broadcast>();
+    auto broadcast = ov::pass::pattern::wrap_type<ov::op::v3::Broadcast>();
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(m.get_match_root());
         if (!broadcast) {
             return false;
@@ -127,6 +127,6 @@ ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(broadcast, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(broadcast, matcher_name);
     register_matcher(m, callback);
 }

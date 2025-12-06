@@ -346,12 +346,12 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
 
 ov::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator() {
     MATCHER_SCOPE(ConvertRNNSequenceToTensorIterator);
-    auto X_m = pattern::any_input(pattern::has_static_rank());
-    auto H_t_m = pattern::any_input();
-    auto seq_lengths_m = pattern::any_input();
-    auto W_m = pattern::any_input();
-    auto R_m = pattern::any_input();
-    auto B_m = pattern::any_input();
+    auto X_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    auto H_t_m = ov::pass::pattern::any_input();
+    auto seq_lengths_m = ov::pass::pattern::any_input();
+    auto W_m = ov::pass::pattern::any_input();
+    auto R_m = ov::pass::pattern::any_input();
+    auto B_m = ov::pass::pattern::any_input();
     auto rnn_seq = ov::pass::pattern::wrap_type<ov::op::v5::RNNSequence>({X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -389,12 +389,12 @@ ov::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator
 
 ov::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator() {
     MATCHER_SCOPE(ConvertGRUSequenceToTensorIterator);
-    auto X_m = pattern::any_input(pattern::has_static_rank());
-    auto H_t_m = pattern::any_input();
-    auto seq_lengths_m = pattern::any_input();
-    auto W_m = pattern::any_input();
-    auto R_m = pattern::any_input();
-    auto B_m = pattern::any_input();
+    auto X_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    auto H_t_m = ov::pass::pattern::any_input();
+    auto seq_lengths_m = ov::pass::pattern::any_input();
+    auto W_m = ov::pass::pattern::any_input();
+    auto R_m = ov::pass::pattern::any_input();
+    auto B_m = ov::pass::pattern::any_input();
     auto gru_seq = ov::pass::pattern::wrap_type<ov::op::v5::GRUSequence>({X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -432,13 +432,13 @@ ov::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator
 
 ov::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterator() {
     MATCHER_SCOPE(ConvertLSTMSequenceToTensorIterator);
-    auto X_m = pattern::any_input(pattern::has_static_rank());
-    auto H_t_m = pattern::any_input();
-    auto C_t_m = pattern::any_input();
-    auto seq_lengths_m = pattern::any_input();
-    auto W_m = pattern::any_input();
-    auto R_m = pattern::any_input();
-    auto B_m = pattern::any_input();
+    auto X_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    auto H_t_m = ov::pass::pattern::any_input();
+    auto C_t_m = ov::pass::pattern::any_input();
+    auto seq_lengths_m = ov::pass::pattern::any_input();
+    auto W_m = ov::pass::pattern::any_input();
+    auto R_m = ov::pass::pattern::any_input();
+    auto B_m = ov::pass::pattern::any_input();
     auto lstm_seq =
         ov::pass::pattern::wrap_type<ov::op::v5::LSTMSequence>({X_m, H_t_m, C_t_m, seq_lengths_m, W_m, R_m, B_m});
 

@@ -16,9 +16,9 @@
 
 ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
     MATCHER_SCOPE(ConvertMVN1ToMVN6);
-    auto mvn = pattern::wrap_type<ov::op::v0::MVN>();
+    auto mvn = ov::pass::pattern::wrap_type<ov::op::v0::MVN>();
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto mvn_node = ov::as_type_ptr<ov::op::v0::MVN>(m.get_match_root());
         if (!mvn_node) {
             return false;
@@ -51,6 +51,6 @@ ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(mvn, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mvn, matcher_name);
     register_matcher(m, callback);
 }

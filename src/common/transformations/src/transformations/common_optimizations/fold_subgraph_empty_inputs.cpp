@@ -17,8 +17,8 @@
 
 ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
     MATCHER_SCOPE(FoldSubgraphEmptyInputs);
-    auto multi_subgraph_op_pattern = pattern::wrap_type<ov::op::util::MultiSubGraphOp>();
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    auto multi_subgraph_op_pattern = ov::pass::pattern::wrap_type<ov::op::util::MultiSubGraphOp>();
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(m.get_match_root());
         if (multi_subgraph_op == nullptr) {
             return false;
@@ -63,7 +63,7 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
         }
         return false;
     };
-    auto m = std::make_shared<pattern::Matcher>(multi_subgraph_op_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(multi_subgraph_op_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 

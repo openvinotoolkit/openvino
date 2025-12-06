@@ -24,9 +24,9 @@ using namespace ov;
 
 ov::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
     MATCHER_SCOPE(ConvertShuffleChannels3);
-    auto shuffle_channels = pattern::wrap_type<ov::op::v0::ShuffleChannels>();
+    auto shuffle_channels = ov::pass::pattern::wrap_type<ov::op::v0::ShuffleChannels>();
 
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto shuffle_channels = ov::as_type_ptr<ov::op::v0::ShuffleChannels>(m.get_match_root());
         if (!shuffle_channels || transformation_callback(shuffle_channels)) {
             return false;

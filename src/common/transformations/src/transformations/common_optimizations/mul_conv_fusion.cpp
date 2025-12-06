@@ -22,14 +22,14 @@
 
 ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     MATCHER_SCOPE(MultiplyConvolutionFusion);
-    auto input_pattern = pattern::any_input(pattern::has_static_rank());
+    auto input_pattern = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto mul_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern},
-                                                                          pattern::consumers_count(1));
-    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
+                                                                          ov::pass::pattern::consumers_count(1));
+    auto weights_pattern = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
     auto conv_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({mul_pattern, weights_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
@@ -82,14 +82,14 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
 
 ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
     MATCHER_SCOPE(MultiplyGroupConvolutionFusion);
-    auto input_pattern = pattern::any_input();
+    auto input_pattern = ov::pass::pattern::any_input();
     auto mul_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern},
-                                                                          pattern::consumers_count(1));
-    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
+                                                                          ov::pass::pattern::consumers_count(1));
+    auto weights_pattern = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
     auto conv_pattern = ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolution>({mul_pattern, weights_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
@@ -157,15 +157,15 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
 
 ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropDataFusion() {
     MATCHER_SCOPE(MultiplyConvolutionBackpropDataFusion);
-    auto input_pattern = pattern::any_input();
+    auto input_pattern = ov::pass::pattern::any_input();
     auto mul_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern},
-                                                                          pattern::consumers_count(1));
-    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
+                                                                          ov::pass::pattern::consumers_count(1));
+    auto weights_pattern = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
     auto conv_pattern =
         ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({mul_pattern, weights_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
@@ -234,15 +234,15 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
 
 ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBackpropDataFusion() {
     MATCHER_SCOPE(MultiplyGroupConvolutionBackpropDataFusion);
-    auto input_pattern = pattern::any_input();
+    auto input_pattern = ov::pass::pattern::any_input();
     auto mul_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern},
-                                                                          pattern::consumers_count(1));
-    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
+                                                                          ov::pass::pattern::consumers_count(1));
+    auto weights_pattern = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
     auto conv_pattern =
         ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolutionBackpropData>({mul_pattern, weights_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph

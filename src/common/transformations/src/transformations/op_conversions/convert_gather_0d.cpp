@@ -20,7 +20,7 @@ ov::pass::ConvertGather0D::ConvertGather0D() {
     MATCHER_SCOPE(ConvertGather0D);
     auto gather = ov::pass::pattern::wrap_type<ov::op::v1::Gather>();
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto gather = ov::as_type_ptr<ov::op::v1::Gather>(m.get_match_root());
         if (!gather) {
             return false;

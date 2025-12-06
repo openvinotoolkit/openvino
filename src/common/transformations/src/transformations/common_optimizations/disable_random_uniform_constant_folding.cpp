@@ -11,9 +11,9 @@
 #include "transformations/rt_info/disable_constant_folding.hpp"
 
 ov::pass::DisableRandomUniformConstantFolding::DisableRandomUniformConstantFolding() {
-    auto random_uniform = pattern::wrap_type<ov::op::v8::RandomUniform>();
+    auto random_uniform = ov::pass::pattern::wrap_type<ov::op::v8::RandomUniform>();
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         disable_constant_folding(m.get_match_root());
         return true;
     };

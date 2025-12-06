@@ -27,7 +27,7 @@
 
 ov::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
     MATCHER_SCOPE(SimplifyCTCGreedyDecoderSeqLen);
-    auto decoder = pattern::wrap_type<ov::op::v6::CTCGreedyDecoderSeqLen>();
+    auto decoder = ov::pass::pattern::wrap_type<ov::op::v6::CTCGreedyDecoderSeqLen>();
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto decoder_seq_len = ov::as_type_ptr<ov::op::v6::CTCGreedyDecoderSeqLen>(m.get_match_root());

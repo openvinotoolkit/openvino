@@ -21,17 +21,17 @@
 
 ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
     MATCHER_SCOPE(ConvertScatterElementsToScatter);
-    auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
-    auto indices = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
-    auto updates = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
+    auto data = std::make_shared<ov::pass::pattern::op::Label>(element::f32, Shape{1});
+    auto indices = std::make_shared<ov::pass::pattern::op::Label>(element::i64, Shape{1});
+    auto updates = std::make_shared<ov::pass::pattern::op::Label>(element::f32, Shape{1});
     auto axis = ov::op::v0::Constant::create(element::i64, {1}, {0});
 
-    auto broadcast_shape = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
+    auto broadcast_shape = std::make_shared<ov::pass::pattern::op::Label>(element::i64, Shape{1});
     auto broadcast = std::make_shared<ov::op::v3::Broadcast>(indices, broadcast_shape);
 
     auto scatter = std::make_shared<ov::op::v3::ScatterElementsUpdate>(data, broadcast, updates, axis);
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto scatter = m.get_match_root();
         auto broadcast = scatter->input_value(1).get_node_shared_ptr();
         auto axis_const = ov::as_type_ptr<ov::op::v0::Constant>(scatter->input_value(3).get_node_shared_ptr());
@@ -219,6 +219,6 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
         return true;
     };
 
-    auto m = std::make_shared<pass::pattern::Matcher>(scatter, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(scatter, matcher_name);
     register_matcher(m, callback);
 }
