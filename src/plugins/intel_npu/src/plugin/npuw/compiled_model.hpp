@@ -9,6 +9,7 @@
 #include "attention.hpp"
 #include "base_sync_infer_request.hpp"
 #include "common.hpp"
+#include "host_flash_attention.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
@@ -80,8 +81,10 @@ private:
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
     void compile_pyramid_attention_models(std::size_t id, const std::string& device);
+    void compile_host_flash_attention_model(std::size_t id, const std::string& device);
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
+    void dump_subgraph_model(std::size_t id, const std::string& funcall, const std::string& dump_sub_opt);
 
     void report_io() const;
 
@@ -180,6 +183,7 @@ private:
         std::optional<ov::npuw::compiled::Spatial> spatial;
         std::optional<ov::npuw::compiled::Attention> attention;
         std::optional<ov::npuw::compiled::PyramidAttention> pyramid_attention;
+        std::optional<ov::npuw::compiled::HostFlashAttention> host_flash_attention;
 
         // Infer requests for pyramid attention models (if pyramid_attention is present)
         std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_infer_requests;
@@ -187,6 +191,21 @@ private:
         // Pipeline infer requests for pyramid attention models (if pyramid_attention is present and pipelining is
         // enabled)
         std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_pipeline_requests;
+
+        // HFA tile model indices for infer request vectors
+        enum HFATileIdx : size_t {
+            REGULAR_TILE = 0,  // Regular tile model (intermediate tiles)
+            FINAL_TILE = 1,    // Final tile model (last tile with division and transpose)
+            COUNT = 2          // Total number of HFA tile models
+        };
+
+        // Infer requests for host flash attention tile models (if host_flash_attention is present)
+        // [REGULAR_TILE]: regular tile model, [FINAL_TILE]: final tile model
+        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_infer_requests;
+
+        // Pipeline infer requests for host flash attention tile models (if host_flash_attention is present and
+        // pipelining is enabled)
+        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_pipeline_requests;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
@@ -224,7 +243,7 @@ private:
         void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
         void deserialize(std::istream& stream,
                          const ov::npuw::s11n::WeightsContext& ctx,
-                         const ov::npuw::s11n::PyramidCtx& pyramid_ctx);
+                         const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

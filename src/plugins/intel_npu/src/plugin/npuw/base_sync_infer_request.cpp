@@ -509,6 +509,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     const bool is_spatial = proto_comp_model_desc.spatial.has_value();
     const bool is_attention = proto_comp_model_desc.attention.has_value();
     const bool is_pyramid_attention = proto_comp_model_desc.pyramid_attention.has_value();
+    const bool is_hfa_attention = proto_comp_model_desc.host_flash_attention.has_value();
 
     // a list of ports to copy tensors, if needed: FROM -> TO
     std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
@@ -547,6 +548,18 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         });
     };
 
+    auto is_hfa_attn_param = [&](std::size_t sub_in_idx) -> bool {
+        if (!is_hfa_attention) {
+            return false;  // Early return
+        }
+        // Check if sub_in_idx matches any SDPA parameter index
+        auto& hfa_attn = proto_comp_model_desc.host_flash_attention.value()._sdpa_attention_info;
+        const auto& sdpa_in = hfa_attn._sdpa_indices;
+        return sub_in_idx == sdpa_in.query || sub_in_idx == sdpa_in.past_key || sub_in_idx == sdpa_in.past_value ||
+               sub_in_idx == sdpa_in.present_key || sub_in_idx == sdpa_in.present_value ||
+               sub_in_idx == sdpa_in.attention_mask;
+    };
+
     for (auto&& it : iodesc.global_params) {
         std::size_t param_idx{}, sub_in_idx{};
         std::tie(param_idx, sub_in_idx) = it;
@@ -557,6 +570,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         const auto& s_port = request->get_inputs()[sub_in_idx];
         LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
         LOG_BLOCK();
+
         if (is_spatial_param(sub_in_idx)) {
             // Register for future use
             // FIXME: Not sure why this code is here. There should be no
@@ -570,6 +584,9 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         } else if (is_attn_param(sub_in_idx) || is_pyramid_attn_param(sub_in_idx)) {
             // Register for future use
             m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
+        } else if (is_hfa_attn_param(sub_in_idx)) {
+            // Register for future use
+            m_hfa_io[idx].inputs.at(sub_in_idx) = g_tnsr;
         } else {
             // Lock mutex just in case. m_input_allocated might be altered in parallel in get_tensor()
             std::unique_lock lock(m_io_storages_mutex);
