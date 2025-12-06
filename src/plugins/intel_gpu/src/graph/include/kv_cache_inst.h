@@ -22,7 +22,13 @@ public:
 
     program_node& input() const { return get_dependency(0); }
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override { 
+        std::vector<size_t> vec;
+        for (size_t i  = 1; i < get_dependencies().size(); i++) {
+            vec.push_back(i);
+        }
+        return vec;
+     }
 
     std::vector<layout> get_shape_info_input_layouts() const override {
         std::vector<layout> res;
