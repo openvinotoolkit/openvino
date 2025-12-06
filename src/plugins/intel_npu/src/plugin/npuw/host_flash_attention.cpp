@@ -403,42 +403,6 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
 }
 
 // ============================================================================
-// Helper function: Save debug models to disk
-// ============================================================================
-static void save_debug_models(const std::shared_ptr<ov::Model>& original_model,
-                              const std::shared_ptr<ov::Model>& tile_model,
-                              const std::shared_ptr<ov::Model>& final_tile_model) {
-    LOG_INFO("Saving debug models to disk...");
-
-    // Save original model to file
-    try {
-        std::string original_model_path = "hfa_original_model.xml";
-        ov::serialize(original_model, original_model_path);
-        LOG_INFO("Saved original model to: " << original_model_path);
-    } catch (const std::exception& e) {
-        LOG_WARN("Failed to save original model: " << e.what());
-    }
-
-    // Save generated flash attention tile model to file
-    try {
-        std::string tile_model_path = "hfa_tile_model.xml";
-        ov::serialize(tile_model, tile_model_path);
-        LOG_INFO("Saved HFA tile model to: " << tile_model_path);
-    } catch (const std::exception& e) {
-        LOG_WARN("Failed to save tile model: " << e.what());
-    }
-
-    // Save generated flash attention FINAL tile model to file
-    try {
-        std::string final_tile_model_path = "hfa_final_tile_model.xml";
-        ov::serialize(final_tile_model, final_tile_model_path);
-        LOG_INFO("Saved HFA final tile model to: " << final_tile_model_path);
-    } catch (const std::exception& e) {
-        LOG_WARN("Failed to save final tile model: " << e.what());
-    }
-}
-
-// ============================================================================
 // Helper function: Extract actual Parameter by skipping Convert nodes
 // ============================================================================
 static std::shared_ptr<ov::Node> skip_convert_nodes(const std::shared_ptr<ov::Node>& node) {
@@ -752,12 +716,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     }
 
     // ========================================================================
-    // Step 6: Save debug models to disk
-    // ========================================================================
-    save_debug_models(model, tile_model, final_tile_model);
-
-    // ========================================================================
-    // Step 7: Create HostFlashAttention structure and set configuration
+    // Step 6: Create HostFlashAttention structure and set configuration
     // ========================================================================
     HostFlashAttention hfa;
     hfa._tile_model = tile_model;
@@ -768,17 +727,17 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     hfa._v_seq_dim = v_seq_dim;
 
     // ========================================================================
-    // Step 8: Build SDPA parameter index mapping
+    // Step 7: Build SDPA parameter index mapping
     // ========================================================================
     build_sdpa_param_mapping(hfa, model, pattern_nodes);
 
     // ========================================================================
-    // Step 9: Build tile model parameter index mapping
+    // Step 8: Build tile model parameter index mapping
     // ========================================================================
     build_tile_param_mapping(hfa, tile_model);
 
     // ========================================================================
-    // Step 10: Build tile model output index mapping
+    // Step 9: Build tile model output index mapping
     // ========================================================================
     build_tile_output_mapping(hfa, tile_model);
 
