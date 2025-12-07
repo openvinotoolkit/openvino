@@ -785,10 +785,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             m_text_embedding_post_request->get_tensor(m_text_embedding_post_in_ports.at(layer_names::input_ids));
         auto post_attention_mask =
             m_text_embedding_post_request->get_tensor(m_text_embedding_post_in_ports.at(layer_names::attention_mask));
-        std::copy_n(
-            attention_mask->data<int64_t>(),
-            attention_mask->get_size(),
-            post_attention_mask->data<int64_t>() + post_attention_mask->get_size() - attention_mask->get_size());
+        std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size(), post_attention_mask->data<int64_t>());
     }
 
     while (remaining_prompts > 0) {
@@ -927,10 +924,7 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
                                       m_text_embedding_post_request->get_tensor(post_model_input_port));
         auto post_attention_mask =
             m_text_embedding_post_request->get_tensor(m_text_embedding_post_in_ports.at(layer_names::attention_mask));
-        std::copy_n(
-            attention_mask->data<int64_t>(),
-            attention_mask->get_size(),
-            post_attention_mask->data<int64_t>() + post_attention_mask->get_size() - attention_mask->get_size());
+        std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size(), post_attention_mask->data<int64_t>());
     }
 
     // NB: padded_input can be either fp32(VLM) or i64(LLM)
