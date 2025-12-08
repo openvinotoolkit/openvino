@@ -1070,7 +1070,7 @@ TEST_P(RoiTensorsTestsRun, MultipleIOCreateRoiTensorFromHostTensorAndRunInfer) {
     }
 
     input_data = input1_host_tensor.data<float>();
-    for (size_t i = 0; i < input0_host_tensor.get_size(); ++i) {
+    for (size_t i = 0; i < input1_host_tensor.get_size(); ++i) {
         input_data[i] = 75.0f;
     }
 
