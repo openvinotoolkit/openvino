@@ -273,6 +273,30 @@ int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
     }
 }
 
+// Static map for cldnn 4D format to onednn 3D format_tag conversion
+static const std::map<cldnn::format::type, dnnl::memory::format_tag> format_map_cldnn_4d_to_onednn_3d = {
+    // Data formats
+    { cldnn::format::bfyx,  dnnl::memory::format_tag::abc },
+    { cldnn::format::bfxy,  dnnl::memory::format_tag::abc },
+    { cldnn::format::byxf,  dnnl::memory::format_tag::acb },
+    { cldnn::format::byfx,  dnnl::memory::format_tag::acb },
+    { cldnn::format::bxfy,  dnnl::memory::format_tag::acb },
+    { cldnn::format::fbyx,  dnnl::memory::format_tag::bac },
+    { cldnn::format::fyxb,  dnnl::memory::format_tag::bca },
+    { cldnn::format::fybx,  dnnl::memory::format_tag::bca },
+    { cldnn::format::xbfy,  dnnl::memory::format_tag::cab },
+    { cldnn::format::ybfx,  dnnl::memory::format_tag::cab },
+    { cldnn::format::yxfb,  dnnl::memory::format_tag::cba },
+    // Weight formats
+    { cldnn::format::oiyx,  dnnl::memory::format_tag::abc },
+    { cldnn::format::ioyx,  dnnl::memory::format_tag::bac },
+    { cldnn::format::yxio,  dnnl::memory::format_tag::cab },
+    { cldnn::format::iyxo,  dnnl::memory::format_tag::bca },
+    { cldnn::format::oyxi,  dnnl::memory::format_tag::acb },
+    { cldnn::format::oyix,  dnnl::memory::format_tag::acb },
+    { cldnn::format::oxiy,  dnnl::memory::format_tag::acb },
+};
+
 std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc>
 get_conv_memory_descs(cldnn::layout input_layout, cldnn::layout weights_layout, cldnn::layout output_layout, dnnl::memory::format_tag target_fmt) {
     mem_flags flag = (input_layout.format.is_blocked() || output_layout.format.is_blocked()) ? mem_flags::need_blocked : mem_flags::None;
@@ -356,12 +380,12 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
             // In cldnn::layer, when it is a 3D shape, the values ​​of the XY axes can sometimes be flipped,
             // so the larger value of the two is used.
             dims.push_back(std::max(l.spatial(0), l.spatial(1)));
-            if (l.get_format() == format::bfyx)
-                target_fmt = dnnl::memory::format_tag::abc;
-            else if (l.get_format() == format::byxf)
-                target_fmt = dnnl::memory::format_tag::acb;
-            else
+            auto it = format_map_cldnn_4d_to_onednn_3d.find(l.format);
+            if (it != format_map_cldnn_4d_to_onednn_3d.end()) {
+                target_fmt = it->second;
+            } else {
                 OPENVINO_THROW("[GPU] Unexpected layout format " + l.to_short_string());
+            }
         } else {
             auto rank = cldnn::format::dimension(l.format);
             dims = convert_tensor(l.get_tensor(), rank, cldnn::format::is_grouped(l.format));
