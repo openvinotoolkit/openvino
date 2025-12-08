@@ -340,15 +340,18 @@ private:
 template <>
 class Metadata<METADATA_VERSION_3_0> : public MetadataBase {
 public:
-    Metadata(uint64_t blobSize);
+    Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion = std::nullopt);
 
     void read() override;
-    
+
     void write(std::ostream& stream) override;
 
     size_t get_metadata_size() const override;
 
     bool is_compatible() override;
+
+protected:
+    OpenvinoVersion _ovVersion;
 };
 
 /**

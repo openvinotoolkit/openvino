@@ -6,11 +6,11 @@
 #pragma once
 
 #include <stdio.h>
+
 #include <cstdint>
 #include <vector>
 
 #include "meta.hpp"
-
 #include "openvino/core/layout.hpp"
 
 namespace compat {
@@ -57,11 +57,42 @@ namespace compat {
 
 #pragma pack(push, 1)
 
-struct alignas(uint64_t) WeightsSeparationRequirement : meta::CapabilityNo<0, meta::REQUIRED> {
-    explicit WeightsSeparationRequirement(uint64_t size, std::vector<uint64_t> initSizes) : size(size), initSizes(initSizes) {}
+struct alignas(uint64_t) Expression : meta::CapabilityNo<0, meta::REQUIRED> {
+    explicit Expression(uint64_t expression) : expression(expression) {}
 
-    uint64_t size; // in bytes
-    std::vector<uint64_t> initSizes;
+    uint64_t expression;
+
+    bool isCompatible(const Expression& expression) const {
+        // do the checks here? or in check.cpp?
+        return true;
+    }
+};
+
+struct alignas(uint64_t) ELFBlob : meta::CapabilityNo<1, meta::REQUIRED> {
+    // data should be an uint8_t* instead
+    explicit ELFBlob(uint64_t size, uint64_t data) : size(size), data(data) {}
+
+    uint64_t size;
+    uint64_t data;
+    // uint8_t* data;
+
+    // to revisit: its interesting that without the const qualifier, the build fails with
+    // error: static assertion failed due to requirement 'meta::IsCapability<compat::ELFBlob, void>::value': Type does not satisfy Capability concept
+    bool isCompatible(const ELFBlob& blob) const {
+        // TODO: is this needed here?
+        return true;
+    }
+};
+
+struct alignas(uint64_t) WeightsSeparationRequirement : meta::CapabilityNo<2, meta::REQUIRED> {
+    // explicit WeightsSeparationRequirement(uint64_t size, std::vector<uint64_t> initSizes) : size(size),
+    // initSizes(initSizes) {}
+
+    explicit WeightsSeparationRequirement(uint64_t size, uint64_t initSizes) : size(size), initSizes(initSizes) {}
+
+    uint64_t size;  // in bytes
+    // std::vector<uint64_t> initSizes;
+    uint64_t initSizes;
 
     // whatever check is gonna be here
     bool isCompatible(const WeightsSeparationRequirement& blobValue) const {
@@ -70,22 +101,35 @@ struct alignas(uint64_t) WeightsSeparationRequirement : meta::CapabilityNo<0, me
     }
 };
 
-struct alignas(int64_t) BatchSize : meta::CapabilityNo<1, meta::REQUIRED> {
+struct alignas(int64_t) BatchSize : meta::CapabilityNo<3, meta::REQUIRED> {
     explicit BatchSize(int64_t size) : size(size) {}
 
     int64_t size;
 
-    static bool isCompatible(const BatchSize& blobMode) {
+    bool isCompatible(const BatchSize& blobMode) const {
         return blobMode.size <= 4;
     }
 };
 
-struct alignas(uint8_t) InputOutputLayouts : meta::CapabilityNo<2, meta::REQUIRED> {
-    explicit InputOutputLayouts(std::vector<ov::Layout> inputLayouts, std::vector<ov::Layout> outputLayouts) : inputLayouts(inputLayouts), outputLayouts(outputLayouts) {}
+// TODO: is there a check or a way to check if there is a duplicate capability ID?
+// the real alignment would be uint8_t?
+struct alignas(uint64_t) InputOutputLayouts : meta::CapabilityNo<4, meta::REQUIRED> {
+    // explicit InputOutputLayouts(std::vector<ov::Layout> inputLayouts, std::vector<ov::Layout> outputLayouts) :
+    // inputLayouts(inputLayouts), outputLayouts(outputLayouts) {}
 
-    std::vector<ov::Layout> inputLayouts;
-    std::vector<ov::Layout> outputLayouts;
+    // std::vector<ov::Layout> inputLayouts;
+    // std::vector<ov::Layout> outputLayouts;
 
+    explicit InputOutputLayouts(uint64_t inputLayouts, uint64_t outputLayouts)
+        : inputLayouts(inputLayouts),
+          outputLayouts(outputLayouts) {}
+
+    uint64_t inputLayouts;
+    uint64_t outputLayouts;
+
+    bool isCompatible(const InputOutputLayouts& ioLayouts) const {
+        return true;
+    }
 };
 
 #pragma pack(pop)

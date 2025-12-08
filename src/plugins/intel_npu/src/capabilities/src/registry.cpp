@@ -3,15 +3,16 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "registry.hpp"
+
 #include <cassert>
 #include <cstdint>
 #include <memory>
 
+#include "concepts.hpp"
 #include "meta.hpp"
 #include "requirements.hpp"
 #include "vpu_capabilities.h"
-#include "registry.hpp"
-#include "concepts.hpp"
 
 namespace compat {
 
@@ -29,8 +30,11 @@ const Registry& Registry::get() {
 }
 
 Registry::Registry() {
+    Registry::registerCapability<Expression>(_swCapabilities);
+    Registry::registerCapability<ELFBlob>(_swCapabilities);
     Registry::registerCapability<WeightsSeparationRequirement>(_swCapabilities);
     Registry::registerCapability<BatchSize>(_swCapabilities);
+    Registry::registerCapability<InputOutputLayouts>(_swCapabilities);
     // registerNPU4Capabilities(*this);
 }
 
