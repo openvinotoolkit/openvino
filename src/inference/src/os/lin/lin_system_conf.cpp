@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -163,78 +164,46 @@ CPU::CPU() {
 
         numa_node_list.assign(_sockets, std::vector<int>());
         for (int i = 0; i < _processors; i++) {
-            if (CPU_ISSET(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID], mask)) {
+            if (CPU_ISSET(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID], mask) &&
+                _cpu_mapping_table[i][CPU_MAP_USED_FLAG] != CPU_BLOCKED) {
                 valid_cpu_mapping_table.emplace_back(_cpu_mapping_table[i]);
                 if (_cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == MAIN_CORE_PROC) {
                     phy_core_list.emplace_back(_cpu_mapping_table[i][CPU_MAP_CORE_ID]);
                 }
-                if (_sockets > 1) {
-                    if (std::find(socket_list.begin(), socket_list.end(), _cpu_mapping_table[i][CPU_MAP_SOCKET_ID]) ==
-                        socket_list.end()) {
-                        socket_list.push_back(_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]);
-                    }
-                    if (std::find(numa_node_list[_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]].begin(),
-                                  numa_node_list[_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]].end(),
-                                  _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]) ==
-                        numa_node_list[_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]].end()) {
-                        numa_node_list[_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]].push_back(
-                            _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]);
-                    }
-                }
-            }
-        }
-        if (_sockets > 1) {
-            std::sort(socket_list.begin(), socket_list.end());
-            for (int n = _sockets - 1; n >= 0; n--) {
-                if (numa_node_list[n].size() == 0) {
-                    numa_node_list.erase(numa_node_list.begin() + n);
-                } else {
-                    std::sort(numa_node_list[n].begin(), numa_node_list[n].end());
-                }
-            }
-            std::map<int, int> sockets_map;
-            std::map<int, int> numa_node_map;
-            for (int i = 0; i < static_cast<int>(socket_list.size()); i++) {
-                sockets_map.insert(std::pair<int, int>(socket_list[i], i));
-            }
-            for (int i = 0; i < static_cast<int>(numa_node_list.size()); i++) {
-                for (int j = 0; j < static_cast<int>(numa_node_list[i].size()); j++) {
-                    numa_node_map.insert(std::pair<int, int>(numa_node_list[i][j], i * _numa_nodes / _sockets + j));
-                }
-            }
-            for (size_t i = 0; i < valid_cpu_mapping_table.size(); i++) {
-                auto new_numa_id = numa_node_map.at(valid_cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]);
-                auto new_socket_id = sockets_map.at(valid_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]);
-                if (_numaid_mapping_table.find(new_numa_id) == _numaid_mapping_table.end()) {
-                    _numaid_mapping_table.insert({new_numa_id, valid_cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]});
-                }
-                if (_socketid_mapping_table.find(new_socket_id) == _socketid_mapping_table.end()) {
-                    _socketid_mapping_table.insert({new_socket_id, valid_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]});
-                }
-                valid_cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] = new_numa_id;
-                valid_cpu_mapping_table[i][CPU_MAP_SOCKET_ID] = new_socket_id;
             }
         }
 
         if (valid_cpu_mapping_table.size() == 0) {
             return -1;
-        } else if (valid_cpu_mapping_table.size() == (unsigned)_processors) {
+        } else if (valid_cpu_mapping_table.size() == _cpu_mapping_table.size() + _blocked_cores &&
+                   (_numa_nodes == (int)node_info_table.size() || 0 == node_info_table.size())) {
+            if (_blocked_cores > 0) {
+                std::lock_guard<std::mutex> lock{_cpu_mutex};
+                _cpu_mapping_table.swap(valid_cpu_mapping_table);
+            }
             return 0;
         } else {
-            _processors = valid_cpu_mapping_table.size();
-            _cpu_mapping_table.swap(valid_cpu_mapping_table);
             int cur_numa_nodes = _numa_nodes;
             int cur_cores = _cores;
+            int cur_sockets = _sockets;
+            int numa_node_per_socket = node_info_table.size() / _sockets;
             {
                 std::lock_guard<std::mutex> lock{_cpu_mutex};
+                _cpu_mapping_table.swap(valid_cpu_mapping_table);
                 update_valid_processor_linux(std::move(phy_core_list),
+                                             numa_node_per_socket,
+                                             cur_sockets,
                                              cur_numa_nodes,
                                              cur_cores,
+                                             _numaid_mapping_table,
+                                             _socketid_mapping_table,
                                              _proc_type_table,
                                              _cpu_mapping_table);
             }
+            _processors = valid_cpu_mapping_table.size();
             _cores = cur_cores;
             _numa_nodes = cur_numa_nodes;
+            _sockets = cur_sockets;
             return 0;
         }
     };
@@ -329,64 +298,110 @@ CPU::CPU() {
 }
 
 void parse_node_info_linux(const std::vector<std::string> node_info_table,
-                           const int& _numa_nodes,
+                           int& _numa_nodes,
                            int& _sockets,
                            std::vector<std::vector<int>>& _proc_type_table,
                            std::vector<std::vector<int>>& _cpu_mapping_table) {
     const std::vector<int> line_value_0({0, 0, 0, 0, 0, -1, -1});
-    std::vector<std::vector<int>> nodes_table;
+
+    std::vector<std::unordered_set<int>> nodes_table;
+    std::unordered_set<int> handled_nodes;
     int node_index = 0;
+    int max_node_id = 0;
 
     for (auto& one_info : node_info_table) {
         int core_1 = 0;
         int core_2 = 0;
         std::string::size_type pos = 0;
-        std::string::size_type endpos_1 = 0;
-        std::string::size_type endpos_2 = 0;
+        std::string::size_type endpos = 0;
         std::string sub_str = "";
+        nodes_table.push_back({});
 
-        while (pos != std::string::npos) {
-            endpos_1 = one_info.find(',', pos);
-            endpos_2 = one_info.find('-', pos);
-            if ((endpos_1 < endpos_2) || (endpos_1 == std::string::npos && endpos_2 == std::string::npos)) {
+        if (((endpos = one_info.find('-', pos)) == std::string::npos) &&
+            ((endpos = one_info.find(',', pos)) != std::string::npos)) {
+            while (endpos != std::string::npos) {
                 sub_str = one_info.substr(pos);
                 core_1 = std::stoi(sub_str);
-                nodes_table.push_back({core_1, core_1, node_index});
-            } else if (endpos_2 != std::string::npos) {
-                sub_str = one_info.substr(pos, endpos_2 - pos);
-                core_1 = std::stoi(sub_str);
-                sub_str = one_info.substr(endpos_2 + 1);
-                core_2 = std::stoi(sub_str);
-                nodes_table.push_back({core_1, core_2, node_index});
+                nodes_table[node_index].insert(core_1);
+                endpos = one_info.find(',', pos);
+                pos = endpos + 1;
             }
-            if (endpos_1 == std::string::npos) {
-                break;
-            } else {
-                pos = endpos_1 + 1;
+        } else {
+            while (endpos != std::string::npos) {
+                if ((endpos = one_info.find('-', pos)) != std::string::npos) {
+                    sub_str = one_info.substr(pos, endpos - pos);
+                    core_1 = std::stoi(sub_str);
+                    sub_str = one_info.substr(endpos + 1);
+                    core_2 = std::stoi(sub_str);
+                    for (int i = core_1; i <= core_2; i++) {
+                        nodes_table[node_index].insert(i);
+                    }
+                    pos = one_info.find(',', endpos);
+                    if (pos == std::string::npos) {
+                        break;
+                    } else {
+                        pos = pos + 1;
+                    }
+                }
             }
         }
         node_index++;
     }
 
-    _proc_type_table.assign((node_info_table.size() == 1) ? 1 : node_info_table.size() + 1, line_value_0);
+    _proc_type_table.clear();
+    max_node_id = nodes_table.size() - 1;
 
-    for (auto& row : nodes_table) {
-        for (int i = row[0]; i <= row[1]; i++) {
-            _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] = row[2];
-            if (_sockets > _numa_nodes) {
-                _cpu_mapping_table[i][CPU_MAP_SOCKET_ID] = row[2];
-            }
-            _proc_type_table[0][ALL_PROC]++;
-            _proc_type_table[0][_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
-            if (node_info_table.size() != 1) {
-                _proc_type_table[row[2] + 1][ALL_PROC]++;
-                _proc_type_table[row[2] + 1][_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
+    for (auto& row_cpu_mapping : _cpu_mapping_table) {
+        for (size_t n = 0; n < nodes_table.size(); n++) {
+            if (nodes_table[n].find(row_cpu_mapping[CPU_MAP_PROCESSOR_ID]) != nodes_table[n].end()) {
+                row_cpu_mapping[CPU_MAP_NUMA_NODE_ID] = n;
+                node_index = -1;
+                for (size_t i = 0; i < _proc_type_table.size(); i++) {
+                    if (n == static_cast<std::size_t>(_proc_type_table[i][PROC_NUMA_NODE_ID])) {
+                        node_index = i;
+                        break;
+                    }
+                }
+                if (node_index == -1) {
+                    _proc_type_table.push_back(line_value_0);
+                    node_index = _proc_type_table.size() - 1;
+                    _proc_type_table[node_index][PROC_NUMA_NODE_ID] = row_cpu_mapping[CPU_MAP_NUMA_NODE_ID];
+                    _proc_type_table[node_index][PROC_SOCKET_ID] = row_cpu_mapping[CPU_MAP_SOCKET_ID] > max_node_id
+                                                                       ? max_node_id
+                                                                       : row_cpu_mapping[CPU_MAP_SOCKET_ID];
+                }
+                _proc_type_table[node_index][ALL_PROC]++;
+                _proc_type_table[node_index][row_cpu_mapping[CPU_MAP_CORE_TYPE]]++;
+                break;
             }
         }
-        node_index = (node_info_table.size() != 1) ? row[2] + 1 : 0;
-        _proc_type_table[node_index][PROC_NUMA_NODE_ID] = _cpu_mapping_table[row[0]][CPU_MAP_NUMA_NODE_ID];
-        _proc_type_table[node_index][PROC_SOCKET_ID] = _cpu_mapping_table[row[0]][CPU_MAP_SOCKET_ID];
+        row_cpu_mapping[CPU_MAP_SOCKET_ID] = row_cpu_mapping[CPU_MAP_SOCKET_ID] > row_cpu_mapping[CPU_MAP_NUMA_NODE_ID]
+                                                 ? row_cpu_mapping[CPU_MAP_NUMA_NODE_ID]
+                                                 : row_cpu_mapping[CPU_MAP_SOCKET_ID];
     }
+
+    _numa_nodes = _proc_type_table.size();
+
+    if (_proc_type_table.size() > 1) {
+        _proc_type_table.insert(_proc_type_table.begin(), line_value_0);
+        _proc_type_table[0][PROC_NUMA_NODE_ID] = _proc_type_table[1][PROC_NUMA_NODE_ID];
+        _proc_type_table[0][PROC_SOCKET_ID] = _proc_type_table[1][PROC_SOCKET_ID];
+
+        for (size_t m = 1; m < _proc_type_table.size(); m++) {
+            for (int n = 0; n < PROC_NUMA_NODE_ID; n++) {
+                _proc_type_table[0][n] += _proc_type_table[m][n];
+            }
+            _proc_type_table[0][PROC_NUMA_NODE_ID] =
+                _proc_type_table[0][PROC_NUMA_NODE_ID] == _proc_type_table[m][PROC_NUMA_NODE_ID]
+                    ? _proc_type_table[0][PROC_NUMA_NODE_ID]
+                    : -1;
+            _proc_type_table[0][PROC_SOCKET_ID] =
+                _proc_type_table[0][PROC_SOCKET_ID] == _proc_type_table[m][PROC_SOCKET_ID]
+                    ? _proc_type_table[0][PROC_SOCKET_ID]
+                    : -1;
+        }
+    }
+
     _sockets = (_sockets > _numa_nodes) ? _numa_nodes : _sockets;
 }
 
@@ -588,26 +603,36 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
         }
     }
 
+    for (size_t n = 0; n < offline_list.size(); n++) {
+        _cpu_mapping_table.erase(_cpu_mapping_table.begin() + offline_list[n] - n);
+        _processors--;
+    }
+
     if ((node_info_table.size() == 0) || (node_info_table.size() == (unsigned)_sockets)) {
-        if (_sockets > 1) {
+        if (_proc_type_table.size() > 1) {
             _proc_type_table.push_back(_proc_type_table[0]);
             _proc_type_table[0] = line_value_0;
+            _proc_type_table[0][PROC_NUMA_NODE_ID] = _proc_type_table[1][PROC_NUMA_NODE_ID];
+            _proc_type_table[0][PROC_SOCKET_ID] = _proc_type_table[1][PROC_SOCKET_ID];
 
             for (int m = 1; m <= _sockets; m++) {
                 for (int n = 0; n < PROC_NUMA_NODE_ID; n++) {
                     _proc_type_table[0][n] += _proc_type_table[m][n];
                 }
+                _proc_type_table[0][PROC_NUMA_NODE_ID] =
+                    _proc_type_table[0][PROC_NUMA_NODE_ID] == _proc_type_table[m][PROC_NUMA_NODE_ID]
+                        ? _proc_type_table[0][PROC_NUMA_NODE_ID]
+                        : -1;
+                _proc_type_table[0][PROC_SOCKET_ID] =
+                    _proc_type_table[0][PROC_SOCKET_ID] == _proc_type_table[m][PROC_SOCKET_ID]
+                        ? _proc_type_table[0][PROC_SOCKET_ID]
+                        : -1;
             }
         }
         _numa_nodes = _sockets;
     } else {
         _numa_nodes = node_info_table.size();
         parse_node_info_linux(node_info_table, _numa_nodes, _sockets, _proc_type_table, _cpu_mapping_table);
-    }
-
-    for (size_t n = 0; n < offline_list.size(); n++) {
-        _cpu_mapping_table.erase(_cpu_mapping_table.begin() + offline_list[n] - n);
-        _processors--;
     }
 
     _processors = _processors - _blocked_cores;
@@ -805,7 +830,6 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
         }
         _numa_nodes = _sockets;
     } else {
-        _numa_nodes = node_info_table.size();
         parse_node_info_linux(node_info_table, _numa_nodes, _sockets, _proc_type_table, _cpu_mapping_table);
     }
 
@@ -816,18 +840,27 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
 };
 
 void update_valid_processor_linux(const std::vector<int> phy_core_list,
+                                  const int numa_node_per_socket,
                                   int& _sockets,
+                                  int& _numa_nodes,
                                   int& _cores,
+                                  std::map<int, int>& _numaid_mapping_table,
+                                  std::map<int, int>& _socketid_mapping_table,
                                   std::vector<std::vector<int>>& _proc_type_table,
                                   std::vector<std::vector<int>>& _cpu_mapping_table) {
-    for (auto& row : _proc_type_table) {
-        std::fill(row.begin(), row.begin() + PROC_NUMA_NODE_ID, 0);
-    }
     _cores = 0;
+
+    std::vector<int> socket_list;
+    socket_list.resize(_cpu_mapping_table.size());
+    std::vector<std::vector<int>> numa_node_list;
+    numa_node_list.resize(_sockets);
+    int max_node_node_id = 0;
+    const std::vector<int> line_value_0(PROC_TYPE_TABLE_SIZE, 0);
+
     for (auto& row : _cpu_mapping_table) {
         if (row[CPU_MAP_CORE_TYPE] == HYPER_THREADING_PROC) {
-            auto iter = std::find(phy_core_list.begin(), phy_core_list.end(), row[CPU_MAP_CORE_ID]);
-            if (iter == phy_core_list.end()) {
+            if (phy_core_list.size() == 0 ||
+                phy_core_list.end() == std::find(phy_core_list.begin(), phy_core_list.end(), row[CPU_MAP_CORE_ID])) {
                 row[CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
                 _cores++;
             }
@@ -835,29 +868,90 @@ void update_valid_processor_linux(const std::vector<int> phy_core_list,
             _cores++;
         }
 
-        _proc_type_table[0][ALL_PROC]++;
-        _proc_type_table[0][row[CPU_MAP_CORE_TYPE]]++;
-        if (_proc_type_table.size() > 1) {
-            _proc_type_table[row[CPU_MAP_NUMA_NODE_ID] + 1][ALL_PROC]++;
-            _proc_type_table[row[CPU_MAP_NUMA_NODE_ID] + 1][row[CPU_MAP_CORE_TYPE]]++;
-        }
+        socket_list.push_back(row[CPU_MAP_SOCKET_ID]);
+        numa_node_list[row[CPU_MAP_SOCKET_ID]].push_back(row[CPU_MAP_NUMA_NODE_ID]);
+        max_node_node_id = std::max(max_node_node_id, row[CPU_MAP_NUMA_NODE_ID]);
     }
 
-    if (_proc_type_table.size() > 1) {
-        size_t n = _proc_type_table.size();
+    if (numa_node_list.size() == 1) {
+        _sockets = 1;
+        _numa_nodes = 1;
+        _numaid_mapping_table = {{0, 0}};
+        _socketid_mapping_table = {{0, 0}};
+        _proc_type_table.assign(1, line_value_0);
 
-        while (n > 0) {
-            if (0 == _proc_type_table[n - 1][ALL_PROC]) {
-                _proc_type_table.erase(_proc_type_table.begin() + n - 1);
+        for (auto& row : _cpu_mapping_table) {
+            _proc_type_table[0][ALL_PROC]++;
+            _proc_type_table[0][row[CPU_MAP_CORE_TYPE]]++;
+        }
+
+    } else {
+        sort(socket_list.begin(), socket_list.end());
+        socket_list.erase(unique(socket_list.begin(), socket_list.end()), socket_list.end());
+
+        _sockets = socket_list.size();
+
+        std::vector<int> socket_map;
+        socket_map.resize(_sockets);
+
+        for (int i = 0; i < (int)socket_list.size(); ++i) {
+            _socketid_mapping_table.insert({i, socket_list[i]});
+            socket_map[socket_list[i]] = i;
+        }
+
+        std::vector<int> numa_map;
+        numa_map.resize(max_node_node_id + 1);
+        std::vector<int> proc_table_map;
+        proc_table_map.resize(max_node_node_id + 1);
+        int numa_map_id = 0;
+        int cur_id = 0;
+        max_node_node_id = 0;
+
+        for (int i = 0; i < (int)numa_node_list.size(); ++i) {
+            if (numa_node_list[i].size() > 0) {
+                sort(numa_node_list[i].begin(), numa_node_list[i].end());
+                numa_node_list[i].erase(unique(numa_node_list[i].begin(), numa_node_list[i].end()),
+                                        numa_node_list[i].end());
+                numa_map_id = std::max(max_node_node_id, numa_node_per_socket * i);
+                for (int n = 0; n < (int)numa_node_list[i].size(); ++n) {
+                    max_node_node_id = std::max(max_node_node_id, numa_node_list[i][n]);
+                    numa_map[numa_node_list[i][n]] = numa_map_id;
+                    proc_table_map[numa_map_id] = cur_id++;
+                    _numaid_mapping_table.insert({numa_map_id++, numa_node_list[i][n]});
+                }
+                ++max_node_node_id;
             }
-            n--;
         }
 
-        if ((_proc_type_table.size() > 1) && (_proc_type_table[0][ALL_PROC] == _proc_type_table[1][ALL_PROC])) {
-            _proc_type_table.erase(_proc_type_table.begin());
+        for (int r = 0; r < cur_id; ++r) {
+            std::fill(_proc_type_table[r].begin(), _proc_type_table[r].end(), 0);
+        }
+        _proc_type_table.resize(cur_id == 0 ? 1 : cur_id);
+
+        for (auto& row : _cpu_mapping_table) {
+            row[CPU_MAP_SOCKET_ID] = socket_map[row[CPU_MAP_SOCKET_ID]];
+            row[CPU_MAP_NUMA_NODE_ID] = numa_map[row[CPU_MAP_NUMA_NODE_ID]];
+
+            _proc_type_table[proc_table_map[row[CPU_MAP_NUMA_NODE_ID]]][ALL_PROC]++;
+            _proc_type_table[proc_table_map[row[CPU_MAP_NUMA_NODE_ID]]][row[CPU_MAP_CORE_TYPE]]++;
+            _proc_type_table[proc_table_map[row[CPU_MAP_NUMA_NODE_ID]]][PROC_NUMA_NODE_ID] = row[CPU_MAP_NUMA_NODE_ID];
+            _proc_type_table[proc_table_map[row[CPU_MAP_NUMA_NODE_ID]]][PROC_SOCKET_ID] = row[CPU_MAP_SOCKET_ID];
+        }
+
+        _numa_nodes = _proc_type_table.size();
+
+        if (_proc_type_table.size() > 1) {
+            _proc_type_table.insert(_proc_type_table.begin(), line_value_0);
+
+            for (int m = 1; m < (int)_proc_type_table.size(); m++) {
+                for (int n = 0; n < PROC_NUMA_NODE_ID; n++) {
+                    _proc_type_table[0][n] += _proc_type_table[m][n];
+                }
+                _proc_type_table[0][PROC_NUMA_NODE_ID] = 0 == _proc_type_table[m][PROC_NUMA_NODE_ID] ? 0 : -1;
+                _proc_type_table[0][PROC_SOCKET_ID] = 0 == _proc_type_table[m][PROC_SOCKET_ID] ? 0 : -1;
+            }
         }
     }
-    _sockets = _proc_type_table.size() == 1 ? 1 : _proc_type_table.size() - 1;
     return;
 };
 
