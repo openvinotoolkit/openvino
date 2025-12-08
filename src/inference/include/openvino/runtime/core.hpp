@@ -851,9 +851,13 @@ public:
                          const std::string& device_name,
                          const ov::AnyMap& config = {});
 
-    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
-    void register_plugin(const TPath& plugin_path, const std::string& device_name, const AnyMap& config = {}) {
-        register_plugin(std::string(plugin_path), device_name, config);
+    template <class Path>
+    void register_plugin(const Path& plugin_path, const std::string& device_name, const AnyMap& config = {}) {
+        if constexpr (std::is_constructible_v<std::string, Path>) {
+            register_plugin(std::string(plugin_path), device_name, config);
+        } else {
+            register_plugin(std::filesystem::path(plugin_path), device_name, config);
+        }
     }
 
     /**
@@ -902,9 +906,13 @@ public:
      */
     void register_plugins(const std::filesystem::path& xml_config_file);
 
-    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
-    void register_plugins(const TPath& xml_config_file) {
-        register_plugins(std::string(xml_config_file));
+    template <class Path>
+    void register_plugins(const Path& xml_config_file) {
+        if constexpr (std::is_constructible_v<std::string, Path>) {
+            register_plugins(std::string(xml_config_file));
+        } else {
+            register_plugins(std::filesystem::path(xml_config_file));
+        }
     }
 
     /**

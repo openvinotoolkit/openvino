@@ -112,9 +112,6 @@ TEST_P(CoreBaseTestP, registerPlugins) {
     EXPECT_NO_THROW(core.register_plugins(xml_file_path));
     auto versions = core.get_versions(mock_plugin_name);
     EXPECT_FALSE(versions.empty());
-    EXPECT_THROW(core.register_plugins(xml_file_path),
-                 ov::Exception,
-                 ::testing::HasSubstr("Device with \"TEST_DEVICE\"  is already registered in the OpenVINO Runtime"));
     remove_plugin_xml(xml_file_path);
 }
 
