@@ -55,7 +55,7 @@ bool ov::pass::UselessSliceEraser::run_on_model(const std::shared_ptr<ov::Model>
 
 namespace {
 
-op::util::SlicePlan get_slice_plan(std::shared_ptr<ov::op::v1::StridedSlice> slice) {
+ov::op::util::SlicePlan get_slice_plan(std::shared_ptr<ov::op::v1::StridedSlice> slice) {
     auto convert_mask_to_axis_set = [](const std::vector<int64_t>& mask) {
         ov::AxisSet axis_set{};
         for (size_t i = 0; i < static_cast<size_t>(mask.size()); ++i) {
@@ -70,7 +70,7 @@ op::util::SlicePlan get_slice_plan(std::shared_ptr<ov::op::v1::StridedSlice> sli
     auto end = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
     auto strides = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
     if (!begin || !end || !strides || slice->input(0).get_partial_shape().is_dynamic())
-        return op::util::SlicePlan();
+        return ov::op::util::SlicePlan();
 
     auto begin_vec = begin->cast_vector<int64_t>();
     auto end_vec = end->cast_vector<int64_t>();
@@ -78,15 +78,15 @@ op::util::SlicePlan get_slice_plan(std::shared_ptr<ov::op::v1::StridedSlice> sli
     const auto begin_mask = convert_mask_to_axis_set(slice->get_begin_mask());
     const auto end_mask = convert_mask_to_axis_set(slice->get_end_mask());
 
-    const auto plan = op::util::make_slice_plan(slice->input(0).get_shape(),
-                                                begin_vec,
-                                                end_vec,
-                                                strides_vec,
-                                                begin_mask,
-                                                end_mask,
-                                                convert_mask_to_axis_set(slice->get_new_axis_mask()),
-                                                convert_mask_to_axis_set(slice->get_shrink_axis_mask()),
-                                                convert_mask_to_axis_set(slice->get_ellipsis_mask()));
+    const auto plan = ov::op::util::make_slice_plan(slice->input(0).get_shape(),
+                                                    begin_vec,
+                                                    end_vec,
+                                                    strides_vec,
+                                                    begin_mask,
+                                                    end_mask,
+                                                    convert_mask_to_axis_set(slice->get_new_axis_mask()),
+                                                    convert_mask_to_axis_set(slice->get_shrink_axis_mask()),
+                                                    convert_mask_to_axis_set(slice->get_ellipsis_mask()));
     return plan;
 }
 
@@ -121,7 +121,7 @@ bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<
     bool graph_rewritten = false;
     struct planned_slice {
         std::shared_ptr<ov::op::v1::StridedSlice> ptr;
-        op::util::SlicePlan plan;
+        ov::op::util::SlicePlan plan;
     };
 
     std::map<ov::Output<Node>, std::vector<planned_slice>> source_to_ss_with_plan;
@@ -131,7 +131,7 @@ bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<
 
         if (auto ss = ov::as_type_ptr<ov::op::v1::StridedSlice>(node)) {
             auto slice_plan = get_slice_plan(ss);
-            if (slice_plan == op::util::SlicePlan())
+            if (slice_plan == ov::op::util::SlicePlan())
                 continue;
             source_to_ss_with_plan[ss->input_value(0)].push_back({ss, slice_plan});
         }
@@ -251,7 +251,7 @@ struct SliceAttrs {
 };
 
 struct SliceWithAttrs {
-    std::shared_ptr<op::v8::Slice> slice;
+    std::shared_ptr<ov::op::v8::Slice> slice;
     SliceAttrs attrs;
 };
 
@@ -315,7 +315,7 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
         // Recursively apply transformation for sub-graph based operations
         graph_rewritten = ov::op::util::process_subgraph(*this, node) || graph_rewritten;
 
-        if (auto op = ov::as_type_ptr<op::v8::Slice>(node)) {
+        if (auto op = ov::as_type_ptr<ov::op::v8::Slice>(node)) {
             SliceAttrs attributes{};
             if (slice_is_suitable_for_optimization(op, attributes)) {
                 OutputWithAxis current_output = {op->input_value(0), attributes.axis};
@@ -377,9 +377,9 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
         if (current_sum != dimension)
             continue;
         auto split_lengths_const =
-            op::v0::Constant::create(ov::element::i64, ov::Shape{split_lengths.size()}, split_lengths);
-        auto axis_const = op::v0::Constant::create(ov::element::i64, ov::Shape{}, {axis});
-        auto variadic_split = std::make_shared<op::v1::VariadicSplit>(output, axis_const, split_lengths_const);
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{split_lengths.size()}, split_lengths);
+        auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {axis});
+        auto variadic_split = std::make_shared<ov::op::v1::VariadicSplit>(output, axis_const, split_lengths_const);
 
         auto i = 0;
         for (auto& slice_with_attrs : attributes) {

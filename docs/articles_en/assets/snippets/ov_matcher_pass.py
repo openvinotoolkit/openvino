@@ -11,7 +11,7 @@ The next example defines transformation that searches for the ``Relu`` layer and
 ``Relu`` layer.
 '''
 
-from openvino.runtime.passes import MatcherPass
+from openvino.passes import MatcherPass
 from snippets import get_model
 
 class PatternReplacement(MatcherPass):
@@ -50,10 +50,9 @@ new_relu
 
 In order to run this script, you need to export PYTHONPATH as the path to binary OpenVINO python models.
 '''
-from openvino.runtime.passes import Manager
-from openvino import Model, PartialShape
-from openvino.runtime import opset13 as ops
-from openvino.runtime.passes import ModelPass, Matcher, MatcherPass, WrapType
+from openvino.passes import Manager
+from openvino import opset13 as ops
+from openvino.passes import Matcher, MatcherPass, WrapType
 
 class PatternReplacement(MatcherPass):
     def __init__(self):
