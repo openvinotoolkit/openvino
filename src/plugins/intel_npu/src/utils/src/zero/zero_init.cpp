@@ -5,6 +5,7 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 
 #include <ze_command_queue_npu_ext.h>
+#include <ze_driver_npu_ext.h>
 #include <ze_mem_import_system_memory_ext.h>
 
 #include <mutex>
@@ -175,6 +176,30 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     for (auto it = extProps.begin(); it != extProps.end(); ++it) {
         ze_driver_extension_properties_t p = *it;
         driver_extension_properties.emplace(std::string(p.name), p.version);
+    }
+
+        // Query npu driver extension version
+    std::string driver_ext_name;
+    uint32_t driver_ext_version = 0;
+    std::tie(driver_ext_version, driver_ext_name) =
+        queryDriverExtensionVersion(ZE_DRIVER_NPU_EXT_NAME, ZE_DRIVER_NPU_EXT_VERSION_CURRENT, extProps, count);
+
+    log.debug("NPU driver ext version %d.%d",
+              ZE_MAJOR_VERSION(driver_ext_version),
+              ZE_MINOR_VERSION(driver_ext_version));
+
+    _ze_driver_npu_dditable_ext_t* driver_npu_dditable_ext = nullptr;
+    if (driver_ext_version) {
+        THROW_ON_FAIL_FOR_LEVELZERO(
+            "zeDriverGetExtensionFunctionAddress " + driver_ext_name,
+            zeDriverGetExtensionFunctionAddress(driver_handle,
+                                                driver_ext_name.c_str(),
+                                                reinterpret_cast<void**>(&driver_npu_dditable_ext)));
+
+        ze_driver_properties_npu_ext_t driver_npu_properties = {};
+        driver_npu_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES_NPU_EXT;
+        driver_npu_properties.options = ZE_NPU_DRIVER_OPTION_INTEGRITY_CHECKS;
+        driver_npu_dditable_ext->pfnSetProperties(driver_handle, &driver_npu_properties);
     }
 
     // Query our graph extension version
