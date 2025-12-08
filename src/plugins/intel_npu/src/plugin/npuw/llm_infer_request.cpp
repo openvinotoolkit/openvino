@@ -1091,9 +1091,7 @@ void ov::npuw::LLMInferRequest::infer() {
     OPENVINO_ASSERT(ov::element::i64 == position_ids->get_element_type());
 
     // Eagle3: Accept and validate hidden state inputs
-    m_eagle3_ext.store_hidden_state_inputs(inputs, [this](const ov::Output<const ov::Node>& port) {
-        return get_tensor(port);
-    });
+    m_eagle3_ext.store_hidden_state_inputs(*this, inputs);
 
     if (m_first_run) {
         // Most of the models have position_ids->data<int64_t>()[0] == 0 for the first infer

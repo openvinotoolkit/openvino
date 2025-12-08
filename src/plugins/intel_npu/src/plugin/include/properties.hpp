@@ -138,7 +138,8 @@ private:
         ov::intel_npu::npuw::llm::additional_generate_config.name(),
         ov::intel_npu::npuw::llm::generate_attn_hint.name(),
         ov::intel_npu::npuw::llm::shared_lm_head_config.name(),
-        ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name()};
+        ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name(),
+        ov::intel_npu::npuw::eagle::enabled.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name(),

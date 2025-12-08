@@ -58,9 +58,9 @@ public:
         return m_role;
     }
 
-    void store_hidden_state_inputs(
-        const std::vector<ov::Output<const ov::Node>>& inputs,
-        const std::function<ov::SoPtr<ov::ITensor>(const ov::Output<const ov::Node>&)>& get_tensor_func);
+    // Store hidden state inputs from user request (must be called before prepare_inputs/prepare_inputs_for_chunk)
+    void store_hidden_state_inputs(const ov::IInferRequest& request,
+                                   const std::vector<ov::Output<const ov::Node>>& inputs);
 
     // Prepare Eagle3 new input tensors (hidden_states)
     void prepare_inputs(const std::shared_ptr<ov::IAsyncInferRequest>& request,
