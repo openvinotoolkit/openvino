@@ -846,20 +846,30 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     std::size_t v_seq_dim = v_seq_dim_opt.value();
 
     // ========================================================================
-    // Step 4: Extract KV heads configuration
+    // Step 4: Extract KV heads configuration and context size
     // ========================================================================
     size_t kv_num_heads = 0;
-    if (k_concat->get_output_partial_shape(0).is_static()) {
-        auto k_full_shape = k_concat->get_output_partial_shape(0).to_shape();
-        // K shape after concat: [batch, kv_num_heads, kv_cache_size, head_dim]
-        if (k_full_shape.size() >= 3) {
-            kv_num_heads = k_full_shape[1];  // Extract kv_num_heads from K shape
-            LOG_DEBUG("Detected KV num_heads: " << kv_num_heads);
-        }
+    size_t context_size = 0;
+    if (!k_concat->get_output_partial_shape(0).is_static()) {
+        return std::nullopt;
     }
+
+    auto k_full_shape = k_concat->get_output_partial_shape(0).to_shape();
+    // K shape after concat: [batch, kv_num_heads, kv_cache_size, head_dim]
+    if (k_full_shape.size() != 4) {
+        return std::nullopt;
+    }
+
+    kv_num_heads = k_full_shape[1];          // Extract kv_num_heads from K shape
+    context_size = k_full_shape[k_seq_dim];  // Extract context size from sequence dimension
 
     if (kv_num_heads == 0) {
         LOG_WARN("Failed to determine KV num_heads");
+        return std::nullopt;
+    }
+
+    if (context_size == 0) {
+        LOG_WARN("Failed to determine context_size");
         return std::nullopt;
     }
 
@@ -887,6 +897,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     hfa._tile_model = tile_model;
     hfa._final_tile_model = final_tile_model;
     hfa._query_size = query_size;
+    hfa._context_size = context_size;
     hfa._tile_size = query_size;
     hfa._k_seq_dim = k_seq_dim;
     hfa._v_seq_dim = v_seq_dim;
@@ -906,7 +917,8 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // ========================================================================
     build_tile_output_mapping(hfa, tile_model);
 
-    LOG_INFO("Successfully created HostFlashAttention with query_size=" << query_size << ", tile_size=" << query_size);
+    LOG_INFO("Successfully created HostFlashAttention with query_size="
+             << query_size << ", context_size=" << context_size << ", tile_size=" << query_size);
 
     return hfa;
 }
@@ -927,8 +939,9 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     _tile_model_to_compile = func_hfa._tile_model;
     _final_tile_model_to_compile = func_hfa._final_tile_model;
 
-    // Copy query size and K/V sequence dimensions from function HFA
+    // Copy query size, context size, and K/V sequence dimensions from function HFA
     _sdpa_attention_info._query_size = func_hfa._query_size;
+    _sdpa_attention_info._context_size = func_hfa._context_size;
     _sdpa_attention_info._k_seq_dim = func_hfa._k_seq_dim;
     _sdpa_attention_info._v_seq_dim = func_hfa._v_seq_dim;
 
@@ -988,6 +1001,9 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
              << ", present_key=" << _sdpa_attention_info._sdpa_indices.present_key
              << ", present_value=" << _sdpa_attention_info._sdpa_indices.present_value
              << ", attention_mask=" << _sdpa_attention_info._sdpa_indices.attention_mask << "]");
+    LOG_INFO("Attention configuration: query_size="
+             << _sdpa_attention_info._query_size << ", context_size=" << _sdpa_attention_info._context_size
+             << ", k_seq_dim=" << _sdpa_attention_info._k_seq_dim << ", v_seq_dim=" << _sdpa_attention_info._v_seq_dim);
     LOG_INFO("Pre-cached tile indices: inputs[q=" << _sdpa_attention_info._tile_input_indices.q
                                                   << ", k=" << _sdpa_attention_info._tile_input_indices.k
                                                   << ", v=" << _sdpa_attention_info._tile_input_indices.v

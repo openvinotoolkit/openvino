@@ -133,6 +133,7 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::HostF
 
     // Serialize basic info from _sdpa_attention_info
     write(stream, var._sdpa_attention_info._query_size);
+    write(stream, var._sdpa_attention_info._context_size);
     write(stream, var._sdpa_attention_info._k_seq_dim);
     write(stream, var._sdpa_attention_info._v_seq_dim);
 
@@ -317,6 +318,7 @@ void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::HostFlashAtt
 
     // Deserialize basic info into _sdpa_attention_info
     read(stream, var._sdpa_attention_info._query_size);
+    read(stream, var._sdpa_attention_info._context_size);
     read(stream, var._sdpa_attention_info._k_seq_dim);
     read(stream, var._sdpa_attention_info._v_seq_dim);
 

@@ -6,9 +6,7 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <string>
 
-#include "attention.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
@@ -131,6 +129,10 @@ struct HostFlashAttention {
     // Used for selector compatibility and runtime decision-making
     std::size_t _query_size = 0;
 
+    // Context size (extracted from K concat output shape - kv_cache_size dimension)
+    // Represents the total KV cache length available for attention computation
+    std::size_t _context_size = 0;
+
     // Sequence dimension indices for K and V tensors
     // These indicate which dimension is the sequence/cache dimension in past_key and past_value tensors
     // Extracted from Concat operations in the SDPA pattern
@@ -172,6 +174,7 @@ namespace compiled {
 // Contains parameter indices from the original SDPA model
 struct HostFlashAttentionInfo {
     std::size_t _query_size = 0u;  // query size for selector compatibility
+    std::size_t _context_size = 0u;
 
     // Sequence dimension indices for K and V tensors in the original SDPA model
     // These indicate which dimension is the sequence/cache dimension in past_key and past_value tensors
@@ -255,6 +258,142 @@ struct HostFlashAttention {
 
 namespace runtime {
 namespace host_flash_attention {
+
+// Key for HFA tiled attention mask cache
+struct HFATileMaskKey {
+    ov::SoPtr<ov::ITensor> mask_tensor;  // Original mask tensor
+    int64_t mask_offset;                 // Offset in the mask sequence dimension
+    int64_t tile_length;                 // Length of the tile
+
+    bool operator<(const HFATileMaskKey& other) const {
+        if (mask_tensor._ptr != other.mask_tensor._ptr)
+            return mask_tensor._ptr < other.mask_tensor._ptr;
+        if (mask_offset != other.mask_offset)
+            return mask_offset < other.mask_offset;
+        return tile_length < other.tile_length;
+    }
+};
+
+/// HFA runtime context - manages cache and buffers for tiled attention.
+/// @warning NOT thread-safe. Each inference request must have its own instance.
+struct HFARuntimeContext {
+    // ============================================================================
+    // Type Aliases
+    // ============================================================================
+
+    /// Memory allocator function: (element_type, shape, device_name) -> tensor
+    using AllocatorFn =
+        std::function<ov::SoPtr<ov::ITensor>(const ov::element::Type&, const ov::Shape&, const std::string&)>;
+
+    // ============================================================================
+    // Data Members
+    // ============================================================================
+
+    /// Cache for extracted mask tiles, indexed by (tensor, offset, length).
+    /// Avoids redundant extraction of the same mask region across inference calls.
+    std::map<HFATileMaskKey, ov::SoPtr<ov::ITensor>> tiled_attention_mask_cache;
+
+    /// Pre-allocated mask tile buffers.
+    std::vector<ov::SoPtr<ov::ITensor>> preallocated_mask_tiles;
+
+    // ============================================================================
+    // Lifecycle Methods
+    // ============================================================================
+
+    /// Initialize pre-allocated mask tile buffers.
+    ///
+    /// Allocates `max_num_tiles = context_size / query_size` mask buffers based on the HFA descriptor.
+    /// Must be called once during setup before any tiled inference.
+    /// @throws std::runtime_error if context_size is not divisible by query_size
+    template <typename HFADesc>
+    void initialize_preallocated_buffers(const HFADesc& hfa_desc,
+                                         const std::string& device_name,
+                                         AllocatorFn allocator) {
+        // Get mask tensor shape from the tile model
+        const size_t mask_input_idx = hfa_desc._sdpa_attention_info._tile_input_indices.mask;
+        const auto& mask_port = hfa_desc._compiled_tile_model->inputs()[mask_input_idx];
+        const auto mask_shape = mask_port.get_shape();
+        const auto mask_dtype = mask_port.get_element_type();
+
+        // Calculate maximum number of tiles based on context size
+        const size_t context_size = hfa_desc._sdpa_attention_info._context_size;
+        const size_t query_size = hfa_desc._sdpa_attention_info._query_size;
+
+        // Validate configuration
+        if (context_size % query_size != 0) {
+            throw std::runtime_error("HFA: context_size (" + std::to_string(context_size) +
+                                     ") must be divisible by query_size (" + std::to_string(query_size) + ")");
+        }
+
+        const size_t max_num_tiles = context_size / query_size;
+
+        // Pre-allocate mask tile buffers for all possible tiles
+        preallocated_mask_tiles.clear();
+        preallocated_mask_tiles.reserve(max_num_tiles);
+
+        for (size_t i = 0; i < max_num_tiles; ++i) {
+            auto mask_tile = allocator(mask_dtype, mask_shape, device_name);
+            preallocated_mask_tiles.push_back(mask_tile);
+        }
+    }
+
+    /// Reset all resources to uninitialized state.
+    void reset() {
+        tiled_attention_mask_cache.clear();
+        preallocated_mask_tiles.clear();
+    }
+
+    // ============================================================================
+    // Query Methods (const)
+    // ============================================================================
+
+    /// Find a cached mask tile.
+    /// @return Cached tensor if found, nullptr otherwise
+    ov::SoPtr<ov::ITensor> find_cached_mask_tile(const ov::SoPtr<ov::ITensor>& mask_tensor,
+                                                 int64_t mask_offset,
+                                                 int64_t tile_length) const {
+        HFATileMaskKey cache_key{mask_tensor, mask_offset, tile_length};
+        auto it = tiled_attention_mask_cache.find(cache_key);
+        if (it != tiled_attention_mask_cache.end()) {
+            return it->second;
+        }
+        return {};
+    }
+
+    /// Get a pre-allocated mask tile buffer by index.
+    /// @throws std::out_of_range if index is out of bounds
+    ov::SoPtr<ov::ITensor> get_preallocated_mask_tile(size_t index) const {
+        if (index >= preallocated_mask_tiles.size()) {
+            throw std::out_of_range("HFA: mask tile index " + std::to_string(index) + " out of range [0, " +
+                                    std::to_string(preallocated_mask_tiles.size()) + ")");
+        }
+        return preallocated_mask_tiles[index];
+    }
+
+    /// Get the number of pre-allocated mask tile buffers.
+    size_t num_preallocated_tiles() const {
+        return preallocated_mask_tiles.size();
+    }
+
+    // ============================================================================
+    // Modification Methods
+    // ============================================================================
+
+    /// Store a mask tile in the cache.
+    /// @note If a tile with the same key already exists, it will be overwritten.
+    void cache_mask_tile(const ov::SoPtr<ov::ITensor>& mask_tensor,
+                         int64_t mask_offset,
+                         int64_t tile_length,
+                         const ov::SoPtr<ov::ITensor>& cached_tile) {
+        HFATileMaskKey cache_key{mask_tensor, mask_offset, tile_length};
+        tiled_attention_mask_cache[cache_key] = cached_tile;
+    }
+
+    /// Clear the mask tile cache while preserving pre-allocated buffers.
+    void clear_cache() {
+        tiled_attention_mask_cache.clear();
+    }
+};
 
 // A base class to decide host flash attention execution
 class Selector {

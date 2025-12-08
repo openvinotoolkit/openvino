@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base_sync_infer_request.hpp"
+#include "host_flash_attention.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -129,7 +130,7 @@ protected:
     void setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate);
 
     // Helper function to setup host flash attention tile infer requests
-    void setup_hfa_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate);
+    void setup_hfa_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate, bool enable_mask_cache = true);
 
     FuncMemMgr m_func_mem_mgr;                       // Owns memory
     std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
@@ -157,6 +158,9 @@ protected:
 
     // Cached attention mask for SDPA operations to avoid recomputing
     ov::SoPtr<ov::ITensor> m_cached_attention_mask;
+
+    // HFA runtime context (holds cached masks and pre-allocated buffers)
+    std::optional<runtime::host_flash_attention::HFARuntimeContext> m_hfa_runtime_ctx;
 };
 
 }  // namespace npuw
