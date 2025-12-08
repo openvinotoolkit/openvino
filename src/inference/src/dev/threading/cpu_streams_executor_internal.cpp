@@ -71,7 +71,11 @@ void get_cur_stream_info(const int stream_id,
                    !ecore_used) {  // Latency mode and enable hyper threading in hybrid cores machine
             stream_type = STREAM_WITH_CORE_TYPE;
             core_type = MAIN_CORE_PROC;
-        } else if (proc_type_table.size() > 1 && numa_node_id >= 0) {
+        } else if (proc_type_table.size() > 1 && numa_node_id >= 0 &&
+                   // Both commands "numactl" and "docker run --cpuset-cpus" can restrict the use of numa nodes.
+                   // Some situation of numa_node_id differs from the original numa_node_id may cause oneTBB to crash
+                   // when binding cores with numa node id. So not binding cores with numa node id in this case.
+                   numa_node_id == get_org_numa_id(numa_node_id)) {
             stream_type = STREAM_WITH_NUMA_ID;
         }
     }
