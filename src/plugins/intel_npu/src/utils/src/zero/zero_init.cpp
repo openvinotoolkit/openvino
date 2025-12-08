@@ -178,7 +178,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
         driver_extension_properties.emplace(std::string(p.name), p.version);
     }
 
-        // Query npu driver extension version
+    // Query npu driver extension version
     std::string driver_ext_name;
     uint32_t driver_ext_version = 0;
     std::tie(driver_ext_version, driver_ext_name) =
