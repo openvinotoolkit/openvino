@@ -1170,15 +1170,17 @@ public:
 
     cldnn::event::ptr exec_prefill_micro_gemm(const std::vector<cldnn::event::ptr>& events,
                                               typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                              scratch_buffers& scratch,
-                                              expert_mask_cpu& expert_mask_cpu) {
+                                              scratch_buffers& scratch) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         int max_topk = static_cast<int>(cur_moe->_config.top_k);
+        const auto& config = cur_moe->_config;
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
+        // [batch, max_topk]
         auto batch_mem_ptr = scratch.topk_id;
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         auto routing_mem_ptr = scratch.topk_weights;
+        auto input_shape = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))->get_layout().get_shape();
 
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
@@ -1193,38 +1195,48 @@ public:
         auto num_total_experts = static_cast<int>(cur_moe->_config.num_expert);
         int num_actually_used_experts = 0;
 
+        expert_mask_cpu expert_mask_cpu;
+        get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask_cpu);
+
         // step 1: generate 4 mask data for following kernel execution
-        //   input: topk output, [token_len, expert_topk]
-        //   output:
-        //     mask 0: token idx per expert, static shape = [token_num * topK_num] = [expert_num, ?]
-        //     mask 1: token start offset idx (input gather tokens) for each activated expert, dynamic shape = [activated_expert_num]
-        //     mask 2: token len (input gather tokens) for each activated expert, dynamic shape = [activated_expert_num]
-        //     mask 3: expert id, dynamic shape = [activated_expert_num]
+        // input: topk output, [token_len, expert_topk]
+        // output:
+        //   mask 0: token idx per expert, flat array of length token_len * expert_topk
+        //             (experts are laid out consecutively; use experts_info_start_idx + tokens_lens_per_expert to slice)
+        //   mask 1: token start offset idx in mask 0 for each activated expert, shape = [activated_expert_num]
+        //   mask 2: token len for each activated expert, shape = [activated_expert_num]
+        //   mask 3: expert id, shape = [activated_expert_num]
         {
-            cldnn::mem_lock<int32_t, mem_lock_type::write> tokens_per_expert_lock(intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT], stream);
-            cldnn::mem_lock<int32_t, mem_lock_type::write> experts_info_start_idx_lock(
-                intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT],
-                stream);
-            cldnn::mem_lock<int32_t, mem_lock_type::write> experts_id_lock(intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS], stream);
-            cldnn::mem_lock<int32_t, mem_lock_type::write> tokens_lens_per_expert_lock(
-                intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
-                stream);
+            auto token_size = input_shape[0];
+            auto max_topk = static_cast<int>(cur_moe->_config.top_k);
+            std::vector<int32_t> tokens_per_expert_cpu(token_size * max_topk, -1);
+            std::vector<int32_t> tokens_lens_per_expert_cpu(num_total_experts, -1);
+            std::vector<int32_t> experts_info_start_idx_cpu(num_total_experts, -1);
+            std::vector<int32_t> experts_id_cpu(num_total_experts, -1);
 
             int tokens_per_expert_iter = 0;
             int experts_id_iter = 0;
-
             for (int expert_idx = 0; expert_idx < num_total_experts; expert_idx++) {
                 if (!expert_mask_cpu.batch[expert_idx].empty()) {
-                    experts_info_start_idx_lock[experts_id_iter] = tokens_per_expert_iter;
-                    experts_id_lock[experts_id_iter] = expert_idx;
-                    tokens_lens_per_expert_lock[experts_id_iter++] = static_cast<int32_t>(expert_mask_cpu.batch[expert_idx].size());
+                    experts_info_start_idx_cpu[experts_id_iter] = tokens_per_expert_iter;
+                    experts_id_cpu[experts_id_iter] = expert_idx;
+                    tokens_lens_per_expert_cpu[experts_id_iter++] = static_cast<int32_t>(expert_mask_cpu.batch[expert_idx].size());
                     num_actually_used_experts++;
                     for (auto t : expert_mask_cpu.batch[expert_idx]) {
-                        tokens_per_expert_lock[tokens_per_expert_iter++] = t;
+                        tokens_per_expert_cpu[tokens_per_expert_iter++] = t;
                     }
                 }
             }
             rtp->num_actually_used_experts = num_actually_used_experts;
+
+            intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]
+                ->copy_from(stream, tokens_per_expert_cpu.data(), 0, 0, tokens_per_expert_cpu.size() * sizeof(int32_t), true);
+            intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT]
+                ->copy_from(stream, experts_info_start_idx_cpu.data(), 0, 0, num_actually_used_experts * sizeof(int32_t), true);
+            intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS]
+                ->copy_from(stream, experts_id_cpu.data(), 0, 0, num_actually_used_experts * sizeof(int32_t), true);
+            intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT]
+                ->copy_from(stream, tokens_lens_per_expert_cpu.data(), 0, 0, num_actually_used_experts * sizeof(int32_t), true);
 
 // debug print
 #    if DEBUG_MOE_LOG
@@ -1316,7 +1328,6 @@ public:
         // output
         //      0: gate_up  [token_len * expert_topK, hidden_size]
         {
-            auto input_shape = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))->get_layout().get_shape();
             auto token_size = input_shape[0] * max_topk;
 
 #    if DEBUG_MOE_LOG
@@ -1364,8 +1375,7 @@ public:
         // output:
         //      0: final hidden states, shape = [token_len, hidden_size]
         {
-            auto input_shape = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))->get_layout().get_shape();
-            auto token_size = input_shape[0];  // * max_topk;
+            auto token_size = input_shape[0];
             auto [local_threads_count, batches_per_thread, _] = calc_thread_count(const_cast<RuntimeParams&>(*instance.get_impl_params()), 4, _hidden_size);
 
 #    if DEBUG_MOE_LOG
@@ -1386,7 +1396,7 @@ public:
                                       {final_hidden_states_mem_ptr},
                                       {static_cast<size_t>(token_size * local_threads_count), 1, 1},
                                       {local_threads_count, 1, 1},
-                                      instance.needs_completion_event(),
+                                      true /*instance.needs_completion_event()*/,
                                       {num_actually_used_experts});
         }
 
@@ -1484,8 +1494,7 @@ public:
     cldnn::event::ptr exec_prefill_onednn(const std::vector<cldnn::event::ptr>& events,
                                           cldnn::stream& stream,
                                           typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                          scratch_buffers& scratch,
-                                          expert_mask_cpu& expert_mask) {
+                                          scratch_buffers& scratch) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
         auto& dnn_stream = stream.get_onednn_stream();
@@ -1509,6 +1518,11 @@ public:
         };
         auto lws_size = get_best_lws(_hidden_size);
         int max_topk = static_cast<int>(config.top_k);
+
+        // [batch, max_topk]
+        auto topk_id_mem = scratch.topk_id;
+        expert_mask_cpu expert_mask;
+        get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
 
         for (size_t expert_no = 0; expert_no < config.num_expert; expert_no++) {
             if (expert_no >= expert_mask.pred_flag.size()) {
@@ -1566,7 +1580,7 @@ public:
                                          {final_hidden_states_mem_ptr},
                                          {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
                                          {1, lws_size},
-                                         instance.needs_completion_event());
+                                         true /*instance.needs_completion_event()*/);
         }
 
         return result_event;
@@ -1594,6 +1608,7 @@ public:
         const auto& config = cur_moe->_config;
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
+        cldnn::event::ptr ret_env = nullptr;
 
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         auto batch = static_cast<int>(hidden_states_layout.get_shape()[0]);
@@ -1609,7 +1624,8 @@ public:
                                         {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS))},
                                         {scratch.topk_id, scratch.topk_weights},
                                         {static_cast<size_t>(batch), lws_size},
-                                        {1, lws_size});
+                                        {1, lws_size},
+                                        instance.needs_completion_event());
 
         // Single batch is a special case, we don't need to do gather/scatter,
         // and we can apply optimal kernels against memory bound to improve performance.
@@ -1626,21 +1642,19 @@ public:
 
         // Wait for topk is ready
         topk_event->wait();
-        // [batch, max_topk]
-        auto topk_id_mem = scratch.topk_id;
-
-        expert_mask_cpu expert_mask;
-        get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
 
         GPU_DEBUG_TRACE_DETAIL << "\nMoE3GemmFusedCompressed exec(): batch=" << batch << ", max_topk=" << static_cast<int>(config.top_k)
                                << ", use_micro_gemm_prefill=" << use_micro_gemm_prefill << std::endl;
+        update_rt_params(instance);
         if (use_micro_gemm_prefill) {
-            update_rt_params(instance);
-            return exec_prefill_micro_gemm({topk_event}, instance, scratch, expert_mask);
+            ret_env = exec_prefill_micro_gemm({topk_event}, instance, scratch);
+        } else {
+            // fallback to onednn path
+            ret_env = exec_prefill_onednn({topk_event}, stream, instance, scratch);
         }
-
-        // fallback to onednn path
-        return exec_prefill_onednn({topk_event}, stream, instance, scratch, expert_mask);
+        // Wait for the final event to be ready
+        // ret_env->wait();
+        return ret_env;
     }
 };
 
