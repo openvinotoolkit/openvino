@@ -414,10 +414,9 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
         bool is_xf16 = any_of(precision_of<T>::value, ov::element::bf16, ov::element::f16);
-        // packed k, v
         auto attn_mask_precision =
             attention_mask ? attention_mask.get_precision() : ov::element::Type(precision_of<T>::value);
-
+        // packed k, v
         parallel_for2d(B, Hk, [&](size_t b, size_t h) {
             T* k_ptr = &present_key.at<T>({b, h, 0, 0});
             T* v_ptr = &present_value.at<T>({b, h, 0, 0});
