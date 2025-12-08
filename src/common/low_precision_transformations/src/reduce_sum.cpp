@@ -70,7 +70,6 @@ void ReduceSumTransformation::changeDequantizationValues(
         }
 
         // (a1 - s) + (a2 - s) + ... + (an - s) = (a1 + a2 + ... + an) - n * s
-        ov::element::Type deqPrecision = dequantization.subtractConstant->get_element_type();
         const auto reductionSizeConstant = ov::opset1::Constant::create(deqPrecision, Shape{}, { static_cast<float>(reductionSize) });
         OPENVINO_ASSERT(deqPrecision == dequantization.subtract->get_input_element_type(0),
                         "dequantization precision ", deqPrecision,
