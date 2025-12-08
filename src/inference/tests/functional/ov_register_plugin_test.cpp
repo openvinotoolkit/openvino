@@ -188,12 +188,6 @@ class RegisterPluginTestP : public ::testing::TestWithParam<ov::test::utils::Str
 
 INSTANTIATE_TEST_SUITE_P(paths_variants, RegisterPluginTestP, ::testing::Values("mock_engine", L"mock_engine"));
 
-// #    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-// INSTANTIATE_TEST_SUITE_P(unicode_paths_variants,
-//                          RegisterPluginTestP,
-//                          ::testing::Values("mock_engine_这是", L"mock_engine_这是"));
-// #    endif
-
 TEST_P(RegisterPluginTestP, registerNewPluginNoThrows) {
     ov::Core core;
     auto plugin = std::make_shared<ov::test::utils::MockPlugin>();
