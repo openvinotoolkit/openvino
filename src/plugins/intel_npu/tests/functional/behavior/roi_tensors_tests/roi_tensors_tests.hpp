@@ -1110,6 +1110,141 @@ TEST_P(RoiTensorsTestsRun, MultipleIOCreateRoiTensorFromHostTensorAndRunInfer) {
     }
 }
 
+TEST_P(RoiTensorsTestsRun, RunStridedTensorWithDynamicBatching) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto supportedProperties =
+        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isStridedEnabled =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+
+    if (!isStridedEnabled) {
+        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+    }
+
+    auto model_shape = PartialShape{-1, 5, 8, 9};
+    auto shape = Shape{2, 5, 8, 9};
+    ov::CompiledModel compiled_model;
+    auto model = createModelWithNInputs(element::f32, model_shape, "N...");
+    auto zero_context = core->get_default_context(target_device);
+    auto input_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{3, 10, 10, 10});
+    auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{2, 25, 25, 25});
+    auto input_strides = input_host_tensor.get_strides();
+    auto output_strides = output_host_tensor.get_strides();
+
+    auto* input_data = input_host_tensor.data<float>();
+    for (size_t i = 0; i < input_host_tensor.get_size(); ++i) {
+        input_data[i] = 50.0f;
+    }
+
+    auto* output_data = output_host_tensor.data<float>();
+    for (size_t i = 0; i < output_host_tensor.get_size(); ++i) {
+        output_data[i] = 10.0f;
+    }
+
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+
+    ov::Tensor input_view_tensor = ov::Tensor(ov::element::f32, shape, input_host_tensor.data(), input_strides);
+    OV_ASSERT_NO_THROW(req.set_input_tensor(input_view_tensor));
+
+    ov::Tensor output_view_tensor = ov::Tensor(ov::element::f32, shape, output_host_tensor.data(), output_strides);
+    OV_ASSERT_NO_THROW(req.set_output_tensor(output_view_tensor));
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    auto check_out_view_tensor = ov::Tensor(ov::element::f32, shape);
+    output_view_tensor.copy_to(check_out_view_tensor);
+    auto* check_data = check_out_view_tensor.data<float>();
+    for (size_t i = 0; i < check_out_view_tensor.get_size(); ++i) {
+        EXPECT_EQ(check_data[i], 51.0f);
+    }
+}
+
+TEST_P(RoiTensorsTestsRun, RunStridedTensorWithDynamicBoundedBatching) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto supportedProperties =
+        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isStridedEnabled =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+
+    if (!isStridedEnabled) {
+        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+    }
+
+    auto model_shape = PartialShape{ov::Dimension(1, 10), 5, 8, 9};
+    auto shape = Shape{2, 5, 8, 9};
+    ov::CompiledModel compiled_model;
+    auto model = createModelWithNInputs(element::f32, model_shape, "N...");
+    auto zero_context = core->get_default_context(target_device);
+    auto input_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{3, 10, 10, 10});
+    auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{2, 25, 25, 25});
+    auto input_strides = input_host_tensor.get_strides();
+    auto output_strides = output_host_tensor.get_strides();
+
+    auto* input_data = input_host_tensor.data<float>();
+    for (size_t i = 0; i < input_host_tensor.get_size(); ++i) {
+        input_data[i] = 50.0f;
+    }
+
+    auto* output_data = output_host_tensor.data<float>();
+    for (size_t i = 0; i < output_host_tensor.get_size(); ++i) {
+        output_data[i] = 10.0f;
+    }
+
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+
+    ov::Tensor input_view_tensor = ov::Tensor(ov::element::f32, shape, input_host_tensor.data(), input_strides);
+    OV_ASSERT_NO_THROW(req.set_input_tensor(input_view_tensor));
+
+    ov::Tensor output_view_tensor = ov::Tensor(ov::element::f32, shape, output_host_tensor.data(), output_strides);
+    OV_ASSERT_NO_THROW(req.set_output_tensor(output_view_tensor));
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    auto check_out_view_tensor = ov::Tensor(ov::element::f32, shape);
+    output_view_tensor.copy_to(check_out_view_tensor);
+    auto* check_data = check_out_view_tensor.data<float>();
+    for (size_t i = 0; i < check_out_view_tensor.get_size(); ++i) {
+        EXPECT_EQ(check_data[i], 51.0f);
+    }
+}
+
+TEST_P(RoiTensorsTestsRun, TryToCompileStridedTensorWithDynamicBoundsExpectedThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto supportedProperties =
+        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isStridedEnabled =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+
+    if (!isStridedEnabled) {
+        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+    }
+
+    auto model_shape = PartialShape{ov::Dimension(1, 10), 5, ov::Dimension(2, 15), 9};
+    ov::CompiledModel compiled_model;
+    auto model = createModelWithNInputs(element::f32, model_shape, "N...");
+
+    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+
+    EXPECT_THROW(core->compile_model(model, target_device, configuration), ov::Exception);
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
