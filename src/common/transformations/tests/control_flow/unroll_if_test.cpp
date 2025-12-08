@@ -10,9 +10,15 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/if.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/not_equal.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -409,6 +415,202 @@ TEST(TransformationTests, UnrollIfToParameterResultModel) {
 
     EXPECT_THAT(model->input(0).get_names(), UnorderedElementsAre("Input.0", "Output"));
     EXPECT_THAT(model->output(0).get_names(), UnorderedElementsAre("Output"));
+}
+
+// Helper function to create If model with self-comparison condition
+template <typename CompareOp>
+std::shared_ptr<ov::Model> create_if_model_with_self_comparison() {
+    auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+    X->set_friendly_name("X");
+    auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+    Y->set_friendly_name("Y");
+
+    // Create comparison with identical inputs: X op X
+    auto cond = std::make_shared<CompareOp>(X, X);
+    cond->set_friendly_name("cond");
+
+    auto if_op = std::make_shared<ov::op::v8::If>(cond);
+    if_op->set_friendly_name("if_op");
+
+    const auto& then_body = get_then_body();
+    const auto& else_body = get_else_body();
+
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    auto then_p = then_body->get_parameters();
+    auto else_p = else_body->get_parameters();
+    if_op->set_input(X, then_p[0], else_p[0]);
+    if_op->set_input(Y, then_p[1], else_p[1]);
+    if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
+    auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
+    if_result->set_friendly_name("if_result");
+
+    return std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
+}
+
+// Test: x != x -> false, should select else_body (Multiply)
+TEST(TransformationTests, UnrollIfSelfComparisonNotEqual) {
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+    {
+        f = create_if_model_with_self_comparison<ov::op::v1::NotEqual>();
+
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollIf>();
+        manager.run_passes(f);
+
+        OV_ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    { f_ref = get_else_body(); }  // NotEqual(x, x) = false -> else body
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+// Test: x == x -> true, should select then_body (Add)
+TEST(TransformationTests, UnrollIfSelfComparisonEqual) {
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+    {
+        f = create_if_model_with_self_comparison<ov::op::v1::Equal>();
+
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollIf>();
+        manager.run_passes(f);
+
+        OV_ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    { f_ref = get_then_body(); }  // Equal(x, x) = true -> then body
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+// Test: x < x -> false
+TEST(TransformationTests, UnrollIfSelfComparisonLess) {
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+    {
+        f = create_if_model_with_self_comparison<ov::op::v1::Less>();
+
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollIf>();
+        manager.run_passes(f);
+
+        OV_ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    { f_ref = get_else_body(); }  // Less(x, x) = false -> else body
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+// Test: x <= x -> true
+TEST(TransformationTests, UnrollIfSelfComparisonLessEqual) {
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+    {
+        f = create_if_model_with_self_comparison<ov::op::v1::LessEqual>();
+
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollIf>();
+        manager.run_passes(f);
+
+        OV_ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    { f_ref = get_then_body(); }  // LessEqual(x, x) = true -> then body
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+// Test: x > x -> false
+TEST(TransformationTests, UnrollIfSelfComparisonGreater) {
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+    {
+        f = create_if_model_with_self_comparison<ov::op::v1::Greater>();
+
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollIf>();
+        manager.run_passes(f);
+
+        OV_ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    { f_ref = get_else_body(); }  // Greater(x, x) = false -> else body
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+// Test: x >= x -> true
+TEST(TransformationTests, UnrollIfSelfComparisonGreaterEqual) {
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+    {
+        f = create_if_model_with_self_comparison<ov::op::v1::GreaterEqual>();
+
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollIf>();
+        manager.run_passes(f);
+
+        OV_ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    { f_ref = get_then_body(); }  // GreaterEqual(x, x) = true -> then body
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+// Negative test: x != y should NOT be unrolled (different inputs)
+TEST(TransformationTests, UnrollIfDifferentInputsNoChange) {
+    auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+    X->set_friendly_name("X");
+    auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+    Y->set_friendly_name("Y");
+
+    // Different inputs - should NOT be detected as self-comparison
+    auto cond = std::make_shared<ov::op::v1::NotEqual>(X, Y);
+    cond->set_friendly_name("cond");
+
+    auto if_op = std::make_shared<ov::op::v8::If>(cond);
+    if_op->set_friendly_name("if_op");
+    const auto& then_body = get_then_body();
+    const auto& else_body = get_else_body();
+
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    auto then_p = then_body->get_parameters();
+    auto else_p = else_body->get_parameters();
+    if_op->set_input(X, then_p[0], else_p[0]);
+    if_op->set_input(Y, then_p[1], else_p[1]);
+    if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
+    auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
+    if_result->set_friendly_name("if_result");
+
+    auto f = std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::UnrollIf>();
+    manager.run_passes(f);
+
+    // The If node should still exist since the condition is not constant
+    // and not a self-comparison
+    bool if_node_exists = false;
+    for (const auto& op : f->get_ordered_ops()) {
+        if (ov::as_type_ptr<ov::op::v8::If>(op)) {
+            if_node_exists = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(if_node_exists) << "If node should not be removed when inputs are different";
 }
 
 }  // namespace test
