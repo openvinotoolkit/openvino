@@ -6,7 +6,6 @@
 
 #include <ze_command_queue_npu_ext.h>
 #include <ze_driver_npu_ext.h>
-#include <ze_graph_ext.h>
 #include <ze_mem_import_system_memory_ext.h>
 
 #include <regex>
@@ -199,25 +198,27 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     std::string driver_ext_name;
     uint32_t driver_ext_version = 0;
     std::tie(driver_ext_version, driver_ext_name) =
-        queryDriverExtensionVersion(ZE_DRIVER_NPU_EXT_NAME, TARGET_ZE_DRIVER_NPU_EXT_VERSION, extProps, count);
+        queryDriverExtensionVersion(ZE_DRIVER_NPU_EXT_NAME, ZE_DRIVER_NPU_EXT_VERSION_CURRENT, extProps, count);
 
-    _log.debug("NPU driver ext version %d.%d",
-               ZE_MAJOR_VERSION(driver_ext_version),
-               ZE_MINOR_VERSION(driver_ext_version));
+    log.debug("NPU driver ext version %d.%d",
+              ZE_MAJOR_VERSION(driver_ext_version),
+              ZE_MINOR_VERSION(driver_ext_version));
 
     _ze_driver_npu_dditable_ext_t* driver_npu_dditable_ext = nullptr;
     if (driver_ext_version) {
         THROW_ON_FAIL_FOR_LEVELZERO(
             "zeDriverGetExtensionFunctionAddress " + driver_ext_name,
-            zeDriverGetExtensionFunctionAddress(_driver_handle,
+            zeDriverGetExtensionFunctionAddress(driver_handle,
                                                 driver_ext_name.c_str(),
                                                 reinterpret_cast<void**>(&driver_npu_dditable_ext)));
+
+        ze_driver_properties_npu_ext_t driver_npu_properties = {};
+        driver_npu_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES_NPU_EXT;
+        driver_npu_properties.options = ZE_NPU_DRIVER_OPTION_INTEGRITY_CHECKS;
+        driver_npu_dditable_ext->pfnSetProperties(driver_handle, &driver_npu_properties);
     }
 
-    _driver_npu_dditable_ext_decorator =
-        std::make_unique<ze_driver_npu_dditable_ext_decorator>(driver_npu_dditable_ext, driver_ext_version);
-
-    // Query npu graph extension version
+    // Query our graph extension version
     std::string graph_ext_name;
     uint32_t graph_ext_version = 0;
     uint32_t target_graph_ext_version = TARGET_ZE_GRAPH_NPU_EXT_VERSION;
