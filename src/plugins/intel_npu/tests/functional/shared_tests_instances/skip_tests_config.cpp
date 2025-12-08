@@ -45,7 +45,18 @@ public:
     AvailableDevices() {
         const auto corePtr = PluginCache::get().core();
         if (corePtr != nullptr) {
-            _availableDevices = ::getAvailableDevices(*corePtr);
+            _availableDevices.push_back(getTestDeviceId());
+
+            if (_availableDevices.empty()) {
+                auto deviceName = getDeviceName();
+                if (!deviceName.empty()) {
+                    _availableDevices.push_back(getDeviceNameID(deviceName));
+                }
+            }
+
+            if (_availableDevices.empty()) {
+                _availableDevices = ::getAvailableDevices(*corePtr);
+            }
         } else {
             _log.error("Failed to get OpenVINO Core from cache!");
         }
@@ -58,7 +69,7 @@ public:
         if (std::all_of(_availableDevices.begin(), _availableDevices.end(), [&](const std::string& deviceName) {
                 return deviceName.find(standardizedEnvironmentDevice) == std::string::npos;
             })) {
-            _availableDevices.push_back(standardizedEnvironmentDevice);
+            _availableDevices.push_back(getDeviceNameID(standardizedEnvironmentDevice));
         }
 
         auto driverVersionPropetry =
