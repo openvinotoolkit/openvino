@@ -54,6 +54,7 @@ std::string getTestsPlatformFromEnvironmentOr(const std::string& instead);
 std::string getDeviceNameTestCase(const std::string& str);
 std::string getDeviceName();
 std::string getDeviceNameID(const std::string& str);
+std::string getTestPlatform();
 
 }  // namespace ov::test::utils
 

@@ -45,7 +45,7 @@ public:
     AvailableDevices() {
         const auto corePtr = PluginCache::get().core();
         if (corePtr != nullptr) {
-            _availableDevices.push_back(getTestDeviceId());
+            _availableDevices.push_back(getTestPlatform());
 
             if (_availableDevices.empty()) {
                 auto deviceName = getDeviceName();
