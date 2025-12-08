@@ -50,12 +50,12 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INPUT, 0});           // src
-        args.push_back({ArgumentDescriptor::Types::INPUT, 3});           // sumx
-        args.push_back({ArgumentDescriptor::Types::INPUT, 4});           // sumxsq
-        args.push_back({ArgumentDescriptor::Types::INPUT, 2});  // beta
-        args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // gamma
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                    // dst
+        args.push_back({ArgumentDescriptor::Types::INPUT, 0});          // src
+        args.push_back({ArgumentDescriptor::Types::INPUT, 3});          // sumx
+        args.push_back({ArgumentDescriptor::Types::INPUT, 4});          // sumxsq
+        args.push_back({ArgumentDescriptor::Types::INPUT, 2});          // beta
+        args.push_back({ArgumentDescriptor::Types::INPUT, 1});          // gamma
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});         // dst
         return args;
     }
 
@@ -72,8 +72,8 @@ protected:
             auto global_range_c = (gn_desc.c + kernel_knobs.wg_tile_c - 1) / kernel_knobs.wg_tile_c;
 
             // multiply local & global slicing
-            wgs.global = {global_range_n * local_range_n, global_range_w * local_range_w, global_range_c * local_range_c};
-            wgs.local = {local_range_n, local_range_w, local_range_c};
+            wgs.global = {global_range_c * local_range_c, global_range_w * local_range_w, global_range_n * local_range_n};
+            wgs.local = {local_range_c, local_range_w, local_range_n};
         }};
     }
 };
