@@ -128,7 +128,7 @@ ov::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
         auto exp_input = pattern_to_output.at(input);
 
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        if (!op::util::has_constant_value<float>(constant, 1.0f)) {
+        if (!ov::op::util::has_constant_value<float>(constant, 1.0f)) {
             return false;
         }
 
@@ -166,7 +166,7 @@ ov::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
         auto exp_input = pattern_to_output.at(input);
 
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        if (!op::util::has_constant_value<float>(constant, 1.0f)) {
+        if (!ov::op::util::has_constant_value<float>(constant, 1.0f)) {
             return false;
         }
 
