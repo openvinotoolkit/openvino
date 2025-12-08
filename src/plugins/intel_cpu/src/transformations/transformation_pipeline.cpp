@@ -961,7 +961,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                              quantizationRestrictions,
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
 
-    CPU_REGISTER_PASS_COMMON(lptManager, ConvertConvolutionBias);
+    CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
     CPU_SET_CALLBACK_X64(
         lptManager,
         [](const_node_ptr& node) -> bool {
@@ -1001,8 +1001,9 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
             if (ov::is_type<ov::op::v1::Multiply>(eltwise) && FakeQuantizeTransformation::checkElementwise(eltwise)) {
                 const auto eltwiseInput = eltwise->get_input_node_shared_ptr(0);
                 const bool noConvBias = ov::is_type<ov::op::v1::Convolution>(eltwiseInput);
-                const bool withConvBias = ov::is_type<ov::op::v1::Add>(eltwiseInput) &&
-                                          ov::is_type<ov::op::v1::Convolution>(eltwiseInput->get_input_node_shared_ptr(0));
+                const bool withConvBias =
+                    ov::is_type<ov::op::v1::Add>(eltwiseInput) &&
+                    ov::is_type<ov::op::v1::Convolution>(eltwiseInput->get_input_node_shared_ptr(0));
                 return noConvBias || withConvBias;
             }
             return false;
