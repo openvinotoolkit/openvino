@@ -10,6 +10,7 @@ namespace test {
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestFlux,
                          RoPETestFlux,
                          ::testing::Combine(
+                            ::testing::Values(true, false),
                             ::testing::Values(ov::element::f16, ov::element::f32),
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          RoPETestFlux::getTestCaseName);

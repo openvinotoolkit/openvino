@@ -204,6 +204,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         jcp.rotary_ndims = config.rotary_ndims;
         jcp.interleave = true;
         jcp.mix_cos_sin = false;
+        jcp.cos_sin_ndims = config.cos_sin_ndims;
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
@@ -211,34 +212,56 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
-        ov::intel_cpu::PlainTensor t_sin_cos(inputs[1]);
         ov::intel_cpu::PlainTensor t_dst(outputs[0]);
-
-        auto batch_size = t_src.size(0);
-        auto seq_len = t_src.size(1);
-        auto head_cnt = t_src.size(2);
-        auto head_dims = t_src.size(3);
 
         auto rotary_dims = m_config.rotary_ndims;
         auto half_rotary_dims = rotary_dims / 2;
+        if (m_config.use_rope_cache) {
+            ov::intel_cpu::PlainTensor t_sin_cos(inputs[1]);
+            const auto batch_size = t_src.size(0);
+            const auto seq_len = t_src.size(1);
+            const auto head_cnt = t_src.size(2);
+            const auto head_dims = t_src.size(3);
+            parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
+                auto* x = t_src.ptr<T>(b, p, h);
+                float* sin = &t_sin_cos.at<float>({b, p, 0}, true);
+                float* cos = &t_sin_cos.at<float>({b, p, half_rotary_dims}, true);
+                auto* dst = m_config.output_trans0213 ? t_dst.ptr<T>(b, h, p) : t_dst.ptr<T>(b, p, h);
 
-        parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
-            auto* x = t_src.ptr<T>(b, p, h);
-            float* sin = &t_sin_cos.at<float>({b, p, 0}, true);
-            float* cos = &t_sin_cos.at<float>({b, p, half_rotary_dims}, true);
-            auto* dst = m_config.output_trans0213 ? t_dst.ptr<T>(b, h, p) : t_dst.ptr<T>(b, p, h);
-
-            if (m_rotaryKernel) {
-                execJitKernel(m_rotaryKernel, x, dst, cos, sin);
-            } else {
-                size_t i = 0;
-                for (size_t j = 0; i < rotary_dims; i += 2, j++) {
-                    dst[i] = cos[j] * x[i] - sin[j] * x[i + 1];
-                    dst[i + 1] = cos[j] * x[i + 1] + sin[j] * x[i];
+                if (m_rotaryKernel) {
+                    execJitKernel(m_rotaryKernel, x, dst, cos, sin);
+                } else {
+                    size_t i = 0;
+                    for (size_t j = 0; i < rotary_dims; i += 2, j++) {
+                        dst[i] = cos[j] * x[i] - sin[j] * x[i + 1];
+                        dst[i + 1] = cos[j] * x[i + 1] + sin[j] * x[i];
+                    }
                 }
-            }
-            memcpy(dst + rotary_dims, x + rotary_dims, (head_dims - rotary_dims) * sizeof(T));
-        });
+                memcpy(dst + rotary_dims, x + rotary_dims, (head_dims - rotary_dims) * sizeof(T));
+            });
+        } else {
+            const auto batch_size = t_src.size(0);
+            const auto dim_1 = t_src.size(1);
+            const auto dim_2 = t_src.size(2);
+            const auto head_dims = t_src.size(3);
+            ov::intel_cpu::PlainTensor t_cos(inputs[1]);
+            ov::intel_cpu::PlainTensor t_sin(inputs[2]);
+            parallel_for3d(batch_size, dim_1, dim_2, [&](size_t b, size_t d_1, size_t d_2) {
+                auto* x = t_src.ptr<T>(b, d_1, d_2);
+                float* sin = &t_sin.at<float>({b, d_1, d_2}, true);
+                float* cos = &t_cos.at<float>({b, d_1, d_2}, true);
+                auto* dst = m_config.output_trans0213 ? t_dst.ptr<T>(b, d_2, d_1) : t_dst.ptr<T>(b, d_1, d_2);
+                if (m_rotaryKernel) {
+                    execJitKernel(m_rotaryKernel, x, dst, cos, sin);
+                } else {
+                    for (size_t i = 0; i < rotary_dims; i += 2) {
+                        dst[i] = cos[i] * x[i] - sin[i] * x[i + 1];
+                        dst[i + 1] = cos[i + 1] * x[i + 1] + sin[i + 1] * x[i];
+                    }
+                }
+                memcpy(dst + rotary_dims, x + rotary_dims, (head_dims - rotary_dims) * sizeof(T));
+            });
+        }
     }
 };
 

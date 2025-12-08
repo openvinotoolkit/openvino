@@ -74,9 +74,11 @@ private:
     const Vmm vmm_src1 = Vmm(1);
     const Vmm vmm_cos = Vmm(2);
     const Vmm vmm_sin = Vmm(3);
-    const Vmm vmm_dst0 = Vmm(4);
-    const Vmm vmm_dst1 = Vmm(5);
-    const Vmm vmm_idx = Vmm(7);
+    const Vmm vmm_cos1 = Vmm(4);
+    const Vmm vmm_sin1 = Vmm(5);
+    const Vmm vmm_dst0 = Vmm(6);
+    const Vmm vmm_dst1 = Vmm(7);
+    const Vmm vmm_idx = Vmm(8);
     const Xbyak::Reg64 reg_src = r8;
     const Xbyak::Reg64 reg_cos = r10;
     const Xbyak::Reg64 reg_sin = r11;
