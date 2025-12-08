@@ -3,6 +3,8 @@
 //
 
 #include "openvino/util/wstring_convert_util.hpp"
+
+#include <stdexcept>
 #ifdef _WIN32
 #    include <windows.h>
 #endif
