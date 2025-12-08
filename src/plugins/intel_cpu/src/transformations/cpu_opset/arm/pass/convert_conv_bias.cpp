@@ -6,6 +6,7 @@
 #include <iostream>
 #include <memory>
 
+#include "low_precision/rt_info/bias_attribute.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
@@ -22,23 +24,25 @@
 ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
     std::cout << "[ConvertConvolutionBias] Registering transformation" << std::endl;
 
-    // Build pattern: Convolution -> Multiply -> Add with Constant
-    auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>(
-        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
-    
-    auto multiply_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>(
-        {conv_m, ov::pass::pattern::any_input()});
-    
+    // Build pattern: Convolution -> Add with Constant -> Multiply
+    auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>();
+
     auto bias_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    
+
     auto add_m = ov::pass::pattern::wrap_type<ov::op::v1::Add>(
-        {multiply_m, bias_const_m});
+        {conv_m, bias_const_m});
+
+    auto multiply_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>(
+        {add_m, ov::pass::pattern::any_input()});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        std::cout << "[ConvertConvolutionBias] pattern is catched" << std::endl;
         auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(m.get_match_root());
         if (!mul) {
             return false;
         }
+        // mark Multiply as dequantization node to avoid its conversion to PowerStatic
+        ov::mark_as_dequantization_node(mul);
 
         // Get input and weights element types
         const auto& pattern_map = m.get_pattern_value_map();
@@ -61,30 +65,22 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
             return false;
         }
 
-        //std::cout << mul->get_output_target_inputs(0);
-        for (const auto& child : mul->get_output_target_inputs(0)) {
-            if (auto add = ov::as_type<ov::op::v1::Add>(child.get_node())) {
-                if (ov::op::util::is_on_path<ov::op::v0::Constant>(add->input_value(1))) {
-                    std::cout << "[ConvertConvolutionBias] Found Add with Constant input" << std::endl;
-                    if (add->input_value(1).get_node()->get_output_element_type(0) == ov::element::i32) {
-                        // constant is already i32 - no transformation needed
-                        break;
-                    }
-                    std::cout << "[ConvertConvolutionBias] Converting bias Constant to i32" << std::endl;
-                    auto bias_const = ov::as_type_ptr<ov::op::v0::Constant>(add->input_value(1).get_node_shared_ptr());
-                    auto convert_to_i32 = std::make_shared<ov::op::v0::Convert>(bias_const, ov::element::i32);
-                    add->input(1).replace_source_output(convert_to_i32->output(0));
-                    ov::copy_runtime_info(bias_const, convert_to_i32);
-                    std::cout << "[ConvertConvolutionBias] APPLIED: Inserted Convert(i32) before Add" << std::endl;
-
-                    return true;
-                }
-            }
+        auto add = ov::as_type_ptr<ov::op::v1::Add>(pattern_map.at(add_m).get_node_shared_ptr());
+        // the transformation is not applied if add output is already i32
+        if (add->input_value(1).get_node()->get_output_element_type(0) == ov::element::i32) {
+            std::cout << "[ConvertConvolutionBias] NOT APPLIED: Add output is already i32" << std::endl;
+            return false;
         }
-        
-        return false;
+
+        auto bias_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(bias_const_m).get_node_shared_ptr());
+        auto convert_to_i32 = std::make_shared<ov::op::v0::Convert>(bias_const, ov::element::i32);
+        add->input(1).replace_source_output(convert_to_i32->output(0));
+        ov::copy_runtime_info(bias_const, convert_to_i32);
+        std::cout << "[ConvertConvolutionBias] APPLIED: Inserted Convert(i32) before Add" << std::endl;
+
+        return true;
     };
 
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(/*add_m*/multiply_m, "ConvertConvolutionBias");
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(multiply_m, "ConvertConvolutionBias");
     register_matcher(matcher, callback);
 }

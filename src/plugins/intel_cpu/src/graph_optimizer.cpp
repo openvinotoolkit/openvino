@@ -95,6 +95,16 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     FuseConvolutionAndZeroPoints(graph);
     graph.RemoveDroppedNodes();
 
+// The order of applying scales and shifts is different for ARM
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
+    FuseConvolutionMatMulDeconvAndBias(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvMatmulFCDeconvAndDQScales");
+    FuseConvMatmulFCDeconvAndDQScales(graph);
+    graph.RemoveDroppedNodes();
+#else
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvMatmulFCDeconvAndDQScales");
     FuseConvMatmulFCDeconvAndDQScales(graph);
     graph.RemoveDroppedNodes();
@@ -102,7 +112,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
     FuseConvolutionMatMulDeconvAndBias(graph);
     graph.RemoveDroppedNodes();
-
+#endif
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMultiplyAndAdd");
     FuseMultiplyAndAdd(graph);
     graph.RemoveDroppedNodes();
@@ -264,7 +274,12 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         if (!parentNode->canBeExecutedInInt8()) {
             return false;
         }
+// The order of applying scales and shifts is different for ARM, so bias is already fused here for ARM
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        return true;
+#else
         return (parentNode->getParentEdges().size() == 2);
+#endif
     };
 
     auto scaleDimsCheck = [](const NodePtr& node, const NodePtr& scales) {
@@ -1447,6 +1462,16 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph& graph) {
             parent++;
             continue;
         }
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        // u8 FakeQuantize should not be fused into convolution with i8 input
+        if (childNode->getType() == Type::FakeQuantize &&
+            childNode->getOriginalOutputPrecisionAtPort(0) == ov::element::u8 &&
+            parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::i8) {
+            parent++;
+            continue;
+        }
+#endif
 
         childNode->fuseInto(parentNode);
 

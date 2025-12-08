@@ -9,6 +9,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "openvino/util/common_util.hpp"
 
 using namespace CPUTestUtils;
@@ -21,6 +22,7 @@ typedef std::tuple<
         element::Type,                     // input precision
         std::vector<std::vector<float>>,   // quantize intervals
         std::vector<size_t>,               // fq const shapes
+        bool,                              // bias presence
         std::string                        // device name
 > ConvAndFQTestParams;
 
@@ -28,7 +30,7 @@ class ConvAndFQ : public testing::WithParamInterface<ConvAndFQTestParams>,
                   virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvAndFQTestParams>& obj) {
-        const auto& [inputShape, inputPrecision, quantizeIntervals, fqConstShapes, targetName] = obj.param;
+        const auto& [inputShape, inputPrecision, quantizeIntervals, fqConstShapes, withBias, targetName] = obj.param;
         std::ostringstream results;
 
         results << "IS=" << inputShape << "_InPRC=" << inputPrecision
@@ -37,6 +39,7 @@ public:
             results << ov::util::vector_to_string(vecInt) << ",";
         }
         results << "_fqShapes=" << ov::util::vector_to_string(fqConstShapes)
+                << "_withBias=" << withBias
                 << "_targetDevice=" << targetName;
 
         return results.str();
@@ -44,7 +47,7 @@ public:
 
 protected:
     void SetUp() override {
-        const auto& [inputShape, inputPrecision, quantizeIntervals, fqConstShapes, targetName] = this->GetParam();
+        const auto& [inputShape, inputPrecision, quantizeIntervals, fqConstShapes, withBias, targetName] = this->GetParam();
         abs_threshold = 4e-3f;
         targetDevice = targetName;
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
@@ -63,7 +66,7 @@ protected:
 
         auto weights = utils::make_constant(element::i8, {4, 3, 2, 2});
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
-        auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(element::f32, {1, 1}, {0.625}));
+        auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(element::f32, {4, 1, 1, 1}, {0.625}));
 
         std::shared_ptr<Node> conv;
         {
@@ -86,7 +89,15 @@ protected:
                                                      numOutChannels);
         }
 
-        auto fq_after = ov::test::utils::make_fake_quantize(conv,
+        auto fqInput = conv;
+        if (withBias) {
+            auto bias = ov::test::utils::make_constant(ov::element::f16, ov::Shape({1, 4, 1, 1}));
+            auto convertBias = std::make_shared<op::v0::Convert>(bias, element::f32);
+            auto convBiasAdd = std::make_shared<ov::op::v1::Add>(conv, convertBias);
+            fqInput = convBiasAdd;
+        }
+
+        auto fq_after = ov::test::utils::make_fake_quantize(fqInput,
                                                             inputPrecision,
                                                             256,
                                                             {},
@@ -95,12 +106,24 @@ protected:
                                                             {quantizeIntervals[2][0]},
                                                             {quantizeIntervals[3][0]});
 
-        auto matmul_const = ov::test::utils::make_constant(ov::element::i8, {1, 1});
-        auto convert_mm = std::make_shared<op::v0::Convert>(matmul_const, inputPrecision);
-        auto multiply_mm = std::make_shared<op::v1::Multiply>(convert_mm, op::v0::Constant::create(inputPrecision, {1, 1}, {0.1}));
-        const auto matMul = std::make_shared<ov::op::v0::MatMul>(fq_after, multiply_mm, false, false);
+        std::shared_ptr<Node> pooling;
+        {
+            const std::vector<size_t> kernelSize = {3, 3};
+            const std::vector<size_t> strides = {2, 2};
+            const std::vector<size_t> padBegin = {1, 1};
+            const std::vector<size_t> padEnd = {1, 1};
+            const op::PadType paddingType = op::PadType::EXPLICIT;
+            ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
+            pooling = std::make_shared<ov::op::v1::MaxPool>(fq_after,
+                                                            strides,
+                                                            padBegin,
+                                                            padEnd,
+                                                            kernelSize,
+                                                            roundingType,
+                                                            paddingType);
+        }
 
-        function = makeNgraphFunction(inputPrecision, input_params, matMul, "ConvFQ");
+        function = makeNgraphFunction(inputPrecision, input_params, pooling, "ConvFQ");
     }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
@@ -131,7 +154,7 @@ TEST_P(ConvAndFQ, CompareWithRefs) {
     // so in this case we fallback to f32 implementation
     ov::element::Type expectedPrecision = element::f32;
 #if defined(OPENVINO_ARCH_ARM64)
-    const auto& [inputShape, inputPrecision, quantizeIntervals, fqConstShapes, targetName] = this->GetParam();
+    const auto& [inputShape, inputPrecision, quantizeIntervals, fqConstShapes, withBias, targetName] = this->GetParam();
     if (fqConstShapes.empty()) {
         expectedPrecision = quantizeIntervals[0][0] < 0.f ? element::i8 : element::u8;
     }
@@ -144,7 +167,7 @@ TEST_P(ConvAndFQ, CompareWithRefs) {
 namespace {
 
 std::vector<InputShape> inputShapes{{{}, {{1, 3, 2, 2}}},
-                                    {{-1, 3, -1, 2}, {{1, 3, 4, 2}}}};
+                                   {{-1, 3, -1, 2}, {{1, 3, 4, 2}}}};
 
 std::vector<std::vector<std::vector<float>>> perTensorQuantizeIntervals{
     {{-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
@@ -155,12 +178,15 @@ std::vector<std::vector<std::vector<float>>> perChannelQuantizeIntervals{
     {{-1.28f, -1.0f, -0.8f}, {1.27f, 1.0f, 0.8f}, {-1.28f, -1.0f, -0.8f}, {1.27f, 1.0f, 0.8f}},
 };
 
+std::vector<bool> withBias{false, true};
+
 INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU_PerTensor,
                          ConvAndFQ,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::Values(element::f32),
                                             ::testing::ValuesIn(perTensorQuantizeIntervals),
                                             ::testing::Values(std::vector<size_t>{}),
+                                            ::testing::ValuesIn(withBias),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
 
@@ -170,6 +196,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU_PerChannel,
                                             ::testing::Values(element::f32),
                                             ::testing::ValuesIn(perChannelQuantizeIntervals),
                                             ::testing::Values(std::vector<size_t>{1, 3, 1, 1}),
+                                            ::testing::ValuesIn(withBias),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
 

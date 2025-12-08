@@ -955,27 +955,24 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         PrecisionsRestriction::create<ov::op::v5::GRUSequence>({{{0, 1}, {ov::element::u8}}}),
     });
 #endif
-    CPU_REGISTER_PASS_COMMON(lptManager,
+    auto lpt_pass = CPU_REGISTER_PASS_COMMON(lptManager,
                              LowPrecision,
                              supportedPrecisions,
                              quantizationRestrictions,
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
-    auto lpt_pass = lptManager.register_pass<LowPrecision>(supportedPrecisions,
-                                                           quantizationRestrictions,
-                                                           LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
+
     lpt_pass->add_main<ConvertConvolutionBias>();
-    /*CPU_SET_CALLBACK_COMMON(
+    CPU_SET_CALLBACK_X64(
         lptManager,
         [](const_node_ptr& node) -> bool {
             return ov::marked_as_bias(node);
         },
-        AddTransformation);*/
+        AddTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MVNTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, NormalizeL2Transformation);
     CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
@@ -998,16 +995,16 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         MatMulTransformation);
 
     // Disable FakeQuantizeTransformation to preserve Convolution dequantization scale as a separate op
-    /*CPU_SET_CALLBACK_ARM(
+    CPU_SET_CALLBACK_ARM(
         lptManager,
         [&](const_node_ptr& node) -> bool {
             auto eltwise = node->get_input_node_shared_ptr(0);
-            if (ov::is_type<ov::op::v1::Multiply>(eltwise) && FakeQuantizeTransformation::checkElementwise(eltwise)) {
+            if (ov::is_type<ov::op::v1::Add>(eltwise) && FakeQuantizeTransformation::checkElementwise(eltwise)) {
                 return ov::is_type<ov::op::v1::Convolution>(eltwise->get_input_node_shared_ptr(0));
             }
             return false;
         },
-        FakeQuantizeTransformation);*/
+        FakeQuantizeTransformation);
 
     CPU_SET_CALLBACK_X64(
         lptManager,
@@ -1651,10 +1648,16 @@ void Transformations::PostSnippets() {
         [](const_node_ptr& node) -> bool {
             if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
                 ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
+                std::cout << "[FakeQuantizeDecomposition] FQ is detected" << std::endl;
                 auto parent = node->get_input_node_shared_ptr(0);
-                if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty() &&
-                    ov::is_type<const ov::op::v1::Convolution>(parent->get_input_node_shared_ptr(0))) {
-                    return true;
+                if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty()) {
+                    auto multiply_input = parent->get_input_node_shared_ptr(0);
+                    if (ov::is_type<const ov::op::v1::Convolution>(multiply_input) ||
+                        (ov::is_type<const ov::op::v1::Add>(multiply_input) &&
+                         ov::is_type<const ov::op::v1::Convolution>(multiply_input->get_input_node_shared_ptr(0)))) {
+                        std::cout << "[FakeQuantizeDecomposition] FQ decomposition is called" << std::endl;
+                        return true;
+                    }
                 }
             }
             return false;
