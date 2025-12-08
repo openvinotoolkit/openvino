@@ -1470,6 +1470,19 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.q], query_tensor);
     final_tile_request->set_tensor(hfa_desc._compiled_final_tile_model->inputs()[tile_in.q], query_tensor);
 
+    // Set output state tensors for regular tile model (will be updated in-place after each tile execution)
+    regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->outputs()[tile_out.acc], state_acc);
+    regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->outputs()[tile_out.max], state_max);
+    regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->outputs()[tile_out.d], state_sum);
+
+    // Set accumulated state tensors as inputs for final tile (will read from regular tiles' outputs)
+    final_tile_request->set_tensor(hfa_desc._compiled_final_tile_model->inputs()[tile_in.acc], state_acc);
+    final_tile_request->set_tensor(hfa_desc._compiled_final_tile_model->inputs()[tile_in.max], state_max);
+    final_tile_request->set_tensor(hfa_desc._compiled_final_tile_model->inputs()[tile_in.d], state_sum);
+
+    // Final attention output
+    final_tile_request->set_tensor(hfa_desc._compiled_final_tile_model->outputs()[0], attention_output_tensor);
+
     // ================================================================================================
     // SECTION 4: Tile Processing Loop
     // ================================================================================================
@@ -1488,8 +1501,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
                             const ov::SoPtr<ov::ITensor>& v_source,
                             int64_t kv_offset,
                             int64_t mask_offset,
-                            int64_t tile_length,
-                            bool is_final) {
+                            int64_t tile_length) {
         // Get tile input buffers
         auto k_tile_buffer = request->get_tensor(model->inputs()[tile_in.k]);
         auto v_tile_buffer = request->get_tensor(model->inputs()[tile_in.v]);
@@ -1569,31 +1581,8 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
             }
         }
 
-        // Set state tensors (only needed for final tile to read accumulated intermediate results)
-        // Note: Regular tiles don't need explicit set_tensor because they use the same buffer
-        //       that gets updated in-place via output copy after each tile execution
-        if (is_final) {
-            request->set_tensor(model->inputs()[tile_in.acc], state_acc);
-            request->set_tensor(model->inputs()[tile_in.max], state_max);
-            request->set_tensor(model->inputs()[tile_in.d], state_sum);
-        }
-
         // Execute tile inference
         request->infer();
-
-        // Process outputs
-        if (is_final) {
-            auto final_attention_output = request->get_tensor(model->outputs()[0]);
-            final_attention_output->copy_to(attention_output_tensor._ptr);
-        } else {
-            auto output_acc = request->get_tensor(model->outputs()[tile_out.acc]);
-            auto output_max = request->get_tensor(model->outputs()[tile_out.max]);
-            auto output_sum = request->get_tensor(model->outputs()[tile_out.d]);
-
-            output_acc->copy_to(state_acc._ptr);
-            output_max->copy_to(state_max._ptr);
-            output_sum->copy_to(state_sum._ptr);
-        }
     };
 
     int64_t mask_tile_offset = 0;
@@ -1608,8 +1597,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
                      past_value_tensor,
                      kv_tile_offset,
                      mask_tile_offset,
-                     tile_size,
-                     false);
+                     tile_size);
 
         kv_tile_offset += tile_size;
         mask_tile_offset += tile_size;
@@ -1636,8 +1624,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
                      present_value_tensor,
                      0,
                      final_mask_offset,
-                     final_tile_length,
-                     true);
+                     final_tile_length);
     }
 }
 
