@@ -23,13 +23,19 @@ void IRGraph::MemRefType::setArg(const void* arg) {
 void IRGraph::MemRefType::setSize(const intel_npu::IODescriptor& desc) {
     // Note: check difference between shape from compiler and shape from IR.
     const auto& shape = desc.shapeFromCompiler.get_shape();
-    sizes = shape;
+    sizes.resize(shape.size());
+    strides.resize(shape.size());
+    dimsCount = static_cast<uint32_t>(shape.size());
+    for (size_t i = 0; i < shape.size(); ++i) {
+        sizes[i] = shape[i];
+        strides[i] = 0;  // Strides are not set yet, will be updated
+    }
 }
 
 void IRGraph::MemRefType::updateStride() {
-    // Note: NCHW layout
+    // Note: NCHW layout style
     uint64_t stride = 1;
-    for (int32_t i = 4 - 1; i >= 0; --i) {
+    for (int32_t i = dimsCount - 1; i >= 0; --i) {
         strides[i] = stride;
         stride *= sizes[i];
     }
@@ -65,7 +71,12 @@ IRGraph::GraphArguments& IRGraph::GraphArguments::operator=(const GraphArguments
     auto& inputs = args._inputs;
     for (size_t i = 0; i < inputs.size(); ++i) {
         if (_inputs[i] == nullptr)
-            _inputs[i] = new MemRefType();
+            _inputs[i] = new MemRefType(inputs[i]->basePtr,
+                                        inputs[i]->data,
+                                        inputs[i]->offset,
+                                        inputs[i]->sizes,
+                                        inputs[i]->strides,
+                                        inputs[i]->dimsCount);
         *_inputs[i] = *inputs[i];
     }
 
@@ -82,7 +93,12 @@ IRGraph::GraphArguments& IRGraph::GraphArguments::operator=(const GraphArguments
     auto& outputs = args._outputs;
     for (size_t i = 0; i < outputs.size(); ++i) {
         if (_outputs[i] == nullptr)
-            _outputs[i] = new MemRefType();
+            _outputs[i] = new MemRefType(outputs[i]->basePtr,
+                                         outputs[i]->data,
+                                         outputs[i]->offset,
+                                         outputs[i]->sizes,
+                                         outputs[i]->strides,
+                                         outputs[i]->dimsCount);
         *_outputs[i] = *outputs[i];
     }
 
@@ -190,8 +206,11 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob,
     _logger.debug("Inputs:");
     auto& inputs = _binding._inputs;
     for (size_t i = 0; i < inputs.size(); ++i) {
-        inputs[i] = new MemRefType();
-        inputs[i]->setSize(metadata.inputs[i]);
+        // Use size as placeholder of stride
+        const auto& shape = metadata.inputs[i].shapeFromCompiler.get_shape();
+        std::vector<int64_t> shapeVec(shape.begin(), shape.end());
+        inputs[i] = new MemRefType(nullptr, nullptr, 0, shapeVec, shapeVec, shapeVec.size());
+        // Calc real stride
         inputs[i]->updateStride();
         std::ostringstream oss;
         oss << (*inputs[i]);
@@ -202,8 +221,9 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob,
     _binding._outputs.resize(arg_outputs.size());
     auto& outputs = _binding._outputs;
     for (size_t i = 0; i < outputs.size(); ++i) {
-        outputs[i] = new MemRefType();
-        outputs[i]->setSize(metadata.outputs[i]);
+        const auto& shape = metadata.outputs[i].shapeFromCompiler.get_shape();
+        std::vector<int64_t> shapeVec(shape.begin(), shape.end());
+        outputs[i] = new MemRefType(nullptr, nullptr, 0, shapeVec, shapeVec, shapeVec.size());
         outputs[i]->updateStride();
         std::ostringstream oss;
         oss << (*outputs[i]);
@@ -365,13 +385,13 @@ void IRGraphImpl::setArgumentValue(uint32_t argi, const void* argv) {
     auto inputs = _binding._inputs;
     if (argi < inputs.size()) {
         _logger.debug("setArgumentValue for index %d (input %d)", argi, argi);
-        inputs[argi]->memRef.basePtr = inputs[argi]->memRef.data = const_cast<void*>(argv);
+        inputs[argi]->basePtr = inputs[argi]->data = const_cast<void*>(argv);
     } else {
         auto outputs = _binding._outputs;
         auto idx = argi - inputs.size();
         _logger.debug("setArgumentValue for index %d (output %d)", argi, idx);
         if (idx < outputs.size()) {
-            outputs[idx]->memRef.basePtr = outputs[idx]->memRef.data = const_cast<void*>(argv);
+            outputs[idx]->basePtr = outputs[idx]->data = const_cast<void*>(argv);
         }
     }
 }
@@ -387,25 +407,25 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
         oss << *(inputs[argi]);
         _logger.debug("setArgumentProperty for index %d (input %d)", argi, argi);
         _logger.debug("Before change: %s", oss.str().c_str());
-        inputs[argi]->memRef.basePtr = inputs[argi]->memRef.data = const_cast<void*>(argv);
+        inputs[argi]->basePtr = inputs[argi]->data = const_cast<void*>(argv);
         // Now MemRefType only support 4 dimension
         size_t shapesSize = shapes.size();
         for (size_t i = 0; i < 4; i++) {
             if (i < shapesSize) {
-                inputs[argi]->memRef.sizes[i] = shapes[i];
+                inputs[argi]->sizes[i] = shapes[i];
             } else {
                 // Set dimension to 1 if exceed region of shapes
-                inputs[argi]->memRef.sizes[i] = 1;
+                inputs[argi]->sizes[i] = 1;
             }
         }
 
         size_t stridesSize = strides.size();
         for (size_t i = 0; i < 4; i++) {
             if (i < stridesSize) {
-                inputs[argi]->memRef.strides[i] = strides[i];
+                inputs[argi]->strides[i] = strides[i];
             } else {
                 // Set dimension to 1 if exceed region of shapes
-                inputs[argi]->memRef.strides[i] = 1;
+                inputs[argi]->strides[i] = 1;
             }
         }
 
@@ -424,26 +444,26 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
             std::ostringstream oss;
             oss << *(outputs[idx]);
             _logger.debug("Before change: %s", oss.str().c_str());
-            outputs[idx]->memRef.basePtr = outputs[idx]->memRef.data = const_cast<void*>(argv);
+            outputs[idx]->basePtr = outputs[idx]->data = const_cast<void*>(argv);
 
             // Now MemRefType only support 4 dimension
             size_t shapesSize = shapes.size();
             for (size_t i = 0; i < 4; i++) {
                 if (i < shapesSize) {
-                    outputs[idx]->memRef.sizes[i] = shapes[i];
+                    outputs[idx]->sizes[i] = shapes[i];
                 } else {
                     // Set dimension to 1 if exceed region of shapes
-                    outputs[idx]->memRef.sizes[i] = 1;
+                    outputs[idx]->sizes[i] = 1;
                 }
             }
 
             size_t stridesSize = strides.size();
             for (size_t i = 0; i < 4; i++) {
                 if (i < stridesSize) {
-                    outputs[idx]->memRef.strides[i] = strides[i];
+                    outputs[idx]->strides[i] = strides[i];
                 } else {
                     // Set dimension to 1 if exceed region of shapes
-                    outputs[idx]->memRef.strides[i] = 1;
+                    outputs[idx]->strides[i] = 1;
                 }
             }
 

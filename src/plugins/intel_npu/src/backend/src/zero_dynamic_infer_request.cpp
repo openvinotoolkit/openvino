@@ -904,13 +904,13 @@ void ZeroDynamicInferRequest::infer_async() {
             bool shapeChanged = false;
             for (size_t i = 0; i < outputPros.size(); i++) {
                 for (size_t j = 0; j < 4; j++) {
-                    if (graphArgs._outputs[i]->memRef.sizes[j] != outputPros[i].memRef.sizes[j]) {
+                    if (graphArgs._outputs[i]->sizes[j] != outputPros[i].sizes[j]) {
                         _logger.warning(
                             "Output tensor %d shape and predicted shape mimsmatch at dim %zu, changed from %zu to %zu",
                             i,
                             j,
-                            graphArgs._outputs[i]->memRef.sizes[j],
-                            outputPros[i].memRef.sizes[j]);
+                            graphArgs._outputs[i]->sizes[j],
+                            outputPros[i].sizes[j]);
                         shapeChanged = true;
                         break;
                     }

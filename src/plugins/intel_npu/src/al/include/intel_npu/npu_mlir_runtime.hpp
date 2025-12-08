@@ -175,8 +175,8 @@ NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL np
 /// @brief Create MemRef handle
 NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
 npuMLIRRuntimeCreateMemRef(npu_mlir_runtime_mem_ref_handle_t* phMemRef,  ///< [out] handle of mlir runtime MemRef object
-                           void** pBasePtr,                              ///< [in] pointer to basePtr
-                           void** pData,                                 ///< [in] pointer to data
+                           const void** pBasePtr,                        ///< [in] pointer to basePtr
+                           const void** pData,                           ///< [in] pointer to data
                            int64_t offset,                               ///< [in] offset in MemRef
                            int64_t* pSizes,                              ///< [in] pointer to tensor sizes
                            int64_t* pStrides,                            ///< [in] pointer to tensor strides
@@ -191,8 +191,8 @@ npuMLIRRuntimeDestroyMemRef(npu_mlir_runtime_mem_ref_handle_t hMemRef);  ///< [o
 /// @brief Set new value to MemRef
 NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
 npuMLIRRuntimeSetMemRef(npu_mlir_runtime_mem_ref_handle_t hMemRef,  ///< [in] handle of mlir runtime MemRef object
-                        void** pBasePtr,                            ///< [in] pointer to basePtr
-                        void** pData,                               ///< [in] pointer to data
+                        const void** pBasePtr,                      ///< [in] pointer to basePtr
+                        const void** pData,                         ///< [in] pointer to data
                         int64_t offset,                             ///< [in] offset in MemRef
                         int64_t* pSizes,                            ///< [in] pointer to tensor sizes
                         int64_t* pStrides,                          ///< [in] pointer to tensor strides

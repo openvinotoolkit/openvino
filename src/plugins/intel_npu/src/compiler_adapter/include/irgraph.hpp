@@ -26,8 +26,8 @@ public:
         std::vector<int64_t> strides;
         uint32_t dimsCount;
 
-        MemRefType(void* basePtr,
-                   void* data,
+        MemRefType(const void* basePtr,
+                   const void* data,
                    int64_t offset,
                    const std::vector<int64_t>& sizes,
                    const std::vector<int64_t>& strides,
@@ -121,10 +121,14 @@ public:
 
         void UpdateMemRefHandleStatus() {
             // Update current MemRef handle to use latest metadata
-            auto result =
-                npuMLIRRuntimeSetMemRef(memRef, &basePtr, &data, offset, sizes.data(), strides.data(), dimsCount);
-            if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
-                throw std::runtime_error("Failed to update MemRef handle");
+            if (memRef == nullptr) {
+                createMemRef();
+            } else {
+                auto result =
+                    npuMLIRRuntimeSetMemRef(memRef, &basePtr, &data, offset, sizes.data(), strides.data(), dimsCount);
+                if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+                    throw std::runtime_error("Failed to update MemRef handle");
+                }
             }
         }
 
