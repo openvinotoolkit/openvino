@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -56,6 +57,35 @@ std::shared_ptr<ov::Model> get_else_body() {
     auto Xe = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
     Xe->set_friendly_name("Xe");
     auto Ye = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+    Ye->set_friendly_name("Ye");
+    auto mul_op = std::make_shared<ov::op::v1::Multiply>(Xe, Ye);
+    mul_op->set_friendly_name("mul_op");
+    auto else_op_result = std::make_shared<ov::op::v0::Result>(mul_op);
+    else_op_result->set_friendly_name("else_op_result");
+    auto else_body = std::make_shared<ov::Model>(ov::OutputVector{else_op_result}, ov::ParameterVector{Xe, Ye});
+    ov::pass::InitNodeInfo().run_on_model(else_body);
+    return else_body;
+}
+
+// Integer versions for self-comparison tests (NaN-safe optimization only applies to integer types)
+std::shared_ptr<ov::Model> get_then_body_i64() {
+    auto Xt = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{3});
+    Xt->set_friendly_name("Xt");
+    auto Yt = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{3});
+    Yt->set_friendly_name("Yt");
+    auto add_op = std::make_shared<ov::op::v1::Add>(Xt, Yt);
+    add_op->set_friendly_name("add_op");
+    auto then_op_result = std::make_shared<ov::op::v0::Result>(add_op);
+    then_op_result->set_friendly_name("then_op_result");
+    auto then_body = std::make_shared<ov::Model>(ov::OutputVector{then_op_result}, ov::ParameterVector{Xt, Yt});
+    ov::pass::InitNodeInfo().run_on_model(then_body);
+    return then_body;
+}
+
+std::shared_ptr<ov::Model> get_else_body_i64() {
+    auto Xe = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{3});
+    Xe->set_friendly_name("Xe");
+    auto Ye = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{3});
     Ye->set_friendly_name("Ye");
     auto mul_op = std::make_shared<ov::op::v1::Multiply>(Xe, Ye);
     mul_op->set_friendly_name("mul_op");
@@ -417,12 +447,14 @@ TEST(TransformationTests, UnrollIfToParameterResultModel) {
     EXPECT_THAT(model->output(0).get_names(), UnorderedElementsAre("Output"));
 }
 
-// Helper function to create If model with self-comparison condition
+// Helper function to create If model with self-comparison condition (integer type for NaN-safe optimization)
 template <typename CompareOp>
 std::shared_ptr<ov::Model> create_if_model_with_self_comparison() {
-    auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+    // Use integer type (i64) because self-comparison optimization only applies to non-float types
+    // to preserve IEEE 754 NaN semantics for floating-point
+    auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{3});
     X->set_friendly_name("X");
-    auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+    auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{3});
     Y->set_friendly_name("Y");
 
     // Create comparison with identical inputs: X op X
@@ -432,8 +464,8 @@ std::shared_ptr<ov::Model> create_if_model_with_self_comparison() {
     auto if_op = std::make_shared<ov::op::v8::If>(cond);
     if_op->set_friendly_name("if_op");
 
-    const auto& then_body = get_then_body();
-    const auto& else_body = get_else_body();
+    const auto& then_body = get_then_body_i64();
+    const auto& else_body = get_else_body_i64();
 
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
@@ -448,7 +480,7 @@ std::shared_ptr<ov::Model> create_if_model_with_self_comparison() {
     return std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
 }
 
-// Test: x != x -> false, should select else_body (Multiply)
+// Test: x != x -> false, should select else_body (Multiply) - integer type
 TEST(TransformationTests, UnrollIfSelfComparisonNotEqual) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
@@ -462,13 +494,13 @@ TEST(TransformationTests, UnrollIfSelfComparisonNotEqual) {
         OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    { f_ref = get_else_body(); }  // NotEqual(x, x) = false -> else body
+    { f_ref = get_else_body_i64(); }  // NotEqual(x, x) = false -> else body
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-// Test: x == x -> true, should select then_body (Add)
+// Test: x == x -> true, should select then_body (Add) - integer type
 TEST(TransformationTests, UnrollIfSelfComparisonEqual) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
@@ -482,13 +514,13 @@ TEST(TransformationTests, UnrollIfSelfComparisonEqual) {
         OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    { f_ref = get_then_body(); }  // Equal(x, x) = true -> then body
+    { f_ref = get_then_body_i64(); }  // Equal(x, x) = true -> then body
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-// Test: x < x -> false
+// Test: x < x -> false - integer type
 TEST(TransformationTests, UnrollIfSelfComparisonLess) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
@@ -502,13 +534,13 @@ TEST(TransformationTests, UnrollIfSelfComparisonLess) {
         OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    { f_ref = get_else_body(); }  // Less(x, x) = false -> else body
+    { f_ref = get_else_body_i64(); }  // Less(x, x) = false -> else body
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-// Test: x <= x -> true
+// Test: x <= x -> true - integer type
 TEST(TransformationTests, UnrollIfSelfComparisonLessEqual) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
@@ -522,13 +554,13 @@ TEST(TransformationTests, UnrollIfSelfComparisonLessEqual) {
         OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    { f_ref = get_then_body(); }  // LessEqual(x, x) = true -> then body
+    { f_ref = get_then_body_i64(); }  // LessEqual(x, x) = true -> then body
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-// Test: x > x -> false
+// Test: x > x -> false - integer type
 TEST(TransformationTests, UnrollIfSelfComparisonGreater) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
@@ -542,13 +574,13 @@ TEST(TransformationTests, UnrollIfSelfComparisonGreater) {
         OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    { f_ref = get_else_body(); }  // Greater(x, x) = false -> else body
+    { f_ref = get_else_body_i64(); }  // Greater(x, x) = false -> else body
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-// Test: x >= x -> true
+// Test: x >= x -> true - integer type
 TEST(TransformationTests, UnrollIfSelfComparisonGreaterEqual) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
@@ -562,10 +594,138 @@ TEST(TransformationTests, UnrollIfSelfComparisonGreaterEqual) {
         OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    { f_ref = get_then_body(); }  // GreaterEqual(x, x) = true -> then body
+    { f_ref = get_then_body_i64(); }  // GreaterEqual(x, x) = true -> then body
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
+}
+
+// Test: NaN behavior - Constant with NaN values
+// Per IEEE 754: NaN != NaN should be true
+// When inputs are constants, the existing constant folding path (get_constant_from_source)
+// correctly evaluates NaN != NaN to true per IEEE 754.
+// Our self-comparison optimization is NOT triggered for constants (constant folding is used instead).
+TEST(TransformationTests, UnrollIfSelfComparisonWithNaNConstant) {
+    // Create a constant containing NaN
+    auto nan_val = std::numeric_limits<float>::quiet_NaN();
+    auto nan_const = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{nan_val});
+    nan_const->set_friendly_name("nan_const");
+
+    auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+    Y->set_friendly_name("Y");
+
+    // NotEqual(nan_const, nan_const) - same constant source
+    // Per IEEE 754: NaN != NaN -> true (should select then_body)
+    // Constant folding path handles this correctly!
+    auto cond = std::make_shared<ov::op::v1::NotEqual>(nan_const, nan_const);
+    cond->set_friendly_name("cond");
+
+    // Then body: output Y + 1
+    std::shared_ptr<ov::Model> then_body;
+    {
+        auto Yt = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+        auto one = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{1.0f});
+        auto add = std::make_shared<ov::op::v1::Add>(Yt, one);
+        then_body = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{Yt});
+    }
+
+    // Else body: output Y * 2
+    std::shared_ptr<ov::Model> else_body;
+    {
+        auto Ye = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+        auto two = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{2.0f});
+        auto mul = std::make_shared<ov::op::v1::Multiply>(Ye, two);
+        else_body = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{Ye});
+    }
+
+    auto if_op = std::make_shared<ov::op::v8::If>(cond);
+    if_op->set_friendly_name("if_op");
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+
+    auto then_p = then_body->get_parameters();
+    auto else_p = else_body->get_parameters();
+    if_op->set_input(Y, then_p[0], else_p[0]);
+    if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
+
+    auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
+    auto f = std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{Y});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::UnrollIf>();
+    manager.run_passes(f);
+
+    // The If node should be removed (constant folding path evaluates condition)
+    bool if_node_exists = false;
+    for (const auto& op : f->get_ordered_ops()) {
+        if (ov::as_type_ptr<ov::op::v8::If>(op)) {
+            if_node_exists = true;
+            break;
+        }
+    }
+    ASSERT_FALSE(if_node_exists) << "If node should be removed";
+
+    // Per IEEE 754, NaN != NaN is TRUE, so then_body (Add) should be selected
+    bool has_add = false;
+    for (const auto& op : f->get_ordered_ops()) {
+        if (ov::as_type_ptr<ov::op::v1::Add>(op)) {
+            has_add = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(has_add) << "Then body (Add) should be selected since NaN != NaN is TRUE per IEEE 754";
+}
+
+// Test: Self-comparison with float Parameter is NOT optimized (IEEE 754 NaN compliance)
+// Per IEEE 754: NaN != NaN is TRUE, so we cannot assume x != x is always false for floats.
+// The optimization is skipped for floating-point types to preserve correct NaN semantics.
+TEST(TransformationTests, UnrollIfSelfComparisonFloatParameterNotOptimized) {
+    // X is a float Parameter - at runtime it COULD contain NaN
+    auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+    X->set_friendly_name("X");
+    auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+    Y->set_friendly_name("Y");
+
+    // NotEqual(X, X) - same Parameter, but float type
+    // IEEE 754: if X contains NaN, result should be TRUE
+    // Our optimization: SKIP for float types to preserve IEEE 754 compliance
+    auto cond = std::make_shared<ov::op::v1::NotEqual>(X, X);
+    cond->set_friendly_name("cond");
+
+    auto if_op = std::make_shared<ov::op::v8::If>(cond);
+    if_op->set_friendly_name("if_op");
+    const auto& then_body = get_then_body();
+    const auto& else_body = get_else_body();
+
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    auto then_p = then_body->get_parameters();
+    auto else_p = else_body->get_parameters();
+    if_op->set_input(X, then_p[0], else_p[0]);
+    if_op->set_input(Y, then_p[1], else_p[1]);
+    if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
+    auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
+    if_result->set_friendly_name("if_result");
+
+    auto f = std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::UnrollIf>();
+    manager.run_passes(f);
+
+    OV_ASSERT_NO_THROW(check_rt_info(f));
+
+    // Verify the transformation is NOT applied for float types (If node should remain)
+    bool if_node_exists = false;
+    for (const auto& op : f->get_ordered_ops()) {
+        if (ov::as_type_ptr<ov::op::v8::If>(op)) {
+            if_node_exists = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(if_node_exists) << "If node should NOT be removed for float self-comparison (IEEE 754 NaN safety)";
 }
 
 // Negative test: x != y should NOT be unrolled (different inputs)

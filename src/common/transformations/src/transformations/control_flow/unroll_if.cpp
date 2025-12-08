@@ -27,10 +27,15 @@
 namespace {
 // Evaluates self-comparison (x op x) where both inputs are identical.
 // Returns {is_self_comparison, result}.
-// Self-comparison semantics:
+// Self-comparison semantics (for non-NaN values):
 //   x == x  -> true    x != x  -> false
 //   x <= x  -> true    x <  x  -> false
 //   x >= x  -> true    x >  x  -> false
+//
+// NOTE: For floating-point types, IEEE 754 specifies that NaN != NaN is TRUE.
+// To ensure IEEE 754 compliance, this optimization is only applied to integer types
+// where NaN values are impossible. For float types, we skip the optimization to
+// preserve correct NaN semantics if the runtime values happen to contain NaN.
 std::pair<bool, bool> evaluate_self_comparison(const std::shared_ptr<ov::Node>& cond_node) {
     auto comparison = ov::as_type_ptr<ov::op::util::BinaryElementwiseComparison>(cond_node);
     if (!comparison) {
@@ -45,7 +50,16 @@ std::pair<bool, bool> evaluate_self_comparison(const std::shared_ptr<ov::Node>& 
         return {false, false};
     }
 
-    // Reflexive comparisons (==, <=, >=) return true; irreflexive (!=, <, >) return false
+    // For floating-point types, skip optimization to preserve IEEE 754 NaN semantics.
+    // NaN != NaN is TRUE per IEEE 754, so we cannot assume x != x is always false for floats.
+    // Integer types cannot contain NaN, so the optimization is safe for them.
+    auto input_type = comparison->get_input_element_type(0);
+    if (input_type.is_real()) {
+        return {false, false};
+    }
+
+    // For integer types: reflexive comparisons (==, <=, >=) return true;
+    // irreflexive (!=, <, >) return false
     if (ov::is_type<ov::op::v1::Equal>(cond_node) || ov::is_type<ov::op::v1::LessEqual>(cond_node) ||
         ov::is_type<ov::op::v1::GreaterEqual>(cond_node)) {
         return {true, true};
