@@ -72,7 +72,7 @@ Performance Information F.A.Q.
         - Auto regressive language
         - 128K
       * - `Phi4-mini-Instruct <https://huggingface.co/microsoft/Phi-4-mini-instruct>`__
-        - Hugginface
+        - Huggingface
         - Auto regressive language
         - 4096
       * - `Qwen-2-VL-7B-instruct <https://huggingface.co/Qwen/Qwen2-VL-7B-instruct>`__
