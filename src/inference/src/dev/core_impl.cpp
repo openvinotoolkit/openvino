@@ -1543,8 +1543,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                         }
                     } else {
                         // Check whether the runtime version is not older than blob version
-                        if (!ov::util::is_version_compatible(ov::util::Version(header.get_openvino_version()),
-                                                             ov::util::Version(ov::get_openvino_version().buildNumber))) {
+                        if (!ov::util::is_version_compatible(
+                                ov::util::Version(header.get_openvino_version()),
+                                ov::util::Version(ov::get_openvino_version().buildNumber))) {
                             // Build number mismatch, don't use this cache
                             OPENVINO_THROW("Version does not match");
                         }

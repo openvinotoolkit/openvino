@@ -19,10 +19,11 @@ struct Version {
     size_t patch = 0;
     size_t tweak = 0;
     size_t build = 0;
+    std::string postfix;
 
     explicit Version(const char* version_str) {
         // Pattern: MAJOR.MINOR.PATCH[.TWEAK]-BUILD-...
-        std::regex full_pattern(R"(^([0-9]+)\.([0-9]+)\.([0-9]+)(?:\.([0-9]+))?\-([0-9]+)\-.*)");
+        std::regex full_pattern(R"(^([0-9]+)\.([0-9]+)\.([0-9]+)(?:\.([0-9]+))?\-([0-9]+)\-(.*))");
         std::regex build_only_pattern(R"(^[0-9]+$)");
         std::cmatch match;
 
@@ -38,6 +39,7 @@ struct Version {
             }
 
             build = std::stoi(match[5].str());
+            postfix = match[6].str();
         } else if (std::regex_match(version_str, build_only_pattern)) {
             // Parse as just a build number
             build = std::stoi(version_str);
@@ -47,6 +49,19 @@ struct Version {
     }
 
     explicit Version(std::string_view version_str) : Version(version_str.data()) {}
+
+    std::string to_string() const {
+        std::ostringstream oss;
+        oss << major << "." << minor << "." << patch;
+        if (tweak != 0) {
+            oss << "." << tweak;
+        }
+        oss << "-" << build;
+        if (!postfix.empty()) {
+            oss << "-" << postfix;
+        }
+        return oss.str();
+    }
 
     // Comparison operators
     bool operator==(const Version& other) const {
