@@ -65,33 +65,18 @@
 #endif
 
 std::string ov::util::get_file_name(const std::string& s) {
-    std::string rc = s;
-    // Linux-style separator
-    auto pos = s.find_last_of('/');
-    if (pos != std::string::npos) {
-        rc = s.substr(pos + 1);
-        return rc;
-    }
-    // Windows-style separator
-    pos = s.find_last_of('\\');
-    if (pos != std::string::npos) {
-        rc = s.substr(pos + 1);
-    }
-    return rc;
-}
-
-std::string ov::util::get_file_ext(const std::string& s) {
-    std::string rc = get_file_name(s);
-    auto pos = rc.find_last_of('.');
-    if (pos != std::string::npos) {
-        rc = rc.substr(pos);
+    if (const auto path = make_path(s); path.has_parent_path()) {
+        return path_to_string(path.filename());
     } else {
-        rc = "";
+        return s;
     }
-    return rc;
 }
 
-ov::util::Path ov::util::get_directory(const ov::util::Path& path) {
+std::string ov::util::get_file_ext(const std::string& path) {
+    return path_to_string(make_path(path).extension());
+}
+
+std::filesystem::path ov::util::get_directory(const std::filesystem::path& path) {
     if (path.empty()) {
         return {};
     } else if (const auto& parent_path = path.parent_path(); parent_path.empty()) {
@@ -101,9 +86,9 @@ ov::util::Path ov::util::get_directory(const ov::util::Path& path) {
     }
 }
 
-template <class Container = std::initializer_list<ov::util::Path>>
-ov::util::Path path_join(Container&& paths) {
-    ov::util::Path joined_path{};
+template <class Container = std::initializer_list<std::filesystem::path>>
+std::filesystem::path path_join(Container&& paths) {
+    std::filesystem::path joined_path{};
 
     for (auto&& path : paths) {
         if (!path.empty()) {
@@ -114,7 +99,7 @@ ov::util::Path path_join(Container&& paths) {
 }
 
 // TODO: Remove string() / wstring() casts on function call site
-ov::util::Path ov::util::path_join(std::initializer_list<ov::util::Path>&& paths) {
+std::filesystem::path ov::util::path_join(std::initializer_list<std::filesystem::path>&& paths) {
     return ::path_join<>(std::move(paths));
 }
 
@@ -275,19 +260,9 @@ std::string ov::util::get_absolute_file_path(const std::string& path) {
     throw std::runtime_error(ss.str());
 }
 
-bool ov::util::is_absolute_file_path(const std::string& path) {
-    if (path.empty())
-        throw std::runtime_error("Provided path is empty");
-#ifdef _WIN32
-    return !PathIsRelativeA(path.c_str());
-#else
-    return path[0] == '/';
-#endif  // _WIN32
-}
-
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void ov::util::create_directory_recursive(const std::wstring& path) {
-    create_directory_recursive(std::filesystem::path{path});
+    create_directory_recursive(make_path(path));
 }
 #endif
 
@@ -312,7 +287,7 @@ void ov::util::create_directory_recursive(const std::filesystem::path& path) {
     }
 }
 
-bool ov::util::directory_exists(const ov::util::Path& path) {
+bool ov::util::directory_exists(const std::filesystem::path& path) {
     return std::filesystem::is_directory(std::filesystem::status(path));
 }
 
@@ -394,93 +369,65 @@ std::wstring ov::util::get_ov_lib_path_w() {
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin) {
+std::filesystem::path ov::util::get_plugin_path(const std::filesystem::path& plugin) {
     // Assume `plugin` may contain:
     // 1. /path/to/libexample.so absolute path
     // 2. ../path/to/libexample.so path relative to working directory
     // 3. example library name - to be converted to 4th case
     // 4. libexample.so - path relative to working directory (if exists) or file to be found in ENV
-
-    // For 1-2 cases
-    if (plugin.find(FileTraits<char>::file_separator) != std::string::npos)
-        return ov::util::to_file_path(ov::util::get_absolute_file_path(plugin));
-
-    auto lib_name = plugin;
-    // For 3rd case - convert to 4th case
-    if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
-        lib_name = ov::util::make_plugin_library_name({}, plugin);
-
-    // For 4th case
-    auto lib_path = ov::util::to_file_path(ov::util::get_absolute_file_path(lib_name));
-    if (ov::util::file_exists(lib_path))
-        return lib_path;
-    return ov::util::to_file_path(lib_name);
+    if (plugin.is_absolute()) {
+        // 1st case
+        return plugin;
+    } else if (plugin.has_parent_path()) {
+        // 2nd cases
+        return std::filesystem::absolute(std::filesystem::weakly_canonical(plugin));
+    } else {
+        // 3-4 cases
+        auto path = (plugin.extension() != library_extension()) ? make_plugin_library_name(plugin) : plugin;
+        std::error_code ec;
+        auto abs_path = std::filesystem::canonical(path, ec);
+        return ec ? path : abs_path;
+    }
 }
 
-ov::util::FilePath ov::util::get_compiled_plugin_path(const std::string& plugin) {
-    const auto ov_library_path = get_ov_lib_path();
+std::filesystem::path ov::util::get_compiled_plugin_path(const std::filesystem::path& plugin) {
+    const auto ov_library_path = make_path(get_ov_lib_path());
 
     // plugin can be found either:
+    const std::filesystem::path sub_folder_path{std::string("openvino-") + OpenVINO_VERSION};
 
-    // 1. in openvino-X.Y.Z folder relative to libopenvino.so
-    std::ostringstream str;
-    str << "openvino-" << OpenVINO_VERSION;
-    const auto sub_folder = str.str();
-
-    std::string abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin}).string();
-    if (ov::util::file_exists(abs_file_path))
-        return ov::util::to_file_path(abs_file_path);
-
-    // 2. in the openvino.so location
-    abs_file_path = ov::util::path_join({ov_library_path, plugin}).string();
-    if (ov::util::file_exists(abs_file_path))
-        return ov::util::to_file_path(abs_file_path);
-
-    auto lib_name = plugin;
-    // For 3rd case - convert to 4th case
-    if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
-        lib_name = ov::util::make_plugin_library_name({}, plugin);
-
-    // For 4th case
-    auto lib_path = ov::util::to_file_path(ov::util::get_absolute_file_path(lib_name));
-    if (ov::util::file_exists(lib_path))
-        return lib_path;
-    return ov::util::to_file_path(lib_name);
+    if (auto plugin_path = ov_library_path / sub_folder_path / plugin; ov::util::file_exists(plugin_path)) {
+        return plugin_path;
+    } else if (plugin_path = ov_library_path / plugin; ov::util::file_exists(plugin_path)) {
+        return plugin_path;
+    } else {
+        // cases 3-4
+        return get_plugin_path(plugin);
+    }
 }
 
-ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin, const std::string& xml_path, bool as_abs_only) {
+std::filesystem::path ov::util::get_plugin_path(const std::filesystem::path& plugin,
+                                                const std::filesystem::path& xml_dir,
+                                                bool as_abs_only) {
     // Assume `plugin` (from XML "location" record) contains only:
     // 1. /path/to/libexample.so absolute path
     // 2. ../path/to/libexample.so path relative to XML directory
     // 3. example library name - to be converted to 4th case
     // 4. libexample.so - path relative to XML directory (if exists) or file to be found in ENV
     // (if `as_abs_only` is false)
-
-    // For 1st case
-    if (ov::util::is_absolute_file_path(plugin))
-        return ov::util::to_file_path(plugin);
-
-    auto xml_path_ = xml_path;
-    if (xml_path.find(ov::util::FileTraits<char>::file_separator) == std::string::npos)
-        xml_path_ = ov::util::path_join({".", xml_path}).string();  // treat plugins.xml as CWD/plugins.xml
-
-    // For 2nd case
-    if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos) {
-        auto path_ = ov::util::path_join({ov::util::get_directory(xml_path_), plugin}).string();
-        return ov::util::to_file_path(ov::util::get_absolute_file_path(path_));  // canonicalize path
+    if (plugin.is_absolute()) {
+        // 1st case
+        return plugin;
+    } else if (const auto rel_path = get_directory((xml_dir.has_parent_path() ? xml_dir : "." / xml_dir));
+               plugin.has_parent_path()) {
+        // 2nd case
+        return std::filesystem::absolute(std::filesystem::weakly_canonical(rel_path / plugin));
+    } else {
+        // 3-4 cases
+        auto&& lib_name = ((plugin.extension() != library_extension()) ? make_plugin_library_name(plugin) : plugin);
+        auto abs_path = std::filesystem::absolute(std::filesystem::weakly_canonical(rel_path / lib_name));
+        return as_abs_only || file_exists(abs_path) ? abs_path : lib_name;
     }
-
-    auto lib_file_name = plugin;
-    // For 3rd case - convert to 4th case
-    if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
-        lib_file_name = ov::util::make_plugin_library_name({}, plugin);
-
-    // For 4th case
-    auto lib_path = ov::util::path_join({ov::util::get_directory(xml_path_), lib_file_name}).string();
-    lib_path = ov::util::get_absolute_file_path(lib_path);  // canonicalize path
-    if (as_abs_only || ov::util::file_exists(lib_path))
-        return ov::util::to_file_path(lib_path);
-    return ov::util::to_file_path(lib_file_name);
 }
 
 std::vector<uint8_t> ov::util::load_binary(const std::string& path) {

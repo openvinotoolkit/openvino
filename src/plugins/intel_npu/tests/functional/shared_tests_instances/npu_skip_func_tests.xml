@@ -413,7 +413,7 @@ Example:
 
     <!-- E###### -->
     <skip_config>
-        <message>Other devices than NPU doesn't allow to set NPU properties with OV1.0 and CACHE_DIR + MLIR is not supported</message>
+        <message>Other devices than NPU doesn't allow to set NPU properties with OV1.0 and CACHE_DIR + PLUGIN is not supported</message>
         <filters>
             <filter>.*smoke_AutoBatch_BehaviorTests/CorrectConfigTests.*</filter>
         </filters>
@@ -787,7 +787,7 @@ Example:
         <message>Only "developer built" compilers support weights separation</message>
         <filters>
             <filter>.*WeightsSeparationTests.*</filter>
-            <filter>.*WeightsSeparationNotSupportedTests.*</filter>
+            <filter>.*WeightsSeparationIterativeTests.*</filter>
         </filters>
     </skip_config>
 

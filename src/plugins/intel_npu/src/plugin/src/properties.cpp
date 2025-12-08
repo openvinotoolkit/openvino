@@ -385,6 +385,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::weightless_blob, WEIGHTLESS_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::use_base_model_serializer, USE_BASE_MODEL_SERIALIZER);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::model_serializer_version, MODEL_SERIALIZER_VERSION);
 
     TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::stepping, STEPPING, [&](const Config& config) {
         if (!config.has<STEPPING>()) {
@@ -462,6 +463,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_chunk_size, NPUW_LLM_PREFILL_CHUNK_SIZE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::max_lora_rank, NPUW_LLM_MAX_LORA_RANK);
@@ -654,11 +656,6 @@ void Properties::registerCompiledModelProperties() {
     REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
                            true,
                            static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(config)));
-    REGISTER_CUSTOM_METRIC(ov::internal::supported_properties, false, [&](const Config&) {
-        static const std::vector<ov::PropertyName> supportedProperty{
-            ov::PropertyName(ov::internal::caching_properties.name(), ov::PropertyMutability::RO)};
-        return supportedProperty;
-    });
     REGISTER_CUSTOM_METRIC(ov::execution_devices, true, [](const Config&) {
         // TODO: log an error here as the code shouldn't have gotten here
         // this property is implemented in compiled model directly
