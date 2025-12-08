@@ -608,7 +608,8 @@ TEST(TransformationTests, UnrollIfSelfComparisonGreaterEqual) {
 TEST(TransformationTests, UnrollIfSelfComparisonWithNaNConstant) {
     // Create a constant containing NaN
     auto nan_val = std::numeric_limits<float>::quiet_NaN();
-    auto nan_const = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{nan_val});
+    auto nan_const =
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{nan_val});
     nan_const->set_friendly_name("nan_const");
 
     auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
