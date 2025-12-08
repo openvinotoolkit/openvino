@@ -723,7 +723,11 @@ void program::transfer_memory_to_device() {
                     return;
                 }
 
-                GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
+                if (data_node.id().compare("constant:self.model.embed_tokens.weight") == 0) {
+                    std::cout << "wow 2" << std::endl;
+                    continue;
+                }
+
                 // Allocate and transfer memory
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
                 device_mem->copy_from(get_stream(), mem);
