@@ -72,11 +72,21 @@ class CommonTemplate(ABC):
     
     @staticmethod
     def getTemplate(tmplName):
-        return CommonTemplate.getTmplByMethod(tmplName, 'getName')
+        curTmpl = CommonTemplate.getTmplByMethod(tmplName, 'getName')
+        if curTmpl == CommonTemplate:
+            raise Exception(
+                "Default template returned, '{}' is configured incorrectly.".format(
+                                tmplName
+                            ))
+        return curTmpl
 
     @staticmethod
     def populateCfg(tmplName, cfg):
         tmpl = CommonTemplate.getTemplate(tmplName)
+        if tmpl.getName() == 'ping':
+            print("Ping !!!")
+            print('cfg = {}'.format(cfg))
+            exit()
         cfgBillet = tmpl.getBilletFileName()
         fullCfg = CommonTemplate.getTemplate(tmplName).generateFullConfig(CfgManager.readJsonTmpl(cfgBillet), cfg)
         return fullCfg
