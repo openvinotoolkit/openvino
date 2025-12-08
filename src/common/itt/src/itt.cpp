@@ -21,7 +21,7 @@ namespace internal {
 
 static __itt_collection_state state = __itt_get_collection_state();
 
-bool is_initialized() {
+static inline bool is_initialized() {
     return state == __itt_collection_init_successful;
 }
 
@@ -109,10 +109,6 @@ void regionEnd(domain_t d) {
 }
 
 #else
-
-bool is_initialized() {
-    return false;
-}
 
 domain_t domain(const char*) {
     return nullptr;
