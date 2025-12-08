@@ -17,10 +17,13 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 
+using namespace ov::test::utils;
+using namespace ov::util::pugixml;
+
 class BackendName {
 public:
     BackendName() {
-        const auto corePtr = ov::test::utils::PluginCache::get().core();
+        const auto corePtr = PluginCache::get().core();
         if (corePtr != nullptr) {
             _name = getBackendName(*corePtr);
         } else {
@@ -32,14 +35,6 @@ public:
         return _name;
     }
 
-    bool isEmpty() const noexcept {
-        return _name.empty();
-    }
-
-    bool isZero() const {
-        return _name == "LEVEL0";
-    }
-
 private:
     std::string _name;
     intel_npu::Logger _log = intel_npu::Logger("BackendName", ov::log::Level::INFO);
@@ -48,7 +43,7 @@ private:
 class AvailableDevices {
 public:
     AvailableDevices() {
-        const auto corePtr = ov::test::utils::PluginCache::get().core();
+        const auto corePtr = PluginCache::get().core();
         if (corePtr != nullptr) {
             _availableDevices = ::getAvailableDevices(*corePtr);
         } else {
@@ -57,7 +52,7 @@ public:
 
         // Private device names may be registered via environment variables
         const std::string environmentDevice =
-            ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::intel_npu::Platform::AUTO_DETECT.data());
+            getTestsPlatformFromEnvironmentOr(ov::intel_npu::Platform::AUTO_DETECT.data());
         const std::string standardizedEnvironmentDevice = ov::intel_npu::Platform::standardize(environmentDevice);
 
         if (std::all_of(_availableDevices.begin(), _availableDevices.end(), [&](const std::string& deviceName) {
@@ -67,7 +62,7 @@ public:
         }
 
         auto driverVersionPropetry =
-            corePtr->get_property(ov::test::utils::DEVICE_NPU, ov::intel_npu::driver_version.name());
+            corePtr->get_property(DEVICE_NPU, ov::intel_npu::driver_version.name());
         _driverVersion = driverVersionPropetry.as<std::string>();
 
     }
@@ -76,18 +71,8 @@ public:
         return _availableDevices;
     }
 
-    auto count() const {
-        return _availableDevices.size();
-    }
-
     const std::string& getDriverVersion() const {
         return _driverVersion;
-    }
-
-    bool has3720() const {
-        return std::any_of(_availableDevices.begin(), _availableDevices.end(), [](const std::string& deviceName) {
-            return deviceName.find("3720") != std::string::npos;
-        });
     }
 
 private:
@@ -108,14 +93,6 @@ public:
 
     std::string getName() const {
         return _name;
-    }
-
-    bool isLinux() const {
-        return _name == "linux";
-    }
-
-    bool isWindows() const {
-        return _name == "windows";
     }
 
 private:
@@ -255,10 +232,10 @@ std::vector<std::string> disabledTestPatterns() {
         const CurrentOS currentOS;
 
         try {
-            const auto& filePath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_SKIP_CONFIG_FILE;
+            const auto& filePath = NpuTestEnvConfig::getInstance().OV_NPU_TESTS_SKIP_CONFIG_FILE;
             _log.info("Using %s as skip config", filePath.c_str());
 
-            auto xmlResult = ov::util::pugixml::parse_xml(filePath.c_str());
+            auto xmlResult = parse_xml(filePath.c_str());
             // Error returned from pugixml, fallback to legacy skips
             if (!xmlResult.error_msg.empty()) {
                 _log.error(xmlResult.error_msg.c_str());
