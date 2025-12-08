@@ -958,16 +958,17 @@ TEST_F(OVTensorTest, getTensorDataOffsetFromRoiTensor) {
     const ov::Tensor tensor(ov::element::f32, ov::Shape{3, 5, 32, 128});
     ov::Tensor roi_tensor;
     OV_ASSERT_NO_THROW(roi_tensor = ov::Tensor(tensor, {1, 2, 5, 64}, {2, 3, 10, 128}));
-    size_t tensor_data_offset = ov::get_tensor_data_offset(ov::get_tensor_impl(roi_tensor));
+    size_t tensor_data_offset = ov::get_tensor_data_offset(*ov::get_tensor_impl(roi_tensor)._ptr);
     EXPECT_EQ(static_cast<const uint8_t*>(roi_tensor.data()),
               static_cast<const uint8_t*>(tensor.data()) + tensor_data_offset);
 }
 
 TEST_F(OVTensorTest, getTensorDataOffsetFromGeneralTensor) {
     const ov::Tensor tensor(ov::element::f32, ov::Shape{3, 5, 32, 128});
-    size_t tensor_data_offset = ov::get_tensor_data_offset(ov::get_tensor_impl(tensor));
+    size_t tensor_data_offset = ov::get_tensor_data_offset(*ov::get_tensor_impl(tensor)._ptr);
     EXPECT_EQ(static_cast<const uint8_t*>(tensor.data()),
               static_cast<const uint8_t*>(tensor.data()) + tensor_data_offset);
+    EXPECT_EQ(0, tensor_data_offset);  // special case for general tensor it returns 0
 }
 
 struct TestParams {
