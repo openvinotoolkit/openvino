@@ -285,9 +285,8 @@ bool LowPrecision::run_on_model(const std::shared_ptr<ov::Model>& m) {
     ADD_MATCHER(common, UnsqueezeTransformation, params)
     ADD_MATCHER(common, VariadicSplitTransformation, params)
 
-    const auto additional = manager.register_pass<GraphRewrite>();
     for (const auto& tr : additional_main_passes) {
-        additional->add_matcher(tr);
+        common->add_matcher(tr);
     }
 
     const auto cleanup = manager.register_pass<GraphRewrite>();

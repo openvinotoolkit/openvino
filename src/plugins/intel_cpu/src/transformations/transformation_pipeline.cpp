@@ -955,13 +955,13 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         PrecisionsRestriction::create<ov::op::v5::GRUSequence>({{{0, 1}, {ov::element::u8}}}),
     });
 #endif
-    auto lpt_pass = CPU_REGISTER_PASS_COMMON(lptManager,
+    CPU_REGISTER_PASS_COMMON(lptManager,
                              LowPrecision,
                              supportedPrecisions,
                              quantizationRestrictions,
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
 
-    lpt_pass->add_main<ConvertConvolutionBias>();
+    CPU_REGISTER_PASS_COMMON(lptManager, ConvertConvolutionBias);
     CPU_SET_CALLBACK_X64(
         lptManager,
         [](const_node_ptr& node) -> bool {
@@ -980,7 +980,6 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_DISABLE_PASS_ARM(lptManager, ReduceMeanTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, ReduceMinTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, ReduceSumTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, FakeQuantizeTransformation);
 
     // Enable MatMulTransformation against FC nodes only
     // int8 MatMul is disabled because acl_lowp_matmul_t supports 2D case only
@@ -999,8 +998,12 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         lptManager,
         [&](const_node_ptr& node) -> bool {
             auto eltwise = node->get_input_node_shared_ptr(0);
-            if (ov::is_type<ov::op::v1::Add>(eltwise) && FakeQuantizeTransformation::checkElementwise(eltwise)) {
-                return ov::is_type<ov::op::v1::Convolution>(eltwise->get_input_node_shared_ptr(0));
+            if (ov::is_type<ov::op::v1::Multiply>(eltwise) && FakeQuantizeTransformation::checkElementwise(eltwise)) {
+                const auto eltwiseInput = eltwise->get_input_node_shared_ptr(0);
+                const bool noConvBias = ov::is_type<ov::op::v1::Convolution>(eltwiseInput);
+                const bool withConvBias = ov::is_type<ov::op::v1::Add>(eltwiseInput) &&
+                                          ov::is_type<ov::op::v1::Convolution>(eltwiseInput->get_input_node_shared_ptr(0));
+                return noConvBias || withConvBias;
             }
             return false;
         },
