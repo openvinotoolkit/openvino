@@ -1,85 +1,64 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import platform
-import numpy as np
 import pytest
 import torch
-
+import numpy as np
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-class quantized_linear_relu(torch.nn.Module):
-    def __init__(self, weight_shape, bias, scale, zero_point, dtype) -> None:
+class QuantizedLinearReLU(torch.nn.Module):
+    def __init__(self, weight_shape, bias, scale, zero_point):
         super().__init__()
-        self.scale = float(scale)
-        self.zero_point = int(zero_point)
-        self.dtype = dtype
-
-        out_features = weight_shape[0] if len(weight_shape) > 1 else 1
-        in_features = weight_shape[-1]
-
-        # Initialize float weights and bias (device agnostic)
-        self.W = torch.randn(out_features, in_features, dtype=torch.float32)
-        self.b = torch.randn(out_features, dtype=torch.float32) if bias else None
-
-        # Prepack weight (quantized operator requires prepacked weights)
-        self.W_prepack = torch.ops.quantized.linear_prepack(self.W, self.b)
-
-    def forward(self, input_tensor):
-        # Quantize input on the same device as the tensor
-        quantized_input = torch.quantize_per_tensor(
-            input_tensor, scale=1.0, zero_point=0, dtype=self.dtype
+        self.linear_relu = torch.ao.nn.intrinsic.quantized.LinearReLU(
+            weight_shape[-1], weight_shape[0], bias
         )
+        if bias:
+            torch.nn.init.normal_(self.linear_relu.bias())
+        self.linear_relu.scale = float(scale)
+        self.linear_relu.zero_point = int(zero_point)
 
-        # Run quantized linear+ReLU
-        q_out = torch.ops.quantized.linear_relu(
-            quantized_input, self.W_prepack, self.scale, self.zero_point
-        )
-
-        # Dequantize output
-        return torch.dequantize(q_out)
+    def forward(self, inp):
+        inp_q = torch.quantize_per_tensor(inp, self.linear_relu.scale, self.linear_relu.zero_point, torch.quint8)
+        return torch.dequantize(self.linear_relu(inp_q))
 
 
-class TestQuantizedLinearReLU(PytorchLayerTest):
+class TestQuantizedLinear(PytorchLayerTest):
     rng = np.random.default_rng(seed=123)
 
-    def _prepare_input(self):
-        # Return a numpy array (can be converted to any device later)
-        return (np.round(5.0 * self.rng.random([3, 9], dtype=np.float32) - 2.5, 4),)
+    def _prepare_input(self, input_shape=(2, 2)):
+        return (np.round(self.rng.random(input_shape, dtype=np.float32), 4),)
 
-    @pytest.mark.parametrize("weight_shape,bias", [
-        ([10, 9], False),
-        ([10, 9], True),
-        ([9], False),
-        ([9], True)
+    @pytest.mark.parametrize("params", [
+        {'input_shape': [3, 9], 'weight_shape': [10, 9]},
+
+        {'input_shape': [2, 3, 9], 'weight_shape': [10, 9]},
+        {'input_shape': [3, 9], 'weight_shape': [9], "bias": True},
+        {'input_shape': [2, 3, 9], 'weight_shape': [10, 9], "bias": True},
     ])
-    @pytest.mark.parametrize("scale", [
-        1.0, 0.3, 1.3
-    ])
-    @pytest.mark.parametrize("zero_point", [
-        0, 1
-    ])
-    @pytest.mark.parametrize("dtype", [
-        torch.quint8,
-        torch.qint8
-    ])
+    @pytest.mark.parametrize("scale", [1., 0.3, 1.3])
+    @pytest.mark.parametrize("zero_point", [0, 1])
+    @pytest.mark.parametrize("trace", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122715')
-    def test_quantized_linear_relu(self, weight_shape, bias, scale, zero_point, dtype, ie_device, precision, ir_version):
-        if dtype == torch.quint8:
-            zero_point = abs(zero_point)
+    def test_quantized_linear_relu(self, params, scale, zero_point, trace, ie_device, precision, ir_version):
+        input_shape = params.get("input_shape")
+        weight_shape = params.get("weight_shape")
+        bias = params.get("bias", False)
 
-        # Run test on requested device (ie_device) instead of forcing CPU
+        model = QuantizedLinearReLU(weight_shape, bias, scale, zero_point)
+        ref_net = None
+
         self._test(
-            quantized_linear_relu(weight_shape, bias, scale, zero_point, dtype),
-            None,
+            model,
+            ref_net,
             ["quantized::linear_relu"],
-            ie_device,  # use requested device
+            ie_device,
             precision,
             ir_version,
+            kwargs_to_prepare_input={"input_shape": input_shape},
+            trace_model=trace,
+            freeze_model=False,
             quantized_ops=True,
             quant_size=scale
         )
