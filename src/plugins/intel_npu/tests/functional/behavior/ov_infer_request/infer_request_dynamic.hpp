@@ -166,9 +166,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkSetShapeCPUTensor) {
 
     auto inputTensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, originalShape, 100, 0);
     OV_ASSERT_NO_THROW(req = model.create_infer_request());
-    OV_ASSERT_NO_THROW(
-        req.set_tensor(inputName,
-                       {inputTensor.get_element_type(), inputTensor.get_shape(), std::as_const(inputTensor).data()}));
+    OV_ASSERT_NO_THROW(req.set_tensor(inputName, inputTensor));
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(checkOutputFP16(inputTensor, req.get_tensor(outputName)));
 
