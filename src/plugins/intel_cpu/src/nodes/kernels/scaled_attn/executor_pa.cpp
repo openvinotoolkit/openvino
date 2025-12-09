@@ -2080,13 +2080,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         adaptive_rkv_start_size = *inputs[ID_ADAPTIVE_RKV_START_SIZE]->getDataAs<int32_t>();
 
         if (!inputs[ID_ADAPTIVE_RKV_EVICTABLE_SIZES]->getShape().hasZeroDims()) {
-            OPENVINO_ASSERT(!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]->getShape().hasZeroDims());
-            OPENVINO_ASSERT(!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS]->getShape().hasZeroDims());
             adaptive_rkv_evictable_sizes.reset(inputs[ID_ADAPTIVE_RKV_EVICTABLE_SIZES]);  // [B_seq]
-            adaptive_rkv_diversity_block_set_indices.reset(
-                inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]);  // [num_adaptive_rkv_diversity_blocks]
-            adaptive_rkv_diversity_block_set_indices_begins.reset(
-                inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS]);  // [num_adaptive_rkv_diversity_blocks]
+            if (!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]->getShape().hasZeroDims()) {
+                OPENVINO_ASSERT(!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS]->getShape().hasZeroDims());
+                adaptive_rkv_diversity_block_set_indices.reset(
+                    inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]);  // [num_adaptive_rkv_diversity_blocks]
+                adaptive_rkv_diversity_block_set_indices_begins.reset(
+                    inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS]);  // [num_adaptive_rkv_diversity_blocks]
+            }
 
             OPENVINO_ASSERT(outputs.size() >= 3);
             output_arkv_similarity.reset(outputs[2]);
@@ -2239,7 +2240,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         if (adaptive_rkv_evictable_sizes) {
             OPENVINO_ASSERT(adaptive_rkv_start_size >= 0);
             adaptive_rkv_evictable_sizes.assert_dims({B_seq});
-            adaptive_rkv_diversity_block_set_indices_begins.assert_dims({B_seq + 1});
+            if (adaptive_rkv_diversity_block_set_indices) {
+                adaptive_rkv_diversity_block_set_indices_begins.assert_dims({B_seq + 1});
+            }
         }
 
         output_emb.assert_dims({B_token, H * SV});
