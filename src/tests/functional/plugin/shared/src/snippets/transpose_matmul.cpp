@@ -46,8 +46,6 @@ void TransposeMatMul::SetUp() {
     init_input_shapes(input_shapes);
 
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-    configuration.insert(ov::hint::inference_precision(ov::element::f16));
-
     // For ARM platforms with FP16 tests, ensure inference precision is FP16
     // to match the model precision and avoid comparison tolerance issues
     if (std::all_of(elem_types.begin(), elem_types.end(), 
