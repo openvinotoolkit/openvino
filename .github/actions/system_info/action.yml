@@ -10,12 +10,12 @@ runs:
         if [[ -e /etc/fedora-release ]]; then
           yum update -y -q && yum install -y -q procps
         fi
-        
+
         echo "System: ${{ runner.os }}"
         echo "System Architecture: ${{ runner.arch }}"
         echo "CPU Info: "; lscpu
         echo "RAM Info: "; free -h --si
-        echo "MEMORY Info: "; df -h
+        echo "DISK Info: "; df -hl
 
     - if: runner.os == 'macOS'
       shell: bash
@@ -23,7 +23,7 @@ runs:
         echo "System: ${{ runner.os }}"
         echo "System Architecture: ${{ runner.arch }}"
         echo "CPU and RAM Info: "; system_profiler SPHardwareDataType
-        echo "MEMORY Info: "; df -h
+        echo "DISK Info: "; df -h
 
     - if: runner.os == 'Windows'
       shell: pwsh

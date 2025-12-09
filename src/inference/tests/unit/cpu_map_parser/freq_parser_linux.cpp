@@ -679,8 +679,8 @@ LinuxCpuMapTestCase freq_2sockets_24cores_hyperthreading_1 = {
     24,
     {{48, 24, 0, 0, 24, -1, -1},
      {12, 6, 0, 0, 6, 0, 0},
-     {12, 6, 0, 0, 6, 1, 0},
      {12, 6, 0, 0, 6, 2, 1},
+     {12, 6, 0, 0, 6, 1, 0},
      {12, 6, 0, 0, 6, 3, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 2, 1, 1, HYPER_THREADING_PROC, 1, -1},

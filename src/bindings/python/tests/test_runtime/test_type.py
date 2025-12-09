@@ -90,25 +90,6 @@ def test_basic_ovtypes(ovtype,
     assert ovtype.bitwidth == type_bitwidth
 
 
-def test_undefined_ovtype():
-    with pytest.warns(DeprecationWarning, match="openvino.Type.undefined is deprecated and will be removed in version 2026.0") as w:
-        ov_type = Type.undefined
-    assert issubclass(w[0].category, DeprecationWarning)
-    assert "openvino.Type.undefined is deprecated and will be removed in version 2026.0" in str(w[0].message)
-
-    assert ov_type.is_static() is False
-    assert ov_type.is_dynamic() is True
-    assert ov_type.is_real() is False
-    assert ov_type.is_integral() is True
-    assert ov_type.is_signed() is False
-    assert ov_type.is_quantized() is False
-    assert ov_type.get_type_name() == "dynamic"
-    assert ov_type.size == 0
-    assert ov_type.get_size() == 0
-    assert ov_type.bitwidth == 0
-    assert ov_type.get_bitwidth() == 0
-
-
 def test_dynamic_ov_type():
     ov_type = Type.dynamic
     assert ov_type.is_static() is False
