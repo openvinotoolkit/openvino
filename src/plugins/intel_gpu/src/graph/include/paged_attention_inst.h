@@ -76,7 +76,7 @@ public:
     memory::ptr adaptive_rkv_start_size_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_START_SIZE); }
     memory::ptr adaptive_rkv_evictable_sizes_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES); }
     memory::ptr adaptive_rkv_diversity_block_set_indices_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES); }
-    memory::ptr adaptive_rkv_diversity_block_set_begins_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS); }
+    memory::ptr adaptive_rkv_diversity_block_set_indices_begins_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS); }
 };
 
 using paged_attention_inst = typed_primitive_inst<paged_attention>;

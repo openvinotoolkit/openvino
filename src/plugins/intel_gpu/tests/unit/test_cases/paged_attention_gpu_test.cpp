@@ -120,7 +120,7 @@ struct PagedAttentionManager {
     std::vector<int> adaptive_rkv_start_size;
     std::vector<int> adaptive_rkv_evictable_sizes;
     std::vector<int> adaptive_rkv_diversity_block_set_indices;
-    std::vector<int> adaptive_rkv_diversity_block_set_begins;
+    std::vector<int> adaptive_rkv_diversity_block_set_indices_begins;
 
     cldnn::engine& test_engine;
     cldnn::stream& test_stream;
@@ -579,12 +579,12 @@ struct PagedAttentionManager {
         return test_engine.reinterpret_buffer(*mem, layout);
     }
 
-    memory::ptr get_adaptive_rkv_diversity_block_set_begins_memory() {
-        auto mem = get_memory_from_vec(adaptive_rkv_diversity_block_set_begins);
+    memory::ptr get_adaptive_rkv_diversity_block_set_indices_begins_memory() {
+        auto mem = get_memory_from_vec(adaptive_rkv_diversity_block_set_indices_begins);
         auto layout = mem->get_layout();
         layout.set_partial_shape(ov::PartialShape{ 1 });
 
-        if (adaptive_rkv_diversity_block_set_begins.empty()) {
+        if (adaptive_rkv_diversity_block_set_indices_begins.empty()) {
             auto empty_layout = mem->get_layout();
             empty_layout.set_partial_shape(ov::PartialShape{ 0 });
             return test_engine.reinterpret_buffer(*mem, empty_layout);
@@ -1262,7 +1262,7 @@ public:
         auto adaptive_rkv_start_size_mem = pam.get_adaptive_rkv_start_size_memory();
         auto adaptive_rkv_evictable_sizes_mem = pam.get_adaptive_rkv_evictable_sizes_memory();
         auto adaptive_rkv_diversity_block_set_indices_mem = pam.get_adaptive_rkv_diversity_block_set_indices_memory();
-        auto adaptive_rkv_diversity_block_set_begins_mem = pam.get_adaptive_rkv_diversity_block_set_begins_memory();
+        auto adaptive_rkv_diversity_block_set_indices_begins_mem = pam.get_adaptive_rkv_diversity_block_set_indices_begins_memory();
 
         auto query_layout = query_mem->get_layout();
         auto key_layout = key_mem->get_layout();
@@ -1288,7 +1288,7 @@ public:
         auto adaptive_rkv_start_size_layout = adaptive_rkv_start_size_mem->get_layout();
         auto adaptive_rkv_evictable_sizes_layout = adaptive_rkv_evictable_sizes_mem->get_layout();
         auto adaptive_rkv_diversity_block_set_indices_layout = adaptive_rkv_diversity_block_set_indices_mem->get_layout();
-        auto adaptive_rkv_diversity_block_set_begins_layout = adaptive_rkv_diversity_block_set_begins_mem->get_layout();
+        auto adaptive_rkv_diversity_block_set_indices_begins_layout = adaptive_rkv_diversity_block_set_indices_begins_mem->get_layout();
 
         // make layouts dynamic
         query_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
@@ -1317,7 +1317,7 @@ public:
         xattention_threshold_layout.set_partial_shape(ov::PartialShape{ -1 });
         adaptive_rkv_evictable_sizes_layout.set_partial_shape(ov::PartialShape{ -1 });
         adaptive_rkv_diversity_block_set_indices_layout.set_partial_shape(ov::PartialShape{ -1 });
-        adaptive_rkv_diversity_block_set_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
+        adaptive_rkv_diversity_block_set_indices_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
 
         if (p.dynamic_paddings) {
             const auto padding_axis = 1;
@@ -1375,7 +1375,7 @@ public:
             input_info("adaptive_rkv_start_size"),
             input_info("adaptive_rkv_evictable_sizes"),
             input_info("adaptive_rkv_diversity_block_set_indices"),
-            input_info("adaptive_rkv_diversity_block_set_begins"),
+            input_info("adaptive_rkv_diversity_block_set_indices_begins"),
         };
 
         auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -1436,7 +1436,7 @@ public:
             topology.add(input_layout("adaptive_rkv_start_size", adaptive_rkv_start_size_layout));
             topology.add(input_layout("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_layout));
             topology.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
-            topology.add(input_layout("adaptive_rkv_diversity_block_set_begins", adaptive_rkv_diversity_block_set_begins_layout));
+            topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
         }
 
         ExecutionConfig config = get_test_default_config(get_test_engine());
@@ -1470,7 +1470,7 @@ public:
         network->set_input_data("adaptive_rkv_start_size", adaptive_rkv_start_size_mem);
         network->set_input_data("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_mem);
         network->set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
-        network->set_input_data("adaptive_rkv_diversity_block_set_begins", adaptive_rkv_diversity_block_set_begins_mem);
+        network->set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
 
         auto outputs = network->execute();
 

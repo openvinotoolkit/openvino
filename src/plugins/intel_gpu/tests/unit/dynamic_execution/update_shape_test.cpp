@@ -172,8 +172,8 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     auto adaptive_rkv_diversity_block_set_indices_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
     auto adaptive_rkv_diversity_block_set_indices_mem = engine.allocate_memory(adaptive_rkv_diversity_block_set_indices_layout);
 
-    auto adaptive_rkv_diversity_block_set_begins_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
-    auto adaptive_rkv_diversity_block_set_begins_mem = engine.allocate_memory(adaptive_rkv_diversity_block_set_begins_layout);
+    auto adaptive_rkv_diversity_block_set_indices_begins_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto adaptive_rkv_diversity_block_set_indices_begins_mem = engine.allocate_memory(adaptive_rkv_diversity_block_set_indices_begins_layout);
 
     std::vector<input_info> pa_inputs = {input_info("query"),
                                          input_info("key"),
@@ -199,7 +199,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
                                          input_info("adaptive_rkv_start_size"),
                                          input_info("adaptive_rkv_evictable_sizes"),
                                          input_info("adaptive_rkv_diversity_block_set_indices"),
-                                         input_info("adaptive_rkv_diversity_block_set_begins"),
+                                         input_info("adaptive_rkv_diversity_block_set_indices_begins"),
     };
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -238,7 +238,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     topology.add(input_layout("sinks", sinks_layout));
     topology.add(input_layout("adaptive_rkv_start_size", adaptive_rkv_start_size_layout));
     topology.add(input_layout("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_layout));
-    topology.add(input_layout("adaptive_rkv_diversity_block_set_begins", adaptive_rkv_diversity_block_set_begins_layout));
+    topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
     topology.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
     topology.add(data("const_one", const_one_mem));
     topology.add(shape_of("shape_of", input_info("input_data"), data_types::i32));
@@ -274,7 +274,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     network.set_input_data("sinks", sinks_mem);
     network.set_input_data("adaptive_rkv_start_size", adaptive_rkv_start_size_mem);
     network.set_input_data("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_mem);
-    network.set_input_data("adaptive_rkv_diversity_block_set_begins", adaptive_rkv_diversity_block_set_begins_mem);
+    network.set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
     network.set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
 
     // Set original max_context_len value
@@ -317,7 +317,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     network.set_input_data("sinks", sinks_mem);
     network.set_input_data("adaptive_rkv_start_size", adaptive_rkv_start_size_mem);
     network.set_input_data("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_mem);
-    network.set_input_data("adaptive_rkv_diversity_block_set_begins", adaptive_rkv_diversity_block_set_begins_mem);
+    network.set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
     network.set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
 
     // Update max_context_len value, which should be taken into account in shape recalculation for broadcast

@@ -143,7 +143,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ParameterVector rotation_deltas_inputs_for_each_layer;
     ParameterVector xattention_threshold_inputs_for_each_layer;
     ParameterVector adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer;
-    ParameterVector adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer;
+    ParameterVector adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer;
 
     ResultVector score_results;
     ResultVector adaptive_rkv_diversity_results;
@@ -185,7 +185,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   rotation_deltas_inputs_for_each_layer,
                                                   xattention_threshold_inputs_for_each_layer,
                                                   adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
-                                                  adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer,
+                                                  adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
                                                   adaptive_rkv_diversity_results,
                                                   optional_model_wide_params);
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
@@ -266,7 +266,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->add_parameters({optional_model_wide_params["adaptive_rkv_start_size"]});
         model->add_parameters({optional_model_wide_params["adaptive_rkv_evictable_sizes"]});
         model->add_parameters(adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer);
-        model->add_parameters(adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer);
+        model->add_parameters(adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer);
         model->add_results(adaptive_rkv_diversity_results);
     }
 

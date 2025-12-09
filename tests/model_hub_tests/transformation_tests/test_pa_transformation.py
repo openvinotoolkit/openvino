@@ -88,7 +88,7 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
         interesting_input_patterns["adaptive_rkv_start_size"] = r'^adaptive_rkv_start_size$';
         interesting_input_patterns["adaptive_rkv_evictable_sizes"] = r'^adaptive_rkv_evictable_sizes$';
         interesting_input_patterns["adaptive_rkv_diversity_block_set_indices"] = r'^adaptive_rkv_diversity_block_set_indices\.[0-9]+';
-        interesting_input_patterns["adaptive_rkv_diversity_block_set_begins"] = r'^adaptive_rkv_diversity_block_set_begins\.[0-9]+';
+        interesting_input_patterns["adaptive_rkv_diversity_block_set_indices_begins"] = r'^adaptive_rkv_diversity_block_set_indices_begins\.[0-9]+';
 
     input_counters = {k: 0 for k in interesting_input_patterns}
     output_counters = {k: 0 for k in interesting_output_patterns}

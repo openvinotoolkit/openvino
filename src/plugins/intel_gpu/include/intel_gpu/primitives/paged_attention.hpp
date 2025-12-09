@@ -38,7 +38,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ADAPTIVE_RKV_START_SIZE = 21,
         ADAPTIVE_RKV_EVICTABLE_SIZES = 22,
         ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES = 23,
-        ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS = 24,
+        ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS = 24,
     };
 
     static constexpr size_t block_size = 16;

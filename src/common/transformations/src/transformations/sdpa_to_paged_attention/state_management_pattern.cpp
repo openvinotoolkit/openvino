@@ -317,7 +317,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     ParameterVector& rotation_deltas_inputs_for_each_layer,
     ParameterVector& xattention_threshold_inputs_for_each_layer,
     ParameterVector& adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
-    ParameterVector& adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer,
+    ParameterVector& adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
     ResultVector& adaptive_rkv_diversity_results,
     const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params) {
     MATCHER_SCOPE(StateManagementPattern);
@@ -449,7 +449,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &rotation_deltas_inputs_for_each_layer,
                                           &xattention_threshold_inputs_for_each_layer,
                                           &adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
-                                          &adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer,
+                                          &adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
                                           &adaptive_rkv_diversity_results](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
@@ -725,12 +725,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer.push_back(
                 adaptive_rkv_diversity_block_set_indices);
 
-            auto adaptive_rkv_diversity_block_set_begins =
+            auto adaptive_rkv_diversity_block_set_indices_begins =
                 setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                        "adaptive_rkv_diversity_block_set_begins." + std::to_string(layer_index - 1));
-            pa_arguments.insert(pa_arguments.begin() + 24, adaptive_rkv_diversity_block_set_begins);
-            adaptive_rkv_diversity_block_set_begins_inputs_for_each_layer.push_back(
-                adaptive_rkv_diversity_block_set_begins);
+                        "adaptive_rkv_diversity_block_set_indices_begins." + std::to_string(layer_index - 1));
+            pa_arguments.insert(pa_arguments.begin() + 24, adaptive_rkv_diversity_block_set_indices_begins);
+            adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer.push_back(
+                adaptive_rkv_diversity_block_set_indices_begins);
 
         } else {
             pa_arguments.insert(pa_arguments.begin() + 21, v0::Constant::create(element::i32, Shape{}, {0}));

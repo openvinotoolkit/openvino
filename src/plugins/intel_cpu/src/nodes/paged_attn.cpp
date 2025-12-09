@@ -200,12 +200,12 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
             ->createSharedDesc(
                 ov::element::i32,
                 getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES)));
-    // adaptive_rkv_block_set_begins, int32, [B_seq + 1]
-    config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS].setMemDesc(
+    // adaptive_rkv_diversity_block_set_indices_begins, int32, [B_seq + 1]
+    config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(
                 ov::element::i32,
-                getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_BEGINS)));
+                getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS)));
 
     config.outConfs[2].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(2)));
