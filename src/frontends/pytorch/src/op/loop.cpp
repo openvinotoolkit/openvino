@@ -98,9 +98,9 @@ OutputVector translate_while_loop_fx(const NodeContext& context) {
     //   - Other parameters/results are carried values
 
     auto decoder = context.get_decoder();
-    PYTORCH_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 2,
-                                "while_loop must have 2 subgraphs (cond and body), got " +
-                                    std::to_string(decoder->get_subgraph_size()));
+    PYTORCH_OP_CONVERSION_CHECK(
+        decoder->get_subgraph_size() == 2,
+        "while_loop must have 2 subgraphs (cond and body), got " + std::to_string(decoder->get_subgraph_size()));
 
     const auto& inputs = context.inputs();
     const size_t num_carried = inputs.size();
@@ -131,7 +131,8 @@ OutputVector translate_while_loop_fx(const NodeContext& context) {
     // 4. Return [cond_output, body_outputs]
 
     // Create trip_count (large number for while loop)
-    auto trip_count = ov::opset10::Constant::create(ov::element::i64, ov::Shape{}, {std::numeric_limits<int64_t>::max()});
+    auto trip_count =
+        ov::opset10::Constant::create(ov::element::i64, ov::Shape{}, {std::numeric_limits<int64_t>::max()});
 
     // Create initial condition (true)
     auto init_cond = ov::opset10::Constant::create(ov::element::boolean, ov::Shape{}, {true});
@@ -148,7 +149,8 @@ OutputVector translate_while_loop_fx(const NodeContext& context) {
 
     // carried inputs
     for (size_t i = 0; i < num_carried; i++) {
-        auto param = std::make_shared<ov::opset10::Parameter>(inputs[i].get_element_type(), inputs[i].get_partial_shape());
+        auto param =
+            std::make_shared<ov::opset10::Parameter>(inputs[i].get_element_type(), inputs[i].get_partial_shape());
         param->set_friendly_name("loop_carried_" + std::to_string(i));
         loop_body_params.push_back(param);
     }
