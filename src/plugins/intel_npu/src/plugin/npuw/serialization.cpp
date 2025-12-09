@@ -30,12 +30,12 @@ ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::WeightsPtr&
                                                const std::string& _weights_path,
                                                const s11n::WeightsContext::ConstsCache& _consts_cache,
                                                const BF16Cache& _bf16_consts,
-                                               const ov::HandleGetterFn& _handle_getter)
+                                               const ov::FileHandleProvider& _handle_provider)
     : weights(_weights),
       weights_path(_weights_path),
       consts_cache(_consts_cache),
       bf16_consts(_bf16_consts),
-      handle_getter(_handle_getter) {
+      handle_provider(_handle_provider) {
     is_weightless = _weights || !_consts_cache.empty();
 }
 

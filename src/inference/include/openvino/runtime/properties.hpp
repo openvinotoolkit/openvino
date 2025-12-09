@@ -250,7 +250,7 @@ using FileHandle = int;
 #endif
 
 /**
- * @brief Type definition for file handle getter callback (cross-platform).
+ * @brief Type definition for file handle provider callback (cross-platform).
  * Function that takes no arguments and returns a platform-specific file handle.
  * On Linux/Unix: returns int (file descriptor)
  * On Windows: returns void* (HANDLE cast to void*)
@@ -258,7 +258,7 @@ using FileHandle = int;
  * such as Android content providers or Windows restricted file access scenarios.
  * @ingroup ov_runtime_cpp_prop_api
  */
-using HandleGetterFn = std::function<FileHandle()>;
+using FileHandleProvider = std::function<FileHandle()>;
 
 /**
  * @brief Namespace with hint properties

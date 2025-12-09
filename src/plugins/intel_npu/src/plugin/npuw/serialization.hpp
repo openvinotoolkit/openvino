@@ -134,7 +134,7 @@ struct WeightsContext {
                    const std::string& _weights_path,
                    const ConstsCache& _consts_cache,
                    const BF16Cache& _bf16_consts,
-                   const ov::HandleGetterFn& _handle_getter = nullptr);
+                   const ov::FileHandleProvider& _handle_provider = nullptr);
 
     WeightsContext& operator=(const WeightsContext& other) = default;
 
@@ -149,7 +149,7 @@ struct WeightsContext {
     std::string weights_path;
     ConstsCache consts_cache;
     BF16Cache bf16_consts;
-    ov::HandleGetterFn handle_getter = nullptr;
+    ov::FileHandleProvider handle_provider = nullptr;
 };
 
 struct PyramidCtx {

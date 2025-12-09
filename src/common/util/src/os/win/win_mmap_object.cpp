@@ -142,7 +142,7 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle) {
     // On Windows, FileHandle is void* (HANDLE)
     HANDLE h = static_cast<HANDLE>(handle);
     if (h == INVALID_HANDLE_VALUE || h == nullptr) {
-        OPENVINO_THROW("Invalid handle provided to load_mmap_object");
+        throw std::runtime_error("Invalid handle provided to load_mmap_object");
     }
 
     auto holder = std::make_shared<MapHolder>();

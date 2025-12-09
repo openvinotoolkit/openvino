@@ -1213,12 +1213,12 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         std::shared_ptr<ov::Model> model_ptr;
         // Cache model's constants
         WeightsContext::ConstsCache consts_cache;
-        ov::HandleGetterFn handle_getter = nullptr;
+        ov::FileHandleProvider handle_provider = nullptr;
         if (is_weightless) {
-            // Check if weights_handle_getter function is provided
-            if (const auto handle_it = properties.find(ov::intel_npu::npuw::weights_handle_getter.name()); handle_it != properties.end()) {
-                if (handle_it->second.is<ov::HandleGetterFn>()) {
-                    handle_getter = handle_it->second.as<ov::HandleGetterFn>();
+            // Check if weights_handle_provider function is provided
+            if (const auto handle_it = properties.find(ov::intel_npu::npuw::weights_handle_provider.name()); handle_it != properties.end()) {
+                if (handle_it->second.is<ov::FileHandleProvider>()) {
+                    handle_provider = handle_it->second.as<ov::FileHandleProvider>();
                 }
             } else if (properties.find(ov::weights_path.name()) != properties.end()) {
                 weights_path = properties.at(ov::weights_path.name()).as<std::string>();
@@ -1259,9 +1259,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         ov::npuw::s11n::WeightsPtr weights = nullptr;
         if (is_weightless) {
             std::shared_ptr<ov::MappedMemory> mapped_memory;
-            // Use handle_getter if available, otherwise use default mmap with weights_path
-            if (handle_getter) {
-                ov::FileHandle handle = handle_getter();
+            // Use handle_provider if available, otherwise use default mmap with weights_path
+            if (handle_provider) {
+                ov::FileHandle handle = handle_provider();
                 mapped_memory = ov::load_mmap_object(handle);
             } else if (!weights_path.empty()) {
                 mapped_memory = ov::load_mmap_object(weights_path);
@@ -1277,7 +1277,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         // Unclear why it's needed, but without saving consts_cache until bank evaluation,
         // the memory is freed somewhere.
         compiled->m_import_weights_ctx =
-            WeightsContext(weights, weights_path, consts_cache, compiled->m_bf16_consts, handle_getter);
+            WeightsContext(weights, weights_path, consts_cache, compiled->m_bf16_consts, handle_provider);
 
         // Deserialize compiled submodels
         std::size_t subm_size = 0;
