@@ -7,6 +7,7 @@ import os
 import shlex
 import sys
 import threading
+import pprint
 from argparse import ArgumentParser
 from hashlib import sha256
 from pathlib import Path
@@ -619,6 +620,9 @@ class TestParallelRunner:
             self._is_save_cache = True
             runtime_test_list = self.__prepare_smart_filters(runtime_test_dist)
         logger.info(f"Total test counter is {self._total_test_cnt}")
+        logger.debug("runtime_test_list: %s", pprint.pformat(runtime_test_list))
+        logger.debug("---------------------------------------------------------")
+        logger.debug("cached_test_list: %s", pprint.pformat(cached_test_list))
         return cached_test_list, runtime_test_list
 
     def __execute_tests(self, filters: [], prev_worker_cnt=0):
