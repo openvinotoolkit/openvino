@@ -25,7 +25,13 @@ class Iterator;
 }
 
 namespace op {
+namespace util {
+class ConstantDescriptor;
+} // namespace util
+
 namespace v0 {
+using util::ConstantDescriptor;
+
 /// \brief Class for constants.
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Constant : public Op {
@@ -33,6 +39,8 @@ public:
     OPENVINO_OP("Constant", "opset1");
 
     Constant() = default;
+
+    std::shared_ptr<ConstantDescriptor> get_desc() const;
 
     /// \brief Initialize a constant from ov::Tensor
     /// \param tensor The ov::Tensor with data
@@ -804,6 +812,7 @@ private:
     Shape m_shape{};
     Strides m_byte_strides{};
     std::shared_ptr<ov::AlignedBuffer> m_data{};
+    mutable std::shared_ptr<ConstantDescriptor> m_descriptor{};
     mutable std::atomic_bool m_all_elements_bitwise_identical{false};
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
     bool m_alloc_buffer_on_visit_attributes{true};

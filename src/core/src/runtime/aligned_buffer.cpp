@@ -8,11 +8,12 @@
 #include <memory>
 
 #include "openvino/core/memory_util.hpp"
+#include "openvino/core/model_util.hpp"
 
 namespace ov {
-AlignedBuffer::AlignedBuffer() : m_allocated_buffer(nullptr), m_aligned_buffer(nullptr), m_byte_size(0) {}
+AlignedBuffer::AlignedBuffer() : m_allocated_buffer(nullptr), m_aligned_buffer(nullptr), m_byte_size(0), m_buffer_id(0) {}
 
-AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment) : m_byte_size(byte_size) {
+AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment) : m_byte_size(byte_size), m_buffer_id(0) {
     m_byte_size = std::max<size_t>(1, byte_size);
     size_t allocation_size = m_byte_size + alignment;
     m_allocated_buffer = new char[allocation_size];
@@ -23,16 +24,19 @@ AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment) : m_byte_size(b
 AlignedBuffer::AlignedBuffer(AlignedBuffer&& other)
     : m_allocated_buffer(other.m_allocated_buffer),
       m_aligned_buffer(other.m_aligned_buffer),
-      m_byte_size(other.m_byte_size) {
+      m_byte_size(other.m_byte_size),
+      m_buffer_id(other.m_buffer_id) {
     other.m_allocated_buffer = nullptr;
     other.m_aligned_buffer = nullptr;
     other.m_byte_size = 0;
+    other.m_buffer_id = 0;
 }
 
 AlignedBuffer::~AlignedBuffer() {
     if (m_allocated_buffer != nullptr) {
         delete[] m_allocated_buffer;
     }
+    ov::util::BufferRegistry::get().unregister_buffer(m_buffer_id);
 }
 
 AlignedBuffer& AlignedBuffer::operator=(AlignedBuffer&& other) {

@@ -11,6 +11,7 @@
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/meta_data.hpp"
+#include "openvino/core/model_util.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -926,6 +927,7 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
         }
 
         auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
+        ov::util::BufferRegistry::get().register_subbuffer(buffer, m_weights);
         adapter.set(buffer);
     }
 }
