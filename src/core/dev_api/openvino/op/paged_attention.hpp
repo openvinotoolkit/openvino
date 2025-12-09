@@ -5,10 +5,15 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
-#include "openvino/reference/utils/paged_cache_manager.hpp"
+
+
 
 namespace ov {
 namespace op {
+
+namespace reference::paged_attention_cache {
+    class PagedCacheManager;
+} // namespace reference::paged_attention_cache
 
 /// \brief PagedAttentionExtension operation implements paged attention for memory-efficient sequence processing.
 ///

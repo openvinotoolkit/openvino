@@ -13,6 +13,28 @@
 
 #include "openvino/reference/convert.hpp"
 
+inline void* ov::reference::paged_attention_cache::PagedCacheManager::get_key_base() const noexcept {
+    return get_cache_blocks().key_base;
+}
+inline void* ov::reference::paged_attention_cache::PagedCacheManager::get_value_base() const noexcept {
+    return get_cache_blocks().value_base;
+}
+inline std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_total_bytes() const noexcept {
+    return m_total_bytes;
+}
+inline ov::element::Typeov::reference::paged_attention_cache:: PagedCacheManager::get_element_type() const noexcept {
+    return m_elem_type;
+}
+inline std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_num_blocks() noexcept {
+    return m_num_blocks;
+}
+inline std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_block_size() noexcept {
+    return m_block_size;
+}
+inline std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_block_bytes() noexcept {
+    return m_block_bytes;
+}
+
 ov::reference::paged_attention_cache::PagedCacheManager::PagedCacheManager(ov::element::Type elem_type,
                                                                            std::size_t total_bytes)
     : m_elem_type(elem_type),
@@ -53,23 +75,23 @@ size_t ov::reference::paged_attention_cache::PagedCacheManager::register_operato
 }
 
 // buffers
-ov::reference::paged_attention_cache::PagedCacheManager::cache_blocks
+ov::reference::paged_attention_cache::PagedCacheManager::CacheBlocks
 ov::reference::paged_attention_cache::PagedCacheManager::get_cache_blocks() const noexcept {
     const std::size_t half_bytes = m_total_bytes / 2;
-    return cache_blocks{const_cast<void*>(m_key_buffer.get_ptr()),
+    return CacheBlocks{const_cast<void*>(m_key_buffer.get_ptr()),
                         const_cast<void*>(m_value_buffer.get_ptr()),
                         half_bytes,
                         half_bytes};
 }
 
 // per-operator metadata
-ov::reference::paged_attention_cache::PagedCacheManager::subsequence_view
+ov::reference::paged_attention_cache::PagedCacheManager::SubsequenceView
 ov::reference::paged_attention_cache::PagedCacheManager::get_subsequence_begins(size_t node_id) const {
     auto it = m_ops.find(node_id);
     if (it == m_ops.end())
         return {};
     const auto& v = it->second.subsequence_begins;
-    return subsequence_view{v.data(), v.size()};
+    return SubsequenceView{v.data(), v.size()};
 }
 
 // Check if sizes match, initialize empty blocks since we know the size of a block and dtype at this point, prepare a

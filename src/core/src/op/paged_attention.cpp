@@ -3,6 +3,7 @@
 //
 
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/reference/utils/paged_cache_manager.hpp"
 
 #include <iostream>
 #include <sstream>

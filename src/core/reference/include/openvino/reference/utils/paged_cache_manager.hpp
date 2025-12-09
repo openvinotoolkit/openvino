@@ -38,22 +38,16 @@ inline constexpr std::size_t CACHE_SIZE = 1000000;
 
 class OPENVINO_API PagedCacheManager {
 public:
-    struct OPENVINO_API cache_blocks {
+    struct OPENVINO_API CacheBlocks {
         void* key_base{nullptr};
         void* value_base{nullptr};
         size_t key_bytes{0};
         size_t value_bytes{0};
     };
 
-    struct OPENVINO_API subsequence_view {
+    struct OPENVINO_API SubsequenceView {
         const std::int32_t* data{nullptr};
         size_t count{0};
-    };
-
-    struct OPENVINO_API block_span {
-        std::size_t key_byte_offset{0};
-        std::size_t value_byte_offset{0};
-        std::size_t byte_length{0};
     };
 
     PagedCacheManager(ov::element::Type elem_type, std::size_t total_bytes = CACHE_SIZE);
@@ -69,7 +63,7 @@ public:
     bool operator_registered(const size_t node_id);
 
     // shared buffer access
-    cache_blocks get_cache_blocks() const noexcept;
+    CacheBlocks get_cache_blocks() const noexcept;
     void* get_key_base() const noexcept;
     void* get_value_base() const noexcept;
     std::size_t get_total_bytes() const noexcept;
@@ -79,7 +73,7 @@ public:
     std::size_t get_block_bytes() noexcept;
 
     // per-operator metadata
-    subsequence_view get_subsequence_begins(size_t node_id) const;
+    SubsequenceView get_subsequence_begins(size_t node_id) const;
 
     // block lifecycle
     std::vector<std::size_t> acquire_blocks(size_t node_id, std::size_t block_count);
@@ -168,29 +162,7 @@ private:
     std::vector<std::size_t> m_evict_heap;
 };
 
-// -------- inline trivials & templates --------
-
-inline void* PagedCacheManager::get_key_base() const noexcept {
-    return get_cache_blocks().key_base;
-}
-inline void* PagedCacheManager::get_value_base() const noexcept {
-    return get_cache_blocks().value_base;
-}
-inline std::size_t PagedCacheManager::get_total_bytes() const noexcept {
-    return m_total_bytes;
-}
-inline ov::element::Type PagedCacheManager::get_element_type() const noexcept {
-    return m_elem_type;
-}
-inline std::size_t PagedCacheManager::get_num_blocks() noexcept {
-    return m_num_blocks;
-}
-inline std::size_t PagedCacheManager::get_block_size() noexcept {
-    return m_block_size;
-}
-inline std::size_t PagedCacheManager::get_block_bytes() noexcept {
-    return m_block_bytes;
-}
+// -------- templates --------
 
 template <typename T>
 std::vector<std::size_t> PagedCacheManager::insert(size_t node_id,

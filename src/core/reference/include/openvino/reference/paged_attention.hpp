@@ -19,7 +19,8 @@
 #    define PA_DEBUG 0
 #endif
 
-namespace ov::reference {
+namespace ov {
+namespace reference {
 
 namespace pa_math {
 template <typename T>
@@ -185,7 +186,7 @@ struct cache_manager_adapter {
 
     inferred_layout infer_layout_from_shapes(const ov::Shape& q, const ov::Shape& k, const ov::Shape& v) const {
         inferred_layout L{};
-        const size_t qf = (size_t)q[1], kf = (size_t)k[1], vf = (size_t)v[1];
+        const size_t qf = static_cast<size_t>(q[1],) kf = static_cast<size_t>(k[1],) vf = static_cast<size_t>(v[1]);
         size_t g = gcd_size_t(qf, gcd_size_t(kf, vf));
         size_t best_h = 1;
         for (size_t h = 1; h <= g; ++h)
@@ -196,7 +197,7 @@ struct cache_manager_adapter {
         L.key_head_size = kf / best_h;
         L.value_head_size = vf / best_h;
         L.num_blocks = cm.get_num_blocks();
-        const size_t elem_bytes = (size_t)cm.get_element_type().size();
+        const size_t elem_bytes = static_cast<size_t>(cm.get_element_type().size());
         const size_t denom = L.num_heads * std::max(L.key_head_size, L.value_head_size) * elem_bytes;
         L.block_size = denom ? (cm.get_block_bytes() / denom) : 0;
         return L;
@@ -212,7 +213,7 @@ inline void copy_token_key_value_into_cache(const paged_attention_kernel_context
     T* kdst = static_cast<T*>(ctx.key_cache_base);
     T* vdst = static_cast<T*>(ctx.value_cache_base);
 
-    const size_t local_index = token_index - (size_t)ctx.subsequence_begins[sequence_index];
+    const size_t local_index = token_index - static_cast<size_t>(ctx.subsequence_begins[sequence_index]);
     const size_t off_in_block = local_index % ctx.block_size;
 
     const int32_t bid =
@@ -227,11 +228,11 @@ inline void copy_token_key_value_into_cache(const paged_attention_kernel_context
     ctx.block_indices[begin + tail] = bid;
 
     for (size_t h = 0; h < ctx.head_count; ++h) {
-        const size_t k_off = ((size_t)bid * ctx.head_count + h) * ctx.block_size + off_in_block;
+        const size_t k_off = (static_cast<size_t>(bid) * ctx.head_count + h) * ctx.block_size + off_in_block;
         std::memcpy(kdst + k_off * ctx.key_head_size,
                     ksrc + token_index * ctx.key_feature_size + h * ctx.key_head_size,
                     ctx.key_head_size * sizeof(T));
-        const size_t v_off = ((size_t)bid * ctx.head_count + h) * ctx.block_size + off_in_block;
+        const size_t v_off = (static_cast<size_t>(bid) * ctx.head_count + h) * ctx.block_size + off_in_block;
         std::memcpy(vdst + v_off * ctx.value_head_size,
                     vsrc + token_index * ctx.value_feature_size + h * ctx.value_head_size,
                     ctx.value_head_size * sizeof(T));
@@ -261,7 +262,7 @@ inline T compute_score_against_cached_key(const T* q_vec,
                                           int32_t block_id,
                                           int32_t off) {
     const T* kc = static_cast<const T*>(ctx.key_cache_base);
-    const T* k_vec = kc + (((size_t)block_id * ctx.head_count + h) * ctx.block_size + (size_t)off) * ctx.key_head_size;
+    const T* k_vec = kc + ((static_cast<size_t>(block_id) * ctx.head_count + h) * ctx.block_size + static_cast<size_t>(off)) * ctx.key_head_size;
 
     T s = pa_math::compute_dot_product(q_vec, k_vec, ctx.key_head_size);
 
@@ -276,7 +277,7 @@ inline T compute_score_against_cached_key(const T* q_vec,
         pa_rotary::apply_rotary_embedding_to_vector(tmp.data(),
                                                     ctx.key_head_size,
                                                     static_cast<const T*>(ctx.rotation_trig_lut),
-                                                    (size_t)trig_row);
+                                                    static_cast<size_t>(trig_row));
         s = pa_math::compute_dot_product(q_vec, tmp.data(), ctx.key_head_size);
     }
     return s;
@@ -288,7 +289,7 @@ inline T compute_score_against_new_key(const T* q_vec,
                                        int32_t abs_token_idx,
                                        const paged_attention_kernel_context& ctx) {
     const T* ksrc = static_cast<const T*>(ctx.key);
-    const T* k_vec = ksrc + (size_t)abs_token_idx * ctx.key_feature_size + h * ctx.key_head_size;
+    const T* k_vec = ksrc + static_cast<size_t>(abs_token_idx) * ctx.key_feature_size + h * ctx.key_head_size;
     return pa_math::compute_dot_product(q_vec, k_vec, ctx.key_head_size);
 }
 
@@ -301,7 +302,7 @@ inline void accumulate_value_from_cached_key(size_t h,
                                              std::vector<T>& out_vec) {
     const T* vc = static_cast<const T*>(ctx.value_cache_base);
     const T* v_vec =
-        vc + (((size_t)block_id * ctx.head_count + h) * ctx.block_size + (size_t)off) * ctx.value_head_size;
+        vc + ((static_cast<size_t>(block_id) * ctx.head_count + h) * ctx.block_size + static_cast<size_t>(off)) * ctx.value_head_size;
     for (size_t i = 0; i < ctx.value_head_size; ++i)
         out_vec[i] += w * v_vec[i];
 }
@@ -313,7 +314,7 @@ inline void accumulate_value_from_new_key(int32_t abs_token_idx,
                                           T w,
                                           std::vector<T>& out_vec) {
     const T* vsrc = static_cast<const T*>(ctx.value);
-    const T* v_vec = vsrc + (size_t)abs_token_idx * ctx.value_feature_size + h * ctx.value_head_size;
+    const T* v_vec = vsrc + static_cast<size_t>(abs_token_idx) * ctx.value_feature_size + h * ctx.value_head_size;
     for (size_t i = 0; i < ctx.value_head_size; ++i)
         out_vec[i] += w * v_vec[i];
 }
@@ -367,10 +368,10 @@ void paged_attention(const size_t node_id,
     ctx.rotation_deltas = rotation_deltas_opt;
     ctx.rotation_trig_lut = rotation_trig_lut_opt;
 
-    ctx.batch_token_count = (size_t)query_shape[0];
-    ctx.query_feature_size = (size_t)query_shape[1];
-    ctx.key_feature_size = (size_t)key_shape[1];
-    ctx.value_feature_size = (size_t)value_shape[1];
+    ctx.batch_token_count = static_cast<size_t>(query_shape[0]);
+    ctx.query_feature_size = static_cast<size_t>(query_shape[1]);
+    ctx.key_feature_size = static_cast<size_t>(key_shape[1]);
+    ctx.value_feature_size = static_cast<size_t>(value_shape[1]);
 
     ctx.block_count = L.num_blocks;
     ctx.head_count = L.num_heads;
@@ -379,11 +380,11 @@ void paged_attention(const size_t node_id,
     ctx.value_head_size = L.value_head_size;
     ctx.query_head_size = L.query_head_size ? L.query_head_size : (ctx.query_feature_size / ctx.head_count);
 
-    ctx.sequence_count = (size_t)past_lens_shape[0];
-    ctx.rotated_block_count = rotated_block_indices_shape.empty() ? 0 : (size_t)rotated_block_indices_shape[0];
+    ctx.sequence_count = static_cast<size_t>(past_lens_shape[0]);
+    ctx.rotated_block_count = rotated_block_indices_shape.empty() ? 0 : static_cast<size_t>(rotated_block_indices_shape[0]);
     ctx.rotation_deltas_dim =
-        (rotation_deltas_shape.empty() || ctx.rotated_block_count == 0) ? 0 : (size_t)rotation_deltas_shape[1];
-    ctx.rotation_lut_rows = rotation_trig_lut_shape.empty() ? 0 : (size_t)rotation_trig_lut_shape[0];
+        (rotation_deltas_shape.empty() || ctx.rotated_block_count == 0) ? 0 : static_cast<size_t>(rotation_deltas_shape[1]);
+    ctx.rotation_lut_rows = rotation_trig_lut_shape.empty() ? 0 : static_cast<size_t>(rotation_trig_lut_shape[0]);
 
     ctx.max_context_length = max_context_len_opt ? max_context_len_opt[0] : 0;
     ctx.sliding_window = sliding_window_opt ? sliding_window_opt[0] : 0;
@@ -400,7 +401,7 @@ void paged_attention(const size_t node_id,
     for (size_t tok = 0; tok < ctx.batch_token_count; ++tok) {
         const size_t seq = resolve_sequence_index_for_token(tok, ctx.subsequence_begins, ctx.sequence_count);
 
-        if (ctx.subsequence_begins && tok >= (size_t)ctx.subsequence_begins[seq]) {
+        if (ctx.subsequence_begins && tok >= static_cast<size_t>(ctx.subsequence_begins[seq])) {
             copy_token_key_value_into_cache<T>(ctx, tok, seq);
         }
 
@@ -417,7 +418,7 @@ void paged_attention(const size_t node_id,
 
             const int32_t keep_from = (ctx.sliding_window > 0) ? std::max<int32_t>(0, total - ctx.sliding_window) : 0;
 
-            std::vector<T> scores((size_t)total, T(0));
+            std::vector<T> scores(static_cast<size_t>(total,) T(0));
 
             for (int32_t k = 0; k < total; ++k) {
                 if (ctx.sliding_window > 0 && k < keep_from) {
@@ -457,7 +458,7 @@ void paged_attention(const size_t node_id,
                     accumulate_value_from_new_key<T>(abs_idx, h, ctx, w, out_head);
                 }
 
-                const size_t sidx = (tok * ctx.head_count + h) * (size_t)ctx.max_context_length + (size_t)k;
+                const size_t sidx = (tok * ctx.head_count + h) * static_cast<size_t>(ctx.max_context_length) + static_cast<size_t>(k);
                 out_scores[sidx] = scores[k];
             }
 
@@ -467,4 +468,5 @@ void paged_attention(const size_t node_id,
     }
 }
 
-}  // namespace ov::reference
+}  // namespace reference
+}  // namespace ov
