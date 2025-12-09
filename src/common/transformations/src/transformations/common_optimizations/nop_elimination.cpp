@@ -857,6 +857,35 @@ pass::EliminateIdentity::EliminateIdentity() {
             return false;
         }
         return replace_output_update_name(identity->output(0), identity->input_value(0));
+
+        /////////////
+
+        auto identity_out = identity->output(0);
+        auto replacement = identity->input_value(0);
+
+        if (replace_output_update_name(identity_out, replacement)) {
+            return true;
+        }
+
+        // Merge tensor names: replacement gets union of its own names and Identity's names.
+        auto& repl_tensor = replacement.get_tensor();
+        auto repl_names = repl_tensor.get_names();
+
+        const auto& id_tensor = identity_out.get_tensor();
+        const auto& id_names = id_tensor.get_names();
+
+        repl_names.insert(id_names.begin(), id_names.end());
+        repl_tensor.set_names(repl_names);
+
+        auto consumers = identity_out.get_target_inputs();
+        for (auto& input : consumers) {
+            input.replace_source_output(replacement);
+        }
+
+        ov::copy_runtime_info({identity_out.get_node_shared_ptr(), replacement.get_node_shared_ptr()},
+                              replacement.get_node_shared_ptr());
+
+        return true;
     };
 
     auto m = make_shared<pattern::Matcher>(identity_pattern, matcher_name);
