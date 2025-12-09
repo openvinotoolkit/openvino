@@ -856,9 +856,6 @@ pass::EliminateIdentity::EliminateIdentity() {
         if (!identity) {
             return false;
         }
-        return replace_output_update_name(identity->output(0), identity->input_value(0));
-
-        /////////////
 
         auto identity_out = identity->output(0);
         auto replacement = identity->input_value(0);
