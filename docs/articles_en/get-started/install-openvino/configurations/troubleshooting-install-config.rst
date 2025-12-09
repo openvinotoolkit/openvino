@@ -56,7 +56,7 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 
    .. code-block:: sh
 
-      from openvino.runtime import get_version
+      from openvino import get_version
       get_version()
 
 

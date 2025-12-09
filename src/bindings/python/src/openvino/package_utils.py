@@ -24,9 +24,13 @@ def _add_openvino_libs_to_search_path() -> None:
         if os.path.isdir(os.path.join(os.path.dirname(__file__), "libs")):
             # looking for the libs in the pip installation path.
             openvino_libs.append(os.path.join(os.path.dirname(__file__), "libs"))
-        elif os.path.isdir(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, "Library", "bin")):
+        elif os.path.isdir(
+            os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, "Library", "bin")
+        ):
             # looking for the libs in the conda installation path
-            openvino_libs.append(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, "Library", "bin"))
+            openvino_libs.append(
+                os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, "Library", "bin")
+            )
         else:
             # setupvars.bat script set all libs paths to OPENVINO_LIB_PATHS environment variable.
             openvino_libs_installer = os.getenv("OPENVINO_LIB_PATHS")
@@ -58,8 +62,12 @@ def get_cmake_path() -> str:
     return ""
 
 
-def deprecated(name: Any = None, version: str = "", message: str = "", stacklevel: int = 2) -> Callable[..., Any]:
-    """Prints deprecation warning "{function_name} is deprecated and will be removed in version {version}. {message}" and runs the function.
+def deprecated(
+    name: Any = None, version: str = "", message: str = "", stacklevel: int = 2
+) -> Callable[..., Any]:
+    """Prints deprecation warning and runs the function.
+
+    "{function_name} is deprecated and will be removed in version {version}. {message}"
 
     :param version: The version in which the code will be removed.
     :param message: A message explaining why the function is deprecated and/or what to use instead.
@@ -97,7 +105,9 @@ def classproperty(func: Any) -> _ClassPropertyDescriptor:
     return _ClassPropertyDescriptor(func)  # type: ignore
 
 
-def deprecatedclassproperty(name: Any = None, version: str = "", message: str = "", stacklevel: int = 2) -> Callable[[Any], _ClassPropertyDescriptor]:
+def deprecatedclassproperty(
+    name: Any = None, version: str = "", message: str = "", stacklevel: int = 2
+) -> Callable[[Any], _ClassPropertyDescriptor]:
     def decorator(wrapped: Any) -> _ClassPropertyDescriptor:
         func = classproperty(wrapped)
 
@@ -130,7 +140,8 @@ class LazyLoader:
             # Import the module and update sys.modules with the loaded module
             self._module = importlib.import_module(self.module_name)
             # Update the LazyLoader instance's __dict__ with the module's __dict__
-            # This ensures that subsequent attribute accesses use the module's attributes directly (by __getattribute__() )
+            # This ensures that subsequent attribute accesses use the module's
+            # attributes directly (by __getattribute__() )
             self.__dict__.update(self._module.__dict__)
 
     def __getattr__(self, item: str) -> Any:

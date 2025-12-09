@@ -187,8 +187,8 @@ public:
     struct Tag {};
 
     struct PerfCounters {
-        explicit PerfCounters(const std::string& name)
-            : execute(openvino::itt::handle(name)),
+        PerfCounters()
+            : execute(openvino::itt::handle<Tag<Node, -1>>("Node::execute")),
               getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
               initSupportedPrimitiveDescriptors(
                   openvino::itt::handle<Tag<Node, 1>>("Node::initSupportedPrimitiveDescriptors")),
@@ -202,6 +202,7 @@ public:
 
         template <typename NodeType>
         void buildClassCounters(const std::string& type_name) {
+            execute = openvino::itt::handle<Tag<NodeType, -1>>(type_name + "::execute");
             getSupportedDescriptors = openvino::itt::handle<Tag<NodeType, 0>>(type_name + "::getSupportedDescriptors");
             initSupportedPrimitiveDescriptors =
                 openvino::itt::handle<Tag<NodeType, 1>>(type_name + "::initSupportedPrimitiveDescriptors");
@@ -730,7 +731,7 @@ protected:
          std::vector<Shape> outShapes,
          std::vector<ov::element::Type> originalInputPrecisions,
          std::vector<ov::element::Type> originalOutputPrecisions,
-         const std::string& name,
+         std::string name,
          const GraphContext::CPtr& ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
