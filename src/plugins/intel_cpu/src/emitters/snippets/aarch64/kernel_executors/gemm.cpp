@@ -61,15 +61,6 @@ void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::Expressio
                                           const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                           GemmKernelKaiConfig& config) const {
     const auto& prc = expr->get_node()->get_input_element_type(0);
-    if (prc == ov::element::f16) {
-        const auto& a_layout = expr->get_input_port_descriptor(0)->get_layout();
-        const auto& b_layout = expr->get_input_port_descriptor(1)->get_layout();
-        const auto& c_layout = expr->get_output_port_descriptor(0)->get_layout();
-        OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(a_layout) &&
-                            ov::snippets::utils::is_planar_layout(b_layout) &&
-                            ov::snippets::utils::is_planar_layout(c_layout),
-                        "GemmKaiKernelExecutor supports only planar layouts for fp16");
-    }
 
     const auto [M, N, K, beta, LDC] = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
     const auto LDA = snippets::utils::get_dim_stride(expr->get_input_port(0));
@@ -105,6 +96,8 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, const
             const size_t dst_offset = ukernel.get_dst_offset(0, n_start, dst_stride_row);
             const uint8_t* rhs_ptr = static_cast<const uint8_t*>(args->B) + rhs_packed_offset;
             uint8_t* dst_ptr = static_cast<uint8_t*>(args->C) + dst_offset;
+            const float clamp_min = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
+            const float clamp_max = static_cast<float>(std::numeric_limits<ov::float16>::max());
             ukernel.run_matmul(M,
                                n_block_size,
                                K,
@@ -114,12 +107,10 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, const
                                dst_ptr,
                                dst_stride_row,
                                dst_stride_col,
-                               std::numeric_limits<ov::float16>::lowest(),
-                               std::numeric_limits<ov::float16>::max());
+                               clamp_min,
+                               clamp_max);
         }
-        return;
-    }
-    {
+    } else {
         const auto& ukernel = *kernel->gemm_ukernel_f32;
         const size_t elem_size = sizeof(float);
         const size_t BLOCK_SIZE = ukernel.get_n_step();
