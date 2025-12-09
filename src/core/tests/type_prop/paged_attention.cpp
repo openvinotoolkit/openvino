@@ -171,7 +171,8 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
     const auto adaptive_rkv_start_size = std::make_shared<op::v0::Parameter>(element::dynamic, dyn);
     const auto adaptive_rkv_evictable_sizes = std::make_shared<op::v0::Parameter>(element::dynamic, dyn);
     const auto adaptive_rkv_diversity_block_set_indices = std::make_shared<op::v0::Parameter>(element::dynamic, dyn);
-    const auto adaptive_rkv_diversity_block_set_indices_begins = std::make_shared<op::v0::Parameter>(element::dynamic, dyn);
+    const auto adaptive_rkv_diversity_block_set_indices_begins =
+        std::make_shared<op::v0::Parameter>(element::dynamic, dyn);
 
     ov::OutputVector args = {query,
                              key,
