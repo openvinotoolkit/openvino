@@ -74,8 +74,6 @@ TEST(check, error_message_with_fs_path_and_unicode) {
     std::stringstream error;
     ov::write_all_to_stream(error, "Test read file: ", path, ", because: ", description);
 
-    auto s = ov::stringify(description);
-
     EXPECT_EQ(error.str(), exp_error_str);
 }
 #endif
