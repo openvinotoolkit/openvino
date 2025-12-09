@@ -1,6 +1,6 @@
 {
   "name": "openvino-node",
-  "version": "2025.4.0",
+  "version": "2026.0.0",
   "description": "OpenVINO™ utils for using from Node.js environment",
   "repository": {
     "url": "git+https://github.com/openvinotoolkit/openvino.git",
@@ -28,17 +28,17 @@
     "install_runtime": "npm run download_runtime -- --ignore-if-exists"
   },
   "devDependencies": {
-    "@eslint/js": "^9.30.1",
-    "@types/node": "^22.13.4",
-    "eslint": "^9.30.1",
-    "eslint-config-prettier": "^10.1.5",
-    "eslint-plugin-prettier": "^5.5.1",
-    "globals": "^16.3.0",
-    "mocha": "^11.7.1",
-    "prettier": "3.6.2",
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^22.19.1",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "globals": "^16.5.0",
+    "mocha": "^11.7.5",
+    "prettier": "3.7.3",
     "random-bigint": "^0.0.1",
-    "typescript": "^5.0.4",
-    "typescript-eslint": "^8.36.0"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.0"
   },
   "engines": {
     "node": ">=21.0.0"
