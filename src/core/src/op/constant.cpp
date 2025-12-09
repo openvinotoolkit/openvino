@@ -23,9 +23,12 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/core/model_util.hpp"
+#include "openvino/op/util/node_util.hpp"
 
 namespace ov {
 namespace op {
+
 
 #define SUPPORTED_ET                                                                                                 \
     boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, f8e5m2, \
@@ -204,6 +207,19 @@ Strides calc_byte_strides(const Shape& shape, const element::Type& et) {
 }  // namespace
 
 namespace v0 {
+using ov::op::util::ConstantDescriptor;
+std::shared_ptr<ConstantDescriptor> Constant::get_desc() const {
+    try {
+        auto buffer_desc = ov::util::BufferRegistry::get().get_desc(m_data);
+        if (!m_descriptor || m_descriptor->m_buffer_id != buffer_desc.get_id()) {
+            m_descriptor = std::make_shared<ConstantDescriptor>();
+            m_descriptor->m_buffer_id = buffer_desc.get_id();
+        }
+    } catch (const ov::Exception&) {
+        return nullptr;
+    }
+    return m_descriptor;
+}
 
 Constant::Constant(const Tensor& tensor)
     : m_element_type{tensor.get_element_type()},
@@ -215,6 +231,7 @@ Constant::Constant(const Tensor& tensor)
                                                     tensor)} {
     constructor_validate_and_infer_types();
 }
+
 
 Constant::Constant(const element::Type& type, const Shape& shape, const std::vector<std::string>& values)
     : Constant(false, type, shape) {

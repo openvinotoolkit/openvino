@@ -97,7 +97,7 @@ private:
     // TODO consider to call only once per layer/TI-Loop node
     IoMap updated_io_map(const pugi::xml_node& node, const pugi::xml_node& body_node);
 
-    /// \brief Traverses xml node representation in order to create ov function for it.
+    /// \brief Traverses xml node representation in order to create ov function for it.`
     /// \param node xml node representation
     /// \param weights weights attached to current node
     /// \return shared pointer to function representing input node
