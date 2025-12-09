@@ -79,7 +79,10 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
         } else {
             std::optional<void*> mem_handle_object =
                 zeroUtils::extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
-            OPENVINO_ASSERT("Parameter with key ", ov::intel_npu::mem_handle.name(), " not found");
+            OPENVINO_ASSERT(mem_handle_object.has_value(),
+                            "Parameter with key ",
+                            ov::intel_npu::mem_handle.name(),
+                            " not found");
             _ptr = static_cast<uint8_t*>(mem_handle_object.value()) + ov::get_tensor_data_offset(*remote_tensor);
         }
     } else {

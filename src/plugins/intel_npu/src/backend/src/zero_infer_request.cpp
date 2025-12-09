@@ -704,7 +704,11 @@ void ZeroInferRequest::infer_async() {
                                 zeroUtils::extract_object(userRemoteTensor->get_properties(),
                                                           ov::intel_npu::mem_handle);
                             OPENVINO_ASSERT(memHandleObject.has_value(),
-                                            "Remote tensor does not have mem_handle property for input index: ",
+                                            "Remote tensor does not have parameter with key",
+                                            ov::intel_npu::mem_handle.name(),
+                                            " for batched index: ",
+                                            i,
+                                            ", input index ",
                                             inputIndex);
                             userBuffer = static_cast<uint8_t*>(memHandleObject.value()) +
                                          ov::get_tensor_data_offset(*userRemoteTensor);
@@ -767,7 +771,9 @@ void ZeroInferRequest::infer_async() {
                 std::optional<void*> memHandleObject =
                     zeroUtils::extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
                 OPENVINO_ASSERT(memHandleObject.has_value(),
-                                "Remote tensor does not have mem_handle property for input index: ",
+                                "Remote tensor does not have parameter with key",
+                                ov::intel_npu::mem_handle.name(),
+                                " for input index: ",
                                 inputIndex);
                 userBuffer =
                     static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_data_offset(*userRemoteTensor);
@@ -826,7 +832,9 @@ void ZeroInferRequest::get_result() {
                 std::optional<void*> memHandleObject =
                     zeroUtils::extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
                 OPENVINO_ASSERT(memHandleObject.has_value(),
-                                "Remote tensor does not have mem_handle property for output index: ",
+                                "Remote tensor does nothave parameter with key",
+                                ov::intel_npu::mem_handle.name(),
+                                " for output index: ",
                                 outputIndex);
                 userBuffer =
                     static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_data_offset(*userRemoteTensor);
