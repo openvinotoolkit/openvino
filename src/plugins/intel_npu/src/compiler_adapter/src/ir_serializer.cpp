@@ -13,6 +13,7 @@
 #include "intel_npu/config/options.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 
 namespace {
@@ -167,6 +168,7 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
         _logger.info("Downgrade op for opset smaller than 11");
     }
 
+    manager.register_pass<ov::pass::EliminateIdentity>();
     manager.register_pass<ov::pass::Serialize>(xml, weights);
 
     // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
