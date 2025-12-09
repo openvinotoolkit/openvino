@@ -19,10 +19,10 @@ class TestRot90(PytorchLayerTest):
         return aten_rot90(k,dims), ref_net, "aten::rot90"
     
     @pytest.mark.parametrize('k',[
-       1,2,3,4,5
+       1,2,3,4,-1,-3
     ])
     @pytest.mark.parametrize('dims',[
-        (0,1),(1,2),(0,2)
+        (0,1),(1,2),(0,2),(-2,-3),(-1,1),(-1,-3)
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
