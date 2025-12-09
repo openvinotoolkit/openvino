@@ -139,6 +139,7 @@ void CommandList::updateMutableCommandList(uint32_t index, const void* data, con
     desc.argIndex = index;
     desc.pArgValue = data;
 
+    std::optional<ze_graph_argument_value_strides_t> strides_value;
     if (!strides.empty()) {
         if (_init_structs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 15)) {
             OPENVINO_THROW("Strides are not supported by the current driver version.");
@@ -150,16 +151,17 @@ void CommandList::updateMutableCommandList(uint32_t index, const void* data, con
                            "dimensions.");
         }
 
-        ze_graph_argument_value_strides_t strides_value = {};
-        strides_value.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_STRIDES;
+        strides_value.emplace();
+        *strides_value = {};
+        strides_value->stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_STRIDES;
         for (size_t i = 0; i < strides.size(); ++i) {
             if (strides[i] > std::numeric_limits<uint32_t>::max()) {
                 OPENVINO_THROW("Stride value exceeds uint32_t range supported by the driver");
             }
-            strides_value.userStrides[i] = static_cast<uint32_t>(strides[i]);
+            strides_value->userStrides[i] = static_cast<uint32_t>(strides[i]);
         }
 
-        desc.pNext = static_cast<const void*>(&strides_value);
+        desc.pNext = static_cast<const void*>(&strides_value.value());
     }
 
     ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
