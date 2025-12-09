@@ -3,7 +3,6 @@
 //
 
 #include "openvino/op/paged_attention.hpp"
-#include "openvino/reference/utils/paged_cache_manager.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -12,6 +11,7 @@
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/reference/utils/paged_cache_manager.hpp"
 #include "paged_attention_shape_inference.hpp"
 
 namespace {

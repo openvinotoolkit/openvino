@@ -22,7 +22,7 @@ inline void* ov::reference::paged_attention_cache::PagedCacheManager::get_value_
 inline std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_total_bytes() const noexcept {
     return m_total_bytes;
 }
-inline ov::element::Typeov::reference::paged_attention_cache:: PagedCacheManager::get_element_type() const noexcept {
+inline ov::element::Typeov::reference::paged_attention_cache::PagedCacheManager::get_element_type() const noexcept {
     return m_elem_type;
 }
 inline std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_num_blocks() noexcept {
@@ -79,9 +79,9 @@ ov::reference::paged_attention_cache::PagedCacheManager::CacheBlocks
 ov::reference::paged_attention_cache::PagedCacheManager::get_cache_blocks() const noexcept {
     const std::size_t half_bytes = m_total_bytes / 2;
     return CacheBlocks{const_cast<void*>(m_key_buffer.get_ptr()),
-                        const_cast<void*>(m_value_buffer.get_ptr()),
-                        half_bytes,
-                        half_bytes};
+                       const_cast<void*>(m_value_buffer.get_ptr()),
+                       half_bytes,
+                       half_bytes};
 }
 
 // per-operator metadata

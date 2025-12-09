@@ -186,7 +186,7 @@ struct cache_manager_adapter {
 
     inferred_layout infer_layout_from_shapes(const ov::Shape& q, const ov::Shape& k, const ov::Shape& v) const {
         inferred_layout L{};
-        const size_t qf = static_cast<size_t>(q[1],) kf = static_cast<size_t>(k[1],) vf = static_cast<size_t>(v[1]);
+        const size_t qf = static_cast<size_t>(q[1], ) kf = static_cast<size_t>(k[1], ) vf = static_cast<size_t>(v[1]);
         size_t g = gcd_size_t(qf, gcd_size_t(kf, vf));
         size_t best_h = 1;
         for (size_t h = 1; h <= g; ++h)
@@ -262,7 +262,9 @@ inline T compute_score_against_cached_key(const T* q_vec,
                                           int32_t block_id,
                                           int32_t off) {
     const T* kc = static_cast<const T*>(ctx.key_cache_base);
-    const T* k_vec = kc + ((static_cast<size_t>(block_id) * ctx.head_count + h) * ctx.block_size + static_cast<size_t>(off)) * ctx.key_head_size;
+    const T* k_vec =
+        kc + ((static_cast<size_t>(block_id) * ctx.head_count + h) * ctx.block_size + static_cast<size_t>(off)) *
+                 ctx.key_head_size;
 
     T s = pa_math::compute_dot_product(q_vec, k_vec, ctx.key_head_size);
 
@@ -302,7 +304,8 @@ inline void accumulate_value_from_cached_key(size_t h,
                                              std::vector<T>& out_vec) {
     const T* vc = static_cast<const T*>(ctx.value_cache_base);
     const T* v_vec =
-        vc + ((static_cast<size_t>(block_id) * ctx.head_count + h) * ctx.block_size + static_cast<size_t>(off)) * ctx.value_head_size;
+        vc + ((static_cast<size_t>(block_id) * ctx.head_count + h) * ctx.block_size + static_cast<size_t>(off)) *
+                 ctx.value_head_size;
     for (size_t i = 0; i < ctx.value_head_size; ++i)
         out_vec[i] += w * v_vec[i];
 }
@@ -381,9 +384,11 @@ void paged_attention(const size_t node_id,
     ctx.query_head_size = L.query_head_size ? L.query_head_size : (ctx.query_feature_size / ctx.head_count);
 
     ctx.sequence_count = static_cast<size_t>(past_lens_shape[0]);
-    ctx.rotated_block_count = rotated_block_indices_shape.empty() ? 0 : static_cast<size_t>(rotated_block_indices_shape[0]);
-    ctx.rotation_deltas_dim =
-        (rotation_deltas_shape.empty() || ctx.rotated_block_count == 0) ? 0 : static_cast<size_t>(rotation_deltas_shape[1]);
+    ctx.rotated_block_count =
+        rotated_block_indices_shape.empty() ? 0 : static_cast<size_t>(rotated_block_indices_shape[0]);
+    ctx.rotation_deltas_dim = (rotation_deltas_shape.empty() || ctx.rotated_block_count == 0)
+                                  ? 0
+                                  : static_cast<size_t>(rotation_deltas_shape[1]);
     ctx.rotation_lut_rows = rotation_trig_lut_shape.empty() ? 0 : static_cast<size_t>(rotation_trig_lut_shape[0]);
 
     ctx.max_context_length = max_context_len_opt ? max_context_len_opt[0] : 0;
@@ -418,7 +423,7 @@ void paged_attention(const size_t node_id,
 
             const int32_t keep_from = (ctx.sliding_window > 0) ? std::max<int32_t>(0, total - ctx.sliding_window) : 0;
 
-            std::vector<T> scores(static_cast<size_t>(total,) T(0));
+            std::vector<T> scores(static_cast<size_t>(total, ) T(0));
 
             for (int32_t k = 0; k < total; ++k) {
                 if (ctx.sliding_window > 0 && k < keep_from) {
@@ -458,7 +463,8 @@ void paged_attention(const size_t node_id,
                     accumulate_value_from_new_key<T>(abs_idx, h, ctx, w, out_head);
                 }
 
-                const size_t sidx = (tok * ctx.head_count + h) * static_cast<size_t>(ctx.max_context_length) + static_cast<size_t>(k);
+                const size_t sidx =
+                    (tok * ctx.head_count + h) * static_cast<size_t>(ctx.max_context_length) + static_cast<size_t>(k);
                 out_scores[sidx] = scores[k];
             }
 
