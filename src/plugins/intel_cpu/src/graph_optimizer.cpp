@@ -278,7 +278,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         }
 // The order of applying scales and shifts is different for ARM, so bias could be already fused here for ARM
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        return any_of(parentNode->getParentEdges().size(), 2, 3);
+        return any_of(parentNode->getParentEdges().size(), 2U, 3U);
 #else
         return (parentNode->getParentEdges().size() == 2);
 #endif
