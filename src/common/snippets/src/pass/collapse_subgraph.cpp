@@ -103,7 +103,8 @@ auto is_supported_op(const std::shared_ptr<const Node>& n) -> bool {
         const bool is_f32 = utils::all_of(element::f32, intype_0, intype_1);
         const bool is_int8 = utils::any_of(intype_0, element::i8, element::u8) && (intype_1 == element::i8);
         const bool is_bf16 = utils::all_of(element::bf16, intype_0, intype_1);
-        return is_f32 || is_bf16 || is_int8;
+        const bool is_f16 = utils::all_of(element::f16, intype_0, intype_1);
+        return is_f32 || is_bf16 || is_int8 || is_f16;
     };
     auto is_supported_transpose = [](const std::shared_ptr<const Node>& n) -> bool {
         const auto& transpose = as_type_ptr<const opset1::Transpose>(n);

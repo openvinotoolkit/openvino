@@ -524,7 +524,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             map.insert({ov::element::bf16, ov::element::f32});
         }
         // TODO: Remove 'hasHardwareSupport' when all nodes are able to handle f16 properly.
-        if (none_of(config.inferencePrecision, element::f16, element::dynamic) || !hasHardwareSupport(element::f16)) {
+        if (!hasHardwareSupport(element::f16)) {
             map.insert({ov::element::f16, ov::element::f32});
         }
         return map;
