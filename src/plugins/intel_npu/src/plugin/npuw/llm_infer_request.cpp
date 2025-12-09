@@ -804,8 +804,9 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
         // Populate the attention mask for the present chunk
         // For the already processed tokens, they will be added into the attention mask after inference call
-        size_t last_chunk_offset = attn_mask_in_tensor->get_size() - chunk_prompt_len;
         if (current_prompts_len < chunk_prompt_len) {
+            size_t last_chunk_offset = attn_mask_in_tensor->get_size() - chunk_prompt_len;
+
             // We will populate current_prompts_len on the right side of attention mask for the processing tokens
             // If the current prompt length is smaller than the chunk prompt length,
             // clear the last chunk of the attention mask to ensure non-relevant tokens are masked
@@ -919,9 +920,6 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
     LOG_BLOCK();
 
     if (m_text_embedding_post_request) {
-        auto post_model_input_port = m_text_embedding_post_in_ports.at(layer_names::input_ids);
-        m_prefill_request->set_tensor(m_prefill_request->get_outputs()[0],
-                                      m_text_embedding_post_request->get_tensor(post_model_input_port));
         auto post_attention_mask =
             m_text_embedding_post_request->get_tensor(m_text_embedding_post_in_ports.at(layer_names::attention_mask));
         std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size(), post_attention_mask->data<int64_t>());
@@ -959,6 +957,21 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
     m_prefill_request->infer();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     kvcache_desc.num_stored_tokens += static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
+
+    if (m_text_embedding_post_request) {
+        auto prefill_output_tensor = m_prefill_request->get_tensor(m_prefill_request->get_outputs()[0]);
+        auto post_in_tensor =
+            m_text_embedding_post_request->get_tensor(m_text_embedding_post_in_ports.at(layer_names::input_ids));
+        auto src = ov::npuw::util::make_tensor_slice(
+            prefill_output_tensor,
+            1,
+            static_cast<uint32_t>(padded_attention_mask->get_size() - attention_mask->get_size()),
+            static_cast<uint32_t>(padded_attention_mask->get_size()));
+
+        auto dst =
+            ov::npuw::util::make_tensor_slice(post_in_tensor, 1, 0, static_cast<uint32_t>(attention_mask->get_size()));
+        ov::npuw::util::copy_tensor_by_dim(src, dst, 1, 1);
+    }
 
     LOG_DEBUG("Done");
 }
