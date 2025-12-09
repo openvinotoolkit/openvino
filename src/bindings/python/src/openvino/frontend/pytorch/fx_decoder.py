@@ -217,15 +217,39 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             # FIXME: Quadratic complexity nodes*nodes considering the outer loop over all nodes
             self._outputs = [("", self._nodes.index(pt_module))]
 
+            # Check if this is a higher_order op like while_loop
+            target_str = str(pt_module.target) if pt_module.op == "call_function" else ""
+            is_while_loop = "while_loop" in target_str
+
             self.input_types = []
-            for arg in pt_module.args:
-                if isinstance(arg, torch.fx.Node):
-                    self._inputs.append(self._nodes.index(arg))
-                else:
-                    # Not a node, consider it inlined
-                    self._inputs.append(InlinedInput(arg))
-                self.input_types.append(
-                    BaseFXDecoder.get_type_for_value(arg))
+            if is_while_loop:
+                # For while_loop: args = [cond_fn, body_fn, carried_inputs, additional_inputs]
+                # We need to extract actual tensor inputs from carried_inputs and additional_inputs tuples
+                # Skip first two args (cond_fn, body_fn) as they are subgraphs
+                self._while_loop_subgraph_args = pt_module.args[:2]  # Store subgraph references
+                for arg in pt_module.args[2:]:  # carried_inputs, additional_inputs
+                    if isinstance(arg, (tuple, list)):
+                        for item in arg:
+                            if isinstance(item, torch.fx.Node):
+                                self._inputs.append(self._nodes.index(item))
+                            else:
+                                self._inputs.append(InlinedInput(item))
+                            self.input_types.append(BaseFXDecoder.get_type_for_value(item))
+                    elif isinstance(arg, torch.fx.Node):
+                        self._inputs.append(self._nodes.index(arg))
+                        self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
+                    else:
+                        self._inputs.append(InlinedInput(arg))
+                        self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
+            else:
+                for arg in pt_module.args:
+                    if isinstance(arg, torch.fx.Node):
+                        self._inputs.append(self._nodes.index(arg))
+                    else:
+                        # Not a node, consider it inlined
+                        self._inputs.append(InlinedInput(arg))
+                    self.input_types.append(
+                        BaseFXDecoder.get_type_for_value(arg))
 
     @classmethod
     def from_exported_program(cls, exported_program: torch.export.ExportedProgram) -> "TorchFXPythonDecoder":
@@ -357,10 +381,64 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
+    def _is_while_loop_op(self):
+        """Check if this node is a while_loop operation."""
+        if not isinstance(self.pt_module, torch.fx.Node):
+            return False
+        if self.pt_module.op != "call_function":
+            return False
+        target = self.pt_module.target
+        target_str = str(target)
+        # Check for higher_order.while_loop
+        # The target could be WhileLoopOp object or string representation
+        is_while_loop = "while_loop" in target_str
+        return is_while_loop
+
+    def get_subgraphs(self):
+        """Return list of subgraphs for higher_order operations like while_loop.
+
+        For while_loop, returns [cond_graph, body_graph].
+        """
+        if not self._is_while_loop_op():
+            return []
+
+        subgraphs = []
+        # First 2 args are cond_fn and body_fn (get_attr nodes referencing GraphModules)
+        # Use stored subgraph_args if available, otherwise get from node args
+        subgraph_args = getattr(self, '_while_loop_subgraph_args', None)
+        if subgraph_args is None:
+            subgraph_args = self.pt_module.args[:2]
+
+        for arg in subgraph_args:
+            if isinstance(arg, torch.fx.Node) and arg.op == "get_attr":
+                # Get the GraphModule from the root module
+                subgraph = getattr(self.fx_gm, arg.target, None)
+                if subgraph is not None and isinstance(subgraph, torch.fx.GraphModule):
+                    subgraphs.append(subgraph)
+                # Also check if it's a callable (lambda wrapping GraphModule)
+                elif callable(subgraph) and hasattr(subgraph, 'graph'):
+                    # It's a GraphModule wrapped in lambda or similar
+                    subgraphs.append(subgraph)
+                elif subgraph is not None:
+                    # Try to get it as GraphModule anyway
+                    subgraphs.append(subgraph)
+            elif isinstance(arg, torch.fx.GraphModule):
+                subgraphs.append(arg)
+
+        return subgraphs
+
     def get_subgraph_decoder(self, index):
-        decoder = TorchFXPythonDecoder(self.get_subgraphs()[index],
-                                       self.fx_gm,
-                                       mark_node_callback=self.mark_node_callback)
+        """Return decoder for subgraph at given index."""
+        subgraphs = self.get_subgraphs()
+        if index >= len(subgraphs):
+            raise IndexError(f"Subgraph index {index} out of range (have {len(subgraphs)} subgraphs)")
+
+        subgraph = subgraphs[index]
+        decoder = TorchFXPythonDecoder(
+            subgraph,
+            self.fx_gm,
+            mark_node_callback=self.mark_node_callback
+        )
         self.m_decoders.append(decoder)
         return decoder
 
