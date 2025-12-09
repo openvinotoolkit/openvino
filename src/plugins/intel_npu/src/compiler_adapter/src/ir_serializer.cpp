@@ -170,10 +170,10 @@ void IRSerializer::serializeModelToStream(std::ostream& xml,
         _logger.info("Downgrade op for opset smaller than 11");
     }
 
-    if (compilerVersionOpt.has_value()) {
-        if (compilerVersionOpt.value().major <= 7 && compilerVersionOpt.value().minor <= 26) {
-            manager.register_pass<ov::pass::EliminateIdentity>();
-        }
+    if (compilerVersionOpt.has_value() &&
+        (compilerVersionOpt.value().major < 7 ||
+         (compilerVersionOpt.value().major == 7 && compilerVersionOpt.value().minor <= 26))) {
+        manager.register_pass<ov::pass::EliminateIdentity>();
     }
     manager.register_pass<ov::pass::Serialize>(xml, weights);
 
