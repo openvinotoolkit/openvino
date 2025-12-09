@@ -3,6 +3,13 @@
 #
 
 # Function to download and extract files
+# download vcl prebuilt package info:
+#     vcl version: 7.4.3
+#     release: npu_ud_2025_38_rc4
+#     WINDOWS: w_vpux_compiler_l0_win-7_4_3-Release_dyntbb_postcommit_cid_a826bd92b5e02af092e4d706a762252b1845f777_251010_2218.zip
+#     LINUX: 
+#         ubuntu22.04: l_vpux_compiler_l0_linux_ubuntu_22_04-7_4_3-Release_dyntbb_postcommit_cid_a934b15d7494c4961afd51cf6c896b15d1fabd8c_251119_2122.tar.gz
+#         ubuntu24.04: l_vpux_compiler_l0_linux_ubuntu_24_04-7_4_3-Release_dyntbb_postcommit_cid_a934b15d7494c4961afd51cf6c896b15d1fabd8c_251119_2204.tar.gz
 function(download_and_extract url zip_file extracted_dir modify_proxy)
 
     # Check if the prebuilt Plugin compiler libraries not exist
