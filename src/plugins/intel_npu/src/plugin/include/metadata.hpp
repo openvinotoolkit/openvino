@@ -139,11 +139,12 @@ constexpr uint32_t METADATA_VERSION_2_0{MetadataBase::make_version(2, 0)};
 constexpr uint32_t METADATA_VERSION_2_1{MetadataBase::make_version(2, 1)};
 constexpr uint32_t METADATA_VERSION_2_2{MetadataBase::make_version(2, 2)};
 constexpr uint32_t METADATA_VERSION_2_3{MetadataBase::make_version(2, 3)};
+constexpr uint32_t METADATA_VERSION_3_0{MetadataBase::make_version(3, 0)};
 
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_3};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_3_0};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
@@ -331,6 +332,26 @@ public:
 private:
     std::optional<std::vector<ov::Layout>> _inputLayouts;
     std::optional<std::vector<ov::Layout>> _outputLayouts;
+};
+
+/**
+ * @brief The version which brings the new capability system.
+ */
+template <>
+class Metadata<METADATA_VERSION_3_0> : public MetadataBase {
+public:
+    Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion = std::nullopt);
+
+    void read() override;
+
+    void write(std::ostream& stream) override;
+
+    size_t get_metadata_size() const override;
+
+    bool is_compatible() override;
+
+protected:
+    OpenvinoVersion _ovVersion;
 };
 
 /**

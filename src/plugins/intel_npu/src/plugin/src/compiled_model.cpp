@@ -8,6 +8,8 @@
 #include <string_view>
 
 #include "async_infer_request.hpp"
+#include "requirements.hpp"
+#include "serializer.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
@@ -89,6 +91,28 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
+    stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
+
+    Metadata<CURRENT_METADATA_VERSION>(0xDEADBEEF, CURRENT_OPENVINO_VERSION).write(stream);
+
+    compat::tlv::Serializer serializer;
+
+    compat::Expression expression(0xCAFE);
+    compat::ELFBlob elfBlob(0xCAFE, 0xCAFE);
+    compat::WeightsSeparationRequirement ws(0xCAFE, 0xCAFE);
+    compat::BatchSize batchSize(0xCAFE);
+    compat::InputOutputLayouts ioLayouts(0xCAFE, 0xCAFE);
+
+    serializer.append(expression);
+    serializer.append(elfBlob);
+    serializer.append(ws);
+    serializer.append(batchSize);
+    serializer.append(ioLayouts);
+
+    auto serializedCapabilities = serializer.done();
+
+    stream.write(reinterpret_cast<char*>(serializedCapabilities.data()), serializedCapabilities.size());
+
     auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
 
     std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
@@ -102,14 +126,6 @@ void CompiledModel::export_model(std::ostream& stream) const {
         outputLayouts->push_back(
             std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
     }
-
-    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
-                                       CURRENT_OPENVINO_VERSION,
-                                       initBlobSizes,
-                                       _batchSize,
-                                       inputLayouts,
-                                       outputLayouts)
-        .write(stream);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

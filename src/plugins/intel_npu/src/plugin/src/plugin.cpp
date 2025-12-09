@@ -6,6 +6,7 @@
 
 #include <fstream>
 
+#include "check.hpp"
 #include "compiled_model.hpp"
 #include "compiler_adapter_factory.hpp"
 #include "driver_compiler_adapter.hpp"
@@ -27,6 +28,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "remote_context.hpp"
 #include "transformations.hpp"
+#include "registry.hpp"
 
 using namespace intel_npu;
 
@@ -897,6 +899,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>() == true;
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = MetadataBase::getFileSize(stream);
+        // TODO: does skip compatibility affect in any way the capabilities?
+        // what if we shouldn't have made a capability as mandatory somewhen in the past?
         if (!skipCompatibility) {
             // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
             // passes compatibility checks.
@@ -904,8 +908,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             if (!metadata->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
-            blobSize = metadata->get_blob_size();
+            blobSize = metadata->get_blob_size();            
         }
+
+        int64_t reqsSize = 8 + 16 + 16 + 8 + 16;
+
+        const auto requirements = compat::tlv::parseRequirements(compat::ByteArrayView(reinterpret_cast<uint8_t*>(stream.rdbuf()), reqsSize));
+        const auto emptyCapabilities = compat::tlv::parseSWCapabilities(compat::ByteArrayView(nullptr, 0));
+
+        if (!compat::isCompatible(emptyCapabilities, requirements)) {
+            OPENVINO_THROW("Capabilities are not compatible");
+        }
+
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
