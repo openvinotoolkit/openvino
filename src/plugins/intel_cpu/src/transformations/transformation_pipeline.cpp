@@ -1652,14 +1652,12 @@ void Transformations::PostSnippets() {
         [](const_node_ptr& node) -> bool {
             if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
                 ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
-                std::cout << "[FakeQuantizeDecomposition] FQ is detected" << std::endl;
                 auto parent = node->get_input_node_shared_ptr(0);
                 if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty()) {
                     auto multiply_input = parent->get_input_node_shared_ptr(0);
                     if (ov::is_type<const ov::op::v1::Convolution>(multiply_input) ||
                         (ov::is_type<const ov::op::v1::Add>(multiply_input) &&
                          ov::is_type<const ov::op::v1::Convolution>(multiply_input->get_input_node_shared_ptr(0)))) {
-                        std::cout << "[FakeQuantizeDecomposition] FQ decomposition is called" << std::endl;
                         return true;
                     }
                 }

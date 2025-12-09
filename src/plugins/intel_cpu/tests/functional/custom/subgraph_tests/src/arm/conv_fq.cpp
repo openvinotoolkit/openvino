@@ -66,7 +66,7 @@ protected:
 
         auto weights = utils::make_constant(element::i8, {4, 3, 2, 2});
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
-        auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(element::f32, {4, 1, 1, 1}, {0.625}));
+        auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(element::f32, {1, 1}, {0.625}));
 
         std::shared_ptr<Node> conv;
         {
@@ -106,24 +106,12 @@ protected:
                                                             {quantizeIntervals[2][0]},
                                                             {quantizeIntervals[3][0]});
 
-        std::shared_ptr<Node> pooling;
-        {
-            const std::vector<size_t> kernelSize = {3, 3};
-            const std::vector<size_t> strides = {2, 2};
-            const std::vector<size_t> padBegin = {1, 1};
-            const std::vector<size_t> padEnd = {1, 1};
-            const op::PadType paddingType = op::PadType::EXPLICIT;
-            ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
-            pooling = std::make_shared<ov::op::v1::MaxPool>(fq_after,
-                                                            strides,
-                                                            padBegin,
-                                                            padEnd,
-                                                            kernelSize,
-                                                            roundingType,
-                                                            paddingType);
-        }
+        auto matmul_const = ov::test::utils::make_constant(ov::element::i8, {1, 1});
+        auto convert_mm = std::make_shared<op::v0::Convert>(matmul_const, inputPrecision);
+        auto multiply_mm = std::make_shared<op::v1::Multiply>(convert_mm, op::v0::Constant::create(inputPrecision, {1, 1}, {0.1}));
+        const auto matMul = std::make_shared<ov::op::v0::MatMul>(fq_after, multiply_mm, false, false);
 
-        function = makeNgraphFunction(inputPrecision, input_params, pooling, "ConvFQ");
+        function = makeNgraphFunction(inputPrecision, input_params, matMul, "ConvFQ");
     }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();

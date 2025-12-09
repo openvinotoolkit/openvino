@@ -95,7 +95,9 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     FuseConvolutionAndZeroPoints(graph);
     graph.RemoveDroppedNodes();
 
-// The order of applying scales and shifts is different for ARM
+// The order of applying scales and shifts is different for ARM to get specific postops order:
+// postops order on ARM: bias, scale, fq
+// postops order on x86: scale, bias, fq
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
     FuseConvolutionMatMulDeconvAndBias(graph);
@@ -274,9 +276,9 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         if (!parentNode->canBeExecutedInInt8()) {
             return false;
         }
-// The order of applying scales and shifts is different for ARM, so bias is already fused here for ARM
+// The order of applying scales and shifts is different for ARM, so bias could be already fused here for ARM
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        return true;
+        return any_of(parentNode->getParentEdges().size(), 2, 3);
 #else
         return (parentNode->getParentEdges().size() == 2);
 #endif
@@ -1466,8 +1468,7 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph& graph) {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         // u8 FakeQuantize should not be fused into convolution with i8 input
         if (childNode->getType() == Type::FakeQuantize &&
-            childNode->getOriginalOutputPrecisionAtPort(0) == ov::element::u8 &&
-            parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::i8) {
+            childNode->getOriginalOutputPrecisionAtPort(0) != parentNode->getOriginalInputPrecisionAtPort(0)) {
             parent++;
             continue;
         }

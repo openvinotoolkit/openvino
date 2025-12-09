@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2023 Intel Corporation
+// Copyright (C) 2020-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -9,6 +9,7 @@
  * Description:
  *     ConvertConvolutionBias detects specific quantized Convolution patterns followed by Multiply and Add
  *     and inserts a Convert to i32 between the constant bias and the Add node.
+ *     Convert to i32 is neccessary because ACL supports i32 bias only.
  *
  * Supported patterns:
  *     1. u8 source, u8 or i8 weights
@@ -53,6 +54,10 @@
  *                  |              +--------------+
  *                  |              | Constant     |
  *                  |              +--+-----------+
+ *                  |                 |
+ *                  |           +-----v------+
+ *                  |           |   Round    |
+ *                  |           +-----+------+
  *                  |                 |
  *                  |           +-----v------+
  *                  |           | Convert i32|
