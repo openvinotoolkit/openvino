@@ -192,19 +192,13 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     return prc;
 }
 
-#if defined(OPENVINO_ARCH_ARM64)
-static constexpr size_t expected_nodes_explicit_transpose = 3;  // Explicit Transpose + Implicit Transpose + MatMul
-#else
-static constexpr size_t expected_nodes_explicit_transpose = 1;
-#endif
-
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ExplicitTransposeMatMul, ExplicitTransposeMatMul,
                          ::testing::Combine(
                                  ::testing::ValuesIn(SNIPPETS_TESTS_STATIC_SHAPES({{1, 2, 69, 43}, {2, 49, 2, 43}})),
                                  ::testing::Values(1), // Transpose on second input
                                  ::testing::ValuesIn(precisions()),
                                  ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(expected_nodes_explicit_transpose), // Subgraph;
+                                 ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ExplicitTransposeMatMul::getTestCaseName);
@@ -221,7 +215,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynExplicitTransposeMatMul, ExplicitTran
                                  ::testing::Values(1), // Transpose on second input
                                  ::testing::ValuesIn(precisions(true)),
                                  ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(expected_nodes_explicit_transpose), // Subgraph;
+                                 ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ExplicitTransposeMatMul::getTestCaseName);
@@ -232,7 +226,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulBias, ExplicitTransposeMa
                                  ::testing::Values(1), // Transpose on second input
                                  ::testing::ValuesIn(precisions()),
                                  ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(expected_nodes_explicit_transpose), // Subgraph;
+                                 ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ExplicitTransposeMatMulBias::getTestCaseName);
@@ -250,7 +244,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynTransposeMatMulBias, ExplicitTranspos
                                  ::testing::Values(1), // Transpose on second input
                                  ::testing::ValuesIn(precisions(true)),
                                  ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(expected_nodes_explicit_transpose), // Subgraph;
+                                 ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ExplicitTransposeMatMulBias::getTestCaseName);
