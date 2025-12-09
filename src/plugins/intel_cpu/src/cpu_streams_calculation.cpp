@@ -615,9 +615,8 @@ int get_model_prefer_threads(const int num_streams,
         const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
         const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
 
-        bool use_all_cores =
-            proc_type_table[0][MAIN_CORE_PROC] <= (proc_type_table[0][EFFICIENT_CORE_PROC] /
-                                                   (int8_intensive ? int8_threshold : fp32_threshold));
+        bool use_all_cores = proc_type_table[0][MAIN_CORE_PROC] <= (proc_type_table[0][EFFICIENT_CORE_PROC] /
+                                                                    (int8_intensive ? int8_threshold : fp32_threshold));
 
         if (use_all_cores && !is_LLM) {
             config.modelPreferThreadsLatency =
