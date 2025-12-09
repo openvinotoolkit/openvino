@@ -77,7 +77,8 @@ ov::element::Type GemmCPU::get_output_type() const {
 
     if (in_type0 == element::f16) {
         return element::f16;
-    } else if (in_type0 == element::f32) {
+    }
+    if (in_type0 == element::f32) {
         return element::f32;
     }
 
