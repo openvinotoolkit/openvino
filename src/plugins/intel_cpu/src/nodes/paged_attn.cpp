@@ -313,12 +313,13 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                 errorMessage = "Only Constant operation on sink input is supported";
                 return false;
             }
-#if defined(OPENVINO_ARCH_ARM64)
-            // ARM platform doesn't support non-empty sink input yet
-            // Check if sink input is non-empty (shape size > 0)
+#ifndef OPENVINO_ARCH_X86_64
+            // Non-x86_64 platforms do not support non-empty sink tensors yet
+            // Fail fast if the sink input shape has any elements
             const auto& sink_shape = op->get_input_partial_shape(PagedAttentionExecutor::ID_SINKS);
             if (sink_shape.is_static() && ov::shape_size(sink_shape.to_shape()) > 0) {
-                errorMessage = "PagedAttentionExtension with non-empty sink input is not supported on ARM platform";
+                errorMessage =
+                    "PagedAttentionExtension with non-empty sink input is not supported on non-x86_64 platforms";
                 return false;
             }
 #endif

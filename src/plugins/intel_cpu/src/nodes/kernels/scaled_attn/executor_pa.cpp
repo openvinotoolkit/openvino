@@ -1279,6 +1279,7 @@ struct MHAHelper {
             for (size_t h = hq_beg; h < hq_end; h++) {
                 // apply attention mask & sofmax
                 float* score = _weight.ptr<float>(ithr, h - hq_beg, pq);
+                OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight buffer must be allocated");
                 float* alibi_lookup = nullptr;
                 float alibi_slope = 0.F;
                 if (alibi_slopes) {
@@ -1489,6 +1490,7 @@ struct MHAHelper {
             auto ncausal = cur_kv_len;
             // apply attention mask & sofmax
             float* score = _weight_bhl.ptr<float>(b, h, pq);
+            OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight_bhl buffer must be allocated");
             float* alibi_lookup = nullptr;
             float alibi_slope = 0.F;
             if (alibi_slopes) {

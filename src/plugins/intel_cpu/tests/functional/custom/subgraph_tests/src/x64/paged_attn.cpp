@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "internal_properties.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/add.hpp"
@@ -143,14 +144,11 @@ public:
         // Use shape [1, head_num, 1, 1] when use_sink_input=true, or empty shape [0] when false
         std::shared_ptr<ov::op::v0::Constant> sinks;
         if (use_sink_input) {
-            // Create real sink tokens for testing sink functionality
-            std::vector<float> sink_data(static_cast<size_t>(head_num), 0.1f);
-            sinks = std::make_shared<ov::op::v0::Constant>(data_type,
-                                                           Shape{1, static_cast<size_t>(head_num), 1, 1},
-                                                           sink_data);
+            sinks = std::static_pointer_cast<ov::op::v0::Constant>(
+                ov::test::utils::make_constant(data_type, Shape{1, static_cast<size_t>(head_num), 1, 1}));
         } else {
             // Create empty sink (matching SDPA->PA transformation behavior when no sink)
-            sinks = std::make_shared<ov::op::v0::Constant>(data_type, Shape{0}, std::vector<float>{});
+            sinks = std::static_pointer_cast<ov::op::v0::Constant>(ov::test::utils::make_constant(data_type, Shape{0}));
         }
 
         ParameterVector params =
