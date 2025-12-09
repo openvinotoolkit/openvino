@@ -344,7 +344,7 @@ TEST_P(InferRequestRunTests, RunWithConstData) {
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
     OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
     const auto tensor = inference_request.get_input_tensor();
-    const std::vector<float> data(tensor.get_size());
+    const std::vector<float> data(tensor.get_byte_size() / sizeof(float));
     OV_ASSERT_NO_THROW(inference_request.set_input_tensor({ov::element::f32, tensor.get_shape(), data.data()}));
     OV_ASSERT_NO_THROW(inference_request.infer());
 }
