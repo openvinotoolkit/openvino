@@ -96,7 +96,7 @@ function(download_and_extract url zip_file extracted_dir modify_proxy)
     endif()
 endfunction()
 
-if(ENABLE_PLUGIN_COMPILER_DOWNLOAD)
+if(ENABLE_INTEL_NPU_COMPILER)
     message(STATUS "Downloading prebuilt NPU Plugin compiler libraries")
     set(PLUGIN_COMPILER_VERSION_MAJOR 7)
     set(PLUGIN_COMPILER_VERSION_MINOR 4)
