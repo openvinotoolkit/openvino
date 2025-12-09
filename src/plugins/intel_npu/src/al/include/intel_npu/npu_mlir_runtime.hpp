@@ -126,6 +126,15 @@ typedef struct _npu_mlir_runtime_execute_params_t {
 } npu_mlir_runtime_execute_params_t;
 
 ///////////////////////////////////////////////////////////////////////////////
+/// @brief Predict output shape params
+typedef struct _npu_mlir_runtime_predict_output_shape_params_t {
+    npu_mlir_runtime_mem_ref_handle_t* pInputs;
+    uint32_t numOfInputs;
+    npu_mlir_runtime_mem_ref_handle_t* pOutputs;
+    uint32_t numOfOutputs;
+} npu_mlir_runtime_predict_output_shape_params_t;
+
+///////////////////////////////////////////////////////////////////////////////
 /// @brief Returns the API version
 NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeGetAPIVersion(
     npu_mlir_runtime_version_t* pVersion  ///< [out] pointer to version information
@@ -164,23 +173,15 @@ NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL np
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Predit output shape based on input shape
 NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimePredictOutputShape(
-    npu_mlir_runtime_handle_t hRuntime,              ///< [in] handle of mlir runtime object
-    npu_mlir_runtime_mem_ref_handle_t* pInputArgs,   ///< [in] pointer to input argument mem descriptor pointer array
-    uint32_t numOfInputArgs,                         ///< [in] number of input arguments
-    npu_mlir_runtime_mem_ref_handle_t* pOutputArgs,  ///< [out] pointer to output argument mem descriptor pointer array
-    uint32_t numOfOutputArgs                         ///< [in] number of output arguments
+    npu_mlir_runtime_handle_t hRuntime,                      ///< [in] handle of mlir runtime object
+    npu_mlir_runtime_predict_output_shape_params_t* pParams  ///< [in] pointer to predict output shape parameters
 );
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Create MemRef handle
-NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
-npuMLIRRuntimeCreateMemRef(npu_mlir_runtime_mem_ref_handle_t* phMemRef,  ///< [out] handle of mlir runtime MemRef object
-                           const void** pBasePtr,                        ///< [in] pointer to basePtr
-                           const void** pData,                           ///< [in] pointer to data
-                           int64_t offset,                               ///< [in] offset in MemRef
-                           int64_t* pSizes,                              ///< [in] pointer to tensor sizes
-                           int64_t* pStrides,                            ///< [in] pointer to tensor strides
-                           uint32_t dimsCount);                          ///< [in] value of tensor rank
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeCreateMemRef(
+    uint32_t dimsCount,                            ///< [in] value of tensor rank
+    npu_mlir_runtime_mem_ref_handle_t* phMemRef);  ///< [out] handle of mlir runtime MemRef object
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Destroy MemRef handle
@@ -191,41 +192,23 @@ npuMLIRRuntimeDestroyMemRef(npu_mlir_runtime_mem_ref_handle_t hMemRef);  ///< [o
 /// @brief Set new value to MemRef
 NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
 npuMLIRRuntimeSetMemRef(npu_mlir_runtime_mem_ref_handle_t hMemRef,  ///< [in] handle of mlir runtime MemRef object
-                        const void** pBasePtr,                      ///< [in] pointer to basePtr
-                        const void** pData,                         ///< [in] pointer to data
+                        const void* basePtr,                        ///< [in] pointer to basePtr
+                        const void* data,                           ///< [in] pointer to data
                         int64_t offset,                             ///< [in] offset in MemRef
                         int64_t* pSizes,                            ///< [in] pointer to tensor sizes
                         int64_t* pStrides,                          ///< [in] pointer to tensor strides
-                        uint32_t dimsCount);                        ///< [in] value of tensor rank
+                        int64_t dimsCount);                         ///< [in] value of tensor rank
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Set new value to MemRef
 NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
 npuMLIRRuntimeParseMemRef(npu_mlir_runtime_mem_ref_handle_t hMemRef,  ///< [in] handle of mlir runtime MemRef object
-                        const void** pBasePtr,                            ///< [out] pointer to basePtr
-                        const void** pData,                               ///< [out] pointer to data
-                        int64_t* offset,                             ///< [out] offset in MemRef
-                        int64_t* pSizes,                            ///< [out] pointer to tensor sizes
-                        int64_t* pStrides,                          ///< [out] pointer to tensor strides
-                        uint32_t* dimsCount);                        ///< [out] value of tensor rank
-
-
-// ///////////////////////////////////////////////////////////////////////////////
-// /// @brief Update pointer of a MemRef
-// NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeSetMemRefPointer(
-//     npu_mlir_runtime_mem_ref_handle_t hMemRef,  ///< [out] handle of mlir runtime MemRef object
-//     void** pBasePtr,                            ///< [in] pointer to basePtr
-//     void** pData,                               ///< [in] pointer to data
-//     int64_t offset);                             ///< [in] offset in MemRef
-
-//     ///////////////////////////////////////////////////////////////////////////////
-//     /// @brief Update sizes and strides of MemRef
-//     NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
-//     npuMLIRRuntimeSetMemRefSizesAndStrides(
-//         npu_mlir_runtime_mem_ref_handle_t hMemRef,  ///< [out] handle of mlir runtime MemRef object
-//         int64_t* pSizes,                            ///< [in] pointer to tensor sizes
-//         int64_t* pStrides,                          ///< [in] pointer to tensor strides
-//         uint32_t dimsCount);                        ///< [in] value of tensor rank
+                          const void** pBasePtr,                      ///< [out] pointer to basePtr
+                          const void** pData,                         ///< [out] pointer to data
+                          int64_t* pOffset,                           ///< [out] offset in MemRef
+                          int64_t* pSizes,                            ///< [out] pointer to tensor sizes
+                          int64_t* pStrides,                          ///< [out] pointer to tensor strides
+                          int64_t* pDimsCount);                       ///< [out] value of tensor rank
 
 #if defined(__cplusplus)
 }  // extern "C"

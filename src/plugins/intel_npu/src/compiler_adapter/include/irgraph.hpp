@@ -24,14 +24,14 @@ public:
         int64_t offset;
         std::vector<int64_t> sizes;
         std::vector<int64_t> strides;
-        uint32_t dimsCount;
+        int64_t dimsCount;
 
         MemRefType(const void* basePtr,
                    const void* data,
                    int64_t offset,
                    const std::vector<int64_t>& sizes,
                    const std::vector<int64_t>& strides,
-                   uint32_t dimsCount)
+                   int64_t dimsCount)
             : memRef(nullptr),
               basePtr(basePtr),
               data(data),
@@ -123,12 +123,11 @@ public:
             // Update current MemRef handle to use latest metadata
             if (memRef == nullptr) {
                 createMemRef();
-            } else {
-                auto result =
-                    npuMLIRRuntimeSetMemRef(memRef, &basePtr, &data, offset, sizes.data(), strides.data(), dimsCount);
-                if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
-                    throw std::runtime_error("Failed to update MemRef handle");
-                }
+            } 
+            auto result =
+                npuMLIRRuntimeSetMemRef(memRef, basePtr, data, offset, sizes.data(), strides.data(), dimsCount);
+            if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+                throw std::runtime_error("Failed to update MemRef handle");
             }
         }
 
@@ -136,8 +135,7 @@ public:
 
     private:
         void createMemRef() {
-            auto result =
-                npuMLIRRuntimeCreateMemRef(&memRef, &basePtr, &data, offset, sizes.data(), strides.data(), dimsCount);
+            auto result = npuMLIRRuntimeCreateMemRef(dimsCount, &memRef);
             if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
                 throw std::runtime_error("Failed to create MemRef handle");
             }

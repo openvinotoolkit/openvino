@@ -158,7 +158,18 @@ public:
                       ze_event_handle_t event,
                       ze_graph_profiling_pool_handle_t profiling) override;
     void getBinding(IRGraph::GraphArguments& binding) override;
-    virtual ~IRGraphImpl() {}
+
+    virtual ~IRGraphImpl() {
+        destroy();
+    }
+
+    void destroy() {
+        if (_engine != nullptr) {
+            npuMLIRRuntimeDestroy(_engine);
+            _engine = nullptr;
+        }
+    }
+
     void predictOutputShape(std::vector<MemRefType>& inputDescriptors,
                             std::vector<MemRefType>& outputDescriptors) override;
 
@@ -506,10 +517,12 @@ void IRGraphImpl::executeGraph(std::vector<MemRefType*>& inputMefRefs,
 
     std::vector<npu_mlir_runtime_mem_ref_handle_t> inputs, outputs;
     for (auto& in : inputMefRefs) {
+        std::cout << "before update input"<< *in << std::endl;
         in->UpdateMemRefHandleStatus();
         inputs.push_back(in->memRef);
     }
     for (auto& out : outputMemRefs) {
+        std::cout << "before update output"<< *out << std::endl;
         out->UpdateMemRefHandleStatus();
         outputs.push_back(out->memRef);
     }
@@ -544,11 +557,16 @@ void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
         out.UpdateMemRefHandleStatus();
         outputs.push_back(out.memRef);
     }
-    if (npuMLIRRuntimePredictOutputShape(_engine, inputs.data(), (uint32_t)inputs.size(), outputs.data(), (uint32_t)outputs.size()) !=
-        NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+    npu_mlir_runtime_predict_output_shape_params_t params;
+    params.pInputs = inputs.data();
+    params.numOfInputs = static_cast<uint32_t>(inputs.size());
+    params.pOutputs = outputs.data();
+    params.numOfOutputs = static_cast<uint32_t>(outputs.size());
+
+    if (npuMLIRRuntimePredictOutputShape(_engine, &params) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute MLIR runtime engine");
     } else {
-	    // Update MemRefType with the info from handle
+        // Update MemRefType with the info from handle
         // for (auto& in : inputDescriptors) {
         //     in.alignWithHandle();
         // }
