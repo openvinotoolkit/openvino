@@ -123,7 +123,8 @@ inline void FUNC(fill_half)(const uint4 res,
     }
 }
 
-KERNEL(random_uniform_ref)(const __global INPUT0_TYPE* shape, const __global INPUT1_TYPE *min_val,
+KERNEL(random_uniform_ref)(OPTIONAL_SHAPE_INFO_ARG
+                            const __global INPUT0_TYPE* shape, const __global INPUT1_TYPE *min_val,
                             const __global INPUT2_TYPE* max_val, __global OUTPUT_TYPE *output) {
     const uint plain_index = get_global_id(0);
     uint4 result = FUNC_CALL(run_philox)(plain_index);
