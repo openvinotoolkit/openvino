@@ -45,7 +45,7 @@ public:
 
     std::string getCompilerSupportedOptions() const;
 
-    bool isOptionSupported(std::string optname) const;
+    bool isOptionSupported(std::string optName, std::optional<std::string> optValue = std::nullopt) const;
     bool isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const;
 
     void getGraphBinary(const GraphDescriptor& graphDescriptor,
@@ -74,5 +74,8 @@ private:
 
     Logger _logger;
 };
+
+// Parse the result string of query from format <name_0><name_1><name_2> to unordered_set of string
+std::unordered_set<std::string> parseQueryResult(std::vector<char>& data);
 
 }  // namespace intel_npu

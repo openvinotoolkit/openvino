@@ -283,6 +283,7 @@ protected:
 };
 
 TEST_P(LoraPatternMatmulCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     targetStaticShapes = {{{{1, 20, K}}, {{N, K}}}};
     run_test();
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);
@@ -290,6 +291,7 @@ TEST_P(LoraPatternMatmulCPUTest, CompareWithRefs) {
 }
 
 TEST_P(LoraPatternConvolutionCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     targetStaticShapes = {{{1, num_channels, 10, 15}}};
     run_test();
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);

@@ -45,14 +45,13 @@ struct RTInfoCache {
 
     void store(const std::shared_ptr<ov::Model>& model) {
         traverse(model, [this](const std::shared_ptr<ov::Node>& op) {
-            m_rt_info_cache[op.get()] = op->get_rt_info();
+            m_rt_info_cache[CacheKey{op}] = op->get_rt_info();
         });
     }
 
     void restore(const std::shared_ptr<ov::Model>& model) {
         traverse(model, [this](const std::shared_ptr<ov::Node>& op) {
-            auto it = m_rt_info_cache.find(op.get());
-            if (it != m_rt_info_cache.end()) {
+            if (const auto it = m_rt_info_cache.find(CacheKey{op}); it != m_rt_info_cache.end()) {
                 op->get_rt_info() = it->second;
             } else {
                 ov::pass::enable_constant_folding(op);
@@ -62,7 +61,25 @@ struct RTInfoCache {
         });
     }
 
-    std::unordered_map<ov::Node*, ov::RTMap> m_rt_info_cache;
+private:
+    struct CacheKey {
+        explicit CacheKey(const std::shared_ptr<ov::Node>& n) : hash_value{std::hash<ov::Node*>{}(n.get())}, node{n} {}
+        struct Hash {
+            size_t operator()(const CacheKey& k) const {
+                return k.hash_value;
+            }
+        };
+        struct Equal {
+            bool operator()(const CacheKey& lhs, const CacheKey& rhs) const {
+                return !lhs.node.owner_before(rhs.node) && !rhs.node.owner_before(lhs.node);
+            }
+        };
+
+    private:
+        size_t hash_value{0};
+        std::weak_ptr<ov::Node> node;
+    };
+    std::unordered_map<CacheKey, ov::RTMap, CacheKey::Hash, CacheKey::Equal> m_rt_info_cache;
 };
 
 void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
