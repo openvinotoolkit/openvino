@@ -27,6 +27,7 @@ endif()
 
 if(ENABLE_COVERAGE)
     ov_add_compiler_flags(--coverage)
+    ov_add_compiler_flags(-fprofile-update=atomic)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
 endif()
 

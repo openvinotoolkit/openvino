@@ -7,6 +7,11 @@ on:
         type: string
         required: false
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   merge_group:
   push:
     branches:
@@ -23,6 +28,7 @@ permissions: read-all
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
@@ -88,6 +94,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: arm64
@@ -118,7 +125,7 @@ jobs:
       OPENVINO_GENAI_REPO: '/__w/openvino/openvino/openvino.genai'
       BUILD_DIR: '/__w/openvino/openvino/build'
       ANDROID_TOOLS: '/deps/android_tools'
-      ANDROID_NDK_HOME: '/deps/android_tools/ndk/28.2.13676358'
+      ANDROID_NDK_HOME: '/deps/android_tools/ndk/29.0.14206865'
       ANDROID_SDK_VERSION: 35
       ANDROID_ABI_CONFIG: ${{ matrix.android_abi }}
       TBB_BRANCH: 'v2022.2.0'
@@ -127,6 +134,9 @@ jobs:
       TBB_INSTALL: "/__w/openvino/openvino/build/onetbb-install"
       TBB_CMAKE_DIR: "/__w/openvino/openvino/build/onetbb-install/lib/cmake/TBB"
       SCCACHE_AZURE_KEY_PREFIX: android_${{ matrix.arch }}
+      ARTIFACTS_SHARE: "/mount/build-artifacts"
+      MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
+      PRODUCT_TYPE: public_android_${{ matrix.arch }}_release
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -143,6 +153,18 @@ jobs:
           path: ${{ env.OPENVINO_GENAI_REPO }}
           submodules: 'true'
           ref: ${{ env.TARGET_BRANCH }}
+
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./openvino/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+          product_type: ${{ env.PRODUCT_TYPE }}
+          target_arch: ${{ matrix.arch }}
+          build_type: 'release'
+          save_to: ${{ env.MANIFEST_PATH }}
+          trigger_repo_branch: ${{ inputs.target-branch }}
 
       #
       # Print system info
@@ -201,6 +223,7 @@ jobs:
             -DANDROID_PLATFORM=${{ env.ANDROID_SDK_VERSION }} \
             -DANDROID_STL=c++_shared \
             -DENABLE_TESTS=ON \
+            -DCPACK_ARCHIVE_COMPONENT_INSTALL=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_TBB=OFF \
@@ -212,7 +235,13 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DENABLE_LTO=ON \
+            -DENABLE_INTEL_CPU=ON \
+            -DENABLE_INTEL_GPU=ON \
+            -DENABLE_INTEL_NPU=ON \
+            -DENABLE_TEMPLATE=ON \
             -DENABLE_PYTHON=OFF \
+            -DCMAKE_EXE_LINKER_FLAGS="-Wl,-z,max-page-size=16384" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-z,max-page-size=16384" \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -243,18 +272,30 @@ jobs:
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_TEST_DIR} --component tests
 
           # Install runtime into install dir; fallback to full install if component is unavailable
-          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core \
-            || cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR}
+          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core
+          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component cpu
+          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component template
 
           # If tests were installed under tests/, move CPU test binaries to expected path
           if [ -d "${INSTALL_TEST_DIR}/tests" ]; then
             echo "Moving tests from ${INSTALL_TEST_DIR}/tests/ to ${INSTALL_TEST_DIR}/bin/intel64/Release/"
             find ${INSTALL_TEST_DIR}/tests -name "*cpu*test*" -type f -exec cp {} ${INSTALL_TEST_DIR}/bin/intel64/Release/ \;
+            # Copy Template plugin library from tests installation into runtime package so tests can load it
+            find ${INSTALL_TEST_DIR}/tests -name "libopenvino_template_plugin*.so*" -type f -exec cp {} ${INSTALL_DIR}/runtime/lib/intel64/ \; 2>/dev/null || true
           fi
 
           # Add TBB and libc++ shared to runtime package
           find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} ${INSTALL_DIR}/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
           cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" ${INSTALL_DIR}/lib/ || echo "libc++_shared.so not found"
+      
+      - name: Pack openvino_package
+        run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Pack openvino_tests
+        run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_tests.tar.gz
+        working-directory: ${{ env.INSTALL_TEST_DIR }}
+
       - name: Upload CPU test binaries
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
@@ -268,6 +309,19 @@ jobs:
           name: ov_android_package_${{ matrix.arch }}
           path: ${{ env.INSTALL_DIR }}/
           if-no-files-found: 'error'
+      
+      - name: Store artifacts to a shared drive
+        id: store_artifacts
+        if: ${{ github.event_name != 'merge_group' }}
+        uses: ./openvino/.github/actions/store_artifacts
+        with:
+          artifacts: |
+            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+            ${{ env.MANIFEST_PATH }}
+          storage_dir: ${{ env.PRODUCT_TYPE }}
+          storage_root: ${{ env.ARTIFACTS_SHARE }}
+          branch_name: ${{ inputs.target-branch }}
 
   CXX_Unit_Tests:
     needs: [Smart_CI, Docker, Build]
@@ -290,13 +344,13 @@ jobs:
         timeout-minutes: 15
 
       - name: Download CPU test binaries
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: ov_cpu_tests_android_x64
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Download OpenVINO runtime package (Android)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: ov_android_package_x64
           path: ${{ env.INSTALL_DIR }}
@@ -354,19 +408,113 @@ jobs:
             echo "Pulling unit test results..."
             adb pull /data/local/tmp/ov_test/unit_test_results.xml ./unit_test_results.xml || { echo "Warning: Could not pull unit test results"; adb shell "ls -la /data/local/tmp/ov_test/"; adb shell "cat /data/local/tmp/ov_test/unit_test_results.xml" || echo "No unit test results file"; }
 
-      - name: Upload test results
+      - name: Upload unit test results
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
         with:
-          name: cpu_tests_results_android_x64
+          name: cpu_unit_tests_results_android_x64
+          path: ./unit_test_results.xml
+          if-no-files-found: 'ignore'
+
+  CXX_Func_Tests:
+    needs: [Smart_CI, Docker, Build]
+    timeout-minutes: 20
+    runs-on: aks-linux-4-cores-16gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_android }}
+      volumes:
+        - /mount:/mount
+      options: --device /dev/kvm
+    env:
+      ANDROID_API_LEVEL: 30
+      ANDROID_TARGET: google_apis
+      ANDROID_ARCH: x86_64
+      INSTALL_DIR: android_package
+      INSTALL_TEST_DIR: android_tests
+      GTEST_FILTER: '*EltwiseLayer*'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+
+      - name: Download CPU test binaries
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: ov_cpu_tests_android_x64
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Download OpenVINO runtime package (Android)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: ov_android_package_x64
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Setup KVM permissions
+        run: |
+          /usr/local/bin/setup-kvm.sh || true
+          ls -la /dev/kvm || echo "KVM device not available"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+
+      - name: AVD cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        id: avd-cache
+        if: github.ref_name == 'master'
+        with:
           path: |
-            ./unit_test_results.xml
-            ./func_test_results.xml
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ env.ANDROID_API_LEVEL }}-${{ env.ANDROID_TARGET }}-${{ env.ANDROID_ARCH }}
+
+      - name: Run CPU func tests on emulator
+        id: func-tests
+        uses: reactivecircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed # v2.34.0
+        with:
+          api-level: ${{ env.ANDROID_API_LEVEL }}
+          target: ${{ env.ANDROID_TARGET }}
+          arch: ${{ env.ANDROID_ARCH }}
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 8192 -qemu -cpu host
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: |
+            set -e
+            adb wait-for-device
+
+            [ -f "${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_func_tests" ] || { echo "Error: ov_cpu_func_tests binary not found"; exit 1; }
+
+            chmod +x ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_func_tests
+
+            adb shell "rm -rf /data/local/tmp/ov_test_func && mkdir -p /data/local/tmp/ov_test_func/intel64/Release"
+            echo "Pushing functional test binary and libraries to device..."
+            adb push ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_func_tests /data/local/tmp/ov_test_func/intel64/Release/ov_cpu_func_tests
+            # Push OpenVINO libraries from runtime package
+            for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/intel64/Release; done
+            for lib in ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/intel64/Release; done
+            adb shell "chmod 755 /data/local/tmp/ov_test_func/intel64/Release/ov_cpu_func_tests"
+            echo "Running CPU functional tests..."
+            adb shell "cd /data/local/tmp/ov_test_func && export LD_LIBRARY_PATH=/data/local/tmp/ov_test_func/intel64/Release:$LD_LIBRARY_PATH && timeout 3600 ./intel64/Release/ov_cpu_func_tests  --gtest_filter=${{ env.GTEST_FILTER }} --gtest_output=xml:/data/local/tmp/ov_test_func/intel64/Release/func_test_results.xml" || { echo "Functional test execution failed"; adb shell "ls -la /data/local/tmp/ov_test_func/intel64/Release/"; exit 1; }
+            echo "Pulling functional test results..."
+            adb pull /data/local/tmp/ov_test_func/intel64/Release/func_test_results.xml ./func_test_results.xml || { echo "Warning: Could not pull functional test results"; adb shell "ls -la /data/local/tmp/ov_test_func/intel64/Release/"; adb shell "cat /data/local/tmp/ov_test_func/intel64/Release/func_test_results.xml" || echo "No functional test results file"; }
+
+      - name: Upload functional test results
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        if: always()
+        with:
+          name: cpu_func_tests_results_android_x64
+          path: ./func_test_results.xml
           if-no-files-found: 'ignore'
 
   Overall_Status:
     name: ci/gha_overall_status_android
-    needs: [Smart_CI, Build, CXX_Unit_Tests]
+    needs: [Smart_CI, Build, CXX_Unit_Tests, CXX_Func_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

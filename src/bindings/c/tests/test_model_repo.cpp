@@ -41,8 +41,7 @@ std::string generate_test_xml_file() {
     plugin_xml_file << ov::util::FileTraits<char>::library_prefix();
     plugin_xml_file << "mock_engine";
     plugin_xml_file << OV_BUILD_POSTFIX;
-    plugin_xml_file << ov::util::FileTraits<char>::dot_symbol;
-    plugin_xml_file << ov::util::FileTraits<char>::library_ext();
+    plugin_xml_file << ov::util::library_extension().string();
     plugin_xml_file << "\" name=\"CUSTOM\">\n";
     plugin_xml_file << "        </plugin>\n";
     plugin_xml_file << "    </plugins>\n";

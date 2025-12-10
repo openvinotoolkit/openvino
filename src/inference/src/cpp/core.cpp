@@ -104,7 +104,7 @@ std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& config) {
     OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
-    return compile_model(model, ov::DEFAULT_DEVICE_NAME, config);
+    return compile_model(model, ov::default_device_name, config);
 }
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -119,7 +119,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
 
 CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& config) {
     OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
-    return compile_model(model_path, ov::DEFAULT_DEVICE_NAME, config);
+    return compile_model(model_path, ov::default_device_name, config);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -167,7 +167,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
     });
 }
 
-void Core::add_extension(const std::string& library_path) {
+void Core::add_extension(const std::filesystem::path& library_path) {
     try {
         add_extension(ov::detail::load_extensions(library_path));
     } catch (const std::runtime_error& e) {
@@ -178,13 +178,13 @@ void Core::add_extension(const std::string& library_path) {
     }
 }
 
+void Core::add_extension(const std::string& library_path) {
+    add_extension(ov::util::make_path(library_path));
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void Core::add_extension(const std::wstring& library_path) {
-    try {
-        add_extension(ov::detail::load_extensions(library_path));
-    } catch (const std::runtime_error&) {
-        OPENVINO_THROW("Cannot add extension. Cannot find entry point to the extension library");
-    }
+    add_extension(ov::util::make_path(library_path));
 }
 #endif
 
@@ -279,8 +279,8 @@ RemoteContext Core::create_context(const std::string& device_name, const AnyMap&
     OPENVINO_ASSERT(device_name.find("BATCH") != 0, "BATCH device does not support remote context");
 
     OV_CORE_CALL_STATEMENT({
-        auto parsed = parseDeviceNameIntoConfig(device_name, params);
-        auto remoteContext = _impl->get_plugin(parsed._deviceName).create_context(parsed._config);
+        auto parsed = parse_device_name_into_config(device_name, params);
+        auto remoteContext = _impl->get_plugin(parsed.m_device_name).create_context(parsed.m_config);
         return {remoteContext._ptr, remoteContext._so};
     });
 }
@@ -292,8 +292,8 @@ RemoteContext Core::get_default_context(const std::string& device_name) {
     OPENVINO_ASSERT(device_name.find("BATCH") != 0, "BATCH device does not support default remote context");
 
     OV_CORE_CALL_STATEMENT({
-        auto parsed = parseDeviceNameIntoConfig(device_name, AnyMap{});
-        auto remoteContext = _impl->get_plugin(parsed._deviceName).get_default_context(parsed._config);
+        auto parsed = parse_device_name_into_config(device_name, AnyMap{});
+        auto remoteContext = _impl->get_plugin(parsed.m_device_name).get_default_context(parsed.m_config);
         return {remoteContext._ptr, remoteContext._so};
     });
 }

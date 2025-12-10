@@ -30,7 +30,6 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "transformations/rt_info/decompression.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace ov;
 
@@ -85,7 +84,6 @@ std::shared_ptr<ov::Model> build_moe_2gemm_model(bool use_decompression, bool wi
             auto gate_transpose = std::make_shared<op::v1::Transpose>(convert_input, order);
             gate_transpose->get_rt_info()["postponed_constant"] = true;
             ov::pass::disable_constant_folding(gate_transpose);
-            ov::disable_fp16_compression(gate_const);
             convert_input = gate_transpose;
         }
 
@@ -99,7 +97,6 @@ std::shared_ptr<ov::Model> build_moe_2gemm_model(bool use_decompression, bool wi
             auto gate_transpose = std::make_shared<op::v1::Transpose>(gate_weight_output, order);
             gate_transpose->get_rt_info()["postponed_constant"] = true;
             ov::pass::disable_constant_folding(gate_transpose);
-            ov::disable_fp16_compression(gate_weights);
             gate_weight_output = gate_transpose;
         }
     }
@@ -156,7 +153,6 @@ std::shared_ptr<ov::Model> build_moe_2gemm_model(bool use_decompression, bool wi
             auto down_transpose = std::make_shared<op::v1::Transpose>(convert_input, order);
             down_transpose->get_rt_info()["postponed_constant"] = true;
             ov::pass::disable_constant_folding(down_transpose);
-            ov::disable_fp16_compression(down_const);
             convert_input = down_transpose;
         }
 
@@ -177,7 +173,6 @@ std::shared_ptr<ov::Model> build_moe_2gemm_model(bool use_decompression, bool wi
             auto down_transpose = std::make_shared<op::v1::Transpose>(down_weight_output, order);
             down_transpose->get_rt_info()["postponed_constant"] = true;
             ov::pass::disable_constant_folding(down_transpose);
-            ov::disable_fp16_compression(down_const);
             down_weight_output = down_transpose;
         }
     }
