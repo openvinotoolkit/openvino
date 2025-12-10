@@ -612,6 +612,26 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("DOWN_GROUP_SIZE", down_group_size);
     jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
     jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+
+    ov::element::Type weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
+    // auto scale_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0)).data_type;
+    // auto zp_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_0)).data_type;
+    if (weight_dt == ov::element::u4 || weight_dt == ov::element::i4) {
+        jit.make("WEIGHT_COMPRESSEION_DT", 0);
+        jit.make("MOE_WEI_DT", "uchar");
+        jit.make("MOE_SCALE_DT", "half");
+        jit.make("MOE_ZP_DT", "uchar");
+    } else if (weight_dt == ov::element::u8 || weight_dt == ov::element::i8) {
+        jit.make("WEIGHT_COMPRESSEION_DT", 1);
+        jit.make("MOE_WEI_DT", "uchar");
+        jit.make("MOE_SCALE_DT", "half");
+        jit.make("MOE_ZP_DT", "uchar");
+    } else if (weight_dt == ov::element::f16) {
+        jit.make("WEIGHT_COMPRESSEION_DT", 2);
+        jit.make("MOE_WEI_DT", "half");
+        jit.make("MOE_SCALE_DT", "half");  // not use
+        jit.make("MOE_ZP_DT", "half");     // not use
+    }
 }
 
 class MoE3GemmSwigluMLPGateUp : public KernelGenerator {
@@ -624,6 +644,7 @@ protected:
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
+
         return jit;
     }
 
@@ -830,6 +851,19 @@ public:
             return;
         init(cur_moe);
 
+        auto get_bytes_count = [](int64_t size, const cldnn::layout& layout) {
+            ov::element::Type dt = layout.data_type;
+            switch (layout.data_type) {
+            case ov::element::u4:
+            case ov::element::i4:
+                return size / 2;
+                break;
+            default:
+                return size * static_cast<int64_t>(dt.size());
+                break;
+            }
+        };
+
         _dnnl_weights.resize(cur_moe->_config.num_expert);
         for (size_t j = 0; j < cur_moe->_config.num_expert; j++) {
             auto& dnnl_weights = _dnnl_weights[j];
@@ -845,19 +879,24 @@ public:
             dnnl_weights[2].oc = _hidden_size;
             for (int i = 0; i < 3; i++) {
                 // weight shape: [ic, oc], type: u4
-                int64_t wei_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / 2;
+                // int64_t wei_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / 2;
+                int64_t wei_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, moe_fusion_wei_addr.weight[i]->get_layout());
                 dnnl_weights[i].weight =
                     convert2dnnl(moe_fusion_wei_addr.weight[i], {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset);
 
                 // scale shape: [ic / ic_group_size, oc], type: f16
-                int64_t scale_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size * 2;
+                // int64_t scale_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size * 2;
+                int64_t scale_offset =
+                    j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, moe_fusion_wei_addr.scale[i]->get_layout());
                 dnnl_weights[i].scale = convert2dnnl(moe_fusion_wei_addr.scale[i],
                                                      {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
                                                      dnnl::memory::format_tag::ab,
                                                      scale_offset);
 
                 // zp shape: [ic / ic_group_size, oc], type: u4
-                int64_t zp_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size / 2;
+                // int64_t zp_offset = j * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size / 2;
+                int64_t zp_offset =
+                    j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, moe_fusion_wei_addr.zp[i]->get_layout());
                 dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp[i],
                                                   {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
                                                   dnnl::memory::format_tag::ab,

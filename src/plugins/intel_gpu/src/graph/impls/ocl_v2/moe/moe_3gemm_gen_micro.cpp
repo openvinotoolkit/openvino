@@ -52,12 +52,23 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     jit.make("SUBGROUP_SIZE", subgroup_size);
     jit.make("OUTPUT_TYPE", to_ocl_type(data_types::f16));  // output
     jit.make("INPUT0_TYPE", to_ocl_type(data_types::f16));  // input: f16
+
+    GPU_DEBUG_TRACE_DETAIL << "\t m_wei_idx: " << m_wei_idx << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "\t m_wei_idx.get_shape(): " << weight_layout.to_short_string() << std::endl;
+    const auto& weight_shape = weight_layout.get_shape();
+    // weight layout: u4:bfyx:4x3072x8x128:nopad
+    size_t expert_stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) : (weight_shape[1] * weight_shape[2]);
     if (weight_layout.data_type == ov::element::u4 || weight_layout.data_type == ov::element::i4) {
         jit.make("INPUT1_TYPE", to_ocl_type(data_types::u8));  // weight: u4/i4
         jit.make("WEIGHT_COMPRESSED_INT4", 1);
+        jit.make("EXPERT_STRIDE", expert_stride / 2);
+        GPU_DEBUG_TRACE_DETAIL << "\t expert_stride: " << expert_stride / 2 << std::endl;
     } else {
         jit.make("INPUT1_TYPE", to_ocl_type(weight_layout.data_type));  // weight type
         jit.make("WEIGHT_COMPRESSED_INT4", 0);
+        ov::element::Type dt = weight_layout.data_type;
+        jit.make("EXPERT_STRIDE", expert_stride * dt.size());
+        GPU_DEBUG_TRACE_DETAIL << "\t expert_stride: " << expert_stride * dt.size() << std::endl;
     }
     jit.make("INPUT2_TYPE", to_ocl_type(data_types::i32));             // experts_ids: i32
     jit.make("INPUT3_TYPE", to_ocl_type(data_types::i32));             // input_offset_per_expert: i32
@@ -75,14 +86,6 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     jit.make("IS_GENERATE", 0);    // only for prefill
     jit.make("INPUT_SEQ_LEN", 4);  // prefill not use it
     jit.make("SCALE_ZP_NO_TRANSPOSE", 1);
-
-    GPU_DEBUG_TRACE_DETAIL << "\t m_wei_idx: " << m_wei_idx << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "\t m_wei_idx.get_shape(): " << weight_layout.to_short_string() << std::endl;
-    const auto& weight_shape = weight_layout.get_shape();
-    // weight layout: u4:bfyx:4x3072x8x128:nopad
-    size_t expert_stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) : (weight_shape[1] * weight_shape[2]);
-    jit.make("EXPERT_STRIDE", expert_stride / 2);
-    GPU_DEBUG_TRACE_DETAIL << "\t expert_stride: " << expert_stride / 2 << std::endl;
 
     GPU_DEBUG_TRACE_DETAIL << "\t m_scale_idx: " << m_scale_idx << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "\t m_scale_idx.get_shape(): " << scale_layout.to_short_string() << std::endl;
