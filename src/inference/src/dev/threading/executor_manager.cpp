@@ -172,7 +172,7 @@ void ExecutorManagerImpl::clear(const std::string& id) {
 
 void ExecutorManagerImpl::execute_task_by_streams_executor(ov::hint::SchedulingCoreType core_type,
                                                            ov::threading::Task task) {
-    ov::threading::IStreamsExecutor::Config streamsConfig("StreamsExecutor", 1, 1, core_type);
+    ov::threading::IStreamsExecutor::Config streamsConfig("StreamsExecutor", 1, 1, core_type, false, true);
     if (!streamsConfig.get_streams_info_table().empty()) {
         auto taskExecutor = std::make_shared<ov::threading::CPUStreamsExecutor>(streamsConfig);
         std::vector<Task> tasks{std::move(task)};
