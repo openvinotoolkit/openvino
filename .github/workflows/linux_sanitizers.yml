@@ -583,7 +583,7 @@ jobs:
       - name: CPU plugin func tests
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
         env:
-          GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '*smoke_Eye*' }}
+          GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '*smoke*' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 \

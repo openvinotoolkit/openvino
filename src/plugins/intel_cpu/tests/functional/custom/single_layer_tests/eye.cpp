@@ -6,10 +6,6 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "openvino/op/eye.hpp"
-#include <sanitizer/lsan_interface.h>
-
-static volatile void* leaked_ptr = nullptr;
-static void* __attribute__((used)) leak_holder = nullptr;
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -103,39 +99,7 @@ protected:
         }
     }
 
-    __attribute__((noinline))
-    void makeLeak() {
-        // volatile = no opt
-        volatile int* p = new int[100];
-        p[77] = 55;
-        p[100] = p[99];
-        (void)p;
-    }
-
-    __attribute__((noinline))
-    void makeAnotherLeak() {
-        void* p = malloc(100);
-        leaked_ptr = p;
-    }
-
-    __attribute__((noinline))
-    void makeLeak2() {
-        int* p = new int[100];
-        asm volatile("" : : "r"(p) : "memory");
-    }
-
-    __attribute__((noinline))
-    void makeLeak3() {
-        leak_holder = malloc(1000);
-    }
-
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        makeLeak();
-        makeLeak2();
-        makeLeak3();
-        makeAnotherLeak();
-        __lsan_do_leak_check();
-
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {

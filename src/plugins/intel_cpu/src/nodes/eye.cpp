@@ -103,20 +103,8 @@ void Eye::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref);
 }
 
-int* memoryLeak1(const int size) {
-    return new int[size];
-}
-
 template <typename T>
 void Eye::executeSpecified() {
-    int n = 2;
-    while (n != 0) {
-        n--;       
-        int *x = memoryLeak1(10000000);
-        for (std::size_t i = 0; i < 10000000; i++) 
-            x[i] = i;
-        
-    }
     const size_t rowNum = getRowNum();
     const size_t colNum = getColNum();
     const int64_t shift = getDiagIndex();
