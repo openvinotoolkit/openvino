@@ -747,87 +747,90 @@ int main(int argc, char* argv[]) {
             // ----------------- 6. Configuring inputs and outputs
             // ----------------------------------------------------------------------
             next_step();
-            auto preproc = ov::preprocess::PrePostProcessor(model);
+            {
+                auto preproc = ov::preprocess::PrePostProcessor(model);
 
-            std::map<std::string, std::string> user_precisions_map;
-            if (!FLAGS_iop.empty()) {
-                user_precisions_map = parseArgMap(FLAGS_iop);
-                convert_io_names_in_map(user_precisions_map,
-                                        std::const_pointer_cast<const ov::Model>(model)->inputs(),
-                                        std::const_pointer_cast<const ov::Model>(model)->outputs());
-            }
-
-            const auto input_precision = FLAGS_ip.empty() ? ov::element::dynamic : getPrecision2(FLAGS_ip);
-            const auto output_precision = FLAGS_op.empty() ? ov::element::dynamic : getPrecision2(FLAGS_op);
-
-            const auto& inputs = model->inputs();
-            for (size_t i = 0; i < inputs.size(); i++) {
-                const auto& item = inputs[i];
-                auto iop_precision = ov::element::dynamic;
-                auto type_to_set = ov::element::dynamic;
-                std::string name;
-                try {
-                    // Some tensors might have no names, get_any_name will throw exception in that case.
-                    // -iop option will not work for those tensors.
-                    name = item.get_any_name();
-                } catch (...) {
-                }
-                const auto& prc = user_precisions_map.find(name);
-                if (prc != user_precisions_map.end()) {
-                    iop_precision = getPrecision2(prc->second);
+                std::map<std::string, std::string> user_precisions_map;
+                if (!FLAGS_iop.empty()) {
+                    user_precisions_map = parseArgMap(FLAGS_iop);
+                    convert_io_names_in_map(user_precisions_map,
+                                            std::const_pointer_cast<const ov::Model>(model)->inputs(),
+                                            std::const_pointer_cast<const ov::Model>(model)->outputs());
                 }
 
-                if (iop_precision != ov::element::dynamic) {
-                    type_to_set = iop_precision;
-                } else if (input_precision != ov::element::dynamic) {
-                    type_to_set = input_precision;
-                } else if (!name.empty() && app_inputs_info[0].at(name).is_image()) {
-                    // image input, set U8
-                    type_to_set = ov::element::u8;
-                }
+                const auto input_precision = FLAGS_ip.empty() ? ov::element::dynamic : getPrecision2(FLAGS_ip);
+                const auto output_precision = FLAGS_op.empty() ? ov::element::dynamic : getPrecision2(FLAGS_op);
 
-                auto& in = preproc.input(item.get_any_name());
-                if (type_to_set != ov::element::dynamic) {
-                    in.tensor().set_element_type(type_to_set);
+                const auto& inputs = model->inputs();
+                for (size_t i = 0; i < inputs.size(); i++) {
+                    const auto& item = inputs[i];
+                    auto iop_precision = ov::element::dynamic;
+                    auto type_to_set = ov::element::dynamic;
+                    std::string name;
+                    try {
+                        // Some tensors might have no names, get_any_name will throw exception in that case.
+                        // -iop option will not work for those tensors.
+                        name = item.get_any_name();
+                    } catch (...) {
+                    }
 
-                    if (!name.empty()) {
-                        for (auto& info : app_inputs_info) {
-                            info.at(name).type = type_to_set;
+                    const auto& prc = user_precisions_map.find(name);
+                    if (prc != user_precisions_map.end()) {
+                        iop_precision = getPrecision2(prc->second);
+                    }
+
+                    if (iop_precision != ov::element::dynamic) {
+                        type_to_set = iop_precision;
+                    } else if (input_precision != ov::element::dynamic) {
+                        type_to_set = input_precision;
+                    } else if (!name.empty() && app_inputs_info[0].at(name).is_image()) {
+                        // image input, set U8
+                        type_to_set = ov::element::u8;
+                    }
+
+                    auto& in = preproc.input(item.get_any_name());
+                    if (type_to_set != ov::element::dynamic) {
+                        in.tensor().set_element_type(type_to_set);
+
+                        if (!name.empty()) {
+                            for (auto& info : app_inputs_info) {
+                                info.at(name).type = type_to_set;
+                            }
                         }
                     }
+                    // Explicitly set inputs layout.
+                    if (!name.empty() && !app_inputs_info[0].at(name).layout.empty()) {
+                        in.model().set_layout(app_inputs_info[0].at(name).layout);
+                    }
                 }
-                // Explicitly set inputs layout.
-                if (!name.empty() && !app_inputs_info[0].at(name).layout.empty()) {
-                    in.model().set_layout(app_inputs_info[0].at(name).layout);
+
+                fuse_mean_scale(preproc, app_inputs_info.at(0));
+
+                const auto& outs = model->outputs();
+                for (size_t i = 0; i < outs.size(); i++) {
+                    const auto& item = outs[i];
+                    auto iop_precision = ov::element::dynamic;
+                    std::string name;
+                    try {
+                        // Some tensors might have no names, get_any_name will throw exception in that case.
+                        // -iop option will not work for those tensors.
+                        name = item.get_any_name();
+                    } catch (...) {
+                    }
+                    const auto& prc = user_precisions_map.find(name);
+                    if (prc != user_precisions_map.end()) {
+                        iop_precision = getPrecision2(prc->second);
+                    }
+
+                    if (iop_precision != ov::element::dynamic) {
+                        preproc.output(i).tensor().set_element_type(iop_precision);
+                    } else if (output_precision != ov::element::dynamic) {
+                        preproc.output(i).tensor().set_element_type(output_precision);
+                    }
                 }
+
+                model = preproc.build();
             }
-
-            fuse_mean_scale(preproc, app_inputs_info.at(0));
-
-            const auto& outs = model->outputs();
-            for (size_t i = 0; i < outs.size(); i++) {
-                const auto& item = outs[i];
-                auto iop_precision = ov::element::dynamic;
-                std::string name;
-                try {
-                    // Some tensors might have no names, get_any_name will throw exception in that case.
-                    // -iop option will not work for those tensors.
-                    name = item.get_any_name();
-                } catch (...) {
-                }
-                const auto& prc = user_precisions_map.find(name);
-                if (prc != user_precisions_map.end()) {
-                    iop_precision = getPrecision2(prc->second);
-                }
-
-                if (iop_precision != ov::element::dynamic) {
-                    preproc.output(i).tensor().set_element_type(iop_precision);
-                } else if (output_precision != ov::element::dynamic) {
-                    preproc.output(i).tensor().set_element_type(output_precision);
-                }
-            }
-
-            model = preproc.build();
 
             // Check if network has dynamic shapes
             isDynamicNetwork = areNetworkInputsDynamic(app_inputs_info.at(0));
@@ -845,6 +848,8 @@ int main(int argc, char* argv[]) {
             auto compile_model_mem_start = get_peak_memory_usage();
             startTime = Time::now();
             compiledModel = core.compile_model(model, device_name, device_config);
+            // model is not required anymore
+            model.reset();
             duration_ms = get_duration_ms_till_now(startTime);
             auto compile_model_mem_end = get_peak_memory_usage();
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
