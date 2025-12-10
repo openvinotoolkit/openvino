@@ -20,24 +20,38 @@ namespace ov {
 class CPU {
 public:
     CPU();
-    ~CPU(){};
+    ~CPU() {};
     void cpu_debug() {
 #ifdef ENABLE_OPENVINO_DEBUG
         OPENVINO_DEBUG("[ threading ] cpu_mapping_table:");
         for (size_t i = 0; i < _cpu_mapping_table.size(); i++) {
-            OPENVINO_DEBUG(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID] , " ",
-                           _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID], " ",
-                           _cpu_mapping_table[i][CPU_MAP_SOCKET_ID], " ", _cpu_mapping_table[i][CPU_MAP_CORE_ID],
-                           " ", _cpu_mapping_table[i][CPU_MAP_CORE_TYPE], " ",
-                           _cpu_mapping_table[i][CPU_MAP_GROUP_ID], " ",
+            OPENVINO_DEBUG(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID],
+                           " ",
+                           _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID],
+                           " ",
+                           _cpu_mapping_table[i][CPU_MAP_SOCKET_ID],
+                           " ",
+                           _cpu_mapping_table[i][CPU_MAP_CORE_ID],
+                           " ",
+                           _cpu_mapping_table[i][CPU_MAP_CORE_TYPE],
+                           " ",
+                           _cpu_mapping_table[i][CPU_MAP_GROUP_ID],
+                           " ",
                            _cpu_mapping_table[i][CPU_MAP_USED_FLAG]);
         }
         OPENVINO_DEBUG("[ threading ] org_proc_type_table:");
         for (size_t i = 0; i < _proc_type_table.size(); i++) {
-            OPENVINO_DEBUG(_proc_type_table[i][ALL_PROC], " ", _proc_type_table[i][MAIN_CORE_PROC], " ",
-                           _proc_type_table[i][EFFICIENT_CORE_PROC], " ",
-                           _proc_type_table[i][HYPER_THREADING_PROC], " ", _proc_type_table[i][PROC_NUMA_NODE_ID],
-                           " ", _proc_type_table[i][PROC_SOCKET_ID]);
+            OPENVINO_DEBUG(_proc_type_table[i][ALL_PROC],
+                           " ",
+                           _proc_type_table[i][MAIN_CORE_PROC],
+                           " ",
+                           _proc_type_table[i][EFFICIENT_CORE_PROC],
+                           " ",
+                           _proc_type_table[i][HYPER_THREADING_PROC],
+                           " ",
+                           _proc_type_table[i][PROC_NUMA_NODE_ID],
+                           " ",
+                           _proc_type_table[i][PROC_SOCKET_ID]);
         }
 #endif
     }
@@ -53,7 +67,6 @@ public:
     std::map<int, int> _numaid_mapping_table;
     std::mutex _cpu_mutex;
     int _socket_idx = 0;
-
 };
 
 CPU& cpu_info();
@@ -62,14 +75,14 @@ CPU& cpu_info();
 /**
  * @brief      Parse nodes information to update _sockets, proc_type_table and cpu_mapping_table on Linux
  * @param[in]  node_info_table nodes information for this platform.
- * @param[in]  _numa_nodes total number for nodes in system
+ * @param[out]  _numa_nodes total number for nodes in system
  * @param[out] _sockets total number for sockets in system
  * @param[out] _proc_type_table summary table of number of processors per type
  * @param[out] _cpu_mapping_table CPU mapping table for each processor
  * @return
  */
 void parse_node_info_linux(const std::vector<std::string> node_info_table,
-                           const int& _numa_nodes,
+                           int& _numa_nodes,
                            int& _sockets,
                            std::vector<std::vector<int>>& _proc_type_table,
                            std::vector<std::vector<int>>& _cpu_mapping_table);
@@ -121,15 +134,23 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
 /**
  * @brief      update proc_type_table and cpu_mapping_table for vaild processors.
  * @param[in]  phy_core_list CPU cores id list for physical core of Intel Performance-cores.
+ * @param[in]  numa_node_per_socket number of numa node per socket.
  * @param[out] _sockets total number for sockets in system
+ * @param[out] _numa_nodes total number for numa nodes in system
  * @param[out] _cores total number for physical CPU cores in system
+ * @param[out] _numaid_mapping_table mapping table of numa node id
+ * @param[out] _socketid_mapping_table mapping table of socket id
  * @param[out] _proc_type_table summary table of number of processors per type
  * @param[out] _cpu_mapping_table CPU mapping table for each processor
  * @return
  */
 void update_valid_processor_linux(const std::vector<int> phy_core_list,
+                                  const int numa_node_per_socket,
                                   int& _sockets,
+                                  int& _numa_nodes,
                                   int& _cores,
+                                  std::map<int, int>& _numaid_mapping_table,
+                                  std::map<int, int>& _socketid_mapping_table,
                                   std::vector<std::vector<int>>& _proc_type_table,
                                   std::vector<std::vector<int>>& _cpu_mapping_table);
 

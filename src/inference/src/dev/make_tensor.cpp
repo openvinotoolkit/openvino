@@ -416,6 +416,10 @@ public:
         m_shape = std::move(new_shape);
     }
 
+    size_t get_offset() const {
+        return m_offset;
+    }
+
 protected:
     std::shared_ptr<ITensor> m_owner;
     Shape m_shape;
@@ -585,6 +589,13 @@ ov::SoPtr<ov::ITensor> get_tensor_impl(const ov::Tensor& tensor) {
     std::shared_ptr<void> so;
     util::get_tensor_impl(tensor, tensor_impl, so);
     return ov::SoPtr<ov::ITensor>(tensor_impl, so);
+}
+
+size_t get_tensor_data_offset(const ov::ITensor& tensor) {
+    if (auto tensor_impl = dynamic_cast<const BaseRoiTensor*>(&tensor)) {
+        return tensor_impl->get_offset();
+    }
+    return 0;
 }
 
 }  // namespace ov

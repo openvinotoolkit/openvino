@@ -91,7 +91,8 @@ jobs:
         working-directory: ${{ env.KERAS_REPO }}
         run: |
           pip install --upgrade pip setuptools
-          pip install -r requirements.txt --upgrade
+          # Specify grain's version to avoid problems described in the 177685 ticket
+          pip install -r requirements.txt grain==0.2.14 --upgrade
           pip install --no-deps tf_keras==2.18.0
           # make sure that no other keras is installed via pip
           pip uninstall -y keras keras-nightly
