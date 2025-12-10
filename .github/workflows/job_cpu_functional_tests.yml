@@ -96,6 +96,10 @@ jobs:
       #     restore-keys: |
       #       ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp
 
+      - name: DEBUG Copy test execution cache from failed run
+        run: |
+          cp /mount/testdata0/failed_test_cache.lst $PARALLEL_TEST_CACHE
+
       - name: Intel CPU plugin func tests (parallel)
         env:
           LOG_LEVEL: "DEBUG"
