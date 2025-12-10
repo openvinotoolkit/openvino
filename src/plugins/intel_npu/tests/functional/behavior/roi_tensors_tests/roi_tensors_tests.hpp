@@ -65,6 +65,8 @@ public:
 
         std::tie(target_device, configuration) = this->GetParam();
         OVPluginTestBase::SetUp();
+
+        isStridedEnabled();
     }
 
     void TearDown() override {
@@ -101,23 +103,22 @@ public:
         return std::make_shared<Model>(res, params);
     }
 
-    bool isStridedEnabled() {
-        const auto& supportedProperties =
+    void isStridedEnabled() {
+        auto supportedProperties =
             core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
 
-        return std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const auto& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
+        bool stridesEnabled =
+            std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const auto& property) {
+                return property == ov::intel_npu::enable_strides_for.name();
+            });
+
+        if (!stridesEnabled) {
+            GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
+        }
     }
 };
 
 TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabled) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, shape, "N...");
@@ -131,12 +132,6 @@ TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabled) {
 }
 
 TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabledInternalOperator) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, shape, "N...");
@@ -162,12 +157,6 @@ TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabledInternalOpe
 }
 
 TEST_P(RoiTensorsTestsRun, CreateStridedTensorFromHostTensorAndRunInfer) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, shape, "N...");
@@ -210,12 +199,6 @@ TEST_P(RoiTensorsTestsRun, CreateStridedTensorFromHostTensorAndRunInfer) {
 }
 
 TEST_P(RoiTensorsTestsRun, SetStridedTensorForUnexpectedTensorExpectedThrow) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, shape, "N...");
@@ -232,12 +215,6 @@ TEST_P(RoiTensorsTestsRun, SetStridedTensorForUnexpectedTensorExpectedThrow) {
 }
 
 TEST_P(RoiTensorsTestsRun, SetStridedMultipleOutputTensorForUnexpectedTensorExpectedThrow) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, shape, "N...", 2);
@@ -255,12 +232,6 @@ TEST_P(RoiTensorsTestsRun, SetStridedMultipleOutputTensorForUnexpectedTensorExpe
 }
 
 TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, shape, "N...");
@@ -302,12 +273,6 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
 }
 
 TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInferWithBatching) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto shape = Shape{2, 2, 2, 2};
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, shape, "N...");
@@ -349,12 +314,6 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInferWithBatching)
 }
 
 TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInferWithBatchingUpdateMCL) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto shape = Shape{2, 2, 2, 2};
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, shape, "N...");
@@ -415,12 +374,6 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInferWithBatchingU
 }
 
 TEST_P(RoiTensorsTestsRun, CreateRoiBatchedTensorsFromHostTensorAndRunInferWithBatchingUpdateMCL) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto shape = Shape{2, 2, 2, 2};
     auto batchedShape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
@@ -491,12 +444,6 @@ TEST_P(RoiTensorsTestsRun, CreateRoiBatchedTensorsFromHostTensorAndRunInferWithB
 }
 
 TEST_P(RoiTensorsTestsRun, CreateRoiBatchedTensorsFromHostTensorAndRegularTensorAndRunInferWithBatchingUpdateMCL) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto shape = Shape{2, 2, 2, 2};
     auto batchedShape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
@@ -576,12 +523,6 @@ TEST_P(RoiTensorsTestsRun, CreateRoiBatchedTensorsFromHostTensorAndRegularTensor
 }
 
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpy) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, shape, "N...");
@@ -622,12 +563,6 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpy) {
 }
 
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContext) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> init_struct;
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
     ::intel_npu::Config npu_config = ::intel_npu::Config(options);
@@ -685,12 +620,6 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContext) {
 }
 
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyToAnotherRemoteTensor) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> init_struct;
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
     ::intel_npu::Config npu_config = ::intel_npu::Config(options);
@@ -756,12 +685,6 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyToA
 }
 
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyFromAnotherRemoteTensor) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> init_struct;
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
     ::intel_npu::Config npu_config = ::intel_npu::Config(options);
@@ -829,12 +752,6 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyFro
 }
 
 TEST_P(RoiTensorsTestsRun, ImportStandardAllocation) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto shape = Shape{1, 2, 2, 1024};
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, shape, "N...");
@@ -891,12 +808,6 @@ TEST_P(RoiTensorsTestsRun, ImportStandardAllocation) {
 }
 
 TEST_P(RoiTensorsTestsRun, RunWithRemoteTensor) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto zero_context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
     auto input_remote_tensor = zero_context.create_l0_host_tensor(ov::element::f32, Shape{1, 10, 10, 10});
     auto output_remote_tensor = zero_context.create_l0_host_tensor(ov::element::f32, Shape{3, 8, 8, 8});
@@ -939,12 +850,6 @@ TEST_P(RoiTensorsTestsRun, RunWithRemoteTensor) {
 }
 
 TEST_P(RoiTensorsTestsRun, MultipleIOCreateRoiTensorFromHostTensorAndRunInfer) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, shape, "N...", 2);
@@ -1001,12 +906,6 @@ TEST_P(RoiTensorsTestsRun, MultipleIOCreateRoiTensorFromHostTensorAndRunInfer) {
 }
 
 TEST_P(RoiTensorsTestsRun, RunStridedTensorWithDynamicBatching) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto model_shape = PartialShape{-1, 5, 8, 9};
     auto shape = Shape{2, 5, 8, 9};
     ov::CompiledModel compiled_model;
@@ -1050,12 +949,6 @@ TEST_P(RoiTensorsTestsRun, RunStridedTensorWithDynamicBatching) {
 }
 
 TEST_P(RoiTensorsTestsRun, RunStridedTensorWithDynamicBoundedBatching) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto model_shape = PartialShape{ov::Dimension(1, 10), 5, 8, 9};
     auto shape = Shape{2, 5, 8, 9};
     ov::CompiledModel compiled_model;
@@ -1099,12 +992,6 @@ TEST_P(RoiTensorsTestsRun, RunStridedTensorWithDynamicBoundedBatching) {
 }
 
 TEST_P(RoiTensorsTestsRun, TryToCompileStridedTensorWithDynamicBoundsExpectedThrow) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto model_shape = PartialShape{ov::Dimension(1, 10), 5, ov::Dimension(2, 15), 9};
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, model_shape, "N...");
@@ -1115,12 +1002,6 @@ TEST_P(RoiTensorsTestsRun, TryToCompileStridedTensorWithDynamicBoundsExpectedThr
 }
 
 TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorUpdateCommandListAndRunInfer) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (!isStridedEnabled()) {
-        GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
-    }
-
     auto shape = Shape{1, 2, 2, 2};
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, shape, "N...");
