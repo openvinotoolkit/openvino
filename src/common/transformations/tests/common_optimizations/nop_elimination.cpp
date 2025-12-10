@@ -2183,8 +2183,12 @@ TEST_F(TransformationTestsF, EliminateIdentity) {
         auto mul = std::make_shared<ov::op::v1::Multiply>(p0, p1);
         mul->set_friendly_name("Multiply");
 
+        // Tests the NPU workaround from ticket 177222
+        auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(mul, ov::element::i64);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(mul, shape_of, false);
+
         auto res1 = std::make_shared<ov::op::v0::Result>(mul);
-        auto res2 = std::make_shared<ov::op::v0::Result>(mul);
+        auto res2 = std::make_shared<ov::op::v0::Result>(reshape);
 
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{res1, res2}, ov::ParameterVector{p0, p1});
     }
