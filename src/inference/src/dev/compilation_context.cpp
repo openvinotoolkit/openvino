@@ -75,8 +75,10 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
     m.register_pass<ov::pass::Hash>(seed, !model_path.empty());
     m.run_passes(std::const_pointer_cast<ov::Model>(model));
 
+    std::cout << "seed 1a:  " << std::to_string(seed) << std::endl;
     // 2. Compute hash on serialized data and options
     seed = hash_combine_options(seed, compile_options);
+    std::cout << "seed 1b:  " << std::to_string(seed) << std::endl;
 
     // 3. Add runtime information which may not be serialized
     for (const auto& op : model->get_ordered_ops()) {
@@ -90,10 +92,12 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
             }
         }
     }
+    std::cout << "seed 1c:  " << std::to_string(seed) << std::endl;
 
     // 4. If model path is provided add file info to the hash
     if (!model_path.empty()) {
         seed = hash_combine(seed, compute_hash(model_path, compile_options));
+        std::cout << "seed 1d:  " << std::to_string(seed) << std::endl;
     }
 
     return std::to_string(seed);
@@ -104,7 +108,9 @@ std::string ModelCache::compute_hash(const std::filesystem::path& model_path, co
 
     // Convert to string as std::hash<std::filesystem::path> may be not supported
     auto seed = hash_combine(0U, util::path_to_string(abs_path_or_input(model_path)));
+    std::cout << "seed 2a:  " << std::to_string(seed) << std::endl;
     seed = hash_combine_options(seed, compile_options);
+    std::cout << "seed 2b:  " << std::to_string(seed) << std::endl;
     return std::to_string(seed);
 }
 

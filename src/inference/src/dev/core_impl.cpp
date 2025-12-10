@@ -854,6 +854,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config)};
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
+        std::cout << "Blob id2: " << cache_content.m_blob_id << std::endl;
         cache_content.model = model;
 
         const auto& cache_mode_it = config.find(cache_mode.name());
@@ -899,6 +900,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config)};
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
+        std::cout << "Blob id1: " << cache_content.m_blob_id << std::endl;
         cache_content.model = model;
         res = load_model_from_cache(cache_content, plugin, parsed.m_config, context, [&]() {
             return compile_model_and_cache(plugin, model, parsed.m_config, context, cache_content);
@@ -928,6 +930,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), util::make_path(model_path)};
         cache_content.m_blob_id =
             ov::ModelCache::compute_hash(cache_content.m_model_path, create_compile_config(plugin, parsed.m_config));
+        std::cout << "Blob id3: " << cache_content.m_blob_id << std::endl;
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
         compiled_model = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
             const auto model =
@@ -957,6 +960,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap()};
         cache_content.m_blob_id =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed.m_config));
+        std::cout << "Blob id1: " << cache_content.m_blob_id << std::endl;
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
         compiled_model = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
             const auto model = read_model(model_str, weights);
