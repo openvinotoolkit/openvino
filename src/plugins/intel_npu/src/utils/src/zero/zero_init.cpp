@@ -131,9 +131,15 @@ void ZeroInitStructsHolder::initNpuDriver() {
     if (loader_version.major > 1 || (loader_version.major == 1 && loader_version.minor > 18) ||
         (loader_version.major == 1 && loader_version.minor == 18 && loader_version.patch >= 5)) {
         uint32_t drivers_count = 0;
+
+        ze_driver_properties_npu_ext_t driver_npu_properties = {};
+        driver_npu_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES_NPU_EXT;
+        driver_npu_properties.options = ZE_NPU_DRIVER_OPTION_INTEGRITY_CHECKS;
+
         ze_init_driver_type_desc_t desc = {};
         desc.stype = ZE_STRUCTURE_TYPE_INIT_DRIVER_TYPE_DESC;
         desc.flags = ZE_INIT_DRIVER_TYPE_FLAG_NPU;
+        desc.pNext = &driver_npu_properties;
         auto result = zeInitDrivers(&drivers_count, nullptr, &desc);
         if (result != ZE_RESULT_SUCCESS) {
             fallbackToZeDriverGet();
@@ -194,34 +200,10 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
         _driver_extension_properties.emplace(std::string(p.name), p.version);
     }
 
-    // Query npu driver extension version
-    std::string driver_ext_name;
-    uint32_t driver_ext_version = 0;
-    std::tie(driver_ext_version, driver_ext_name) =
-        queryDriverExtensionVersion(ZE_DRIVER_NPU_EXT_NAME, ZE_DRIVER_NPU_EXT_VERSION_CURRENT, extProps, count);
-
-    log.debug("NPU driver ext version %d.%d",
-              ZE_MAJOR_VERSION(driver_ext_version),
-              ZE_MINOR_VERSION(driver_ext_version));
-
-    _ze_driver_npu_dditable_ext_t* driver_npu_dditable_ext = nullptr;
-    if (driver_ext_version) {
-        THROW_ON_FAIL_FOR_LEVELZERO(
-            "zeDriverGetExtensionFunctionAddress " + driver_ext_name,
-            zeDriverGetExtensionFunctionAddress(driver_handle,
-                                                driver_ext_name.c_str(),
-                                                reinterpret_cast<void**>(&driver_npu_dditable_ext)));
-
-        ze_driver_properties_npu_ext_t driver_npu_properties = {};
-        driver_npu_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES_NPU_EXT;
-        driver_npu_properties.options = ZE_NPU_DRIVER_OPTION_INTEGRITY_CHECKS;
-        driver_npu_dditable_ext->pfnSetProperties(driver_handle, &driver_npu_properties);
-    }
-
     // Query our graph extension version
     std::string graph_ext_name;
     uint32_t graph_ext_version = 0;
-    uint32_t target_graph_ext_version = TARGET_ZE_GRAPH_NPU_EXT_VERSION;
+    uint32_t target_graph_ext_version = ZE_GRAPH_EXT_VERSION_1_15;
 
 #if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     const char* extVersion = std::getenv("NPU_ZE_GRAPH_EXT_VERSION");
