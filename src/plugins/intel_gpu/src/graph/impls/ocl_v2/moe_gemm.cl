@@ -26,7 +26,7 @@ DECLARE_2D_TILE_COPY_REBLOCK(ugemm_moe_c_type, SUBGROUP_SIZE, ugemm_moe_c_type_b
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
         const global INPUT0_TYPE *input_ptr,
-#ifdef WEIGHT_COMPRESSED_INT4
+#ifdef IS_WEIGHT_QUANTIZED
         const global uchar *weight_ptr,
 #else
         const global INPUT1_TYPE *weight_ptr,
@@ -39,7 +39,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef BIAS_DT
         , const global BIAS_DT *bias_ptr
 #endif
-#ifdef WEIGHT_COMPRESSED_INT4
+#ifdef IS_WEIGHT_QUANTIZED
         , const global WEIGHT_SCALE_DT *weight_scales
         #ifdef WEIGHT_ZP_DT
         , const global WEIGHT_ZP_DT *weight_zps
@@ -63,7 +63,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     weight_ptr += experts_ids[batch] * EXPERT_STRIDE;
 
     int ld_input = k;
-#ifdef WEIGHT_COMPRESSED_INT4
+#ifdef IS_WEIGHT_QUANTIZED
     weight_scales += experts_ids[batch] * m * NUM_GROUPS;
     #ifdef WEIGHT_ZP_DT
     weight_zps += experts_ids[batch] * m * NUM_GROUPS;
@@ -79,7 +79,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     uint wg_j0 = get_group_id(1) * ugemm_moe_wg_tile_n;
     uint sg_i0 = wg_i0 + sg_i * ugemm_moe_sg_tile_m;
     uint sg_j0 = wg_j0 + sg_j * ugemm_moe_sg_tile_n;
-#ifdef WEIGHT_COMPRESSED_INT4
+#ifdef IS_WEIGHT_QUANTIZED
     uint num_groups = NUM_GROUPS;
 #endif
     if (wg_j0 >= cur_n_tokens)
@@ -89,7 +89,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #else
     ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, 0
 #endif
-#ifdef WEIGHT_COMPRESSED_INT4
+#ifdef IS_WEIGHT_QUANTIZED
                                         , weight_scales
 #ifdef WEIGHT_ZP_DT
                                         , weight_zps
