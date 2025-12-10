@@ -109,7 +109,7 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
     auto convert1 = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
     auto concat1 = opp::wrap_type<ov::op::v0::Concat>({convert1, opp::any_input()});
 
-    //GQA optional nodes
+    // GQA optional nodes
     auto unsqueeze1 = opp::optional<ov::op::v0::Unsqueeze>({concat1, opp::any_input()});
     auto broadcast1 = opp::optional<ov::op::v3::Broadcast>({unsqueeze1, opp::any_input()});
     auto reshape1 = opp::optional<ov::op::v1::Reshape>({broadcast1, opp::any_input()});
@@ -117,7 +117,7 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
     auto convert2 = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
     auto concat2 = opp::wrap_type<ov::op::v0::Concat>({convert2, opp::any_input()});
 
-    //GQA optional nodes
+    // GQA optional nodes
     auto unsqueeze2 = opp::optional<ov::op::v0::Unsqueeze>({concat2, opp::any_input()});
     auto broadcast2 = opp::optional<ov::op::v3::Broadcast>({unsqueeze2, opp::any_input()});
     auto reshape2 = opp::optional<ov::op::v1::Reshape>({broadcast2, opp::any_input()});
