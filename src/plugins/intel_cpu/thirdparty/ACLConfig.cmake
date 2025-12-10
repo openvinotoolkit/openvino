@@ -64,6 +64,10 @@ if(ARM_COMPUTE_INCLUDE_DIR OR ARM_COMPUTE_LIB_DIR)
                 $<TARGET_PROPERTY:${acl_library},INTERFACE_INCLUDE_DIRECTORIES>)
     endforeach()
 
+    if(ARM_COMPUTE_INCLUDE_DIR)
+        set(ACL_INCLUDE_DIR "${ARM_COMPUTE_INCLUDE_DIR}")
+    endif()
+
 # ------------------------------------------------------------------------------
 # Mode 2: Build ACL using CMake
 # ------------------------------------------------------------------------------
@@ -87,6 +91,10 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
 
         add_subdirectory(${ARM_COMPUTE_SOURCE_DIR} ${ARM_COMPUTE_BINARY_DIR} EXCLUDE_FROM_ALL)
 
+        if(NOT TARGET arm_compute::arm_compute)
+            add_library(arm_compute::arm_compute ALIAS arm_compute)
+        endif()
+
         add_library(ArmCompute::Half INTERFACE IMPORTED GLOBAL)
         set_target_properties(ArmCompute::Half PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES "${ARM_COMPUTE_SOURCE_DIR}/include")
@@ -96,13 +104,14 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
 
     # Setup for oneDNN integration
     set(ACL_FOUND ON)
-    set(ACL_LIBRARIES arm_compute_core ArmCompute::Half)
+    set(ACL_LIBRARIES ArmCompute::Core ArmCompute::Half)
 
     foreach(acl_library IN LISTS ACL_LIBRARIES)
         list(APPEND ACL_INCLUDE_DIRS
                 $<TARGET_PROPERTY:${acl_library},INTERFACE_INCLUDE_DIRECTORIES>)
     endforeach()
 
+    set(ACL_INCLUDE_DIR "${ARM_COMPUTE_SOURCE_DIR}")
     set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
 
 # ------------------------------------------------------------------------------
