@@ -30,8 +30,6 @@
 #include "snippets/op/convert_truncation.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
-#include "snippets/pass/fuse_transpose_brgemm.hpp"
-#include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::pass {

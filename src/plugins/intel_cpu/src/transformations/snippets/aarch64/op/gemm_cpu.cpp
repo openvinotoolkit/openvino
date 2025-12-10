@@ -68,21 +68,8 @@ void GemmCPU::validate_element_type(const ov::element::Type& type_0, const ov::e
 ov::element::Type GemmCPU::get_output_type() const {
     const auto in_type0 = get_input_element_type(0);
     const auto in_type1 = get_input_element_type(1);
-
-    OPENVINO_ASSERT(in_type0 == in_type1,
-                    "GemmCPU expects matching input types, got: ",
-                    in_type0.get_type_name(),
-                    " and ",
-                    in_type1.get_type_name());
-
-    if (in_type0 == element::f16) {
-        return element::f16;
-    }
-    if (in_type0 == element::f32) {
-        return element::f32;
-    }
-
-    OPENVINO_THROW("GemmCPU: unsupported input type: ", in_type0.get_type_name());
+    validate_element_type(in_type0, in_type1);
+    return in_type0;
 }
 
 std::shared_ptr<Node> GemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {
