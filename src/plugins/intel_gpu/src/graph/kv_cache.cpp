@@ -62,6 +62,7 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
         op.set_concat_axis(desc->concat_axis);
         op.set_gather_axis(desc->gather_axis);
         op.set_quantization_attrs(desc->quantization_attributes);
+        op.set_update_kv(desc->update_kv);
         if (desc->update_kv) {
             if (auto past_dim_updated = ov::op::get_input_const_data_as<ov::PartialShape, int64_t>(&op, 1, ov::make_tensor_accessor(const_data))) {
                 auto past_dim_stored = input_shapes[0][desc->concat_axis];
@@ -73,18 +74,17 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
                     } else {
                         op.set_trim_length(static_cast<uint64_t>(0));
                         impl_param.kv_cache_trim_length = 0;
-					
                     }
                 }
             }
         }
-
         output_shapes = shape_infer(&op, input_shapes);
     } else {
         ov::intel_gpu::op::KVCache op;
         op.set_output_size(desc->num_outputs);
         op.set_concat_axis(desc->concat_axis);
         op.set_gather_axis(desc->gather_axis);
+        op.set_update_kv(desc->update_kv);
        if (desc->update_kv) {
             if (auto past_dim_updated = ov::op::get_input_const_data_as<ov::PartialShape, int64_t>(&op, 1, ov::make_tensor_accessor(const_data))) {
                 auto past_dim_stored = input_shapes[0][desc->concat_axis];

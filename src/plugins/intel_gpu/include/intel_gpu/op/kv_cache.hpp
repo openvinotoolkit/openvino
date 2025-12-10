@@ -72,6 +72,7 @@ public:
 
     bool get_indirect() const { return m_indirect; }
     bool get_update_kv() const { return m_update_kv; }
+    void set_update_kv(bool update_kv) { m_update_kv = update_kv; }
 
     uint64_t get_trim_length() const { return m_trim_length; }
     void set_trim_length(uint64_t trim_length) { m_trim_length = trim_length; }

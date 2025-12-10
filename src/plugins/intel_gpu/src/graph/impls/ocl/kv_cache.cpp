@@ -358,7 +358,6 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         params.use_init_val = true;  
 
         const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;    // [kv_past, kv_new_token, [beam_idx], past_seq_len, dst_idx, update_data]
-        const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset;  // [kv_present]
         std::map<size_t, size_t> in_tensor_to_offset_map = {
             {0, in_offsets_map.at(0)}, 
             {1, in_offsets_map.at(3 + indirect_offset)},  
@@ -428,7 +427,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         const auto compression_inputs = desc->get_compression_scales_inputs_num() + desc->get_compression_zp_inputs_num();
         const auto beam_table_past_idx = 3 + compression_inputs;
 
-        const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset; // [kv_past, kv_new_token, [beam_idx, [scale_past], [zp_past], beam_table_past]]
+        const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset; // [kv_past, kv_new_token, [beam_idx, [past_seq_len, dst_idx, update_data], [scale_past], [zp_past], beam_table_past]]
         const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset; // [kv_present, beam_table_present, compression_scale_present]
         std::map<size_t, size_t> in_tensor_to_offset_map = {
             {0, in_offsets_map.at(beam_table_past_idx)}, // beam_table_past
@@ -505,7 +504,8 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         params.axis = convert_axis(concat_axis, impl_param.get_output_layout().get_rank());
 
         const auto inputs_count = 1;
-        const auto input_idx = is_scale ? 3 : 4; // scale or zp
+        const size_t update_kv_offset = impl_param.typed_desc<kv_cache>()->update_kv ? 3 : 0;  
+        const auto input_idx = is_scale ? (3 + update_kv_offset) : (4 + update_kv_offset); // scale or zp
         const auto output_idx = is_scale ? 2 : 3; // scale or zp
         auto comp_scale_past_layout = impl_param.input_layouts[input_idx];
         auto comp_scale_present_layout = impl_param.output_layouts[output_idx];
@@ -514,7 +514,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         params.inputs[0] = convert_data_tensor(comp_scale_past_layout);
         params.outputs[0] = convert_data_tensor(comp_scale_present_layout);
 
-        const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;
+        const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;   // [kv_past, kv_new_token, [beam_idx, [past_seq_len, dst_idx, update_data], [scale_past], [zp_past], beam_table_past]]
         const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset;
 
         std::map<size_t, size_t> in_tensor_to_offset_map = {
@@ -602,15 +602,16 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             // variables memory was reallocated and we have to copy past KV-cache to new memory)
             _kernels_data[concat_stage].kernels[1].skip_execution = true;
 
+            const size_t update_kv_offset = impl_param.typed_desc<kv_cache>()->update_kv ? 3 : 0;
             // Update dynamic quantization parameters
             auto comp_scale_kernel_params = get_compression_scale_update_kernel_params(impl_param, true, impl_param.is_dynamic());
             (_kernels_data[scale_concat_stage].update_dispatch_data_func)(comp_scale_kernel_params, _kernels_data[scale_concat_stage]);
-            _kernels_data[scale_concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(3).count() == 0;
+            _kernels_data[scale_concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(3 + update_kv_offset).count() == 0;
 
             if (impl_param.typed_desc<kv_cache>()->get_compression_zp_inputs_num() > 0) {
                 auto comp_scale_kernel_params = get_compression_scale_update_kernel_params(impl_param, false, impl_param.is_dynamic());
                 (_kernels_data[zp_concat_stage].update_dispatch_data_func)(comp_scale_kernel_params, _kernels_data[zp_concat_stage]);
-                _kernels_data[zp_concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(4).count() == 0;
+                _kernels_data[zp_concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(4 + update_kv_offset).count() == 0;
             }
         }
     }

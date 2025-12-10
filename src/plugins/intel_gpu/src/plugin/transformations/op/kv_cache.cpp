@@ -141,7 +141,7 @@ std::vector<ov::PartialShape> shape_infer(const KVCache* op, const std::vector<o
     if (op->get_output_size() >= 2) {
         out_shapes[0] = input_shapes[1];
         out_shapes[0][gather_axis] = input_shapes[2][0];
-        out_shapes[0][concat_axis] += input_shapes[0][concat_axis] - op->get_trim_length();
+        out_shapes[0][concat_axis] += input_shapes[0][concat_axis] - (op->get_update_kv() ? op->get_trim_length() : 0);
 
         std::vector<ov::Dimension> dims(out_shapes[0].size(), 1);
         dims[gather_axis] = out_shapes[0][gather_axis];
@@ -149,7 +149,7 @@ std::vector<ov::PartialShape> shape_infer(const KVCache* op, const std::vector<o
         out_shapes[1] = dims;
     } else {
         out_shapes[0] = input_shapes[1];
-        out_shapes[0][concat_axis] += input_shapes[0][concat_axis] - op->get_trim_length();
+        out_shapes[0][concat_axis] += input_shapes[0][concat_axis] - (op->get_update_kv() ? op->get_trim_length() : 0);
     }
 
     return out_shapes;
@@ -221,13 +221,14 @@ std::vector<ov::PartialShape> shape_infer(const KVCacheCompressed* op,
             ov::op::internal::DynamicQuantize::shape_infer(&dq_op, { input_shapes[1] });
 
         const auto scales_concat_axis = 2;
-        ov::PartialShape compression_scale_shape = input_shapes[3];
+        const size_t update_kv_offset = op->get_update_kv() ? 3 : 0;
+        ov::PartialShape compression_scale_shape = input_shapes[3 + update_kv_offset];
         compression_scale_shape[scales_concat_axis] += quantized_data_shapes[1][scales_concat_axis];
         out_shapes[2] = compression_scale_shape;
 
         // add zp output
         if (quantized_data_shapes.size() == 3) {
-            ov::PartialShape compression_zp_shape = input_shapes[4];
+            ov::PartialShape compression_zp_shape = input_shapes[4 + update_kv_offset];
             compression_zp_shape[scales_concat_axis] += quantized_data_shapes[2][scales_concat_axis];
             out_shapes[3] = compression_zp_shape;
         }

@@ -235,7 +235,7 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch,
                                                      bool fuse_cache_reorder,
                                                      bool build_state_initializer,
                                                      size_t num_groups,
-                                                     int trim_seq,
+                                                     int past_seq_len,
                                                      std::vector<int> src_idx,
                                                      std::vector<int> dst_idx) {
     ov::PartialShape kv_cache_size = {batch, n_heads / num_groups, -1, n_features};
@@ -257,7 +257,7 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch,
         params.push_back(in_beam_idx);
         concat_input = make_kv_rearrange(in_kv_prev, in_beam_idx);
     }
-    if (trim_seq > 0) {
+    if (past_seq_len > 0) {
         OPENVINO_ASSERT(dst_idx.size() > 0 && src_idx.size() == dst_idx.size());
         ov::PartialShape unit_shape = {1};
         auto seq_len = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, unit_shape);
