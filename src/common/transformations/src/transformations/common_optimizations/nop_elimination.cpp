@@ -872,11 +872,11 @@ pass::EliminateIdentity::EliminateIdentity() {
             // Same as .replace but without changing names
             for (auto& input : identity_out.get_target_inputs()) {
                 if (input.get_node() != replacement.get_node())
-                input.replace_source_output(replacement);
+                    input.replace_source_output(replacement);
             }
         }
         ov::copy_output_runtime_info({identity_out, replacement}, {replacement});
-        
+
         return true;
     };
 
