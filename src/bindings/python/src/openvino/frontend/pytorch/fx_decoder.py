@@ -217,39 +217,31 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             # FIXME: Quadratic complexity nodes*nodes considering the outer loop over all nodes
             self._outputs = [("", self._nodes.index(pt_module))]
 
-            # Check if this is a higher_order op like while_loop
-            target_str = str(pt_module.target) if pt_module.op == "call_function" else ""
-            is_while_loop = "while_loop" in target_str
-
             self.input_types = []
-            if is_while_loop:
-                # For while_loop: args = [cond_fn, body_fn, carried_inputs, additional_inputs]
-                # We need to extract actual tensor inputs from carried_inputs and additional_inputs tuples
-                # Skip first two args (cond_fn, body_fn) as they are subgraphs
-                self._while_loop_subgraph_args = pt_module.args[:2]  # Store subgraph references
-                for arg in pt_module.args[2:]:  # carried_inputs, additional_inputs
-                    if isinstance(arg, (tuple, list)):
-                        for item in arg:
-                            if isinstance(item, torch.fx.Node):
-                                self._inputs.append(self._nodes.index(item))
-                            else:
-                                self._inputs.append(InlinedInput(item))
-                            self.input_types.append(BaseFXDecoder.get_type_for_value(item))
-                    elif isinstance(arg, torch.fx.Node):
-                        self._inputs.append(self._nodes.index(arg))
-                        self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
-                    else:
-                        self._inputs.append(InlinedInput(arg))
-                        self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
-            else:
-                for arg in pt_module.args:
-                    if isinstance(arg, torch.fx.Node):
-                        self._inputs.append(self._nodes.index(arg))
-                    else:
-                        # Not a node, consider it inlined
-                        self._inputs.append(InlinedInput(arg))
-                    self.input_types.append(
-                        BaseFXDecoder.get_type_for_value(arg))
+            self._subgraph_inputs = []  # Universal storage for subgraph arguments
+
+            for arg_idx, arg in enumerate(pt_module.args):
+                is_subgraph, graph_module = self._is_subgraph_arg(arg)
+
+                if is_subgraph:
+                    # Subgraph argument (e.g., cond_fn, body_fn in while_loop)
+                    # Store separately, NOT in _inputs - subgraphs are accessed via get_subgraphs()
+                    self._subgraph_inputs.append(SubgraphInput(arg, graph_module, arg_idx))
+                elif isinstance(arg, (tuple, list)):
+                    # Unpack container arguments (e.g., carried_inputs tuple in while_loop)
+                    for item in arg:
+                        if isinstance(item, torch.fx.Node):
+                            self._inputs.append(self._nodes.index(item))
+                        else:
+                            self._inputs.append(InlinedInput(item))
+                        self.input_types.append(BaseFXDecoder.get_type_for_value(item))
+                elif isinstance(arg, torch.fx.Node):
+                    self._inputs.append(self._nodes.index(arg))
+                    self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
+                else:
+                    # Not a node, consider it inlined (constant)
+                    self._inputs.append(InlinedInput(arg))
+                    self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
 
     @classmethod
     def from_exported_program(cls, exported_program: torch.export.ExportedProgram) -> "TorchFXPythonDecoder":
@@ -291,6 +283,29 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if hasattr(value, "meta") and ("tensor_meta" in value.meta.keys()) and value.meta["tensor_meta"]:
             return OVAny(pt_to_ov_type_map[str(value.meta["tensor_meta"].dtype)])
         return None
+
+    def _is_subgraph_arg(self, arg):
+        """Check if argument is a subgraph reference (get_attr node pointing to GraphModule).
+
+        This provides universal detection of subgraph arguments for any higher-order
+        operation (while_loop, cond, map, scan, etc.).
+
+        Returns:
+            tuple: (is_subgraph: bool, graph_module: GraphModule or None)
+        """
+        if not isinstance(arg, torch.fx.Node):
+            return False, None
+        if arg.op != "get_attr":
+            return False, None
+
+        # Get the attribute from the root graph module
+        subgraph = getattr(self.fx_gm, arg.target, None)
+        if subgraph is not None and isinstance(subgraph, torch.fx.GraphModule):
+            return True, subgraph
+        # Also handle callables with graph attribute (lambda-wrapped GraphModules)
+        if callable(subgraph) and hasattr(subgraph, 'graph'):
+            return True, subgraph
+        return False, None
 
     def get_input_signature_name(self, index: int) -> str:
         if self._input_signature is not None and index < len(self._input_signature):
@@ -381,51 +396,16 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
-    def _is_while_loop_op(self):
-        """Check if this node is a while_loop operation."""
-        if not isinstance(self.pt_module, torch.fx.Node):
-            return False
-        if self.pt_module.op != "call_function":
-            return False
-        target = self.pt_module.target
-        target_str = str(target)
-        # Check for higher_order.while_loop
-        # The target could be WhileLoopOp object or string representation
-        is_while_loop = "while_loop" in target_str
-        return is_while_loop
-
     def get_subgraphs(self):
-        """Return list of subgraphs for higher_order operations like while_loop.
+        """Return list of subgraphs for higher-order operations.
 
-        For while_loop, returns [cond_graph, body_graph].
+        Works universally for any operation with subgraph arguments
+        (while_loop, cond, map, scan, etc.). Subgraphs are returned
+        in their original argument order.
         """
-        if not self._is_while_loop_op():
+        if not hasattr(self, '_subgraph_inputs') or not self._subgraph_inputs:
             return []
-
-        subgraphs = []
-        # First 2 args are cond_fn and body_fn (get_attr nodes referencing GraphModules)
-        # Use stored subgraph_args if available, otherwise get from node args
-        subgraph_args = getattr(self, '_while_loop_subgraph_args', None)
-        if subgraph_args is None:
-            subgraph_args = self.pt_module.args[:2]
-
-        for arg in subgraph_args:
-            if isinstance(arg, torch.fx.Node) and arg.op == "get_attr":
-                # Get the GraphModule from the root module
-                subgraph = getattr(self.fx_gm, arg.target, None)
-                if subgraph is not None and isinstance(subgraph, torch.fx.GraphModule):
-                    subgraphs.append(subgraph)
-                # Also check if it's a callable (lambda wrapping GraphModule)
-                elif callable(subgraph) and hasattr(subgraph, 'graph'):
-                    # It's a GraphModule wrapped in lambda or similar
-                    subgraphs.append(subgraph)
-                elif subgraph is not None:
-                    # Try to get it as GraphModule anyway
-                    subgraphs.append(subgraph)
-            elif isinstance(arg, torch.fx.GraphModule):
-                subgraphs.append(arg)
-
-        return subgraphs
+        return [sg.graph_module for sg in self._subgraph_inputs]
 
     def get_subgraph_decoder(self, index):
         """Return decoder for subgraph at given index."""
@@ -516,6 +496,19 @@ class InlinedInput:
 
     def __init__(self, data) -> None:
         self.data = data
+
+
+class SubgraphInput:
+    """Represents a subgraph input (GraphModule reference via get_attr).
+
+    This is used for higher-order operations like while_loop, cond, map, etc.
+    where arguments can be callable subgraphs instead of tensor data.
+    """
+
+    def __init__(self, node, graph_module, original_arg_index) -> None:
+        self.node = node  # The get_attr node referencing the subgraph
+        self.graph_module = graph_module  # The actual GraphModule
+        self.original_arg_index = original_arg_index  # Position in original args
 
 
 class InlinedInputDecoder (BaseFXDecoder):
