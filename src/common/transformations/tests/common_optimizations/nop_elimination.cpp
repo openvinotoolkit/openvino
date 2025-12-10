@@ -2180,9 +2180,7 @@ TEST_F(TransformationTestsF, EliminateIdentity) {
         auto res1 = std::make_shared<ov::op::v0::Result>(mul);
         auto res2 = std::make_shared<ov::op::v0::Result>(id2);
 
-        model = std::make_shared<ov::Model>(
-                ov::ResultVector{res1, res2},
-                ov::ParameterVector{p0, p1});
+        model = std::make_shared<ov::Model>(ov::ResultVector{res1, res2}, ov::ParameterVector{p0, p1});
 
         manager.register_pass<ov::pass::EliminateIdentity>();
     }
@@ -2204,8 +2202,6 @@ TEST_F(TransformationTestsF, EliminateIdentity) {
         auto res1 = std::make_shared<ov::op::v0::Result>(mul);
         auto res2 = std::make_shared<ov::op::v0::Result>(mul);
 
-        model_ref = std::make_shared<ov::Model>(
-                ov::ResultVector{res1, res2},
-                ov::ParameterVector{p0, p1});
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{res1, res2}, ov::ParameterVector{p0, p1});
     }
 }
