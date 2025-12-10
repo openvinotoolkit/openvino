@@ -48,13 +48,13 @@ enum class LSTMInput {
 ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
                                            int64_t target_rank,
                                            const std::string& input_name) {
-    const auto& input_shape = input.get_partial_shape();
+    const auto& input_rank_dim = input.get_partial_shape().rank();
 
-    if (input_shape.rank().is_dynamic()) {
+    if (input_rank_dim.is_dynamic()) {
         return input;
     }
 
-    const auto input_rank = input_shape.rank().get_length();
+    const auto input_rank = input_rank_dim.get_length();
 
     if (input_rank == target_rank) {
         return input;
@@ -65,6 +65,7 @@ ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
         const auto dims_to_squeeze = input_rank - target_rank;
 
         // Static validation: check if leading dimensions are statically known and != 1
+        const auto& input_shape = input.get_partial_shape();
         for (int64_t i = 0; i < dims_to_squeeze; ++i) {
             if (input_shape[i].is_static() && input_shape[i].get_length() != 1) {
                 OPENVINO_THROW("LSTM input '",
