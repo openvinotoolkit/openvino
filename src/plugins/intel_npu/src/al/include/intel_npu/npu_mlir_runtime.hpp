@@ -155,8 +155,7 @@ NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL np
     uint32_t argIndex,                                           ///< [in] index of the argument
     ze_graph_argument_properties_3_t* pGraphArgumentProperties,  ///< [out] query result for graph argument properties
     ze_graph_argument_metadata_t* pGraphArgumentMetadata,        ///< [out] query result for graph argument metadata
-    int64_t* upperBound
-);
+    int64_t* upperBound);
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Execute MLIR runtime with params

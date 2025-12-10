@@ -41,7 +41,6 @@ typedef struct handle_ {
  * @cond
  */
 namespace internal {
-bool is_initialized();
 domain_t domain(const char* name);
 handle_t handle(const char* name);
 void taskBegin(domain_t d, handle_t t);
