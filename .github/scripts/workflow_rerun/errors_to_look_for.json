@@ -150,5 +150,13 @@
     {
         "error_text": "Connection reset by peer - SSL_connect",
         "ticket": 173970
+    },
+    {
+        "error_text": "Error in the HTTP2 framing layer",
+        "ticket": 177549
+    },
+    {
+        "error_text": "CERT_TRUST_REVOCATION_STATUS_UNKNOWN",
+        "ticket": 177273
     }
 ]
