@@ -629,7 +629,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_139937,
-        "OnnxBackendNodeModelTest.test_dequantizelinear_blocked_cpu",
         "OnnxBackendNodeModelTest.test_qlinearmatmul_2D_int8_float16_cpu",
     ),
     (
