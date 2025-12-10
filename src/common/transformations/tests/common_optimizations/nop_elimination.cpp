@@ -2152,7 +2152,6 @@ TEST_F(TransformationTestsF, ScatterNDUpdates15Elimination) {
     }
 }
 
-
 TEST_F(TransformationTestsF, EliminateIdentity) {
     {
         auto p0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
