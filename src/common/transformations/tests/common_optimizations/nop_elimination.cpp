@@ -2154,14 +2154,6 @@ TEST_F(TransformationTestsF, ScatterNDUpdates15Elimination) {
 
 TEST_F(TransformationTestsF, EliminateIdentity) {
     {
-        // Original graph:
-        //
-        // p0 -> I0 (Identity) ----\
-        //                           Multiply ---> Result1
-        // p1 -> I1 (Identity) ----/       \
-        //                                  I2 (Identity) -> Result2
-        //
-
         auto p0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
         auto p1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
 
@@ -2185,14 +2177,6 @@ TEST_F(TransformationTestsF, EliminateIdentity) {
         manager.register_pass<ov::pass::EliminateIdentity>();
     }
     {
-        // Expected graph:
-        //
-        // p0 ----\
-        //         Multiply ---> Result1
-        // p1 ----/    \
-        //              Result2
-        //
-
         auto p0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
         auto p1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
 
