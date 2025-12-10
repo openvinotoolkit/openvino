@@ -40,6 +40,7 @@ class OPENVINO_RUNTIME_API Core {
     std::shared_ptr<Impl> _impl;
 
 public:
+    ///@{
     /** @brief Constructs an OpenVINO Core instance with devices
      * and their plugins description.
      *
@@ -55,11 +56,11 @@ public:
      */
     explicit Core(const std::string& xml_config_file = {});
 
-    /** @brief Constructs an OpenVINO Core instance with devices and their plugins description. */
     explicit Core(const std::filesystem::path& xml_config_file);
 
     template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
     explicit Core(const TPath& xml_config_file) : Core(std::string(xml_config_file)) {}
+    ///@}
 
     /**
      * @brief Returns device plugins version information.
@@ -828,6 +829,7 @@ public:
      */
     std::vector<std::string> get_available_devices() const;
 
+    ///@{
     /**
      * @brief Register a new device and plugin that enables this device inside OpenVINO Runtime.
      *
@@ -846,7 +848,6 @@ public:
      */
     void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& config = {});
 
-    /** @brief Register a new device and plugin that enables this device inside OpenVINO Runtime. */
     void register_plugin(const std::filesystem::path& plugin_path,
                          const std::string& device_name,
                          const ov::AnyMap& config = {});
@@ -859,6 +860,7 @@ public:
             register_plugin(std::filesystem::path(plugin_path), device_name, config);
         }
     }
+    ///@}
 
     /**
      * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.
@@ -869,6 +871,7 @@ public:
      */
     void unload_plugin(const std::string& device_name);
 
+    ///@{
     /** @brief Registers a device plugin to the OpenVINO Runtime Core instance using an XML configuration file with
      * plugins description.
      *
@@ -901,9 +904,6 @@ public:
      */
     void register_plugins(const std::string& xml_config_file);
 
-    /** @brief Registers a device plugin to the OpenVINO Runtime Core instance using an XML configuration file with
-     * plugins description.
-     */
     void register_plugins(const std::filesystem::path& xml_config_file);
 
     template <class Path>
@@ -914,6 +914,7 @@ public:
             register_plugins(std::filesystem::path(xml_config_file));
         }
     }
+    ///@}
 
     /**
      * @brief Creates a new remote shared context object on the specified accelerator device
