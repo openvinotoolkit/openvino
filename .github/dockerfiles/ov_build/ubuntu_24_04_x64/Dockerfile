@@ -39,6 +39,8 @@ RUN apt-get update && \
         python3-venv \
         python3-pip \
         python3-full \
+        python3.14-nogil \
+        python3.14-venv \
         # For Java API
         default-jdk \
         # For clang-tidy validation
@@ -76,6 +78,7 @@ RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.13 -m pip install --upgrade pip==${PIP_VERSION}
+    python3.13 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.14-nogil -m pip install --upgrade pip==${PIP_VERSION}
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
