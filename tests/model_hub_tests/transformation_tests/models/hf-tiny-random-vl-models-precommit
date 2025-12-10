@@ -1,4 +1,11 @@
-katuni4ka/tiny-random-llava-next,https://huggingface.co/katuni4ka/tiny-random-llava-next
-katuni4ka/tiny-random-minicpmv-2_6,https://huggingface.co/katuni4ka/tiny-random-minicpmv-2_6
-katuni4ka/tiny-random-llava,https://huggingface.co/katuni4ka/tiny-random-llava
-katuni4ka/tiny-random-nanollava,https://huggingface.co/katuni4ka/tiny-random-nanollava
+optimum-intel-internal-testing/tiny-random-internvl2,https://huggingface.co/optimum-intel-internal-testing/tiny-random-internvl2
+optimum-intel-internal-testing/tiny-random-llava,https://huggingface.co/optimum-intel-internal-testing/tiny-random-llava
+optimum-intel-internal-testing/tiny-random-llava-next,https://huggingface.co/optimum-intel-internal-testing/tiny-random-llava-next
+optimum-intel-internal-testing/tiny-random-llava-next-mistral,https://huggingface.co/optimum-intel-internal-testing/tiny-random-llava-next-mistral
+optimum-intel-internal-testing/tiny-random-llava-next-video,https://huggingface.co/optimum-intel-internal-testing/tiny-random-llava-next-video
+optimum-intel-internal-testing/tiny-random-maira2,https://huggingface.co/optimum-intel-internal-testing/tiny-random-maira2
+optimum-intel-internal-testing/tiny-random-minicpmv-2_6,https://huggingface.co/optimum-intel-internal-testing/tiny-random-minicpmv-2_6
+optimum-intel-internal-testing/tiny-random-nanollava,https://huggingface.co/optimum-intel-internal-testing/tiny-random-nanollava
+optimum-intel-internal-testing/tiny-random-phi-4-multimodal,https://huggingface.co/optimum-intel-internal-testing/tiny-random-phi-4-multimodal
+optimum-intel-internal-testing/tiny-random-phi3-vision,https://huggingface.co/optimum-intel-internal-testing/tiny-random-phi3-vision
+optimum-intel-internal-testing/tiny-random-qwen2vl,https://huggingface.co/optimum-intel-internal-testing/tiny-random-qwen2vl

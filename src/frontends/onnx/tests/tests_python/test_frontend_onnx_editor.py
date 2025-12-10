@@ -10,7 +10,7 @@ import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 
 from openvino.frontend import FrontEndManager, GeneralFailure
-from openvino.runtime import Dimension, PartialShape, Type
+from openvino import Dimension, PartialShape, Type
 
 
 # ------Test input model 1------
@@ -1794,6 +1794,6 @@ def test_get_element_type_int32():
     assert model.get_element_type(x_output_edge) == Type.i32
 
     # get_element_type can return the concrete element type only for model inputs
-    # for other places, it returns undefined type
+    # for other places, it returns dynamic type
     const_node = model.get_place_by_tensor_name(tensor_name="const_node")
-    assert model.get_element_type(const_node) == Type.undefined
+    assert model.get_element_type(const_node) == Type.dynamic

@@ -24,6 +24,7 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
+        openvino_npu_common
         openvino_npu_driver_compiler_adapter
         openvino_npu_level_zero_backend
 )
@@ -35,7 +36,6 @@ endif()
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino::npu_al
-        openvino::npu_common
         openvino::reference
 )
 

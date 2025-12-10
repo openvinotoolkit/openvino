@@ -787,7 +787,7 @@ Example:
         <message>Only "developer built" compilers support weights separation</message>
         <filters>
             <filter>.*WeightsSeparationTests.*</filter>
-            <filter>.*WeightsSeparationNotSupportedTests.*</filter>
+            <filter>.*WeightsSeparationIterativeTests.*</filter>
         </filters>
     </skip_config>
 

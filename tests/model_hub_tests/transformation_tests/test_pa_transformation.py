@@ -5,7 +5,7 @@ from huggingface_hub import snapshot_download
 from openvino._offline_transformations import paged_attention_transformation
 from openvino._pyopenvino.op import _PagedAttentionExtension
 from openvino._pyopenvino import Type as OVType
-from optimum.intel import OVModelForCausalLM
+from optimum.intel import OVModelForCausalLM, OVModelForSeq2SeqLM
 from optimum.intel.openvino import OVModelForVisualCausalLM
 from typing import Union
 import openvino as ov
@@ -123,7 +123,7 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
 def run_pa(tmp_path,
            model_id,
            model_link,
-           cls: Union[type[OVModelForCausalLM], type[OVModelForVisualCausalLM]],
+           cls: Union[type[OVModelForCausalLM], type[OVModelForVisualCausalLM], type[OVModelForSeq2SeqLM]],
            use_block_indices_inputs,
            use_score_outputs,
            allow_score_aggregation,
@@ -133,11 +133,27 @@ def run_pa(tmp_path,
     model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
     model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)
 
-    ov_model = model.model if cls is OVModelForCausalLM else model.lm_model
+    if cls is OVModelForCausalLM:
+        ov_model = model.model
+    elif cls is OVModelForVisualCausalLM:
+        ov_model = model.lm_model
+    elif cls is OVModelForSeq2SeqLM:
+        ov_model = model.decoder_with_past_model
+    else:
+        raise ValueError(f"Unsupported model class: {cls}")
 
     apply_transformation_and_compare_diffs(ov_model, model_id, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention, ie_device)
 
-PA_PRECOMMIT_TEST_CASES = [ (OVModelForCausalLM, *model_info_tuple) for model_info_tuple in utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")) ] + [ (OVModelForVisualCausalLM, *model_info_tuple) for model_info_tuple in utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-vl-models-precommit")) ]
+PA_PRECOMMIT_TEST_CASES = [
+    (OVModelForCausalLM, *model_info_tuple)
+    for model_info_tuple in utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit"))
+] + [
+    (OVModelForVisualCausalLM, *model_info_tuple)
+    for model_info_tuple in utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-vl-models-precommit"))
+] + [
+    (OVModelForSeq2SeqLM, *model_info_tuple)
+    for model_info_tuple in utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-enc-dec-models-precommit"))
+]
 
 def pa_test_idfn(entry):
     retval = ""
@@ -145,6 +161,8 @@ def pa_test_idfn(entry):
         retval += "text-"
     elif entry[0] is OVModelForVisualCausalLM:
         retval += "vlm-"
+    elif entry[0] is OVModelForSeq2SeqLM:
+        retval += "seq2seq-"
     else:
         raise ValueError(f"Unknown model class {entry[0]}")
     retval += entry[1]

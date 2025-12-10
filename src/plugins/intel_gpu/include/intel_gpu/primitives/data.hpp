@@ -314,7 +314,10 @@ private:
             reorder_rep.reorder->input = {input_info("input")};
             topology topology(input_layout("input", *reorder_rep.input_layout),
                               *reorder_rep.reorder);
-            cldnn::network network(engine, topology, {});
+
+            ExecutionConfig config;
+            config.set_property(ov::intel_gpu::optimize_data(false));
+            cldnn::network network(engine, topology, config, true);
             network.set_input_data("input", input_mem);
             network.set_output_memory(reorder_rep.reorder->id, dst_mem);
             auto outputs = network.execute();

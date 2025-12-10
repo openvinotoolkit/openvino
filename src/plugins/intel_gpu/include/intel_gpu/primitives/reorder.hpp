@@ -5,6 +5,8 @@
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/graph/serialization/weights_reorder_params.hpp"
+
 #include <vector>
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
@@ -17,61 +19,6 @@ enum class reorder_mean_mode {
     subtract,  // val - mean
     mul,       // val * mean
     div,       // val/mean
-};
-
-struct WeightsReorderParams {
-    WeightsReorderParams() {}
-
-    WeightsReorderParams(const layout& in_layout, const layout& out_layout, bool transposed = false, bool grouped = false)
-        : _in_layout(in_layout),
-          _out_layout(out_layout),
-          _transposed(transposed),
-          _grouped(grouped) {}
-
-    size_t hash() const {
-        size_t seed = hash_combine(_in_layout.hash(), _out_layout.hash());
-        seed = hash_combine(seed, _transposed);
-        seed = hash_combine(seed, _grouped);
-        return seed;
-    }
-
-    bool operator==(const WeightsReorderParams& rhs) const {
-        if (typeid(*this) != typeid(rhs))
-            return false;
-
-        return _in_layout == rhs._in_layout &&
-               _out_layout == rhs._out_layout &&
-               _transposed == rhs._transposed &&
-               _grouped == rhs._grouped;
-    }
-
-    layout get_input_layout() const { return _in_layout; }
-    layout get_output_layout() const { return _out_layout; }
-    bool should_be_transposed() const { return _transposed; }
-    bool get_grouped() const { return _grouped; }
-
-    void set_input_layout(const layout& layout) { _in_layout = layout; }
-    void set_output_layout(const layout& layout) { _out_layout = layout; }
-
-    void save(cldnn::BinaryOutputBuffer& ob) const {
-        ob << _in_layout;
-        ob << _out_layout;
-        ob << _transposed;
-        ob << _grouped;
-    }
-    void load(cldnn::BinaryInputBuffer& ib) {
-        ib >> _in_layout;
-        ib >> _out_layout;
-        ib >> _transposed;
-        ib >> _grouped;
-    }
-    virtual ~WeightsReorderParams() = default;
-
-protected:
-    layout _in_layout;
-    layout _out_layout;
-    bool _transposed;
-    bool _grouped;
 };
 
 /// @brief Changes how data is ordered in memory. Value type is not changed & all information is preserved.
@@ -275,8 +222,17 @@ struct reorder : public primitive_base<reorder> {
         ob << make_data(&input_mem_type, sizeof(memory_type));
         if (weights_reorder_params == nullptr) {
             ob << false;
+            ob << false;
         } else {
             ob << true;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            if (std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_reorder_params)) {
+                ob << true;
+            } else
+#endif
+            {
+                ob << false;
+            }
             weights_reorder_params->save(ob);
         }
         ob << truncate;
@@ -292,8 +248,20 @@ struct reorder : public primitive_base<reorder> {
         bool has_weights_reorder_params;
         ib >> has_weights_reorder_params;
         if (has_weights_reorder_params) {
-            weights_reorder_params = std::make_shared<WeightsReorderParams>();
-            weights_reorder_params->load(ib);
+            bool has_onednn_weights_reorder = false;
+            ib >> has_onednn_weights_reorder;
+            if (has_onednn_weights_reorder) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+                weights_reorder_params = std::make_shared<onednn::WeightsReorderParamsOneDNN>();
+                weights_reorder_params->load(ib);
+#endif
+            } else {
+                weights_reorder_params = std::make_shared<WeightsReorderParams>();
+                weights_reorder_params->load(ib);
+            }
+        } else {
+            bool dummy;
+            ib >> dummy;
         }
         ib >> truncate;
     }

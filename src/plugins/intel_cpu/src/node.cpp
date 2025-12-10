@@ -21,7 +21,6 @@
 #include <utility>
 #include <vector>
 
-#include "../../core/src/itt.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -77,8 +76,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
       engine(context->getEngine()),
       name(op->get_friendly_name()),
       typeStr(op->get_type_name()),
-      type(TypeFromName(op->get_type_name())),
-      profiling(op->get_friendly_name()) {
+      type(TypeFromName(op->get_type_name())) {
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto& shape = op->get_input_partial_shape(i);
         OPENVINO_ASSERT(!shape.rank().is_dynamic(),
@@ -196,7 +194,7 @@ Node::Node(const std::string& type,
            std::vector<Shape> outShapes,
            std::vector<ov::element::Type> inputPrecisions,
            std::vector<ov::element::Type> outputPrecisions,
-           const std::string& name,
+           std::string name,
            const GraphContext::CPtr& ctx)
     : inputShapes(std::move(inShapes)),
       outputShapes(std::move(outShapes)),
@@ -206,10 +204,9 @@ Node::Node(const std::string& type,
       originalOutputPrecisions(std::move(outputPrecisions)),
       fusingPort(-1),
       engine(ctx->getEngine()),
-      name(name),
+      name(std::move(name)),
       typeStr(type),
-      type(TypeFromName(type)),
-      profiling(name) {
+      type(TypeFromName(type)) {
     parentEdges.reserve(inputShapes.size());
     childEdges.reserve(outputShapes.size());
 }
@@ -823,7 +820,6 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
-    OV_CPU_NODE_SCOPED_TASK_BASE(getTypeStr());
     if (isDynamicNode()) {
         executeDynamic(strm, numaId);
     } else {

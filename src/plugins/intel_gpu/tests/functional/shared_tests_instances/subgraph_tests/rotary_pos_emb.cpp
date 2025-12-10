@@ -101,7 +101,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
                          RoPETestChatGLMHF,
                          ::testing::Combine(
                             ::testing::Values(ov::element::f16, ov::element::f32),
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                            ::testing::Values(true, false)),
                          RoPETestChatGLMHF::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestGPTOSS,

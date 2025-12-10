@@ -7,7 +7,7 @@ import openvino as ov
 from utils import get_path_to_model, get_image
 
 #! [properties_example]
-import openvino.runtime.opset12 as ops
+import openvino.opset12 as ops
 
 core = ov.Core()
 

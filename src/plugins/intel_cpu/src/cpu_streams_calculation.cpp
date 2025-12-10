@@ -685,7 +685,7 @@ int get_model_prefer_threads(const int num_streams,
         }
         default_prefer_threads_latency();
 
-#    elif (defined(OPENVINO_ARCH_ARM) && defined(__APPLE__))
+#    elif ((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__))
         if ((proc_type_table.size() == 1) && (proc_type_table[0][EFFICIENT_CORE_PROC] > 0)) {
             config.modelPreferThreadsLatency =
                 proc_type_table[0][MAIN_CORE_PROC] > proc_type_table[0][EFFICIENT_CORE_PROC]

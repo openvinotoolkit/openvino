@@ -88,9 +88,9 @@ ov::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
         auto pattern_nodes = m.get_pattern_map();
         auto& gather = pattern_nodes.at(gather_label);
         auto& unsqueeze = pattern_nodes.at(unsqueeze_label);
-        const auto& indices = op::util::make_try_fold<v1::Reshape>(gather->input_value(1),
-                                                                   v0::Constant::create(element::i32, {1}, {1}),
-                                                                   false);
+        const auto& indices = ov::op::util::make_try_fold<v1::Reshape>(gather->input_value(1),
+                                                                       v0::Constant::create(element::i32, {1}, {1}),
+                                                                       false);
         register_new_node(indices);
         gather->input(1).replace_source_output(indices->output(0));
         copy_runtime_info({unsqueeze, gather}, {indices, gather});
