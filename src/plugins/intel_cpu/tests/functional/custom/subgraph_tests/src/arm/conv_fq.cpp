@@ -9,7 +9,6 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/max_pool.hpp"
 #include "openvino/util/common_util.hpp"
 
 using namespace CPUTestUtils;
@@ -154,7 +153,7 @@ TEST_P(ConvAndFQ, CompareWithRefs) {
 
 namespace {
 
-std::vector<InputShape> inputShapes{{{}, {{1, 3, 2, 2}}},
+std::vector<InputShape> inputShapes{{{}, {{4, 3, 2, 2}}},
                                    {{-1, 3, -1, 2}, {{1, 3, 4, 2}}}};
 
 std::vector<std::vector<std::vector<float>>> perTensorQuantizeIntervals{

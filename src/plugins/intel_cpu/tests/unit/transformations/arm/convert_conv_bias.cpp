@@ -72,8 +72,7 @@ static std::shared_ptr<ov::Model> createInitGraph(ov::element::Type input_type,
     auto conv = createConvolution(input_type, weights_type, input);
 
     auto bias = ov::op::v0::Constant::create(bias_type, {1, 16, 1, 1}, {1.5f});
-    bool is_quantized = any_of(input_type, ov::element::u8, ov::element::i8);
-    auto add = createAdd(conv, bias, ov::element::f32, is_quantized ? ov::element::i32 : bias_type);
+    auto add = createAdd(conv, bias, ov::element::f32, bias_type);
 
     auto dequant_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5f});
     auto multiply = std::make_shared<ov::op::v1::Multiply>(add, dequant_scale);

@@ -3,27 +3,24 @@
 
 #include "convert_conv_bias.hpp"
 
-#include <iostream>
 #include <memory>
 
-#include "low_precision/rt_info/bias_attribute.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/round.hpp"
-#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
-#include "transformations/utils/utils.hpp"
-#include "utils/cpu_utils.hpp"
-#include "utils/general_utils.h"
 
 using namespace ov::pass;
 
@@ -61,20 +58,13 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
         auto convert_to_i32 = std::make_shared<ov::op::v0::Convert>(round, ov::element::i32);
 
         auto add = pattern_map.at(add_m).get_node_shared_ptr();
-        // Check if the Add node is TypeRelaxed, if not - create a TypeRelaxed Add node
-        if (!std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(add)) {
-            auto conv_output = pattern_map.at(conv_m);
-            auto new_add = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Add>>(
-                ov::element::TypeVector{ov::element::f32, ov::element::f32},
-                ov::element::TypeVector{ov::element::f32},
-                ov::op::TemporaryReplaceOutputType(conv_output, ov::element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(convert_to_i32->output(0), ov::element::f32).get());
-            ov::copy_runtime_info({add, bias_const}, {round, convert_to_i32, new_add});
-            ov::replace_node(add, new_add);
-        } else {
-            add->input(1).replace_source_output(convert_to_i32->output(0));
-            ov::copy_runtime_info(bias_const, {round, convert_to_i32});
-        }
+        auto new_add = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Add>>(
+            ov::element::TypeVector{ov::element::f32, ov::element::f32},
+            ov::element::TypeVector{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(pattern_map.at(conv_m), ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(convert_to_i32->output(0), ov::element::f32).get());
+        ov::copy_runtime_info({add, bias_const}, {round, convert_to_i32, new_add});
+        ov::replace_node(add, new_add);
 
         return true;
     };
