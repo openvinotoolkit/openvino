@@ -62,7 +62,8 @@ KernelsData RandomUniformKernelRef::GetKernelsData(const Params &params) const {
     GetUpdateDispatchDataFunc(kernel_data);
 
     FillCLKernelData(kernel_data.kernels[0], dispatch_data, params.engineInfo, kernelName, jit, entry_point, "", false,
-                     false, new_params.inputs.size(), new_params.fused_ops.size(), new_params.outputs.size(), new_params.is_shape_agnostic);
+                     false, static_cast<int>(new_params.inputs.size()), static_cast<uint32_t>(new_params.fused_ops.size()),
+                     static_cast<int>(new_params.outputs.size()), new_params.is_shape_agnostic);
 
     KernelsData kernelsData;
     kernelsData.push_back(std::move(kernel_data));
