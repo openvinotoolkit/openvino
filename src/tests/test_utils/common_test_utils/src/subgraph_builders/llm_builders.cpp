@@ -275,8 +275,7 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch,
                                       (unsigned)heads_size,
                                       (unsigned)dst_idx.size(),
                                       (unsigned)features_size};
-        auto in_dst_idx = std::make_shared<ov::op::v0::Parameter>(
-            ov::element::i32, dst_shape);
+        auto in_dst_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, dst_shape);
         in_dst_idx->set_friendly_name("dst_idx");
         params.push_back(in_dst_idx);
         auto axis_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {2});
