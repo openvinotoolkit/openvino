@@ -31,6 +31,7 @@
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -860,22 +861,31 @@ pass::EliminateIdentity::EliminateIdentity() {
         auto identity_out = identity->output(0);
         auto replacement = identity->input_value(0);
 
-        const auto& consumers = replacement.get_target_inputs();
-        bool replacement_has_result_consumer =
-            std::any_of(consumers.cbegin(), consumers.cend(), [](const Input<Node>& consumer) {
-                return ov::is_type<op::v0::Result>(consumer.get_node());
-            });
+        if (!replace_output_update_name(identity_out, replacement)) {
+            const auto& consumers = replacement.get_target_inputs();
+            bool replacement_has_result_consumer =
+                std::any_of(consumers.cbegin(), consumers.cend(), [](const Input<Node>& consumer) {
+                    return ov::is_type<op::v0::Result>(consumer.get_node());
+                });
+            // Edge case from ticket 177222
+            // NPU doesn't support Identity, so until then
+            // we use a Reshape as a temp no-op to preserve both tensors
+            if (replacement_has_result_consumer) {
+                auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(replacement, ov::element::i64);
+                auto reshape  = std::make_shared<ov::op::v1::Reshape>(replacement, shape_of, false);
 
-        if (!replacement_has_result_consumer) {
-            identity_out.replace(replacement);
-        } else {
-            // Same as .replace but without changing names
-            for (auto& input : identity_out.get_target_inputs()) {
-                if (input.get_node() != replacement.get_node())
-                    input.replace_source_output(replacement);
+                // Preserve the "Identity" friendly name on the new node, so any
+                // output still sees the same logical node name
+                reshape->set_friendly_name(identity->get_friendly_name());
+
+                // Preserve Identity's tensor names on the new output, so externally
+                // visible names for that path remain stable
+                reshape->output(0).get_tensor().set_names(identity_out.get_tensor().get_names());
+
+                ov::copy_runtime_info(identity, {shape_of, reshape});
+                identity_out.replace(reshape);
             }
         }
-        ov::copy_output_runtime_info({identity_out, replacement}, {replacement});
 
         return true;
     };
