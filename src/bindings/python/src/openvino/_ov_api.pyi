@@ -11,7 +11,6 @@ from openvino._pyopenvino import RTMap
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import TensorVector
 from openvino._pyopenvino import Type
-from openvino.package_utils import deprecatedclassproperty
 from openvino.utils.data_helpers.data_dispatcher import _data_dispatch
 from openvino.utils.data_helpers.wrappers import OVDict
 from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
@@ -26,7 +25,7 @@ import openvino.utils.data_helpers.wrappers
 import pathlib
 import traceback as traceback
 import typing
-__all__: list[str] = ['AsyncInferQueue', 'AsyncInferQueueBase', 'CompiledModel', 'CompiledModelBase', 'Core', 'CoreBase', 'InferRequest', 'Iterator', 'Model', 'ModelBase', 'ModelMeta', 'Node', 'OVDict', 'Path', 'RTMap', 'Tensor', 'TensorVector', 'TracebackType', 'Type', 'compile_model', 'deprecatedclassproperty', 'io', 'tensor_from_file', 'traceback']
+__all__: list[str] = ['AsyncInferQueue', 'AsyncInferQueueBase', 'CompiledModel', 'CompiledModelBase', 'Core', 'CoreBase', 'InferRequest', 'Iterator', 'Model', 'ModelBase', 'ModelMeta', 'Node', 'OVDict', 'Path', 'RTMap', 'Tensor', 'TensorVector', 'TracebackType', 'Type', 'compile_model', 'io', 'tensor_from_file', 'traceback']
 class AsyncInferQueue(openvino._pyopenvino.AsyncInferQueue):
     """
     AsyncInferQueue with a pool of asynchronous requests.
