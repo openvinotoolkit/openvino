@@ -396,7 +396,7 @@ def test_register_plugins():
 @pytest.mark.dynamic_library
 def test_core_register_plugins():
     device = "TEST_DEVICE"
-    lib_name = "mock_engine"
+    lib_name = "test_plugin"
     full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
     plugins_xml = plugins_path(device, full_lib_name)
 
