@@ -4,6 +4,7 @@
 
 #include "llm_compiled_model_utils.hpp"
 
+#include <cfloat>
 #include <regex>
 
 #include "logging.hpp"
@@ -704,7 +705,7 @@ ov::Output<ov::Node> create_new_mask(std::shared_ptr<ov::Model> model,
     auto minus_two = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{}, -2);
     auto zero_f = std::make_shared<v0::Constant>(element_type, ov::Shape{}, 0.0f);
     auto one_f = std::make_shared<v0::Constant>(element_type, ov::Shape{}, 1.0f);
-    auto minus_inf = std::make_shared<v0::Constant>(element_type, ov::Shape{}, -std::numeric_limits<float>::infinity());
+    auto minus_inf = std::make_shared<v0::Constant>(element_type, ov::Shape{}, -FLT_MAX);
 
     // Extract shapes
     // input_ids: [batch, seq_len]
@@ -720,11 +721,11 @@ ov::Output<ov::Node> create_new_mask(std::shared_ptr<ov::Model> model,
     auto cache_len = std::make_shared<v1::Subtract>(total_seq_len, seq_len);
 
     auto query_positions = std::make_shared<v4::Range>(zero_i, seq_len, one_i, ov::element::i64);
-    auto query_pos_unsqueeze = std::make_shared<v0::Unsqueeze>(query_positions, one_i);  // (seq_len, 1)
+    auto query_pos_unsqueeze = std::make_shared<v0::Unsqueeze>(query_positions, one_i);
 
     // Create key positions: [0, 1, 2, ..., total_seq_len-1] with shape (1, total_seq_len)
     auto key_positions = std::make_shared<v4::Range>(zero_i, total_seq_len, one_i, ov::element::i64);
-    auto key_pos_unsqueeze = std::make_shared<v0::Unsqueeze>(key_positions, zero_i);  // (1, total_seq_len)
+    auto key_pos_unsqueeze = std::make_shared<v0::Unsqueeze>(key_positions, zero_i);
 
     auto causal_threshold = std::make_shared<v1::Add>(cache_len, query_pos_unsqueeze);
     auto causal_condition = std::make_shared<v1::LessEqual>(key_pos_unsqueeze, causal_threshold);
@@ -827,7 +828,7 @@ std::shared_ptr<ov::op::Op> get_mean_pooling_op(std::shared_ptr<ov::Model> model
 
     auto nearest_to_zero = std::make_shared<op::v0::Constant>(ov::element::f32,
                                                               ov::Shape{1},
-                                                              std::vector<float>{static_cast<float>(1e-7)});
+                                                              std::vector<float>{static_cast<float>(1e-12)});
     auto max_expanded_mask = std::make_shared<op::v1::Maximum>(sum_expanded_mask, nearest_to_zero);
 
     // shape: [batch_size, hidden_state_size]
@@ -852,7 +853,7 @@ std::shared_ptr<ov::op::Op> normalize_output(std::shared_ptr<ov::op::Op> last_hi
     auto axis_const = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector{1});
     return std::make_shared<op::v0::NormalizeL2>(last_hidden_state_node,
                                                  axis_const,
-                                                 static_cast<float>(1e-7),
+                                                 static_cast<float>(1e-12),
                                                  op::EpsMode::MAX);
 }
 
