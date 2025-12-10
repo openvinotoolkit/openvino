@@ -24,11 +24,13 @@ static uint64_t hash_combine(uint64_t seed, const T& a) {
 namespace {
 std::filesystem::path abs_path_or_input(const std::filesystem::path& path) {
     std::error_code ec;
-    if (auto abs_path = std::filesystem::absolute(std::filesystem::weakly_canonical(path), ec); ec) {
-        return path;
-    } else {
-        return abs_path;
+    if (auto abs_path = std::filesystem::weakly_canonical(path, ec); !ec) {
+        abs_path = std::filesystem::absolute(abs_path, ec);
+        if (!ec && !abs_path.empty()) {
+            return abs_path;
+        }
     }
+    return path;
 }
 
 uint64_t hash_combine_options(uint64_t seed, const ov::AnyMap& compile_options) {
