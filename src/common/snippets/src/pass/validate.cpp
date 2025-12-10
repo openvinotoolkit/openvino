@@ -84,21 +84,10 @@ bool Validate::is_supported_fq([[maybe_unused]] const std::shared_ptr<const ov::
 }
 
 bool Validate::is_supported_transpose(const std::shared_ptr<const ov::Node>& node) {
-    // Transpose is supported:
-    //  - on Inputs or Outputs of body;
-    //  - or if it is going to be handled by dedicated data flow passes.
+    // Transpose is supported only on Inputs or Outputs of body
     const auto consumers = node->get_output_target_inputs(0);
-    if (ov::is_type<ov::op::v0::Parameter>(node->get_input_node_shared_ptr(0)) ||
-        (consumers.size() == 1 && ov::is_type<ov::op::v0::Result>(consumers.cbegin()->get_node()))) {
-        return true;
-    }
-
-    // Transposes that are recognized by FuseTransposeBrgemm or TransposeDecomposition
-    // are also considered supported inside Subgraph body.
-    const auto non_const_node = std::const_pointer_cast<ov::Node>(node);
-    const auto& output = non_const_node->output(0);
-    return ov::snippets::pass::FuseTransposeBrgemm::is_supported_transpose(output) ||
-           ov::snippets::pass::TransposeDecomposition::is_supported_transpose(output);
+    return (ov::is_type<ov::op::v0::Parameter>(node->get_input_node_shared_ptr(0))) ||
+           (consumers.size() == 1 && ov::is_type<ov::op::v0::Result>(consumers.cbegin()->get_node()));
 }
 
 bool Validate::is_supported_op([[maybe_unused]] const std::shared_ptr<const ov::Node>& node) {
