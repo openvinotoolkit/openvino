@@ -860,8 +860,23 @@ pass::EliminateIdentity::EliminateIdentity() {
         auto identity_out = identity->output(0);
         auto replacement = identity->input_value(0);
 
-        identity_out.replace(replacement);
+        const auto& consumers = replacement.get_target_inputs();
+        bool replacement_has_result_consumer =
+            std::any_of(consumers.cbegin(), consumers.cend(), [](const Input<Node>& consumer) {
+                return ov::is_type<op::v0::Result>(consumer.get_node());
+            });
 
+        if (!replacement_has_result_consumer) {
+            identity_out.replace(replacement);
+        } else {
+            // Same as .replace but without changing names
+            for (auto& input : identity_out.get_target_inputs()) {
+                if (input.get_node() != replacement.get_node())
+                input.replace_source_output(replacement);
+            }
+        }
+        ov::copy_output_runtime_info({identity_out, replacement}, {replacement});
+        
         return true;
     };
 
