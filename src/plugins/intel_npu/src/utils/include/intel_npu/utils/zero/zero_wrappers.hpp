@@ -72,7 +72,10 @@ public:
     void appendGraphInitialize(const ze_graph_handle_t& graph_handle) const;
     void appendGraphExecute(const ze_graph_handle_t& graph_handle,
                             const ze_graph_profiling_query_handle_t& profiling_query_handle) const;
-    void updateMutableCommandList(uint32_t index, const void* data, const std::vector<size_t>& strides = {}) const;
+    void updateMutableCommandList(uint32_t index, const void* data) const;
+    void updateMutableCommandListWithStrides(uint32_t index,
+                                             const void* data,
+                                             const std::vector<size_t>& strides) const;
     void appendNpuTimestamp(uint64_t* timestamp_buff) const;
     void appendBarrier() const;
     void close() const;
@@ -80,15 +83,15 @@ public:
 
     inline ze_command_list_handle_t handle() const {
         return _handle;
-    }
+        }
 
-private:
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    private:
+        std::shared_ptr<ZeroInitStructsHolder> _init_structs;
 
-    Logger _log;
+        Logger _log;
 
-    uint64_t _command_id = 0;
-    ze_command_list_handle_t _handle = nullptr;
+        uint64_t _command_id = 0;
+        ze_command_list_handle_t _handle = nullptr;
 };
 
 class Fence {
