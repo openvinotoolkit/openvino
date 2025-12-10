@@ -87,7 +87,6 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     // This program checks if cm sources can be jitted by current IGC version
     const char* kernel_code = R""""(
         static_assert(__cplusplus >= 201703L);
-        static_assert(CM_HAS_DPAS);
         CM_INLINE uint64_t dummy() {
             return ((uint64_t)0L);
         }

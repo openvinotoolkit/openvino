@@ -38,7 +38,6 @@ constexpr float scale_factor = CMFLA_SCALE_FACTOR;
 
 static_assert(q_step == 16 || q_step == 8);
 static_assert(kv_step == 16);
-static_assert(CM_HAS_DPAS);
 
 #define DEBUG_SHOW 1
 #if !DEBUG_SHOW

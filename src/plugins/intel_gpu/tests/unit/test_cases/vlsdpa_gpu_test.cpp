@@ -197,7 +197,7 @@ struct vlsdpa_gpu_test : public ::testing::TestWithParam<vlsdpa_test_params> {
     static bool check_vlsdpa_available() {
         auto& engine = get_test_engine();
         ExecutionConfig config = get_test_default_config(engine);
-        if (!cldnn::check_cm_jit_support(engine, config) || !engine.get_device_info().supports_immad) {
+        if (!cldnn::check_cm_jit_support(engine, config)) {
             return false;
         }
 

@@ -56,6 +56,7 @@ protected:
         const size_t num_q_heads = query_shape[query_shape.size() - 3].get_length();
         const size_t num_kv_heads = key_shape[key_shape.size() - 3].get_length();
         const float scale_factor = 1.0 / std::sqrt(static_cast<double>(head_size));
+        const bool use_stub_kernel = !params.get_device_info().supports_immad;
 
         GPU_DEBUG_TRACE_DETAIL << "VLSDPA query_shape " << query_shape << ", q_transpose_order " << PartialShape(desc->input_q_transpose_order)
                                << ", key_shape " << key_shape << ", k_transpose_order " << PartialShape(desc->input_k_transpose_order)
@@ -67,6 +68,7 @@ protected:
             make_jit_constant("CMFLA_NUM_KV_HEADS", num_kv_heads),
             make_jit_constant("CMFLA_HEAD_SIZE", head_size),
             make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor),
+            make_jit_constant("CMFLA_USE_STUB_KERNEL", use_stub_kernel ? 1 : 0),
         });
 
         return jit;
