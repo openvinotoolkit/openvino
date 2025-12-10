@@ -31,11 +31,6 @@ endfunction()
 function(ov_build_kleidiai_static)
     set(BUILD_SHARED_LIBS OFF)
     set(KLEIDIAI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8.2-a+fp16")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8.2-a+fp16")
-    set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -march=armv8.2-a+fp16")
-
     add_subdirectory(kleidiai EXCLUDE_FROM_ALL)
 endfunction()
 
