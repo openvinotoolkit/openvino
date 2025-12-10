@@ -43,6 +43,7 @@ RUN apt-get update && \
         python3.13-venv \
         python3.14-nogil \
         python3.14-venv \
+        python3.14-dev \
         libhdf5-dev \
         # For Java API
         default-jdk \
