@@ -872,7 +872,7 @@ pass::EliminateIdentity::EliminateIdentity() {
             // we use a Reshape as a temp no-op to preserve both tensors
             if (replacement_has_result_consumer) {
                 auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(replacement, ov::element::i64);
-                auto reshape  = std::make_shared<ov::op::v1::Reshape>(replacement, shape_of, false);
+                auto reshape = std::make_shared<ov::op::v1::Reshape>(replacement, shape_of, false);
 
                 // Preserve the "Identity" friendly name on the new node, so any
                 // output still sees the same logical node name
