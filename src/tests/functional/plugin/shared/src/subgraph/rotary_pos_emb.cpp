@@ -38,33 +38,12 @@ std::shared_ptr<ov::Model> RoPETestFlux::build_rope_flux(int batch,
                                                          int seq_length,
                                                          int num_head,
                                                          int ndims,
-                                                         bool is_bhls,
                                                          ov::element::Type element_type) {
-    std::shared_ptr<ov::opset1::Parameter> x = nullptr;
-    if (is_bhls) {
-        x = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{batch, num_head, seq_length, ndims});
-    } else {
-        x = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{batch, seq_length, num_head, ndims});
-    }
-    std::shared_ptr<ov::opset1::Parameter> t_cos = nullptr;
-    if (is_bhls) {
-        t_cos = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{1, 1, seq_length, ndims});
-    } else {
-        t_cos = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{1, seq_length, 1, ndims});
-    }
-    std::shared_ptr<ov::opset1::Parameter> t_sin = nullptr;
-    if (is_bhls) {
-        t_sin = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{1, 1, seq_length, ndims});
-    } else {
-        t_sin = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{1, seq_length, 1, ndims});
-    }
+    auto x = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{batch, num_head, seq_length, ndims});
+    auto t_cos = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{1, 1, seq_length, ndims});
+    auto t_sin = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{1, 1, seq_length, ndims});
 
-    std::shared_ptr<ov::Node> x1_shape = nullptr;
-    if (is_bhls) {
-        x1_shape = makeConst(element::i64, ov::Shape({5}), {0, num_head, 0, -1, 2});
-    } else {
-        x1_shape = makeConst(element::i64, ov::Shape({5}), {0, 0, num_head, -1, 2});
-    }
+    auto x1_shape = makeConst(element::i64, ov::Shape({5}), {0, num_head, 0, -1, 2});
     auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
 
     auto split_axis = makeConst(element::i64, ov::Shape(), {-1});
@@ -75,12 +54,7 @@ std::shared_ptr<ov::Model> RoPETestFlux::build_rope_flux(int batch,
 
     auto x2 = std::make_shared<ov::op::v0::Concat>(OutputVector{x1_1_neg->output(0), split->output(0)}, -1);
 
-    std::shared_ptr<ov::Node> x3_shape = nullptr;
-    if (is_bhls) {
-        x3_shape = makeConst(element::i64, ov::Shape({4}), {0, num_head, 0, ndims});
-    } else {
-        x3_shape = makeConst(element::i64, ov::Shape({4}), {0, 0, num_head, ndims});
-    }
+    auto x3_shape = makeConst(element::i64, ov::Shape({4}), {0, num_head, 0, ndims});
     auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
 
     auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
@@ -118,7 +92,7 @@ void RoPETestFlux::generate_inputs(const std::vector<ov::Shape>& targetInputStat
 }
 
 void RoPETestFlux::SetUp() {
-    const auto& [is_bhls, element_type, _targetDevice] = this->GetParam();
+    const auto& [element_type, _targetDevice] = this->GetParam();
     targetDevice = _targetDevice;
 
     const int batch = 128;
@@ -126,25 +100,19 @@ void RoPETestFlux::SetUp() {
     const size_t max_position_embeddings = 2048;
     const size_t ndims = 128;
     const size_t num_head = 24;
-    std::vector<InputShape> input_shapes;
-    if (is_bhls) {
-        input_shapes = {{{batch, num_head, seq_length, ndims}, {{batch, num_head, seq_length, ndims}}},
-                        {{1, 1, seq_length, ndims}, {{1, 1, seq_length, ndims}}},
-                        {{1, 1, seq_length, ndims}, {{1, 1, seq_length, ndims}}}};
-    } else {
-        input_shapes = {{{batch, seq_length, num_head, ndims}, {{batch, seq_length, num_head, ndims}}},
-                        {{1, seq_length, 1, ndims}, {{1, seq_length, 1, ndims}}},
-                        {{1, seq_length, 1, ndims}, {{1, seq_length, 1, ndims}}}};        
-    }
 
+    std::vector<InputShape> input_shapes = {
+        {{batch, num_head, seq_length, ndims}, {{batch, num_head, seq_length, ndims}}},
+        {{1, 1, seq_length, ndims}, {{1, 1, seq_length, ndims}}},
+        {{1, 1, seq_length, ndims}, {{1, 1, seq_length, ndims}}}};
     init_input_shapes(input_shapes);
-    function = build_rope_flux(batch, -1, num_head, ndims, is_bhls, element_type);
+    function = build_rope_flux(batch, -1, num_head, ndims, element_type);
 }
 
-std::string RoPETestFlux::getTestCaseName(const testing::TestParamInfo<rope_params_2>& obj) {
-    const auto& [is_bhls, element_type, targetDevice] = obj.param;
+std::string RoPETestFlux::getTestCaseName(const testing::TestParamInfo<rope_params>& obj) {
+    const auto& [element_type, targetDevice] = obj.param;
     std::ostringstream result;
-    result << "targetDevice=" << targetDevice << ",element_type=" << element_type.to_string() << ",is_bhls=" << is_bhls;
+    result << "targetDevice=" << targetDevice << ",element_type=" << element_type.to_string();
     return result.str();
 }
 

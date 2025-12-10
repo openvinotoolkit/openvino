@@ -88,11 +88,11 @@ static std::shared_ptr<ov::Node> gen_chatglm_const() {
 
 ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     MATCHER_SCOPE(RoPEFusionFlux);
-    // x[?,head_num,?,head_size] || x[?,?,head_num,head_size]
-    // x1 = reshape(x, [?,head_num,?,head_size/2,2]) || reshape(x, [?,?,head_num,head_size/2,2])
+    // x[?,24,?,128]
+    // x1 = reshape(x, [?,24,?,64,2])
     // x1_0, x1_1 = split(x1, -1)
     // x2 = concat(x1_0, x1_1 * (-1), -1)
-    // x3 = reshape(x2, [?,head_num,?,head_size]) || x3 = reshape(x2, [?,?,head_num,head_size])
+    // x3 = reshape(x2, [?,24,?,128])
     // y1 = x * t_cos
     // y2 = x3 * t_sin
     // y = y1 + y2
@@ -125,12 +125,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
         auto root = m.get_match_root();
 
         auto symbols = m.get_symbols();
-        ov::pass::pattern::PatternSymbolValue num_heads;
-        if (symbols["PRESERVED_DIMS"].g()[1].is_static()) {
-            num_heads = symbols["PRESERVED_DIMS"].g()[1];
-        } else if (symbols["PRESERVED_DIMS"].g()[2].is_static()) {
-            num_heads = symbols["PRESERVED_DIMS"].g()[2];
-        }
+        auto num_heads = symbols["PRESERVED_DIMS"].g()[1];
         auto head_size = symbols["head_size"];
         if (!num_heads.is_static() || !head_size.is_static()) {
             return false;
@@ -543,6 +538,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         config.rotary_ndims = static_cast<size_t>(ndims.i());
         config.use_rope_cache = true;
         config.cos_sin_ndims = static_cast<size_t>(ndims_over_2.i());
+
         // Fuse output transpose to Rope.
         auto root_target_inputs = root->output(0).get_target_inputs();
         if (root_target_inputs.size() == 1) {

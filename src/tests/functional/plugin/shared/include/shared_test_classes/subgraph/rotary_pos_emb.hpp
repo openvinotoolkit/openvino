@@ -14,13 +14,12 @@ using rope_params_2 = std::tuple<bool, ov::element::Type, std::string>;
 using rope_params_qwenvit = std::tuple<ov::element::Type, std::string, std::string>;
 using rope_params_chatglm = std::tuple<ov::element::Type, std::string, bool>;
 
-class RoPETestFlux : public SubgraphBaseTest, public testing::WithParamInterface<rope_params_2> {
+class RoPETestFlux : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
 private:
     std::shared_ptr<ov::Model> build_rope_flux(int batch,
                                                int seq_length,
                                                int num_head,
                                                int ndims,
-                                               bool is_bhls,
                                                ov::element::Type element_type);
 
 protected:
@@ -28,7 +27,7 @@ protected:
     void SetUp() override;
 
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<rope_params_2>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
 };
 
 class RoPETestQwenVL : public SubgraphBaseTest, public testing::WithParamInterface<rope_params_qwenvit> {
