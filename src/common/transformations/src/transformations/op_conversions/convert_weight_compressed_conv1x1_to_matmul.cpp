@@ -164,6 +164,7 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressed
             weight_squeezed_convert =
                 ov::as_type_ptr<ov::op::v0::Convert>(weight_convert->clone_with_new_inputs({Reshape_weight}));
             ov::copy_runtime_info(weight_convert, weight_squeezed_convert);
+            ov::copy_runtime_info(weight_convert, Reshape_weight);
         }
         ov::disable_constant_folding(weight_squeezed_convert);
 
@@ -193,6 +194,7 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressed
         ov::disable_constant_folding(scaled_weight);
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(activation, scaled_weight, false, true);
+        ov::copy_runtime_info(conv1x1, matmul);
         std::shared_ptr<Node> matmul_out;
         if (bias_out) {
             auto bias = ov::as_type_ptr<ov::op::v0::Constant>(bias_const);
@@ -204,12 +206,14 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressed
             auto new_bias_shape = ov::Shape{bias_shape[0], bias_shape[2], bias_shape[3], bias_shape[1]};
 
             auto Reshape_bias = std::make_shared<ov::op::v0::Constant>(*bias, new_bias_shape);
+            ov::copy_runtime_info(bias, Reshape_bias);
 
             ov::copy_weightless_cache_attr(bias, Reshape_bias);
             MatcherPass::register_new_node(Reshape_bias);
             Reshape_bias->set_friendly_name(bias->get_friendly_name() + "_Reshape_bias");
 
             matmul_out = bias_out->clone_with_new_inputs({matmul, Reshape_bias});
+            ov::copy_runtime_info(bias_out, matmul_out);
         } else {
             matmul_out = matmul;
         }
@@ -219,6 +223,7 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressed
                 auto convert_final = convert_out->clone_with_new_inputs({matmul_out});
                 auto reshape_final = reshape_out->clone_with_new_inputs({convert_final, out_order});
                 reshape_final->set_friendly_name(m.get_match_root()->get_friendly_name());
+                ov::copy_runtime_info(convert_out, convert_final);
                 ov::copy_runtime_info(m.get_matched_nodes(), reshape_final);
                 ov::replace_node(m.get_match_root(), reshape_final);
             } else {
