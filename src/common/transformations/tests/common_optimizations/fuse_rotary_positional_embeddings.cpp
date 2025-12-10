@@ -1384,7 +1384,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul_squeeze_unsqueeze) {
     comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
-// The num_heads position in converted model with diffusers==0.35.2 is changed from 
+// The num_heads position in converted model with diffusers==0.35.2 is changed from
 // [batch, num_heads, -1, head_size] to [batch, -1, num_heads, head_size]
 TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul_squeeze_unsqueeze_num_heads) {
     disable_rt_info_check();
