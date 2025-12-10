@@ -100,19 +100,21 @@ public:
 
         return std::make_shared<Model>(res, params);
     }
+
+    bool isStridedEnabled() {
+        const auto& supportedProperties =
+            core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+
+        return std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const auto& property) {
+            return property == ov::intel_npu::enable_strides_for.name();
+        });
+    }
 };
 
 TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabled) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -131,14 +133,7 @@ TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabled) {
 TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabledInternalOperator) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -169,14 +164,7 @@ TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabledInternalOpe
 TEST_P(RoiTensorsTestsRun, CreateStridedTensorFromHostTensorAndRunInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -224,14 +212,7 @@ TEST_P(RoiTensorsTestsRun, CreateStridedTensorFromHostTensorAndRunInfer) {
 TEST_P(RoiTensorsTestsRun, SetStridedTensorForUnexpectedTensorExpectedThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -253,14 +234,7 @@ TEST_P(RoiTensorsTestsRun, SetStridedTensorForUnexpectedTensorExpectedThrow) {
 TEST_P(RoiTensorsTestsRun, SetStridedMultipleOutputTensorForUnexpectedTensorExpectedThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -283,14 +257,7 @@ TEST_P(RoiTensorsTestsRun, SetStridedMultipleOutputTensorForUnexpectedTensorExpe
 TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -337,14 +304,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
 TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInferWithBatching) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -391,14 +351,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInferWithBatching)
 TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInferWithBatchingUpdateMCL) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -464,14 +417,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInferWithBatchingU
 TEST_P(RoiTensorsTestsRun, CreateRoiBatchedTensorsFromHostTensorAndRunInferWithBatchingUpdateMCL) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -547,14 +493,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiBatchedTensorsFromHostTensorAndRunInferWithB
 TEST_P(RoiTensorsTestsRun, CreateRoiBatchedTensorsFromHostTensorAndRegularTensorAndRunInferWithBatchingUpdateMCL) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -639,14 +578,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiBatchedTensorsFromHostTensorAndRegularTensor
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpy) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -692,14 +624,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpy) {
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContext) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -762,14 +687,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContext) {
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyToAnotherRemoteTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -840,14 +758,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyToA
 TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyFromAnotherRemoteTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -920,14 +831,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyFro
 TEST_P(RoiTensorsTestsRun, ImportStandardAllocation) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -989,14 +893,7 @@ TEST_P(RoiTensorsTestsRun, ImportStandardAllocation) {
 TEST_P(RoiTensorsTestsRun, RunWithRemoteTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -1044,14 +941,7 @@ TEST_P(RoiTensorsTestsRun, RunWithRemoteTensor) {
 TEST_P(RoiTensorsTestsRun, MultipleIOCreateRoiTensorFromHostTensorAndRunInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -1113,14 +1003,7 @@ TEST_P(RoiTensorsTestsRun, MultipleIOCreateRoiTensorFromHostTensorAndRunInfer) {
 TEST_P(RoiTensorsTestsRun, RunStridedTensorWithDynamicBatching) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -1169,14 +1052,7 @@ TEST_P(RoiTensorsTestsRun, RunStridedTensorWithDynamicBatching) {
 TEST_P(RoiTensorsTestsRun, RunStridedTensorWithDynamicBoundedBatching) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -1225,14 +1101,7 @@ TEST_P(RoiTensorsTestsRun, RunStridedTensorWithDynamicBoundedBatching) {
 TEST_P(RoiTensorsTestsRun, TryToCompileStridedTensorWithDynamicBoundsExpectedThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 
@@ -1248,14 +1117,7 @@ TEST_P(RoiTensorsTestsRun, TryToCompileStridedTensorWithDynamicBoundsExpectedThr
 TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorUpdateCommandListAndRunInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    auto supportedProperties =
-        core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
-    bool isStridedEnabled =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == ov::intel_npu::enable_strides_for.name();
-        });
-
-    if (!isStridedEnabled) {
+    if (!isStridedEnabled()) {
         GTEST_SKIP() << "NPU_ENABLE_STRIDES_FOR property is not supported";
     }
 

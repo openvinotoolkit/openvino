@@ -198,49 +198,47 @@ void ZeGraphExtWrappers::getGraphBinary(const GraphDescriptor& graphDescriptor,
 
 void ZeGraphExtWrappers::setGraphArgumentValue(const GraphDescriptor& graphDescriptor,
                                                uint32_t id,
-                                               const void* data,
-                                               const std::vector<size_t>& strides) const {
-    if (_graphExtVersion < ZE_MAKE_VERSION(1, 15)) {
-        _logger.debug("setGraphArgumentValue - perform pfnSetArgumentValue");
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnSetArgumentValue(graphDescriptor._handle, id, data);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnSetArgumentValue", result, _zeroInitStruct->getGraphDdiTable());
+                                               const void* data) const {
+    _logger.debug("setGraphArgumentValue - perform pfnSetArgumentValue");
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnSetArgumentValue(graphDescriptor._handle, id, data);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnSetArgumentValue", result, _zeroInitStruct->getGraphDdiTable());
+}
 
-        if (!strides.empty()) {
-            OPENVINO_THROW("Strides are not supported by the current driver version.");
-        }
-    } else {
-        ze_graph_argument_value_tensor_t tensorValue = {};
-        tensorValue.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_TENSOR;
-        tensorValue.pTensor = data;
+void ZeGraphExtWrappers::setGraphArgumentValueWithStrides(const GraphDescriptor& graphDescriptor,
+                                                          uint32_t id,
+                                                          const void* data,
+                                                          const std::vector<size_t>& strides) const {
+    OPENVINO_ASSERT(_graphExtVersion >= ZE_MAKE_VERSION(1, 15),
+                    "Strides are not supported by the current driver version.");
+    ze_graph_argument_value_tensor_t tensorValue = {};
+    ze_graph_argument_value_strides_t stridesValue = {};
+    tensorValue.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_TENSOR;
+    tensorValue.pTensor = data;
 
-        std::optional<ze_graph_argument_value_strides_t> stridesValue;
-        if (!strides.empty()) {
-            if (strides.size() > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
-                OPENVINO_THROW("The driver does not support strides with more than",
-                               ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE,
-                               "dimensions.");
-            }
-
-            stridesValue.emplace();
-            *stridesValue = {};
-            stridesValue->stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_STRIDES;
-            for (size_t i = 0; i < strides.size(); ++i) {
-                if (strides[i] > std::numeric_limits<uint32_t>::max()) {
-                    OPENVINO_THROW("Stride value exceeds uint32_t range supported by the driver");
-                }
-                stridesValue->userStrides[i] = static_cast<uint32_t>(strides[i]);
-            }
-
-            _logger.debug("setGraphArgumentValue - set strides");
-            tensorValue.pNext = &stridesValue.value();
+    if (!strides.empty()) {
+        if (strides.size() > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
+            OPENVINO_THROW("The driver does not support strides with more than",
+                           ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE,
+                           "dimensions.");
         }
 
-        _logger.debug("setGraphArgumentValue - perform pfnSetArgumentValue2 for data");
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnSetArgumentValue2(graphDescriptor._handle,
-                                                                               id,
-                                                                               static_cast<const void*>(&tensorValue));
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnSetArgumentValue2 for data", result, _zeroInitStruct->getGraphDdiTable());
+        stridesValue.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_STRIDES;
+        for (size_t i = 0; i < strides.size(); ++i) {
+            if (strides[i] > std::numeric_limits<uint32_t>::max()) {
+                OPENVINO_THROW("Stride value exceeds uint32_t range supported by the driver");
+            }
+            stridesValue.userStrides[i] = static_cast<uint32_t>(strides[i]);
+        }
+
+        _logger.debug("setGraphArgumentValue - set strides");
+        tensorValue.pNext = &stridesValue;
     }
+
+    _logger.debug("setGraphArgumentValue - perform pfnSetArgumentValue2 for data");
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnSetArgumentValue2(graphDescriptor._handle,
+                                                                           id,
+                                                                           static_cast<const void*>(&tensorValue));
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnSetArgumentValue2 for data", result, _zeroInitStruct->getGraphDdiTable());
 }
 
 void ZeGraphExtWrappers::initializeGraph(const GraphDescriptor& graphDescriptor,
