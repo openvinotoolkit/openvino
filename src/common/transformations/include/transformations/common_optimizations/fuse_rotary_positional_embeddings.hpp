@@ -21,7 +21,6 @@ class TRANSFORMATIONS_API RoPEFusionIOSlicing;
 class TRANSFORMATIONS_API RoPEFusionPreprocess;
 class TRANSFORMATIONS_API RoPEFusionCosSinPreprocess;
 class TRANSFORMATIONS_API RoPEShareCosSin;
-class TRANSFORMATIONS_API RoPEFusionGPTOSS;
 
 }  // namespace pass
 }  // namespace ov
@@ -90,12 +89,6 @@ private:
     std::shared_ptr<ov::Node> m_shared_cos0;
     std::shared_ptr<ov::Node> m_shared_sin0;
     std::vector<std::shared_ptr<ov::Node>> m_shared_inputs{2, nullptr};
-};
-
-class ov::pass::RoPEFusionGPTOSS : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionGPTOSS");
-    RoPEFusionGPTOSS();
 };
 
 /**
