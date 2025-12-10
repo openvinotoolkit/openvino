@@ -32,38 +32,38 @@ RUN chmod +x /install_build_dependencies.sh && \
     bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
-# Build Pythons
-# Python 3.10
-RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz && \
-    tar xvf Python-3.10.16.tar.xz
-RUN cd /usr/src/Python-3.10.16 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
-    make altinstall
+# # Build Pythons
+# # Python 3.10
+# RUN cd /usr/src && \
+#     wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz && \
+#     tar xvf Python-3.10.16.tar.xz
+# RUN cd /usr/src/Python-3.10.16 && \
+#     ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+#     make altinstall
 
-# Python 3.11
-RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz && \
-    tar xvf Python-3.11.9.tar.xz
-RUN cd /usr/src/Python-3.11.9 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
-    make altinstall
+# # Python 3.11
+# RUN cd /usr/src && \
+#     wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz && \
+#     tar xvf Python-3.11.9.tar.xz
+# RUN cd /usr/src/Python-3.11.9 && \
+#     ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+#     make altinstall
 
-# Python 3.12
-RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz && \
-    tar xvf Python-3.12.9.tar.xz
-RUN cd /usr/src/Python-3.12.9 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
-    make altinstall
+# # Python 3.12
+# RUN cd /usr/src && \
+#     wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz && \
+#     tar xvf Python-3.12.9.tar.xz
+# RUN cd /usr/src/Python-3.12.9 && \
+#     ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+#     make altinstall
 
-# Python 3.13
-RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz && \
-    tar xvf Python-3.13.2.tar.xz
-RUN cd /usr/src/Python-3.13.2 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
-    make altinstall
+# # Python 3.13
+# RUN cd /usr/src && \
+#     wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz && \
+#     tar xvf Python-3.13.2.tar.xz
+# RUN cd /usr/src/Python-3.13.2 && \
+#     ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+#     make altinstall
 
 # Python 3.14
 RUN cd /usr/src && \
@@ -76,8 +76,10 @@ RUN cd /usr/src/Python-3.14.0 && \
 # Python 3.14 free-threading
 RUN cp -r /usr/src/Python-3.14.0 /usr/src/Python-3.14t
 RUN cd /usr/src/Python-3.14t && \
-    ./configure --enable-optimizations --disable-gil --enable-loadable-sqlite-extensions --prefix=/usr/python3.14t && \
+    ./configure --disable-gil --enable-loadable-sqlite-extensions --prefix=/usr/python3.14t && \
     make altinstall
+
+RUN ln -s /usr/python3.14t/bin/python3.14t /usr/bin/python3.14-nogil
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
