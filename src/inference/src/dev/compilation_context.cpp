@@ -2,27 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <sys/stat.h>
-#include <sys/types.h>
-
-#ifndef _WIN32
-#    include <unistd.h>
-#endif
+#include "openvino/runtime/compilation_context.hpp"
 
 #include "itt.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/runtime/compilation_context.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
-
-#ifdef _WIN32
-#    define stat _stat
-#endif
 
 namespace ov {
 template <typename T>
@@ -31,36 +21,48 @@ static uint64_t hash_combine(uint64_t seed, const T& a) {
     return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
 
-std::string ModelCache::calculate_file_info(const std::string& filePath) {
-    uint64_t seed = 0;
-    auto absPath = filePath;
-    if (filePath.size() > 0) {
-        try {
-            absPath = ov::util::get_absolute_file_path(filePath);
-        } catch (std::runtime_error&) {
-            // can't get absolute path, will use filePath for hash
-        }
+namespace {
+std::filesystem::path abs_path_or_input(const std::filesystem::path& path) {
+    std::error_code ec;
+    if (auto abs_path = std::filesystem::absolute(std::filesystem::weakly_canonical(path), ec); ec) {
+        return path;
+    } else {
+        return abs_path;
+    }
+}
+
+uint64_t hash_combine_options(uint64_t seed, const ov::AnyMap& compile_options) {
+    for (const auto& [name, option] : compile_options) {
+        seed = hash_combine(seed, name + option.as<std::string>());
+    }
+    return seed;
+}
+}  // namespace
+
+std::string ModelCache::calculate_file_info(const std::filesystem::path& file_path) {
+    const auto& abs_path = abs_path_or_input(file_path);
+    // Convert to string as std::hash<std::filesystem::path> may be not supported
+    auto seed = hash_combine(0U, util::path_to_string(abs_path));
+
+    std::error_code ec;
+    if (auto time = std::filesystem::last_write_time(abs_path, ec); !ec) {
+        seed = hash_combine(seed, time.time_since_epoch().count());
+    }
+    if (auto size = std::filesystem::file_size(abs_path, ec); !ec) {
+        seed = hash_combine(seed, size);
     }
 
-    seed = hash_combine(seed, absPath);
-
-    std::string res;
-    struct stat result;
-    if (stat(absPath.c_str(), &result) == 0) {
-        seed = hash_combine(seed, result.st_mtime);
-        seed = hash_combine(seed, result.st_size);
-    }
     return std::to_string(seed);
 }
 
-std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions) {
+std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compile_options) {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
-    return compute_hash(model, {}, compileOptions);
+    return compute_hash(model, {}, compile_options);
 }
 
 std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& model,
                                      const std::filesystem::path& model_path,
-                                     const ov::AnyMap& compileOptions) {
+                                     const ov::AnyMap& compile_options) {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model and path");
 
     OPENVINO_ASSERT(model);
@@ -72,9 +74,7 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
     m.run_passes(std::const_pointer_cast<ov::Model>(model));
 
     // 2. Compute hash on serialized data and options
-    for (const auto& [name, option] : compileOptions) {
-        seed = hash_combine(seed, name + option.as<std::string>());
-    }
+    seed = hash_combine_options(seed, compile_options);
 
     // 3. Add runtime information which may not be serialized
     for (const auto& op : model->get_ordered_ops()) {
@@ -91,34 +91,28 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
 
     // 4. If model path is provided add file info to the hash
     if (!model_path.empty()) {
-        seed = hash_combine(seed, compute_hash(model_path.string(), compileOptions));
+        seed = hash_combine(seed, compute_hash(model_path, compile_options));
     }
 
     return std::to_string(seed);
 }
 
-std::string ModelCache::compute_hash(const std::string& modelName, const ov::AnyMap& compileOptions) {
+std::string ModelCache::compute_hash(const std::filesystem::path& model_path, const ov::AnyMap& compile_options) {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
-    uint64_t seed = 0;
-    try {
-        seed = hash_combine(seed, ov::util::get_absolute_file_path(modelName));
-    } catch (...) {
-        // can't get absolute path, use modelName for hash calculation
-        seed = hash_combine(seed, modelName);
-    }
-    for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
-    }
+
+    // Convert to string as std::hash<std::filesystem::path> may be not supported
+    auto seed = hash_combine(0U, util::path_to_string(abs_path_or_input(model_path)));
+    seed = hash_combine_options(seed, compile_options);
     return std::to_string(seed);
 }
 
-std::string ModelCache::compute_hash(const std::string& modelStr,
+std::string ModelCache::compute_hash(const std::string& model_str,
                                      const ov::Tensor& tensor,
-                                     const ov::AnyMap& compileOptions) {
+                                     const ov::AnyMap& compile_options) {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
     uint64_t seed = 0;
     // model string
-    seed = hash_combine(seed, modelStr);
+    seed = hash_combine(seed, model_str);
 
     // tensor data
     if (tensor) {
@@ -163,9 +157,7 @@ std::string ModelCache::compute_hash(const std::string& modelStr,
     }
 
     // compile options
-    for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
-    }
+    seed = hash_combine_options(seed, compile_options);
     return std::to_string(seed);
 }
 
