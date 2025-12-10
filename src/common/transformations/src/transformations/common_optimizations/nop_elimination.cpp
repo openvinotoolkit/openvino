@@ -857,13 +857,6 @@ pass::EliminateIdentity::EliminateIdentity() {
             return false;
         }
 
-        auto identity_out = identity->output(0);
-        auto replacement = identity->input_value(0);
-
-        if (replace_output_update_name(identity_out, replacement)) {
-            return true;
-        }
-
         // Merge tensor names: replacement gets union of its own names and Identity's names.
         auto& repl_tensor = replacement.get_tensor();
         auto repl_names = repl_tensor.get_names();
