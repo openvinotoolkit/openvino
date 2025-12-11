@@ -34,7 +34,7 @@ public:
         std::ostringstream result;
         result << "InputShape=";
         result  << ov::test::utils::partialShape2str({inputShape.first}) << " ";
-        result << "InputShape=(";
+        result << "TransformedInputShape=(";
         for (const auto& shape : inputShape.second) {
             result << ov::test::utils::vec2str(shape) << " ";
         }
@@ -126,6 +126,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_3D_tensor_basic_explicit,
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(InputShape{{}, {{2,128,4096}}}),
+                                            ::testing::Values(false),
+                                            ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                         ConvolutionLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_3D_tensor_basic_explicit_pad2x1,
+                         ConvolutionLayerGPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::Values(std::vector<size_t>{3}),
+                                                               ::testing::Values(std::vector<size_t>{1}),
+                                                               ::testing::Values(std::vector<ptrdiff_t>{2}),
+                                                               ::testing::Values(std::vector<ptrdiff_t>{2}),
+                                                               ::testing::Values(std::vector<size_t>{1}),
+                                                               ::testing::Values(13),
+                                                               ::testing::Values(ov::op::PadType::EXPLICIT)),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(InputShape{{}, {{1, 13, 30}}}),
                                             ::testing::Values(false),
                                             ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                          ConvolutionLayerGPUTest::getTestCaseName);
