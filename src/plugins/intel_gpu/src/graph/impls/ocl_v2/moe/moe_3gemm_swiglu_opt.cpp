@@ -822,7 +822,7 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "MOE_USE_GPU_MASK_PREFILL = " << use_gpu_mask_gen_prefill_str << std::endl;
             use_gpu_mask_gen_prefill = std::stoi(use_gpu_mask_gen_prefill_str);
         } else {
-            use_gpu_mask_gen_prefill = true;
+            use_gpu_mask_gen_prefill = false;
         }
 
         auto& engine = params.prog->get_engine();
