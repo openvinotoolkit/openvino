@@ -1081,8 +1081,8 @@ class jit_swish_emitter: public jit_emitter {
             const std::shared_ptr<ov::Node>& node = nullptr); 
 
     private:
-        std::unique_ptr<jit_sigmoid_emitter> sigmoid_emitter{nullptr}; 
-        float beta;  
+        float beta;
+        std::unique_ptr<jit_sigmoid_emitter> sigmoid_emitter{nullptr};  
 
         void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
         template <cpu_isa_t isa>
