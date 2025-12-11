@@ -1491,7 +1491,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                                                         ov::ModelCache::calculate_file_info(cacheContent.m_model_path),
                                                         compiled_model_runtime_properties,
                                                         header_size_alignment);
-                std::cout << "Export model: " << std::endl;
                 compiled_model->export_model(networkStream);
             });
         } catch (...) {
@@ -1538,8 +1537,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
                     if (header.get_file_info() != ov::ModelCache::calculate_file_info(cacheContent.m_model_path)) {
                         // Original file is changed, don't use cache
-                        std::cout << "file info mismatch " << header.get_file_info()
-                                  << " != " << ModelCache::calculate_file_info(cacheContent.m_model_path) << std::endl;
                         OPENVINO_THROW("Original model file is changed");
                     }
                     if (util::contains(plugin.get_property(ov::internal::supported_properties),
@@ -1602,10 +1599,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
-        std::cout << "header exception remove cache" << std::endl;
         cacheContent.m_cache_manager->remove_cache_entry(cacheContent.m_blob_id);
     } catch (...) {
-        std::cout << "exception remove cache" << std::endl;
         cacheContent.m_cache_manager->remove_cache_entry(cacheContent.m_blob_id);
         // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
         // throw;

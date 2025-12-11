@@ -32,7 +32,9 @@ static uint64_t hash_combine(uint64_t seed, const T& a) {
 namespace {
 std::filesystem::path abs_path_or_input(const std::filesystem::path& path) {
     std::error_code ec;
-    if (auto abs_path = std::filesystem::absolute(std::filesystem::weakly_canonical(path, ec), ec); ec) {
+    if (path.empty() || path.is_absolute()) {
+        return path;
+    } else if (auto abs_path = std::filesystem::absolute(std::filesystem::weakly_canonical(path), ec); ec) {
         return path;
     } else {
         return abs_path;
@@ -48,20 +50,14 @@ uint64_t hash_combine_options(uint64_t seed, const ov::AnyMap& compile_options) 
 }  // namespace
 
 std::string ModelCache::calculate_file_info(const std::filesystem::path& file_path) {
-    std::cout << "file info path1:   " << file_path << std::endl;
     const auto& abs_path = abs_path_or_input(file_path);
     const auto& abs_path_str = util::path_to_string(abs_path);
     // Convert to string as std::hash<std::filesystem::path> could be not supported
-    std::cout << "file info path:   " << abs_path_str << std::endl;
-    std::cout << "is exists: " << std::filesystem::exists(abs_path) << std::endl;
     auto seed = hash_combine(0U, abs_path_str);
-    std::cout << "file info seed a: " << std::to_string(seed) << std::endl;
 
     if (struct stat result; stat(abs_path_str.c_str(), &result) == 0) {
         seed = hash_combine(seed, result.st_mtime);
-        std::cout << "file info seed b: " << std::to_string(seed) << std::endl;
         seed = hash_combine(seed, result.st_size);
-        std::cout << "file info seed c: " << std::to_string(seed) << std::endl;
     }
 
     return std::to_string(seed);
