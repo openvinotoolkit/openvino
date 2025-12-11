@@ -49,7 +49,7 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ov::Node> data, cons
 
     std::shared_ptr<Operation> operation;
     OPENVINO_SUPPRESS_DEPRECATED_START
-    if ((description.outPrecision == ov::element::undefined) || (description.outPrecision == ov::element::dynamic) ||
+    if ((description.outPrecision == ov::element::dynamic) ||
         (description.outPrecision == data->get_output_element_type(0))) {
         OPENVINO_SUPPRESS_DEPRECATED_END
         operation = std::make_shared<Operation>(data, operationConst);

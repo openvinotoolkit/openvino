@@ -5030,7 +5030,6 @@ class Type:
     u4: typing.ClassVar[Type]  # value = <Type: 'uint4_t'>
     u64: typing.ClassVar[Type]  # value = <Type: 'uint64_t'>
     u8: typing.ClassVar[Type]  # value = <Type: 'uint8_t'>
-    undefined: typing.ClassVar[Type]  # value = <Type: 'dynamic'>
     def __eq__(self, arg0: Type) -> bool:
         ...
     def __hash__(self) -> int:

@@ -112,7 +112,7 @@ private:
 };
 
 struct TsfnContextModel {
-    TsfnContextModel(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
+    TsfnContextModel(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)) {};
     std::thread nativeThread;
 
     Napi::Promise::Deferred deferred;
@@ -125,7 +125,7 @@ struct TsfnContextModel {
 };
 
 struct TsfnContextPath {
-    TsfnContextPath(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
+    TsfnContextPath(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)) {};
     std::thread nativeThread;
 
     Napi::Promise::Deferred deferred;
