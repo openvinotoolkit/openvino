@@ -28,10 +28,10 @@ public:
     CoreConfig& operator=(const CoreConfig&) = delete;
 
     struct CacheConfig {
-        std::string m_cache_dir;
+        std::filesystem::path m_cache_dir;
         std::shared_ptr<ov::ICacheManager> m_cache_manager;
 
-        static CacheConfig create(const std::string& dir);
+        static CacheConfig create(const std::filesystem::path& dir);
     };
 
     void set(const ov::AnyMap& config, const std::string& device_name);

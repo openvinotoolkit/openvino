@@ -1661,7 +1661,7 @@ ov::CoreConfig::CoreConfig(const CoreConfig& other) {
 
 void ov::CoreConfig::set(const ov::AnyMap& config, const std::string& device_name) {
     if (const auto cfg_entry = config.find(ov::cache_dir.name()); cfg_entry != config.end()) {
-        const auto& cache_dir = cfg_entry->second.as<std::string>();
+        const auto cache_dir = util::make_path(cfg_entry->second.as<std::string>());
         if (std::lock_guard<std::mutex> lock(m_cache_config_mutex); device_name.empty()) {
             // fill global cache config
             m_cache_config = CoreConfig::CacheConfig::create(cache_dir);
@@ -1709,10 +1709,10 @@ ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov
                                                            : m_cache_config;
 }
 
-ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::string& dir) {
+ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::filesystem::path& dir) {
     CacheConfig cache_config{dir, nullptr};
     if (!dir.empty()) {
-        ov::util::create_directory_recursive(ov::util::make_path(dir));
+        ov::util::create_directory_recursive(dir);
         cache_config.m_cache_manager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
     return cache_config;
