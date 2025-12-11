@@ -835,6 +835,7 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "MOE_USE_MICRO_GEMM_PREFILL = " << use_micro_gemm_prefill_str << std::endl;
             use_micro_gemm_prefill = std::stoi(use_micro_gemm_prefill_str);
         } else {
+            // micro_gemm is better than gemm, default to use it
             use_micro_gemm_prefill = true;
         }
 
@@ -843,7 +844,8 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "MOE_USE_GPU_MASK_PREFILL = " << use_gpu_mask_gen_prefill_str << std::endl;
             use_gpu_mask_gen_prefill = std::stoi(use_gpu_mask_gen_prefill_str);
         } else {
-            use_gpu_mask_gen_prefill = true;
+            // gpu mask gen kernel performace is worse than cpu mask gen, default is off
+            use_gpu_mask_gen_prefill = false;
         }
 
         auto& engine = params.prog->get_engine();
@@ -1275,7 +1277,6 @@ public:
 
         auto rtp = static_cast<MoE3GemmRuntimeParams*>(m_rt_params.get());
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
-        // const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
 
         event::ptr ret_event;
         const auto& intermediates_memories = instance.get_intermediates_memories();
@@ -1291,6 +1292,7 @@ public:
         //   mask 1: token start offset idx in mask 0 for each activated expert, shape = [activated_expert_num]
         //   mask 2: token len for each activated expert, shape = [activated_expert_num]
         //   mask 3: expert id, shape = [activated_expert_num]
+        //   mask 4: actual activated expert num, shape = [1]
         if (use_gpu_mask_gen) {
             auto token_size = input_shape[0];
             ret_event = execute_stage(events,
@@ -1307,6 +1309,7 @@ public:
                                       false,
                                       {static_cast<int>(token_size)});
 
+            // num_actually_used_experts is needed for micro_gem wgs, need sync
             ret_event->wait();
             cldnn::mem_lock<int32_t, mem_lock_type::read> num_actual_experts_lock(intermediates_memories[MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM], stream);
             rtp->num_actually_used_experts = num_actual_experts_lock[0];
@@ -1442,11 +1445,9 @@ public:
         //      0: gate_up  [token_len * expert_topK, hidden_size]
         {
             auto token_size = input_shape[0] * max_topk;
-
 #    if DEBUG_MOE_LOG
             std::cout << "\nstep 4: prefill_swiglu token_size=" << token_size << ", hidden_size=" << _intermediate_size << std::endl;
 #    endif
-
             ret_event = execute_stage({ret_event},
                                       instance,
                                       *prefill_swiglu,
@@ -1709,7 +1710,6 @@ public:
     //        expert_mask.topk[i][j] : topk-output offset for j'th token for i'th expert, used to get weights
     //        expert_mask.pred_flag[i]: bool, if expert i can be skipped
     //
-    //
     //     scratch.x, scratch.routing_weights = gather(hidden_states, scratch.full_router_weights, expert_mask.batch, expert_mask.topk)
     //     scratch.y = MLP(scratch.x, .gate/up/down) * scratch.routing_weights
     //     scatter(final_hidden, scratch.y, expert_mask.batch)
@@ -1740,9 +1740,8 @@ public:
                                         {1, lws_size},
                                         instance.needs_completion_event());
 
-        // Single batch is a special case, we don't need to do gather/scatter,
+        // Single token is a special case, we don't need to do gather/scatter,
         // and we can apply optimal kernels against memory bound to improve performance.
-        // It is very important for MoE's second token performance.
         if (batch == 1) {
             return exec_single_batch({topk_event}, instance, scratch);
         }
@@ -1764,7 +1763,6 @@ public:
         if (use_micro_gemm_prefill) {
             ret_env = exec_prefill_micro_gemm({topk_event}, instance, scratch, use_gpu_mask_gen);
         } else {
-            // fallback to onednn path
             ret_env = exec_prefill_onednn({topk_event}, stream, instance, scratch);
         }
         // Wait for the final event to be ready

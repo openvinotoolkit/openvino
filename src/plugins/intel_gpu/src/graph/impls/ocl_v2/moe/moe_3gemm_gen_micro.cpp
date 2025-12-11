@@ -29,7 +29,6 @@ static size_t get_subgroup_size(gpu_arch arch) {
     case gpu_arch::xe3:
         return 16;
     default:
-        // fallback to safe value
         return 8;
     }
 }
@@ -186,7 +185,6 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     auto it = s_gemm_cache.find(key);
     if (it != s_gemm_cache.end()) {
-        GPU_DEBUG_TRACE_DETAIL << "MoE3GemmMicroGenerator::init_microkernels: hit cache by layout\n";
         gemm_moe = it->second;
         return;
     }
@@ -275,14 +273,12 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     } catch (const std::runtime_error& ex) {
         OPENVINO_THROW("Can't create moe micro kernel: ", ex.what());
     }
-    // std::cout << "init_microkernels is done" << std::endl;
 }
 DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
     const auto wei_idx = this->m_wei_idx;
     return DispatchDataFunc{[wei_idx](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         assert(!params.is_dynamic());
 
-        // std::cout << "MoE3GemmMicroGenerator::DispatchDataFunc()" << std::endl;
         auto* rtp = static_cast<MoEGemmRuntimeParams*>(rt_params);
         const auto& device_info = params.get_device_info();
         const auto& gemm_p = kd.micro_kernels[0]->p;
