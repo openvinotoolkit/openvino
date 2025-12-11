@@ -185,7 +185,7 @@ public:
                                           adaptive_rkv_start_size,
                                           adaptive_rkv_evictable_sizes,
                                           adaptive_rkv_diversity_block_set_indices,
-                                          adaptive_rkv_diversity_block_set_indices_begins});
+                                          adaptive_rkv_diversity_block_set_indices_begins};
 
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(paged_attn_inputs);
 
