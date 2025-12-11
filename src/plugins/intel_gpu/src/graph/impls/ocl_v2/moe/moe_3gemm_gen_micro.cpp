@@ -42,6 +42,7 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     const auto& zp_layout = params.input_layouts[m_zp_idx];
 
     // Internal generator of JIT constants, require intermediate buffers and part of primitive's inputs.
+    // JitConstants jit = make_base_jit_constants(params);
     JitConstants jit;
     auto entry_point = get_entry_point(params);
     jit.add(make_jit_constant("KERNEL(name)", "__kernel void " + entry_point));
