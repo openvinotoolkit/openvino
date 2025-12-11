@@ -1216,7 +1216,8 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         ov::FileHandleProvider handle_provider = nullptr;
         if (is_weightless) {
             // Check if weights_handle_provider function is provided
-            if (const auto handle_it = properties.find(ov::intel_npu::npuw::weights_handle_provider.name()); handle_it != properties.end()) {
+            if (const auto handle_it = properties.find(ov::intel_npu::npuw::weights_handle_provider.name());
+                handle_it != properties.end()) {
                 if (handle_it->second.is<ov::FileHandleProvider>()) {
                     handle_provider = handle_it->second.as<ov::FileHandleProvider>();
                 }
