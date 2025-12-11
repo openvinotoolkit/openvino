@@ -783,6 +783,14 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>Only "developer built" compilers support weights separation</message>
+        <filters>
+            <filter>.*WeightsSeparationTests.*</filter>
+            <filter>.*WeightsSeparationIterativeTests.*</filter>
+        </filters>
+    </skip_config>
+
     <!-- C#165445 -->
     <skip_config>
         <message>OVBlobCompatibilityNPU tests designed for NPU3720</message>
