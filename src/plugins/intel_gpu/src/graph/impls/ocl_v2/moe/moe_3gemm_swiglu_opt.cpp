@@ -395,6 +395,40 @@ protected:
     }
 };
 
+class MoE3GemmSwigluPrefillMaskGen : public KernelGenerator {
+public:
+    MoE3GemmSwigluPrefillMaskGen() : KernelGenerator("moe_mask_gen", "prefill_mask_gen") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        jit.make("INPUT0_TYPE", "int");   // topk_id
+        jit.make("OUTPUT_TYPE", "int");   // tokens_per_expert
+        jit.make("OUTPUT1_TYPE", "int");  // experts_info_start_idx
+        jit.make("OUTPUT2_TYPE", "int");  // experts_id
+        jit.make("OUTPUT3_TYPE", "int");  // tokens_lens_per_expert
+        jit.make("OUTPUT4_TYPE", "int");  // num_actual_used_experts
+
+        auto& config = desc->_config;
+        jit.make("NUM_EXPERTS_PER_TOKEN", config.top_k);
+        jit.make("SET_TOKEN_LEN", 1);
+        jit.make("OPTIONAL_SHAPE_INFO_ARG", "");
+
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+    }
+};
+
 static size_t get_vec_size(const RuntimeParams& params) {
     const auto& input = params.get_input_layout(0);
     size_t vec_size = 1;
@@ -689,6 +723,7 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
 }
 
 static bool use_micro_gemm_prefill;
+static bool use_gpu_mask_gen_prefill;
 class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
@@ -705,6 +740,7 @@ public:
     Stage::Ptr micro_gemm_down = make_stage<MoE3GemmMicroGenerator>(MoE3GemmMicroKernelType::MLP_DOWN);
     Stage::Ptr prefill_swiglu = make_stage<MoE3GemmSwigluPrefillSwiglu>();
     Stage::Ptr prefill_scatter_reduce = make_stage<MoE3GemmSwigluPrefillScatterReduce>();
+    Stage::Ptr prefill_mask_gen = make_stage<MoE3GemmSwigluPrefillMaskGen>();
 
     struct dnnl_weights {
         dnnl::memory weight;
@@ -781,6 +817,14 @@ public:
             use_micro_gemm_prefill = true;
         }
 
+        auto use_gpu_mask_gen_prefill_str = std::getenv("MOE_USE_GPU_MASK_PREFILL");
+        if (use_gpu_mask_gen_prefill_str) {
+            GPU_DEBUG_TRACE_DETAIL << "MOE_USE_GPU_MASK_PREFILL = " << use_gpu_mask_gen_prefill_str << std::endl;
+            use_gpu_mask_gen_prefill = std::stoi(use_gpu_mask_gen_prefill_str);
+        } else {
+            use_gpu_mask_gen_prefill = true;
+        }
+
         auto& engine = params.prog->get_engine();
         const auto& info = engine.get_device_info();
         if (info.arch < gpu_arch::xe2) {
@@ -800,6 +844,7 @@ public:
         add_stage(mlp_down, params);
         add_stage(mlp_reduce, params);
         if (use_micro_gemm_prefill) {
+            add_stage(prefill_mask_gen, params);
             add_stage(prefill_gather, params);
             add_stage(micro_gemm_gate, params);
             add_stage(micro_gemm_up, params);
@@ -927,6 +972,8 @@ public:
             internal_buffers.emplace_back(layout_micro_gemm, true);  // 11: token len (input gather tokens) for each activated expert
             layout layout_token_idx(ov::Shape{batch * max_topk}, ov::element::i32, cldnn::format::bfyx);
             internal_buffers.emplace_back(layout_token_idx, true);  // 12: token idx per expert
+            layout layout_actual_used_expert_num(ov::Shape{1}, ov::element::i32, cldnn::format::bfyx);
+            internal_buffers.emplace_back(layout_actual_used_expert_num, false);  // 13: actual_used_expert_num
         }
         return internal_buffers;
     }
@@ -1058,6 +1105,13 @@ public:
             args.inputs.push_back(inputs[i]);
             GPU_DEBUG_TRACE_DETAIL << "\tinput[" << i << "]: " << inputs[i]->get_layout().to_short_string() << std::endl;
         }
+
+        for (uint32_t i = 0; i < outputs.size(); i++) {
+            desc.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, i});
+            args.outputs.push_back(outputs[i]);
+            GPU_DEBUG_TRACE_DETAIL << "\toutput[" << i << "]: " << outputs[i]->get_layout().to_short_string() << std::endl;
+        }
+
         cldnn::scalars_desc scalar_desc;
         if (!scalar_inputs.empty()) {
             scalar_desc.resize(scalar_inputs.size());
@@ -1072,12 +1126,6 @@ public:
                 GPU_DEBUG_TRACE_DETAIL << scalar << " ";
             }
             GPU_DEBUG_TRACE_DETAIL << std::endl;
-        }
-
-        for (uint32_t i = 0; i < outputs.size(); i++) {
-            desc.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, i});
-            args.outputs.push_back(outputs[i]);
-            GPU_DEBUG_TRACE_DETAIL << "\toutput[" << i << "]: " << outputs[i]->get_layout().to_short_string() << std::endl;
         }
 
         stream.set_arguments(*stage.kernel, desc, args);
@@ -1170,7 +1218,8 @@ public:
 
     cldnn::event::ptr exec_prefill_micro_gemm(const std::vector<cldnn::event::ptr>& events,
                                               typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                              scratch_buffers& scratch) {
+                                              scratch_buffers& scratch,
+                                              const bool use_gpu_mask_gen) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         int max_topk = static_cast<int>(cur_moe->_config.top_k);
         const auto& config = cur_moe->_config;
@@ -1195,9 +1244,6 @@ public:
         auto num_total_experts = static_cast<int>(cur_moe->_config.num_expert);
         int num_actually_used_experts = 0;
 
-        expert_mask_cpu expert_mask_cpu;
-        get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask_cpu);
-
         // step 1: generate 4 mask data for following kernel execution
         // input: topk output, [token_len, expert_topk]
         // output:
@@ -1206,7 +1252,34 @@ public:
         //   mask 1: token start offset idx in mask 0 for each activated expert, shape = [activated_expert_num]
         //   mask 2: token len for each activated expert, shape = [activated_expert_num]
         //   mask 3: expert id, shape = [activated_expert_num]
-        {
+        if (use_gpu_mask_gen) {
+            auto token_size = input_shape[0];
+            ret_event = execute_stage(events,
+                                      instance,
+                                      *prefill_mask_gen,
+                                      {batch_mem_ptr},
+                                      {intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT],
+                                       intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT],
+                                       intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS],
+                                       intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
+                                       intermediates_memories[MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM]},
+                                      {static_cast<size_t>(num_total_experts), 1, 1},
+                                      {static_cast<size_t>(num_total_experts), 1, 1},
+                                      false,
+                                      {static_cast<int>(token_size)});
+
+            ret_event->wait();
+            cldnn::mem_lock<int32_t, mem_lock_type::read> num_actual_experts_lock(intermediates_memories[MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM], stream);
+            rtp->num_actually_used_experts = num_actual_experts_lock[0];
+#    if DEBUG_MOE_LOG
+            std::cout << "Step 1: mask gen by gpu, num_actually_used_experts = " << rtp->num_actually_used_experts << std::endl;
+#    endif
+
+        } else {
+            ret_event = events.empty() ? nullptr : events[0];
+            expert_mask_cpu expert_mask_cpu;
+            get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask_cpu);
+
             auto token_size = input_shape[0];
             auto max_topk = static_cast<int>(cur_moe->_config.top_k);
             std::vector<int32_t> tokens_per_expert_cpu(token_size * max_topk, -1);
@@ -1238,33 +1311,34 @@ public:
             intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT]
                 ->copy_from(stream, tokens_lens_per_expert_cpu.data(), 0, 0, num_actually_used_experts * sizeof(int32_t), true);
 
-// debug print
+            intermediates_memories[MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM]->copy_from(stream, &num_actually_used_experts, 0, 0, sizeof(int32_t), true);
+
 #    if DEBUG_MOE_LOG
             {
                 std::cout << "\nstep 1: prefill_mask num_actually_used_experts=" << num_actually_used_experts << std::endl;
                 std::cout << "expert_id[" << num_actually_used_experts << "]: = ";
                 for (int i = 0; i < num_actually_used_experts; i++) {
-                    std::cout << experts_id_lock[i] << ", ";
+                    std::cout << experts_id_cpu[i] << ", ";
                 }
                 std::cout << std::endl;
                 std::cout << "experts_info_start_idx[" << num_actually_used_experts << "]: = ";
                 for (int i = 0; i < num_actually_used_experts; i++) {
-                    std::cout << experts_info_start_idx_lock[i] << ", ";
+                    std::cout << experts_info_start_idx_cpu[i] << ", ";
                 }
                 std::cout << std::endl;
                 std::cout << "tokens_len_per_expert[" << num_actually_used_experts << "]: = ";
                 for (int i = 0; i < num_actually_used_experts; i++) {
-                    std::cout << tokens_lens_per_expert_lock[i] << ", ";
+                    std::cout << tokens_lens_per_expert_cpu[i] << ", ";
                 }
                 std::cout << std::endl;
                 std::cout << "tokens_per_expert[" << num_actually_used_experts << "]:" << std::endl;
                 int token_idx = 0;
                 for (int i = 0; i < num_actually_used_experts; i++) {
                     std::cout << "\texpert[" << i << "]: = ";
-                    for (int j = 0; j < tokens_lens_per_expert_lock[i]; j++) {
-                        std::cout << tokens_per_expert_lock[token_idx + j] << ", ";
+                    for (int j = 0; j < tokens_lens_per_expert_cpu[i]; j++) {
+                        std::cout << tokens_per_expert_cpu[token_idx + j] << ", ";
                     }
-                    token_idx += tokens_lens_per_expert_lock[i];
+                    token_idx += tokens_lens_per_expert_cpu[i];
                     std::cout << std::endl;
                 }
                 std::cout << std::endl;
@@ -1290,7 +1364,7 @@ public:
                       << ", unaligned_elements=" << unaligned_elements << ", token_per_expert=" << token_per_expert << ", block_size = " << block_size
                       << std::endl;
 #    endif
-            ret_event = execute_stage(events,
+            ret_event = execute_stage({ret_event},
                                       instance,
                                       *prefill_gather,
                                       {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)),
@@ -1392,12 +1466,12 @@ public:
                                        intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT],
                                        intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT],
                                        intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
-                                       intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS]},
+                                       intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS],
+                                       intermediates_memories[MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM]},
                                       {final_hidden_states_mem_ptr},
                                       {static_cast<size_t>(token_size * local_threads_count), 1, 1},
                                       {local_threads_count, 1, 1},
-                                      true /*instance.needs_completion_event()*/,
-                                      {num_actually_used_experts});
+                                      true /*instance.needs_completion_event()*/);
         }
 
         return ret_event;
@@ -1639,15 +1713,17 @@ public:
             auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
             final_hidden_states_mem_ptr->fill(stream, false);
         }
-
-        // Wait for topk is ready
-        topk_event->wait();
+        const bool use_gpu_mask_gen = use_gpu_mask_gen_prefill;
+        if (!use_gpu_mask_gen) {
+            // Wait for topk is ready
+            topk_event->wait();
+        }
 
         GPU_DEBUG_TRACE_DETAIL << "\nMoE3GemmFusedCompressed exec(): batch=" << batch << ", max_topk=" << static_cast<int>(config.top_k)
                                << ", use_micro_gemm_prefill=" << use_micro_gemm_prefill << std::endl;
         update_rt_params(instance);
         if (use_micro_gemm_prefill) {
-            ret_env = exec_prefill_micro_gemm({topk_event}, instance, scratch);
+            ret_env = exec_prefill_micro_gemm({topk_event}, instance, scratch, use_gpu_mask_gen);
         } else {
             // fallback to onednn path
             ret_env = exec_prefill_onednn({topk_event}, stream, instance, scratch);
