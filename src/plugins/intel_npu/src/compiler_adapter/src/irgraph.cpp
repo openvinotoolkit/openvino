@@ -35,7 +35,7 @@ void IRGraph::MemRefType::setSize(const intel_npu::IODescriptor& desc) {
 void IRGraph::MemRefType::updateStride() {
     // Note: NCHW layout style
     uint64_t stride = 1;
-    for (int32_t i = dimsCount - 1; i >= 0; --i) {
+    for (int64_t i = dimsCount - 1; i >= 0; --i) {
         strides[i] = stride;
         stride *= sizes[i];
     }
