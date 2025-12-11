@@ -44,7 +44,7 @@ runs:
 
     - if: ${{ runner.os == 'macOS' || runner.os == 'Windows' || (runner.os == 'Linux' && steps.check_python.outputs.installed == 'false') }}
       name: Setup Python ${{ inputs.version }}
-      uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+      uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
       with:
         python-version: ${{ inputs.version }}
         allow-prereleases: ${{ inputs.allow-prerelases }}
