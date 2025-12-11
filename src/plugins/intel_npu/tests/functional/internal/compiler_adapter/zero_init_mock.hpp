@@ -36,7 +36,7 @@ struct ZeroInitStructsMock {
     std::map<std::string, uint32_t> driver_extension_properties;
     std::unique_ptr<ze_graph_dditable_ext_decorator> graph_dditable_ext_decorator;
     std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator> command_queue_npu_dditable_ext_decorator;
-    std::unique_ptr<ze_graph_profiling_ddi_table_ext_decorator> graph_profiling_npu_dditable_ext_decorator;
+    std::unique_ptr<ze_graph_profiling_dditable_ext_decorator> graph_profiling_npu_dditable_ext_decorator;
 
     ze_driver_properties_t driver_properties = {};
     uint32_t mutable_command_list_ext_version = 0;

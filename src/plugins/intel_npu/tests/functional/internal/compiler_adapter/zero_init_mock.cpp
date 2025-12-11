@@ -230,7 +230,7 @@ ZeroInitStructsMock::ZeroInitStructsMock(int extVersion)
               ZE_MINOR_VERSION(command_queue_ext_version));
 
     // Load our command queue extension
-    ze_command_queue_npu_dditable_ext_last_t* _command_queue_npu_dditable_ext = nullptr;
+    ze_command_queue_npu_dditable_ext_t* _command_queue_npu_dditable_ext = nullptr;
     if (command_queue_ext_version) {
         THROW_ON_FAIL_FOR_LEVELZERO(
             "zeDriverGetExtensionFunctionAddress " + command_queue_ext_name,
@@ -273,7 +273,7 @@ ZeroInitStructsMock::ZeroInitStructsMock(int extVersion)
                                             reinterpret_cast<void**>(&_graph_profiling_ddi_table_ext)));
 
     graph_profiling_npu_dditable_ext_decorator =
-        std::make_unique<ze_graph_profiling_ddi_table_ext_decorator>(_graph_profiling_ddi_table_ext);
+        std::make_unique<ze_graph_profiling_dditable_ext_decorator>(_graph_profiling_ddi_table_ext);
 
     uint32_t device_count = 1;
     // Get our target device
