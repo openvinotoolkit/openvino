@@ -1292,7 +1292,8 @@ ov::Any ov::CoreImpl::get_property(const std::string& device_name,
     if (parsed.m_device_name.empty()) {
         return get_property_for_core(name);
     } else if (name == ov::cache_dir.name()) {
-        return m_core_config.get_cache_config_for_device(get_plugin(parsed.m_device_name)).m_cache_dir;
+        return util::path_to_string(
+            m_core_config.get_cache_config_for_device(get_plugin(parsed.m_device_name)).m_cache_dir);
     }
     return get_plugin(parsed.m_device_name).get_property(name, parsed.m_config);
 }
