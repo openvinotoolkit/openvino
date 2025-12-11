@@ -45,13 +45,16 @@ std::string ModelCache::calculate_file_info(const std::filesystem::path& file_pa
     const auto& abs_path = abs_path_or_input(file_path);
     // Convert to string as std::hash<std::filesystem::path> may be not supported
     auto seed = hash_combine(0U, util::path_to_string(abs_path));
+    std::cout << "seed 3a:  " << std::to_string(seed) << std::endl;
 
     std::error_code ec;
     if (auto time = std::filesystem::last_write_time(abs_path, ec); !ec) {
         seed = hash_combine(seed, time.time_since_epoch().count());
+        std::cout << "seed 3b:  " << std::to_string(seed) << std::endl;
     }
     if (auto size = std::filesystem::file_size(abs_path, ec); !ec) {
         seed = hash_combine(seed, size);
+        std::cout << "seed 3c:  " << std::to_string(seed) << std::endl;
     }
 
     return std::to_string(seed);
