@@ -854,7 +854,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config)};
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
-        std::cout << "Blob id2: " << cache_content.m_blob_id << std::endl;
         cache_content.model = model;
 
         const auto& cache_mode_it = config.find(cache_mode.name());
@@ -900,7 +899,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config)};
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
-        std::cout << "Blob id1: " << cache_content.m_blob_id << std::endl;
         cache_content.model = model;
         res = load_model_from_cache(cache_content, plugin, parsed.m_config, context, [&]() {
             return compile_model_and_cache(plugin, model, parsed.m_config, context, cache_content);
@@ -930,7 +928,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), util::make_path(model_path)};
         cache_content.m_blob_id =
             ov::ModelCache::compute_hash(cache_content.m_model_path, create_compile_config(plugin, parsed.m_config));
-        std::cout << "Blob id3: " << cache_content.m_blob_id << std::endl;
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
         compiled_model = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
             const auto model =
@@ -960,7 +957,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap()};
         cache_content.m_blob_id =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed.m_config));
-        std::cout << "Blob id1: " << cache_content.m_blob_id << std::endl;
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
         compiled_model = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
             const auto model = read_model(model_str, weights);
@@ -1541,9 +1537,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     std::visit(header_reader, compiled_blob);
 
                     if (header.get_file_info() != ov::ModelCache::calculate_file_info(cacheContent.m_model_path)) {
-                        std::cout << "Core file info mismatch. Cached: " << header.get_file_info()
-                                  << " Current: " << ov::ModelCache::calculate_file_info(cacheContent.m_model_path)
-                                  << std::endl;
                         // Original file is changed, don't use cache
                         OPENVINO_THROW("Original model file is changed");
                     }
@@ -1555,15 +1548,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                         auto res = plugin.get_property(ov::internal::compiled_model_runtime_properties_supported.name(),
                                                        compiled_model_runtime_properties);
                         if (!res.as<bool>()) {
-                            std::cout << "Original model runtime properties have been changed." << std::endl;
                             OPENVINO_THROW(
                                 "Original model runtime properties have been changed, not supported anymore!");
                         }
                     } else {
                         if (header.get_openvino_version() != ov::get_openvino_version().buildNumber) {
                             // Build number mismatch, don't use this cache
-                            std::cout << "Core version mismatch. Cached: " << header.get_openvino_version()
-                                      << " Current: " << ov::get_openvino_version().buildNumber << std::endl;
                             OPENVINO_THROW("Version does not match");
                         }
                     }

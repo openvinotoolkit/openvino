@@ -2,12 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/compilation_context.hpp"
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#ifdef _WIN32
+#    define stat _stat
+#else
+#    include <unistd.h>
+#endif
 
 #include "itt.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/compilation_context.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/hash.hpp"
@@ -24,13 +32,11 @@ static uint64_t hash_combine(uint64_t seed, const T& a) {
 namespace {
 std::filesystem::path abs_path_or_input(const std::filesystem::path& path) {
     std::error_code ec;
-    if (auto abs_path = std::filesystem::weakly_canonical(path, ec); !ec) {
-        abs_path = std::filesystem::absolute(abs_path, ec);
-        if (!ec && !abs_path.empty()) {
-            return abs_path;
-        }
+    if (auto abs_path = std::filesystem::absolute(std::filesystem::weakly_canonical(path, ec), ec); ec) {
+        return path;
+    } else {
+        return abs_path;
     }
-    return path;
 }
 
 uint64_t hash_combine_options(uint64_t seed, const ov::AnyMap& compile_options) {
@@ -43,18 +49,13 @@ uint64_t hash_combine_options(uint64_t seed, const ov::AnyMap& compile_options) 
 
 std::string ModelCache::calculate_file_info(const std::filesystem::path& file_path) {
     const auto& abs_path = abs_path_or_input(file_path);
-    // Convert to string as std::hash<std::filesystem::path> may be not supported
-    auto seed = hash_combine(0U, util::path_to_string(abs_path));
-    std::cout << "seed 3a:  " << std::to_string(seed) << std::endl;
+    const auto& abs_path_str = util::path_to_string(abs_path);
+    // Convert to string as std::hash<std::filesystem::path> could be not supported
+    auto seed = hash_combine(0U, abs_path_str);
 
-    std::error_code ec;
-    if (auto time = std::filesystem::last_write_time(abs_path, ec); !ec) {
-        seed = hash_combine(seed, time.time_since_epoch().count());
-        std::cout << "seed 3b:  " << std::to_string(seed) << std::endl;
-    }
-    if (auto size = std::filesystem::file_size(abs_path, ec); !ec) {
-        seed = hash_combine(seed, size);
-        std::cout << "seed 3c:  " << std::to_string(seed) << std::endl;
+    if (struct stat result; stat(abs_path_str.c_str(), &result) == 0) {
+        seed = hash_combine(seed, result.st_mtime);
+        seed = hash_combine(seed, result.st_size);
     }
 
     return std::to_string(seed);
@@ -78,10 +79,8 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
     m.register_pass<ov::pass::Hash>(seed, !model_path.empty());
     m.run_passes(std::const_pointer_cast<ov::Model>(model));
 
-    std::cout << "seed 1a:  " << std::to_string(seed) << std::endl;
     // 2. Compute hash on serialized data and options
     seed = hash_combine_options(seed, compile_options);
-    std::cout << "seed 1b:  " << std::to_string(seed) << std::endl;
 
     // 3. Add runtime information which may not be serialized
     for (const auto& op : model->get_ordered_ops()) {
@@ -95,12 +94,10 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
             }
         }
     }
-    std::cout << "seed 1c:  " << std::to_string(seed) << std::endl;
 
     // 4. If model path is provided add file info to the hash
     if (!model_path.empty()) {
         seed = hash_combine(seed, compute_hash(model_path, compile_options));
-        std::cout << "seed 1d:  " << std::to_string(seed) << std::endl;
     }
 
     return std::to_string(seed);
@@ -109,11 +106,10 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
 std::string ModelCache::compute_hash(const std::filesystem::path& model_path, const ov::AnyMap& compile_options) {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
 
-    // Convert to string as std::hash<std::filesystem::path> may be not supported
-    auto seed = hash_combine(0U, util::path_to_string(abs_path_or_input(model_path)));
-    std::cout << "seed 2a:  " << std::to_string(seed) << std::endl;
+    const auto& abs_path = abs_path_or_input(model_path);
+    // Convert to string as std::hash<std::filesystem::path> could be not supported
+    auto seed = hash_combine(0U, util::path_to_string(abs_path));
     seed = hash_combine_options(seed, compile_options);
-    std::cout << "seed 2b:  " << std::to_string(seed) << std::endl;
     return std::to_string(seed);
 }
 
