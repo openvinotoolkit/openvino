@@ -277,8 +277,8 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(SerializedIR seri
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                               nullptr,
                               ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                              serializedIR.first,
-                              serializedIR.second.get(),
+                              serializedIR.size,
+                              serializedIR.buffer.get(),
                               buildFlags.c_str(),
                               ZE_GRAPH_FLAG_NONE};
 
@@ -335,10 +335,17 @@ bool ZeGraphExtWrappers::canCpuVaBeImported(const void* data, size_t size) const
     return true;
 }
 
+// ze_graph_input_hash_t graphInputHash = {};
+//     graphInputHash.stype = ZE_STRUCTURE_TYPE_GRAPH_INPUT_HASH;
+//     graphInputHash.hash = hash;
+
 GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR,
                                                        const std::string& buildFlags,
                                                        const bool bypassUmdCache) const {
     ze_graph_handle_t graphHandle = nullptr;
+
+    const uint64_t hash = 14;
+    ze_graph_input_hash_t modelHash = {ZE_STRUCTURE_TYPE_GRAPH_INPUT_HASH, nullptr, hash};
 
     uint32_t flags = ZE_GRAPH_FLAG_NONE;
     if (bypassUmdCache) {
@@ -347,11 +354,11 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
     }
 
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                              nullptr,
+                              &modelHash,
                               ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                              serializedIR.first,
-                              serializedIR.second.get(),
-                              buildFlags.c_str(),
+                              serializedIR.size,
+                              serializedIR.buffer.get(),
+                              "",
                               flags};
 
     _logger.debug("getGraphDescriptor - perform pfnCreate2");
@@ -360,6 +367,7 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
                                                                  &desc,
                                                                  &graphHandle);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
+    OPENVINO_THROW("");
 
     return GraphDescriptor{graphHandle};
 }

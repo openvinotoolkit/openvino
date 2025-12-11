@@ -162,25 +162,6 @@ void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
     }
 }
 
-/**
- * @brief Removes the attributes stored by "storeWeightsPointerAttribute" in order to restore the model to its original
- * state.
- * @see storeWeightsPointerAttribute for details.
- */
-void removeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
-    for (auto&& node : model->get_ops()) {
-        if (!ov::is_type<ov::op::v0::Constant>(node)) {
-            continue;
-        }
-
-        ov::RTMap& runtimeInfoMap = node->get_rt_info();
-        const auto& resultIt = runtimeInfoMap.find(intel_npu::WeightsPointerAttribute::get_type_info_static());
-        if (resultIt != runtimeInfoMap.end()) {
-            runtimeInfoMap.erase(resultIt);
-        }
-    }
-}
-
 }  // namespace
 
 namespace intel_npu::driver_compiler_utils {
@@ -194,19 +175,15 @@ class VCLSerializerBase {
 public:
     VCLSerializerBase(const std::shared_ptr<const ov::Model>& origModel,
                       const ze_graph_compiler_version_info_t compilerVersion,
-                      const uint32_t supportedOpset = 11)
+                      const uint32_t supportedOpset = 11,
+                      const bool computeModelHash = false,
+                      const bool storeWeightlessCacheAttribute = false)
         : _logger("VCLSerializerBase", Logger::global().level()),
           _compilerVersion(compilerVersion),
-          _supportedOpset(supportedOpset) {
-        // There is no const variant of run_passes so use const_cast here
-        // as model serialization does not mutate the model
+          _supportedOpset(supportedOpset),
+          _computeModelHash(computeModelHash),
+          _storeWeightlessCacheAttribute(storeWeightlessCacheAttribute) {
         _model = std::const_pointer_cast<ov::Model>(origModel);
-
-        if (supportedOpset < 11) {
-            // Need to clone to modify the model and remain thread safe
-            _model = _model->clone();
-            _logger.info("Clone model for offset smaller than 11");
-        }
     }
 
     virtual SerializedIR serialize() = 0;
@@ -223,6 +200,8 @@ protected:
     void serialize_model_to_stream(const std::function<void(ov::pass::Manager&)>& register_serialization_pass) {
         _logger.debug("serialize_model_to_stream");
         const auto passConfig = std::make_shared<ov::pass::PassConfig>();
+
+        // Step 1: run compatibility passes
         ov::pass::Manager manager(std::move(passConfig), "NPU:serialize_model_to_stream");
 
         if (_supportedOpset < 11) {
@@ -230,32 +209,24 @@ protected:
             manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
             _logger.info("Downgrade op for opset smaller than 11");
         }
-
+        // Step 2: store the WeightlessCacheAttribute if requested
+        // Step 3: serialize
+        // Step 4: compute the hash if requested
         register_serialization_pass(manager);
 
-        // We modify the original model object here therefore a mutex is required
-        static std::mutex rtInfoMutex;
+        // Depending on the driver version, the compiler attached to it may request this information as an indicator
+        // of the precision/layout preprocessing requirement. We are setting this value to "true" since the API
+        // version is no longer a cause for altering the metadata. This is due to the preprocessing performed in the
+        // OpenVINO framework's implementaion, the "ov::Model" object is preprocessed before reaching the NPU
+        // plugin.
+        _model->set_rt_info(true, "is_new_api");
+        // Flag used for indicating an NPU plugin version which switched the I/O identification convention from
+        // names to indices. The flag is required in order to inform the driver-compiler adapter to expect indices
+        // when attempting to deserialize the I/O metadata.
+        _model->set_rt_info(true, "use_indices_for_io_metadata");
 
-        {
-            std::lock_guard<std::mutex> lock(rtInfoMutex);
+        manager.run_passes(_model);
 
-            // Depending on the driver version, the compiler attached to it may request this information as an indicator
-            // of the precision/layout preprocessing requirement. We are setting this value to "true" since the API
-            // version is no longer a cause for altering the metadata. This is due to the preprocessing performed in the
-            // OpenVINO framework's implementaion, the "ov::Model" object is preprocessed before reaching the NPU
-            // plugin.
-            _model->set_rt_info(true, "is_new_api");
-            // Flag used for indicating an NPU plugin version which switched the I/O identification convention from
-            // names to indices. The flag is required in order to inform the driver-compiler adapter to expect indices
-            // when attempting to deserialize the I/O metadata.
-            _model->set_rt_info(true, "use_indices_for_io_metadata");
-
-            manager.run_passes(_model);
-
-            auto& rtInfo = _model->get_rt_info();
-            rtInfo.erase("is_new_api");
-            rtInfo.erase("use_indices_for_io_metadata");
-        }
         _logger.debug("serialize_model_to_stream end");
     }
 
@@ -263,6 +234,8 @@ protected:
     std::shared_ptr<ov::Model> _model = nullptr;
     ze_graph_compiler_version_info_t _compilerVersion;
     uint32_t _supportedOpset = 11;
+    bool _computeModelHash;
+    bool _storeWeightlessCacheAttribute;
 };
 
 /**
@@ -272,8 +245,14 @@ class VCLSerializerWithWeightsCopy : public VCLSerializerBase {
 public:
     VCLSerializerWithWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
                                  const ze_graph_compiler_version_info_t compilerVersion,
-                                 const uint32_t supportedOpset = 11)
-        : VCLSerializerBase(origModel, compilerVersion, supportedOpset) {
+                                 const uint32_t supportedOpset = 11,
+                                 const bool computeModelHash = false,
+                                 const bool storeWeightlessCacheAttribute = false)
+        : VCLSerializerBase(origModel,
+                            compilerVersion,
+                            supportedOpset,
+                            computeModelHash,
+                            storeWeightlessCacheAttribute) {
         _logger.setName("VCLSerializerWithWeightsCopy");
     };
 
@@ -331,7 +310,7 @@ public:
 
         OPENVINO_ASSERT(offset == sizeOfSerializedIR);
 
-        return std::make_pair(sizeOfSerializedIR, buffer);
+        return {buffer, sizeOfSerializedIR};
     }
 
 private:
@@ -392,8 +371,14 @@ class VCLSerializerWithoutWeightsCopy : public VCLSerializerBase {
 public:
     VCLSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
                                     const ze_graph_compiler_version_info_t compilerVersion,
-                                    const uint32_t supportedOpset = 11)
-        : VCLSerializerBase(origModel, compilerVersion, supportedOpset) {
+                                    const uint32_t supportedOpset = 11,
+                                    const bool computeModelHash = false,
+                                    const bool storeWeightlessCacheAttribute = false)
+        : VCLSerializerBase(origModel,
+                            compilerVersion,
+                            supportedOpset,
+                            computeModelHash,
+                            storeWeightlessCacheAttribute) {
         _logger.setName("VCLSerializerWithoutWeightsCopy");
     };
 
@@ -411,7 +396,7 @@ public:
         std::shared_ptr<uint8_t> buffer(new uint8_t[_serializedModelSize], std::default_delete<uint8_t[]>());
         serialize_model_to_buffer(buffer.get());
 
-        return SerializedIR(_serializedModelSize, buffer);
+        return {buffer, _serializedModelSize};
     }
 
 private:
@@ -455,19 +440,29 @@ private:
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          const ze_graph_compiler_version_info_t compilerVersion,
                          const uint32_t supportedOpsetVersion,
-                         const bool useBaseModelSerializer) {
+                         const bool useBaseModelSerializer,
+                         const bool computeModelHash,
+                         const bool storeWeightlessCacheAttribute) {
     if (!useBaseModelSerializer) {
         // Non-constness required for adding & removing weights pointer attributes. The current instance is already a
         // clone (or should be one), we are not modifying the original model.
         const std::shared_ptr<ov::Model> nonConstantModel = std::const_pointer_cast<ov::Model>(model);
         storeWeightsPointerAttribute(nonConstantModel);
 
-        SerializedIR serializedIR =
-            VCLSerializerWithoutWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
-        removeWeightsPointerAttribute(nonConstantModel);
+        SerializedIR serializedIR = VCLSerializerWithoutWeightsCopy(model,
+                                                                    compilerVersion,
+                                                                    supportedOpsetVersion,
+                                                                    computeModelHash,
+                                                                    storeWeightlessCacheAttribute)
+                                        .serialize();
         return serializedIR;
     }
-    return VCLSerializerWithWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
+    return VCLSerializerWithWeightsCopy(model,
+                                        compilerVersion,
+                                        supportedOpsetVersion,
+                                        computeModelHash,
+                                        storeWeightlessCacheAttribute)
+        .serialize();
 }
 
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) {
