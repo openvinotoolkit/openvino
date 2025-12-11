@@ -83,6 +83,7 @@ std::map<std::string, Version> Core::get_versions(const std::string& device_name
 std::shared_ptr<ov::Model> Core::read_model(const std::wstring& model_path,
                                             const std::wstring& bin_path,
                                             const ov::AnyMap& properties) const {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Read model");
     OV_CORE_CALL_STATEMENT(return _impl->read_model(ov::util::wstring_to_string(model_path),
                                                     ov::util::wstring_to_string(bin_path),
                                                     properties););
@@ -92,20 +93,24 @@ std::shared_ptr<ov::Model> Core::read_model(const std::wstring& model_path,
 std::shared_ptr<ov::Model> Core::read_model(const std::string& model_path,
                                             const std::string& bin_path,
                                             const AnyMap& properties) const {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Read model");
     OV_CORE_CALL_STATEMENT(return _impl->read_model(model_path, bin_path, properties););
 }
 
 std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::Tensor& weights) const {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Read model");
     OV_CORE_CALL_STATEMENT(return _impl->read_model(model, weights););
 }
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& config) {
-    return compile_model(model, ov::DEFAULT_DEVICE_NAME, config);
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    return compile_model(model, ov::default_device_name, config);
 }
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& device_name,
                                   const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model, device_name, config);
         return {exec._ptr, exec._so};
@@ -113,16 +118,19 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
 }
 
 CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& config) {
-    return compile_model(model_path, ov::DEFAULT_DEVICE_NAME, config);
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
+    return compile_model(model_path, ov::default_device_name, config);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 CompiledModel Core::compile_model(const std::wstring& model_path, const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     return compile_model(ov::util::wstring_to_string(model_path), config);
 }
 #endif
 
 CompiledModel Core::compile_model(const std::string& model_path, const std::string& device_name, const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model_path, device_name, config);
         return {exec._ptr, exec._so};
@@ -133,6 +141,7 @@ CompiledModel Core::compile_model(const std::string& model_path, const std::stri
 CompiledModel Core::compile_model(const std::wstring& model_path,
                                   const std::string& device_name,
                                   const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     return compile_model(ov::util::wstring_to_string(model_path), device_name, config);
 }
 #endif
@@ -141,6 +150,7 @@ CompiledModel Core::compile_model(const std::string& model,
                                   const ov::Tensor& weights,
                                   const std::string& device_name,
                                   const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model, weights, device_name, config);
         return {exec._ptr, exec._so};
@@ -150,13 +160,14 @@ CompiledModel Core::compile_model(const std::string& model,
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model, ov::SoPtr<ov::IRemoteContext>{context._impl, context._so}, config);
         return {exec._ptr, exec._so};
     });
 }
 
-void Core::add_extension(const std::string& library_path) {
+void Core::add_extension(const std::filesystem::path& library_path) {
     try {
         add_extension(ov::detail::load_extensions(library_path));
     } catch (const std::runtime_error& e) {
@@ -167,13 +178,13 @@ void Core::add_extension(const std::string& library_path) {
     }
 }
 
+void Core::add_extension(const std::string& library_path) {
+    add_extension(ov::util::make_path(library_path));
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void Core::add_extension(const std::wstring& library_path) {
-    try {
-        add_extension(ov::detail::load_extensions(library_path));
-    } catch (const std::runtime_error&) {
-        OPENVINO_THROW("Cannot add extension. Cannot find entry point to the extension library");
-    }
+    add_extension(ov::util::make_path(library_path));
 }
 #endif
 
@@ -268,8 +279,8 @@ RemoteContext Core::create_context(const std::string& device_name, const AnyMap&
     OPENVINO_ASSERT(device_name.find("BATCH") != 0, "BATCH device does not support remote context");
 
     OV_CORE_CALL_STATEMENT({
-        auto parsed = parseDeviceNameIntoConfig(device_name, params);
-        auto remoteContext = _impl->get_plugin(parsed._deviceName).create_context(parsed._config);
+        auto parsed = parse_device_name_into_config(device_name, params);
+        auto remoteContext = _impl->get_plugin(parsed.m_device_name).create_context(parsed.m_config);
         return {remoteContext._ptr, remoteContext._so};
     });
 }
@@ -281,8 +292,8 @@ RemoteContext Core::get_default_context(const std::string& device_name) {
     OPENVINO_ASSERT(device_name.find("BATCH") != 0, "BATCH device does not support default remote context");
 
     OV_CORE_CALL_STATEMENT({
-        auto parsed = parseDeviceNameIntoConfig(device_name, AnyMap{});
-        auto remoteContext = _impl->get_plugin(parsed._deviceName).get_default_context(parsed._config);
+        auto parsed = parse_device_name_into_config(device_name, AnyMap{});
+        auto remoteContext = _impl->get_plugin(parsed.m_device_name).get_default_context(parsed.m_config);
         return {remoteContext._ptr, remoteContext._so};
     });
 }

@@ -308,6 +308,11 @@ public:
             jit.add(make_type_jit_constants("ALIBI_INPUT", params.input_layouts[alibi_input_idx].data_type));
         }
 
+        if (desc->has_sink_input) {
+            const auto& sink_layout = params.input_layouts[PagedAttentionInputIdx::SINKS];
+            jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
+            jit.make("HAS_SINK_INPUT", 1);
+        }
         if (params.output_layouts.size() > 1) {
             jit.make("PAGED_ATTENTION_SCORES_OUTPUT", 1);
             if (desc->has_score_aggregation) {
@@ -396,7 +401,7 @@ public:
         const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
         const auto has_scores_output = params.output_layouts.size() > 1;
-
+        const auto has_sink_input = desc->has_sink_input;
         if (params.is_dynamic()) {
             args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
         }
@@ -414,6 +419,10 @@ public:
 
         if (has_alibi) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ALIBI});  // alibi
+        }
+
+        if (has_sink_input) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
         }
 
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
@@ -895,25 +904,32 @@ protected:
 
         constexpr size_t key_cache_id = PagedAttentionInputIdx::KEY_CACHE;
         jit.add(make_layout_jit_constants("OUTPUT", params.input_layouts[key_cache_id], in_offsets_map.at(key_cache_id)));
-
         jit.make("HEAD_SIZE", desc->k_head_size);
         jit.make("HEADS_NUM", desc->heads_num);
         jit.make("KV_HEADS_NUM", desc->kv_heads_num);
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         jit.make("SUBGROUP_SIZE", subgroup_size);
-
         const bool is_kv_compressed = get_kv_compressed(params);
         jit.make("IS_KV_COMPRESSED", is_kv_compressed ? 1 : 0);
 
         const auto original_cache_dt = params.get_input_layout(PagedAttentionInputIdx::KEY).data_type;
         jit.add(make_type_jit_constants("UNCOMPRESSED", original_cache_dt));
 
+        const auto is_key_by_channel = desc->is_key_by_channel;
+        jit.make("IS_KEY_BY_CHANNEL", (is_kv_compressed && is_key_by_channel) ? 1 : 0);
         if (is_kv_compressed) {
             auto scales_zp_size = get_element_size(original_cache_dt) * 2;  // scale + zp;
             jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
-            jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size + scales_zp_size);
+            if (is_key_by_channel) {
+                jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size);
+                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size);
+            } else {
+                jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size + scales_zp_size);
+                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+            }
         } else {
             jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size);
+            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         }
 
         return jit;

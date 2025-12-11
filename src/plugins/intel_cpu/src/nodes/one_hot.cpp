@@ -19,7 +19,6 @@
 #include "openvino/cc/selective_build.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -127,6 +126,7 @@ void OneHot::initSupportedPrimitiveDescriptors() {
 
 template <typename out_type>
 void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto* src_data = getSrcDataAtPortAs<const in_type>(0);
     auto* dst_data = getDstDataAtPortAs<out_type>(0);
 
@@ -139,7 +139,7 @@ void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
 
     // set on_value at needed locations
     auto on_val = on_value;
-    parallel_for(prefix_size, [&](std::size_t prefix_idx) {
+    cpu_parallel->parallel_for(prefix_size, [&](std::size_t prefix_idx) {
         const in_type* src_dataPtr = &src_data[prefix_idx * suffix_size];
         out_type* dst_dataPtr = &dst_data[prefix_idx * depth * suffix_size];
         for (std::size_t suffix_idx = 0; suffix_idx < suffix_size; ++suffix_idx, ++src_dataPtr, ++dst_dataPtr) {

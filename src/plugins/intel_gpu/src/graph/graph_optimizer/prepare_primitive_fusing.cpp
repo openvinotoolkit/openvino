@@ -233,7 +233,8 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
                 continue;
             GPU_DEBUG_TRACE_DETAIL << node->id() << " : fuse swiglu to " << fc_node.id() << std::endl;
             GPU_DEBUG_TRACE_DETAIL << " - split axis : " << swiglu_prim->axis << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << " - split length : " << swiglu_prim->split_lengths << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << " - glu stride : " << swiglu_prim->glu_stride << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << " - gate idx : " << swiglu_prim->gate_idx << std::endl;
             p.fuse_nodes(fc_node, *node, &fusing_history);
         }
     }
@@ -952,15 +953,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
-            if (input_data.is_type<fully_connected>()) {
-                // Do not allow quantization fusion
-                auto& fc = input_data.as<fully_connected>();
-                auto desc = fc.get_primitive();
-                // WA: OneDNN weight-compressed dyn-quan matmul does not support fusion with quantization
-                auto fc_in_dt = fc.get_input_layout(0).data_type;
-                bool is_onednn_compressed_weights_dyn_quan = supports_immad && desc->compressed_weights && data_type_traits::is_i8_u8(fc_in_dt);
-                should_fuse |= !is_onednn_compressed_weights_dyn_quan && quantize_node.get_scale_shift_opt();
-            }
+            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
@@ -1311,6 +1304,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                             push_node_queue(user, current_node.second+1);
                     }
                 } while (node_queue.size() > 1);
+            } else if (supports_immad && fused_node->is_type<convolution>() && peer_node->get_output_layout().data_type != cldnn::data_types::f32) {
+                // For convolution, peer_node can be a parent of fused_node in case of skip connections
+                // For f32, fusing results in poorer performance
+                merge_allowed = fused_node->get_users().size() == 1;
             } else {
                 merge_allowed = fused_node->get_users().size() == 1;
                 for (auto& parent : fused_node->get_dependencies())
@@ -1521,7 +1518,7 @@ void prepare_primitive_fusing::optimize_fused_ops(program& p) {
             auto& fp = *curr_itr;
             auto& fp_next = *fp_itr;
             if (fp.is_type<activation>() && fp_next.is_type<quantize>()) {
-                const auto& act_prim = fp.typed_desc<activation>();;
+                const auto& act_prim = fp.typed_desc<activation>();
                 const auto& quant_param = fp_next.get_typed_fuse_params<QuantizeFuseParams>();
 
                 bool can_skip = fp.deps.empty() && data_type_traits::is_i8_u8(fp_next.output_layout.data_type);

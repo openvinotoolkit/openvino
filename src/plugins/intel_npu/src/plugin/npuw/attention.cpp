@@ -4,12 +4,102 @@
 #include "attention.hpp"
 
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/util/op_types.hpp"  // is_parameter
+#include "openvino/opsets/opset13.hpp"
 #include "util.hpp"
 
 namespace {
 enum class SDPA_Inputs : std::size_t { Q = 0, K, V, M, NUM_REQUIRED };
+}
+
+// Helper function to patch broadcast constants (set to 1 for dynamic handling)
+void ov::npuw::function::patch_broadcast_constants(const std::shared_ptr<ov::Model>& model, size_t target_length) {
+    for (auto&& op : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v3::Broadcast>(op)) {
+            continue;
+        }
+        // Inspect the constant
+        auto shape_source = op->input(1).get_source_output().get_node_shared_ptr();
+        if (!ov::is_type<ov::op::v0::Constant>(shape_source)) {
+            LOG_WARN("SDPA Broadcast's 2nd input is not Const: " << shape_source << ", skipping");
+            continue;
+        }
+
+        auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_source);
+        auto shape_values = shape_const->cast_vector<int32_t>();
+        for (auto&& d : shape_values) {
+            //  Assume the context length is the mask's innermost dimension
+            if (static_cast<std::size_t>(d) == target_length) {
+                d = 1;
+            }
+        }
+        auto new_const = std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(),
+                                                                shape_const->get_shape(),
+                                                                shape_values);
+        op->input(1).replace_source_output(new_const);
+    }
+}
+
+// Helper function to patch reshape constants for pre-reshape (-1 substitution)
+void ov::npuw::function::patch_reshape_constants(const std::shared_ptr<ov::Model>& model,
+                                                 const std::map<std::string, size_t>& past_value_sequence_dims) {
+    for (auto&& op : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v1::Reshape>(op)) {
+            continue;
+        }
+
+        // Check if Reshape's single consumer is MatMul
+        auto target_inputs = op->output(0).get_target_inputs();
+        if (target_inputs.size() != 1) {
+            continue;  // Reshape should have exactly one consumer
+        }
+
+        auto matmul_node = target_inputs.begin()->get_node()->shared_from_this();
+        if (!ov::is_type<ov::op::v0::MatMul>(matmul_node)) {
+            continue;
+        }
+
+        // Check if MatMul's input 0 is from Softmax
+        auto matmul_input0 = matmul_node->input(0).get_source_output().get_node_shared_ptr();
+        if (!ov::is_type<ov::op::v8::Softmax>(matmul_input0)) {
+            continue;
+        }
+
+        LOG_INFO("Found Reshape -> MatMul pattern where MatMul input 0 is from Softmax, "
+                 "patching Reshape constant");
+
+        // Inspect the reshape constant (shape input)
+        auto shape_source = op->input(1).get_source_output().get_node_shared_ptr();
+        if (!ov::is_type<ov::op::v0::Constant>(shape_source)) {
+            LOG_WARN("Reshape's shape input is not Const: " << shape_source << ", skipping");
+            continue;
+        }
+
+        auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_source);
+        auto shape_values = shape_const->cast_vector<int32_t>();
+
+        // Find the first past value sequence dimension from the map
+        // All past value parameters should have the same sequence dimension
+        if (past_value_sequence_dims.empty()) {
+            LOG_WARN("No past value sequence dimensions provided for reshape patching");
+            continue;
+        }
+
+        size_t value_seq_dim = past_value_sequence_dims.begin()->second;
+        NPUW_ASSERT(value_seq_dim < shape_values.size());
+        shape_values[value_seq_dim] = -1;
+
+        auto new_const = std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(),
+                                                                shape_const->get_shape(),
+                                                                shape_values);
+        op->input(1).replace_source_output(new_const);
+
+        LOG_INFO("Done");
+        return;
+    }
 }
 
 std::optional<ov::npuw::function::Attention> ov::npuw::function::Attention::from(
@@ -103,30 +193,7 @@ std::optional<ov::npuw::function::Attention> ov::npuw::function::Attention::from
     // block, its shape argument is normally a precomputed Const (which would be
     // an expression/a subgraph in the original dynamic IR). Since we retrofit
     // dynamism into a static shape environment here, we need to patch it back.
-    for (auto&& op : model->get_ordered_ops()) {
-        if (!ov::is_type<ov::op::v3::Broadcast>(op)) {
-            continue;
-        }
-        // Inspect the constant
-        auto shape_source = op->input(1).get_source_output().get_node_shared_ptr();
-        if (!ov::is_type<ov::op::v0::Constant>(shape_source)) {
-            LOG_WARN("SDPA Broadcast's 2nd input is not Const: " << shape_source << ", skipping");
-            continue;
-        }
-
-        auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_source);
-        auto shape_values = shape_const->cast_vector<int32_t>();
-        for (auto&& d : shape_values) {
-            //  Assume the context length is the mask's innermost dimension
-            if (static_cast<std::size_t>(d) == dyn.context_len()) {
-                d = 1;
-            }
-        }
-        auto new_const = std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(),
-                                                                shape_const->get_shape(),
-                                                                shape_values);
-        op->input(1).replace_source_output(new_const);
-    }
+    ov::npuw::function::patch_broadcast_constants(model, dyn.context_len());
     model->validate_nodes_and_infer_types();
 
     return {std::move(dyn)};
@@ -165,6 +232,7 @@ void ov::npuw::runtime::attention::PositionIDs::prepare(int64_t past_len) {
     const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
     const auto in_tensor = m_rq.get_tensor(iport);
     const auto in_dims = in_tensor->get_shape();
+    const auto pos_ids_len = static_cast<int64_t>(in_dims.back());
 
     // There's several cases possible:
     // a. Prefill input_ids, including chunk
@@ -175,7 +243,7 @@ void ov::npuw::runtime::attention::PositionIDs::prepare(int64_t past_len) {
     // c may require traversing the tensor backwards as Generate with N>1 is right_padded (?)
 
     auto* pos_data_ptr = in_tensor->data<int64_t>();
-    for (auto idx = in_dims.back() - 1; idx >= 0; idx--) {
+    for (auto idx = pos_ids_len - 1; idx >= 0; idx--) {
         if (pos_data_ptr[idx] > 0) {
             // Initialize fields
             m_current_length = pos_data_ptr[idx];

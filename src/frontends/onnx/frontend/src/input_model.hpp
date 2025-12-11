@@ -114,10 +114,13 @@ class InputModel : public ov::frontend::InputModel {
     std::map<std::string, std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>>& get_tensor_places() const;
 
 public:
+    using Ptr = std::shared_ptr<unify::InputModel>;
+
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
                         const bool enable_mmap,
                         const std::shared_ptr<TelemetryExtension>& telemetry = {});
-    explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator, InputModel* parent_model);
+    explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
+                        unify::InputModel::Ptr parent_model);
 
     /////  Searching for places  /////
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
@@ -143,6 +146,7 @@ public:
     void extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                           const std::vector<ov::frontend::Place::Ptr>& outputs) override;
 
+    std::map<std::string, std::string> get_metadata() const;
     std::shared_ptr<TelemetryExtension> get_telemetry_extension();
 
     bool is_enabled_mmap() const;

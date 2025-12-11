@@ -83,7 +83,7 @@ public:
             core->set_property({ov::cache_dir()});
             core.reset();
             ov::test::utils::PluginCache::get().reset();
-            ov::test::utils::removeFilesWithExt(m_cache_dir, "blob");
+            ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cache_dir, "blob");
             ov::test::utils::removeDir(m_cache_dir);
         }
 
@@ -170,21 +170,6 @@ TEST_P(WeightsSeparationTests, CheckForFailureNoWeightlessCacheAttribute) {
     configuration.insert(ov::intel_npu::weightless_blob(true));
     configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
     OV_EXPECT_THROW(compiled_model = core->compile_model(model, target_device, configuration), ov::Exception, _);
-}
-
-/**
- * @brief Compiles a basic model and checks if it produces correct results.
- */
-TEST_P(WeightsSeparationTests, CorrectInferenceResultNoImportIterative) {
-    model = createTestModel();
-    configuration.insert(ov::intel_npu::weightless_blob(true));
-    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
-
-    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
-    ASSERT_TRUE(compiled_model);
-    EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
-
-    create_infer_request_and_check_result();
 }
 
 /**
@@ -466,6 +451,23 @@ TEST_P(WeightsSeparationOneShotTests, CorrectInferenceResultNoImportOneShot) {
     model = createTestModel();
     configuration.insert(ov::intel_npu::weightless_blob(true));
     configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ONE_SHOT));
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+    EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+
+    create_infer_request_and_check_result();
+}
+
+using WeightsSeparationIterativeTests = WeightsSeparationTests;
+
+/**
+ * @brief Compiles a basic model and checks if it produces correct results.
+ */
+TEST_P(WeightsSeparationIterativeTests, CorrectInferenceResultNoImportIterative) {
+    model = createTestModel();
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ASSERT_TRUE(compiled_model);
