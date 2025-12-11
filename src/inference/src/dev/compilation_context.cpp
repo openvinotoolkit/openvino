@@ -48,9 +48,12 @@ uint64_t hash_combine_options(uint64_t seed, const ov::AnyMap& compile_options) 
 }  // namespace
 
 std::string ModelCache::calculate_file_info(const std::filesystem::path& file_path) {
+    std::cout << "file info path1:   " << file_path << std::endl;
     const auto& abs_path = abs_path_or_input(file_path);
     const auto& abs_path_str = util::path_to_string(abs_path);
     // Convert to string as std::hash<std::filesystem::path> could be not supported
+    std::cout << "file info path:   " << abs_path_str << std::endl;
+    std::cout << "is exists: " << std::filesystem::exists(abs_path) << std::endl;
     auto seed = hash_combine(0U, abs_path_str);
     std::cout << "file info seed a: " << std::to_string(seed) << std::endl;
 
