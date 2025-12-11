@@ -163,6 +163,13 @@ function(ov_download_tbb)
                 ENVIRONMENT "TBBROOT"
                 SHA256 "fb4be1dd03044a97475c45a0cf4576e502b4b64048e98e019520b0720fc255aa"
                 USE_NEW_LOCATION TRUE)
+    elseif(RISCV64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_LIN "oneapi-tbb-2022.3.0-lin-riscv-release.tgz"
+                TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "ead39877d182dc6ce6bcdc92fa000def79fa9fc19f78979e4faab5d6f560a434"
+                USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
     endif()
