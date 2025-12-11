@@ -18,10 +18,15 @@ namespace ov::intel_gpu {
 DisableFP16CompForGemma3RMSPattern::DisableFP16CompForGemma3RMSPattern() {
     using namespace ov::pass::pattern;
 
+    auto const_or_convert = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{
+        wrap_type<ov::op::v0::Constant>(),
+        wrap_type<ov::op::v0::Convert>({wrap_type<ov::op::v0::Constant>()})
+    });
+ 
     auto add_m = wrap_type<ov::op::v1::Add>({any_input(), any_input()}, type_matches(element::f32));
-    auto rms_post_m = wrap_type<ov::op::internal::RMS>({any_input(), wrap_type<ov::op::v0::Constant>()}, type_matches(element::f32));
+    auto rms_post_m = wrap_type<ov::op::internal::RMS>({any_input(), const_or_convert}, type_matches(element::f32));
     auto add_1_m = wrap_type<ov::op::v1::Add>({add_m, rms_post_m}, type_matches(element::f32));
-    auto rms_m = wrap_type<ov::op::internal::RMS>({add_1_m, wrap_type<ov::op::v0::Constant>()}, type_matches(element::f32));
+    auto rms_m = wrap_type<ov::op::internal::RMS>({add_1_m, const_or_convert}, type_matches(element::f32));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
