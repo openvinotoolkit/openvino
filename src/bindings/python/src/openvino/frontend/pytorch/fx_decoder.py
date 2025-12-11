@@ -218,23 +218,28 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             self._outputs = [("", self._nodes.index(pt_module))]
 
             self.input_types = []
-            self._subgraph_inputs = []  # Universal storage for subgraph arguments
+            self._subgraph_inputs = []  # Separate storage for subgraph arguments
 
             for arg_idx, arg in enumerate(pt_module.args):
                 is_subgraph, graph_module = self._is_subgraph_arg(arg)
 
                 if is_subgraph:
                     # Subgraph argument (e.g., cond_fn, body_fn in while_loop)
-                    # Store separately, NOT in _inputs - subgraphs are accessed via get_subgraphs()
+                    # Store separately - subgraphs are accessed via get_subgraphs(), not inputs()
                     self._subgraph_inputs.append(SubgraphInput(arg, graph_module, arg_idx))
                 elif isinstance(arg, (tuple, list)):
-                    # Unpack container arguments (e.g., carried_inputs tuple in while_loop)
-                    for item in arg:
-                        if isinstance(item, torch.fx.Node):
+                    if len(arg) == 0:
+                        # Empty tuple/list (e.g., additional_inputs=() in while_loop) - skip entirely
+                        pass
+                    elif all(isinstance(item, torch.fx.Node) for item in arg):
+                        # Tuple of nodes (e.g., carried_inputs in while_loop) - unpack into separate inputs
+                        for item in arg:
                             self._inputs.append(self._nodes.index(item))
-                        else:
-                            self._inputs.append(InlinedInput(item))
-                        self.input_types.append(BaseFXDecoder.get_type_for_value(item))
+                            self.input_types.append(BaseFXDecoder.get_type_for_value(item))
+                    else:
+                        # Regular list/tuple constant (e.g., [5, 7, 9]) - keep as single InlinedInput
+                        self._inputs.append(InlinedInput(arg))
+                        self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
                 elif isinstance(arg, torch.fx.Node):
                     self._inputs.append(self._nodes.index(arg))
                     self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
