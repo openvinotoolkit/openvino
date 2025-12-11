@@ -1,14 +1,29 @@
-// #include "include/batch_headers/fetch_data.cl"
-#define n INPUT0_BATCH_NUM * INPUT3_FEATURE_NUM * INPUT0_SIZE_Y * INPUT0_SIZE_X
-#define batch_size INPUT0_BATCH_NUM
-#define spatial_size INPUT0_FEATURE_NUM
-#define num_heads INPUT0_SIZE_Y
-#define embed_dims INPUT0_SIZE_X
-#define num_levels INPUT1_BATCH_NUM
-#define num_query INPUT3_FEATURE_NUM
-#define num_point INPUT3_SIZE_Y 
+/*******************************************************************************
+* Copyright 2025 Intel Corporation
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 
-INPUT0_TYPE ms_deform_attn_im2col_bilinear(
+#define N ((INPUT0_BATCH_NUM) * (INPUT3_FEATURE_NUM) * (INPUT0_SIZE_Y) * (INPUT0_SIZE_X))
+#define BATCH_SIZE INPUT0_BATCH_NUM
+#define SPATIAL_SIZE INPUT0_FEATURE_NUM
+#define NUM_HEADS INPUT0_SIZE_Y
+#define EMBED_DIMS INPUT0_SIZE_X
+#define NUM_LEVELS INPUT1_BATCH_NUM
+#define NUM_QUERY INPUT3_FEATURE_NUM
+#define NUM_POINT INPUT3_SIZE_Y 
+
+INPUT0_TYPE FUNC(ms_deform_attn_im2col_bilinear)(
     __global const INPUT0_TYPE *bottom_data, const int height, const int width,
     const int nheads, const int ed, const INPUT0_TYPE h,
     const INPUT0_TYPE w, const int m, const int c) {
@@ -58,34 +73,34 @@ INPUT0_TYPE ms_deform_attn_im2col_bilinear(
 
 KERNEL(multi_scale_deformable_attn)(
     OPTIONAL_SHAPE_INFO_ARG
-    __global const INPUT0_TYPE *data_value,            //# (bs, num_keys, num_heads, embed_dims)
-    __global const int *data_spatial_shapes,        //# (num_levels, 2) Spatial shape of each feature map, last dimension 2 represent (h, w)
-    __global const int *data_level_start_index,     //# (num_levels, ) start index of each level and can be represented as [0, h_0*w_0, h_0*w_0+h_1*w_1, ...].
-    __global const INPUT0_TYPE *data_sampling_loc,     //# (bs ,num_queries, num_heads, num_levels, num_points, 2), the last dimension 2 represent (x, y).
-    __global const INPUT0_TYPE *data_attn_weight,      //# (bs ,num_queries, num_heads, num_levels, num_points), weight of sampling points
-    __global OUTPUT_TYPE *output) {                  //# (bs, num_queries, num_heads * embed_dims), output
+    __global const INPUT0_TYPE *data_value,            //# (bs, num_keys, NUM_HEADS, EMBED_DIMS)
+    __global const int *data_spatial_shapes,        //# (NUM_LEVELS, 2) Spatial shape of each feature map, last dimension 2 represent (h, w)
+    __global const int *data_level_start_index,     //# (NUM_LEVELS, ) start index of each level and can be represented as [0, h_0*w_0, h_0*w_0+h_1*w_1, ...].
+    __global const INPUT0_TYPE *data_sampling_loc,     //# (bs ,num_queries, NUM_HEADS, NUM_LEVELS, num_points, 2), the last dimension 2 represent (x, y).
+    __global const INPUT0_TYPE *data_attn_weight,      //# (bs ,num_queries, NUM_HEADS, NUM_LEVELS, num_points), weight of sampling points
+    __global OUTPUT_TYPE *output) {                  //# (bs, num_queries, NUM_HEADS * EMBED_DIMS), output
 #define sglid          (uint) get_sub_group_local_id()
 #define sgid           (uint) get_sub_group_id()
   {
     int index = get_global_id(2);
 
     int _temp = index;
-    const int c_col = _temp % embed_dims;
-    _temp /= embed_dims;
+    const int c_col = _temp % EMBED_DIMS;
+    _temp /= EMBED_DIMS;
     const int sampling_index = _temp;
-    const int m_col = _temp % num_heads;
-    _temp /= num_heads;
-    _temp /= num_query;
+    const int m_col = _temp % NUM_HEADS;
+    _temp /= NUM_HEADS;
+    _temp /= NUM_QUERY;
     const int b_col = _temp;
 
     __global INPUT0_TYPE *data_col_ptr = output + index;
-    int data_weight_ptr = sampling_index * num_levels * num_point;
+    int data_weight_ptr = sampling_index * NUM_LEVELS * NUM_POINT;
     int data_loc_w_ptr = data_weight_ptr << 1;
-    const int qid_stride = num_heads * embed_dims;
-    const int data_value_ptr_init_offset = b_col * spatial_size * qid_stride;
+    const int qid_stride = NUM_HEADS * EMBED_DIMS;
+    const int data_value_ptr_init_offset = b_col * SPATIAL_SIZE * qid_stride;
     INPUT0_TYPE col = 0;
 
-    for (int l_col = 0; l_col < num_levels; ++l_col) {
+    for (int l_col = 0; l_col < NUM_LEVELS; ++l_col) {
       const int level_start_id = data_level_start_index[l_col];
       const int spatial_h_ptr = l_col << 1;
       const int spatial_h = data_spatial_shapes[spatial_h_ptr];
@@ -93,7 +108,7 @@ KERNEL(multi_scale_deformable_attn)(
       __global const INPUT0_TYPE *data_value_ptr =
           data_value +
           (data_value_ptr_init_offset + level_start_id * qid_stride);
-      for (int p_col = 0; p_col < num_point; ++p_col) {
+      for (int p_col = 0; p_col < NUM_POINT; ++p_col) {
         const INPUT0_TYPE loc_w = data_sampling_loc[data_loc_w_ptr];
         const INPUT0_TYPE loc_h = data_sampling_loc[data_loc_w_ptr + 1];
         const INPUT0_TYPE weight = data_attn_weight[data_weight_ptr];
@@ -103,7 +118,7 @@ KERNEL(multi_scale_deformable_attn)(
 
         if (h_im > -1 && w_im > -1 && h_im < spatial_h && w_im < spatial_w) {
           col += ms_deform_attn_im2col_bilinear(data_value_ptr, spatial_h,
-                                                spatial_w, num_heads, embed_dims,
+                                                spatial_w, NUM_HEADS, EMBED_DIMS,
                                                 h_im, w_im, m_col, c_col) *
                  weight;
         }
