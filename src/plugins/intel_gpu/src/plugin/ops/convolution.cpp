@@ -44,14 +44,6 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
     auto auto_pad = op->get_auto_pad();
     size_t filter_rank = op->get_input_partial_shape(1).rank().get_length();
 
-    if (!op->is_dynamic() && !p.use_new_shape_infer()) {
-        // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
-        strides.resize(std::max<size_t>(2, strides.size()), 1);
-        dilations.resize(std::max<size_t>(2, strides.size()), 1);
-        pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
-        pads_end.resize(std::max<size_t>(2, pads_end.size()), 0);
-    }
-
     std::shared_ptr<cldnn::convolution> prim = nullptr;
 
     if (op->is_asymmetric()) {
