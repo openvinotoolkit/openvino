@@ -5,7 +5,6 @@
 #include "gemm.hpp"
 
 #include <algorithm>
-#include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -14,8 +13,9 @@
 
 #include "emitters/snippets/brgemm_generic.hpp"
 #include "emitters/utils.hpp"
+#include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p_interface.h"
+#include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -173,8 +173,8 @@ void GemmF16KaiKernelExecutor::execute(const GemmF16KaiKernelExecutor* executor,
                         args,
                         *executor->get_kernel()->gemm_ukernel,
                         sizeof(uint16_t),
-                        -65504.0f,
-                        65504.0f);
+                        -65504.0F,
+                        65504.0F);
 }
 
 }  // namespace ov::intel_cpu::aarch64

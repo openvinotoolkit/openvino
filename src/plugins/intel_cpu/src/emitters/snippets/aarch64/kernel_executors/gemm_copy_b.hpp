@@ -124,7 +124,7 @@ struct GemmCopyBCompiledKernelF16 {
 class GemmCopyBKaiKernelExecutorBase {
 protected:
     GemmCopyBKaiKernelExecutorBase() = default;
-    virtual ~GemmCopyBKaiKernelExecutorBase() = default;
+    ~GemmCopyBKaiKernelExecutorBase() = default;
 
     static void update_config_common(const ov::snippets::lowered::ExpressionPtr& expr,
                                      const ov::snippets::lowered::LinearIRCPtr& linear_ir,
