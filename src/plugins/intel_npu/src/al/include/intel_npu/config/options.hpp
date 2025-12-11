@@ -1475,42 +1475,6 @@ struct MODEL_SERIALIZER_VERSION final : OptionBase<MODEL_SERIALIZER_VERSION, ov:
     }
 };
 
-struct INPUTS_WITH_DYNAMIC_STRIDES final : OptionBase<INPUTS_WITH_DYNAMIC_STRIDES, std::vector<int>> {
-    static std::string_view key() {
-        return ov::intel_npu::inputs_with_dynamic_strides.name();
-    }
-
-    static constexpr std::string_view getTypeName() {
-        return "std::vector<int>";
-    }
-
-    static std::vector<int> defaultValue() {
-        return std::vector<int>{};
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
-struct OUTPUTS_WITH_DYNAMIC_STRIDES final : OptionBase<OUTPUTS_WITH_DYNAMIC_STRIDES, std::vector<int>> {
-    static std::string_view key() {
-        return ov::intel_npu::outputs_with_dynamic_strides.name();
-    }
-
-    static constexpr std::string_view getTypeName() {
-        return "std::vector<int>";
-    }
-
-    static std::vector<int> defaultValue() {
-        return std::vector<int>{};
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
 struct ENABLE_STRIDES_FOR final : OptionBase<ENABLE_STRIDES_FOR, std::vector<std::string>> {
     static std::string_view key() {
         return ov::intel_npu::enable_strides_for.name();
@@ -1529,7 +1493,7 @@ struct ENABLE_STRIDES_FOR final : OptionBase<ENABLE_STRIDES_FOR, std::vector<std
     }
 
     static OptionMode mode() {
-        return OptionMode::RunTime;
+        return OptionMode::CompileTime;
     }
 };
 

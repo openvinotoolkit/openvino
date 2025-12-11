@@ -299,27 +299,6 @@ inline std::istream& operator>>(std::istream& is, LegacyPriority& priority) {
     return is;
 }
 
-inline std::ostream& operator<<(std::ostream& os, const std::vector<int>& strides) {
-    std::size_t counter = 0;
-    std::size_t size = strides.size();
-    for (auto& v : strides) {
-        os << v;
-        if (counter < size - 1) {
-            os << ',';
-        }
-        ++counter;
-    }
-    return os;
-}
-
-inline std::istream& operator>>(std::istream& is, std::vector<int>& strides) {
-    std::string arg;
-    while (std::getline(is, arg, ',')) {
-        strides.push_back(std::stoi(arg));
-    }
-    return is;
-}
-
 /**
  * @brief Due to driver compatibility constraints, the set of model priority values corresponding to the OpenVINO legacy
  * API is being maintained here.
@@ -530,24 +509,6 @@ static constexpr ov::Property<bool> import_raw_blob{"NPU_IMPORT_RAW_BLOB"};
  * This option allows to skip writing plugin metadata to compiled model when exporting it
  */
 static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
-
-/**
- * @brief [Internal Use Only]
- * Type: std::vector<int>
- * Indices of input tensors that support non-contiguous memory layout with custom strides
- *
- * Note: This is an internal compiler property. Users should use 'enable_strides_for' instead.
- */
-static constexpr Property<std::vector<int>> inputs_with_dynamic_strides("INPUTS_WITH_DYNAMIC_STRIDES");
-
-/**
- * @brief [Internal Use Only]
- * Type: std::vector<int>
- * Indices of output tensors that support non-contiguous memory layout with custom strides.
- *
- * Note: This is an internal compiler property. Users should use 'enable_strides_for' instead.
- */
-static constexpr Property<std::vector<int>> outputs_with_dynamic_strides("OUTPUTS_WITH_DYNAMIC_STRIDES");
 
 }  // namespace intel_npu
 }  // namespace ov

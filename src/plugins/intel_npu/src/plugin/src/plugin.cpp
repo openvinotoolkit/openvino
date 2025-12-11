@@ -227,47 +227,6 @@ std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properti
     return modelPtr;
 }
 
-std::optional<int> findIOByName(const std::vector<ov::Output<const ov::Node>>& ioVector, const std::string& name) {
-    int index = 0;
-
-    for (const auto& io : ioVector) {
-        if (io.get_node()->get_name() == name || io.get_node()->get_friendly_name() == name) {
-            return index;
-        }
-
-        // Check tensor names
-        const auto& tensorNames = io.get_tensor().get_names();
-        if (tensorNames.find(name) != tensorNames.end()) {
-            return index;
-        }
-
-        ++index;
-    }
-    return std::nullopt;
-};
-
-auto convertNamesToIndices(FilteredConfig& config,
-                           const std::vector<ov::Output<const ov::Node>>& ioVector,
-                           const std::string& propertyName) {
-    if (config.get<ENABLE_STRIDES_FOR>().empty()) {
-        return;
-    }
-
-    std::vector<int> indices;
-    for (auto name : config.get<ENABLE_STRIDES_FOR>()) {
-        auto index = findIOByName(ioVector, name);
-        if (index.has_value()) {
-            indices.push_back(index.value());
-        }
-    }
-
-    if (!indices.empty()) {
-        std::ostringstream oss;
-        ov::intel_npu::operator<<(oss, indices);
-        config.update({{propertyName, oss.str()}});
-    }
-};
-
 }  // namespace
 
 namespace intel_npu {
@@ -365,8 +324,6 @@ void Plugin::init_options() {
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(USE_BASE_MODEL_SERIALIZER);
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
-    REGISTER_OPTION(INPUTS_WITH_DYNAMIC_STRIDES);
-    REGISTER_OPTION(OUTPUTS_WITH_DYNAMIC_STRIDES);
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
 
     if (_backend) {
@@ -529,11 +486,6 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     // however, if driver supports it, we still need it (and will skip giving it to compiler) = force-enable
     if (_backend && _backend->isCommandQueueExtSupported()) {
         cfg.enable(ov::intel_npu::turbo.name(), true);
-    }
-
-    if (!cfg.isAvailable(ov::intel_npu::inputs_with_dynamic_strides.name()) ||
-        !cfg.isAvailable(ov::intel_npu::outputs_with_dynamic_strides.name())) {
-        cfg.enable(ov::intel_npu::enable_strides_for.name(), false);
     }
 }
 
@@ -788,9 +740,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                 localConfig.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER,
                             "Dynamic batching is not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
         }
-
-        convertNamesToIndices(localConfig, model->inputs(), ov::intel_npu::inputs_with_dynamic_strides.name());
-        convertNamesToIndices(localConfig, model->outputs(), ov::intel_npu::outputs_with_dynamic_strides.name());
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
