@@ -15,6 +15,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/weights_pointer_attribute.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 #include "xml_serializer.hpp"
 
@@ -229,6 +230,10 @@ protected:
             // Downgrade to opset10
             manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
             _logger.info("Downgrade op for opset smaller than 11");
+        }
+
+        if ((_compilerVersion.major < 7) || (_compilerVersion.major == 7 && _compilerVersion.minor <= 26)) {
+            manager.register_pass<ov::pass::EliminateIdentity>();
         }
 
         register_serialization_pass(manager);
