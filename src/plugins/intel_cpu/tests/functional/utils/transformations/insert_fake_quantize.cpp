@@ -13,7 +13,6 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "utils/quantization_utils.hpp"
 
 namespace CPUTestUtils {

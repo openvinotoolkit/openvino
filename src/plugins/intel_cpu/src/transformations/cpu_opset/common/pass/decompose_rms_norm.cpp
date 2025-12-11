@@ -19,7 +19,6 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "ov_ops/rms.hpp"
 
 namespace ov::intel_cpu {

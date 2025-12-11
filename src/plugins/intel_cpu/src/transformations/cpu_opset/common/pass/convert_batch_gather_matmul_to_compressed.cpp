@@ -19,7 +19,6 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
 #include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"

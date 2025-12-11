@@ -24,7 +24,6 @@
 #include "nodes/node_config.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "weights_cache.hpp"

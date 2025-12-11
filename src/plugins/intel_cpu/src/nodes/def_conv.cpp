@@ -36,7 +36,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/deformable_convolution_base.hpp"
-#include "openvino/util/pp.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)

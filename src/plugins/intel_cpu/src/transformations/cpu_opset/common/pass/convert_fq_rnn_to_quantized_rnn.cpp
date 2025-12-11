@@ -27,7 +27,6 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 

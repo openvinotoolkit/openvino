@@ -17,7 +17,6 @@
 #include <vector>
 
 #include "openvino/core/except.hpp"
-#include "openvino/util/pp.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #if defined(SNIPPETS_DEBUG_CAPS) && !defined(_WIN32)

@@ -29,7 +29,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -518,7 +517,6 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
 
     ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
-        (void)this;
         if (transformation_callback(m.get_match_root()))
             return false;
 

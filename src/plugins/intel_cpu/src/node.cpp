@@ -44,7 +44,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "partitioned_mem_blk.h"
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
