@@ -14,8 +14,6 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/tile.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/util/common_util.hpp"
 #include "utils/reshape.hpp"
 #include "utils/split.hpp"
@@ -40,29 +38,26 @@ enum class LSTMInput {
     LSTM_INPUT_P
 };
 
-// Normalize tensor rank to target_rank:
-// - If rank > target: Squeeze leading dimensions (must be == 1)
-// - If rank < target: Unsqueeze to add leading dimensions of size 1 (assumes missing num_directions=1)
+// Normalize tensor rank to target_rank by squeezing leading dimensions of size 1.
+// This handles models where upstream Unsqueeze operations add extra leading dimensions.
 // Static validation: if leading dims are statically known and != 1, emit clear error at conversion time.
 // If extra dimensions are != 1 at runtime, Squeeze will fail with a clear error.
 ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
                                            int64_t target_rank,
                                            const std::string& input_name) {
-    const auto& input_rank_dim = input.get_partial_shape().rank();
+    const auto& input_rank = input.get_partial_shape().rank();
 
-    if (input_rank_dim.is_dynamic()) {
+    if (input_rank.is_dynamic()) {
         return input;
     }
 
-    const auto input_rank = input_rank_dim.get_length();
-
-    if (input_rank == target_rank) {
+    if (input_rank.get_length() == target_rank) {
         return input;
     }
 
-    if (input_rank > target_rank) {
+    if (input_rank.get_length() > target_rank) {
         // Squeeze leading dimensions to reduce rank to target_rank
-        const auto dims_to_squeeze = input_rank - target_rank;
+        const auto dims_to_squeeze = input_rank.get_length() - target_rank;
 
         // Static validation: check if leading dimensions are statically known and != 1
         const auto& input_shape = input.get_partial_shape();
@@ -71,7 +66,7 @@ ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
                 OPENVINO_THROW("LSTM input '",
                                input_name,
                                "' has rank ",
-                               input_rank,
+                               input_rank.get_length(),
                                " but expected ",
                                target_rank,
                                ". Leading dimension [",
@@ -91,16 +86,14 @@ ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
         return std::make_shared<v0::Squeeze>(input, axes_const);
     }
 
-    // input_rank < target_rank: Unsqueeze to add leading dimensions of size 1
-    // This handles non-conformant models where num_directions dimension is missing
-    const auto dims_to_add = target_rank - input_rank;
-    std::vector<int64_t> axes_to_unsqueeze;
-    for (int64_t i = 0; i < dims_to_add; ++i) {
-        axes_to_unsqueeze.push_back(i);
-    }
-
-    auto axes_const = v0::Constant::create(ov::element::i64, Shape{axes_to_unsqueeze.size()}, axes_to_unsqueeze);
-    return std::make_shared<v0::Unsqueeze>(input, axes_const);
+    // input_rank < target_rank: reject non-conformant models with missing num_directions dimension
+    OPENVINO_THROW("LSTM input '",
+                   input_name,
+                   "' has rank ",
+                   input_rank.get_length(),
+                   " but expected ",
+                   target_rank,
+                   ". Missing num_directions dimension cannot be automatically inferred.");
 }
 
 // Helper to extract num_directions dimension from a tensor (at specified dimension index).
