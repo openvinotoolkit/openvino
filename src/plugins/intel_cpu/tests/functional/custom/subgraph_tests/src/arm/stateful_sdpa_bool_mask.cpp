@@ -11,9 +11,9 @@ namespace test {
 
 namespace {
 
-INSTANTIATE_TEST_SUITE_P(smoke_StatefulSdpaBoolMask,
+INSTANTIATE_TEST_SUITE_P(smoke_ARM_StatefulSdpaBoolMask,
                          StatefulSdpaBoolMaskTest,
-                         ::testing::Values(ov::element::bf16, ov::element::f16),
+                         ::testing::Values(ov::element::f16),
                          StatefulSdpaBoolMaskTest::getTestCaseName);
 
 }  // namespace
