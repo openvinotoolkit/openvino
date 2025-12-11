@@ -1456,7 +1456,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     bool can_use_fsv16 = true;
     bool can_use_bs_fs_yx_bsv16_fsv16 = true;
     bool is_quantized_int8_model = false;
-    bool is_dynamic_batch_onednn_conv = false;
     size_t total_asym_quantized_conv_layers = 0;
     size_t total_dw_conv_layers = 0;
     size_t total_dw_splitted_conv_layers = 0;
@@ -1465,6 +1464,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t opt_deconv_layers_b_fs_zyx_fsv16 = 0;
     size_t opt_deconv_layers_b_fs_yx_fsv16 = 0;
     size_t total_crop_layers = 0;
+    size_t total_deconv_layers = 0;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    bool is_dynamic_batch_onednn_conv = false;
     size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
 
     // OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
@@ -1480,19 +1483,21 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                                                                               cldnn::reduce::type_id(),
                                                                               cldnn::reorder::type_id(),
                                                                               cldnn::eltwise::type_id()};
+#endif
     for (auto& node : get_processing_order()) {
         auto &prim = *node;
         if (prim.type() == cldnn::convolution::type_id()) {
             auto &conv = prim.as<convolution>();
             if (conv.get_primitive()->groups > 1)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
-
+#ifdef ENABLE_ONEDNN_FOR_GPU
             if (conv.is_dynamic()) {
                 bool is_dynamic_batch = !node->get_output_layout().get_partial_shape()[0].is_static();
                 bool is_fp32_conv = (node->get_input_layout().data_type == data_types::f32) &&
                                     (node->get_output_layout().data_type == data_types::f32);
                 is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
             } else {
+#endif
                 auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
                 if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
@@ -1505,7 +1510,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
                 if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
                     total_1x1_fm_conv_layers++;
+#ifdef ENABLE_ONEDNN_FOR_GPU
             }
+#endif
             lo.update_formats_map(conv);
 
             if (conv.weights_zero_points_term() || conv.activations_zero_points_term())
@@ -1516,6 +1523,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 opt_deconv_layers_b_fs_zyx_fsv16 += 1;
             else if (lo.is_format_supported(prim.as<deconvolution>(), format::b_fs_yx_fsv16))
                 opt_deconv_layers_b_fs_yx_fsv16 += 1;
+
+            total_deconv_layers++;
         }
 
         // list of layers that do not support yxfb or perform worse than bfyx
@@ -1647,10 +1656,11 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
-
+#ifdef ENABLE_ONEDNN_FOR_GPU
         if (prim.is_in_data_flow() && (byxf_onednn_conv_whitelist.count(prim.type()) == 0)) {
             total_non_byxf_onednn_conv_whitelist_layers++;
         }
+#endif
     }
 
     size_t total_conv_layers = lo.get_total_conv_count();
@@ -1666,9 +1676,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
     bool should_use_b_fs_yx_fsv16_conv = is_quantized_int8_model ||
                                          (can_use_fsv16 &&
-                                          total_conv_layers > 11 &&
+                                          total_conv_layers + total_deconv_layers > 9 &&
                                           (num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f || opt_deconv_layers_b_fs_yx_fsv16 >= 1) &&
-                                          num_of_conv_b_fs_yx_fsv16 * 2 > total_crop_layers);
+                                          (num_of_conv_b_fs_yx_fsv16 + opt_deconv_layers_b_fs_yx_fsv16) * 2 > total_crop_layers);
 
     bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&
                                          total_grouped_conv_layers == 0 &&

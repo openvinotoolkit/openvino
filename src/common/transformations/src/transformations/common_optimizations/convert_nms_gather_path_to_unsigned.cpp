@@ -57,11 +57,11 @@ public:
         auto node_pattern = pattern::wrap_type<ov::op::v0::Squeeze,
                                                ov::op::v0::Unsqueeze,
                                                ov::op::v1::Reshape,
-                                               op::util::BroadcastBase,
+                                               ov::op::util::BroadcastBase,
                                                ov::op::v1::StridedSlice,
                                                ov::op::v8::Slice,
                                                ov::op::v1::VariadicSplit,
-                                               op::util::GatherBase,
+                                               ov::op::util::GatherBase,
                                                ov::op::v0::Concat,
                                                ov::op::v0::Convert,
                                                ov::op::v8::If>();
@@ -121,7 +121,7 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("UpdateConvertGather");
     UpdateConvertGather() {
         MATCHER_SCOPE(UpdateConvertGather);
-        auto node_pattern = pattern::wrap_type<op::util::GatherBase>();
+        auto node_pattern = pattern::wrap_type<ov::op::util::GatherBase>();
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             auto gather = m.get_match_root();
             auto indices = gather->input_value(1);
