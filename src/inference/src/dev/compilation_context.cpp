@@ -52,10 +52,13 @@ std::string ModelCache::calculate_file_info(const std::filesystem::path& file_pa
     const auto& abs_path_str = util::path_to_string(abs_path);
     // Convert to string as std::hash<std::filesystem::path> could be not supported
     auto seed = hash_combine(0U, abs_path_str);
+    std::cout << "file info seed a: " << std::to_string(seed) << std::endl;
 
     if (struct stat result; stat(abs_path_str.c_str(), &result) == 0) {
         seed = hash_combine(seed, result.st_mtime);
+        std::cout << "file info seed b: " << std::to_string(seed) << std::endl;
         seed = hash_combine(seed, result.st_size);
+        std::cout << "file info seed c: " << std::to_string(seed) << std::endl;
     }
 
     return std::to_string(seed);
