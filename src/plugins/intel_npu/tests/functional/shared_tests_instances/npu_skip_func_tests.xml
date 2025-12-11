@@ -196,9 +196,29 @@ Example:
     <skip_config>
         <message>Tests with unsupported precision</message>
         <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=f64.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*device=MULTI.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*device=AUTO.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*device=MULTI.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*device=AUTO.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E###### -->
+    <skip_config>
+        <message>Data types not supported by NPU3720 PV Driver.</message>
+        <enable_rules>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=bf16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i64.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u64.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f64.*</filter>
         </filters>
     </skip_config>
 
@@ -393,7 +413,7 @@ Example:
 
     <!-- E###### -->
     <skip_config>
-        <message>Other devices than NPU doesn't allow to set NPU properties with OV1.0 and CACHE_DIR + MLIR is not supported</message>
+        <message>Other devices than NPU doesn't allow to set NPU properties with OV1.0 and CACHE_DIR + PLUGIN is not supported</message>
         <filters>
             <filter>.*smoke_AutoBatch_BehaviorTests/CorrectConfigTests.*</filter>
         </filters>
@@ -582,21 +602,17 @@ Example:
             <device>3720</device>
         </enable_rules>
         <filters>
-            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=i16.*</filter>
-            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=u16.*</filter>
-            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=u64.*</filter>
             <filter>.*smoke_OVClassLoadNetworkTest/OVClassLoadNetworkTestNPU.*</filter>
         </filters>
     </skip_config>
 
     <!-- E#112064 -->
     <skip_config>
-        <message>Failing common core threading tests</message>
+        <message>INFERENCE_PRECISION_HINT = FP32 not supported on NPU</message>
         <enable_rules>
             <backend>LEVEL0</backend>
         </enable_rules>
         <filters>
-            <!-- INFERENCE_PRECISION_HINT = FP32 not supported on NPU -->
             <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_SingleCore.*</filter>
             <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_MultipleCores.*</filter>
         </filters>
@@ -607,10 +623,11 @@ Example:
         <message>Failing Windows PV Driver core threading tests</message>
         <enable_rules>
             <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
             <operating_system>windows</operating_system>
         </enable_rules>
         <filters>
-            <filter>.*CoreThreadingTest.smoke_QueryModel/.*_driverVersion=1688.*</filter>
+            <filter>.*CoreThreadingTest.smoke_QueryModel/.*</filter>
         </filters>
     </skip_config>
 
@@ -683,9 +700,14 @@ Example:
     <!-- E#116761 -->
     <skip_config>
         <message>OVClassQueryModel tests do not work with COMPILER_TYPE=DRIVER and PV driver</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+            <operating_system>windows</operating_system>
+        </enable_rules>
         <filters>
-            <filter>.*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*_driverVersion=1688.*</filter>
-            <filter>.*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*_driverVersion=1688.*</filter>
+            <filter>.*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*</filter>
+            <filter>.*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*</filter>
         </filters>
     </skip_config>
 
@@ -765,7 +787,7 @@ Example:
         <message>Only "developer built" compilers support weights separation</message>
         <filters>
             <filter>.*WeightsSeparationTests.*</filter>
-            <filter>.*WeightsSeparationNotSupportedTests.*</filter>
+            <filter>.*WeightsSeparationIterativeTests.*</filter>
         </filters>
     </skip_config>
 
@@ -782,21 +804,27 @@ Example:
 
     <!-- E#170977 -->
     <skip_config>
-        <message>Skip tests with u2 precision not supported on NPU3720.</message>
+        <message>Data type u1/u2 not supported by NPU3720.</message>
         <enable_rules>
             <device>3720</device>
         </enable_rules>
         <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u2.*</filter>
         </filters>
     </skip_config>
 
-    <!-- E#168772 -->
+    <!-- E###### -->
     <skip_config>
-        <message>Tests currently skipped until dynamic batch is fully supported (need NPU compiler alignment/driver update)</message>
+        <message>Data type u1 not supported by NPU4000.</message>
+        <enable_rules>
+            <device>4000</device>
+        </enable_rules>
         <filters>
-            <filter>.*DynamicBatchingRunSeqTests.*</filter>
-            <filter>.*DynamicBatchedTensorsRunTests.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
         </filters>
     </skip_config>
 
@@ -804,6 +832,15 @@ Example:
         <message>The "one shot" implementation of the weights separation feature is supported only in the compiler-in-plugin flow</message>
         <filters>
             <filter>.*WeightsSeparationOneShotTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Tests skipped to reduce overall log length</message>
+        <filters>
+            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_INFO.*</filter>
+            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_DEBUG.*</filter>
+            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_TRACE.*</filter>
         </filters>
     </skip_config>
 

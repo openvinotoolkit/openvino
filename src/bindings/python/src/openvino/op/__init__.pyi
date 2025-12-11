@@ -15,4 +15,4 @@ from openvino._pyopenvino.op import tensor_iterator
 Package: openvino.op
 Low level wrappers for the c++ api in ov::op.
 """
-__all__ = ['Constant', 'Parameter', 'Result', 'assign', 'if_op', 'loop', 'read_value', 'tensor_iterator', 'util']
+__all__: list[str] = ['Constant', 'Parameter', 'Result', 'assign', 'if_op', 'loop', 'read_value', 'tensor_iterator', 'util']

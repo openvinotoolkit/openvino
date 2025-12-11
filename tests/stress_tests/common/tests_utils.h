@@ -31,10 +31,10 @@ public:
 
 protected:
     // Replace non-alphabetic/numeric symbols with "_" to prevent logging errors
-    static std::string update_item_for_name(const std::string &item) {
+    static std::string safe_string(const std::string &item) {
         std::string _item(item);
-        for (char &index: _item) {
-            if (!isalnum(index) && index != '_') index = '_';
+        for (char &ch: _item) {
+            if (!isalnum(ch)) ch = '_';
         }
         return _item;
     }
@@ -49,9 +49,9 @@ public:
              const std::string &_model_name, const std::string &_precision) {
         numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters,
         device = _device, model = _model, model_name = _model_name, precision = _precision;
-        test_case_name = "Numprocesses_" + std::to_string(numprocesses) + "_Numthreads_" + std::to_string(numthreads) +
-                         "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device) +
-                         "_Precision_" + update_item_for_name(precision) + "_Model_" + update_item_for_name(model_name);
+        test_case_name = "NP" + std::to_string(numprocesses) + "_NT" + std::to_string(numthreads) +
+                         "_NI" + std::to_string(numiters) + safe_string(device) +
+                         safe_string(precision) + "_M" + safe_string(model_name);
     }
 };
 
@@ -63,11 +63,11 @@ public:
                      std::vector<std::map<std::string, std::string>> _models) {
         numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters,
         device = _device, models = _models;
-        test_case_name = "Numprocesses_" + std::to_string(numprocesses) + "_Numthreads_" + std::to_string(numthreads) +
-                         "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device);
+        test_case_name = "NP" + std::to_string(numprocesses) + "_NT" + std::to_string(numthreads) +
+                         "_NI" + std::to_string(numiters) + safe_string(device);
         for (size_t i = 0; i < models.size(); i++) {
-            test_case_name += "_Model" + std::to_string(i + 1) + "_" + update_item_for_name(models[i]["name"]) + "_" +
-                              update_item_for_name(models[i]["precision"]);
+            test_case_name += "_Model" + std::to_string(i + 1) + "_" + safe_string(models[i]["name"]) + "_" +
+                              safe_string(models[i]["precision"]);
             model_name += "\"" + models[i]["path"] + "\"" + (i < models.size() - 1 ? ", " : "");
         }
     }

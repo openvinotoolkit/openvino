@@ -59,7 +59,7 @@ jobs:
         with:
           repository: 'keras-team/keras'
           path: ${{ env.KERAS_REPO }}
-          ref: 'master'
+          ref: '74fba843ec2ebecb0b844133959b73a368d070bb'
 
       - name: Download OpenVINO artifacts (wheels)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
@@ -91,7 +91,9 @@ jobs:
         working-directory: ${{ env.KERAS_REPO }}
         run: |
           pip install --upgrade pip setuptools
-          pip install -r requirements.txt --upgrade
+          # Specify grain's version to avoid problems described in the 177685 ticket
+          pip install -r requirements.txt grain==0.2.14 --upgrade
+          pip install --no-deps tf_keras==2.18.0
           # make sure that no other keras is installed via pip
           pip uninstall -y keras keras-nightly
           # manually set keras
@@ -111,7 +113,7 @@ jobs:
           pytest keras --ignore keras/src/applications $IGNORE_ARGS --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-keras3_pytest.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-keras3-backend

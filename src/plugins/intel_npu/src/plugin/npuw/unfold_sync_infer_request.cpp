@@ -30,6 +30,9 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
             if (proto_comp_model_desc.spatial) {
                 NPUW_ASSERT(false && "Spatial is not supported in unfold");
             }
+            if (proto_comp_model_desc.attention) {
+                NPUW_ASSERT(false && "Dynamic is not supported in unfold");
+            }
         }  // if(replaced_by)
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(i);
@@ -40,7 +43,7 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
         LOG_INFO("DONE");
     }  // for(submodels)
 
-    alloc_io();
+    alloc_quant_gather();
 
     LOG_INFO("Connecting subrequests...");
     LOG_BLOCK();

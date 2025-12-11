@@ -16,7 +16,7 @@ import typing
 """
 Package openvino._pyopenvino which wraps openvino C++ APIs
 """
-__all__ = ['AsyncInferQueue', 'AttributeVisitor', 'AxisSet', 'AxisVector', 'CompiledModel', 'ConstOutput', 'ConversionExtension', 'ConversionExtensionBase', 'Coordinate', 'CoordinateDiff', 'Core', 'DecoderTransformationExtension', 'DescriptorTensor', 'Dimension', 'DiscreteTypeInfo', 'Extension', 'FrontEnd', 'FrontEndManager', 'GeneralFailure', 'InferRequest', 'InitializationFailure', 'Input', 'InputModel', 'Iterator', 'Layout', 'Model', 'Node', 'NodeContext', 'NodeFactory', 'NotImplementedFailure', 'OVAny', 'Op', 'OpConversionFailure', 'OpExtension', 'OpValidationFailure', 'Output', 'PartialShape', 'Place', 'ProfilingInfo', 'ProgressReporterExtension', 'RTMap', 'RemoteContext', 'RemoteTensor', 'Shape', 'Strides', 'Symbol', 'TelemetryExtension', 'Tensor', 'Type', 'VAContext', 'VASurfaceTensor', 'VariableState', 'Version', 'experimental', 'frontend', 'get_batch', 'get_version', 'layout_helpers', 'op', 'passes', 'preprocess', 'properties', 'save_model', 'serialize', 'set_batch', 'shutdown', 'util']
+__all__: list[str] = ['AsyncInferQueue', 'AttributeVisitor', 'AxisSet', 'AxisVector', 'CompiledModel', 'ConstOutput', 'ConversionExtension', 'ConversionExtensionBase', 'Coordinate', 'CoordinateDiff', 'Core', 'DecoderTransformationExtension', 'DescriptorTensor', 'Dimension', 'DiscreteTypeInfo', 'Extension', 'FrontEnd', 'FrontEndManager', 'GeneralFailure', 'InferRequest', 'InitializationFailure', 'Input', 'InputModel', 'Iterator', 'Layout', 'Model', 'Node', 'NodeContext', 'NodeFactory', 'NotImplementedFailure', 'OVAny', 'Op', 'OpConversionFailure', 'OpExtension', 'OpValidationFailure', 'Output', 'PartialShape', 'Place', 'ProfilingInfo', 'ProgressReporterExtension', 'RTMap', 'RemoteContext', 'RemoteTensor', 'Shape', 'Strides', 'Symbol', 'TelemetryExtension', 'Tensor', 'TensorVector', 'Type', 'VAContext', 'VASurfaceTensor', 'VariableState', 'Version', 'experimental', 'frontend', 'get_batch', 'get_version', 'layout_helpers', 'op', 'passes', 'preprocess', 'properties', 'save_model', 'serialize', 'set_batch', 'shutdown', 'util']
 class AsyncInferQueue:
     """
     openvino.AsyncInferQueue represents a helper that creates a pool of asynchronousInferRequests and provides synchronization functions to control flow of a simple pipeline.
@@ -766,6 +766,24 @@ class Core:
                         :return: Plugin version information.
                         :rtype: dict[str, openvino.Version]
         """
+    @typing.overload
+    def import_model(self, tensor: Tensor, device_name: str, properties: collections.abc.Mapping[str, typing.Any]) -> CompiledModel:
+        """
+                    Imports a compiled model from a previously exported one.
+        
+                    GIL is released while running this function.
+        
+                    :param compiled_blob: ov::Tensor input blob containing a model previously exported using the ov::CompiledModel::export_model method.
+                    :type compiled_blob: openvino.Tensor
+                    :param device_name: Name of device to which compiled model is imported.
+                                        Note: if device_name is not used to compile the original model, an exception is thrown.
+                    :type device_name: str
+                    :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
+                    :type properties: dict[str, typing.Any], optional
+                    :return: A compiled model.
+                    :rtype: openvino.CompiledModel
+        """
+    @typing.overload
     def import_model(self, model_stream: typing.Any, device_name: str, properties: collections.abc.Mapping[str, typing.Any]) -> CompiledModel:
         """
                     Imports a compiled model from a previously exported one.
@@ -1674,7 +1692,19 @@ class InferRequest:
                     :type inputs: dict[int, openvino.Tensor]
         """
     @typing.overload
-    def set_input_tensors(self, tensors: collections.abc.Sequence[Tensor]) -> None:
+    def set_input_tensors(self, tensors: TensorVector) -> None:
+        """
+                    Sets batch of tensors for single input data.
+                    Model input needs to have batch dimension and the number of `tensors`
+                    needs to match with batch size.
+        
+                    :param tensors:  Input tensors for batched infer request. The type of each tensor
+                                     must match the model input element type and shape (except batch dimension).
+                                     Total size of tensors needs to match with input's size.
+                    :type tensors: openvino.TensorVector
+        """
+    @typing.overload
+    def set_input_tensors(self, tensors: list) -> None:
         """
                     Sets batch of tensors for single input data.
                     Model input needs to have batch dimension and the number of `tensors`
@@ -1686,7 +1716,7 @@ class InferRequest:
                     :type tensors: list[openvino.Tensor]
         """
     @typing.overload
-    def set_input_tensors(self, idx: typing.SupportsInt, tensors: collections.abc.Sequence[Tensor]) -> None:
+    def set_input_tensors(self, idx: typing.SupportsInt, tensors: TensorVector) -> None:
         """
                     Sets batch of tensors for single input data to infer by index.
                     Model input needs to have batch dimension and the number of `tensors`
@@ -1697,6 +1727,21 @@ class InferRequest:
                     :param tensors: Input tensors for batched infer request. The type of each tensor
                                     must match the model input element type and shape (except batch dimension).
                                     Total size of tensors needs to match with input's size.
+                    :type tensors: openvino.TensorVector
+        """
+    @typing.overload
+    def set_input_tensors(self, idx: typing.SupportsInt, tensors: list) -> None:
+        """
+                    Sets batch of tensors for single input data to infer by index.
+                    Model input needs to have batch dimension and the number of `tensors`
+                    needs to match with batch size.
+        
+                    :param idx: Index of input tensor.
+                    :type idx: int
+                    :param tensors: Input tensors for batched infer request. The type of each tensor
+                                    must match the model input element type and shape (except batch dimension).
+                                    Total size of tensors needs to match with input's size.
+                    :type tensors: list[openvino.Tensor]
         """
     @typing.overload
     def set_output_tensor(self, index: typing.SupportsInt, tensor: Tensor) -> None:
@@ -1779,7 +1824,23 @@ class InferRequest:
                     :type inputs: dict[Union[int, str, openvino.ConstOutput], openvino.Tensor]
         """
     @typing.overload
-    def set_tensors(self, tensor_name: str, tensors: collections.abc.Sequence[Tensor]) -> None:
+    def set_tensors(self, tensor_name: str, tensors: TensorVector) -> None:
+        """
+                    Sets batch of tensors for input data to infer by tensor name.
+                    Model input needs to have batch dimension and the number of tensors needs to be
+                    matched with batch size. Current version supports set tensors to model inputs only.
+                    In case if `tensor_name` is associated with output (or any other non-input node),
+                    an exception will be thrown.
+        
+                    :param tensor_name: Name of input tensor.
+                    :type tensor_name: str
+                    :param tensors: Input tensors for batched infer request. The type of each tensor
+                                    must match the model input element type and shape (except batch dimension).
+                                    Total size of tensors needs to match with input's size.
+                    :type tensors: openvino.TensorVector
+        """
+    @typing.overload
+    def set_tensors(self, tensor_name: str, tensors: list) -> None:
         """
                     Sets batch of tensors for input data to infer by tensor name.
                     Model input needs to have batch dimension and the number of tensors needs to be
@@ -1795,9 +1856,27 @@ class InferRequest:
                     :type tensors: list[openvino.Tensor]
         """
     @typing.overload
-    def set_tensors(self, port: ConstOutput, tensors: collections.abc.Sequence[Tensor]) -> None:
+    def set_tensors(self, port: ConstOutput, tensors: TensorVector) -> None:
         """
-                    Sets batch of tensors for input data to infer by tensor name.
+                    Sets a batch of tensors for input data to infer by input port.
+                    Model input needs to have batch dimension and the number of tensors needs to be
+                    matched with batch size. Current version supports set tensors to model inputs only.
+                    In case if `port` is associated with output (or any other non-input node),
+                    an exception will be thrown.
+        
+        
+                    :param port: Port of input tensor.
+                    :type port: openvino.ConstOutput
+                    :param tensors: Input tensors for batched infer request. The type of each tensor
+                                    must match the model input element type and shape (except batch dimension).
+                                    Total size of tensors needs to match with input's size.
+                    :type tensors: openvino.TensorVector
+                    :rtype: None
+        """
+    @typing.overload
+    def set_tensors(self, port: ConstOutput, tensors: list) -> None:
+        """
+                    Sets a batch of tensors for input data to infer by input port.
                     Model input needs to have batch dimension and the number of tensors needs to be
                     matched with batch size. Current version supports set tensors to model inputs only.
                     In case if `port` is associated with output (or any other non-input node),
@@ -1865,11 +1944,11 @@ class InferRequest:
                     :rtype: bool
         """
     @property
-    def input_tensors(self) -> list[Tensor]:
+    def input_tensors(self) -> list:
         """
-                                        Gets all input tensors of this InferRequest.
+                    Gets all input tensors of this InferRequest.
                                         
-                                        :rtype: list[openvino.Tensor]
+                    :rtype: list[openvino.Tensor]
         """
     @property
     def latency(self) -> float:
@@ -1893,11 +1972,11 @@ class InferRequest:
                     :rtype: list[openvino.ConstOutput]
         """
     @property
-    def output_tensors(self) -> list[Tensor]:
+    def output_tensors(self) -> list:
         """
-                                        Gets all output tensors of this InferRequest.
+                    Gets all output tensors of this InferRequest.
                                         
-                                        :rtype: list[openvino.Tensor]
+                    :rtype: list[openvino.Tensor]
         """
     @property
     def profiling_info(self) -> list[ProfilingInfo]:
@@ -2543,14 +2622,14 @@ class Model:
                     :return: A copy of self.
                     :rtype: openvino.Model
         """
-    def evaluate(self, output_tensors: collections.abc.Sequence[Tensor], input_tensors: collections.abc.Sequence[Tensor], evaluation_context: RTMap = ...) -> bool:
+    def evaluate(self, output_tensors: TensorVector, input_tensors: TensorVector, evaluation_context: RTMap = ...) -> bool:
         """
                     Evaluate the model on inputs, putting results in outputs
         
                     :param output_tensors: Tensors for the outputs to compute. One for each result
-                    :type output_tensors: list[openvino.Tensor]
+                    :type output_tensors: Union[list[openvino.Tensor], TensorVector]
                     :param input_tensors: Tensors for the inputs. One for each inputs.
-                    :type input_tensors: list[openvino.Tensor]
+                    :type input_tensors: Union[list[openvino.Tensor], TensorVector]
                     :param evaluation_context: Storage of additional settings and attributes that can be used
                                                when evaluating the model. This additional information can be
                                                shared across nodes.
@@ -3245,28 +3324,31 @@ class Node:
     def constructor_validate_and_infer_types(self) -> None:
         ...
     @typing.overload
-    def evaluate(self, output_values: collections.abc.Sequence[Tensor], input_values: collections.abc.Sequence[Tensor], evaluationContext: RTMap) -> bool:
+    def evaluate(self, output_values: TensorVector, input_values: TensorVector, evaluationContext: RTMap = ...) -> bool:
         """
                         Evaluate the node on inputs, putting results in outputs
                         
                         :param output_tensors: Tensors for the outputs to compute. One for each result.
-                        :type output_tensors: list[openvino.Tensor]
+                        :type output_tensors: openvino.TensorVector
                         :param input_tensors: Tensors for the inputs. One for each inputs.
-                        :type input_tensors: list[openvino.Tensor]
+                        :type input_tensors: openvino.TensorVector
                         :param evaluation_context: Storage of additional settings and attributes that can be used
                         when evaluating the function. This additional information can be shared across nodes.
                         :type evaluation_context: openvino.RTMap
                         :rtype: bool
         """
     @typing.overload
-    def evaluate(self, output_values: collections.abc.Sequence[Tensor], input_values: collections.abc.Sequence[Tensor]) -> bool:
+    def evaluate(self, output_values: list, input_values: list, evaluationContext: RTMap = ...) -> bool:
         """
-                        Evaluate the function on inputs, putting results in outputs
-        
+                        Evaluate the node on inputs, putting results in outputs
+                        
                         :param output_tensors: Tensors for the outputs to compute. One for each result.
-                        :type output_tensors: list[openvino.Tensor]
+                        :type output_tensors: openvino.TensorVector
                         :param input_tensors: Tensors for the inputs. One for each inputs.
-                        :type input_tensors: list[openvino.Tensor]
+                        :type input_tensors: openvino.TensorVector
+                        :param evaluation_context: Storage of additional settings and attributes that can be used
+                        when evaluating the function. This additional information can be shared across nodes.
+                        :type evaluation_context: openvino.RTMap
                         :rtype: bool
         """
     def get_attributes(self) -> dict:
@@ -4212,6 +4294,8 @@ class RTMap:
         ...
     def __getitem__(self, arg0: str) -> typing.Any:
         ...
+    def __init__(self) -> None:
+        ...
     def __iter__(self) -> collections.abc.Iterator[str]:
         ...
     def __len__(self) -> int:
@@ -4841,6 +4925,84 @@ class Tensor:
         
                                         :rtype: openvino.Strides
         """
+class TensorVector:
+    def __bool__(self) -> bool:
+        """
+        Check whether the list is nonempty
+        """
+    @typing.overload
+    def __delitem__(self, arg0: typing.SupportsInt) -> None:
+        """
+        Delete the list elements at index ``i``
+        """
+    @typing.overload
+    def __delitem__(self, arg0: slice) -> None:
+        """
+        Delete list elements using a slice object
+        """
+    @typing.overload
+    def __getitem__(self, s: slice) -> TensorVector:
+        """
+        Retrieve list elements using a slice object
+        """
+    @typing.overload
+    def __getitem__(self, arg0: typing.SupportsInt) -> Tensor:
+        ...
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, arg0: TensorVector) -> None:
+        """
+        Copy constructor
+        """
+    @typing.overload
+    def __init__(self, arg0: collections.abc.Iterable) -> None:
+        ...
+    def __iter__(self) -> collections.abc.Iterator[Tensor]:
+        ...
+    def __len__(self) -> int:
+        ...
+    @typing.overload
+    def __setitem__(self, arg0: typing.SupportsInt, arg1: Tensor) -> None:
+        ...
+    @typing.overload
+    def __setitem__(self, arg0: slice, arg1: TensorVector) -> None:
+        """
+        Assign list elements using a slice object
+        """
+    def append(self, x: Tensor) -> None:
+        """
+        Add an item to the end of the list
+        """
+    def clear(self) -> None:
+        """
+        Clear the contents
+        """
+    @typing.overload
+    def extend(self, L: TensorVector) -> None:
+        """
+        Extend the list by appending all the items in the given list
+        """
+    @typing.overload
+    def extend(self, L: collections.abc.Iterable) -> None:
+        """
+        Extend the list by appending all the items in the given list
+        """
+    def insert(self, i: typing.SupportsInt, x: Tensor) -> None:
+        """
+        Insert an item at a given position.
+        """
+    @typing.overload
+    def pop(self) -> Tensor:
+        """
+        Remove and return the last item
+        """
+    @typing.overload
+    def pop(self, i: typing.SupportsInt) -> Tensor:
+        """
+        Remove and return the item at index ``i``
+        """
 class Type:
     """
     openvino.Type wraps ov::element::Type
@@ -4868,7 +5030,6 @@ class Type:
     u4: typing.ClassVar[Type]  # value = <Type: 'uint4_t'>
     u64: typing.ClassVar[Type]  # value = <Type: 'uint64_t'>
     u8: typing.ClassVar[Type]  # value = <Type: 'uint8_t'>
-    undefined: typing.ClassVar[Type]  # value = <Type: 'dynamic'>
     def __eq__(self, arg0: Type) -> bool:
         ...
     def __hash__(self) -> int:

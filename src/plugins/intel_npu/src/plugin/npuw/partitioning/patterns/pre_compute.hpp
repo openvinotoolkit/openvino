@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/pass/pattern/multi_matcher.hpp"
+
 namespace ov ::npuw ::patterns ::pre_compute {
 
 class RopePatternDesc {

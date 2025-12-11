@@ -56,7 +56,7 @@ std::shared_ptr<ov::Model> build_model() {
     auto transpose_o = std::make_shared<Transpose>(vlsdpa, Constant::create(element::i64, Shape{3}, {1,0,2}));
     transpose_o->set_friendly_name("transpose_o");
 
-    return std::make_shared<ov::Model>(NodeVector{transpose_o}, ParameterVector{q, k, v, cuseq_mask});
+    return std::make_shared<ov::Model>(OutputVector{transpose_o}, ParameterVector{q, k, v, cuseq_mask});
 }
 
 std::shared_ptr<ov::Model> build_target_model() {
@@ -77,7 +77,7 @@ std::shared_ptr<ov::Model> build_target_model() {
                                                                           v,
                                                                           cuseq_mask});
 
-    return std::make_shared<ov::Model>(NodeVector{vlsdpa}, ParameterVector{q, k, v, cuseq_mask});
+    return std::make_shared<ov::Model>(OutputVector{vlsdpa}, ParameterVector{q, k, v, cuseq_mask});
 }
 };   // namespace
 

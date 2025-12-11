@@ -20,7 +20,6 @@
 #include "snippets/pass/softmax_reshape_elimination.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/subgraph_manager.hpp"
-#include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/validate.hpp"
 
@@ -30,7 +29,7 @@ namespace ov::snippets::pass {
     if (enabled)                                            \
         manager.register_pass<pass>(__VA_ARGS__);
 
-CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& config) {
+CommonOptimizations::CommonOptimizations(const CommonOptimizations::Config& config) {
     MATCHER_SCOPE(CommonOptimizations);
     ov::graph_rewrite_callback callback = [&](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CommonOptimizations");
@@ -57,7 +56,10 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
         // At the moment only non-scalar Constants of FakeQuantize can be inside Subgraph
         // so we can enable ExtractConstants pass for quantized models
         REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::ExtractConstants, is_quantized);
-        REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::ExtractUnsupportedTransposes, is_domain_sensitive);
+        REGISTER_SNIPPETS_PASS(subgraph_manager,
+                               ov::snippets::pass::ExtractUnsupportedTransposes,
+                               is_domain_sensitive,
+                               config.get_transpose_support_callback());
         REGISTER_SNIPPETS_PASS(subgraph_manager,
                                ov::snippets::pass::SplitDimensionM,
                                is_domain_sensitive && config.get_split_m_dimension(),

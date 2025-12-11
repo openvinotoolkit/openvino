@@ -48,12 +48,12 @@ ov_add_test_target(
             dnnl
             gmock
             openvino_runtime_s
+            openvino_xml_util
             unit_test_utils
             ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
             ${SHL_LIBRARY}
-        ADD_CPPLINT
         LABELS
             OV UNIT CPU
 )

@@ -18,29 +18,6 @@ using namespace ov::snippets::lowered;
 using namespace ov::snippets::lowered::pass;
 using PortType = LoopPort::Type;
 
-namespace {
-InnerSplittedUnifiedLoopInfoPtr make_inner_split_loop_info(size_t work_amount,
-                                                           size_t increment,
-                                                           const std::vector<LoopPort>& entries,
-                                                           const std::vector<LoopPort>& exits,
-                                                           const UnifiedLoopInfoPtr& outer_split_loop_info) {
-    outer_split_loop_info
-        ->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, SplitLoops::TransformInnerSplitLoop>();
-    outer_split_loop_info
-        ->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SplitLoops::TransformInnerSplitLoop>();
-    // Note: this temporary loop is needed to easily create InnerSplittedUnifiedLoopInfo:
-    // we extract all automatically calculated parameters from it such as LoopPortDesc and SpecificIterationHandlers
-    const auto tmp_unified_loop = std::make_shared<UnifiedLoopInfo>(work_amount, increment, entries, exits, false);
-    return std::make_shared<InnerSplittedUnifiedLoopInfo>(tmp_unified_loop->get_increment(),
-                                                          tmp_unified_loop->get_input_ports(),
-                                                          tmp_unified_loop->get_output_ports(),
-                                                          tmp_unified_loop->get_input_port_descs(),
-                                                          tmp_unified_loop->get_output_port_descs(),
-                                                          tmp_unified_loop->get_handlers(),
-                                                          outer_split_loop_info);
-}
-}  // namespace
-
 class SplitLoopsTest : public LoweredPassTestsF {
 public:
     SplitLoopsTest() : LoweredPassTestsF() {
@@ -140,14 +117,24 @@ TEST_F(SplitLoopsTest, BrgemmAdd) {
         auto result = linear_ir_ref->push_node<ov::op::v0::Result>(add.second);
 
         const auto& loop_manager = linear_ir_ref->get_loop_manager();
-        const auto brgemm_n_loop = std::make_shared<UnifiedLoopInfo>(
+        const auto blocking_n_loop = std::make_shared<UnifiedLoopInfo>(
             n,
             n_block,
             std::vector<LoopPort>{LoopPort::create<PortType::NotProcessed>((*brgemm.first)->get_input_port(0)),
-                                  LoopPort::create<PortType::Incremented>((*brgemm.first)->get_input_port(1), 0)},
-            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*brgemm.first)->get_output_port(0), 0)},
+                                  LoopPort::create<PortType::Incremented>((*brgemm.first)->get_input_port(1), 0),
+                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)},
             false);
-        const auto blocking_n_loop_id = loop_manager->add_loop_info(brgemm_n_loop);
+        const auto blocking_n_loop_id = loop_manager->add_loop_info(blocking_n_loop);
+
+        const auto add_n_split_loop = make_inner_split_loop_info(
+            n,
+            vector_size,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 0),
+                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)},
+            blocking_n_loop);
+        const auto add_n_split_loop_id = loop_manager->add_loop_info(add_n_split_loop);
 
         const auto blocking_m_loop = std::make_shared<UnifiedLoopInfo>(
             m,
@@ -159,15 +146,6 @@ TEST_F(SplitLoopsTest, BrgemmAdd) {
             false);
         const auto blocking_m_loop_id = loop_manager->add_loop_info(blocking_m_loop);
 
-        const auto inner_add_loop = std::make_shared<UnifiedLoopInfo>(
-            n,
-            vector_size,
-            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 0),
-                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
-            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)},
-            false);
-        const auto inner_add_loop_id = loop_manager->add_loop_info(inner_add_loop);
-
         const auto add_m_split_loop = make_inner_split_loop_info(
             m,
             1,
@@ -178,12 +156,12 @@ TEST_F(SplitLoopsTest, BrgemmAdd) {
         const auto add_m_split_loop_id = loop_manager->add_loop_info(add_m_split_loop);
 
         const std::map<ExpressionPtr, std::vector<size_t>> expr_to_loop_ids = {
-            {*add.first, {blocking_m_loop_id, add_m_split_loop_id, inner_add_loop_id}},
+            {*add.first, {blocking_m_loop_id, blocking_n_loop_id, add_m_split_loop_id, add_n_split_loop_id}},
             {*brgemm.first, {blocking_m_loop_id, blocking_n_loop_id}}};
-        const std::map<size_t, size_t> loop_ids_mapper = {{inner_add_loop_id, 0},
-                                                          {blocking_n_loop_id, 2},
+        const std::map<size_t, size_t> loop_ids_mapper = {{blocking_n_loop_id, 2},
                                                           {blocking_m_loop_id, 3},
-                                                          {add_m_split_loop_id, 5}};
+                                                          {add_n_split_loop_id, 5},
+                                                          {add_m_split_loop_id, 7}};
         assign_loop_ids(expr_to_loop_ids, loop_ids_mapper);
     }
 }
@@ -430,14 +408,24 @@ TEST_F(SplitLoopsTest, BrgemmAddBrgemm) {
         const auto& loop_manager = linear_ir_ref->get_loop_manager();
 
         // Brgemm1 n-blocking loop
-        const auto brgemm1_n_loop = std::make_shared<UnifiedLoopInfo>(
+        const auto blocking_n_loop = std::make_shared<UnifiedLoopInfo>(
             n,
             n_block,
             std::vector<LoopPort>{LoopPort::create<PortType::NotProcessed>((*brgemm1.first)->get_input_port(0)),
-                                  LoopPort::create<PortType::Incremented>((*brgemm1.first)->get_input_port(1), 0)},
-            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*brgemm1.first)->get_output_port(0), 0)},
+                                  LoopPort::create<PortType::Incremented>((*brgemm1.first)->get_input_port(1), 0),
+                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)},
             false);
-        const auto brgemm1_blocking_n_loop_id = loop_manager->add_loop_info(brgemm1_n_loop);
+        const auto blocking_n_loop_id = loop_manager->add_loop_info(blocking_n_loop);
+
+        const auto add_n_split_loop = make_inner_split_loop_info(
+            n,
+            vector_size,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 0),
+                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)},
+            blocking_n_loop);
+        const auto add_n_split_loop_id = loop_manager->add_loop_info(add_n_split_loop);
 
         // Brgemm2 n2-blocking loop
         const auto brgemm2_n2_loop = std::make_shared<UnifiedLoopInfo>(
@@ -461,15 +449,6 @@ TEST_F(SplitLoopsTest, BrgemmAddBrgemm) {
             false);
         const auto blocking_m_loop_id = loop_manager->add_loop_info(blocking_m_loop);
 
-        const auto inner_add_loop = std::make_shared<UnifiedLoopInfo>(
-            n,
-            vector_size,
-            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 0),
-                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
-            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)},
-            false);
-        const auto inner_add_loop_id = loop_manager->add_loop_info(inner_add_loop);
-
         const auto add_m_split_loop = make_inner_split_loop_info(
             m,
             1,
@@ -480,14 +459,14 @@ TEST_F(SplitLoopsTest, BrgemmAddBrgemm) {
         const auto add_m_split_loop_id = loop_manager->add_loop_info(add_m_split_loop);
 
         const std::map<ExpressionPtr, std::vector<size_t>> expr_to_loop_ids = {
-            {*brgemm1.first, {blocking_m_loop_id, brgemm1_blocking_n_loop_id}},
-            {*add.first, {blocking_m_loop_id, add_m_split_loop_id, inner_add_loop_id}},
+            {*brgemm1.first, {blocking_m_loop_id, blocking_n_loop_id}},
+            {*add.first, {blocking_m_loop_id, blocking_n_loop_id, add_m_split_loop_id, add_n_split_loop_id}},
             {*brgemm2.first, {blocking_m_loop_id, brgemm2_blocking_n2_loop_id}}};
-        const std::map<size_t, size_t> loop_ids_mapper = {{brgemm1_blocking_n_loop_id, 2},
-                                                          {brgemm2_blocking_n2_loop_id, 4},
+        const std::map<size_t, size_t> loop_ids_mapper = {{blocking_n_loop_id, 2},
                                                           {blocking_m_loop_id, 3},
-                                                          {inner_add_loop_id, 0},
-                                                          {add_m_split_loop_id, 7}};
+                                                          {brgemm2_blocking_n2_loop_id, 4},
+                                                          {add_n_split_loop_id, 7},
+                                                          {add_m_split_loop_id, 9}};
         assign_loop_ids(expr_to_loop_ids, loop_ids_mapper);
     }
 }

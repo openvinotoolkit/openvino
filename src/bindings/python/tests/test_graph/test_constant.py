@@ -318,9 +318,11 @@ OPSETS = [ov.opset12, ov.opset13]
     ],
 )
 def test_float_to_f8e5m2_constant(ov_type, numpy_dtype, opset):
-    data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-                     0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
-                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344], dtype=numpy_dtype)
+    data = np.array([
+        4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
+        0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
+        -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344
+    ], dtype=numpy_dtype)
 
     compressed_const = opset.constant(data, dtype=ov.Type.f8e5m2, name="f8e5m2_constant")
     convert = opset.convert(compressed_const, data.dtype)
@@ -475,9 +477,11 @@ def test_float_to_f8e8m0_constant(ov_type, numpy_dtype, opset):
     ],
 )
 def test_float_to_f8e5m2_convert(ov_type, numpy_dtype, opset):
-    data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-                     0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
-                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344], dtype=numpy_dtype)
+    data = np.array([
+        4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
+        0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
+        -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344
+    ], dtype=numpy_dtype)
 
     compressed_const = opset.constant(data, dtype=ov_type, name="fx_constant")
     convert_to_fp8 = opset.convert(compressed_const, Type.f8e5m2)

@@ -14,7 +14,7 @@ import typing
 """
 Factory functions for ops added to openvino opset14.
 """
-__all__ = ['Node', 'NodeInput', 'TensorShape', 'Type', 'as_node', 'as_nodes', 'avg_pool', 'convert_promote_types', 'inverse', 'max_pool', 'nameable_op', 'partial']
+__all__: list[str] = ['Node', 'NodeInput', 'TensorShape', 'Type', 'as_node', 'as_nodes', 'avg_pool', 'convert_promote_types', 'inverse', 'max_pool', 'nameable_op', 'partial']
 def avg_pool(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return average pooling node.
@@ -40,9 +40,12 @@ def convert_promote_types(*args, **kwargs) -> openvino._pyopenvino.Node:
     
         :param left_node: input node with type to be promoted to common one.
         :param right_node: input node with type to be promoted to common one.
-        :param promote_unsafe: Bool attribute whether to allow promotions that might result in bit-widening, precision loss and undefined behaviors.
-        :param pytorch_scalar_promotion: Bool attribute whether to promote scalar input to type provided by non-scalar input when number format is matching.
-        :param u64_integer_promotion_target: Element type attribute to select promotion result when inputs are u64 and signed integer.
+        :param promote_unsafe: Bool attribute whether to allow promotions that might result
+                               in bit-widening, precision loss and undefined behaviors.
+        :param pytorch_scalar_promotion: Bool attribute whether to promote scalar input to type
+                                         provided by non-scalar input when number format is matching.
+        :param u64_integer_promotion_target: Element type attribute to select promotion result
+                                             when inputs are u64 and signed integer.
         :param name: Optional name for the new output node.
     
         :return: The new node performing ConvertPromoteTypes operation.

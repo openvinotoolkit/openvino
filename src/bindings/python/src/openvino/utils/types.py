@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-  # noqa: A005
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -145,7 +145,9 @@ def get_shape(data: NumericData) -> TensorShape:
     return []
 
 
-def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = None, *, name: Optional[str] = None) -> Constant:
+def make_constant_node(
+    value: NumericData, dtype: Union[NumericType, Type] = None, *, name: Optional[str] = None
+) -> Constant:
     """Return an openvino Constant node with the specified value."""
     ndarray = get_ndarray(value)
     if dtype is not None:

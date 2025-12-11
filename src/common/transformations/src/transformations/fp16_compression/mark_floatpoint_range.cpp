@@ -16,7 +16,6 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
 void ov::pass::mark_range_path(const std::shared_ptr<Node>& node) {
@@ -35,7 +34,6 @@ void ov::pass::erase_range_path(const std::shared_ptr<Node>& node) {
 ov::pass::MarkFloatingPointRange::MarkFloatingPointRange() {
     MATCHER_SCOPE(MarkFloatingPointRange);
     using namespace ov::pass::pattern;
-    using namespace ov::gen_pattern;
     // through these nodes
     const auto range_propagating_nodes = pattern::wrap_type<ov::op::v0::Convert,
                                                             ov::op::v1::Greater,
@@ -52,21 +50,28 @@ ov::pass::MarkFloatingPointRange::MarkFloatingPointRange() {
         if (!node)
             return false;
 
+        bool is_changed = false;
+
         auto range = ov::as_type_ptr<ov::op::v4::Range>(node);
         if (range && range->get_output_type().is_real()) {
             mark_range_path(node);
             ov::disable_fp16_compression(node);
-            return true;
-        }
 
-        bool is_changed = false;
+            // mark inputs as well
+            for (const auto& range_input : range->input_values()) {
+                ov::disable_fp16_compression(range_input.get_node_shared_ptr());
+            }
+            is_changed = true;
+        } else {
+            for (const auto& in_node_output : node->input_values()) {
+                auto input_node = in_node_output.get_node_shared_ptr();
 
-        for (const auto& in_node_output : node->input_values()) {
-            auto input_node = in_node_output.get_node_shared_ptr();
-            if (is_range_path(input_node)) {
-                mark_range_path(node);
-                ov::disable_fp16_compression(node);
-                is_changed = true;
+                if (is_range_path(input_node)) {
+                    mark_range_path(node);
+                    ov::disable_fp16_compression(node);
+                    is_changed = true;
+                    break;
+                }
             }
         }
 

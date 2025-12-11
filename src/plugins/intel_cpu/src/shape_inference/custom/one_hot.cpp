@@ -16,7 +16,7 @@
 #include "cpu_types.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/op/one_hot.hpp"
+#include "openvino/op/util/one_hot_base.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
 
@@ -42,7 +42,7 @@ Result OneHotShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
 }
 
 ShapeInferPtr OneHotShapeInferFactory::makeShapeInfer() const {
-    auto oneHot = ov::as_type_ptr<const ov::op::v1::OneHot>(m_op);
+    auto oneHot = ov::as_type_ptr<const ov::op::util::OneHotBase>(m_op);
     OPENVINO_ASSERT(oneHot, "Unexpected op type in OneHot shape inference factory: ", m_op->get_type_name());
     auto axis = oneHot->get_axis();
     auto dstShape = oneHot->get_output_partial_shape(0);

@@ -197,6 +197,60 @@ describe("ov.Tensor tests", () => {
     });
   });
 
+  describe("Tensor setShape", () => {
+    it("reshapes tensor when element count stays the same for all types", () => {
+      params.forEach(([type, , data]) => {
+        if (type === ov.element.string) return;
+
+        const initialShape = [2, 4];
+        const totalElements = 8;
+        const slicedData = data.slice(0, totalElements);
+        const tensor = new ov.Tensor(type, initialShape, slicedData);
+
+        tensor.setShape([totalElements]);
+        assert.deepStrictEqual(tensor.getShape(), [totalElements]);
+
+        tensor.setShape([4, 2]);
+        assert.deepStrictEqual(tensor.getShape(), [4, 2]);
+      });
+    });
+
+    it("throws if the new shape changes the element count for all types", () => {
+      params.forEach(([type, , data]) => {
+        if (type === ov.element.string) return;
+
+        const initialShape = [2, 4];
+        const totalElements = 8;
+        const slicedData = data.slice(0, totalElements);
+        const tensor = new ov.Tensor(type, initialShape, slicedData);
+
+        assert.throws(() => tensor.setShape([totalElements + 1]), {
+          name: "Error",
+          message: /Could set new shape/i,
+        });
+      });
+    });
+
+    it("throws if no arguments are provided", () => {
+      const tensor = new ov.Tensor(ov.element.f32, [1]);
+      assert.throws(() => tensor.setShape(), {
+        message: /Wrong number of parameters/i,
+      });
+    });
+
+    it("throws for invalid shape contents", () => {
+      const tensor = new ov.Tensor(ov.element.f32, [1, 6]);
+
+      assert.throws(() => tensor.setShape("not an array"), {
+        message: /must be of type Array or TypedArray/i,
+      });
+
+      assert.throws(() => tensor.setShape([2, -3]), {
+        message: /Cannot allocate memory/i,
+      });
+    });
+  });
+
   describe("Tensor element type", () => {
     it("comparisons of ov.element to string", () => {
       params.forEach(([elemType, val]) => {
@@ -264,6 +318,40 @@ describe("ov.Tensor tests", () => {
       assert.throws(() => tensor.isContinuous(1), {
         message: "isContinuous() does not accept any arguments.",
       });
+    });
+  });
+
+  describe("Native tensor interoperability and memory safety", () => {
+    test("__getExternalTensor and tensor creation from external pointer", () => {
+      // Test basic external pointer functionality
+      const originalData = Float32Array.from([1, 2, 3, 4, 5, 6]);
+      const originalTensor = new ov.Tensor(ov.element.f32, [2, 3], originalData);
+
+      const nativePtr = originalTensor.__getExternalTensor();
+      assert.strictEqual(typeof nativePtr, "object");
+      assert(nativePtr !== null, "Native tensor pointer should not be null");
+
+      // Create new tensor from external pointer
+      const newTensor = new ov.Tensor(nativePtr);
+      assert.deepStrictEqual(newTensor.getShape(), [2, 3]);
+      assert.strictEqual(newTensor.getElementType(), "f32");
+      assert.deepStrictEqual(newTensor.data, originalData);
+    });
+
+    test("Multiple tensors from same external pointer", () => {
+      const testData = Int32Array.from([100, 200, 300, 400]);
+      const baseTensor = new ov.Tensor(ov.element.i32, [2, 2], testData);
+      const nativePtr = baseTensor.__getExternalTensor();
+
+      // Create multiple tensors from same external pointer
+      const tensor1 = new ov.Tensor(nativePtr);
+      const tensor2 = new ov.Tensor(nativePtr);
+
+      testData[0] = 999; // Modify original data to see if reflected
+
+      // All should have consistent data and properties
+      assert.deepStrictEqual(tensor1.data, testData);
+      assert.deepStrictEqual(tensor2.data, testData);
     });
   });
 });
