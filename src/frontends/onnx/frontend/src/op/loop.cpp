@@ -368,8 +368,8 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
 
     // Set-up scan outputs
     auto node_outputs = std::move(final_values);
-    for (const auto& output : std::vector(body_outputs_it, body_outputs.end())) {
-        node_outputs.push_back(loop->get_concatenated_slices(output, 0, 1, 1, -1, concat_axis));
+    for (; body_outputs_it != body_outputs.end(); ++body_outputs_it) {
+        node_outputs.push_back(loop->get_concatenated_slices(*body_outputs_it, 0, 1, 1, -1, concat_axis));
     }
     // Run shape inference for body
     loop->validate_and_infer_types();
