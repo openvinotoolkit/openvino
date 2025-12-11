@@ -151,20 +151,19 @@ std::shared_ptr<ov::Node> onnx_reduce_sum_square(const ov::frontend::onnx::Node&
     const auto square_node = std::make_shared<v1::Multiply>(input, input);
     return make_ov_reduction_op<v1::ReduceSum>(node, square_node, supported_types, axes_as_attr);
 }
-}  // namespace
 
-namespace opset_1 {
-ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
+ov::OutputVector onnx_reduce_log_sum_exp_impl(const ov::frontend::onnx::Node& node, bool axes_as_attr = true) {
     auto input = node.get_ov_inputs().at(0);
     auto keepdims = static_cast<bool>(node.get_attribute_value<std::int64_t>("keepdims", 1));
 
-    auto reduction_axes =
-        (node.get_ov_inputs().size() > 1) ? get_reduction_axes_from_input(node) : get_reduction_axes_from_attr(node);
+    auto reduction_axes = axes_as_attr ? get_reduction_axes_from_attr(node) : get_reduction_axes_from_input(node);
 
     if (reduction_axes == nullptr) {
         return {std::make_shared<ov::op::v16::Identity>(input)};
     }
 
+    // Numerically stable implementation: k + log(sum(exp(x - k))) where k = max(x)
+    // This avoids overflow by ensuring exp(x - k) <= 1 for all x
     auto k = std::make_shared<ov::op::v1::ReduceMax>(input, reduction_axes, true);
     auto input_minus_k = std::make_shared<ov::op::v1::Subtract>(input, k);
     auto exp_node = std::make_shared<ov::op::v0::Exp>(input_minus_k);
@@ -177,6 +176,28 @@ ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
 
     auto out = std::make_shared<ov::op::v1::Add>(k, log_node);
     return {out};
+}
+}  // namespace
+
+namespace opset_1 {
+ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
+    auto input = node.get_ov_inputs().at(0);
+    auto keepdims = static_cast<bool>(node.get_attribute_value<std::int64_t>("keepdims", 1));
+
+    auto reduction_axes =
+        (node.get_ov_inputs().size() > 1) ? get_reduction_axes_from_input(node) : get_reduction_axes_from_attr(node);
+
+    if (reduction_axes == nullptr) {
+        return {std::make_shared<ov::op::v16::Identity>(input)};
+    }
+
+    auto sum_node = std::make_shared<ov::op::v1::ReduceSum>(input, reduction_axes, keepdims);
+    auto log_node = std::make_shared<ov::op::v0::Log>(sum_node);
+    return {log_node};
+}
+
+ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
+    return onnx_reduce_log_sum_exp_impl(node, true);
 }
 
 ov::OutputVector reduce_l1(const ov::frontend::onnx::Node& node) {
@@ -248,7 +269,7 @@ ov::OutputVector reduce_l2(const Node& node) {
     return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2)};
 }
 
-ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
+ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
     auto input = node.get_ov_inputs().at(0);
     auto keepdims = static_cast<bool>(node.get_attribute_value<std::int64_t>("keepdims", 1));
 
@@ -258,18 +279,13 @@ ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<ov::op::v16::Identity>(input)};
     }
 
-    auto k = std::make_shared<ov::op::v1::ReduceMax>(input, reduction_axes, true);
-    auto input_minus_k = std::make_shared<ov::op::v1::Subtract>(input, k);
-    auto exp_node = std::make_shared<ov::op::v0::Exp>(input_minus_k);
-    auto sum_node = std::make_shared<ov::op::v1::ReduceSum>(exp_node, reduction_axes, keepdims);
+    auto sum_node = std::make_shared<ov::op::v1::ReduceSum>(input, reduction_axes, keepdims);
     auto log_node = std::make_shared<ov::op::v0::Log>(sum_node);
+    return {log_node};
+}
 
-    if (!keepdims) {
-        k = std::make_shared<ov::op::v0::Squeeze>(k, reduction_axes);
-    }
-
-    auto out = std::make_shared<ov::op::v1::Add>(k, log_node);
-    return {out};
+ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
+    return onnx_reduce_log_sum_exp_impl(node, false);
 }
 
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
@@ -295,6 +311,7 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
 static bool register_multiple_translators(void) {
     ONNX_OP_M("ReduceL1", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_l1);
     ONNX_OP_M("ReduceL2", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_l2);
+    ONNX_OP_M("ReduceLogSum", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_log_sum);
     ONNX_OP_M("ReduceLogSumExp", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_log_sum_exp);
     ONNX_OP_M("ReduceMax", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_max);
     ONNX_OP_M("ReduceMean", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_mean);
@@ -329,7 +346,7 @@ ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMin>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
 }
 
-ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
+ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
     auto input = node.get_ov_inputs().at(0);
     auto keepdims = static_cast<bool>(node.get_attribute_value<std::int64_t>("keepdims", 1));
 
@@ -339,18 +356,13 @@ ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<ov::op::v16::Identity>(input)};
     }
 
-    auto k = std::make_shared<ov::op::v1::ReduceMax>(input, reduction_axes, true);
-    auto input_minus_k = std::make_shared<ov::op::v1::Subtract>(input, k);
-    auto exp_node = std::make_shared<ov::op::v0::Exp>(input_minus_k);
-    auto sum_node = std::make_shared<ov::op::v1::ReduceSum>(exp_node, reduction_axes, keepdims);
+    auto sum_node = std::make_shared<ov::op::v1::ReduceSum>(input, reduction_axes, keepdims);
     auto log_node = std::make_shared<ov::op::v0::Log>(sum_node);
+    return {log_node};
+}
 
-    if (!keepdims) {
-        k = std::make_shared<ov::op::v0::Squeeze>(k, reduction_axes);
-    }
-
-    auto out = std::make_shared<ov::op::v1::Add>(k, log_node);
-    return {out};
+ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
+    return onnx_reduce_log_sum_exp_impl(node, false);
 }
 
 ov::OutputVector reduce_prod(const ov::frontend::onnx::Node& node) {
