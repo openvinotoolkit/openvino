@@ -208,6 +208,8 @@ public:
 
     void enumerate_expressions() const;
 
+    void sort_results();
+
     /* ------ Helpers for work with LinearIR ----- */
     /**
      * @brief Creates new Expression from `new_node` with inputs `inputs`,
