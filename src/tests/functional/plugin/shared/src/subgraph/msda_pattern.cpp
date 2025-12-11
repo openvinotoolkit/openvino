@@ -223,8 +223,9 @@ std::shared_ptr<ov::Model> build_model_msda(ov::PartialShape value_shape,
     grid_sample_1->set_friendly_name("grid_sample_1");
     attn_Transpose_1->set_friendly_name("attn_output_proj_MatMul_transpose_a_1");
 
-    return std::make_shared<ov::Model>(NodeVector{attn_Transpose_1},
-                                       ParameterVector{input_attn_value, input_attn_offsets, input_attn_weight});
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attn_Transpose_1)},
+                                       ParameterVector{input_attn_value, input_attn_offsets, input_attn_weight},
+                                    "MSDA_Pattern_Model");
 }
 
 void MSDAPattern::SetUp() {
