@@ -338,7 +338,7 @@ public:
 
     // version 1.0
     ze_result_t ZE_APICALL pfnGetExtension(ze_driver_handle_t hDriver, ze_driver_extension_npu_ext_t* pExtension) {
-        throwWhenUnsupported("pfnGetExtension", ZE_DRIVER_NPU_EXT_VERSION_1_0);
+        throwWhenUnsupported("pfnSetWorkloadType", ZE_DRIVER_NPU_EXT_VERSION_1_0);
         return _impl->pfnGetExtension(hDriver, pExtension);
     }
 };

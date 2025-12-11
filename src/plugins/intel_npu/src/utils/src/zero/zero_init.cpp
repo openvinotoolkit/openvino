@@ -67,6 +67,7 @@ void ZeroInitStructsHolder::initNpuDriver() {
         _log.debug("ZeroInitStructsHolder::initNpuDriver - get NPU driver");
         for (uint32_t i = 0; i < drivers_count; ++i) {
             zeDriverGetProperties(all_drivers[i], &_driver_properties);
+            
             if (memcmp(&_driver_properties.uuid, &uuid, sizeof(uuid)) == 0) {
                 _driver_handle = all_drivers[i];
                 break;
@@ -124,9 +125,9 @@ void ZeroInitStructsHolder::initNpuDriver() {
     }
 
     _log.debug("ZeroInitStructsHolder::initNpuDriver - ze_loader.dll version: %d.%d.%d",
-               loader_version.major,
-               loader_version.minor,
-               loader_version.patch);
+              loader_version.major,
+              loader_version.minor,
+              loader_version.patch);
 
     if (loader_version.major > 1 || (loader_version.major == 1 && loader_version.minor > 18) ||
         (loader_version.major == 1 && loader_version.minor == 18 && loader_version.patch >= 5)) {
@@ -135,6 +136,7 @@ void ZeroInitStructsHolder::initNpuDriver() {
         ze_init_driver_type_desc_t desc = {};
         desc.stype = ZE_STRUCTURE_TYPE_INIT_DRIVER_TYPE_DESC;
         desc.flags = ZE_INIT_DRIVER_TYPE_FLAG_NPU;
+        desc.pNext = &driver_npu_properties;
         auto result = zeInitDrivers(&drivers_count, nullptr, &desc);
         if (result != ZE_RESULT_SUCCESS) {
             fallbackToZeDriverGet();
@@ -195,7 +197,31 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
         _driver_extension_properties.emplace(std::string(p.name), p.version);
     }
 
-    // Query our graph extension version
+    // Query npu driver extension version
+    std::string driver_ext_name;
+    uint32_t driver_ext_version = 0;
+    std::tie(driver_ext_version, driver_ext_name) =
+        queryDriverExtensionVersion(ZE_DRIVER_NPU_EXT_NAME, ZE_DRIVER_NPU_EXT_VERSION_1_0, extProps, count);
+
+    _log.debug("NPU driver ext version %d.%d",
+               ZE_MAJOR_VERSION(driver_ext_version),
+               ZE_MINOR_VERSION(driver_ext_version));
+
+    _ze_driver_npu_dditable_ext_t* driver_npu_dditable_ext = nullptr;
+    if (driver_ext_version) {
+        THROW_ON_FAIL_FOR_LEVELZERO(
+            "zeDriverGetExtensionFunctionAddress " + driver_ext_name,
+            zeDriverGetExtensionFunctionAddress(_driver_handle,
+                                                driver_ext_name.c_str(),
+                                                reinterpret_cast<void**>(&driver_npu_dditable_ext)));
+
+        ze_driver_properties_npu_ext_t driver_npu_properties = {};
+    }
+
+    _driver_npu_dditable_ext_decorator =
+        std::make_unique<ze_driver_npu_dditable_ext_decorator>(driver_npu_dditable_ext, driver_ext_version);
+
+    // Query npu graph extension version
     std::string graph_ext_name;
     uint32_t graph_ext_version = 0;
     uint32_t target_graph_ext_version = ZE_GRAPH_EXT_VERSION_1_15;
@@ -249,6 +275,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     // Load npu graph extension
     ze_graph_dditable_ext_t* graph_ddi_table_ext = nullptr;
     getExtensionFunctionAddress(graph_ext_name, graph_ext_version, reinterpret_cast<void**>(&graph_ddi_table_ext));
+
     _graph_dditable_ext_decorator =
         std::make_unique<ze_graph_dditable_ext_decorator>(graph_ddi_table_ext, graph_ext_version);
 
@@ -257,7 +284,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     uint32_t command_queue_ext_version = 0;
     std::tie(command_queue_ext_version, command_queue_ext_name) =
         queryDriverExtensionVersion(ZE_COMMAND_QUEUE_NPU_EXT_NAME,
-                                    TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION,
+                                    ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_1,
                                     extProps,
                                     count);
 
@@ -285,7 +312,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
         [[maybe_unused]] std::string mutuable_command_list_ext_name;
         std::tie(_mutable_command_list_ext_version, mutuable_command_list_ext_name) =
             queryDriverExtensionVersion(ZE_MUTABLE_COMMAND_LIST_EXP_NAME,
-                                        TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION,
+                                        ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1,
                                         extProps,
                                         count);
 #ifdef _WIN32
@@ -300,7 +327,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     std::string profiling_ext_name;
     uint32_t profiling_ext_version = 0;
     std::tie(profiling_ext_version, profiling_ext_name) =
-        queryDriverExtensionVersion(ZE_PROFILING_DATA_EXT_NAME, TARGET_ZE_PROFILING_NPU_EXT_VERSION, extProps, count);
+        queryDriverExtensionVersion(ZE_PROFILING_DATA_EXT_NAME, ZE_PROFILING_DATA_EXT_VERSION_1_0, extProps, count);
 
     // Load npu profiling extension
     ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;
