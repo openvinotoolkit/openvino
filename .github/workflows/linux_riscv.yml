@@ -188,6 +188,7 @@ jobs:
           conan install ${OPENVINO_REPO}/conanfile.txt \
             -pr:h ${CONAN_LINUX_RISCV64_PROFILE} \
             -s:h arch=riscv64 \
+            -s:h compiler.cppstd=20 \
             -s:h build_type=${CMAKE_BUILD_TYPE} \
             -o:h onetbb/*:tbbbind=False \
             -of ${OPENVINO_BUILD_DIR}/dependencies \
