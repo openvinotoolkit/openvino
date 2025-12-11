@@ -273,7 +273,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Conv_1D_GEMM_FP32\/ConvolutionLayerCPUTest.CompareWithRefs\/IS=\[\]_TS=\(\(2.12.7\)_\)_K\(3\)_S\(2\)_PB\(1\)_PE\(0\)_D=\(1\)_O=6_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=ncw_outFmts=ncw_primitive=jit_gemm_Fused=Relu.*)",
 
         // Disabled due to dependency on tests execution order, issue: 178036
-#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+#if !defined(__MACOSX) && (defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM))
         R"(.*smoke_ScaledAttn_CPU\/ScaledAttnLayerCPUTest.CompareWithRefs\/netPRC=f32_IS=\[\?.8.\?.64]_\[\?.8.\?.64]_\[\?.1.\?.\?\]_TS=\(1.8.100.64\)_\(1.8.1.64\)_\(2.8.10.64\)_\(2.8.10.64\)_\(1.8.100.64\)_\(1.8.1.64\)_\(2.8.10.64\)_\(2.8.10.64\)_\(1.1.1.100\)_\(1.1.1.1\)_\(2.1.1.10\)_\(2.1.10.10\)_is_causal=0_has_attn=0_has_scale=0_trgDev=CPU_primitive=ref_any.*)",
 #endif
     };
