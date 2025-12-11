@@ -962,17 +962,19 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
 
     CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
-    CPU_SET_CALLBACK_X64(
+    CPU_SET_CALLBACK_COMMON(
         lptManager,
         [](const_node_ptr& node) -> bool {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+            // Run the transformation for non-convolution bias only on ARM
+            // Convolution bias is handled in ConvertConvolutionBias transformation
+            auto node_input = node->get_input_node_shared_ptr(0);
+            return ov::marked_as_bias(node) &&
+                   ov::is_type<ov::op::v1::Multiply>(node_input) &&
+                   !ov::is_type<ov::op::v1::Convolution>(node_input->get_input_node_shared_ptr(0));
+#else
             return ov::marked_as_bias(node);
-        },
-        AddTransformation);
-    CPU_SET_CALLBACK_ARM(
-        lptManager,
-        [](const_node_ptr& node) -> bool {
-            // Run the transformation for non-convolution bias only
-            return ov::marked_as_bias(node) && !ov::is_type<ov::op::v1::Convolution>(node->get_input_node_shared_ptr(0));
+#endif
         },
         AddTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
