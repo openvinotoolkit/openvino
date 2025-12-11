@@ -17,7 +17,7 @@ private:
     using parent = typed_program_node_base<paged_attention>;
 
 public:
-    using parent::parent;
+    typed_program_node(const std::shared_ptr<paged_attention> prim, program& prog);
 
     std::set<size_t> get_lockable_input_ids() const override {
         std::set<size_t> input_ports = { PagedAttentionInputIdx::PAST_LENS,
