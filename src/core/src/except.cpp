@@ -54,3 +54,11 @@ void ov::NotImplemented::create(const char* file, int line, const std::string& e
 ov::NotImplemented::~NotImplemented() = default;
 
 const std::string ov::NotImplemented::default_msg{"Not Implemented"};
+
+namespace ov {
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+std::string stringify(const std::filesystem::path& arg) {
+    return std::string("\"") + ov::util::path_to_string(arg) + '"';
+}
+#endif
+}  // namespace ov
