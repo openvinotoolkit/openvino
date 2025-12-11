@@ -75,7 +75,6 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/fq_decomposition.hpp"

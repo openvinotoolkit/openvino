@@ -42,7 +42,6 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/reference/autobroadcast_binop.hpp"
 #include "openvino/reference/broadcast.hpp"
-#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/utils/utils.hpp"

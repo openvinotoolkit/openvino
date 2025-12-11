@@ -26,7 +26,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 

@@ -26,7 +26,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"

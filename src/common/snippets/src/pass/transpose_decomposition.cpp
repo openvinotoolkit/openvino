@@ -18,7 +18,6 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/load.hpp"

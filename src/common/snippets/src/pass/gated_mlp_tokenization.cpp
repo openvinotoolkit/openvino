@@ -27,7 +27,6 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/predicate.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"

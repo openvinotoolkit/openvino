@@ -11,7 +11,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/pass/tokenization_config.hpp"
 #include "snippets/utils/tokenization_utils.hpp"

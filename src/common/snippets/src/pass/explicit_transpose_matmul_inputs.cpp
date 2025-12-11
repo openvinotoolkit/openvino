@@ -26,7 +26,6 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 
 bool ov::snippets::pass::ExplicitTransposeMatMulInputs::are_weights_scalar(const std::shared_ptr<ov::Node>& node) {
