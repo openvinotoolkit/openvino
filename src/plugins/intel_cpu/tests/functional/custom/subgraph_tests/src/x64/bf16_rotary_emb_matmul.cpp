@@ -12,7 +12,7 @@
 
 namespace ov::test {
 
-// Here we test BF16 path for the LLM rotarry embedding matmul operation which has one of the inputs converted from
+// Here we test BF16 path for the LLM rotary embedding matmul operation which has one of the inputs converted from
 // int64 to bf16. In the CPU plugin we have a special pattern matcher that prevents bf16 markup in this particular case.
 
 //    ┌──────────────┐          ┌──────────────┐

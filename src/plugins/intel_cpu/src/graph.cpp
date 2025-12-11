@@ -2109,7 +2109,7 @@ void Graph::EnforceInferencePrecision() const {
             }
 
             // Pattern 2: Gather with an integer type on data input is usually encountered in token embeddings (when
-            // compressed). It's better to preserv token embeddings preprocessing (e.g., normalization) in fp32
+            // compressed). It's better to preserve token embeddings preprocessing (e.g., normalization) in fp32
             if (node->getType() == Type::Gather) {
                 // Note: ShapeOf subgraphs are excluded from skipping markup
                 // since they are always kept in integer precision
