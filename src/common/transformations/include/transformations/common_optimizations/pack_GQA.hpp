@@ -114,6 +114,12 @@ public:
     MergeKVCaches();
 };
 
+class TRANSFORMATIONS_API MergeDQConcat : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("MergeDQConcat");
+    MergeDQConcat();
+};
+
 class TRANSFORMATIONS_API PackGQA : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("PackGQA");
