@@ -69,17 +69,19 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf_count.h"
 #include "proxy_mem_blk.h"
+#include "thread_pool_imp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
 #include "weights_cache.hpp"
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE || \
+     OV_THREAD == OV_THREAD_OMP)
 #    include <atomic>
 #endif
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if OV_THREAD_USE_TBB
 #    include <tbb/task.h>
 #endif
 
@@ -105,7 +107,7 @@ Graph::~Graph() {
 
 template <typename NET>
 void Graph::CreateGraph(NET& model, const GraphContext::CPtr& context) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "CreateGraph");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "CreateGraph");
 
     Init(model, context);
 
@@ -121,7 +123,8 @@ void Graph::Init(const std::vector<NodePtr>& graphNodes,
     }
 
     m_context = context;
-    m_stream = dnnl::stream(getEngine());
+    m_stream = make_stream(getEngine(), m_context->getCpuParallel()->get_thread_pool());
+    m_context->getCpuParallel()->activate();
 
     this->_name = std::move(name);
 
@@ -153,7 +156,7 @@ template void Graph::CreateGraph(const std::shared_ptr<const ov::Model>&, const 
 void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
                       const std::vector<node::Input::InputConfig>& inputConfigs,
                       const std::vector<node::Input::OutputConfig>& outputConfigs) {
-    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "Graph::Replicate", "ov::Model");
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::ov_intel_cpu_LT, "Graph::Replicate", "ov::Model");
 
     this->_name = model->get_friendly_name();
 
@@ -300,7 +303,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
 }
 
 static std::vector<size_t> IdentifySyncPoints(const std::vector<NodePtr>& graphNodes) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::IdentifySyncPoints");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "Graph::IdentifySyncPoints");
     std::vector<size_t> syncNodesInds;
 
     for (size_t i = 0; i < graphNodes.size(); ++i) {
@@ -332,7 +335,7 @@ static std::vector<size_t> IdentifySyncPoints(const std::vector<NodePtr>& graphN
 static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNodesAndSyncPoints(
     const std::vector<size_t>& syncNodesInds,
     const std::vector<NodePtr>& graphNodes) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ExtractExecutableNodesAndSyncPoints");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "Graph::ExtractExecutableNodesAndSyncPoints");
     std::unordered_map<size_t, size_t> graphIdToExecutableId;
     std::vector<NodePtr> executableGraphNodes;
     for (size_t i = 0; i < graphNodes.size(); i++) {
@@ -377,7 +380,8 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
     }
 
     m_context = context;
-    m_stream = dnnl::stream(getEngine());
+    m_stream = make_stream(getEngine(), m_context->getCpuParallel()->get_thread_pool());
+    m_context->getCpuParallel()->activate();
 
     Replicate(model, inputConfigs, outputConfigs);
 
@@ -439,14 +443,14 @@ void Graph::Configure([[maybe_unused]] bool optimize) {
 }
 
 void Graph::InitNodes() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitNodes");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "Graph::InitNodes");
     for (auto& node : graphNodes) {
         node->init();
     }
 }
 
 void Graph::InitDescriptors() {
-    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "InitDescriptors", "Prepare");
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::ov_intel_cpu_LT, "InitDescriptors", "Prepare");
 
     for (auto& node : graphNodes) {
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.getSupportedDescriptors);
@@ -502,7 +506,7 @@ void Graph::InitDescriptors() {
 }
 
 void Graph::ResolveInplaceDirections() {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::ResolveInplaceDirections");
+    OV_ITT_SCOPED_TASK(itt::domains::ov_intel_cpu, "Graph::ResolveInplaceDirections");
 
     for (auto& node : graphNodes) {
         node->resolveInPlaceDirection();
@@ -510,9 +514,9 @@ void Graph::ResolveInplaceDirections() {
 }
 
 void Graph::InitOptimalPrimitiveDescriptors() {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::InitOptimalPrimitiveDescriptors");
+    OV_ITT_SCOPED_TASK(itt::domains::ov_intel_cpu, "Graph::InitOptimalPrimitiveDescriptors");
     for (auto& node : graphNodes) {
-        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.initOptimalPrimitiveDescriptor);
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, node->profiling.initOptimalPrimitiveDescriptor);
         DEBUG_LOG("Init optimal primitive descriptors for node: ", node->getName());
         node->initOptimalPrimitiveDescriptor();
         DEBUG_LOG("#",
@@ -527,7 +531,7 @@ void Graph::InitOptimalPrimitiveDescriptors() {
 }
 
 void Graph::CreatePrimitivesAndExecConstants() const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::CreatePrimitivesAndExecConstants");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "Graph::CreatePrimitivesAndExecConstants");
     using shared_memory_ptr = WeightsSharing::SharedMemory::Ptr;
 
     auto acquireSharedOutputs = [this](const NodePtr& node) {
@@ -555,7 +559,7 @@ void Graph::CreatePrimitivesAndExecConstants() const {
 
     for (const auto& node : graphNodes) {
         {
-            OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
+            OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, node->profiling.createPrimitive);
             DEBUG_LOG(*node);
             node->createPrimitive();
         }
@@ -658,7 +662,7 @@ static std::unordered_set<std::string> getUniqueLayerNames(const std::vector<Nod
 }
 
 void Graph::ResolveEdgeConflicts() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "Graph::ResolveEdgeConflicts");
 
     std::unordered_set<std::string> uniqueLayerNames = getUniqueLayerNames(graphNodes);
 
@@ -695,7 +699,7 @@ void Graph::ResolveEdgeConflicts() {
 }
 
 void Graph::ResolveComplexInplaceConflicts() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveComplexInplaceConflicts");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "Graph::ResolveComplexInplaceConflicts");
 
     auto numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
@@ -1200,7 +1204,7 @@ void Graph::Allocate() {
 }
 
 bool Graph::ProcessDynNodes() const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ProcessDynNodes");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "Graph::ProcessDynNodes");
 
     const bool containsDynamicNodes = std::any_of(graphNodes.begin(), graphNodes.end(), [](const NodePtr& node) {
         return node->isDynamicNode();
@@ -1385,7 +1389,8 @@ private:
 using UpdateNodes = UpdateNodesSeq;
 #endif
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE || \
+     OV_THREAD == OV_THREAD_OMP)
 
 class UpdateNodesBase {
 public:
@@ -1432,7 +1437,7 @@ protected:
 };
 
 // NOLINTBEGIN(misc-include-cleaner) tbb has multiple implicit includes, which are not supposed to be included directly
-#    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#    if OV_THREAD_USE_TBB
 #        if (TBB_VERSION_MAJOR > 2020)
 template <typename Body>
 class AsyncTask : public tbb::detail::d1::task {
@@ -1593,11 +1598,11 @@ public:
 
 /* group all the profiling macros into a single one
  * to avoid cluttering a core logic */
-#define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config) \
-    VERBOSE(node, (config).debugCaps.verbose);                  \
-    PERF(node, (config).collectPerfCounters);                   \
-    DUMP(node, (config).debugCaps, infer_count);                \
-    OV_ITT_SCOPED_TASK(ittScope, (node)->profiling.execute);    \
+#define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config)        \
+    VERBOSE(node, (config).debugCaps.verbose);                         \
+    PERF(node, (config).collectPerfCounters);                          \
+    DUMP(node, (config).debugCaps, infer_count);                       \
+    OV_ITT_SCOPED_TASK_BASE(ittScope, (node)->perfCounters().execute); \
     DEBUG_LOG(*(node));
 
 inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, int numaId) const {
@@ -1609,7 +1614,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, i
 }
 
 inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* request, int numaId) const {
-    VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(itt::domains::intel_cpu, node, getConfig());
+    VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(itt::domains::ov_intel_cpu, node, getConfig());
 
     try {
         ExecuteNode(node, request, numaId);
@@ -1673,7 +1678,7 @@ void Graph::Infer(SyncInferRequest* request) {
 }
 
 void Graph::SortTopologically() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::SortTopologically");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "Graph::SortTopologically");
 
     // Set execIndex of all nodes to default invalid value
     for (auto& node : graphNodes) {
@@ -2009,6 +2014,7 @@ void Graph::EnforceInferencePrecision() {
                            Type::Interpolate,     // super resolution nets
                            Type::PagedAttention,  // page attention
                            Type::QKVProjection,
+                           Type::GatherMatmul,
                            Type::LLMMLP)) {
                     continue;  // stop at significant nodes
                 }

@@ -12,7 +12,6 @@ ov_add_test_target(
       common_test_utils
       func_test_utils
       base_func_tests
-    ADD_CPPLINT
     LABELS
       OV UNIT
 )

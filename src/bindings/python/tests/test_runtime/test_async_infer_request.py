@@ -28,7 +28,6 @@ from tests.utils.helpers import (
 )
 
 
-@pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED"), reason="Ticket: 171534")
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_queue(device, share_inputs):
     jobs = 8
@@ -95,7 +94,6 @@ def test_infer_queue_userdata_is_empty_more_jobs(device):
     assert infer_queue.userdata == [None, None, None, None, None]
 
 
-@pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED"), reason="Ticket: 171534")
 def test_infer_queue_fail_on_cpp_model(device):
     jobs = 6
     num_request = 4
@@ -118,7 +116,6 @@ def test_infer_queue_fail_on_cpp_model(device):
     assert "Port for tensor name Unknown was not found" in str(e.value)
 
 
-@pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED"), reason="Ticket: 171534")
 def test_infer_queue_fail_on_py_model(device):
     jobs = 1
     num_request = 1
@@ -193,7 +190,6 @@ def test_infer_queue_get_idle_handle(device):
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
-@pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED"), reason="Ticket: 171534")
 def test_results_async_infer(device, share_inputs):
     jobs = 8
     num_request = 4
@@ -288,7 +284,6 @@ def test_cancel(device):
     assert "[ INFER_CANCELLED ]" in str(e.value)
 
 
-@pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED"), reason="Ticket: 171534")
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_start_async(device, share_inputs):
     core = Core()
@@ -332,7 +327,9 @@ def test_start_async(device, share_inputs):
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
-    request, tensor1, array1 = generate_concat_compiled_model_with_data(device=device, ov_type=ov_type, numpy_dtype=numpy_dtype)
+    request, tensor1, array1 = generate_concat_compiled_model_with_data(
+        device=device, ov_type=ov_type, numpy_dtype=numpy_dtype
+    )
 
     request.start_async([tensor1, array1], share_inputs=share_inputs)
     request.wait()

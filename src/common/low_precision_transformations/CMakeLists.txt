@@ -28,8 +28,6 @@ target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::core::d
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
-
 ov_mark_target_as_cc(${TARGET_NAME}_obj)
 
 if(NOT BUILD_SHARED_LIBS)
