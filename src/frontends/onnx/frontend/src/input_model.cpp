@@ -742,7 +742,6 @@ void InputModel::InputModelONNXImpl::load_model() {
             };
     };
     std::sort(m_inputs.begin(), m_inputs.end(), sorting_places_by_idx(true));
-    std::sort(m_outputs.begin(), m_outputs.end(), sorting_places_by_idx(false));
 
     if (m_telemetry) {
         for (const auto& op : op_statistics) {
