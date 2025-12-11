@@ -107,7 +107,6 @@ public:
     MergeMatMulBiasConcat();
 };
 
-
 class TRANSFORMATIONS_API MergeKVCaches : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MergeKVCaches");
@@ -125,7 +124,6 @@ public:
     OPENVINO_MODEL_PASS_RTTI("PackGQA");
     PackGQA() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
-
 };
 
 }  // namespace ov::pass

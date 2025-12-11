@@ -66,7 +66,7 @@ std::shared_ptr<Node> sdpa_preprocessing_block(const Output<Node>& input) {
     auto var_split = wrap_type<v1::VariadicSplit>({transpose_1, any_input(), any_input()});
     var_split->set_output_size(2);
 
-    auto mul_1 = wrap_type<v1::Multiply,v0::Negative>({var_split->output(0), any_input()});
+    auto mul_1 = wrap_type<v1::Multiply, v0::Negative>({var_split->output(0), any_input()});
     auto concat = wrap_type<v0::Concat>({mul_1, var_split->output(1)});
     auto transpose_2 = optional<v1::Transpose>({concat, any_input()});
     auto mul_2 = wrap_type<v1::Multiply>({transpose_2, any_input()});
@@ -86,7 +86,7 @@ std::shared_ptr<Node> sdpa_block(const Output<Node>& q, const Output<Node>& k, c
     auto bias_add = wrap_type<v1::Add>({qk_scale, any_input()});
 
     auto softmax = wrap_type<v8::Softmax>({bias_add});
-    
+
     auto qkv = wrap_type<v0::MatMul>({softmax, v});
 
     return std::make_shared<pattern::op::Block>(OutputVector{q, k, v}, OutputVector{qkv}, "sdpa");
