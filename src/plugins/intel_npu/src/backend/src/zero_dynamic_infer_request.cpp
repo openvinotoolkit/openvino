@@ -889,27 +889,20 @@ void ZeroDynamicInferRequest::infer_async() {
         if (irGraph) {
             IRGraph::GraphArguments graphArgs;
             irGraph->getBinding(graphArgs);
-            std::vector<IRGraph::MemRefType> inputPros;
-            std::vector<IRGraph::MemRefType> outputPros;
-
-            for (const auto& inDesc : graphArgs._inputs) {
-                inputPros.push_back(*inDesc);
-            }
-            for (const auto& outDesc : graphArgs._outputs) {
-                outputPros.push_back(*outDesc);
-            }
+            std::vector<IRGraph::MemRefType> inputPros = graphArgs._inputs;
+            std::vector<IRGraph::MemRefType> outputPros = graphArgs._outputs;
 
             irGraph->predict_output_shape(inputPros, outputPros);
 
             bool shapeChanged = false;
             for (size_t i = 0; i < outputPros.size(); i++) {
                 for (size_t j = 0; j < 4; j++) {
-                    if (graphArgs._outputs[i]->sizes[j] != outputPros[i].sizes[j]) {
+                    if (graphArgs._outputs[i].sizes[j] != outputPros[i].sizes[j]) {
                         _logger.warning(
                             "Output tensor %d shape and predicted shape mimsmatch at dim %zu, changed from %zu to %zu",
                             i,
                             j,
-                            graphArgs._outputs[i]->sizes[j],
+                            graphArgs._outputs[i].sizes[j],
                             outputPros[i].sizes[j]);
                         shapeChanged = true;
                         break;

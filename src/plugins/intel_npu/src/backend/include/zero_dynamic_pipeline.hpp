@@ -66,73 +66,51 @@ struct DynamicPipeline {
                                       const ov::Shape& shapes) {
             if (arg_index < _binding._inputs.size()) {
                 std::ostringstream oss;
-                oss << *(_binding._inputs[arg_index]);
+                oss << _binding._inputs[arg_index];
                 Logger::global().debug("Orig tensor MemType: %s", oss.str().c_str());
-                _binding._inputs[arg_index]->setArg(arg_value);
-                // Now MemRefType only support 4 dimension
-                size_t shapesSize = shapes.size();
-                for (size_t i = 0; i < 4; i++) {
-                    if (i < shapesSize) {
-                        _binding._inputs[arg_index]->sizes[i] = shapes[i];
-                    } else {
-                        // Set dimension to 1 if exceed region of shapes
-                        _binding._inputs[arg_index]->sizes[i] = 1;
-                    }
+                _binding._inputs[arg_index].setArg(arg_value);
+                // size_t shapesSize = shapes.size();
+                for (int64_t i = 0; i < _binding._inputs[arg_index].dimsCount; i++) {
+                    _binding._inputs[arg_index].sizes[i] = shapes[i];
                 }
 
-                size_t stridesSize = strides.size();
-                for (size_t i = 0; i < 4; i++) {
-                    if (i < stridesSize) {
-                        _binding._inputs[arg_index]->strides[i] = strides[i];
-                    } else {
-                        // Set dimension to 1 if exceed region of shapes
-                        _binding._inputs[arg_index]->strides[i] = 1;
-                    }
+                // size_t stridesSize = strides.size();
+                for (int64_t i = 0; i < _binding._inputs[arg_index].dimsCount; i++) {
+                    _binding._inputs[arg_index].strides[i] = strides[i];
                 }
 
                 // Need stride based on element but not byte
-                _binding._inputs[arg_index]->updateStride();
+                _binding._inputs[arg_index].updateStride();
 
                 oss.clear();
                 oss.str("");
-                oss << *(_binding._inputs[arg_index]);
+                oss << _binding._inputs[arg_index];
                 Logger::global().debug("Updated to MemRefType: %s", oss.str().c_str());
 
             } else {
                 size_t output_index = static_cast<size_t>(arg_index) - _binding._inputs.size();
                 if (output_index < _binding._outputs.size()) {
                     std::ostringstream oss;
-                    oss << *(_binding._outputs[output_index]);
+                    oss << _binding._outputs[output_index];
                     Logger::global().debug("Orig output tensor MemType: %s", oss.str().c_str());
-                    _binding._outputs[output_index]->setArg(arg_value);
+                    _binding._outputs[output_index].setArg(arg_value);
 
-                    // Now MemRefType only support 4 dimension
-                    size_t shapesSize = shapes.size();
-                    for (size_t i = 0; i < 4; i++) {
-                        if (i < shapesSize) {
-                            _binding._outputs[output_index]->sizes[i] = shapes[i];
-                        } else {
-                            // Set dimension to 1 if exceed region of shapes
-                            _binding._outputs[output_index]->sizes[i] = 1;
-                        }
+                    // size_t shapesSize = shapes.size();
+                    for (int64_t i = 0; i < _binding._outputs[output_index].dimsCount; i++) {
+                        _binding._outputs[output_index].sizes[i] = shapes[i];
                     }
 
-                    size_t stridesSize = strides.size();
-                    for (size_t i = 0; i < 4; i++) {
-                        if (i < stridesSize) {
-                            _binding._outputs[output_index]->strides[i] = strides[i];
-                        } else {
-                            // Set dimension to 1 if exceed region of shapes
-                            _binding._outputs[output_index]->strides[i] = 1;
-                        }
+                    // size_t stridesSize = strides.size();
+                    for (int64_t i = 0; i < _binding._outputs[output_index].dimsCount; i++) {
+                        _binding._outputs[output_index].strides[i] = strides[i];
                     }
 
                     // Need stride based on element but not byte
-                    _binding._outputs[output_index]->updateStride();
+                    _binding._outputs[output_index].updateStride();
 
                     oss.clear();
                     oss.str("");
-                    oss << *(_binding._outputs[output_index]);
+                    oss << _binding._outputs[output_index];
                     Logger::global().debug("Updated to MemRefType: %s", oss.str().c_str());
                 }
             }

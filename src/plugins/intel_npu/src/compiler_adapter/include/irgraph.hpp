@@ -26,6 +26,15 @@ public:
         std::vector<int64_t> strides;
         int64_t dimsCount;
 
+        MemRefType()
+            : memRef(nullptr),
+              basePtr(nullptr),
+              data(nullptr),
+              offset(0),
+              sizes({}),
+              strides({}),
+              dimsCount(0) {}
+
         MemRefType(const void* basePtr,
                    const void* data,
                    int64_t offset,
@@ -38,9 +47,7 @@ public:
               offset(offset),
               sizes(sizes),
               strides(strides),
-              dimsCount(dimsCount) {
-            createMemRef();
-        }
+              dimsCount(dimsCount) {}
 
         MemRefType(const MemRefType& other)
             : memRef(nullptr),
@@ -49,50 +56,37 @@ public:
               offset(other.offset),
               sizes(other.sizes),
               strides(other.strides),
-              dimsCount(other.dimsCount) {
-            createMemRef();
-        }
+              dimsCount(other.dimsCount) {}
 
         MemRefType(MemRefType&& other) noexcept
-            : memRef(other.memRef),
+            : memRef(nullptr),
               basePtr(other.basePtr),
               data(other.data),
               offset(other.offset),
               sizes(std::move(other.sizes)),
               strides(std::move(other.strides)),
-              dimsCount(other.dimsCount) {
-            other.memRef = nullptr;
-        }
+              dimsCount(other.dimsCount) {}
 
         MemRefType& operator=(const MemRefType& other) {
             if (this != &other) {
-                destroyMemRef();
-
                 basePtr = other.basePtr;
                 data = other.data;
                 offset = other.offset;
                 sizes = other.sizes;
                 strides = other.strides;
                 dimsCount = other.dimsCount;
-
-                createMemRef();
             }
             return *this;
         }
 
         MemRefType& operator=(MemRefType&& other) noexcept {
             if (this != &other) {
-                destroyMemRef();
-
-                memRef = other.memRef;
                 basePtr = other.basePtr;
                 data = other.data;
                 offset = other.offset;
                 sizes = std::move(other.sizes);
                 strides = std::move(other.strides);
                 dimsCount = other.dimsCount;
-
-                other.memRef = nullptr;
             }
             return *this;
         }
@@ -119,6 +113,12 @@ public:
             return os;
         }
 
+        std::string toString() {
+            std::stringstream stream;
+            stream << *this;
+            return stream.str();
+        }
+
         void UpdateMemRefHandleStatus() {
             // Update current MemRef handle to use latest metadata
             if (memRef == nullptr) {
@@ -135,9 +135,11 @@ public:
 
     private:
         void createMemRef() {
-            auto result = npuMLIRRuntimeCreateMemRef(dimsCount, &memRef);
-            if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
-                throw std::runtime_error("Failed to create MemRef handle");
+            if (memRef == nullptr) {
+                auto result = npuMLIRRuntimeCreateMemRef(dimsCount, &memRef);
+                if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+                    throw std::runtime_error("Failed to create MemRef handle");
+                }
             }
         }
 
@@ -150,13 +152,8 @@ public:
     };
 
     struct GraphArguments {
-        std::vector<MemRefType*> _inputs;
-        std::vector<MemRefType*> _outputs;
-
-        GraphArguments() = default;
-        GraphArguments(const GraphArguments& args);
-        GraphArguments& operator=(const GraphArguments& args);
-        ~GraphArguments();
+        std::vector<MemRefType> _inputs;
+        std::vector<MemRefType> _outputs;
     };
 
     class Impl {
