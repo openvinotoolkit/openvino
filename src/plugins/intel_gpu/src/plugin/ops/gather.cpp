@@ -103,7 +103,7 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
     auto indices_constant = ov::as_type_ptr<ov::op::v0::Constant>(indices_node);
     bool is_indices_constant = (indices_constant) ? true : false;
 
-    if (is_static && axis == 0 && is_indices_constant && input_rank > 1 && 
+    if (is_static && axis == 0 && is_indices_constant && input_rank > 1 &&
         indices.get_partial_shape().rank().get_length() == 0 && input_shape.size() == out_shape.size() &&
         std::equal(input_shape.begin()+1, input_shape.end(), out_shape.begin()+1)) {
         // Gather -> Crop
