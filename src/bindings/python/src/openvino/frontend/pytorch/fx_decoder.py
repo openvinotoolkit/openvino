@@ -308,7 +308,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if subgraph is not None and isinstance(subgraph, torch.fx.GraphModule):
             return True, subgraph
         # Also handle callables with graph attribute (lambda-wrapped GraphModules)
-        if callable(subgraph) and hasattr(subgraph, 'graph'):
+        if callable(subgraph) and hasattr(subgraph, "graph"):
             return True, subgraph
         return False, None
 
@@ -408,7 +408,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         (while_loop, cond, map, scan, etc.). Subgraphs are returned
         in their original argument order.
         """
-        if not hasattr(self, '_subgraph_inputs') or not self._subgraph_inputs:
+        if not hasattr(self, "_subgraph_inputs") or not self._subgraph_inputs:
             return []
         return [sg.graph_module for sg in self._subgraph_inputs]
 
