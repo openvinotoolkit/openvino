@@ -46,10 +46,12 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
     if (input_prc == element::f16) {
         m_kernel_executor =
             kernel_table->register_kernel<GemmCopyBF16KaiKernelExecutor>(expr, GemmCopyBKernelKaiConfig());
+        m_is_f16 = true;
     } else {
         OV_CPU_JIT_EMITTER_ASSERT(input_prc == element::f32, "Unexpected precision for GemmCopyB executor");
         m_kernel_executor =
             kernel_table->register_kernel<GemmCopyBF32KaiKernelExecutor>(expr, GemmCopyBKernelKaiConfig());
+        m_is_f16 = false;
     }
 
     // Initialize memory offsets similar to x64 brgemm_copy_b implementation
@@ -83,7 +85,7 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
     std::vector<size_t> mem_ptrs_idxs{in[0], out[0]};
 
     init_binary_call_regs(3, mem_ptrs_idxs);
-    if (std::dynamic_pointer_cast<GemmCopyBF16KaiKernelExecutor>(m_kernel_executor)) {
+    if (m_is_f16) {
         emit_call<GemmCopyBF16KaiKernelExecutor>(mem_ptrs_idxs);
     } else {
         emit_call<GemmCopyBF32KaiKernelExecutor>(mem_ptrs_idxs);

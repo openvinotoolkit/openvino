@@ -32,6 +32,7 @@ protected:
     std::shared_ptr<GemmCopyBKaiKernelExecutorBase> m_kernel_executor = nullptr;
     std::vector<size_t> m_memory_offsets;
     std::vector<size_t> m_buffer_ids;
+    bool m_is_f16 = false;
 };
 
 }  // namespace ov::intel_cpu::aarch64
