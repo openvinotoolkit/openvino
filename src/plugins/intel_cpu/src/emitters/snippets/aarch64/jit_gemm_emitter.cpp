@@ -48,9 +48,11 @@ jit_gemm_emitter::jit_gemm_emitter(jit_generator* h,
     const auto& input_prc = gemm_node->get_input_element_type(0);
     if (input_prc == element::f16) {
         m_kernel_executor_kai = kernel_table->register_kernel<GemmF16KaiKernelExecutor>(expr, kernel_config);
+        m_is_f16 = true;
     } else {
         OV_CPU_JIT_EMITTER_ASSERT(input_prc == element::f32, "Unexpected precision for GemmKai executor");
         m_kernel_executor_kai = kernel_table->register_kernel<GemmF32KaiKernelExecutor>(expr, kernel_config);
+        m_is_f16 = false;
     }
 
     // Initialize memory offsets similar to x64 brgemm implementation
@@ -84,7 +86,7 @@ void jit_gemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
     std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
 
     init_binary_call_regs(2, mem_ptrs_idxs);
-    if (std::dynamic_pointer_cast<GemmF16KaiKernelExecutor>(m_kernel_executor_kai)) {
+    if (m_is_f16) {
         emit_call<GemmF16KaiKernelExecutor>(mem_ptrs_idxs);
     } else {
         emit_call<GemmF32KaiKernelExecutor>(mem_ptrs_idxs);
