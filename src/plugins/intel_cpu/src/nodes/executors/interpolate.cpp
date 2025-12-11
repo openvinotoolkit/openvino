@@ -526,6 +526,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
     const auto srcDimPad5d = to5Dim(srcDimPad);
     const auto dstDim5d = to5Dim(dstDim);
     const auto srcDataSize = src[0]->getDesc().getPrecision().size();
+    const auto cpuParallel = _context->getCpuParallel();
 
     const uint8_t* src_data = nullptr;
     std::vector<uint8_t> srcPadded;
@@ -542,7 +543,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
         if (interpAttrs.layout == InterpolateLayoutType::planar) {
             srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
             auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
-            parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
+            cpuParallel->parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
                 const uint8_t* src = src_data_origin + (inShapeBlock[1] * n + inShapeBlock[2] * c +
                                                         inShapeBlock[3] * d + inShapeBlock[4] * h) *
                                                            srcDataSize;
@@ -556,7 +557,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
         } else if (interpAttrs.layout == InterpolateLayoutType::by_channel) {
             srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
             auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
-            parallel_for4d(srcDim5d[0], srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int d, int h, int w) {
+            cpuParallel->parallel_for4d(srcDim5d[0], srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int d, int h, int w) {
                 const uint8_t* src = src_data_origin +
                                      (inShapeBlock[1] * n +
                                       (inShapeBlock[3] * d + inShapeBlock[4] * h + inShapeBlock[5] * w) * srcDim5d[1]) *
@@ -578,7 +579,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
             auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
             OPENVINO_ASSERT(srcDim5d[0] == srcDimPad5d[0] && srcDim5d[1] == srcDimPad5d[1],
                             "Interpolate executor does not support padding on batch and channel dimensions");
-            parallel_for5d(
+            cpuParallel->parallel_for5d(
                 srcDim5d[0],
                 CB,
                 srcDim5d[2],

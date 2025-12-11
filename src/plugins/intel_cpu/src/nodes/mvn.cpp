@@ -2249,6 +2249,7 @@ void MVN::prepareParams() {
     } else {
         mvnAttrs.layout = MVNLayoutType::mvn_block;
     }
+    mvnAttrs.cpuParallel = context->getCpuParallel();
 
     if (canUseAclExecutor) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
@@ -2396,13 +2397,13 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
     size_t C3 = C2 * C;
 
     if (mvnAttrs.execAcrossChannels_) {
-        parallel_for(N, [&](int b) {
+        mvnAttrs.cpuParallel->parallel_for(N, [&](int b) {
             size_t cb = b * C3;
             // Calculate mean value for one instance in batch
             // Parallel sum for each channel
             float C3inv = 1.F / static_cast<float>(C3);
             float mean_temp = 0.0F;
-            mean_temp = parallel_sum(C, mean_temp, [&](size_t c) -> float {
+            mean_temp = mvnAttrs.cpuParallel->parallel_sum(C, mean_temp, [&](size_t c) -> float {
                 float mean_internal = 0.0F;
                 size_t cc = cb + c * C2;
                 auto arg = jit_mvn_call_args();
@@ -2421,7 +2422,7 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
             // parallel sum for each channel
             if (mvnAttrs.normalizeVariance_) {
                 float variance_temp = 0.0F;
-                variance_temp = parallel_sum(C, variance_temp, [&](size_t c) -> float {
+                variance_temp = mvnAttrs.cpuParallel->parallel_sum(C, variance_temp, [&](size_t c) -> float {
                     float variance_internal = 0.0F;
                     size_t cc = cb + c * C2;
                     auto arg = jit_mvn_call_args();
@@ -2443,7 +2444,7 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
                 }
 
                 // mvn for one instance in batch
-                parallel_for(C, [&](int c) {
+                mvnAttrs.cpuParallel->parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + cc * src_data_size;
@@ -2458,7 +2459,7 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
                 });
             } else {
                 // mvn for one instance in batch
-                parallel_for(C, [&](int c) {
+                mvnAttrs.cpuParallel->parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + cc * src_data_size;
@@ -2473,7 +2474,7 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
             }
         });
     } else {
-        parallel_for2d(N, C, [&](size_t b, size_t c) {
+        mvnAttrs.cpuParallel->parallel_for2d(N, C, [&](size_t b, size_t c) {
             size_t cb = b * C3;
             size_t cc = cb + c * C2;
             float C2inv = 1.F / static_cast<float>(C2);
@@ -2530,14 +2531,14 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, co
     size_t C2 = C1 * D;
     size_t C3 = C2 * C;
 
-    parallel_for(N, [&](int b) {
+    mvnAttrs.cpuParallel->parallel_for(N, [&](int b) {
         size_t cb = b * C3;
         if (mvnAttrs.execAcrossChannels_) {
             // Parallel sum for each channel for mean
             float C3inv = 1.F / static_cast<float>(C3);
             float mean_temp = 0.0F;
 
-            mean_temp = parallel_sum(C, mean_temp, [&](size_t c) -> float {
+            mean_temp = mvnAttrs.cpuParallel->parallel_sum(C, mean_temp, [&](size_t c) -> float {
                 float mean_internal = 0.0F;
                 size_t cc = cb + c * C2;
                 for (size_t sp = 0LU; sp < C2; sp++) {
@@ -2551,7 +2552,7 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, co
             if (mvnAttrs.normalizeVariance_) {
                 // parallel sum for each channel for variance
                 float variance_temp = 0.0F;
-                variance_temp = parallel_sum(C, variance_temp, [&](size_t c) -> float {
+                variance_temp = mvnAttrs.cpuParallel->parallel_sum(C, variance_temp, [&](size_t c) -> float {
                     float variance_internal = 0.0F;
                     size_t cc = cb + c * C2;
                     for (size_t sp = 0LU; sp < C2; sp++) {
@@ -2567,14 +2568,14 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, co
                     variance = 1.F / (sqrtf(variance_temp * C3inv) + mvnAttrs.epsValue_);
                 }
 
-                parallel_for(C, [&](int c) {
+                mvnAttrs.cpuParallel->parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
                     for (size_t sp = 0LU; sp < C2; sp++) {
                         dst_data_ptr[cc + sp] = (src_data_ptr[cc + sp] - mean) * variance;
                     }
                 });
             } else {
-                parallel_for(C, [&](int c) {
+                mvnAttrs.cpuParallel->parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
                     for (size_t sp = 0LU; sp < C2; sp++) {
                         dst_data_ptr[cc + sp] = src_data_ptr[cc + sp] - mean;
@@ -2583,7 +2584,7 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, co
             }
         } else {  // per channel
             float C2inv = 1.F / static_cast<float>(C2);
-            parallel_for(C, [&](size_t c) {
+            mvnAttrs.cpuParallel->parallel_for(C, [&](size_t c) {
                 // mean for this channel
                 float mean = 0.F;
                 size_t cc = cb + c * C2;

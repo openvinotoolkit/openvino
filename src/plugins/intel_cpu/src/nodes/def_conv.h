@@ -118,7 +118,8 @@ private:
     class DefConvExecutor {
     public:
         DefConvExecutor(const DefConvAttr& defConvAttr,
-                        const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector);
+                        const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector,
+                        const std::shared_ptr<CpuParallel> parallel);
 
         virtual void exec(const float* src,
                           const float* offsets,
@@ -139,13 +140,15 @@ private:
         VectorDims dstStrides;
         int* pSampledCoordsVector;
         float* pInterpWeightsVector;
+        std::shared_ptr<CpuParallel> cpuParallel;
     };
 
     class DefConvRefExecutor : public DefConvExecutor {
     public:
         DefConvRefExecutor(const DefConvAttr& defConvAttr,
-                           const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector)
-            : DefConvExecutor(defConvAttr, descVector) {}
+                           const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector,
+                           const std::shared_ptr<CpuParallel> parallel)
+            : DefConvExecutor(defConvAttr, descVector, parallel) {}
 
         void exec(const float* src,
                   const float* offsets,
@@ -161,7 +164,8 @@ private:
 
     public:
         DefConvJitExecutor(const DefConvAttr& defConvAttr,
-                           const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector);
+                           const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector,
+                           const std::shared_ptr<CpuParallel> parallel);
 
         void exec(const float* src,
                   const float* offsets,

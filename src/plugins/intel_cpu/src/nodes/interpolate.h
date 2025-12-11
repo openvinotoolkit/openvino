@@ -112,7 +112,8 @@ private:
         InterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
                                 VectorDims srcDims,
                                 VectorDims dstDims,
-                                const std::vector<float>& dataScales);
+                                const std::vector<float>& dataScales,
+                                const std::shared_ptr<CpuParallel> parallel);
 
         virtual void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) = 0;
         virtual ~InterpolateExecutorBase() = default;
@@ -173,6 +174,7 @@ private:
         std::vector<int> auxTable;
         std::vector<uint8_t> pillow_working_buf;
         size_t m_threads_num = 0LU;
+        std::shared_ptr<CpuParallel> cpuParallel;
     };
     std::shared_ptr<InterpolateExecutorBase> execPtr = nullptr;
 
@@ -182,7 +184,8 @@ private:
                                const VectorDims& srcDims,
                                const VectorDims& dstDims,
                                const std::vector<float>& dataScales,
-                               const dnnl::primitive_attr& attr);
+                               const dnnl::primitive_attr& attr,
+                               const std::shared_ptr<CpuParallel> cpuParallel);
 
         void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) override;
 
@@ -274,8 +277,9 @@ private:
         InterpolateRefExecutor(const InterpolateAttrs& interpAttrs,
                                const VectorDims& srcDims,
                                const VectorDims& dstDims,
-                               const std::vector<float>& _dataScales)
-            : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, _dataScales),
+                               const std::vector<float>& _dataScales,
+                               const std::shared_ptr<CpuParallel> cpuParallel)
+            : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, _dataScales, cpuParallel),
               antialias(interpAttrs.antialias),
               dataScales(_dataScales),
               refInterpAttrs(interpAttrs) {}

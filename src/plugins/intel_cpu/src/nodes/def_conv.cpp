@@ -744,6 +744,7 @@ struct DefConvKey {
     std::vector<std::shared_ptr<BlockedMemoryDesc>> descVector;
     DeformableConvolution::DefConvAttr defConvAttr;
     impl_desc_type implType;
+    std::shared_ptr<CpuParallel> cpuParallel;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const DefConvKey& rhs) const;
@@ -1050,14 +1051,16 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
         }
     };
 
-    parallel_for4d(MB, DG, OH, OW, [&](dim_t mb, dim_t dg, dim_t oh, dim_t ow) {
+    cpuParallel->parallel_for4d(MB, DG, OH, OW, [&](dim_t mb, dim_t dg, dim_t oh, dim_t ow) {
         precompKer(static_cast<int>(mb), static_cast<int>(dg), static_cast<int>(oh), static_cast<int>(ow));
     });
 }
 
 DeformableConvolution::DefConvExecutor::DefConvExecutor(
     const DefConvAttr& defConvAttr,
-    const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector) {
+    const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector,
+    const std::shared_ptr<CpuParallel> parallel)
+    : cpuParallel{std::move(parallel)} {
     OPENVINO_ASSERT(any_of(descVector.size(), 4U, 5U),
                     "Deformable Convolution executor got incorrect desc's count (",
                     descVector.size(),
@@ -1137,8 +1140,9 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(
 
 DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(
     const DefConvAttr& defConvAttr,
-    const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector)
-    : DefConvExecutor(defConvAttr, descVector) {
+    const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector,
+    const std::shared_ptr<CpuParallel> parallel)
+    : DefConvExecutor(defConvAttr, descVector, parallel) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         def_conv_kernel = std::make_shared<jit_uni_def_conv_kernel_f32<cpu::x64::avx512_core>>(jcp);
@@ -1229,7 +1233,7 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
         return d;
     };
 
-    parallel_for5d(G, MB, OC, OH, OW, [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
+    cpuParallel->parallel_for5d(G, MB, OC, OH, OW, [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
         dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] =
             compKer(static_cast<int>(g),
                     static_cast<int>(mb),
@@ -1273,7 +1277,7 @@ void DeformableConvolution::prepareParams() {
     }
     descVector.push_back(getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>());
 
-    DefConvKey key = {descVector, defConvAttr, getSelectedPrimitiveDescriptor()->getImplementationType()};
+    DefConvKey key = {descVector, defConvAttr, getSelectedPrimitiveDescriptor()->getImplementationType(), context->getCpuParallel()};
 
     const int MB = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims()[0];
     const int OH = getChildEdgeAt(0)->getMemory().getStaticDims()[2];
@@ -1293,9 +1297,9 @@ void DeformableConvolution::prepareParams() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, [](const DefConvKey& key) -> std::shared_ptr<DefConvExecutor> {
         if (key.implType == impl_desc_type::ref) {
-            return std::make_shared<DefConvRefExecutor>(key.defConvAttr, key.descVector);
+            return std::make_shared<DefConvRefExecutor>(key.defConvAttr, key.descVector, key.cpuParallel);
         }
-        return std::make_shared<DefConvJitExecutor>(key.defConvAttr, key.descVector);
+        return std::make_shared<DefConvJitExecutor>(key.defConvAttr, key.descVector, key.cpuParallel);
     });
     execPtr = result.first;
 
@@ -1320,7 +1324,7 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src,
     std::vector<float> input_buffer(buffer_size, 0);
     float* input_buffer_ptr = input_buffer.data();
 
-    parallel_for3d(jcp.mb, jcp.ngroups, jcp.oh, [&](size_t n, size_t g, size_t oh) {
+    cpuParallel->parallel_for3d(jcp.mb, jcp.ngroups, jcp.oh, [&](size_t n, size_t g, size_t oh) {
         auto ithr = parallel_get_thread_num();
 
         auto par_conv = jit_def_conv_call_args();

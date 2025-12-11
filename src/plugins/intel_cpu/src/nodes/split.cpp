@@ -306,7 +306,7 @@ void Split::prepareParams() {
 
     if (!canUseOptimizedNspc2Ncsp) {
         const auto inDesc = srcMemPtr->getDescWithType<BlockedMemoryDesc>();
-        execPtr = std::make_shared<SplitOptimizedExecutor>(inDesc, outDescs, axis);
+        execPtr = std::make_shared<SplitOptimizedExecutor>(inDesc, outDescs, axis, context->getCpuParallel());
     }
 }
 
@@ -516,7 +516,9 @@ std::vector<uint8_t*> Split::getRawDstMemPtrs() const {
 
 Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPtr& inDesc,
                                                       const std::vector<BlockedMemoryDescCPtr>& outDescs,
-                                                      const size_t axis) {
+                                                      const size_t axis,
+                                                      const std::shared_ptr<CpuParallel> parallel)
+    : cpuParallel(parallel) {
     // find axis order position
     const auto& order = inDesc->getOrder();
     unsigned axisOrderPos = std::numeric_limits<unsigned>::max();
@@ -561,8 +563,7 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPt
 
 void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) {
     size_t execCountStrides = countStrides;
-
-    parallel_for2d(dstRawMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
+    cpuParallel->parallel_for2d(dstRawMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
         uint8_t* dstData = dstRawMemPtrs[i];
 
         cpu_memcpy(&dstData[j * dataSize[i]], &srcData[srcDataOffsets[i] + j * srcDataStride], dataSize[i]);
