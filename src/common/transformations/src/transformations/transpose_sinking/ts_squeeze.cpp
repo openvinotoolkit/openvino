@@ -107,7 +107,7 @@ TSSqueezeForward::TSSqueezeForward() {
     create_pattern<ov::op::v0::Squeeze, ov::op::v1::Reshape>({0});
 
     auto sinking_transformation = [=, this](const std::shared_ptr<Node>& main_node,
-                                                            const TransposeInputsInfo& transpose_info) -> bool {
+                                            const TransposeInputsInfo& transpose_info) -> bool {
         std::vector<size_t> non_negative_axes;
         std::shared_ptr<ov::op::v0::Constant> squeeze_axes;
         if (main_node->get_input_size() > 1) {

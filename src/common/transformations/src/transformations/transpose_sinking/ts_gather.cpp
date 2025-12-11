@@ -26,7 +26,7 @@ TSGatherForward::TSGatherForward() {
     create_pattern<ov::op::v8::Gather>({0});
 
     auto sinking_transformation = [=, this](const std::shared_ptr<Node>& main_node,
-                                                            const TransposeInputsInfo& transpose_info) -> bool {
+                                            const TransposeInputsInfo& transpose_info) -> bool {
         auto gather = as_type_ptr<ov::op::v8::Gather>(main_node);
         if (!gather) {
             return false;

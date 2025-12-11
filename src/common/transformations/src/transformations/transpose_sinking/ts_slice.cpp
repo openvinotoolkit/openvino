@@ -26,7 +26,7 @@ TSSliceForward::TSSliceForward() {
     create_pattern<ov::op::v8::Slice>({0});
 
     auto sinking_transformation = [=, this](const std::shared_ptr<Node>& main_node,
-                                                            const TransposeInputsInfo& transpose_info) -> bool {
+                                            const TransposeInputsInfo& transpose_info) -> bool {
         if (main_node->get_input_size() < 5) {
             return false;
         }

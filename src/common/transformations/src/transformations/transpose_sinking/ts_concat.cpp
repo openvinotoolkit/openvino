@@ -25,7 +25,7 @@ TSConcatForward::TSConcatForward() {
     create_pattern<ov::op::v0::Concat>();
 
     auto sinking_transformation = [=, this](const std::shared_ptr<Node>& main_node,
-                                                            const TransposeInputsInfo& transpose_info) -> bool {
+                                            const TransposeInputsInfo& transpose_info) -> bool {
         // todo: support dynamic rank case
         auto concat_node = as_type_ptr<ov::op::v0::Concat>(main_node);
         if (!concat_node) {

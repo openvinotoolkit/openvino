@@ -101,7 +101,7 @@ TSSplitForward::TSSplitForward() {
     create_pattern<ov::op::v1::Split, ov::op::v1::VariadicSplit>({0});
 
     auto sinking_transformation = [=, this](const std::shared_ptr<Node>& main_node,
-                                                            const TransposeInputsInfo& transpose_info) -> bool {
+                                            const TransposeInputsInfo& transpose_info) -> bool {
         auto split_axis_constant = as_type_ptr<ov::op::v0::Constant>(main_node->input_value(1).get_node_shared_ptr());
         if (!split_axis_constant) {
             return false;

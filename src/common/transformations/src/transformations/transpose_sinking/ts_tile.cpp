@@ -28,7 +28,7 @@ TSTileForward::TSTileForward() {
     create_pattern<ov::op::v0::Tile>({0});
 
     auto sinking_transformation = [=, this](const std::shared_ptr<Node>& main_node,
-                                                            const TransposeInputsInfo& transpose_info) -> bool {
+                                            const TransposeInputsInfo& transpose_info) -> bool {
         if (transformation_callback(main_node)) {
             return false;
         }

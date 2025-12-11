@@ -43,7 +43,7 @@ TSDataMovementForward::TSDataMovementForward() {
         {0});
 
     auto sinking_transformation = [=, this](const std::shared_ptr<Node>& main_node,
-                                                            const TransposeInputsInfo& transpose_info) -> bool {
+                                            const TransposeInputsInfo& transpose_info) -> bool {
         // remove Transpose on 1st input:
         auto transpose_parent = main_node->input_value(0).get_node()->input_value(0);
         main_node->input(0).replace_source_output(transpose_parent);

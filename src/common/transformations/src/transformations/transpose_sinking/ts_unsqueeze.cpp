@@ -122,7 +122,7 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
     create_pattern<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>({0});
 
     auto sinking_transformation = [=, this](const std::shared_ptr<Node>& main_node,
-                                                            const TransposeInputsInfo& transpose_info) -> bool {
+                                            const TransposeInputsInfo& transpose_info) -> bool {
         auto unsqueeze_axes = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
         if (!unsqueeze_axes) {
             return false;
