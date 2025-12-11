@@ -41,6 +41,7 @@ struct Xattn {
     size_t _q_num_blocks = 0;
     size_t _k_num_blocks = 0;
     size_t _num_per_block = 0;
+    size_t _k_len = 0;
     const size_t _n_block_size = 32;
     size_t _kv_head_groups = 0;
     const size_t _m_block_size = 32;
@@ -134,12 +135,12 @@ struct Xattn {
               const size_t xattn_block_size,
               const ov::element::Type in_type) {
         _kv_head_groups = H / K_H;
+
         // The k length should first divided by stride, and the result should be divisible by 32 since block
         // size in brgemm computation is 32. Therefore align k to multiple of xattn_stride * 32.
         auto k_padded = rnd_up(B, xattn_stride * 32);
         _k_num_to_pad = k_padded - B;
         _k_num_strided = div_up(k_padded, xattn_stride);
-
         _q_num_strided = div_up(B, xattn_stride);
         _q_num_blocks = div_up(B, xattn_block_size);
         _k_num_blocks = div_up(B, xattn_block_size);
@@ -150,7 +151,9 @@ struct Xattn {
             return;
         }
 
-        if (_xattn_gemm.empty()) {
+        auto prev_k_len = _k_len;
+        _k_len = B;
+        if (_xattn_gemm.empty() || _k_len != prev_k_len) {
             _xattn_gemm.resize(_m_block_size);
             for (size_t i = 1; i < _m_block_size + 1; i++) {
                 _xattn_gemm[i - 1] = std::make_shared<BrgemmKernel>(i,                         // M
