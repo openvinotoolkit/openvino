@@ -336,6 +336,9 @@ bool InsertSpecificIterations::run(LinearIR& linear_ir,
             modified = true;
         }
     }
+    if (modified) {
+        linear_ir.sort_results();
+    }
 
     return modified;
 }
