@@ -41,7 +41,7 @@ potential of OpenVINO™. Check the following list for components used in your w
 | **Open Computer Vision Library**
 |   OpenCV is used to extend the capabilities of some models, for example enhance some of
     OpenVINO samples, when used as a dependency in compilation. To install OpenCV for OpenVINO, see the
-    `instructions on GtHub <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__.
+    `instructions on GitHub <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__.
 
 
 
