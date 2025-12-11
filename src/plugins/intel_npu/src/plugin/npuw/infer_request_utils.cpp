@@ -140,6 +140,97 @@ void ov::npuw::util::copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
     }
 }
 
+// In-place move along kv_dim when src/dst share the same buffer.
+// Requirements:
+//   - kv_dim_src == kv_dim_dst, otherwise throws
+//   - src_tensor->data() == dst_tensor->data()
+void ov::npuw::util::move_tensor_inplace_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
+                                                ov::SoPtr<ov::ITensor> dst_tensor,
+                                                uint32_t kv_dim_src,
+                                                uint32_t kv_dim_dst) {
+    OPENVINO_ASSERT(src_tensor);
+    OPENVINO_ASSERT(dst_tensor);
+
+    if (kv_dim_src != kv_dim_dst) {
+        OPENVINO_THROW("move_tensor_inplace_by_dim currently supports only kv_dim_src == kv_dim_dst");
+    }
+
+    void* base_data = src_tensor->data();
+    void* dst_data = dst_tensor->data();
+    OPENVINO_ASSERT(base_data);
+    OPENVINO_ASSERT(dst_data);
+    OPENVINO_ASSERT(base_data == dst_data);
+
+    const auto& shape = src_tensor->get_shape();
+    const auto& dst_shape = dst_tensor->get_shape();
+    OPENVINO_ASSERT(shape.size() == dst_shape.size());
+    OPENVINO_ASSERT(shape == dst_shape);
+    OPENVINO_ASSERT(kv_dim_src < shape.size());
+
+    const auto& src_strides = src_tensor->get_strides();
+    const auto& dst_strides = dst_tensor->get_strides();
+
+    const size_t total_elems = src_tensor->get_size();
+    const size_t elem_size = src_tensor->get_byte_size() / total_elems;
+
+    if (src_strides == dst_strides) {
+        LOG_INFO("identical strides, skip");
+        return;
+    }
+
+    for (size_t d = 0; d < shape.size(); ++d) {
+        if (shape[d] == 0) {
+            LOG_INFO("zero-sized dimension, nothing to move");
+            return;
+        }
+    }
+
+    auto* base = static_cast<uint8_t*>(base_data);
+    const size_t rank = shape.size();
+
+    std::vector<size_t> idx(rank);
+    for (size_t d = 0; d < rank; ++d) {
+        idx[d] = shape[d] - 1;
+    }
+
+    size_t src_off = 0;
+    size_t dst_off = 0;
+    for (size_t d = 0; d < rank; ++d) {
+        src_off += idx[d] * src_strides[d];
+        dst_off += idx[d] * dst_strides[d];
+    }
+
+    auto dec_index_and_update_offsets = [&]() -> bool {
+        for (int d = static_cast<int>(rank) - 1; d >= 0; --d) {
+            const size_t old = idx[static_cast<size_t>(d)];
+            if (old > 0) {
+                idx[static_cast<size_t>(d)] = old - 1;
+                src_off -= src_strides[static_cast<size_t>(d)];
+                dst_off -= dst_strides[static_cast<size_t>(d)];
+                return true;
+            } else {
+                idx[static_cast<size_t>(d)] = shape[static_cast<size_t>(d)] - 1;
+                src_off += src_strides[static_cast<size_t>(d)] * (shape[static_cast<size_t>(d)] - 1);
+                dst_off += dst_strides[static_cast<size_t>(d)] * (shape[static_cast<size_t>(d)] - 1);
+            }
+        }
+        return false;
+    };
+
+    while (true) {
+        uint8_t* src_ptr = base + src_off;
+        uint8_t* dst_ptr = base + dst_off;
+
+        if (src_ptr != dst_ptr) {
+            std::memmove(dst_ptr, src_ptr, elem_size);
+        }
+
+        if (!dec_index_and_update_offsets()) {
+            break;
+        }
+    }
+}
+
 std::optional<ov::Output<const ov::Node>> ov::npuw::util::find_port_by_name(
     const std::vector<ov::Output<const ov::Node>>& ports,
     const std::string& name) {

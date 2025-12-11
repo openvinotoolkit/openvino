@@ -31,6 +31,11 @@ void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
                         uint32_t kv_dim_src,
                         uint32_t kv_dim_dst);
 
+void move_tensor_inplace_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
+                                ov::SoPtr<ov::ITensor> dst_tensor,
+                                uint32_t kv_dim_src,
+                                uint32_t kv_dim_dst);
+
 std::optional<ov::Output<const ov::Node>> find_port_by_name(const std::vector<ov::Output<const ov::Node>>& ports,
                                                             const std::string& name);
 
