@@ -335,7 +335,7 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
 
     // TODO: @Xiuchuan support the native sparse feature of stock oneDNN.
     const dnnl::memory::desc weightsDesc =
-        useSparseWeights ? dnnl::memory::desc::packed(normalizedWeightDesc.get_dims(), wdt, useSparseWeightsNonZeroSize)
+        useSparseWeights ? dnnl::memory::desc::packed_v0(normalizedWeightDesc.get_dims(), wdt)
                          : dnnl::memory::desc(normalizedWeightDesc.get_dims(), wdt, memory::format_tag::any);
 
     return {engine,
