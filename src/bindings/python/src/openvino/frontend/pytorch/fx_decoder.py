@@ -220,6 +220,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             self.input_types = []
             self._subgraph_inputs = []  # Separate storage for subgraph arguments
 
+            # Check if this is a higher-order operation that needs special tuple handling
+            is_higher_order_op = self._is_higher_order_op(pt_module)
+
             for arg_idx, arg in enumerate(pt_module.args):
                 is_subgraph, graph_module = self._is_subgraph_arg(arg)
 
@@ -227,7 +230,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                     # Subgraph argument (e.g., cond_fn, body_fn in while_loop)
                     # Store separately - subgraphs are accessed via get_subgraphs(), not inputs()
                     self._subgraph_inputs.append(SubgraphInput(arg, graph_module, arg_idx))
-                elif isinstance(arg, (tuple, list)):
+                elif is_higher_order_op and isinstance(arg, (tuple, list)):
+                    # Special handling for higher-order operations (while_loop, cond, etc.)
                     if len(arg) == 0:
                         # Empty tuple/list (e.g., additional_inputs=() in while_loop) - skip entirely
                         pass
@@ -237,7 +241,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                             self._inputs.append(self._nodes.index(item))
                             self.input_types.append(BaseFXDecoder.get_type_for_value(item))
                     else:
-                        # Regular list/tuple constant (e.g., [5, 7, 9]) - keep as single InlinedInput
+                        # Mixed tuple - keep as single InlinedInput
                         self._inputs.append(InlinedInput(arg))
                         self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
                 elif isinstance(arg, torch.fx.Node):
@@ -288,6 +292,26 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if hasattr(value, "meta") and ("tensor_meta" in value.meta.keys()) and value.meta["tensor_meta"]:
             return OVAny(pt_to_ov_type_map[str(value.meta["tensor_meta"].dtype)])
         return None
+
+    # Known higher-order operations that require special tuple handling
+    HIGHER_ORDER_OPS = frozenset([
+        "torch.ops.higher_order.while_loop",
+        "torch.ops.higher_order.cond",
+        "torch.ops.higher_order.map",
+        "torch.ops.higher_order.scan",
+    ])
+
+    def _is_higher_order_op(self, node):
+        """Check if the node is a higher-order operation that needs special tuple handling.
+
+        Higher-order operations (while_loop, cond, map, scan) pass tuple of tensors
+        as carried inputs that need to be unpacked into separate inputs.
+        Regular operations should keep tuples as-is (InlinedInput).
+        """
+        if node.op != "call_function":
+            return False
+        target_str = str(node.target)
+        return target_str in self.HIGHER_ORDER_OPS
 
     def _is_subgraph_arg(self, arg):
         """Check if argument is a subgraph reference (get_attr node pointing to GraphModule).
