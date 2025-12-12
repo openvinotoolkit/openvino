@@ -107,6 +107,7 @@ protected:
     std::shared_ptr<ov::npuw::IBaseInferRequest> m_prefill_base_request;
     // This infer request is optional, so can be null.
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
+    std::shared_ptr<ov::IAsyncInferRequest> m_text_embedding_post_request;
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
 
@@ -117,6 +118,8 @@ protected:
     // prepare_for_new_conversation)
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
+
+    std::unordered_map<std::string, ov::Output<const ov::Node>> m_text_embedding_post_in_ports;
 
     // Ports for all generate model variants - maps from request pointer to its input/output ports
     std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>,
