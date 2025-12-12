@@ -37,6 +37,7 @@
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
@@ -236,7 +237,7 @@ void LinearIR::register_expression(const ExpressionPtr& expr, bool io_allowed, d
     if (ov::is_type<ov::op::v0::Parameter>(node)) {
         m_parameter_expressions.push_back(expr);
     }
-    if (ov::is_type<ov::op::v0::Result>(node)) {
+    if (ov::is_type<ov::op::v0::Result>(node) || ov::is_type<op::Result>(node)) {
         m_result_expressions.push_back(expr);
     }
     if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
@@ -253,13 +254,22 @@ void LinearIR::unregister_expression(const ExpressionPtr& expr) {
 
     const auto& node = expr->get_node();
     m_node2expression_map.erase(node);
-    OPENVINO_ASSERT((!ov::is_type_any_of<ov::op::v0::Parameter, ov::op::v0::Result>(node)),
-                    "unregister_expression mustn't be called for parameter or result expressions");
+    OPENVINO_ASSERT((!ov::is_type<ov::op::v0::Parameter>(node)),
+                    "unregister_expression mustn't be called for parameter expressions");
     if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
         const auto& it = std::find(m_buffer_expressions.cbegin(), m_buffer_expressions.cend(), buffer_expr);
         OPENVINO_ASSERT(it != m_buffer_expressions.cend(),
                         "BufferExpression has not been found in the list of LinearIR Buffers!");
         m_buffer_expressions.erase(it);
+    }
+    if (ov::is_type_any_of<ov::op::v0::Result, snippets::op::Result>(node)) {
+        auto match = [&node](const ExpressionPtr& expr) {
+            return expr->get_node() == node;
+        };
+        auto result_it = std::find_if(m_result_expressions.cbegin(), m_result_expressions.cend(), match);
+        OPENVINO_ASSERT(result_it != m_result_expressions.cend(),
+                        "Result has not been found in the list of LinearIR Results!");
+        m_result_expressions.erase(result_it);
     }
 }
 
@@ -371,9 +381,11 @@ VectorDims LinearIR::get_master_shape() const {
             master_shape = utils::get_preordered_vdims(expr->get_input_port_connector(0)->get_source());
         }
     } else {
-        for (const auto& oe : m_result_expressions) {
-            const auto& port_desc = oe->get_input_port_descriptor(0);
-            OPENVINO_ASSERT(ov::snippets::broadcast_merge_into(master_shape, port_desc->get_shape()),
+        for (const auto& result_expr : m_result_expressions) {
+            const auto& shape_infer_seq = utils::get_first_parent_shape_infer_expr_seq(result_expr);
+            const auto& expr = shape_infer_seq.empty() ? result_expr : shape_infer_seq.back();
+            auto shape = utils::get_preordered_vdims(expr->get_input_port_connector(0)->get_source());
+            OPENVINO_ASSERT(ov::snippets::broadcast_merge_into(master_shape, shape),
                             "Failed to merge input shapes in infer_master_shape");
         }
     }
@@ -428,10 +440,6 @@ LinearIR::exprIt LinearIR::replace_with_node(const std::vector<ExpressionPtr>& o
                                              const std::vector<size_t>& loop_ids,
                                              const constExprIt& place) {
     OPENVINO_ASSERT(!old_exprs.empty(), "Failed to replace node: there are no old expressions for replacing");
-    OPENVINO_ASSERT(
-        new_node->get_output_size() == old_exprs.back()->get_output_count(),
-        "Failed to replace node: node output port count is not equal to output count of last old expression");
-
     std::vector<PortConnectorPtr> new_inputs(new_node->get_input_size());
     for (size_t i = 0; i < new_node->get_input_size(); ++i) {
         const auto& source = new_node->get_input_source_output(i);
@@ -439,7 +447,7 @@ LinearIR::exprIt LinearIR::replace_with_node(const std::vector<ExpressionPtr>& o
     }
 
     const auto& last_old_expr = old_exprs.back();
-    for (size_t i = 0; i < new_node->get_output_size(); ++i) {
+    for (size_t i = 0; i < old_exprs.back()->get_output_count(); ++i) {
         snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
             new_node->output(i),
             last_old_expr->get_output_port_descriptor(i)->clone());
@@ -570,6 +578,13 @@ void LinearIR::enumerate_expressions() const {
         expr->m_exec_num = num;
         num += step;
     }
+}
+
+void LinearIR::sort_results() {
+    auto cmp = [](ExpressionPtr& a, ExpressionPtr& b) {
+        return a->get_exec_num() < b->get_exec_num();
+    };
+    std::sort(m_result_expressions.begin(), m_result_expressions.end(), cmp);
 }
 
 double LinearIR::get_inserted_expr_exec_num(constExprIt insertion_pos) const {
