@@ -11,7 +11,7 @@ class TestCondFX(PytorchLayerTest):
 
     def _prepare_input(self):
         rng = np.random.default_rng(43)
-        return (rng.standard_normal(self.input_shape).astype(np.float32), self.pred_value)
+        return (rng.normal(size=self.input_shape).astype(np.float32), self.pred_value)
 
     def create_simple_cond_model(self):
         import torch
