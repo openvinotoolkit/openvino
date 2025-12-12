@@ -67,5 +67,5 @@ coverage
 /src/plugins/intel_cpu/thirdparty/ComputeLibrary/build/arm_compute_version.embed
 .github/GITHUB_OUTPUT
 
-# Local CI/CD Check Script for OpenVINO
+
 
