@@ -1475,17 +1475,13 @@ struct MODEL_SERIALIZER_VERSION final : OptionBase<MODEL_SERIALIZER_VERSION, ov:
     }
 };
 
-struct ENABLE_STRIDES_FOR final : OptionBase<ENABLE_STRIDES_FOR, std::vector<std::string>> {
+struct ENABLE_STRIDES_FOR final : OptionBase<ENABLE_STRIDES_FOR, std::string> {
     static std::string_view key() {
         return ov::intel_npu::enable_strides_for.name();
     }
 
-    static constexpr std::string_view getTypeName() {
-        return "std::vector<std::string>";
-    }
-
-    static std::vector<std::string> defaultValue() {
-        return std::vector<std::string>{};
+    static std::string defaultValue() {
+        return {};
     }
 
     static bool isPublic() {

@@ -83,15 +83,15 @@ public:
 
     inline ze_command_list_handle_t handle() const {
         return _handle;
-        }
+    }
 
-    private:
-        std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+private:
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
 
-        Logger _log;
+    Logger _log;
 
-        uint64_t _command_id = 0;
-        ze_command_list_handle_t _handle = nullptr;
+    uint64_t _command_id = 0;
+    ze_command_list_handle_t _handle = nullptr;
 };
 
 class Fence {

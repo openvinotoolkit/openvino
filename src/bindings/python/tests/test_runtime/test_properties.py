@@ -496,6 +496,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             "NPU_QDQ_OPTIMIZATION_AGGRESSIVE",
             ((True, True),),
         ),
+        (
+            intel_npu.enable_strides_for,
+            "NPU_ENABLE_STRIDES_FOR",
+            (("inputs,outputs", "inputs,outputs"),),
+        ),
         (props.enable_weightless, "ENABLE_WEIGHTLESS", ((True, True), (False, False))),
     ],
 )
