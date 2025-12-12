@@ -29,12 +29,9 @@ void regclass_Core(py::module m) {
         "between several Core instances. The recommended way is to have a single Core instance per application.";
 
     cls.def(py::init([](const py::object& xml_config_file) {
-                if (py::isinstance<py::none>(xml_config_file)) {
-                    return std::make_shared<ov::Core>();
-                }
                 return std::make_shared<ov::Core>(Common::utils::to_fs_path(xml_config_file));
             }),
-            py::arg("xml_config_file") = py::none());
+            py::arg("xml_config_file") = "");
 
     cls.def(
         "set_property",
