@@ -254,6 +254,12 @@ static bool streamsSet(const ov::AnyMap& config) {
 
 void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) {
     int streams_set = config.streams;
+    printf("[CPU][Plugin::get_performance_streams] streams_set: %d; get_streams: %d; streamsChanged: %s; hintPerfMode: "
+           "%d\n",
+           streams_set,
+           config.streamExecutorConfig.get_streams(),
+           config.streamsChanged ? "TRUE" : "FALSE",
+           int(config.hintPerfMode));
     int streams = 0;
     if (config.streamsChanged) {
         streams = streams_set;
@@ -267,8 +273,12 @@ void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::M
 
     if ((0 != streams_set) || !config.streamsChanged) {
         get_num_streams(streams, model, config);
+        printf("[CPU][Plugin::get_performance_streams] config after get_num_streams streams: %d\n",
+               config.streamExecutorConfig.get_streams());
     } else {
         config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor", streams};
+        printf("[CPU][Plugin::get_performance_streams] config streams: %d\n",
+               config.streamExecutorConfig.get_streams());
     }
 }
 
@@ -298,6 +308,8 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
         conf.modelPreferThreads = 0;
     }
     get_performance_streams(conf, model);
+    printf("[CPU][Plugin::calculate_streams] conf after get_performance_streams streams: %d\n",
+           conf.streamExecutorConfig.get_streams());
     // save model_prefer_threads to model rt_info when loading network
     if (!imported) {
         ov::AnyMap hints_props;
@@ -349,6 +361,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
+    if (orig_config.count(ov::num_streams.name())) {
+        printf("[CPU][Plugin::compile_model] orig_config streams: %d\n",
+               orig_config.at(ov::num_streams.name()).as<int32_t>());
+    }
     const auto& config = orig_config;
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
     Config::ModelType modelType = getModelType(model);
@@ -356,15 +372,26 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+    printf("[CPU][Plugin::compile_model] engConfig streams: %d\n", engConfig.streamExecutorConfig.get_streams());
     Config conf = engConfig;
     conf.applyRtInfo(cloned_model);
+    printf("[CPU][Plugin::compile_model] conf after applyRtInfo streams: %d\n",
+           conf.streamExecutorConfig.get_streams());
     conf.readProperties(config, modelType);
+    printf("[CPU][Plugin::compile_model] conf after readProperties streams: %d\n",
+           conf.streamExecutorConfig.get_streams());
+    if (config.count(ov::num_streams.name())) {
+        printf("[CPU][Plugin::compile_model] config after readProperties streams: %d\n",
+               config.at(ov::num_streams.name()).as<int32_t>());
+    }
 
     Transformations transformations(cloned_model, conf);
 
     transformations.UpToLpt();
 
     calculate_streams(conf, cloned_model);
+    printf("[CPU][Plugin::compile_model] conf after calculate_streams streams: %d\n",
+           conf.streamExecutorConfig.get_streams());
 
     if (!conf.cacheEncrypt || !conf.cacheDecrypt) {
         conf.cacheEncrypt = codec_xor_str;
