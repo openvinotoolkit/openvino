@@ -9,8 +9,33 @@
 #include "serialization.hpp"
 #include "util.hpp"
 
+#ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#endif
+#if defined(_WIN32)
+#    include <windows.h>
+#else
+#    include <unistd.h>
+#endif
+
 using ov::npuw::weights::Bank;
 using ov::npuw::weights::LazyTensor;
+
+inline void pre_touch_pages(const uint8_t* src, size_t bytes) {
+#if defined(_WIN32)
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    const size_t page = si.dwPageSize ? si.dwPageSize : 4096;
+#else
+    const long pgsz = sysconf(_SC_PAGESIZE);
+    const size_t page = (pgsz > 0) ? static_cast<size_t>(pgsz) : 4096;
+#endif
+    volatile uint8_t sink = 0;
+    for (size_t o = 0; o < bytes; o += page) {
+        sink ^= src[o];
+    }
+    (void)sink;
+}
 
 class BankManager {
 public:
@@ -59,6 +84,21 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
         auto uid = uid_count++;
         device_bank.registered_tensors[tensor] = uid;
         device_bank.storage[uid] = {tensor, ov::Tensor()};
+
+        LOG_INFO("Start pre-touch...");
+        auto t = tensor.eval();
+        const uint8_t* src = static_cast<const uint8_t*>(t.data());
+        const auto et = t.get_element_type();
+        size_t bytes_total = 0;
+        if (et == ov::element::u4 || et == ov::element::i4 || et == ov::element::f4e2m1 || et == ov::element::nf4) {
+            NPUW_ASSERT((t.get_size() & 1) == 0);
+            bytes_total = t.get_size() / 2;
+        } else {
+            bytes_total = t.get_size() * et.size();
+        }
+        pre_touch_pages(src, bytes_total);
+        LOG_INFO("End pre-touch...");
+
         return uid;
     } else {
         // Already registered - can be safely detach the incoming tensor
@@ -124,7 +164,7 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
         auto t = lt.eval();
         device_bank.storage.at(uid).tensor = ov::Tensor(t.get_element_type(), t.get_shape());
         // Get ownership of the weights, might be a mmaped object during import
-        t.copy_to(device_bank.storage.at(uid).tensor);
+        ov::npuw::util::copy(t, device_bank.storage.at(uid).tensor);
         const_cast<LazyTensor&>(lt).detach();
     });
 }
@@ -172,7 +212,7 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         auto& stored_tensor = device_bank.storage.at(allocated.uid);
 
         auto transformed = stored_tensor.lt.eval();
-        transformed.copy_to(allocated.allocated_tensor);
+        ov::npuw::util::copy(transformed, allocated.allocated_tensor);
         stored_tensor.tensor = std::move(allocated.allocated_tensor);
 
         // Detach the evaluated LazyTensor from its memory here - when it is 100%
