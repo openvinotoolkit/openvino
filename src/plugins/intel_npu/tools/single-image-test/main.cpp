@@ -701,6 +701,7 @@ std::vector<std::vector<float>> parseMeanOrScale(const std::string& mean_scale,
 
 using RegexPtr = std::unique_ptr<std::regex>;
 std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
+    const std::string original_layouts = layouts;  // Keep copy for error message
     std::map<std::string, std::string> input_output_layouts = parseArgMap(std::move(layouts));
 
     std::map<RegexPtr, ov::Layout> out;
@@ -708,7 +709,7 @@ std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
         auto [name, value] = input_output_layout;
         if (value.empty()) {
             if (name.empty()) {
-                throw std::runtime_error("Can't parse layouts string \"" + layouts +
+                throw std::runtime_error("Can't parse layouts string \"" + original_layouts +
                                          "\" into valid \"input:layout;input:layout\" pairs");
             }
             // there is no value only name, thus we consider input/output name as "any" and
@@ -1627,7 +1628,7 @@ bool computeRRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     double rrmseLoss = sqrt(error / sum);
 
     std::cout << "RRMSE loss : " << std::fixed << std::setprecision(4) << rrmseLoss
-              << "   RRMSE threshold : " << FLAGS_rrmse_loss_threshold << std::endl;
+              << "   RRMSE threshold : " << std::defaultfloat << FLAGS_rrmse_loss_threshold << std::endl;
     return rrmseLoss <= FLAGS_rrmse_loss_threshold;
 }
 
@@ -1700,7 +1701,7 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
             sqrt(error / size) / std::max(0.001f, std::max(maxOutput - minOutput, maxReference - minReference));
 
     std::cout << "NRMSE loss : " << std::fixed << std::setprecision(4) << nrmseLoss
-              << "   NRMSE threshold : " << FLAGS_nrmse_loss_threshold << std::endl;
+              << "   NRMSE threshold : " << std::defaultfloat << FLAGS_nrmse_loss_threshold << std::endl;
     return nrmseLoss <= FLAGS_nrmse_loss_threshold;
 }
 
@@ -1881,13 +1882,13 @@ MatchResult matchDetectionsForClass(
 
     for (const auto& pred : predictions) {
         if (pred.class_id == class_id) {
-            class_predictions.push_back(pred);
+            class_predictions.emplace_back(pred);
         }
     }
 
     for (const auto& gt : ground_truth) {
         if (gt.class_id == class_id) {
-            class_gt.push_back(gt);
+            class_gt.emplace_back(gt);
         }
     }
 
@@ -1956,8 +1957,8 @@ double calculateAveragePrecision(const std::vector<float>& precision, const std:
     precision_with_sentinel.push_back(0.0);
 
     for (size_t i = 0; i < recall.size(); ++i) {
-        recall_with_sentinel.push_back(recall[i]);
-        precision_with_sentinel.push_back(precision[i]);
+        recall_with_sentinel.emplace_back(recall[i]);
+        precision_with_sentinel.emplace_back(precision[i]);
     }
 
     recall_with_sentinel.push_back(1.0);
@@ -2086,7 +2087,7 @@ bool computeMAP(const TensorMap& outputs, const TensorMap& references) {
 
     std::cout << "\n=== Mean Average Precision (mAP) ===" << std::endl;
     std::cout << "  mAP@" << FLAGS_overlap_threshold << " = " << std::fixed << std::setprecision(4)
-              << (mean_ap * 100.0) << "%" << std::endl;
+              << (mean_ap * 100.0) << "%" << std::defaultfloat << std::endl;
     std::cout << "  Number of classes: " << class_ids.size() << std::endl;
     std::cout << "  mAP threshold: " << (FLAGS_map_threshold * 100.0) << "%" << std::endl;
 
@@ -2136,6 +2137,11 @@ std::vector<float> softmax(std::vector<float>& tensor) {
         sum_exp += probabilities[i];
     }
 
+    // Protect against division by zero
+    if (sum_exp == 0.0) {
+        sum_exp = std::numeric_limits<double>::epsilon();
+    }
+
     // Normalize the probabilities by dividing by the sum of exponentials
     for (size_t i = 0; i < tensor.size(); ++i) {
         probabilities[i] /= sum_exp;
@@ -2178,8 +2184,8 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
                             referenceTensor.get_size(),
                             std::back_insert_iterator(refOutput));
 
-                auto actSoftMax = softmax(actOutput);
-                auto refSoftMax = softmax(refOutput);
+                const auto actSoftMax = softmax(actOutput);
+                const auto refSoftMax = softmax(refOutput);
 
                 std::copy_n(actSoftMax.begin(), outputTensor.get_size(), outputTensor.data<float>());
                 // Why reference data is not updated?
@@ -2237,7 +2243,7 @@ static void printPerformanceCountsAndLatency(size_t numberOfTestCase, const Prof
         printPerformanceCounts(profilingData, std::cout, FLAGS_device, false);
     }
 
-    std::cout << "Latency: " << std::fixed << std::setprecision(2) << durationMs.count() << " ms" << std::endl;
+    std::cout << "Latency: " << std::fixed << std::setprecision(2) << durationMs.count() << " ms" << std::defaultfloat << std::endl;
 }
 
 bool compare_mean_IoU(std::vector<std::pair<bool, float>> iou, float semSegThreshold, uint32_t classes) {
@@ -2255,10 +2261,10 @@ bool compare_mean_IoU(std::vector<std::pair<bool, float>> iou, float semSegThres
             numberOfLabeledClasses++;
             if (FLAGS_dataset == "camVid12") {
                 std::cout << "mean_iou@" << camVid12[i].c_str() << ": " << std::fixed << std::setprecision(2)
-                          << iou[i].second << "%" << std::endl;
+                          << iou[i].second << "%" << std::defaultfloat << std::endl;
             } else {
                 std::cout << "mean_iou@class" << i << ": " << std::fixed << std::setprecision(2) << iou[i].second << "%"
-                          << std::endl;
+                          << std::defaultfloat << std::endl;
             }
             if (iou[i].second < threshold) {
                 std::cout << "Threshold smaller than " << threshold << "%" << std::endl;
@@ -2271,8 +2277,8 @@ bool compare_mean_IoU(std::vector<std::pair<bool, float>> iou, float semSegThres
     }
 
     if (numberOfLabeledClasses > 0) {
-        std::cout << "mean_iou@:mean " << std::fixed << std::setprecision(2) << (ma / numberOfLabeledClasses) << "%"
-                  << std::endl;
+        std::cout << "mean_iou@:mean " << std::fixed << std::setprecision(2) << (ma / static_cast<float>(numberOfLabeledClasses)) << "%"
+                  << std::defaultfloat << std::endl;
     } else {
         std::cout << "WARNING: Number of labeled classes is zero!" << std::endl;
     }
@@ -2553,9 +2559,9 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     std::vector<std::pair<bool, float>> iou(classes, {false, 0.0f});
 
     const auto& [tensorName, output] = *outputs.begin();
-    auto referencesIterator = references.find(tensorName);
+    const auto referencesIterator = references.find(tensorName);
     OPENVINO_ASSERT(referencesIterator != references.end());
-    auto outputLayoutIterator = outputLayouts.find(tensorName);
+    const auto outputLayoutIterator = outputLayouts.find(tensorName);
     OPENVINO_ASSERT(outputLayoutIterator != outputLayouts.end());
 
     BlobTestMethod blobComparator = [skipArgMax, outputLayoutIterator, classes, semSegThreshold, &iou](
