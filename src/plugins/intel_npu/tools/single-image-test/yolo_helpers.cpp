@@ -107,7 +107,7 @@ static void getRegionBoxesV3V4(const std::vector<std::vector<float>>& prediction
                     prob[j] = probability > thresh ? probability : 0;
                 }
                 prob[lclasses] = max;
-                probs.push_back(prob);
+                probs.push_back(std::move(prob));
             }
         }
     }
@@ -187,7 +187,7 @@ static void doNonMaximumSupressionSort(std::vector<utils::Box>& boxes, std::vect
 
     for (int i = 0; i < total; ++i) {
         sortableYoloBBox candidate(i, 0, probs);
-        boxCandidates.push_back(candidate);
+        boxCandidates.push_back(std::move(candidate));
     }
 
     for (int k = 0; k < classes; ++k) {
@@ -438,7 +438,7 @@ std::vector<utils::BoundingBox> utils::parseYoloV3V4Output(
                 }
             }
         }
-        results.push_back(result);
+        results.push_back(std::move(result));
         tensorWH.push_back(std::vector<size_t>{W, H});
     }
 
