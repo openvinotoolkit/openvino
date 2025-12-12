@@ -15,23 +15,12 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_list_unpack(const NodeContext& context) {
-    auto input = context.get_input(0);
-
-    auto complex = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
-    bool is_complex = complex != nullptr;
-    if (is_complex) {
-        input = complex->get_input_source_output(0);
-    }
+    auto [input, complex] = unwrap_complex(context.get_input(0));
 
     if (const auto& list = cast_fw_node(input.get_node_shared_ptr(), "prim::ListConstruct")) {
         // ListConstruct -> ListUnpack can be annihilated
         auto res = list->input_values();
-        if (is_complex) {
-            for (auto& output : res) {
-                output = context.mark_node(std::make_shared<ComplexTypeMark>(output));
-            }
-        }
-        return res;
+        return wrap_complex(context, res, complex);
     } else {
         const auto& outputs =
             make_framework_node(context, "Lists are not supported yet and can be resolved only in specific cases.");
@@ -53,7 +42,8 @@ OutputVector translate_list_unpack(const NodeContext& context) {
                 PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported operation type.");
             }
         } else {
-            return outputs;
+            // Preserve ComplexTypeMark for complex tensor outputs
+            return wrap_complex(context, outputs, complex);
         }
     }
 };

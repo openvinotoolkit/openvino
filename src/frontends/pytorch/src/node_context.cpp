@@ -45,7 +45,12 @@ OutputVector NodeContext::as_constant() const {
     } else {
         auto c_outs = m_decoder->as_constant();
         FRONT_END_OP_CONVERSION_CHECK(c_outs.size() == 1, "Constant must have exactly one output.");
-        if (dtype.is<type::Tensor>() && dtype.as<type::Tensor>().element_type.is<type::Complex>()) {
+        // Check if dtype indicates a complex tensor
+        // Case 1: dtype is Tensor with Complex element type (from torch.TensorType with complex dtype)
+        // Case 2: dtype is directly Complex (from torch.ComplexFloatTensor, torch.ComplexHalfTensor, etc.)
+        bool is_complex = (dtype.is<type::Tensor>() && dtype.as<type::Tensor>().element_type.is<type::Complex>()) ||
+                          dtype.is<type::Complex>();
+        if (is_complex) {
             // Add complex mark to complex constant
             c_outs = {mark_node(std::make_shared<ComplexTypeMark>(c_outs[0], c_outs[0].get_element_type()))};
         }

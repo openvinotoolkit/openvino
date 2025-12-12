@@ -27,6 +27,7 @@
 #include "transforms/aten_getitem_replacer.hpp"
 #include "transforms/aten_index_put_replacer.hpp"
 #include "transforms/aten_index_replacer.hpp"
+#include "transforms/complex_type_mark_remover.hpp"
 #include "transforms/dict_resolver.hpp"
 #include "transforms/einsum_list_construct.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
@@ -301,6 +302,12 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
         manager.register_pass<ov::frontend::pytorch::pass::MovePackThroughLstm>();
         manager.register_pass<ov::frontend::pytorch::pass::RemovePackingOps>();
+        // PrimListUnpackReplacer must run before validation to handle chunk+ListUnpack patterns
+        // that may exist alongside operations with shape inference issues
+        manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
+        // ComplexTypeMarkRemover must run AFTER PrimListUnpackReplacer to allow complex type
+        // propagation through operations like chunk/split that are handled by PrimListUnpackReplacer
+        manager.register_pass<ov::frontend::pytorch::pass::ComplexTypeMarkRemover>();
         bool is_changed = manager.run_passes(model);
 
         // make validation after previously non-validated passes
@@ -310,7 +317,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 
     ov::pass::Manager manager("Frontend:Pytorch:normalize");
     manager.register_pass<ov::pass::UnrollIf>();
-    manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
+    // Note: PrimListUnpackReplacer moved to no_val block above to ensure it runs before validation
     manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();
     // TODO: remove AtenIndexToSelect when problem with  dynamic input rank is gone.
