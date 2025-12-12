@@ -104,7 +104,7 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto squeeze_Squeeze_1 =
         wrap_type<ov::op::v0::Squeeze>({select_Gather_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))});
     // NonZero output_type relaxed to accept both i32 and i64
-    auto ListUnpack_NonZero_1 = wrap_type<ov::op::v3::NonZero>({squeeze_Squeeze_1});
+    auto ListUnpack_NonZero_1 = wrap_type<ov::op::v3::NonZero>({squeeze_Squeeze_1 | select_Gather_1});
     auto ListUnpack_Split_1 = wrap_type<ov::op::v1::Split>(
         {ListUnpack_NonZero_1, wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"))},
         {{"num_splits", 2}});
@@ -141,11 +141,11 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto reshape_Reshape_1 =
         wrap_type<ov::op::v1::Reshape>({reshape_Reshape_1_2, shape_const}, {{"special_zero", true}});
     auto gate_proj_weight = pattern::any_input(pattern::rank_equals(2));
-    auto linear_MatMul_gate = wrap_type<ov::op::v0::MatMul>({reshape_Reshape_1, gate_proj_weight},
+    auto linear_MatMul_gate = wrap_type<ov::op::v0::MatMul>({reshape_Reshape_1 | reshape_Reshape_1_0, gate_proj_weight},
                                                             {{"transpose_a", false}, {"transpose_b", true}});
     auto silu_Swish = wrap_type<ov::op::v4::Swish>({linear_MatMul_gate});
     auto up_proj_weight = pattern::any_input(pattern::rank_equals(2));
-    auto linear_MatMul_up = wrap_type<ov::op::v0::MatMul>({reshape_Reshape_1, up_proj_weight},
+    auto linear_MatMul_up = wrap_type<ov::op::v0::MatMul>({reshape_Reshape_1 | reshape_Reshape_1_0, up_proj_weight},
                                                           {{"transpose_a", false}, {"transpose_b", true}});
     auto mul_Multiply = wrap_type<ov::op::v1::Multiply>({silu_Swish, linear_MatMul_up}, {{"auto_broadcast", "numpy"}});
     auto down_proj_weight = pattern::any_input(pattern::rank_equals(2));
@@ -216,10 +216,18 @@ std::pair<std::shared_ptr<Node>, std::shared_ptr<Node>> create_router_pattern() 
     auto one_hot_off = wrap_type<ov::op::v0::Constant>(pattern::value_matches("0"));
     auto transpose_perm = wrap_type<ov::op::v0::Constant>(pattern::value_matches("2, 1, 0"));
 
-    auto softmax = wrap_type<ov::op::v8::Softmax>({linear_MatMul}, {{"axis", 1}});
-    auto topk = wrap_type<ov::op::v11::TopK>(
+    auto softmax_0 = wrap_type<ov::op::v8::Softmax>({linear_MatMul}, {{"axis", -1}});
+    auto softmax_1 = wrap_type<ov::op::v8::Softmax>({linear_MatMul}, {{"axis", 1}});
+    auto softmax = softmax_0 | softmax_1;
+    auto topk_none = wrap_type<ov::op::v11::TopK>(
+        {softmax, num_topk},
+        {{"axis", -1}, {"mode", "max"}, {"sort", "none"}, {"index_element_type", "i64"}, {"stable", false}});
+    topk_none->set_output_size(2);
+    auto topk_value = wrap_type<ov::op::v11::TopK>(
         {softmax, num_topk},
         {{"axis", -1}, {"mode", "max"}, {"sort", "value"}, {"index_element_type", "i64"}, {"stable", false}});
+    topk_value->set_output_size(2);
+    auto topk = topk_none | topk_value;
     topk->set_output_size(2);
     auto one_hot = wrap_type<ov::op::v1::OneHot>({topk->output(1), expert_num, one_hot_on, one_hot_off}, {{"axis", 2}});
     auto permute = wrap_type<ov::op::v1::Transpose>({one_hot, transpose_perm});
@@ -253,7 +261,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> create_routing_weights_
     auto sum_reduce = wrap_type<ov::op::v1::ReduceSum>({topk->output(0), reduce_neg1}, {{"keep_dims", true}});
     auto normalized = wrap_type<ov::op::v1::Divide>({topk->output(0), sum_reduce},
                                                     {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-    auto unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({normalized, axes.axis2});
+    auto unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({normalized | topk->output(0), axes.axis2});
     auto shape_of = wrap_type<ov::op::v3::ShapeOf>({unsqueeze}, {{"output_type", "i32"}});
     auto split = wrap_type<ov::op::v1::Split>({shape_of, axes.axis0}, {{"num_splits", 3}});
     split->set_output_size(3);
@@ -299,6 +307,12 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
     auto last_add = wrap_type<ov::op::v1::Add>({residual_input, last_reshape}, {{"auto_broadcast", "numpy"}});
 
     auto callback = [=](const std::unordered_map<std::shared_ptr<Node>, std::vector<PatternValueMap>>& matches) {
+        auto expert_scatter1 = matches.at(expert_scatter);
+        if (!matches.count(last_add)) {
+            // in case last_add is not matched,
+            // for example qwen2moe, adding shared_experts is included in the graph before adding residual.
+            return false;
+        }
         auto num_last_add = matches.at(last_add).size();
 
         // Collect expert data from all matched patterns
@@ -328,7 +342,6 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
         for (const auto& expert : all_experts) {
             experts_by_permute[expert.permute_node.get()].push_back(expert);
         }
-
         // Create shared constants (used across all MoE layers)
         auto const_0 = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
         auto const_1 = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
@@ -515,7 +528,6 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
 
             ov::replace_node(last_add_node, final_add);
         }
-
         return true;
     };
 
