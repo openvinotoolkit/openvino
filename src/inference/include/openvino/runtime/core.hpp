@@ -40,6 +40,7 @@ class OPENVINO_RUNTIME_API Core {
     std::shared_ptr<Impl> _impl;
 
 public:
+    ///@{
     /** @brief Constructs an OpenVINO Core instance with devices
      * and their plugins description.
      *
@@ -54,6 +55,12 @@ public:
      * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
      */
     explicit Core(const std::string& xml_config_file = {});
+
+    explicit Core(const std::filesystem::path& xml_config_file);
+
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
+    explicit Core(const TPath& xml_config_file) : Core(std::string(xml_config_file)) {}
+    ///@}
 
     /**
      * @brief Returns device plugins version information.
@@ -822,6 +829,7 @@ public:
      */
     std::vector<std::string> get_available_devices() const;
 
+    ///@{
     /**
      * @brief Register a new device and plugin that enables this device inside OpenVINO Runtime.
      *
@@ -833,12 +841,26 @@ public:
      * - If `plugin` specifies file name (`libplugin_name.so`) or plugin name (`plugin_name`), it will be searched by
      *   file name (`libplugin_name.so`) in CWD or in paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
      *   environment variables depending on the platform.
-     * @note For security purposes it suggested to specify absolute path to register plugin.
+     * @note For security, use an absolute path to register plugin.
      *
      * @param device_name Device name to register a plugin for.
      * @param config Plugin configuration options
      */
     void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& config = {});
+
+    void register_plugin(const std::filesystem::path& plugin_path,
+                         const std::string& device_name,
+                         const ov::AnyMap& config = {});
+
+    template <class Path>
+    void register_plugin(const Path& plugin_path, const std::string& device_name, const AnyMap& config = {}) {
+        if constexpr (std::is_constructible_v<std::string, Path>) {
+            register_plugin(std::string(plugin_path), device_name, config);
+        } else {
+            register_plugin(std::filesystem::path(plugin_path), device_name, config);
+        }
+    }
+    ///@}
 
     /**
      * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.
@@ -849,6 +871,7 @@ public:
      */
     void unload_plugin(const std::string& device_name);
 
+    ///@{
     /** @brief Registers a device plugin to the OpenVINO Runtime Core instance using an XML configuration file with
      * plugins description.
      *
@@ -875,11 +898,23 @@ public:
      *    for different systems with different configurations.
      * - `properties` are set to a plugin via the ov::Core::set_property method.
      * - `extensions` are set to a plugin via the ov::Core::add_extension method.
-     * @note For security purposes it suggested to specify absolute path to register plugin.
+     * @note For security, use an absolute path to register plugin.
      *
      * @param xml_config_file A path to .xml file with plugins to register.
      */
     void register_plugins(const std::string& xml_config_file);
+
+    void register_plugins(const std::filesystem::path& xml_config_file);
+
+    template <class Path>
+    void register_plugins(const Path& xml_config_file) {
+        if constexpr (std::is_constructible_v<std::string, Path>) {
+            register_plugins(std::string(xml_config_file));
+        } else {
+            register_plugins(std::filesystem::path(xml_config_file));
+        }
+    }
+    ///@}
 
     /**
      * @brief Creates a new remote shared context object on the specified accelerator device

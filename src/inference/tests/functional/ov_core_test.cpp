@@ -52,9 +52,11 @@ protected:
 #endif
 };
 
+class CoreBaseTestP : public ::testing::TestWithParam<ov::test::utils::StringPathVariant> {};
+
 #ifndef OPENVINO_STATIC_LIBRARY
 
-static void create_plugin_xml(const std::string& file_name, const std::string& plugin_name = "1") {
+static void create_plugin_xml(const std::filesystem::path& file_name, const std::string& plugin_name = "1") {
     std::ofstream file(file_name);
 
     file << "<ie><plugins><plugin location=\"";
@@ -69,7 +71,7 @@ static void create_plugin_xml(const std::string& file_name, const std::string& p
     file.close();
 }
 
-static void remove_plugin_xml(const std::string& file_name) {
+static void remove_plugin_xml(const std::filesystem::path& file_name) {
     ov::test::utils::removeFile(file_name);
 }
 
@@ -79,6 +81,37 @@ TEST_F(CoreBaseTest, LoadPluginXML) {
         ov::test::utils::getOpenvinoLibDirectory() + ov::util::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_name));
+    remove_plugin_xml(xml_file_path);
+}
+
+INSTANTIATE_TEST_SUITE_P(paths_variants, CoreBaseTestP, ::testing::Values("test_plugin.xml", L"test_plugin.xml"));
+
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+INSTANTIATE_TEST_SUITE_P(unicode_paths_variants,
+                         CoreBaseTestP,
+                         ::testing::Values("test_plugin_这是.xml", L"test_plugin_这是.xml"));
+#    endif
+
+TEST_P(CoreBaseTestP, LoadPluginXML) {
+    const auto xml_file_path = ov::test::utils::to_fs_path(ov::test::utils::getOpenvinoLibDirectory()) /
+                               ov::test::utils::to_fs_path(GetParam());
+    create_plugin_xml(xml_file_path, "1");
+    ov::Core core(xml_file_path);
+    auto versions = core.get_versions("1");
+    EXPECT_FALSE(versions.empty());
+    remove_plugin_xml(xml_file_path);
+}
+
+TEST_P(CoreBaseTestP, registerPlugins) {
+    ov::Core core;
+    std::string mock_plugin_name{"TEST_DEVICE"};
+    const auto xml_file_path = ov::test::utils::to_fs_path(ov::test::utils::getOpenvinoLibDirectory()) /
+                               ov::test::utils::to_fs_path(GetParam());
+
+    create_plugin_xml(xml_file_path, mock_plugin_name);
+    EXPECT_NO_THROW(core.register_plugins(xml_file_path));
+    auto versions = core.get_versions(mock_plugin_name);
+    EXPECT_FALSE(versions.empty());
     remove_plugin_xml(xml_file_path);
 }
 
