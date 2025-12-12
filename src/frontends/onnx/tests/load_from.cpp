@@ -163,9 +163,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoUint64_Negative) {
 
 TEST(FrontEndInputModel, InitializersAreNotModelInputs) {
     ov::frontend::FrontEnd::Ptr fe;
-    auto input_model = ov::frontend::onnx::tests::load_model(
-        "regression/initializer_shares_input_name.onnx",
-        &fe);
+    auto input_model = ov::frontend::onnx::tests::load_model("regression/initializer_shares_input_name.onnx", &fe);
     ASSERT_NE(input_model, nullptr);
 
     auto inputs = input_model->get_inputs();
