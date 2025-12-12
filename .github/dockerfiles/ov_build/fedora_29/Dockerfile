@@ -79,7 +79,7 @@ RUN cd /usr/src/Python-3.14t && \
     ./configure --disable-gil --enable-loadable-sqlite-extensions --prefix=/usr/python3.14t && \
     make altinstall
 
-RUN ln -s /usr/python3.14t/bin/python3.14t /usr/bin/python3.14-nogil
+RUN ln -s /usr/python3.14t/bin/python3.14t /usr/bin/python3.14t
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -106,7 +106,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.14 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.14-nogil get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}

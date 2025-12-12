@@ -41,13 +41,13 @@ RUN chmod +x /install_openvino_dependencies.sh && \
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.14-nogil get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
 # Use Python 3.14 free-threading as default instead of Python 3.10
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 22 break both system and wheels build
-RUN python3.14-nogil -m venv venv
+RUN python3.14t -m venv venv
 ENV PATH="/venv/bin:$PATH"
 
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}-nogil
+ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 ENV PIP_INSTALL_PATH=/venv/lib/python3.14t/site-packages

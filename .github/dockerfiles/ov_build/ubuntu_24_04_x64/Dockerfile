@@ -82,6 +82,6 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.13 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.14 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.14-nogil get-pip.py --no-cache-dir pip==${PIP_VERSION}
+    python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION}
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}

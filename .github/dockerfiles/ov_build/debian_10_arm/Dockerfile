@@ -220,7 +220,7 @@ RUN cp -r Python-3.14.0 Python-3.14t && \
     cd Python-3.14t && make distclean && \
     LDFLAGS="-L/usr/local/lib64" ./configure --disable-gil --with-openssl=/usr/local  --with-openssl-rpath=auto --prefix=/usr/local/bin/python3.14t && \
     make -j4 && make altinstall && \
-    ln -s /usr/local/bin/python3.14t/bin/python3.14 /usr/bin/python3.14-nogil
+    ln -s /usr/local/bin/python3.14t/bin/python3.14 /usr/bin/python3.14t
 
 # Cross-compile Python3.14t for ARM
 RUN cd Python-3.14t && make distclean && \
@@ -243,7 +243,7 @@ RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.13 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.14 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.14-nogil -m pip install --upgrade pip==${PIP_VERSION}
+    python3.14t -m pip install --upgrade pip==${PIP_VERSION}
 
 # Use Python 3.11 as default
 # Using venv here because other methods to switch the default Python break both system and wheels build

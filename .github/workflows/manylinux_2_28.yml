@@ -292,7 +292,7 @@ jobs:
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64_py313 }}
           - python-version: "3.14"
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_py314 }}
-          - python-version: "3.14-nogil"
+          - python-version: "3.14t"
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_py314t }}
     with:
       runner: 'aks-linux-4-cores-16gb'
