@@ -37,6 +37,8 @@ public:
     void* data(const element::Type& type) override;
     const void* data() const override;
     const void* data(const element::Type& type) const override;
+    void* data_rw() override;
+    void* data_rw(const element::Type& type) override;
 
     MemoryPtr get_memory() {
         return m_memptr;

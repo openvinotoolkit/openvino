@@ -2,23 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_weight_compressed_conv1x1_to_matmul.hpp"
+#include "transformations/op_conversions/convert_weight_compressed_conv1x1_to_matmul.hpp"
 
 #include <iostream>
 #include <ostream>
 #include <vector>
 
-#include "graph/include/gemm_inst.h"
-#include "intel_gpu/runtime/utils.hpp"
+#include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/convolution.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
@@ -34,28 +34,26 @@
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;
 
-namespace ov::intel_gpu {
-
-ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1ToMatmul(bool supports_immad) {
-    add_matcher<ConvertWeightCompressedConv1x1ToMatmulMatcher>(supports_immad);
-}
-
-ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressedConv1x1ToMatmulMatcher(bool supports_immad) {
+ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1ToMatmul() {
+    MATCHER_SCOPE(ConvertWeightCompressedConv1x1ToMatmul);
     auto filter1x1_path = [](const ov::Output<ov::Node>& output) {
         const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_path<ov::op::v0::Constant, ov::op::v0::Parameter>(output) && pshape.is_static() && pshape[-1] == 1 && pshape[-2] == 1;
+        return ov::op::util::is_on_path<ov::op::v0::Constant, ov::op::v0::Parameter>(output) && pshape.is_static() &&
+               pshape[-1] == 1 && pshape[-2] == 1;
     };
 
     auto bias_path = [](const ov::Output<ov::Node>& output) {
         const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_path<ov::op::v0::Constant>(output) && pshape.is_static() && pshape[0] == 1 && pshape[2] == 1 && pshape[3] == 1;
+        return ov::op::util::is_on_path<ov::op::v0::Constant>(output) && pshape.is_static() && pshape[0] == 1 &&
+               pshape[2] == 1 && pshape[3] == 1;
     };
 
     auto first_input_m = ov::pass::pattern::any_input();
     auto a_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto transpose_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({first_input_m, a_order_m});
     auto reshape_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({first_input_m, a_order_m});
-    auto a_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_activations_m, reshape_activations_m});
+    auto a_m =
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_activations_m, reshape_activations_m});
 
     auto weights_const_m = wrap_type<ov::op::v0::Constant>(rank_equals(4) && has_static_rank() && filter1x1_path);
     auto weights_param_m = wrap_type<ov::op::v0::Parameter>(rank_equals(4) && has_static_rank() && filter1x1_path);
@@ -64,9 +62,11 @@ ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressedConv1x1ToM
     auto weights_scales_m = ov::pass::pattern::any_input();
     auto weights_zp_m = ov::pass::pattern::any_input();
     auto weights_zp_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_zp_m});
-    auto weight_subtract_m = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({weight_convert_m, weights_zp_convert_m});
+    auto weight_subtract_m =
+        ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({weight_convert_m, weights_zp_convert_m});
     // Make zp subtraction optional to account for symmetrical quantization cases
-    auto weight_dequantized_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weight_convert_m, weight_subtract_m});
+    auto weight_dequantized_m =
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weight_convert_m, weight_subtract_m});
     auto weight_mult_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({weight_dequantized_m, weights_scales_m});
     auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({a_m, weight_mult_m});
 
@@ -87,14 +87,21 @@ ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressedConv1x1ToM
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto conv1x1 = ov::as_type_ptr<ov::op::v1::Convolution>(pattern_map.at(conv1x1_m).get_node_shared_ptr());
-        auto weight_convert = ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weight_convert_m).get_node_shared_ptr());
-        auto weight_sub = (pattern_map.count(weight_subtract_m) > 0) ? pattern_map.at(weight_subtract_m).get_node_shared_ptr() : nullptr;
+        auto weight_convert =
+            ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weight_convert_m).get_node_shared_ptr());
+        auto weight_sub = (pattern_map.count(weight_subtract_m) > 0)
+                              ? pattern_map.at(weight_subtract_m).get_node_shared_ptr()
+                              : nullptr;
         auto weight_mult = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(weight_mult_m).get_node_shared_ptr());
         auto bias_out = (pattern_map.count(bias_m) > 0) ? pattern_map.at(bias_m).get_node_shared_ptr() : nullptr;
-        auto bias_const = (pattern_map.count(bias_const_m) > 0) ? pattern_map.at(bias_const_m).get_node_shared_ptr() : nullptr;
-        auto convert_out = (pattern_map.count(convert_m) > 0) ? pattern_map.at(convert_m).get_node_shared_ptr() : nullptr;
+        auto bias_const =
+            (pattern_map.count(bias_const_m) > 0) ? pattern_map.at(bias_const_m).get_node_shared_ptr() : nullptr;
+        auto convert_out =
+            (pattern_map.count(convert_m) > 0) ? pattern_map.at(convert_m).get_node_shared_ptr() : nullptr;
         auto out_order = (pattern_map.count(c_order_m) > 0) ? pattern_map.at(c_order_m).get_node_shared_ptr() : nullptr;
-        auto reshape_out = (pattern_map.count(reshape_output_m) > 0) ? pattern_map.at(reshape_output_m).get_node_shared_ptr() : nullptr;
+        auto reshape_out = (pattern_map.count(reshape_output_m) > 0)
+                               ? pattern_map.at(reshape_output_m).get_node_shared_ptr()
+                               : nullptr;
         if (!conv1x1 || transformation_callback(conv1x1)) {
             return false;
         }
@@ -137,7 +144,8 @@ ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressedConv1x1ToM
             auto Reshape_weight = reshape_const_to_2d(weight);
             MatcherPass::register_new_node(Reshape_weight);
             Reshape_weight->set_friendly_name(weight->get_friendly_name() + "_Reshape_weight");
-            weight_squeezed_convert = ov::as_type_ptr<ov::op::v0::Convert>(weight_convert->clone_with_new_inputs({Reshape_weight}));
+            weight_squeezed_convert =
+                ov::as_type_ptr<ov::op::v0::Convert>(weight_convert->clone_with_new_inputs({Reshape_weight}));
             ov::copy_runtime_info(weight_convert, weight_squeezed_convert);
         } else {
             auto param = ov::as_type_ptr<ov::op::v0::Parameter>(weight);
@@ -146,15 +154,17 @@ ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressedConv1x1ToM
             auto shape_b = param->get_output_partial_shape(0);
             for (size_t i = 0; i < shape_b.size(); i++)
                 if (shape_b.to_shape()[i] != 1) {
-                    values_reshape_b.push_back(shape_b.to_shape()[i]);
+                    values_reshape_b.push_back(static_cast<int>(shape_b.to_shape()[i]));
                 }
 
             auto reshape_weight_const = ov::op::v0::Constant::create(element::i32, Shape{2}, values_reshape_b);
             auto Reshape_weight = std::make_shared<ov::op::v1::Reshape>(param, reshape_weight_const, false);
             MatcherPass::register_new_node(Reshape_weight);
             Reshape_weight->set_friendly_name(param->get_friendly_name() + "_Reshape_weight");
-            weight_squeezed_convert = ov::as_type_ptr<ov::op::v0::Convert>(weight_convert->clone_with_new_inputs({Reshape_weight}));
+            weight_squeezed_convert =
+                ov::as_type_ptr<ov::op::v0::Convert>(weight_convert->clone_with_new_inputs({Reshape_weight}));
             ov::copy_runtime_info(weight_convert, weight_squeezed_convert);
+            ov::copy_runtime_info(weight_convert, Reshape_weight);
         }
         ov::disable_constant_folding(weight_squeezed_convert);
 
@@ -170,11 +180,13 @@ ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressedConv1x1ToM
             auto Reshape_zp = reshape_const_to_2d(zp);
             MatcherPass::register_new_node(Reshape_zp);
             Reshape_zp->set_friendly_name(zp->get_friendly_name() + "_Reshape_zp");
-            auto weights_zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weights_zp_convert_m).get_node_shared_ptr());
+            auto weights_zp_convert =
+                ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weights_zp_convert_m).get_node_shared_ptr());
             auto zp_squeezed_convert = weights_zp_convert->clone_with_new_inputs({Reshape_zp});
             ov::copy_runtime_info(weights_zp_convert, zp_squeezed_convert);
             ov::disable_constant_folding(zp_squeezed_convert);
-            auto zero_adjusted_weight = weight_sub->clone_with_new_inputs({weight_squeezed_convert, zp_squeezed_convert});
+            auto zero_adjusted_weight =
+                weight_sub->clone_with_new_inputs({weight_squeezed_convert, zp_squeezed_convert});
             ov::copy_runtime_info(weight_sub, zero_adjusted_weight);
             scaled_weight = weight_mult->clone_with_new_inputs({zero_adjusted_weight, Reshape_scale});
         }
@@ -182,6 +194,7 @@ ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressedConv1x1ToM
         ov::disable_constant_folding(scaled_weight);
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(activation, scaled_weight, false, true);
+        ov::copy_runtime_info(conv1x1, matmul);
         std::shared_ptr<Node> matmul_out;
         if (bias_out) {
             auto bias = ov::as_type_ptr<ov::op::v0::Constant>(bias_const);
@@ -193,12 +206,14 @@ ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressedConv1x1ToM
             auto new_bias_shape = ov::Shape{bias_shape[0], bias_shape[2], bias_shape[3], bias_shape[1]};
 
             auto Reshape_bias = std::make_shared<ov::op::v0::Constant>(*bias, new_bias_shape);
+            ov::copy_runtime_info(bias, Reshape_bias);
 
             ov::copy_weightless_cache_attr(bias, Reshape_bias);
             MatcherPass::register_new_node(Reshape_bias);
             Reshape_bias->set_friendly_name(bias->get_friendly_name() + "_Reshape_bias");
 
             matmul_out = bias_out->clone_with_new_inputs({matmul, Reshape_bias});
+            ov::copy_runtime_info(bias_out, matmul_out);
         } else {
             matmul_out = matmul;
         }
@@ -208,6 +223,7 @@ ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressedConv1x1ToM
                 auto convert_final = convert_out->clone_with_new_inputs({matmul_out});
                 auto reshape_final = reshape_out->clone_with_new_inputs({convert_final, out_order});
                 reshape_final->set_friendly_name(m.get_match_root()->get_friendly_name());
+                ov::copy_runtime_info(convert_out, convert_final);
                 ov::copy_runtime_info(m.get_matched_nodes(), reshape_final);
                 ov::replace_node(m.get_match_root(), reshape_final);
             } else {
@@ -232,8 +248,6 @@ ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressedConv1x1ToM
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(output_m, "ConvertWeightCompressedConv1x1ToMatmulMatcher");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(output_m, matcher_name);
     this->register_matcher(m, callback);
 }
-
-}  // namespace ov::intel_gpu

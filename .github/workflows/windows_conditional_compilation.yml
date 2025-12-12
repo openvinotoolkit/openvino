@@ -120,20 +120,6 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
-      - name: Download and install ccache
-        run: |
-          Invoke-WebRequest -Uri 'https://github.com/ccache/ccache/releases/download/v4.9.1/ccache-4.9.1-windows-x86_64.zip' -OutFile 'ccache.zip'
-          Expand-Archive -Path 'ccache.zip' -DestinationPath 'C:\temp\ccache'
-          Move-Item -Path 'C:\temp\ccache\*' -Destination 'C:\ccache'
-          Add-Content -Path $env:GITHUB_PATH -Value "C:\ccache"
-
-      - name: Install build dependencies
-        run: |
-          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip -OutFile ninja-win.zip -MaximumRetryCount 10
-          Expand-Archive -Force ninja-win.zip
-          # Add it to the GitHub Path so it would be available in the subsequent steps
-          Add-Content -Path $env:GITHUB_PATH -Value "${{ github.workspace }}/ninja-win"
-
       - name: Install python dependencies
         run: |
           # For running ONNX frontend unit tests
@@ -189,6 +175,7 @@ jobs:
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
             -DCMAKE_JOB_POOLS:STRING=link_jobs=20 `
             -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
+            -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 

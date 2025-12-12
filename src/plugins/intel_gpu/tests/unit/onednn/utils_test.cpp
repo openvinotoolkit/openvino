@@ -13,6 +13,7 @@
 #include "graph/impls/onednn/utils.hpp"
 
 using namespace cldnn;
+using namespace cldnn::onednn;
 
 struct dnnl_desc_params {
     // Descriptor info to test
@@ -295,4 +296,240 @@ TEST(keep_weights_reorder_shape_consistent_test, simple_data_formats) {
         EXPECT_EQ(layout.format, cldnn::format::oizyx);
         EXPECT_EQ(layout.get_partial_shape(), ov::Shape({16, 1, 1, 16, 16}));
     }
+}
+
+class test_layout_to_memory_desc : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Common test setup
+    }
+
+    dnnl::memory::format_tag get_format_tag_from_desc(const dnnl::memory::desc& desc) {
+        if (desc.get_format_kind() != dnnl::memory::format_kind::blocked) {
+            return dnnl::memory::format_tag::undef;
+        }
+        for (int tag = 0; tag < static_cast<int>(dnnl::memory::format_tag::format_tag_last); ++tag) {
+            auto format_tag = static_cast<dnnl::memory::format_tag>(tag);
+            try {
+                dnnl::memory::desc test_desc(desc.get_dims(), desc.get_data_type(), format_tag);
+                if (test_desc == desc) {
+                    return format_tag;
+                }
+            } catch (...) {
+                continue;
+            }
+        }
+        return dnnl::memory::format_tag::undef;
+    }
+};
+
+TEST_F(test_layout_to_memory_desc, basic_bfyx) {
+    layout l = layout{ov::PartialShape{1, 3, 224, 224}, data_types::f32, format::bfyx};
+
+    auto desc = layout_to_memory_desc(l, dnnl::memory::format_tag::undef);
+
+    EXPECT_EQ(desc.get_ndims(), 4);
+    EXPECT_EQ(desc.get_dims()[0], 1);
+    EXPECT_EQ(desc.get_dims()[1], 3);
+    EXPECT_EQ(desc.get_dims()[2], 224);
+    EXPECT_EQ(desc.get_dims()[3], 224);
+    EXPECT_EQ(desc.get_data_type(), dnnl::memory::data_type::f32);
+    EXPECT_EQ(get_format_tag_from_desc(desc), dnnl::memory::format_tag::abcd);
+}
+
+TEST_F(test_layout_to_memory_desc, 3d_shape) {
+    // 3D shape should be handled specially
+    layout l = layout{ov::PartialShape{1, 256, 64}, data_types::f16, format::bfyx};
+
+    auto desc = layout_to_memory_desc(l, dnnl::memory::format_tag::undef);
+
+    EXPECT_EQ(desc.get_ndims(), 3);
+    EXPECT_EQ(desc.get_data_type(), dnnl::memory::data_type::f16);
+    EXPECT_EQ(get_format_tag_from_desc(desc), dnnl::memory::format_tag::abc);
+}
+
+TEST_F(test_layout_to_memory_desc, 3d_shape_with_ioyx) {
+    // 3D shape should be handled specially
+    layout l = layout{ov::PartialShape{1, 256, 64}, data_types::f16, format::ioyx};
+
+    auto desc = layout_to_memory_desc(l, dnnl::memory::format_tag::any);
+
+    // dnnl::memory::desc represents dnnl::memory::format_tag::bac using strides.
+    // refer to src/plugins/intel_gpu/thirdparty/onednn_gpu/src/common/memory_desc_wrapper.cpp
+    EXPECT_EQ(desc.get_ndims(), 3);
+    EXPECT_EQ(desc.get_dims()[0], 1);
+    EXPECT_EQ(desc.get_dims()[1], 256);
+    EXPECT_EQ(desc.get_dims()[2], 64);
+    EXPECT_EQ(desc.get_data_type(), dnnl::memory::data_type::f16);
+    EXPECT_EQ(get_format_tag_from_desc(desc), dnnl::memory::format_tag::abc);
+    EXPECT_EQ(desc.get_strides()[0], 64);
+    EXPECT_EQ(desc.get_strides()[1], 64);
+    EXPECT_EQ(desc.get_strides()[2], 1);
+}
+
+TEST_F(test_layout_to_memory_desc, with_target_format) {
+    layout l = layout{ov::PartialShape{1, 256}, data_types::i32, format::bfyx};
+    auto desc = layout_to_memory_desc(l, dnnl::memory::format_tag::ab);
+    EXPECT_EQ(desc.get_ndims(), 2);
+    EXPECT_EQ(desc.get_dims()[0], 1);
+    EXPECT_EQ(desc.get_dims()[1], 256);
+    EXPECT_EQ(desc.get_data_type(), dnnl::memory::data_type::s32);
+    EXPECT_EQ(get_format_tag_from_desc(desc), dnnl::memory::format_tag::ab);
+}
+
+
+TEST_F(test_layout_to_memory_desc, flatten_basic) {
+    layout l = layout{ov::PartialShape{2, 3, 4, 5}, data_types::f16, format::bfyx};
+    auto desc = layout_to_memory_desc_flatten(l, dnnl::memory::format_tag::any);
+    EXPECT_EQ(desc.get_ndims(), 1);
+    EXPECT_EQ(desc.get_dims()[0], 2 * 3 * 4 * 5);
+}
+
+TEST_F(test_layout_to_memory_desc, flatten_with_ab_format) {
+    layout l = layout{ov::PartialShape{2, 128}, data_types::f16, format::bfyx};
+    auto desc = layout_to_memory_desc_flatten(l, dnnl::memory::format_tag::ab);
+
+    EXPECT_EQ(desc.get_ndims(), 2);
+    EXPECT_EQ(desc.get_dims()[0], 1);  // Prepended dimension
+    EXPECT_EQ(desc.get_dims()[1], 2 * 128);
+}
+
+TEST_F(test_layout_to_memory_desc, flatten_bias) {
+    // Common use case: bias flattening for convolution
+    layout l = layout{ov::PartialShape{64}, data_types::f16, format::bfyx};
+    auto desc = layout_to_memory_desc_flatten(l, dnnl::memory::format_tag::a);
+    EXPECT_EQ(desc.get_ndims(), 1);
+    EXPECT_EQ(desc.get_dims()[0], 64);
+    EXPECT_EQ(get_format_tag_from_desc(desc), dnnl::memory::format_tag::a);
+}
+
+TEST_F(test_layout_to_memory_desc, blocked_format) {
+    layout l = layout{ov::PartialShape{1, 64, 56, 56}, data_types::f16, format::b_fs_yx_fsv16};
+    auto desc = layout_to_memory_desc_blocked(l, dnnl::memory::format_tag::undef);
+    EXPECT_EQ(desc.get_ndims(), 4);
+    EXPECT_GT(desc.get_inner_nblks(), 0);  // Should have blocking
+}
+
+TEST_F(test_layout_to_memory_desc, strides_with_padding) {
+    layout l = layout{ov::PartialShape{1, 64, 56, 56}, data_types::f16, format::bfyx};
+    l.data_padding = padding{{0, 0, 2, 2}, {0, 0, 2, 2}};
+    auto desc = layout_to_memory_desc_strides(l, dnnl::memory::format_tag::abcd);
+    EXPECT_EQ(desc.get_ndims(), 4);
+    auto strides = desc.get_strides();
+    EXPECT_GT(strides[2], 56);  // Stride should account for padding
+}
+
+TEST_F(test_layout_to_memory_desc, strides_cannot_flatten) {
+    layout l = layout{ov::PartialShape{1, 64, 56, 56}, data_types::f32, format::bfyx};
+    l.data_padding = padding{{0, 0, 1, 1}, {0, 0, 1, 1}};
+    EXPECT_NO_THROW({
+        auto desc = layout_to_memory_desc_strides(l, dnnl::memory::format_tag::abcd);
+    });
+}
+
+TEST_F(test_layout_to_memory_desc, quantize_use_default) {
+    layout l = layout{ov::PartialShape{1, 256}, data_types::f32, format::bfyx};
+    auto desc = layout_to_memory_desc(l, true, false);
+    EXPECT_EQ(desc.get_ndims(), 2);
+    EXPECT_EQ(get_format_tag_from_desc(desc), dnnl::memory::format_tag::ab);
+}
+
+TEST_F(test_layout_to_memory_desc, quantize_output_blocked) {
+    layout l = layout{ov::PartialShape{1, 64, 56, 56}, data_types::f16, format::bfyx};
+    auto desc = layout_to_memory_desc(l, false, true);
+    EXPECT_EQ(desc.get_ndims(), 4);
+    EXPECT_EQ(get_format_tag_from_desc(desc), dnnl::memory::format_tag::abcd);
+}
+
+TEST_F(test_layout_to_memory_desc, quantize_gemm_case) {
+    // Simulating gemm/fc case where use_default_format=true
+    layout scale_layout = layout{ov::PartialShape{1, 256}, data_types::f16, format::bfyx};
+    auto desc = layout_to_memory_desc(scale_layout, true, false);
+    EXPECT_EQ(desc.get_ndims(), 2);
+    EXPECT_EQ(desc.get_dims()[0], 1);
+    EXPECT_EQ(desc.get_dims()[1], 256);
+}
+
+TEST_F(test_layout_to_memory_desc, quantize_conv_case) {
+    // Simulating conv case where use_default_format=false, is_output_blocked=true
+    layout scale_layout = layout{ov::PartialShape{1, 64}, data_types::f16, format::bfyx};
+    auto desc = layout_to_memory_desc(scale_layout, false, true);
+    EXPECT_EQ(desc.get_ndims(), 4);
+    EXPECT_EQ(desc.get_dims()[0], 1);
+    EXPECT_EQ(desc.get_dims()[1], 64);
+    EXPECT_EQ(desc.get_dims()[2], 1);
+    EXPECT_EQ(desc.get_dims()[3], 1);
+}
+
+TEST_F(test_layout_to_memory_desc, builder_method_chaining_flatten_and_format) {
+    layout l = layout{ov::PartialShape{2, 3, 4, 5}, data_types::f32, format::bfyx};
+    auto desc = layout_to_memory_desc_flatten(l, dnnl::memory::format_tag::ab);
+    EXPECT_EQ(desc.get_ndims(), 2);
+    EXPECT_EQ(desc.get_dims()[0], 1);
+    EXPECT_EQ(desc.get_dims()[1], 2 * 3 * 4 * 5);
+}
+
+TEST_F(test_layout_to_memory_desc, builder_blocked_with_undef_format) {
+    layout l = layout{ov::PartialShape{1, 64, 56, 56}, data_types::f32, format::bfyx};
+    auto desc = layout_to_memory_desc_blocked(l, dnnl::memory::format_tag::undef);
+    EXPECT_EQ(desc.get_ndims(), 4);
+    EXPECT_EQ(get_format_tag_from_desc(desc), dnnl::memory::format_tag::abcd);
+}
+
+TEST_F(test_layout_to_memory_desc, get_conv_memory_descs_query_formats) {
+    layout input_layout = layout{ov::PartialShape{1, 3, 224, 224}, data_types::f32, format::bfyx};
+    layout weights_layout = layout{ov::PartialShape{64, 3, 7, 7}, data_types::f32, format::oiyx};
+    layout output_layout = layout{ov::PartialShape{1, 64, 112, 112}, data_types::f32, format::bfyx};
+
+    // format_tag::any is used in ConvolutionImplementationManager::query_formats().
+    auto [input_desc, weights_desc, output_desc] = get_conv_memory_descs(
+        input_layout, weights_layout, output_layout, dnnl::memory::format_tag::any);
+
+    EXPECT_EQ(input_desc.get_ndims(), 4);
+    EXPECT_EQ(weights_desc.get_ndims(), 4);
+    EXPECT_EQ(output_desc.get_ndims(), 4);
+    EXPECT_EQ(get_format_tag_from_desc(input_desc), dnnl::memory::format_tag::undef);
+    EXPECT_EQ(get_format_tag_from_desc(weights_desc), dnnl::memory::format_tag::undef);
+    EXPECT_EQ(get_format_tag_from_desc(output_desc), dnnl::memory::format_tag::undef);
+}
+
+TEST_F(test_layout_to_memory_desc, get_conv_memory_descs_blocked_format) {
+    layout input_layout = layout{ov::PartialShape{1, 64, 56, 56}, data_types::f16, format::b_fs_yx_fsv16};
+    layout weights_layout = layout{ov::PartialShape{128, 64, 3, 3}, data_types::f16, format::os_is_yx_osv16_isv16};
+    layout output_layout = layout{ov::PartialShape{1, 128, 56, 56}, data_types::f16, format::b_fs_yx_fsv16};
+
+    auto [input_desc, weights_desc, output_desc] = get_conv_memory_descs(
+        input_layout, weights_layout, output_layout, dnnl::memory::format_tag::undef);
+
+    EXPECT_EQ(input_desc.get_ndims(), 4);
+    EXPECT_EQ(output_desc.get_ndims(), 4);
+    // Should be blocked
+    EXPECT_EQ(input_desc.get_inner_nblks(), 1);
+    EXPECT_EQ(output_desc.get_inner_nblks(), 1);
+}
+
+TEST_F(test_layout_to_memory_desc, get_conv_memory_descs_grouped_weights) {
+    layout input_layout = layout{ov::PartialShape{1, 256, 28, 28}, data_types::f32, format::bfyx};
+    layout weights_layout = layout{ov::PartialShape{32, 128, 8, 3, 3}, data_types::f32, format::goiyx};
+    layout output_layout = layout{ov::PartialShape{1, 256, 28, 28}, data_types::f32, format::bfyx};
+
+    auto [input_desc, weights_desc, output_desc] = get_conv_memory_descs(
+        input_layout, weights_layout, output_layout, dnnl::memory::format_tag::undef);
+
+    EXPECT_EQ(weights_desc.get_ndims(), 5);  // Grouped weights have 5 dims
+}
+
+TEST_F(test_layout_to_memory_desc, regression_3d_shape_format_selection) {
+    // Regression test: 3D shapes should use abc/acb format correctly
+    layout l_bfyx = layout{ov::PartialShape{1, 256, 64}, data_types::f16, format::bfyx};
+    layout l_byxf = layout{ov::PartialShape{1, 256, 64}, data_types::f16, format::byxf};
+
+    auto desc_bfyx = layout_to_memory_desc(l_bfyx, dnnl::memory::format_tag::undef);
+    auto desc_byxf = layout_to_memory_desc(l_byxf, dnnl::memory::format_tag::undef);
+
+    EXPECT_EQ(desc_bfyx.get_ndims(), 3);
+    EXPECT_EQ(desc_byxf.get_ndims(), 3);
+    EXPECT_EQ(get_format_tag_from_desc(desc_bfyx), dnnl::memory::format_tag::abc);
+    EXPECT_EQ(get_format_tag_from_desc(desc_byxf), dnnl::memory::format_tag::acb);
+    // Format tags should be different (abc vs acb)
 }

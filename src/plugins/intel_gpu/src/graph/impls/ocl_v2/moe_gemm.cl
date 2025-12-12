@@ -66,7 +66,11 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef WEIGHT_COMPRESSED_INT4
     weight_scales += experts_ids[batch] * m * NUM_GROUPS;
     #ifdef WEIGHT_ZP_DT
+    #ifdef WEIGHT_COMPRESSED_ZP_INT4
+    weight_zps += experts_ids[batch] * m * NUM_GROUPS / 2;
+    #else
     weight_zps += experts_ids[batch] * m * NUM_GROUPS;
+    #endif
     #endif
 #endif
     int ld_weight = k;
@@ -80,7 +84,13 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     uint sg_i0 = wg_i0 + sg_i * ugemm_moe_sg_tile_m;
     uint sg_j0 = wg_j0 + sg_j * ugemm_moe_sg_tile_n;
 #ifdef WEIGHT_COMPRESSED_INT4
-    uint num_groups = NUM_GROUPS;
+#ifdef SCALE_ZP_NO_TRANSPOSE
+    /* This parameter is the leading dimension for scales/zp. Since scales/zp are non-transpose,
+       the leading dimension is the stride between successive groups in the k dimension. */
+    uint scale_zp_leading_dim = m;
+#else
+    uint scale_zp_leading_dim = NUM_GROUPS;
+#endif
 #endif
     if (wg_j0 >= cur_n_tokens)
         return;     /* early exit if outside batch */
@@ -94,7 +104,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef WEIGHT_ZP_DT
                                         , weight_zps
 #endif
-                                        , num_groups
+                                        , scale_zp_leading_dim
 #endif
 );
     ugemm_moe_c_type_half c_tile_half;

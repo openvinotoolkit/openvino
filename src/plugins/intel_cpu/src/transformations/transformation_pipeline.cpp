@@ -1237,12 +1237,9 @@ void Transformations::MainSnippets() {
     // Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
     CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     common_optimizations_config.set_transpose_support_callback(
         ov::snippets::utils::make_transpose_support_callback(true));
-#elif defined(OPENVINO_ARCH_ARM64)
-    common_optimizations_config.set_transpose_support_callback(
-        ov::snippets::utils::make_transpose_support_callback(false));
 #else
     common_optimizations_config.set_transpose_support_callback([](const std::shared_ptr<const ov::Node>&) -> bool {
         return false;
@@ -1322,7 +1319,7 @@ void Transformations::MainSnippets() {
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
 #elif defined(OPENVINO_ARCH_ARM64)
     const auto is_infer_prc_supported_by_brgemm =
-        any_of(config.inferencePrecision, ov::element::f32, ov::element::dynamic);
+        any_of(config.inferencePrecision, ov::element::f32, ov::element::f16, ov::element::dynamic);
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
 #else
     const bool isMHASupported = false;

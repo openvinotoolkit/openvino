@@ -31,6 +31,13 @@ struct GOperation {
     F on;
 };
 
+struct InferOutput {};
+
+struct DualDeviceDump {
+    std::filesystem::path reference_path;
+    std::filesystem::path target_path;
+};
+
 struct Dump {
     std::filesystem::path path;
 };

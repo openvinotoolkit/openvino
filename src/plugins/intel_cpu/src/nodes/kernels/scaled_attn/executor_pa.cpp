@@ -2026,9 +2026,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
               int32_t& xattention_block_size,
               int32_t& xattention_stride,
               PlainTensor& sinks,
+              int32_t& adaptive_rkv_start_size,
+              PlainTensor& adaptive_rkv_evictable_sizes,
+              PlainTensor& adaptive_rkv_diversity_block_set_indices,
+              PlainTensor& adaptive_rkv_diversity_block_set_indices_begins,
               PlainTensor& output_emb,
               PlainTensor& output_score,
-              std::vector<PlainTensor>& sparse_attention_mask) {
+              std::vector<PlainTensor>& sparse_attention_mask,
+              PlainTensor& output_arkv_similarity) {
         q.reset(inputs[ID_Q]);  // [B_token, H * S]
         k.reset(inputs[ID_K]);
         v.reset(inputs[ID_V]);
@@ -2050,7 +2055,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         size_t inputs_size = inputs.size();
-        OPENVINO_ASSERT(inputs_size == 21);
+        OPENVINO_ASSERT(inputs_size == 25);
         if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
             rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
         }
@@ -2072,8 +2077,24 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             sinks.reset(inputs[ID_SINKS]);  // [1, 64, 1, 1]
         }
 
+        adaptive_rkv_start_size = *inputs[ID_ADAPTIVE_RKV_START_SIZE]->getDataAs<int32_t>();
+
+        if (!inputs[ID_ADAPTIVE_RKV_EVICTABLE_SIZES]->getShape().hasZeroDims()) {
+            adaptive_rkv_evictable_sizes.reset(inputs[ID_ADAPTIVE_RKV_EVICTABLE_SIZES]);  // [B_seq]
+            if (!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]->getShape().hasZeroDims()) {
+                OPENVINO_ASSERT(!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS]->getShape().hasZeroDims());
+                adaptive_rkv_diversity_block_set_indices.reset(
+                    inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]);  // [num_adaptive_rkv_diversity_blocks]
+                adaptive_rkv_diversity_block_set_indices_begins.reset(
+                    inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS]);  // [num_adaptive_rkv_diversity_blocks]
+            }
+
+            OPENVINO_ASSERT(outputs.size() >= 3);
+            output_arkv_similarity.reset(outputs[2]);
+        }
+
         output_emb.reset(outputs[0]);
-        if (outputs.size() == 2) {
+        if (outputs.size() >= 2) {
             output_score.reset(outputs[1]);
         }
 
@@ -2216,6 +2237,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             sinks.assert_dims({1, H, 1, 1});
         }
 
+        if (adaptive_rkv_evictable_sizes) {
+            OPENVINO_ASSERT(adaptive_rkv_start_size >= 0);
+            adaptive_rkv_evictable_sizes.assert_dims({B_seq});
+            if (adaptive_rkv_diversity_block_set_indices) {
+                adaptive_rkv_diversity_block_set_indices_begins.assert_dims({B_seq + 1});
+            }
+        }
+
         output_emb.assert_dims({B_token, H * SV});
         output_emb = output_emb.reshape({B_token, 1, H * SV});
 
@@ -2344,8 +2373,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         PlainTensor sinks;
 
+        int32_t adaptive_rkv_start_size = 0;
+        PlainTensor adaptive_rkv_evictable_sizes;
+        PlainTensor adaptive_rkv_diversity_block_set_indices;
+        PlainTensor adaptive_rkv_diversity_block_set_indices_begins;
+
         PlainTensor output_emb;
         PlainTensor output_score;
+        PlainTensor output_arkv_similarity;
 
         std::vector<PlainTensor>
             sparse_attention_mask;  // Each vector element corresponds to a batch, and each PlainTensor corresponds to a
@@ -2374,9 +2409,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              xattention_block_size,
              xattention_stride,
              sinks,
+             adaptive_rkv_start_size,
+             adaptive_rkv_evictable_sizes,
+             adaptive_rkv_diversity_block_set_indices,
+             adaptive_rkv_diversity_block_set_indices_begins,
              output_emb,
              output_score,
-             sparse_attention_mask);
+             sparse_attention_mask,
+             output_arkv_similarity);
 
         if (rotated_block_indices) {
             // Rotate kv cache currently doesn't support quantized cache.

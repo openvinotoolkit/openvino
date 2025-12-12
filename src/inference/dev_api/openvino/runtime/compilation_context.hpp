@@ -18,17 +18,18 @@ namespace ov {
 
 class OPENVINO_RUNTIME_API ModelCache {
 public:
-    static std::string calculate_file_info(const std::string& filePath);
+    static std::string calculate_file_info(const std::filesystem::path& file_path);
 
-    static std::string compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions);
+    static std::string compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compile_options);
 
-    static std::string compute_hash(const std::string& modelName, const ov::AnyMap& compileOptions);
-    static std::string compute_hash(const std::string& modeStr,
+    static std::string compute_hash(const std::filesystem::path& model_path, const ov::AnyMap& compile_options);
+
+    static std::string compute_hash(const std::string& mode_str,
                                     const ov::Tensor& data,
-                                    const ov::AnyMap& compileOptions);
+                                    const ov::AnyMap& compile_options);
     static std::string compute_hash(const std::shared_ptr<const ov::Model>& model,
                                     const std::filesystem::path& model_path,
-                                    const ov::AnyMap& compileOptions);
+                                    const ov::AnyMap& compile_options);
 };
 
 class CompiledBlobHeader final {

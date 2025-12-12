@@ -13,6 +13,7 @@
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/util/common_util.hpp"
 #include "utils/reshape.hpp"
 #include "utils/split.hpp"
@@ -37,6 +38,64 @@ enum class LSTMInput {
     LSTM_INPUT_P
 };
 
+// Normalize tensor rank to target_rank by squeezing leading dimensions of size 1.
+// This handles models where upstream Unsqueeze operations add extra leading dimensions.
+// Static validation: if leading dims are statically known and != 1, emit clear error at conversion time.
+// If extra dimensions are != 1 at runtime, Squeeze will fail with a clear error.
+ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
+                                           int64_t target_rank,
+                                           const std::string& input_name) {
+    const auto& input_rank = input.get_partial_shape().rank();
+
+    if (input_rank.is_dynamic()) {
+        return input;
+    }
+
+    if (input_rank.get_length() == target_rank) {
+        return input;
+    }
+
+    if (input_rank.get_length() > target_rank) {
+        // Squeeze leading dimensions to reduce rank to target_rank
+        const auto dims_to_squeeze = input_rank.get_length() - target_rank;
+
+        // Static validation: check if leading dimensions are statically known and != 1
+        const auto& input_shape = input.get_partial_shape();
+        for (int64_t i = 0; i < dims_to_squeeze; ++i) {
+            if (input_shape[i].is_static() && input_shape[i].get_length() != 1) {
+                OPENVINO_THROW("LSTM input '",
+                               input_name,
+                               "' has rank ",
+                               input_rank.get_length(),
+                               " but expected ",
+                               target_rank,
+                               ". Leading dimension [",
+                               i,
+                               "] is ",
+                               input_shape[i].get_length(),
+                               " but must be 1 to squeeze.");
+            }
+        }
+
+        std::vector<int64_t> axes_to_squeeze;
+        for (int64_t i = 0; i < dims_to_squeeze; ++i) {
+            axes_to_squeeze.push_back(i);
+        }
+
+        auto axes_const = v0::Constant::create(ov::element::i64, Shape{axes_to_squeeze.size()}, axes_to_squeeze);
+        return std::make_shared<v0::Squeeze>(input, axes_const);
+    }
+
+    // input_rank < target_rank: reject non-conformant models with missing num_directions dimension
+    OPENVINO_THROW("LSTM input '",
+                   input_name,
+                   "' has rank ",
+                   input_rank.get_length(),
+                   " but expected ",
+                   target_rank,
+                   ". Missing num_directions dimension cannot be automatically inferred.");
+}
+
 struct LSTMNgInputMap {
     explicit LSTMNgInputMap(const Node& node) {
         const auto& ng_inputs = node.get_ov_inputs();
@@ -48,20 +107,29 @@ struct LSTMNgInputMap {
         // Packed input sequences.
         // ONNX Shape: [seq_length, batch_size, input_size]
         // OpenVino Shape: [batch_size, seq_length, input_size]
-        m_input_map[LSTMInput::LSTM_INPUT_X] = ov::op::util::reorder_axes(ng_inputs.at(0), {1, 0, 2});
+
+        // First normalize rank if needed, THEN reorder axes
+        // This is important because Squeeze/Unsqueeze changes dimension indices
+        auto input_x = ng_inputs.at(0);
+        input_x = normalize_tensor_rank(input_x, 3, "X");
+        input_x = ov::op::util::reorder_axes(input_x, {1, 0, 2});
+
+        m_input_map[LSTMInput::LSTM_INPUT_X] = input_x;
 
         // Weight tensor for the gates.
-        // Shape: [num_directions, 4*hidden_size, input_size]
+        // ONNX Shape: [num_directions, 4*hidden_size, input_size]
+        auto input_w = normalize_tensor_rank(ng_inputs.at(1), 3, "W");
         m_input_map[LSTMInput::LSTM_INPUT_W] =
-            ov::op::util::convert_lstm_node_format(ng_inputs.at(1),
+            ov::op::util::convert_lstm_node_format(input_w,
                                                    ov::op::util::LSTMWeightsFormat::IOFC,
                                                    ov::op::util::LSTMWeightsFormat::FICO,
                                                    1);
 
         // The recurrence weight tensor.
-        // Shape: [num_directions, 4*hidden_size, hidden_size]
+        // ONNX Shape: [num_directions, 4*hidden_size, hidden_size]
+        auto input_r = normalize_tensor_rank(ng_inputs.at(2), 3, "R");
         m_input_map[LSTMInput::LSTM_INPUT_R] =
-            ov::op::util::convert_lstm_node_format(ng_inputs.at(2),
+            ov::op::util::convert_lstm_node_format(input_r,
                                                    ov::op::util::LSTMWeightsFormat::IOFC,
                                                    ov::op::util::LSTMWeightsFormat::FICO,
                                                    1);
@@ -93,7 +161,7 @@ struct LSTMNgInputMap {
         // ONNX Shape: [num_directions, 8*hidden_size]
         // OpenVino Shape: [num_directions, 4*hidden_size]
         if (ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs.at(3))) {
-            auto bias = ng_inputs.at(3);
+            auto bias = normalize_tensor_rank(ng_inputs.at(3), 2, "B");
             auto split_bias = ov::op::util::make_split(bias, 2, 1);
             m_input_map[LSTMInput::LSTM_INPUT_B] = std::make_shared<v1::Add>(split_bias.at(0), split_bias.at(1));
             m_input_map[LSTMInput::LSTM_INPUT_B] =
@@ -124,7 +192,12 @@ struct LSTMNgInputMap {
         // ONNX Shape: [num_directions, batch_size, hidden_size]
         // OpenVino Shape: [batch_size, num_directions, hidden_size]
         if (ng_inputs.size() > 5 && !ov::op::util::is_null(ng_inputs.at(5))) {
-            m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = ov::op::util::reorder_axes(ng_inputs.at(5), {1, 0, 2});
+            auto init_h = ng_inputs.at(5);
+            // First normalize rank, THEN reorder axes
+            init_h = normalize_tensor_rank(init_h, 3, "initial_h");
+            init_h = ov::op::util::reorder_axes(init_h, {1, 0, 2});
+
+            m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = init_h;
         } else {
             auto init_h_shape =
                 std::make_shared<v0::Concat>(ov::OutputVector{batch_size_node, num_directions_node, hidden_size_node},
@@ -137,7 +210,12 @@ struct LSTMNgInputMap {
         // ONNX Shape: [num_directions, batch_size, hidden_size]
         // OpenVino Shape: [batch_size, num_directions, hidden_size]
         if (ng_inputs.size() > 6 && !ov::op::util::is_null(ng_inputs.at(6))) {
-            m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = ov::op::util::reorder_axes(ng_inputs.at(6), {1, 0, 2});
+            auto init_c = ng_inputs.at(6);
+            // First normalize rank, THEN reorder axes
+            init_c = normalize_tensor_rank(init_c, 3, "initial_c");
+            init_c = ov::op::util::reorder_axes(init_c, {1, 0, 2});
+
+            m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = init_c;
         } else {
             auto init_c_shape =
                 std::make_shared<v0::Concat>(ov::OutputVector{batch_size_node, num_directions_node, hidden_size_node},
@@ -150,8 +228,9 @@ struct LSTMNgInputMap {
         // ONNX Shape: [num_directions, 3*hidden_size]
         // OpenVino Shape: [num_directions, 4*hidden_size]
         if (ng_inputs.size() > 7 && !ov::op::util::is_null(ng_inputs.at(7))) {
+            auto peepholes = normalize_tensor_rank(ng_inputs.at(7), 2, "P");
             m_input_map[LSTMInput::LSTM_INPUT_P] =
-                ov::op::util::convert_lstm_peepholes_format(ng_inputs.at(7),
+                ov::op::util::convert_lstm_peepholes_format(peepholes,
                                                             ov::op::util::LSTMPeepholesFormat::IOF,
                                                             ov::op::util::LSTMPeepholesFormat::FIO,
                                                             1);

@@ -128,7 +128,10 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
     try {
-        check_tensor(port, tensor);
+        check_tensor(port,
+                     tensor,
+                     foundPort.is_input() ? _metadata.inputs.at(foundPort.idx).supportsStridedLayout
+                                          : _metadata.outputs.at(foundPort.idx).supportsStridedLayout);
     } catch (const ov::Exception& ex) {
         OPENVINO_THROW("Failed to set tensor. ", ex.what());
     }
@@ -165,14 +168,22 @@ void SyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 }
 
 void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
-                                    const ov::SoPtr<ov::ITensor>& tensor) const {
+                                    const ov::SoPtr<ov::ITensor>& tensor,
+                                    const bool support_strides) const {
     if (tensor == nullptr)
         OPENVINO_THROW("The tensor is not initialized!");
 
     bool is_input = ov::op::util::is_parameter(port.get_node());
     std::string tensor_type = is_input ? "input" : "output";
 
-    OPENVINO_ASSERT(tensor->is_continuous(), "The tensor is not continuous");
+    if (!support_strides) {
+        OPENVINO_ASSERT(
+            tensor->is_continuous(),
+            "The tensor has a non-contiguous memory layout (custom strides), which is not supported by the "
+            "current driver/compiler version. To use strided tensors, either:\n"
+            "  1. Upgrade to a driver version that supports strides, or\n"
+            "  2. Enable stride support using the 'enable_strides_for' configuration property if this is supported.");
+    }
 
     if ((port.get_element_type() == ov::element::Type_t::boolean ||
          tensor->get_element_type() == ov::element::Type_t::boolean) &&
@@ -230,7 +241,8 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
 }
 
 void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& port,
-                                             const std::vector<ov::SoPtr<ov::ITensor>>& tensors) const {
+                                             const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                                             const bool support_strides) const {
     OPENVINO_ASSERT(!tensors.empty(), "set_input_tensors/set_tensors can't be called with empty tensors");
     OPENVINO_ASSERT(
         tensors.size() != 1,
@@ -299,7 +311,16 @@ void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& p
                         element_type,
                         " and shape ",
                         batched_shape);
-        OPENVINO_ASSERT(item->is_continuous(), "Strides for batched tensors should be default.");
+
+        if (!support_strides) {
+            OPENVINO_ASSERT(
+                item->is_continuous(),
+                "The tensor has a non-contiguous memory layout (custom strides), which is not supported by the "
+                "current driver/compiler version. To use strided tensors, either:\n"
+                "  1. Upgrade to a driver version that supports strides, or\n"
+                "  2. Enable stride support using the 'NPU_ENABLE_STRIDES_FOR' configuration property if this is "
+                "supported.");
+        }
     }
 }
 
@@ -307,18 +328,18 @@ void SyncInferRequest::check_tensors() const {
     const auto& inputs = _compiledModel->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
         if (is_batched_input(i)) {
-            check_batched_tensors(inputs[i], get_user_inputs(i));
+            check_batched_tensors(inputs[i], get_user_inputs(i), _metadata.inputs.at(i).supportsStridedLayout);
             continue;
         }
         if (get_user_input(i)) {
-            check_tensor(inputs[i], get_user_input(i));
+            check_tensor(inputs[i], get_user_input(i), _metadata.inputs.at(i).supportsStridedLayout);
         }
     }
 
     const auto& outputs = _compiledModel->outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
         if (_userOutputTensors.at(i)) {
-            check_tensor(outputs[i], _userOutputTensors.at(i));
+            check_tensor(outputs[i], _userOutputTensors.at(i), _metadata.outputs.at(i).supportsStridedLayout);
         }
     }
 }

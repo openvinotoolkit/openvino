@@ -59,7 +59,6 @@ if(WIN32)
     endif()
 endif()
 
-
 set_target_properties(
   ${TARGET_NAME} PROPERTIES FOLDER ${CMAKE_CURRENT_SOURCE_DIR} CXX_STANDARD 17)
 
@@ -70,7 +69,7 @@ endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
 
-file(GLOB_RECURSE BLOBS "*.blob")
+file(GLOB_RECURSE BLOBS "*.blob" "*.xml" "*.bin")
 file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/intel_npu_blobs)
 add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
                   COMMAND ${CMAKE_COMMAND} -E copy ${BLOBS}

@@ -75,6 +75,14 @@ struct SoPtr {
         return _ptr.get();
     }
 
+    /**
+     * @brief Dereference stored pointer to T object.
+     * @return Reference to T object.
+     */
+    T& operator*() const noexcept {
+        return *_ptr;
+    }
+
     explicit operator bool() const noexcept {
         return _ptr != nullptr;
     }
