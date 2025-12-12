@@ -77,15 +77,7 @@ Core::Core(const std::string& xml_config_file) {
     OV_CORE_CALL_STATEMENT(_impl->register_compile_time_plugins();)
 }
 
-Core::Core(const std::filesystem::path& xml_config_file)
-    : Core(
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-          ov::util::wstring_to_string(xml_config_file.wstring())
-#else
-          xml_config_file.string()
-#endif
-      ) {
-}
+Core::Core(const std::filesystem::path& xml_config_file) : Core(ov::util::path_to_string(xml_config_file.wstring())) {}
 
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
     OV_CORE_CALL_STATEMENT({ return _impl->get_versions(device_name); })}
@@ -272,13 +264,7 @@ void Core::register_plugin(const std::string& plugin, const std::string& device_
 void Core::register_plugin(const std::filesystem::path& plugin_path,
                            const std::string& device_name,
                            const ov::AnyMap& properties) {
-    const auto plugin_path_utf8 =
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        ov::util::wstring_to_string(plugin_path.wstring());
-#else
-        plugin_path.string();
-#endif
-    register_plugin(plugin_path_utf8, device_name, properties);
+    register_plugin(ov::util::path_to_string(plugin_path), device_name, properties);
 }
 
 void Core::unload_plugin(const std::string& device_name) {
@@ -295,13 +281,7 @@ void Core::register_plugins(const std::string& xml_config_file) {
 }
 
 void Core::register_plugins(const std::filesystem::path& xml_config_file) {
-    register_plugins(
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        ov::util::wstring_to_string(xml_config_file.wstring())
-#else
-        xml_config_file.string()
-#endif
-    );
+    register_plugins(ov::util::path_to_string(xml_config_file));
 }
 
 RemoteContext Core::create_context(const std::string& device_name, const AnyMap& params) {

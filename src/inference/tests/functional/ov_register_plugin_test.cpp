@@ -190,8 +190,7 @@ INSTANTIATE_TEST_SUITE_P(paths_variants, RegisterPluginTestP, ::testing::Values(
 
 TEST_P(RegisterPluginTestP, registerNewPluginNoThrows) {
     ov::Core core;
-    auto plugin = std::make_shared<ov::test::utils::MockPlugin>();
-    std::shared_ptr<ov::IPlugin> base_plugin = plugin;
+    std::shared_ptr<ov::IPlugin> base_plugin = std::make_shared<ov::test::utils::MockPlugin>();
     std::shared_ptr<void> m_so;
     mockPlugin(core, base_plugin, m_so);
 
