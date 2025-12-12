@@ -337,6 +337,7 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
 
     bool model_changed = false;
     bool pass_changed_model = false;
+    bool needs_validate = false;
 
     profiler.start_timer(m_name);
     for (const auto& pass : m_pass_list) {
@@ -347,6 +348,7 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
         profiler.stop_timer(pass_name, pass_changed_model);
 
         model_changed = model_changed || pass_changed_model;
+        needs_validate = needs_validate || pass_changed_model;
 
         profiler.visualize(model, pass_name);
         profiler.serialize(model, pass_name);
@@ -358,7 +360,7 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
 
 bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
                                  const std::shared_ptr<Model>& model,
-                                 bool needs_validate) {
+                                 bool& needs_validate) {
     if (m_pass_config->is_disabled(pass->get_type_info())) {
         OPENVINO_DEBUG("Pass ", pass->get_name(), " is disabled.");
         return false;
@@ -380,8 +382,11 @@ bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
         // GraphRewrite is a temporary container for MatcherPass to make execution on entire ov::Model
         return GraphRewrite(matcher_pass).run_on_model(model);
     } else if (auto model_pass = ov::as_type_ptr<ModelPass>(pass)) {
-        if (ov::as_type_ptr<ov::pass::Validate>(model_pass) && !needs_validate) {
-            return false;
+        if (ov::as_type_ptr<ov::pass::Validate>(model_pass)) {
+            if (!needs_validate) {
+                return false;
+            }
+            needs_validate = false;
         }
         return model_pass->run_on_model(model);
     }
