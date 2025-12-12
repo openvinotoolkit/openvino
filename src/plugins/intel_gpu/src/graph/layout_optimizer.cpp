@@ -1659,3 +1659,4 @@ const std::vector<std::pair<format::type, bool>> layout_optimizer::optimized_for
         {format::bs_fs_yx_bsv16_fsv16, false},
         {format::fs_b_yx_fsv32, false}
 };
+
