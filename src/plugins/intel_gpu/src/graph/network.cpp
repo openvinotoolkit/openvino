@@ -1010,11 +1010,6 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
             return;
         }
 
-        if (node.id().compare("constant:self.model.embed_tokens.weight") == 0) {
-            std::cout << "wow" << std::endl;
-            return;
-        }
-
         // Allocate and transfer memory
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
         device_mem->copy_from(get_stream(), inst_mem);

@@ -336,7 +336,7 @@ sdpa_config_t xehpc_h32_s32 = {16, 16, 16, 16, 2, 4, 2, 4};
 sdpa_config_t xehpc_h32_2nd = {16, 64, 16, 16, 8, 1, 2, 4};
 
 sdpa_config_t xehpc_h64_pa = {16, 16, 16, 16, 4, 4, 4, 4};
-sdpa_config_t xehpc_h64_pa_2nd = {16, 16, 16, 16, 8, 2, 8, 2};
+sdpa_config_t xehpc_h64_pa_2nd = {16, 16, 16, 16, 16, 2, 16, 2};
 sdpa_config_t xehpc_h64 = {16, 64, 32, 16, 8, 2, 2, 8};
 sdpa_config_t xehpc_h64_s64 = {32, 32, 32, 16, 4, 2, 2, 4};
 sdpa_config_t xehpc_h64_s32 = {16, 16, 16, 16, 4, 2, 4, 2};
