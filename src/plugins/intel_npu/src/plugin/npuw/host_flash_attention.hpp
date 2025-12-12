@@ -10,6 +10,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
@@ -281,34 +282,46 @@ struct HFARuntimeContext {
     // Type Aliases
     // ============================================================================
 
-    /// Memory allocator function: (element_type, shape, device_name) -> tensor
+    /// Memory allocator: (type, shape, device) -> tensor
     using AllocatorFn =
         std::function<ov::SoPtr<ov::ITensor>(const ov::element::Type&, const ov::Shape&, const std::string&)>;
 
-    // ============================================================================
-    // Data Members
-    // ============================================================================
-
-    /// Cache for extracted mask tiles, indexed by (tensor, offset, length).
-    /// Avoids redundant extraction of the same mask region across inference calls.
-    std::map<HFATileMaskKey, ov::SoPtr<ov::ITensor>> tiled_attention_mask_cache;
-
-    /// Pre-allocated mask tile buffers.
-    std::vector<ov::SoPtr<ov::ITensor>> preallocated_mask_tiles;
+    /// State tensors for accumulation: acc, max, sum
+    struct StateBuffers {
+        ov::SoPtr<ov::ITensor> acc;  // Accumulated output
+        ov::SoPtr<ov::ITensor> max;  // Max values for stability
+        ov::SoPtr<ov::ITensor> sum;  // Normalization denominator
+    };
 
     // ============================================================================
-    // Lifecycle Methods
+    // Mask Cache Optimization
     // ============================================================================
 
-    /// Initialize pre-allocated mask tile buffers.
-    ///
-    /// Allocates `max_num_tiles = context_size / query_size` mask buffers based on the HFA descriptor.
-    /// Must be called once during setup before any tiled inference.
-    /// @throws std::runtime_error if context_size is not divisible by query_size
+    /// Cached mask tiles: (tensor, offset, length) -> tile
+    std::map<HFATileMaskKey, ov::SoPtr<ov::ITensor>> m_mask_tile_cache;
+
+    /// Pre-allocated buffers for mask extraction on cache miss
+    std::vector<ov::SoPtr<ov::ITensor>> m_mask_tile_buffers;
+
+    // ============================================================================
+    // State Double-Buffering Optimization
+    // ============================================================================
+
+    /// Two state buffers: [current, next] (swap after each inference)
+    std::optional<std::array<StateBuffers, 2>> m_state_buffers;
+
+    /// Current active buffer index (0 or 1)
+    size_t m_current_buffer_idx = 0;
+
+    // ============================================================================
+    // Initialization
+    // ============================================================================
+
+    /// Initialize mask cache: allocate `context_size / query_size` temporary buffers.
+    /// Call once during setup before inference.
+    /// @throws std::runtime_error if context_size not divisible by query_size
     template <typename HFADesc>
-    void initialize_preallocated_buffers(const HFADesc& hfa_desc,
-                                         const std::string& device_name,
-                                         AllocatorFn allocator) {
+    void initialize_mask_cache(const HFADesc& hfa_desc, const std::string& device_name, AllocatorFn allocator) {
         // Get mask tensor shape from the tile model
         const size_t mask_input_idx = hfa_desc._sdpa_attention_info._tile_input_indices.mask;
         const auto& mask_port = hfa_desc._compiled_tile_model->inputs()[mask_input_idx];
@@ -327,71 +340,111 @@ struct HFARuntimeContext {
 
         const size_t max_num_tiles = context_size / query_size;
 
-        // Pre-allocate mask tile buffers for all possible tiles
-        preallocated_mask_tiles.clear();
-        preallocated_mask_tiles.reserve(max_num_tiles);
+        // Allocate temporary buffers for mask tile extraction
+        m_mask_tile_buffers.clear();
+        m_mask_tile_buffers.reserve(max_num_tiles);
 
         for (size_t i = 0; i < max_num_tiles; ++i) {
             auto mask_tile = allocator(mask_dtype, mask_shape, device_name);
-            preallocated_mask_tiles.push_back(mask_tile);
+            m_mask_tile_buffers.push_back(mask_tile);
         }
     }
 
-    /// Reset all resources to uninitialized state.
-    void reset() {
-        tiled_attention_mask_cache.clear();
-        preallocated_mask_tiles.clear();
-    }
+    /// Reset all resources (mask cache + state buffers)
+    void reset();
 
     // ============================================================================
-    // Query Methods (const)
+    // Mask Cache Queries
     // ============================================================================
 
-    /// Find a cached mask tile.
-    /// @return Cached tensor if found, nullptr otherwise
+    /// Find cached mask tile, returns nullptr if not found
     ov::SoPtr<ov::ITensor> find_cached_mask_tile(const ov::SoPtr<ov::ITensor>& mask_tensor,
                                                  int64_t mask_offset,
-                                                 int64_t tile_length) const {
-        HFATileMaskKey cache_key{mask_tensor, mask_offset, tile_length};
-        auto it = tiled_attention_mask_cache.find(cache_key);
-        if (it != tiled_attention_mask_cache.end()) {
-            return it->second;
-        }
-        return {};
-    }
+                                                 int64_t tile_length) const;
 
-    /// Get a pre-allocated mask tile buffer by index.
-    /// @throws std::out_of_range if index is out of bounds
-    ov::SoPtr<ov::ITensor> get_preallocated_mask_tile(size_t index) const {
-        if (index >= preallocated_mask_tiles.size()) {
-            throw std::out_of_range("HFA: mask tile index " + std::to_string(index) + " out of range [0, " +
-                                    std::to_string(preallocated_mask_tiles.size()) + ")");
-        }
-        return preallocated_mask_tiles[index];
-    }
+    /// Get temporary buffer for mask extraction (throws if out of bounds)
+    ov::SoPtr<ov::ITensor> get_mask_tile_buffer(size_t index) const;
 
-    /// Get the number of pre-allocated mask tile buffers.
-    size_t num_preallocated_tiles() const {
-        return preallocated_mask_tiles.size();
+    /// Number of temporary mask tile buffers
+    size_t num_mask_tile_buffers() const {
+        return m_mask_tile_buffers.size();
     }
 
     // ============================================================================
-    // Modification Methods
+    // Mask Cache Modifications
     // ============================================================================
 
-    /// Store a mask tile in the cache.
-    /// @note If a tile with the same key already exists, it will be overwritten.
+    /// Cache a mask tile (overwrites if key exists)
     void cache_mask_tile(const ov::SoPtr<ov::ITensor>& mask_tensor,
                          int64_t mask_offset,
                          int64_t tile_length,
-                         const ov::SoPtr<ov::ITensor>& cached_tile) {
-        HFATileMaskKey cache_key{mask_tensor, mask_offset, tile_length};
-        tiled_attention_mask_cache[cache_key] = cached_tile;
+                         const ov::SoPtr<ov::ITensor>& cached_tile);
+
+    /// Clear mask cache (keeps buffers allocated)
+    void clear_mask_cache();
+
+    // ============================================================================
+    // State Buffer Initialization
+    // ============================================================================
+
+    /// Initialize double-buffering: buffer[0] = provided, buffer[1] = allocated
+    template <typename HFADesc>
+    void initialize_state_buffers(const StateBuffers& initial_buffers,
+                                  const HFADesc& hfa_desc,
+                                  const std::string& device_name,
+                                  AllocatorFn allocator) {
+        m_state_buffers.emplace();
+        auto& buffers = *m_state_buffers;
+        m_current_buffer_idx = 0;
+
+        // Buffer 0: reuse provided tensors
+        buffers[0] = initial_buffers;
+
+        // Buffer 1: allocate independent tensors
+        const auto dtype = initial_buffers.acc->get_element_type();
+        buffers[1].acc = allocator(dtype, initial_buffers.acc->get_shape(), device_name);
+        buffers[1].max = allocator(dtype, initial_buffers.max->get_shape(), device_name);
+        buffers[1].sum = allocator(dtype, initial_buffers.sum->get_shape(), device_name);
     }
 
-    /// Clear the mask tile cache while preserving pre-allocated buffers.
-    void clear_cache() {
-        tiled_attention_mask_cache.clear();
+    // ============================================================================
+    // State Buffer Queries
+    // ============================================================================
+
+    /// Get current state buffers (throws if not initialized)
+    const StateBuffers& get_current_state_buffers() const {
+        if (!m_state_buffers.has_value()) {
+            throw std::runtime_error("HFA: State buffers not initialized");
+        }
+        return (*m_state_buffers)[m_current_buffer_idx];
+    }
+
+    /// Get mutable current state buffers
+    StateBuffers& get_current_state_buffers() {
+        if (!m_state_buffers.has_value()) {
+            throw std::runtime_error("HFA: State buffers not initialized");
+        }
+        return (*m_state_buffers)[m_current_buffer_idx];
+    }
+
+    // ============================================================================
+    // State Buffer Modifications
+    // ============================================================================
+
+    /// Initialize state tensors: acc=0, max=-inf, sum=0 (static utility)
+    static void initialize_state_tensors(ov::SoPtr<ov::ITensor>& acc,
+                                         ov::SoPtr<ov::ITensor>& max,
+                                         ov::SoPtr<ov::ITensor>& sum);
+
+    /// Prepare next buffer asynchronously (call during NPU execution)
+    void prepare_next_state_buffers();
+
+    /// Switch to next buffer after inference
+    void switch_buffers();
+
+    /// Check if state buffers initialized
+    bool has_state_buffers() const {
+        return m_state_buffers.has_value();
     }
 };
 
