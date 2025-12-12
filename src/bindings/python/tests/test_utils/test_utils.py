@@ -104,20 +104,6 @@ def test_cmake_file_not_found(monkeypatch):
     assert result == ""
 
 
-# For backward compatibility with old maker signatures
-class MakerTensorCopy:
-    def __init__(self):
-        self.calls_count = 0
-
-    def __call__(self, tensor: ov.Tensor) -> None:
-        self.calls_count += 1
-        tensor_data = np.array([2, 2, 2, 2], dtype=np.float32).reshape(1, 1, 2, 2)
-        ov.Tensor(tensor_data).copy_to(tensor)
-
-    def called_times(self):
-        return self.calls_count
-
-
 class Maker:
     def __init__(self):
         self.calls_count = 0
@@ -184,28 +170,6 @@ def test_save_postponned_constant_twice(prepare_ir_paths):
 def test_serialize_postponned_constant(prepare_ir_paths):
     maker = Maker()
     model = create_model(maker)
-    assert maker.called_times() == 0
-
-    model_export_file_name, weights_export_file_name = prepare_ir_paths
-    ov.serialize(model, model_export_file_name, weights_export_file_name)
-    assert maker.called_times() == 1
-
-
-def test_serialize_postponned_constant_maker_tensor_copy(prepare_ir_paths):
-    maker = MakerTensorCopy()
-    with pytest.warns(
-        DeprecationWarning,
-        match=(
-            "PostponedConstant.__init__ with Callable\\[\\[Tensor\\], None\\] "
-            "is deprecated and will be removed in version 2026.0"
-        ),
-    ) as w:
-        model = create_model(maker)
-    assert issubclass(w[0].category, DeprecationWarning)
-    assert (
-        "Please use PostponedConstant's 'maker' argument as Callable[[], Tensor] "
-        "instead of Callable[[Tensor], None]"
-    ) in str(w[0].message)
     assert maker.called_times() == 0
 
     model_export_file_name, weights_export_file_name = prepare_ir_paths
