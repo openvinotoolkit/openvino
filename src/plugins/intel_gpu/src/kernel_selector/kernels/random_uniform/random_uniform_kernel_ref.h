@@ -41,6 +41,8 @@ private:
 
     bool Validate(const Params &params) const override;
 
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
+
     JitConstants GetJitConstants(const random_uniform_params &params) const;
 };
 
