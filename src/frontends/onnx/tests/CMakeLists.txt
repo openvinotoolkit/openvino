@@ -4,7 +4,7 @@
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
-ov_try_use_gold_linker()
+ov_try_use_fast_linker()
 
 ov_deprecated_no_errors()
 

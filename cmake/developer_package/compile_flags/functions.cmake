@@ -427,18 +427,27 @@ function(ov_link_system_libraries TARGET_NAME)
 endfunction()
 
 #
-# ov_try_use_gold_linker()
+# ov_try_use_fast_linker()
 #
-# Tries to use gold linker in current scope (directory, function)
+# Tries to use fast linker such as mold, lld or gold in current scope (directory, function)
 #
-function(ov_try_use_gold_linker)
-    # don't use the gold linker, if the mold linker is set
-    if(CMAKE_EXE_LINKER_FLAGS MATCHES "mold" OR CMAKE_MODULE_LINKER_FLAGS MATCHES "mold" OR CMAKE_SHARED_LINKER_FLAGS MATCHES "mold")
+function(ov_try_use_fast_linker)
+    find_program(MOLD_EXE mold)
+    find_program(LLD_EXE lld)
+    find_program(GOLD_EXE gold)
+    # if some linker is set, don't override
+    if(CMAKE_EXE_LINKER_FLAGS MATCHES "-fuse-ld" OR CMAKE_MODULE_LINKER_FLAGS MATCHES "-fuse-ld" OR CMAKE_SHARED_LINKER_FLAGS MATCHES "-fuse-ld")
         return()
     endif()
 
-    # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
-    if(CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_SANITIZER AND NOT CMAKE_CROSSCOMPILING)
+    if(MOLD_EXE AND NOT CMAKE_CROSSCOMPILING)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=mold" PARENT_SCOPE)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=mold" PARENT_SCOPE)
+    elseif(LLD_EXE AND NOT CMAKE_CROSSCOMPILING)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=lld" PARENT_SCOPE)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=lld" PARENT_SCOPE)
+    elseif(GOLD_EXE AND CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_SANITIZER AND NOT CMAKE_CROSSCOMPILING)
+        # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
     endif()
