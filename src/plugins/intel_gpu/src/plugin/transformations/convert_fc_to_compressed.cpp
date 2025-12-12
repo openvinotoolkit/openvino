@@ -40,9 +40,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         const auto& pattern_map = m.get_pattern_value_map();
         OPENVINO_ASSERT(pattern_map.count(fully_connected_m));
         OPENVINO_ASSERT(pattern_map.count(mul_const_m));
-        OPENVINO_ASSERT(pattern_map.count(compressed_weights_m));
+        OPENVINO_ASSERT(pattern_map.count(decompressed_weights_m));
         OPENVINO_ASSERT(pattern_map.count(bias_m));
-        OPENVINO_ASSERT(pattern_map.count(convert_m));
         auto fc = ov::as_type_ptr<op::FullyConnected>(pattern_map.at(fully_connected_m).get_node_shared_ptr());
         if (!fc || transformation_callback(fc)) {
             return false;
@@ -55,8 +54,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         auto weight_shape = fc->get_input_shape(1);
         bool is_weight_3d = (std::count_if(weight_shape.begin(), weight_shape.end(), [](size_t d) { return d > 1; }) == 3);
 
-        auto weight_ptr = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(compressed_weights_m).get_node_shared_ptr());
         bool weight_u8 = false;
+        std::shared_ptr<ov::Node> weight_ptr =
+            pattern_map.count(weights_const_m) ? pattern_map.at(weights_const_m).get_node_shared_ptr() : pattern_map.at(weights_param_m).get_node_shared_ptr();
         if (weight_ptr->get_element_type() == ov::element::u8 || weight_ptr->get_element_type() == ov::element::i8)
             weight_u8 = true;
 
@@ -112,11 +112,27 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             optional_zero_point = convert_const_to_u8(reshape_const(pattern_map.at(sub_const_m).get_node_shared_ptr()));
         }
 
-        std::shared_ptr<ov::Node> fc_input_b = reshape_const(pattern_map.at(compressed_weights_m).get_node_shared_ptr());
+        std::shared_ptr<ov::Node> fc_input_b =
+            pattern_map.count(weights_const_m) ? reshape_const(pattern_map.at(weights_const_m).get_node_shared_ptr())
+                                               : (pattern_map.count(weights_reshape_m) ? pattern_map.at(weights_reshape_m).get_node_shared_ptr()
+                                                                                       : pattern_map.at(weights_param_m).get_node_shared_ptr());
         std::shared_ptr<ov::Node> fc_input_scale = scale;
         std::shared_ptr<ov::Node> fc_input_zp = optional_zero_point;
         std::shared_ptr<ov::Node> fc_input_bias = pattern_map.at(bias_m).get_node_shared_ptr();
         std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
+
+        if (fc_input_b->get_output_partial_shape(0).size() != weight_shape.size()) {
+            OPENVINO_ASSERT(weight_shape.size() < 3);
+            if (has_transpose) {
+                OPENVINO_ASSERT(weight_shape.size() == 2);
+                std::swap(weight_shape[0], weight_shape[1]);
+            }
+            std::shared_ptr<ov::Node> weight_shape_const =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{weight_shape.size()}, weight_shape);
+            fc_input_b = std::make_shared<ov::op::v1::Reshape>(fc_input_b, weight_shape_const, false);
+            result_nodes.push_back(weight_shape_const);
+            result_nodes.push_back(fc_input_b);
+        }
 
         if (has_transpose) {
             const auto& transpose = pattern_map.at(transpose_m).get_node_shared_ptr();
@@ -128,16 +144,16 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                 transpose_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{new_order.size()}, new_order);
             }
 
-            fc_input_b = transpose->clone_with_new_inputs({ fc_input_b->output(0), transpose_const });
+            fc_input_b = transpose->clone_with_new_inputs({fc_input_b->output(0), transpose_const});
             result_nodes.push_back(fc_input_b);
 
             if (ov::shape_size(scale->output(0).get_shape()) > 1) {
-                fc_input_scale = transpose->clone_with_new_inputs({ scale->output(0), transpose_const });
+                fc_input_scale = transpose->clone_with_new_inputs({scale->output(0), transpose_const});
                 result_nodes.push_back(fc_input_scale);
             }
 
             if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1) {
-                fc_input_zp = transpose->clone_with_new_inputs({ optional_zero_point->output(0), transpose_const });
+                fc_input_zp = transpose->clone_with_new_inputs({optional_zero_point->output(0), transpose_const});
                 result_nodes.push_back(fc_input_zp);
             }
         }
@@ -149,18 +165,10 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         std::shared_ptr<ov::Node> new_fc = nullptr;
         if (with_zero_point) {
-            new_fc = std::make_shared<op::FullyConnectedCompressed>(fc_input_a,
-                                                                    fc_input_b,
-                                                                    fc_input_bias,
-                                                                    fc_input_scale,
-                                                                    fc_input_zp,
-                                                                    fc->get_output_type());
+            new_fc =
+                std::make_shared<op::FullyConnectedCompressed>(fc_input_a, fc_input_b, fc_input_bias, fc_input_scale, fc_input_zp, fc->get_output_type());
         } else {
-            new_fc = std::make_shared<op::FullyConnectedCompressed>(fc_input_a,
-                                                                    fc_input_b,
-                                                                    fc_input_bias,
-                                                                    fc_input_scale,
-                                                                    fc->get_output_type());
+            new_fc = std::make_shared<op::FullyConnectedCompressed>(fc_input_a, fc_input_b, fc_input_bias, fc_input_scale, fc->get_output_type());
         }
 
         result_nodes.push_back(new_fc);
