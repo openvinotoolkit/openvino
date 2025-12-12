@@ -356,7 +356,7 @@ public:
                 _attrs->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
             }
 
-            if (prim->dynamic_quantized_precomputed_reduction) {
+            if (dynamic_quantized_precomputed_reduction) {
                 auto activation_precomputed_reduction_idx = ++idx;
                 auto act_precomputed_reduction_data_type = convert_data_type(impl_params->get_input_layout(activation_precomputed_reduction_idx).data_type);
                 _attrs->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
