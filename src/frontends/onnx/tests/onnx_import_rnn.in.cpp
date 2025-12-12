@@ -2191,3 +2191,14 @@ OPENVINO_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_import_only_rnn_defau
 
     EXPECT_EQ(count_ops_of_type<op::v5::RNNSequence>(model), 1);
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_import_lstm_6) {
+    const auto model = convert_model("action_recognition_ucf_res34_lstm.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(
+        Shape{1, 16, 3, 224, 224},
+        std::vector<float>(1 * 16 * 3 * 224 * 224, 0.5f));
+
+    test_case.run();
+}

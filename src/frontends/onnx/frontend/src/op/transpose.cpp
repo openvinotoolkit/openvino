@@ -16,6 +16,15 @@ ov::OutputVector transpose(const ov::frontend::onnx::Node& node) {
 
     auto permute_axes = node.get_attribute_value<std::vector<std::size_t>>("perm", {});
 
+    if (node.get_description() == "362")
+    {
+        std::cout << "dupax +++++++++" << std::endl;
+        std::cout << "dupax permute_axes: " << permute_axes.size() << std::endl;
+        for (const auto& axis : permute_axes) {
+            std::cout << "dupax axis: " << axis << std::endl;
+        }
+    }
+
     return {(permute_axes.empty()) ? ov::op::util::transpose(data) : ov::op::util::reorder_axes(data, permute_axes)};
 }
 
