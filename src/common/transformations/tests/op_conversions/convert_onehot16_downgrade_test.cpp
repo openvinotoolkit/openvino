@@ -14,6 +14,7 @@
 using namespace ov;
 using namespace testing;
 
+namespace v0 = ov::op::v0;
 namespace {
 template <typename TOpFunc>
 std::shared_ptr<ov::Model> create_model(const TOpFunc& op_func) {
@@ -21,10 +22,10 @@ std::shared_ptr<ov::Model> create_model(const TOpFunc& op_func) {
     const float on_value = 1.123f;
     const float off_value = 0.321f;
 
-    const auto indices_const = ov::op::v0::Constant::create(element::i64, Shape{3}, indices);
-    const auto depth_const = ov::op::v0::Constant::create(element::i64, Shape{}, {3});
-    const auto on_const = ov::op::v0::Constant::create(element::f32, Shape{}, {on_value});
-    const auto off_const = ov::op::v0::Constant::create(element::f32, Shape{}, {off_value});
+    const auto indices_const = v0::Constant::create(element::i64, Shape{3}, indices);
+    const auto depth_const = v0::Constant::create(element::i64, Shape{}, {3});
+    const auto on_const = v0::Constant::create(element::f32, Shape{}, {on_value});
+    const auto off_const = v0::Constant::create(element::f32, Shape{}, {off_value});
 
     auto one_hot = op_func(indices_const, depth_const, on_const, off_const, -1);
 

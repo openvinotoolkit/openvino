@@ -25,17 +25,19 @@
 using namespace ov;
 using namespace testing;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 TEST_F(TransformationTestsF, FQTransposeTest1) {
     {
-        auto data = ov::op::v0::Constant::create(element::f32, Shape{1, 1, 3}, {1, 2, 3});
-        auto input_low = ov::op::v0::Constant::create(element::f32, Shape{1}, {2});
-        auto input_high = ov::op::v0::Constant::create(element::f32, Shape{1}, {3});
-        auto output_low = ov::op::v0::Constant::create(element::f32, Shape{1}, {2});
-        auto output_high = ov::op::v0::Constant::create(element::f32, Shape{1}, {3});
-        auto transpose_order = ov::op::v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
+        auto data = v0::Constant::create(element::f32, Shape{1, 1, 3}, {1, 2, 3});
+        auto input_low = v0::Constant::create(element::f32, Shape{1}, {2});
+        auto input_high = v0::Constant::create(element::f32, Shape{1}, {3});
+        auto output_low = v0::Constant::create(element::f32, Shape{1}, {2});
+        auto output_high = v0::Constant::create(element::f32, Shape{1}, {3});
+        auto transpose_order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
 
-        auto fq = std::make_shared<ov::op::v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
-        auto transpose = std::make_shared<ov::op::v1::Transpose>(fq, transpose_order);
+        auto fq = std::make_shared<v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
+        auto transpose = std::make_shared<v1::Transpose>(fq, transpose_order);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{transpose}, ParameterVector{});
 
@@ -46,13 +48,13 @@ TEST_F(TransformationTestsF, FQTransposeTest1) {
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto data = ov::op::v0::Constant::create(element::f32, Shape{1, 3, 1}, {1, 2, 3});
-        auto input_low = ov::op::v0::Constant::create(element::f32, Shape{1, 1, 1}, {2});
-        auto input_high = ov::op::v0::Constant::create(element::f32, Shape{1, 1, 1}, {3});
-        auto output_low = ov::op::v0::Constant::create(element::f32, Shape{1, 1, 1}, {2});
-        auto output_high = ov::op::v0::Constant::create(element::f32, Shape{1, 1, 1}, {3});
+        auto data = v0::Constant::create(element::f32, Shape{1, 3, 1}, {1, 2, 3});
+        auto input_low = v0::Constant::create(element::f32, Shape{1, 1, 1}, {2});
+        auto input_high = v0::Constant::create(element::f32, Shape{1, 1, 1}, {3});
+        auto output_low = v0::Constant::create(element::f32, Shape{1, 1, 1}, {2});
+        auto output_high = v0::Constant::create(element::f32, Shape{1, 1, 1}, {3});
 
-        auto fq = std::make_shared<ov::op::v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
+        auto fq = std::make_shared<v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fq}, ParameterVector{});
     }
@@ -60,17 +62,16 @@ TEST_F(TransformationTestsF, FQTransposeTest1) {
 
 TEST_F(TransformationTestsF, FQTransposeNegativeCase) {
     auto create_graph = []() -> std::shared_ptr<ov::Model> {
-        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 3, 1});
-        auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(data);
-        auto input_low = ov::op::v0::Constant::create(element::f32, Shape{1}, {2});
-        auto input_high = ov::op::v0::Constant::create(element::f32, Shape{1}, {3});
-        auto output_low = ov::op::v0::Constant::create(element::f32, Shape{1}, {2});
-        auto output_high = ov::op::v0::Constant::create(element::f32, Shape{1}, {3});
-        auto transpose_order = ov::op::v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 3, 1});
+        auto sigmoid = std::make_shared<v0::Sigmoid>(data);
+        auto input_low = v0::Constant::create(element::f32, Shape{1}, {2});
+        auto input_high = v0::Constant::create(element::f32, Shape{1}, {3});
+        auto output_low = v0::Constant::create(element::f32, Shape{1}, {2});
+        auto output_high = v0::Constant::create(element::f32, Shape{1}, {3});
+        auto transpose_order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
 
-        auto fq =
-            std::make_shared<ov::op::v0::FakeQuantize>(sigmoid, input_low, input_high, output_low, output_high, 1);
-        auto transpose = std::make_shared<ov::op::v1::Transpose>(fq, transpose_order);
+        auto fq = std::make_shared<v0::FakeQuantize>(sigmoid, input_low, input_high, output_low, output_high, 1);
+        auto transpose = std::make_shared<v1::Transpose>(fq, transpose_order);
 
         return std::make_shared<ov::Model>(ov::OutputVector{transpose}, ParameterVector{data});
     };

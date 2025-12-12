@@ -17,23 +17,25 @@
 
 using namespace std;
 using namespace ov;
-using namespace ov::op;
-using namespace ov::op::util;
 using namespace ov::element;
-using namespace ov::pass::pattern;
 
-using InvariantD = MultiSubGraphOp::InvariantInputDescription;
-using SlicedD = MultiSubGraphOp::SliceInputDescription;
-using MergedD = MultiSubGraphOp::MergedInputDescription;
-using OutputD = MultiSubGraphOp::BodyOutputDescription;
-using ConcatD = MultiSubGraphOp::ConcatOutputDescription;
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v5 = ov::op::v5;
+namespace op_util = ov::op::util;
+
+using InvariantD = op_util::MultiSubGraphOp::InvariantInputDescription;
+using SlicedD = op_util::MultiSubGraphOp::SliceInputDescription;
+using MergedD = op_util::MultiSubGraphOp::MergedInputDescription;
+using OutputD = op_util::MultiSubGraphOp::BodyOutputDescription;
+using ConcatD = op_util::MultiSubGraphOp::ConcatOutputDescription;
 
 using ResultPtr = std::shared_ptr<v0::Result>;
-using OutputDescPtr = MultiSubGraphOp::OutputDescription::Ptr;
+using OutputDescPtr = op_util::MultiSubGraphOp::OutputDescription::Ptr;
 using OutputDescMap = std::unordered_map<ResultPtr, OutputDescPtr>;
-using InputDescPtr = MultiSubGraphOp::InputDescription::Ptr;
+using InputDescPtr = op_util::MultiSubGraphOp::InputDescription::Ptr;
 using BodyResultIdxMap = std::unordered_map<ResultPtr, uint64_t>;
-
 namespace {
 std::unordered_set<uint64_t> remove_results(const std::shared_ptr<v0::Parameter>& param,
                                             const InputDescPtr& input_desc,
@@ -89,9 +91,9 @@ std::unordered_set<uint64_t> remove_results(const std::shared_ptr<v0::Parameter>
 ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
     MATCHER_SCOPE(EliminateLoopInputsOutputs);
 
-    auto subgraph_label = wrap_type<v5::Loop, v0::TensorIterator>();
+    auto subgraph_label = ov::pass::pattern::wrap_type<v5::Loop, v0::TensorIterator>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](Matcher& m) {
         // delete useless Parameter and Result nodes in isolated graph (Parameter->Result)
         // after that, set indices of sliced and invariant inputs
         // and outputs in the resulted SubGraph operation
@@ -100,7 +102,7 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
 
         const auto& pattern_to_output = m.get_pattern_value_map();
 
-        auto subgraph = as_type_ptr<SubGraphOp>(pattern_to_output.at(subgraph_label).get_node_shared_ptr());
+        auto subgraph = as_type_ptr<op_util::SubGraphOp>(pattern_to_output.at(subgraph_label).get_node_shared_ptr());
         if (!subgraph) {
             return false;
         }
@@ -108,7 +110,7 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
         const auto& body_params = body_model->get_parameters();
         const auto& body_results = body_model->get_results();
 
-        std::shared_ptr<SubGraphOp> new_node;
+        std::shared_ptr<op_util::SubGraphOp> new_node;
         const auto& subgraph_in_values = subgraph->input_values();
         int64_t body_condition_output_idx = -1;
         int64_t current_iteration_input_idx = -1;

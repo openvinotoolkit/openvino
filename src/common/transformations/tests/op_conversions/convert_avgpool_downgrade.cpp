@@ -18,10 +18,13 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
 namespace {
 
 std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_type, const bool exclude_pad = true) {
-    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
+    const auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
     const ov::Strides strides{1, 1}, dilations{1, 1};
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
@@ -40,18 +43,18 @@ std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_
 }
 
 std::shared_ptr<ov::Model> create_v1_model(const ov::op::RoundingType rounding_type) {
-    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
+    const auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
     const ov::Strides strides{1, 1}, dilations{1, 1};
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
-    const auto avg_pool_v1 = std::make_shared<ov::op::v1::AvgPool>(input,
-                                                                   strides,
-                                                                   pads_begin,
-                                                                   pads_end,
-                                                                   kernel,
-                                                                   true,
-                                                                   rounding_type,
-                                                                   ov::op::PadType::EXPLICIT);
+    const auto avg_pool_v1 = std::make_shared<v1::AvgPool>(input,
+                                                           strides,
+                                                           pads_begin,
+                                                           pads_end,
+                                                           kernel,
+                                                           true,
+                                                           rounding_type,
+                                                           ov::op::PadType::EXPLICIT);
 
     avg_pool_v1->set_friendly_name("avg_pool_v1");
 
@@ -59,15 +62,15 @@ std::shared_ptr<ov::Model> create_v1_model(const ov::op::RoundingType rounding_t
 }
 
 std::shared_ptr<ov::Model> create_exclude_pad_workaround_model() {
-    using ov::op::v0::Concat;
-    using ov::op::v0::Constant;
-    using ov::op::v1::ConvertLike;
-    using ov::op::v1::Pad;
-    using ov::op::v1::Subtract;
-    using ov::op::v3::Broadcast;
-    using ov::op::v3::ShapeOf;
+    using v0::Concat;
+    using v0::Constant;
+    using v1::ConvertLike;
+    using v1::Pad;
+    using v1::Subtract;
+    using v3::Broadcast;
+    using v3::ShapeOf;
 
-    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
+    const auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
     const ov::Strides strides{1, 1}, dilations{1, 1};
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
@@ -89,14 +92,14 @@ std::shared_ptr<ov::Model> create_exclude_pad_workaround_model() {
         std::make_shared<Pad>(input, pads_begin_v1, pads_end_v1, zero_node, ov::op::PadMode::CONSTANT);
     const auto pads_begin_zeros = ov::Shape{0, 0};
     const auto pads_end_zeros = ov::Shape{0, 0};
-    const auto avg_pool_v1 = std::make_shared<ov::op::v1::AvgPool>(pad_node,
-                                                                   strides,
-                                                                   pads_begin_zeros,
-                                                                   pads_end_zeros,
-                                                                   kernel,
-                                                                   false,
-                                                                   ov::op::RoundingType::CEIL,
-                                                                   ov::op::PadType::EXPLICIT);
+    const auto avg_pool_v1 = std::make_shared<v1::AvgPool>(pad_node,
+                                                           strides,
+                                                           pads_begin_zeros,
+                                                           pads_end_zeros,
+                                                           kernel,
+                                                           false,
+                                                           ov::op::RoundingType::CEIL,
+                                                           ov::op::PadType::EXPLICIT);
 
     avg_pool_v1->set_friendly_name("avg_pool_v1");
 

@@ -20,9 +20,17 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v4 = ov::op::v4;
+namespace op_util = ov::op::util;
 namespace {
 
-bool check_beta_value(const std::shared_ptr<ov::op::v0::Constant>& constant) {
+bool check_beta_value(const std::shared_ptr<v0::Constant>& constant) {
     // check that the constant for beta contains only one distinct element
     if (!constant) {
         return false;
@@ -43,15 +51,15 @@ bool check_beta_value(const std::shared_ptr<ov::op::v0::Constant>& constant) {
 ov::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
     MATCHER_SCOPE(SwishFusionWithSigmoid);
     // replaces a sub-graphs x * Sigmoid(x) with a Swish op.
-    auto input = pass::pattern::any_input();
-    auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(input);
-    auto mul = std::make_shared<ov::op::v1::Multiply>(input, sigmoid);
+    auto input = any_input();
+    auto sigmoid = std::make_shared<v0::Sigmoid>(input);
+    auto mul = std::make_shared<v1::Multiply>(input, sigmoid);
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto swish = std::make_shared<ov::op::v4::Swish>(exp_input);
+        auto swish = std::make_shared<v4::Swish>(exp_input);
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(
@@ -61,31 +69,31 @@ ov::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul, matcher_name);
+    auto m = std::make_shared<Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
     MATCHER_SCOPE(SwishFusionWithSigmoidWithBeta);
     // replaces a sub-graphs x * Sigmoid(x * beta) with a Swish op.
-    auto input = pass::pattern::any_input();
-    auto beta = pass::pattern::any_input();
-    auto mul_beta = std::make_shared<ov::op::v1::Multiply>(input, beta);
-    auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(mul_beta);
-    auto mul = std::make_shared<ov::op::v1::Multiply>(input, sigmoid);
+    auto input = any_input();
+    auto beta = any_input();
+    auto mul_beta = std::make_shared<v1::Multiply>(input, beta);
+    auto sigmoid = std::make_shared<v0::Sigmoid>(mul_beta);
+    auto mul = std::make_shared<v1::Multiply>(input, sigmoid);
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
         auto beta_input = pattern_to_output.at(beta);
 
-        auto beta_constant = ov::as_type_ptr<ov::op::v0::Constant>(beta_input.get_node_shared_ptr());
+        auto beta_constant = ov::as_type_ptr<v0::Constant>(beta_input.get_node_shared_ptr());
         Output<Node> new_beta;
         if (beta_constant) {
             if (check_beta_value(beta_constant)) {
-                new_beta = ov::op::v0::Constant::create(beta_input.get_element_type(),
-                                                        Shape{},
-                                                        {beta_constant->cast_vector<float>()[0]});
+                new_beta = v0::Constant::create(beta_input.get_element_type(),
+                                                Shape{},
+                                                {beta_constant->cast_vector<float>()[0]});
             } else {
                 return false;
             }
@@ -97,7 +105,7 @@ ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
             new_beta = beta_input;
         }
 
-        auto swish = std::make_shared<ov::op::v4::Swish>(exp_input, new_beta);
+        auto swish = std::make_shared<v4::Swish>(exp_input, new_beta);
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(
@@ -107,32 +115,32 @@ ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul, matcher_name);
+    auto m = std::make_shared<Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
     MATCHER_SCOPE(SwishFusionWithBeta);
     // replaces a sub-graphs x / (1.0 + exp(-x * beta)) with a Swish op.
-    auto input = pass::pattern::any_input();
-    auto beta = pass::pattern::any_input();
-    auto mul = std::make_shared<ov::op::v1::Multiply>(input, beta);
-    auto neg = std::make_shared<ov::op::v0::Negative>(mul);
-    auto exp = std::make_shared<ov::op::v0::Exp>(neg);
-    auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto add = std::make_shared<ov::op::v1::Add>(exp, add_constant);
-    auto div = std::make_shared<ov::op::v1::Divide>(input, add);
+    auto input = any_input();
+    auto beta = any_input();
+    auto mul = std::make_shared<v1::Multiply>(input, beta);
+    auto neg = std::make_shared<v0::Negative>(mul);
+    auto exp = std::make_shared<v0::Exp>(neg);
+    auto add_constant = wrap_type<v0::Constant>();
+    auto add = std::make_shared<v1::Add>(exp, add_constant);
+    auto div = std::make_shared<v1::Divide>(input, add);
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        if (!ov::op::util::has_constant_value<float>(constant, 1.0f)) {
+        auto constant = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        if (!op_util::has_constant_value<float>(constant, 1.0f)) {
             return false;
         }
 
-        auto swish = std::make_shared<ov::op::v4::Swish>(exp_input, pattern_to_output.at(beta));
+        auto swish = std::make_shared<v4::Swish>(exp_input, pattern_to_output.at(beta));
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info({pattern_to_output.at(beta).get_node_shared_ptr(),
@@ -147,30 +155,30 @@ ov::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(div, matcher_name);
+    auto m = std::make_shared<Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
     MATCHER_SCOPE(SwishFusionWithoutBeta);
     // replaces a sub-graphs x / (1.0 + exp(-x)) with a Swish op.
-    auto input = pass::pattern::any_input();
-    auto neg = std::make_shared<ov::op::v0::Negative>(input);
-    auto exp = std::make_shared<ov::op::v0::Exp>(neg);
-    auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto add = std::make_shared<ov::op::v1::Add>(exp, add_constant);
-    auto div = std::make_shared<ov::op::v1::Divide>(input, add);
+    auto input = any_input();
+    auto neg = std::make_shared<v0::Negative>(input);
+    auto exp = std::make_shared<v0::Exp>(neg);
+    auto add_constant = wrap_type<v0::Constant>();
+    auto add = std::make_shared<v1::Add>(exp, add_constant);
+    auto div = std::make_shared<v1::Divide>(input, add);
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        if (!ov::op::util::has_constant_value<float>(constant, 1.0f)) {
+        auto constant = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        if (!op_util::has_constant_value<float>(constant, 1.0f)) {
             return false;
         }
 
-        auto swish = std::make_shared<ov::op::v4::Swish>(exp_input);
+        auto swish = std::make_shared<v4::Swish>(exp_input);
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info({pattern_to_output.at(neg).get_node_shared_ptr(),
@@ -183,6 +191,6 @@ ov::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(div, matcher_name);
+    auto m = std::make_shared<Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }

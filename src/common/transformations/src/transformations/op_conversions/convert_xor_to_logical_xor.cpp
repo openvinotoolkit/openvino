@@ -11,13 +11,16 @@
 #include "openvino/op/xor.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
 ov::pass::ConvertXorToLogicalXor::ConvertXorToLogicalXor() {
     MATCHER_SCOPE(ConvertXorToLogicalXor);
 
-    auto xor_v1 = pattern::wrap_type<ov::op::v0::Xor>();
+    auto xor_v1 = ov::pass::pattern::wrap_type<v0::Xor>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto xor_v1_node = ov::as_type_ptr<ov::op::v0::Xor>(m.get_match_root());
+    matcher_pass_callback callback = [=](Matcher& m) {
+        auto xor_v1_node = ov::as_type_ptr<v0::Xor>(m.get_match_root());
         if (!xor_v1_node)
             return false;
 
@@ -33,6 +36,6 @@ ov::pass::ConvertXorToLogicalXor::ConvertXorToLogicalXor() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(xor_v1, matcher_name);
+    auto m = std::make_shared<Matcher>(xor_v1, matcher_name);
     register_matcher(m, callback);
 }

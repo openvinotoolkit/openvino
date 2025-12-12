@@ -20,16 +20,21 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v6 = ov::op::v6;
 ov::pass::MVN6Decomposition::MVN6Decomposition() {
     MATCHER_SCOPE(MVN6Decomposition);
     // Decomposes MVN(x, axes) op if normalize_variance is false into sub-graph
     // x - ReduceMean(x, axes), if normalize_variance is true into sub-graph
     // (x - ReduceMean(x, axes)) / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
-    auto mvn = ov::pass::pattern::wrap_type<ov::op::v6::MVN>();
+    auto mvn = ov::pass::pattern::wrap_type<v6::MVN>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto mvn_node = ov::as_type_ptr<ov::op::v6::MVN>(pattern_to_output.at(mvn).get_node_shared_ptr());
+        auto mvn_node = ov::as_type_ptr<v6::MVN>(pattern_to_output.at(mvn).get_node_shared_ptr());
 
         if (mvn_node == nullptr || transformation_callback(mvn_node)) {
             return false;
@@ -39,8 +44,8 @@ ov::pass::MVN6Decomposition::MVN6Decomposition() {
         const auto axes = mvn_node->input_value(1);
 
         // (x - ReduceMean(x, axes))
-        auto mean = std::make_shared<ov::op::v1::ReduceMean>(data, axes, true);
-        auto mean_normalization = std::make_shared<ov::op::v1::Subtract>(data, mean);
+        auto mean = std::make_shared<v1::ReduceMean>(data, axes, true);
+        auto mean_normalization = std::make_shared<v1::Subtract>(data, mean);
 
         if (!mvn_node->get_normalize_variance()) {
             mean_normalization->set_friendly_name(mvn_node->get_friendly_name());
@@ -48,31 +53,31 @@ ov::pass::MVN6Decomposition::MVN6Decomposition() {
             ov::replace_node(mvn_node, mean_normalization);
         } else {
             // (x - ReduceMean(x, axes)) ^ 2
-            auto sqr_const = ov::op::v0::Constant::create(data.get_element_type(), ov::Shape{1}, {2});
-            auto sqr = std::make_shared<ov::op::v1::Power>(mean_normalization, sqr_const);
+            auto sqr_const = v0::Constant::create(data.get_element_type(), ov::Shape{1}, {2});
+            auto sqr = std::make_shared<v1::Power>(mean_normalization, sqr_const);
             // ReduceMean((x - ReduceMean(x, axes)) ^ 2)
-            auto mean2 = std::make_shared<ov::op::v1::ReduceMean>(sqr, axes, true);
+            auto mean2 = std::make_shared<v1::ReduceMean>(sqr, axes, true);
 
             auto eps = mvn_node->get_eps();
-            auto eps_node = ov::op::v0::Constant::create(data.get_element_type(), ov::Shape{1}, {eps});
+            auto eps_node = v0::Constant::create(data.get_element_type(), ov::Shape{1}, {eps});
             auto eps_mode = mvn_node->get_eps_mode();
 
-            std::shared_ptr<ov::op::v1::Add> eps_add;
-            std::shared_ptr<ov::op::v0::Sqrt> sqrt;
-            std::shared_ptr<ov::op::v1::Divide> div;
+            std::shared_ptr<v1::Add> eps_add;
+            std::shared_ptr<v0::Sqrt> sqrt;
+            std::shared_ptr<v1::Divide> div;
 
             if (eps_mode == op::MVNEpsMode::INSIDE_SQRT) {
                 // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
-                eps_add = std::make_shared<ov::op::v1::Add>(mean2, eps_node);
-                sqrt = std::make_shared<ov::op::v0::Sqrt>(eps_add);
+                eps_add = std::make_shared<v1::Add>(mean2, eps_node);
+                sqrt = std::make_shared<v0::Sqrt>(eps_add);
                 // (x - ReduceMean(x, axes)) / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
-                div = std::make_shared<ov::op::v1::Divide>(mean_normalization, sqrt);
+                div = std::make_shared<v1::Divide>(mean_normalization, sqrt);
             } else if (eps_mode == op::MVNEpsMode::OUTSIDE_SQRT) {
                 // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps
-                sqrt = std::make_shared<ov::op::v0::Sqrt>(mean2);
-                eps_add = std::make_shared<ov::op::v1::Add>(sqrt, eps_node);
+                sqrt = std::make_shared<v0::Sqrt>(mean2);
+                eps_add = std::make_shared<v1::Add>(sqrt, eps_node);
                 // (x - ReduceMean(x, axes)) / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps)
-                div = std::make_shared<ov::op::v1::Divide>(mean_normalization, eps_add);
+                div = std::make_shared<v1::Divide>(mean_normalization, eps_add);
             } else {
                 return false;
             }
@@ -84,6 +89,6 @@ ov::pass::MVN6Decomposition::MVN6Decomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(mvn, matcher_name);
+    auto m = std::make_shared<Matcher>(mvn, matcher_name);
     register_matcher(m, callback);
 }

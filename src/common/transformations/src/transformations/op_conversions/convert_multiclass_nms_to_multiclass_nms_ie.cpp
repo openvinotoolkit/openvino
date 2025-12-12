@@ -17,11 +17,14 @@
 
 using namespace ov;
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
 pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type) {
     MATCHER_SCOPE(ConvertMulticlassNmsToMulticlassNmsIE);
-    auto nms = pattern::wrap_type<op::util::MulticlassNmsBase>();
+    auto nms = ov::pass::pattern::wrap_type<op::util::MulticlassNmsBase>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto nms = ov::as_type_ptr<op::util::MulticlassNmsBase>(m.get_match_root());
         if (!nms || transformation_callback(nms)) {
             return false;
@@ -60,12 +63,12 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
         Output<Node> output_2 = nms_new->output(2);
 
         if (nms->output(1).get_element_type() != output_1.get_element_type()) {
-            output_1 = std::make_shared<ov::op::v0::Convert>(output_1, nms->output(1).get_element_type());
+            output_1 = std::make_shared<v0::Convert>(output_1, nms->output(1).get_element_type());
             new_ops.emplace_back(output_1.get_node_shared_ptr());
         }
 
         if (nms->output(2).get_element_type() != output_2.get_element_type()) {
-            output_2 = std::make_shared<ov::op::v0::Convert>(output_2, nms->output(2).get_element_type());
+            output_2 = std::make_shared<v0::Convert>(output_2, nms->output(2).get_element_type());
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 
@@ -75,6 +78,6 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }

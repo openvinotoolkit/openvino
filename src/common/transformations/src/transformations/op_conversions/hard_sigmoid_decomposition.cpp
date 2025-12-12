@@ -17,12 +17,16 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 ov::pass::HardSigmoidDecomposition::HardSigmoidDecomposition() {
     MATCHER_SCOPE(HardSigmoidDecomposition);
     // Decomposes HardSigmoid(x) op into sub-graph max(0, min(1, alpha * x + beta))
-    auto hard_sigmoid = ov::pass::pattern::wrap_type<ov::op::v0::HardSigmoid>();
+    auto hard_sigmoid = ov::pass::pattern::wrap_type<v0::HardSigmoid>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto hard_sigmoid_node = pattern_to_output.at(hard_sigmoid).get_node_shared_ptr();
 
@@ -31,17 +35,17 @@ ov::pass::HardSigmoidDecomposition::HardSigmoidDecomposition() {
         }
 
         auto alpha_constant = hard_sigmoid_node->input_value(1);
-        auto multiply = std::make_shared<ov::op::v1::Multiply>(hard_sigmoid_node->input_value(0), alpha_constant);
+        auto multiply = std::make_shared<v1::Multiply>(hard_sigmoid_node->input_value(0), alpha_constant);
 
         auto betta_constant = hard_sigmoid_node->input_value(2);
-        auto add = std::make_shared<ov::op::v1::Add>(multiply, betta_constant);
+        auto add = std::make_shared<v1::Add>(multiply, betta_constant);
 
         auto input_type = hard_sigmoid_node->input_value(0).get_element_type();
-        auto min_constant = ov::op::v0::Constant::create(input_type, ov::Shape{}, {1.f});
-        auto min = std::make_shared<ov::op::v1::Minimum>(add, min_constant);
+        auto min_constant = v0::Constant::create(input_type, ov::Shape{}, {1.f});
+        auto min = std::make_shared<v1::Minimum>(add, min_constant);
 
-        auto max_constant = ov::op::v0::Constant::create(input_type, ov::Shape{}, {0.0});
-        auto max = std::make_shared<ov::op::v1::Maximum>(min, max_constant);
+        auto max_constant = v0::Constant::create(input_type, ov::Shape{}, {0.0});
+        auto max = std::make_shared<v1::Maximum>(min, max_constant);
 
         max->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(hard_sigmoid_node,
@@ -57,6 +61,6 @@ ov::pass::HardSigmoidDecomposition::HardSigmoidDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(hard_sigmoid, matcher_name);
+    auto m = std::make_shared<Matcher>(hard_sigmoid, matcher_name);
     register_matcher(m, callback);
 }

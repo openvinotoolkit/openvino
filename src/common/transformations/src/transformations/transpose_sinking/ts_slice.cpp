@@ -17,13 +17,17 @@
 #include "transformations/transpose_sinking/ts_utils.hpp"
 
 using namespace ov;
-using namespace ov::pass::pattern;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
+
+namespace v0 = ov::op::v0;
+namespace v8 = ov::op::v8;
 TSSliceForward::TSSliceForward() {
     MATCHER_SCOPE(TSSliceForward);
-    create_pattern<ov::op::v8::Slice>({0});
+    create_pattern<v8::Slice>({0});
 
     auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {
@@ -36,13 +40,12 @@ TSSliceForward::TSSliceForward() {
         main_node->input(0).replace_source_output(transpose_parent);
 
         const auto transpose_axis_order = transpose_info.transpose_const->get_axis_vector_val();
-        auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
+        auto axis = std::make_shared<v0::Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
 
-        auto data = std::make_shared<ov::op::v0::Constant>(element::i32,
-                                                           Shape{transpose_axis_order.size()},
-                                                           transpose_axis_order);
+        auto data =
+            std::make_shared<v0::Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
         const auto& indices = main_node->input_value(4);
-        auto new_axis = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
+        auto new_axis = std::make_shared<v8::Gather>(data, indices, axis);
         ov::copy_runtime_info(indices.get_node_shared_ptr(), new_axis);
 
         main_node->input(4).replace_source_output(new_axis);
@@ -57,21 +60,21 @@ TSSliceForward::TSSliceForward() {
 TSSliceBackward::TSSliceBackward() {
     MATCHER_SCOPE(TSSliceBackward);
 
-    auto main_node_label = wrap_type<ov::op::v8::Slice>([](const Output<Node>& output) -> bool {
-        return has_static_rank()(output) && CheckTransposeConsumers(output);
+    auto main_node_label = wrap_type<v8::Slice>([](const Output<Node>& output) -> bool {
+        return ov::pass::pattern::has_static_rank()(output) && CheckTransposeConsumers(output);
     });
 
-    auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
+    auto transpose_const_label = wrap_type<v0::Constant>();
 
     auto transpose_label = wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
                                                             [](const Output<Node>& output) -> bool {
-                                                                return has_static_rank()(output);
+                                                                return ov::pass::pattern::has_static_rank()(output);
                                                             });
 
     matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
-            as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+            as_type_ptr<v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
         if (transformation_callback(main_node)) {
@@ -91,12 +94,12 @@ TSSliceBackward::TSSliceBackward() {
         RemoveTransposeConsumers(main_node);
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
-        auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
-        auto data = std::make_shared<ov::op::v0::Constant>(element::i32,
-                                                           Shape{reversed_transpose_order.size()},
-                                                           reversed_transpose_order);
+        auto axis = std::make_shared<v0::Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
+        auto data = std::make_shared<v0::Constant>(element::i32,
+                                                   Shape{reversed_transpose_order.size()},
+                                                   reversed_transpose_order);
         const auto& indices = main_node->input_value(4);
-        auto new_axis = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
+        auto new_axis = std::make_shared<v8::Gather>(data, indices, axis);
         ov::copy_runtime_info(indices.get_node_shared_ptr(), new_axis);
         main_node->input(4).replace_source_output(new_axis);
 

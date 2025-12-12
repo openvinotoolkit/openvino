@@ -28,8 +28,12 @@
 #include "openvino/op/unsqueeze.hpp"
 
 using namespace ov;
-using namespace ov::op;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v8 = ov::op::v8;
+namespace v12 = ov::op::v12;
 class SharedTransformationTestsF : public TransformationTestsF {
 public:
     void TearDown() override {
@@ -357,7 +361,7 @@ TEST_F(SharedTransformationTestsF, Sharedv1Broadcasts) {
         auto input = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto target_shape = std::make_shared<v0::Parameter>(element::i64, PartialShape::dynamic());
         auto broadcast_v1_0 = std::make_shared<v1::Broadcast>(input, target_shape);
-        auto broadcast_v1_1 = std::make_shared<v1::Broadcast>(input, target_shape, AutoBroadcastType::PDPD);
+        auto broadcast_v1_1 = std::make_shared<v1::Broadcast>(input, target_shape, ov::op::AutoBroadcastType::PDPD);
         auto broadcast_v1_2 = std::make_shared<v1::Broadcast>(input, target_shape);
         auto concat = std::make_shared<v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_2}, 0);
         model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{input, target_shape});
@@ -367,7 +371,7 @@ TEST_F(SharedTransformationTestsF, Sharedv1Broadcasts) {
         auto input = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto target_shape = std::make_shared<v0::Parameter>(element::i64, PartialShape::dynamic());
         auto broadcast_v1_0 = std::make_shared<v1::Broadcast>(input, target_shape);
-        auto broadcast_v1_1 = std::make_shared<v1::Broadcast>(input, target_shape, AutoBroadcastType::PDPD);
+        auto broadcast_v1_1 = std::make_shared<v1::Broadcast>(input, target_shape, ov::op::AutoBroadcastType::PDPD);
         auto concat = std::make_shared<v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_0}, 0);
         model_ref = std::make_shared<Model>(OutputVector{concat}, ParameterVector{input, target_shape});
     }
@@ -378,7 +382,8 @@ TEST_F(SharedTransformationTestsF, Sharedv3Broadcasts) {
         auto input = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto target_shape = std::make_shared<v0::Parameter>(element::i64, PartialShape::dynamic());
         auto broadcast_v1_0 = std::make_shared<v3::Broadcast>(input, target_shape);
-        auto broadcast_v1_1 = std::make_shared<v3::Broadcast>(input, target_shape, BroadcastType::BIDIRECTIONAL);
+        auto broadcast_v1_1 =
+            std::make_shared<v3::Broadcast>(input, target_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         auto broadcast_v1_2 = std::make_shared<v3::Broadcast>(input, target_shape);
         auto concat = std::make_shared<v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_2}, 0);
         model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{input, target_shape});
@@ -388,7 +393,8 @@ TEST_F(SharedTransformationTestsF, Sharedv3Broadcasts) {
         auto input = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto target_shape = std::make_shared<v0::Parameter>(element::i64, PartialShape::dynamic());
         auto broadcast_v1_0 = std::make_shared<v3::Broadcast>(input, target_shape);
-        auto broadcast_v1_1 = std::make_shared<v3::Broadcast>(input, target_shape, BroadcastType::BIDIRECTIONAL);
+        auto broadcast_v1_1 =
+            std::make_shared<v3::Broadcast>(input, target_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         auto concat = std::make_shared<v0::Concat>(OutputVector{broadcast_v1_0, broadcast_v1_1, broadcast_v1_0}, 0);
         model_ref = std::make_shared<Model>(OutputVector{concat}, ParameterVector{input, target_shape});
     }
@@ -675,8 +681,8 @@ TEST_F(SharedTransformationTestsF, SharedPad) {
         auto data_1 = std::make_shared<v0::Parameter>(element::i32, PartialShape{4});
         auto data_2 = std::make_shared<v0::Parameter>(element::i32, PartialShape{4});
 
-        auto op_1 = std::make_shared<v12::Pad>(data_0, data_1, data_2, PadMode::REFLECT);
-        auto op_2 = std::make_shared<v12::Pad>(data_0, data_1, data_2, PadMode::REFLECT);
+        auto op_1 = std::make_shared<v12::Pad>(data_0, data_1, data_2, ov::op::PadMode::REFLECT);
+        auto op_2 = std::make_shared<v12::Pad>(data_0, data_1, data_2, ov::op::PadMode::REFLECT);
 
         auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_2}, 0);
         model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data_0, data_1, data_2});
@@ -687,7 +693,7 @@ TEST_F(SharedTransformationTestsF, SharedPad) {
         auto data_1 = std::make_shared<v0::Parameter>(element::i32, PartialShape{4});
         auto data_2 = std::make_shared<v0::Parameter>(element::i32, PartialShape{4});
 
-        auto op_1 = std::make_shared<v12::Pad>(data_0, data_1, data_2, PadMode::REFLECT);
+        auto op_1 = std::make_shared<v12::Pad>(data_0, data_1, data_2, ov::op::PadMode::REFLECT);
 
         auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_1}, 0);
         model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data_0, data_1, data_2});

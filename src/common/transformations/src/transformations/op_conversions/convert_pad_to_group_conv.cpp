@@ -16,11 +16,14 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
 ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     MATCHER_SCOPE(ConvertPadToGroupConvolution);
-    auto neg = ov::pass::pattern::wrap_type<op::util::PadBase>(pattern::has_static_dim(1));
+    auto neg = ov::pass::pattern::wrap_type<op::util::PadBase>(ov::pass::pattern::has_static_dim(1));
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](Matcher& m) {
         auto pad = ov::as_type_ptr<ov::op::util::PadBase>(m.get_match_root());
         if (!pad) {
             return false;
@@ -42,7 +45,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         }
 
         if (pad->inputs().size() == 4) {
-            if (auto pad_value = ov::as_type_ptr<ov::op::v0::Constant>(pad->input_value(3).get_node_shared_ptr())) {
+            if (auto pad_value = ov::as_type_ptr<v0::Constant>(pad->input_value(3).get_node_shared_ptr())) {
                 // pad value is a scalar
                 if (pad_value->cast_vector<float>()[0] != 0) {
                     return false;
@@ -83,7 +86,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         // Create fake weights with ones GOIXY
         Shape weights_shape(rank + 1, 1);
         weights_shape[0] = channel_dim;  // G dimension
-        auto weights = ov::op::v0::Constant::create(pad->input(0).get_element_type(), weights_shape, {1});
+        auto weights = v0::Constant::create(pad->input(0).get_element_type(), weights_shape, {1});
 
         // Create GroupConvolution attributes
         Strides stride(rank - 2, 1);
@@ -99,6 +102,6 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(neg, matcher_name);
+    auto m = std::make_shared<Matcher>(neg, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -15,17 +15,20 @@
 #include "transformations/transpose_sinking/ts_utils.hpp"
 
 using namespace ov;
-using namespace ov::pass::pattern;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
+
+namespace v0 = ov::op::v0;
 #undef CUMSUM_AXIS_INPUT_IDX
 #define CUMSUM_AXIS_INPUT_IDX 1
 
 TSCumSumForward::TSCumSumForward() {
     MATCHER_SCOPE(TSCumSumForward);
 
-    create_pattern<ov::op::v0::CumSum>({0});
+    create_pattern<v0::CumSum>({0});
 
     auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {
@@ -38,7 +41,7 @@ TSCumSumForward::TSCumSumForward() {
             return res;
 
         const auto transpose_axis_order = transpose_info.transpose_const->get_axis_vector_val();
-        auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+        auto axis = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         const auto& new_axes = ChangeAxes(main_node->input_value(CUMSUM_AXIS_INPUT_IDX), transpose_axis_order, axis);
         main_node->input(CUMSUM_AXIS_INPUT_IDX).replace_source_output(new_axes);
 
@@ -50,20 +53,20 @@ TSCumSumForward::TSCumSumForward() {
 
 TSCumSumBackward::TSCumSumBackward() {
     MATCHER_SCOPE(TSCumSumBackward);
-    auto main_node_label = wrap_type<ov::op::v0::CumSum>([](const Output<Node>& output) -> bool {
-        return has_static_rank()(output) && CheckTransposeConsumers(output);
+    auto main_node_label = wrap_type<v0::CumSum>([](const Output<Node>& output) -> bool {
+        return ov::pass::pattern::has_static_rank()(output) && CheckTransposeConsumers(output);
     });
 
-    auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
+    auto transpose_const_label = wrap_type<v0::Constant>();
 
     auto transpose_label = wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
                                                             [](const Output<Node>& output) -> bool {
-                                                                return has_static_rank()(output);
+                                                                return ov::pass::pattern::has_static_rank()(output);
                                                             });
     matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
-            as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+            as_type_ptr<v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
 
@@ -80,7 +83,7 @@ TSCumSumBackward::TSCumSumBackward() {
         RemoveTransposeConsumers(main_node);
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
-        auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+        auto axis = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto new_axes = ChangeAxes(main_node->input_value(CUMSUM_AXIS_INPUT_IDX), reversed_transpose_order, axis);
         main_node->input(CUMSUM_AXIS_INPUT_IDX).replace_source_output(new_axes);
 

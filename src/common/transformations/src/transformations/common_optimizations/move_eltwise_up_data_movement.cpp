@@ -29,6 +29,13 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v7 = ov::op::v7;
+namespace op_util = ov::op::util;
 namespace {
 bool is_data_movement_operation(const std::shared_ptr<ov::Node>& node,
                                 const std::vector<ov::DiscreteTypeInfo>& allowed_data_movement_ops) {
@@ -48,19 +55,19 @@ bool is_scalar_like(const std::shared_ptr<ov::Node>& node) {
 
 std::vector<ov::DiscreteTypeInfo> ov::pass::MoveEltwiseUpThroughDataMov::get_default_allowed_ops() {
     return {
-        ov::op::v0::Squeeze::get_type_info_static(),
-        ov::op::v0::Unsqueeze::get_type_info_static(),
-        ov::op::v1::Reshape::get_type_info_static(),
-        ov::op::v1::Transpose::get_type_info_static(),
-        ov::op::v0::ShuffleChannels::get_type_info_static(),
-        ov::op::v7::Roll::get_type_info_static(),
-        ov::op::v0::ReverseSequence::get_type_info_static(),
-        ov::op::v0::DepthToSpace::get_type_info_static(),
-        ov::op::v1::BatchToSpace::get_type_info_static(),
-        ov::op::v1::Broadcast::get_type_info_static(),
+        v0::Squeeze::get_type_info_static(),
+        v0::Unsqueeze::get_type_info_static(),
+        v1::Reshape::get_type_info_static(),
+        v1::Transpose::get_type_info_static(),
+        v0::ShuffleChannels::get_type_info_static(),
+        v7::Roll::get_type_info_static(),
+        v0::ReverseSequence::get_type_info_static(),
+        v0::DepthToSpace::get_type_info_static(),
+        v1::BatchToSpace::get_type_info_static(),
+        v1::Broadcast::get_type_info_static(),
         ov::op::v3::Broadcast::get_type_info_static(),
-        ov::op::v1::Gather::get_type_info_static(),
-        ov::op::v7::Gather::get_type_info_static(),
+        v1::Gather::get_type_info_static(),
+        v7::Gather::get_type_info_static(),
         ov::op::v8::Gather::get_type_info_static(),
     };
 }
@@ -68,11 +75,11 @@ std::vector<ov::DiscreteTypeInfo> ov::pass::MoveEltwiseUpThroughDataMov::get_def
 ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
     std::vector<DiscreteTypeInfo> allowed_data_movement_ops) {
     MATCHER_SCOPE(MoveEltwiseUpThroughDataMovScalar);
-    auto eltwise_pattern = ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic,
-                                                        ov::op::util::BinaryElementwiseArithmetic,
-                                                        ov::op::v0::FakeQuantize>(ov::pass::pattern::has_static_rank());
+    auto eltwise_pattern =
+        wrap_type<op_util::UnaryElementwiseArithmetic, op_util::BinaryElementwiseArithmetic, v0::FakeQuantize>(
+            ov::pass::pattern::has_static_rank());
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto eltwise = pattern_map.at(eltwise_pattern).get_node_shared_ptr();
@@ -138,7 +145,7 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(eltwise_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(eltwise_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -168,7 +175,7 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
         if (node->get_output_partial_shape(0).rank().is_dynamic())
             return false;
 
-        const size_t const_idx = ov::is_type<ov::op::v0::Constant>(node->get_input_node_ptr(0)) ? 0 : 1;
+        const size_t const_idx = ov::is_type<v0::Constant>(node->get_input_node_ptr(0)) ? 0 : 1;
         const size_t data_flow_idx = (const_idx + 1) % 2;
 
         if (node->get_input_partial_shape(data_flow_idx).size() < node->get_input_partial_shape(const_idx).size())
@@ -177,15 +184,12 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
         return true;
     };
 
-    auto eltw_data_flow_in =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Squeeze, ov::op::v0::Unsqueeze>(
-            pattern::consumers_count(1));
-    auto eltw_const_in = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(const_predicate);
+    auto eltw_data_flow_in = wrap_type<v1::Reshape, v0::Squeeze, v0::Unsqueeze>(ov::pass::pattern::consumers_count(1));
+    auto eltw_const_in = wrap_type<v0::Constant>(const_predicate);
     auto eltwise_pattern =
-        ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({eltw_data_flow_in, eltw_const_in},
-                                                                                eltw_predicate);
+        wrap_type<op_util::BinaryElementwiseArithmetic>({eltw_data_flow_in, eltw_const_in}, eltw_predicate);
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto eltwise = pattern_map.at(eltwise_pattern).get_node_shared_ptr();
@@ -193,7 +197,7 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
             return false;
         }
 
-        const size_t const_idx = ov::is_type<ov::op::v0::Constant>(eltwise->get_input_node_ptr(0)) ? 0 : 1;
+        const size_t const_idx = ov::is_type<v0::Constant>(eltwise->get_input_node_ptr(0)) ? 0 : 1;
         const size_t data_flow_idx = (const_idx + 1) % 2;
 
         auto const_shape = eltwise->get_input_shape(const_idx);
@@ -218,8 +222,8 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
         auto new_shape = ov::Shape(parent->get_input_partial_shape(0).size(), 1);
 
         new_shape[channel_idx] = const_shape[channel_idx];
-        auto old_const = ov::as_type_ptr<ov::op::v0::Constant>(eltwise->get_input_node_shared_ptr(const_idx));
-        auto new_const = std::make_shared<ov::op::v0::Constant>(*old_const, new_shape);
+        auto old_const = ov::as_type_ptr<v0::Constant>(eltwise->get_input_node_shared_ptr(const_idx));
+        auto new_const = std::make_shared<v0::Constant>(*old_const, new_shape);
         ov::replace_node_update_name(old_const, new_const);
         ov::replace_output_update_name(eltwise->output(0), eltwise->input_value(data_flow_idx));
 
@@ -238,6 +242,6 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(eltwise_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(eltwise_pattern, matcher_name);
     register_matcher(m, callback);
 }

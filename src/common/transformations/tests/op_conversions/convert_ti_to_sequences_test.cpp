@@ -45,6 +45,7 @@
 using namespace testing;
 using namespace ov;
 
+namespace v5 = ov::op::v5;
 namespace {
 
 std::shared_ptr<ov::Node> create_seq_len(const std::shared_ptr<ov::Node>& X) {
@@ -1405,7 +1406,7 @@ TEST_P(LoopWithLSTMCellToLSTMSequenceFusionTest, FusionTest) {
         auto loop_node = std::make_shared<op::v5::Loop>(max_iter, execution_cond);
 
         loop_node->set_function(body_graph);
-        loop_node->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 3});
+        loop_node->set_special_body_ports(v5::Loop::SpecialBodyPorts{-1, 3});
 
         // set inputs for Loop
         // x input will be sliced for each time step
@@ -1466,20 +1467,20 @@ TEST_P(LoopWithLSTMCellToLSTMSequenceFusionTest, FusionTest) {
         auto b = std::make_shared<op::v0::Unsqueeze>(b_const, unsqueeze_axis2);
 
         // create LSTMSequence
-        auto lstm_sequence = std::make_shared<ov::op::v5::LSTMSequence>(
-            tr_x,
-            h_init_unsqueeze,
-            c_init_unsqueeze,
-            seq_lens,
-            w,
-            r,
-            b,
-            hidden_size,
-            ov::op::RecurrentSequenceDirection::FORWARD,
-            std::vector<float>{},
-            std::vector<float>{},
-            std::vector<std::string>{f_activation, g_activation, h_activation},
-            0.0f);
+        auto lstm_sequence =
+            std::make_shared<v5::LSTMSequence>(tr_x,
+                                               h_init_unsqueeze,
+                                               c_init_unsqueeze,
+                                               seq_lens,
+                                               w,
+                                               r,
+                                               b,
+                                               hidden_size,
+                                               ov::op::RecurrentSequenceDirection::FORWARD,
+                                               std::vector<float>{},
+                                               std::vector<float>{},
+                                               std::vector<std::string>{f_activation, g_activation, h_activation},
+                                               0.0f);
 
         // prepare output
         auto squeeze_axis = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, 1);

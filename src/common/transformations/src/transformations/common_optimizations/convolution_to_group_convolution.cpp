@@ -17,8 +17,12 @@
 #include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
 #include "transformations/utils/utils.hpp"
 
-static bool compare_convolutions(const ov::op::v1::Convolution* conv1, ov::Node* node) {
-    const auto conv2 = ov::as_type<ov::op::v1::Convolution>(node);
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+static bool compare_convolutions(const v1::Convolution* conv1, ov::Node* node) {
+    const auto conv2 = ov::as_type<v1::Convolution>(node);
     if (!conv2)
         return false;
     return conv1->get_strides() == conv2->get_strides() && conv1->get_pads_begin() == conv2->get_pads_begin() &&
@@ -27,7 +31,7 @@ static bool compare_convolutions(const ov::op::v1::Convolution* conv1, ov::Node*
 }
 
 static int64_t get_split_axis(const std::shared_ptr<ov::Node>& split) {
-    const auto axis = ov::as_type<ov::op::v0::Constant>(split->get_input_node_ptr(1));
+    const auto axis = ov::as_type<v0::Constant>(split->get_input_node_ptr(1));
     if (!axis)
         return -1;
     auto axis_value = axis->cast_vector<int64_t>()[0];
@@ -41,8 +45,8 @@ static int64_t get_split_axis(const std::shared_ptr<ov::Node>& split) {
     return axis_value;
 }
 
-static std::shared_ptr<ov::op::v0::Concat> create_new_weights(ov::pass::NodeRegistry& node_registry,
-                                                              const std::shared_ptr<ov::Node>& concat) {
+static std::shared_ptr<v0::Concat> create_new_weights(ov::pass::NodeRegistry& node_registry,
+                                                      const std::shared_ptr<ov::Node>& concat) {
     const auto concat_input = concat->get_input_node_ptr(0);
     if (concat_input->get_input_partial_shape(1).is_dynamic())
         return nullptr;
@@ -63,17 +67,17 @@ static std::shared_ptr<ov::op::v0::Concat> create_new_weights(ov::pass::NodeRegi
         const auto& shape = weights->get_output_partial_shape(0);
         if (shape.is_dynamic() || weights->get_output_shape(0) != weights_shape)
             return nullptr;
-        if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(weights)) {
-            weights_to_concat.push_back(node_registry.make<ov::op::v0::Constant>(*constant, new_shape));
+        if (auto constant = ov::as_type_ptr<v0::Constant>(weights)) {
+            weights_to_concat.push_back(node_registry.make<v0::Constant>(*constant, new_shape));
         } else {
-            weights_to_concat.push_back(node_registry.make<ov::op::v0::Unsqueeze>(
-                weights_output,
-                ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0})));
+            weights_to_concat.push_back(
+                node_registry.make<v0::Unsqueeze>(weights_output,
+                                                  v0::Constant::create(ov::element::i32, ov::Shape{}, {0})));
         }
         weights_to_concat.back().get_node()->set_friendly_name(weights->get_friendly_name());
     }
 
-    return node_registry.make<ov::op::v0::Concat>(weights_to_concat, 0);
+    return node_registry.make<v0::Concat>(weights_to_concat, 0);
 }
 
 ov::pass::ConvolutionToGroupConvolutionFusion::ConvolutionToGroupConvolutionFusion() {
@@ -85,12 +89,12 @@ ov::pass::ConvolutionToGroupConvolutionFusion::ConvolutionToGroupConvolutionFusi
         if (num_inputs == 0)
             return false;
 
-        const auto first_conv = as_type<ov::op::v1::Convolution>(concat->get_input_node_ptr(0));
+        const auto first_conv = as_type<v1::Convolution>(concat->get_input_node_ptr(0));
         if (!first_conv)
             return false;
 
         const auto split = first_conv->get_input_node_ptr(0);
-        if (!is_type<ov::op::v1::Split>(split) && !is_type<ov::op::v1::VariadicSplit>(split))
+        if (!is_type<v1::Split>(split) && !is_type<v1::VariadicSplit>(split))
             return false;
 
         // go through Concat inputs and check
@@ -105,19 +109,19 @@ ov::pass::ConvolutionToGroupConvolutionFusion::ConvolutionToGroupConvolutionFusi
         }
         return true;
     };
-    auto concat_label = pattern::wrap_type<ov::op::v0::Concat>(has_conv_inputs);
+    auto concat_label = ov::pass::pattern::wrap_type<v0::Concat>(has_conv_inputs);
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& concat = pattern_value_map.at(concat_label).get_node_shared_ptr();
 
-        const auto first_conv = as_type_ptr<ov::op::v1::Convolution>(concat->get_input_node_shared_ptr(0));
+        const auto first_conv = as_type_ptr<v1::Convolution>(concat->get_input_node_shared_ptr(0));
         if (!first_conv)
             return false;
 
         const auto split = first_conv->get_input_node_shared_ptr(0);
-        const bool is_split = is_type<ov::op::v1::Split>(split);
-        const bool is_variadic_split = is_type<ov::op::v1::VariadicSplit>(split);
+        const bool is_split = is_type<v1::Split>(split);
+        const bool is_variadic_split = is_type<v1::VariadicSplit>(split);
         if (!is_split && !is_variadic_split)
             return false;
 
@@ -126,7 +130,7 @@ ov::pass::ConvolutionToGroupConvolutionFusion::ConvolutionToGroupConvolutionFusi
 
         if (is_variadic_split) {
             // split_lengths in VariadicSplit must have the same values
-            if (auto split_lengths = as_type<ov::op::v0::Constant>(split->get_input_node_ptr(1))) {
+            if (auto split_lengths = as_type<v0::Constant>(split->get_input_node_ptr(1))) {
                 const auto split_lengths_values = split_lengths->cast_vector<int>();
                 const auto first_length = split_lengths_values[0];
                 if (!std::all_of(split_lengths_values.begin() + 1,
@@ -145,13 +149,13 @@ ov::pass::ConvolutionToGroupConvolutionFusion::ConvolutionToGroupConvolutionFusi
         if (!weights)
             return false;
 
-        const auto conv = node_registry.make<ov::op::v1::GroupConvolution>(split->input_value(0),
-                                                                           weights,
-                                                                           first_conv->get_strides(),
-                                                                           first_conv->get_pads_begin(),
-                                                                           first_conv->get_pads_end(),
-                                                                           first_conv->get_dilations(),
-                                                                           first_conv->get_auto_pad());
+        const auto conv = node_registry.make<v1::GroupConvolution>(split->input_value(0),
+                                                                   weights,
+                                                                   first_conv->get_strides(),
+                                                                   first_conv->get_pads_begin(),
+                                                                   first_conv->get_pads_end(),
+                                                                   first_conv->get_dilations(),
+                                                                   first_conv->get_auto_pad());
         conv->set_friendly_name(concat->get_friendly_name());
         register_new_node(conv);
 
@@ -171,6 +175,6 @@ ov::pass::ConvolutionToGroupConvolutionFusion::ConvolutionToGroupConvolutionFusi
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(concat_label, matcher_name);
+    auto m = std::make_shared<Matcher>(concat_label, matcher_name);
     this->register_matcher(m, callback);
 }

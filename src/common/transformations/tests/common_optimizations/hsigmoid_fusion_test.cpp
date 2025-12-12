@@ -27,6 +27,8 @@
 using namespace ov;
 using namespace testing;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivF16) {
     {
         auto input = std::make_shared<opset7::Parameter>(element::f16, PartialShape::dynamic(1));
@@ -148,12 +150,12 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampMul) {
 
 TEST_F(TransformationTestsF, HSigmoidFusionWithClampDiv) {
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape::dynamic(1));
-        auto add_constant = ov::op::v0::Constant::create(element::f16, Shape{}, {3.0});
-        auto add = std::make_shared<ov::op::v1::Add>(input, add_constant);
-        auto clamp = std::make_shared<ov::op::v0::Clamp>(add, 0.0f, 6.0f);
-        auto div_constant = ov::op::v0::Constant::create(element::f16, Shape{}, {6.0});
-        auto div = std::make_shared<ov::op::v1::Divide>(clamp, div_constant);
+        auto input = std::make_shared<v0::Parameter>(element::f16, PartialShape::dynamic(1));
+        auto add_constant = v0::Constant::create(element::f16, Shape{}, {3.0});
+        auto add = std::make_shared<v1::Add>(input, add_constant);
+        auto clamp = std::make_shared<v0::Clamp>(add, 0.0f, 6.0f);
+        auto div_constant = v0::Constant::create(element::f16, Shape{}, {6.0});
+        auto div = std::make_shared<v1::Divide>(clamp, div_constant);
 
         model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
 

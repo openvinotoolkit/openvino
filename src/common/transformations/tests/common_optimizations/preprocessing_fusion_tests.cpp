@@ -39,6 +39,9 @@ using namespace testing;
 using namespace ov;
 using namespace opset8;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v12 = ov::op::v12;
 namespace {
 std::shared_ptr<Convolution> create_conv(Output<Node> input, Output<Node> weights) {
     return std::make_shared<Convolution>(input,
@@ -231,7 +234,7 @@ TEST_F(TransformationTestsF, RICFusionHardNegativePad12) {
 
         auto pads_begin = Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
         auto pads_end = Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
-        auto pad = std::make_shared<ov::op::v12::Pad>(eltwise, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto pad = std::make_shared<v12::Pad>(eltwise, pads_begin, pads_end, op::PadMode::CONSTANT);
 
         auto gconv = create_group_conv(pad, {3, 4, 1, 3, 3});
 
@@ -258,7 +261,7 @@ TEST_F(TransformationTestsF, RICFusionHardNegativePad12) {
 
         auto pads_begin = Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
         auto pads_end = Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
-        auto pad = std::make_shared<ov::op::v12::Pad>(eltwise, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto pad = std::make_shared<v12::Pad>(eltwise, pads_begin, pads_end, op::PadMode::CONSTANT);
 
         //       0            1            2                 2              1            0
         // [0, 1, 2, 3]-[4, 5, 6, 7]-[8, 9, 10, 11] -> [8, 9, 10, 11]-[4, 5, 6, 7]-[0, 1, 2, 3]
@@ -754,10 +757,10 @@ TEST_F(TransformationTestsF, RICFusionSplitConcatDetectionNegative3) {
 
 TEST_F(TransformationTestsF, FuseConvertLayout) {
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 64});
-        auto order = ov::op::v0::Constant::create(element::i64, Shape{3}, {1, 2, 0});
-        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
-        auto relu = std::make_shared<ov::op::v0::Relu>(transpose);
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 64});
+        auto order = v0::Constant::create(element::i64, Shape{3}, {1, 2, 0});
+        auto transpose = std::make_shared<v1::Transpose>(input, order);
+        auto relu = std::make_shared<v0::Relu>(transpose);
 
         model = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{input});
 
@@ -771,9 +774,9 @@ TEST_F(TransformationTestsF, FuseConvertLayout) {
     }
 
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{3, 64, 1});
-        auto convert = std::make_shared<ov::op::v0::Convert>(input, element::f32);
-        auto relu = std::make_shared<ov::op::v0::Relu>(convert);
+        auto input = std::make_shared<v0::Parameter>(element::f16, Shape{3, 64, 1});
+        auto convert = std::make_shared<v0::Convert>(input, element::f32);
+        auto relu = std::make_shared<v0::Relu>(convert);
 
         model_ref = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{input});
     }
@@ -782,8 +785,8 @@ TEST_F(TransformationTestsF, FuseConvertLayout) {
 TEST_F(TransformationTestsF, FuseScaleValue) {
     {
         auto input = create_param({1, 64, 64, 3});
-        auto order = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
-        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
+        auto order = v0::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
+        auto transpose = std::make_shared<v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
 
         model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
@@ -799,8 +802,8 @@ TEST_F(TransformationTestsF, FuseScaleValue) {
 
     {
         auto input = create_param({1, 64, 64, 3});
-        auto order = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
-        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
+        auto order = v0::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
+        auto transpose = std::make_shared<v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
         model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
@@ -811,8 +814,8 @@ TEST_F(TransformationTestsF, FuseScaleValue) {
 TEST_F(TransformationTestsF, FuseScaleValues) {
     {
         auto input = create_param({1, 64, 64, 3});
-        auto order = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
-        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
+        auto order = v0::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
+        auto transpose = std::make_shared<v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
 
         model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
@@ -828,8 +831,8 @@ TEST_F(TransformationTestsF, FuseScaleValues) {
 
     {
         auto input = create_param({1, 64, 64, 3});
-        auto order = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
-        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
+        auto order = v0::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
+        auto transpose = std::make_shared<v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
         model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
