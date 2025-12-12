@@ -231,6 +231,5 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
     impl._so = shared_obj;
     view_tensor = make_tensor(impl);
     return view_tensor;
-
 }
 }  // namespace ov
