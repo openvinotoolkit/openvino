@@ -1749,8 +1749,7 @@ void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id,
         return;
     }
 
-    // Note: The final tile model has already been compiled at line ~1676
-    // via compile_submodel(m_compiled_submodels[id].model, ...)
+    // Note: The final tile model has already been compiled via compile_submodel(m_compiled_submodels[id].model, ...)
     // because m_compiled_submodels[id].model points to _final_tile_model for HFA
     // So we only need to compile the regular tile model here
 
