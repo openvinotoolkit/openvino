@@ -192,7 +192,7 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
         // Perform memory copy
         ov::parallel_for(item.second.size(), [&](size_t i) {
             const auto& tensor = item.second.at(i);
-            memcpy(ptr + i * tensor->get_byte_size(), static_cast<uint8_t*>(tensor->data()), tensor->get_byte_size());
+            memcpy(ptr + i * tensor->get_byte_size(), tensor->data(), tensor->get_byte_size());
         });
         prepared_tensors[item.first] = input_tensor;
     }

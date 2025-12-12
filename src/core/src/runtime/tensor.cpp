@@ -106,7 +106,7 @@ size_t Tensor::get_byte_size() const {
 }
 
 void* Tensor::data() {
-    OV_TENSOR_STATEMENT(return _impl->data());
+    OV_TENSOR_STATEMENT(return _impl->data_rw());
 }
 
 const void* Tensor::data() const {
@@ -114,7 +114,7 @@ const void* Tensor::data() const {
 }
 
 void* Tensor::data(const element::Type& element_type) {
-    OV_TENSOR_STATEMENT(return _impl->data(element_type));
+    OV_TENSOR_STATEMENT(return _impl->data_rw(element_type));
 }
 
 const void* Tensor::data(const element::Type& element_type) const {

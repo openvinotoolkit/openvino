@@ -32,6 +32,14 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
+    void* data_rw() override final {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    void* data_rw(const element::Type&) override final {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
     ~IRemoteTensor() override;
 
     /**

@@ -100,6 +100,14 @@ void* ZeroTensor::data(const ov::element::Type& type) {
     return data();
 }
 
+void* ZeroTensor::data_rw() {
+    return data();
+}
+
+void* ZeroTensor::data_rw(const ov::element::Type& type) {
+    return data(type);
+}
+
 const void* ZeroTensor::data() const {
     return _ptr;
 }
