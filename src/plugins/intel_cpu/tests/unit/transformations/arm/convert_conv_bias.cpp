@@ -125,12 +125,10 @@ TEST_F(TransformationTestsF, ConvertConvolutionBias_I8Input_I8Weights_Applied) {
 TEST_F(TransformationTestsF, ConvertConvolutionBias_BiasAlreadyI32_NotApplied) {
     model = createInitGraph(ov::element::u8, ov::element::i8, ov::element::i32);
     manager.register_pass<ConvertConvolutionBias>();
-    model_ref = createInitGraph(ov::element::u8, ov::element::i8, ov::element::i32);
 }
 
 // f32 input, f32 weights -> transformation should NOT be applied (not quantized case)
 TEST_F(TransformationTestsF, ConvertConvolutionBias_F32Input_F32Weights_NotApplied) {
     model = createInitGraph(ov::element::f32, ov::element::f32, ov::element::f32);
     manager.register_pass<ConvertConvolutionBias>();
-    model_ref = createInitGraph(ov::element::f32, ov::element::f32, ov::element::f32);
 }

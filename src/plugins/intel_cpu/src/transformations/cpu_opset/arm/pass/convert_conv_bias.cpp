@@ -36,7 +36,11 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
     auto conv_u8 = pattern::wrap_type<ov::op::v1::Convolution>({conv_u8_activation, conv_i8_u8_weights});
     auto conv_m = conv_u8 | conv_i8;
 
-    auto bias_const_m = pattern::wrap_type<ov::op::v0::Constant>();
+    auto bias_const_m = pattern::wrap_type<ov::op::v0::Constant>(
+        [](ov::Output<ov::Node> output) {
+            return !pattern::type_matches(ov::element::i32)(output);
+        }
+    );
     auto add_m = pattern::wrap_type<ov::op::v1::Add>({conv_m, bias_const_m});
     auto multiply_m = pattern::wrap_type<ov::op::v1::Multiply>({add_m, pattern::any_input()});
 
@@ -49,13 +53,7 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
         ov::mark_as_dequantization_node(mul);
 
         const auto& pattern_map = m.get_pattern_value_map();
-        auto bias_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(bias_const_m).get_node_shared_ptr());
-        // the transformation is not applied if add constant is already i32
-        if (bias_const->get_output_element_type(0) == ov::element::i32) {
-            return false;
-        }
-
-        // round the constant before converting to improve accuracy
+        auto bias_const = pattern_map.at(bias_const_m).get_node_shared_ptr();
         auto round = std::make_shared<ov::op::v5::Round>(bias_const, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
         auto convert_to_i32 = std::make_shared<ov::op::v0::Convert>(round, ov::element::i32);
 
@@ -65,6 +63,7 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
             ov::element::TypeVector{ov::element::f32},
             ov::op::TemporaryReplaceOutputType(pattern_map.at(conv_m), ov::element::f32).get(),
             ov::op::TemporaryReplaceOutputType(convert_to_i32->output(0), ov::element::f32).get());
+        new_add->set_friendly_name(add->get_friendly_name());
         ov::copy_runtime_info({add, bias_const}, {round, convert_to_i32, new_add});
         ov::replace_node(add, new_add);
 
