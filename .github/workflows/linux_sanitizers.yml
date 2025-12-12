@@ -274,19 +274,28 @@ jobs:
           - SANITIZER: 'Thread'
       
     steps:
+      - name: Check matrix for unit tests
+        id: check_matrix_unit
+        if: ${{ matrix.SANITIZER == 'AddressAndLeak' }}
+        run: |
+          echo Sanitizer mode: "${SANITIZER_MODE}"
+
       - name: Download OpenVINO package
+        if: ${{ steps.check_matrix_unit.conclusion != 'skipped' }}
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
+        if: ${{ steps.check_matrix_unit.conclusion != 'skipped' }}
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
+        if: ${{ steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           pushd $INSTALL_DIR
             pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
@@ -296,6 +305,7 @@ jobs:
           popd
 
       - name: Fetch Sanitizer Suppression Lists
+        if: ${{ steps.check_matrix_unit.conclusion != 'skipped' }}
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
@@ -311,14 +321,14 @@ jobs:
       #
 
       - name: OpenVINO Core Unit Tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVCoreUT.xml
 
       - name: OpenVINO Inference Functional Tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_inference_functional_tests --gtest_print_time=1 \
@@ -326,7 +336,7 @@ jobs:
 
       # gtest_filter Ticket: 176780
       - name: OpenVINO Inference Unit Tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_inference_unit_tests --gtest_print_time=1 \
@@ -334,21 +344,21 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceUnit.xml
 
       - name: Low Precision Transformations Tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_lp_transformations_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-LpTransformations.xml
 
       - name: OpenVINO Conditional compilation tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_conditional_compilation_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ConditionalCompilation.xml
 
       - name: IR frontend tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 \
@@ -356,7 +366,7 @@ jobs:
 
       # gtest_filter Ticket: 176780
       - name: PaddlePaddle frontend tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
@@ -364,7 +374,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
-        if: ${{ !cancelled() && matrix.SANITIZER != 'Thread' }} # Ticket: 155291
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' && matrix.SANITIZER != 'Thread' }} # Ticket: 155291
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 \
@@ -372,14 +382,14 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_common_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowCommonFrontend.xml
 
       - name: TensorFlow frontend tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
 
@@ -387,7 +397,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
-        if: ${{ 'false' }} # Ticket: 134416
+        if: ${{ 'false' && steps.check_matrix_unit.conclusion != 'skipped' }} # Ticket: 134416
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 \
@@ -395,7 +405,7 @@ jobs:
 
       # gtest_filter Ticket: 176780
       - name: Transformations func tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
 
@@ -405,56 +415,56 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
 
       - name: Common test utils tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_util_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CommonUtilTests.xml
 
       - name: Snippets func tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_snippets_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SnippetsFuncTests.xml
 
       - name: CPU plugin unit tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests.xml
 
       - name: ov_subgraphs_dumper_tests tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_subgraphs_dumper_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_subgraphs_dumper_tests.xml
 
       - name: Template OpImpl tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_op_conformance_tests --gtest_print_time=1 --device=TEMPLATE --gtest_filter=*OpImpl*\
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpImplTests.xml
 
       - name: AUTO unit tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_unit_tests.xml
 
       - name: AUTO func Tests
-        if: ${{ 'false' }} # Issue 155210
+        if: ${{ 'false' && steps.check_matrix_unit.conclusion != 'skipped' }} # Issue 155210
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
 
       - name: Template plugin func tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_template_func_tests --gtest_print_time=1 \
@@ -462,45 +472,45 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateFuncTests.xml
 
       - name: OpenVINO C API tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_capi_test --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch unit tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_batch_unit_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_unit_tests.xml
 
       - name: AutoBatch func tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_batch_func_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_func_tests.xml --gtest_filter="*smoke*"
 
       - name: Proxy Plugin func tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVProxyTests.xml
 
       - name: Hetero unit tests
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
 
       - name: Hetero func tests
-        if: ${{ 'false' }} # Ticket: 134425
+        if: ${{ 'false' && steps.check_matrix_unit.conclusion != 'skipped' }} # Ticket: 134425
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
 
       - name: Upload Test Results
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check_matrix_unit.conclusion != 'skipped' }}
         with:
           name: unit-test-results-cpp_${{ matrix.SANITIZER }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
