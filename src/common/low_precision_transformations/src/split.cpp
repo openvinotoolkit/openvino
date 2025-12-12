@@ -98,6 +98,12 @@ bool SplitTransformation::transform(ov::pass::pattern::Matcher& m) {
             parent = subtract;
         }
 
+        if (parent.get_element_type() != splitedMul[i].get_element_type()) {
+            auto convert =
+                std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convert>>(splitedMul[i], parent.get_element_type());
+            splitedMul[i] = convert;
+        }
+
         const auto multiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(parent, splitedMul[i]);
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(multiply, dequantization.multiply->get_output_element_type(0));
         copy_runtime_info({ newSplit, multiply }, multiply);
