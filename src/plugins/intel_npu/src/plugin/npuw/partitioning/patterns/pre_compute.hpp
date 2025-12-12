@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "openvino/pass/pattern/multi_matcher.hpp"
 
 namespace ov ::npuw ::patterns ::pre_compute {
@@ -29,6 +31,13 @@ public:
     }
 };
 
+class LongRopePatternDesc : public RopePatternDesc {
+public:
+    std::shared_ptr<ov::Node> matched_inv_freq_long;
+    std::shared_ptr<ov::Node> matched_cond;
+    std::shared_ptr<ov::Node> max_pos_id;
+};
+
 class RopePatternLLama2 : public RopePatternDesc {
     ov::pass::MultiMatcher matcher;
 
@@ -40,9 +49,22 @@ public:
     }
 };
 
+class LongRopePatternPhi : public LongRopePatternDesc {
+    ov::pass::MultiMatcher matcher;
+
+public:
+    using LongRopePatternDesc::transform_cb;
+    LongRopePatternPhi();
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) {
+        return matcher.run_on_model(m);
+    }
+};
+
 class RopeCacheMatcher {
 public:
-    RopeCacheMatcher(const uint32_t max_prompt_len, const std::shared_ptr<ov::Model>& m);
+    RopeCacheMatcher(const uint32_t max_prompt_len,
+                     const std::shared_ptr<ov::Model>& m,
+                     const std::string& longrope_input_name);
 };
 
 // TODO: not used - only in tests
@@ -57,13 +79,16 @@ public:
 
 class RopeCache : public ov::pass::ModelPass {
     const uint32_t m_max_prompt_len = 0;
+    std::string m_longrope_input_name;
 
 public:
     OPENVINO_MODEL_PASS_RTTI("npuw::patterns::precompute::Rope");
     /*
      * Rope cache is NPUW  pass that removes sin/cos subgraph and replaces it with corresponding LUT/gather operations
      */
-    explicit RopeCache(const uint32_t max_prompt_len) : m_max_prompt_len(max_prompt_len) {}
+    explicit RopeCache(const uint32_t max_prompt_len, const std::string& longrope_input_name)
+        : m_max_prompt_len(max_prompt_len),
+          m_longrope_input_name(longrope_input_name) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 // NOLINTNEXTLINE(readability/namespace)
