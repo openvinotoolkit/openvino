@@ -222,6 +222,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
         elif isinstance(pt_module, torch.fx.Node):
             self._nodes = nodes  # passed from outer context
+            self._subgraph_inputs = []  # For higher-order ops like cond, while_loop
 
             # FIXME: Quadratic complexity nodes*nodes considering the outer loop over all nodes
             self._outputs = [("", self._nodes.index(pt_module))]

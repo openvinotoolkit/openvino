@@ -129,6 +129,7 @@ OP_CONVERTER(translate_hann_window);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_hstack);
 OP_CONVERTER(translate_if);
+OP_CONVERTER(translate_cond_fx);
 OP_CONVERTER(translate_im2col);
 OP_CONVERTER(translate_index);
 OP_CONVERTER(translate_index_add);
@@ -827,6 +828,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"<built-in function mul>", op::translate_mul},
         {"<built-in function neg>", op::translate_neg},
         {"<built-in function sub>", op::translate_sub},
+        // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
+        {"cond", op::translate_cond_fx},
         {"aten._adaptive_avg_pool1d.default", op::translate_adaptive_avg_pool1d},
         {"aten._adaptive_avg_pool2d.default", op::translate_adaptive_avg_pool2d},
         {"aten._adaptive_avg_pool3d.default", op::translate_adaptive_avg_pool3d},
