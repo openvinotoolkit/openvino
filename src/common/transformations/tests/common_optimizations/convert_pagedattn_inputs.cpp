@@ -23,6 +23,8 @@ using ConvertPagedAttnInputsParams = std::tuple<std::vector<ov::element::Type>, 
                                                 bool,                            // accuracy_mode
                                                 bool                             // is_ir_kv_cache_f16
                                                 >;
+
+namespace v0 = ov::op::v0;
 namespace {
 class ConvertPagedAttnInputsTest : public TransformationTestsF,
                                    public testing::WithParamInterface<ConvertPagedAttnInputsParams> {
@@ -88,37 +90,37 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
     numValueHeads = 2;
     valueHeadSize = 64;
     {
-        auto Q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{-1, 4 * 32});
-        auto K = std::make_shared<ov::op::v0::Parameter>(
+        auto Q = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{-1, 4 * 32});
+        auto K = std::make_shared<v0::Parameter>(
             ov::element::f32,
             PartialShape{-1, static_cast<ov::Dimension::value_type>(numKeyHeads * keyHeadSize)});
-        auto V = std::make_shared<ov::op::v0::Parameter>(
+        auto V = std::make_shared<v0::Parameter>(
             ov::element::f32,
             PartialShape{-1, static_cast<ov::Dimension::value_type>(numValueHeads * valueHeadSize)});
-        auto max_context_len = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{});
-        auto block_indices_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto block_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto subsequence_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto past_lens = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto key_cache_0 = std::make_shared<ov::op::v0::Parameter>(ov::element::dynamic, PartialShape::dynamic(4));
-        auto value_cache_0 = std::make_shared<ov::op::v0::Parameter>(ov::element::dynamic, PartialShape::dynamic(4));
-        auto scale = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, 0.5f);
-        auto sliding_window = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
-        auto alibi_slopes = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{0});
-        auto score_aggregation_window = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto rotated_block_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto rotation_deltas = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto rotation_trig_lut = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{DYN});
-        auto xattention_threshold = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{DYN});
-        auto xattention_block_size = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, Shape{});
-        auto xattention_stride = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, Shape{});
-        auto sinks = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{0, 0, 0, 0});
-        auto adaptive_rkv_start_size = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, Shape{});
-        auto adaptive_rkv_evictable_sizes = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto max_context_len = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{});
+        auto block_indices_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto block_indices = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto subsequence_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto past_lens = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto key_cache_0 = std::make_shared<v0::Parameter>(ov::element::dynamic, PartialShape::dynamic(4));
+        auto value_cache_0 = std::make_shared<v0::Parameter>(ov::element::dynamic, PartialShape::dynamic(4));
+        auto scale = std::make_shared<v0::Constant>(element::f32, Shape{}, 0.5f);
+        auto sliding_window = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
+        auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
+        auto score_aggregation_window = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto rotated_block_indices = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto rotation_deltas = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto rotation_trig_lut = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN});
+        auto xattention_threshold = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN});
+        auto xattention_block_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
+        auto xattention_stride = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
+        auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0, 0, 0, 0});
+        auto adaptive_rkv_start_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
+        auto adaptive_rkv_evictable_sizes = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto adaptive_rkv_diversity_block_set_indices =
-            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
+            std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto adaptive_rkv_diversity_block_set_indices_begins =
-            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
+            std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
 
         auto pa = std::make_shared<op::PagedAttentionExtension>(
             OutputVector{Q,
@@ -213,45 +215,45 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
 
         keyCachePrecision = getCachePrec(keyCachePrecision);
         valueCachePrecision = getCachePrec(valueCachePrecision);
-        auto Q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{-1, 4 * 32});
-        auto K = std::make_shared<ov::op::v0::Parameter>(
+        auto Q = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{-1, 4 * 32});
+        auto K = std::make_shared<v0::Parameter>(
             ov::element::f32,
             PartialShape{-1, static_cast<ov::Dimension::value_type>(numKeyHeads * keyHeadSize)});
-        auto V = std::make_shared<ov::op::v0::Parameter>(
+        auto V = std::make_shared<v0::Parameter>(
             ov::element::f32,
             PartialShape{-1, static_cast<ov::Dimension::value_type>(numValueHeads * valueHeadSize)});
-        auto max_context_len = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{});
-        auto block_indices_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto block_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto subsequence_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto past_lens = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto key_cache_0 = std::make_shared<ov::op::v0::Parameter>(keyCachePrecision,
+        auto max_context_len = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{});
+        auto block_indices_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto block_indices = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto subsequence_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto past_lens = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto key_cache_0 = std::make_shared<v0::Parameter>(keyCachePrecision,
                                                                    getCacheShape(keyCachePrecision,
                                                                                  numKeyHeads,
                                                                                  keyHeadSize,
                                                                                  keyCacheGroupSize,
                                                                                  blockSize[0],
                                                                                  quantKeybychannel));
-        auto value_cache_0 = std::make_shared<ov::op::v0::Parameter>(
+        auto value_cache_0 = std::make_shared<v0::Parameter>(
             valueCachePrecision,
             getCacheShape(valueCachePrecision, numKeyHeads, valueHeadSize, valueCacheGroupSize, blockSize[1], false));
-        auto scale = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, 0.5f);
-        auto sliding_window = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
-        auto alibi_slopes = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{0});
-        auto score_aggregation_window = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto rotated_block_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto rotation_deltas = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto rotation_trig_lut = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{DYN});
-        auto xattention_threshold = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{DYN});
-        auto xattention_block_size = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, Shape{});
-        auto xattention_stride = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, Shape{});
-        auto sinks = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{0, 0, 0, 0});
-        auto adaptive_rkv_start_size = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, Shape{});
-        auto adaptive_rkv_evictable_sizes = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto scale = std::make_shared<v0::Constant>(element::f32, Shape{}, 0.5f);
+        auto sliding_window = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
+        auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
+        auto score_aggregation_window = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto rotated_block_indices = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto rotation_deltas = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto rotation_trig_lut = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN});
+        auto xattention_threshold = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN});
+        auto xattention_block_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
+        auto xattention_stride = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
+        auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0, 0, 0, 0});
+        auto adaptive_rkv_start_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
+        auto adaptive_rkv_evictable_sizes = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto adaptive_rkv_diversity_block_set_indices =
-            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
+            std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto adaptive_rkv_diversity_block_set_indices_begins =
-            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{DYN});
+            std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
 
         auto pa = std::make_shared<op::PagedAttentionExtension>(
             OutputVector{Q,

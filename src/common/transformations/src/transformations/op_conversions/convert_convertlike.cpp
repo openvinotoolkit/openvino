@@ -16,13 +16,17 @@
 
 using namespace ov;
 
+
+using ov::pass::pattern::Matcher;
+
+namespace v1 = ov::op::v1;
 ov::pass::ConvertConvertLike::ConvertConvertLike() {
     MATCHER_SCOPE(ConvertConvertLike);
 
-    auto convertlike = ov::pass::pattern::wrap_type<ov::op::v1::ConvertLike>();
+    auto convertlike = ov::pass::pattern::wrap_type<v1::ConvertLike>();
 
-    matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto cvtlike = ov::as_type_ptr<ov::op::v1::ConvertLike>(m.get_match_root());
+    matcher_pass_callback callback = [](Matcher& m) {
+        auto cvtlike = ov::as_type_ptr<v1::ConvertLike>(m.get_match_root());
         if (!cvtlike) {
             return false;
         }
@@ -40,6 +44,6 @@ ov::pass::ConvertConvertLike::ConvertConvertLike() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(convertlike, matcher_name);
+    auto m = std::make_shared<Matcher>(convertlike, matcher_name);
     this->register_matcher(m, callback);
 }

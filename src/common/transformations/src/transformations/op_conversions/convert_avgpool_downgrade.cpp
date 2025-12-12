@@ -20,13 +20,20 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v14 = ov::op::v14;
 ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
     MATCHER_SCOPE(ConvertAvgPool14ToAvgPool1);
 
-    const auto avg_pool_v14_pattern = ov::pass::pattern::wrap_type<ov::op::v14::AvgPool>();
+    const auto avg_pool_v14_pattern = ov::pass::pattern::wrap_type<v14::AvgPool>();
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        const auto avg_pool_v14 = ov::as_type_ptr<ov::op::v14::AvgPool>(m.get_match_root());
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto avg_pool_v14 = ov::as_type_ptr<v14::AvgPool>(m.get_match_root());
         if (!avg_pool_v14 || transformation_callback(avg_pool_v14)) {
             return false;
         }
@@ -41,13 +48,13 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
         ov::Shape pads_end;
         ov::Output<ov::Node> new_input;
 
-        using ov::op::v0::Constant;
-        using ov::op::v0::Concat;
-        using ov::op::v1::Pad;
-        using ov::op::v1::Subtract;
-        using ov::op::v1::ConvertLike;
-        using ov::op::v3::Broadcast;
-        using ov::op::v3::ShapeOf;
+        using v0::Constant;
+        using v0::Concat;
+        using v1::Pad;
+        using v1::Subtract;
+        using v1::ConvertLike;
+        using v3::Broadcast;
+        using v3::ShapeOf;
         using ov::op::v4::Range;
 
         if (!exclude_pad && rounding_type_v14 == ov::op::RoundingType::CEIL_TORCH) {
@@ -65,10 +72,10 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
             const auto pads_len = node_registry.make<Constant>(element::i64, Shape{}, pads_begin_v14.size());
             const auto pads_diff = node_registry.make<Subtract>(rank, pads_len);
             const auto pads_remaining = node_registry.make<Broadcast>(zero_i64, pads_diff);
-            const auto pads_begin_v1 = node_registry.make<ov::op::v0::Concat>(
+            const auto pads_begin_v1 = node_registry.make<v0::Concat>(
                 OutputVector{std::move(pads_remaining), std::move(pads_begin_node)},
                 0);
-            const auto pads_end_v1 = node_registry.make<ov::op::v0::Concat>(
+            const auto pads_end_v1 = node_registry.make<v0::Concat>(
                 OutputVector{std::move(pads_remaining), std::move(pads_begin_node)},
                 0);
             const auto pad_node =
@@ -81,7 +88,7 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
             pads_end = avg_pool_v14->get_pads_end();
             new_input = input;
         }
-        const auto avg_pool_v1 = node_registry.make<ov::op::v1::AvgPool>(new_input,
+        const auto avg_pool_v1 = node_registry.make<v1::AvgPool>(new_input,
                                                                          avg_pool_v14->get_strides(),
                                                                          pads_begin,
                                                                          pads_end,
@@ -95,6 +102,6 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(avg_pool_v14_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(avg_pool_v14_pattern, matcher_name);
     register_matcher(m, callback);
 }

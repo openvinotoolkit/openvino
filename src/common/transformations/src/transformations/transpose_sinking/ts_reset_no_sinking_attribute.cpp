@@ -13,6 +13,8 @@
 using namespace ov;
 using namespace ov::pass::transpose_sinking;
 
+
+using ov::pass::pattern::Matcher;
 TSResetNoSinkingAttribute::TSResetNoSinkingAttribute() {
     MATCHER_SCOPE(TSResetNoSinkingAttribute);
 
@@ -20,13 +22,13 @@ TSResetNoSinkingAttribute::TSResetNoSinkingAttribute() {
         const auto& rt_info = output.get_node()->get_rt_info();
         return rt_info.find(NoTransposeSinkingAttr::get_type_info_static()) != rt_info.end();
     });
-    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
         const auto& transpose = pattern_to_output.at(transpose_label);
         ov::reset_no_sinking_attribute(transpose);
         return false;
     };
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

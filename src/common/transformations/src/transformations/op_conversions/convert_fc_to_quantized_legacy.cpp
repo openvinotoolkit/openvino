@@ -18,20 +18,26 @@
 #include "ov_ops/fully_connected_quantized_legacy.hpp"
 #include "transformations/utils/utils.hpp"
 
+
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
 ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
     std::vector<element::Type> activation_types{ov::element::u8, ov::element::i8};
     std::vector<element::Type> weights_types{ov::element::i8};
 
-    auto activations_m = ov::pass::pattern::any_input(ov::pass::pattern::type_matches_any(activation_types));
-    auto weights_m = ov::pass::pattern::any_input();
-    auto bias_m = ov::pass::pattern::any_input();
+    auto activations_m = any_input(ov::pass::pattern::type_matches_any(activation_types));
+    auto weights_m = any_input();
+    auto bias_m = any_input();
 
     auto fully_connected_m =
-        ov::pass::pattern::wrap_type<ov::op::internal::FullyConnected>({activations_m, weights_m, bias_m});
-    auto dequantization_scales_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto multiply_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({fully_connected_m, dequantization_scales_m});
+        wrap_type<ov::op::internal::FullyConnected>({activations_m, weights_m, bias_m});
+    auto dequantization_scales_m = wrap_type<v0::Constant>();
+    auto multiply_m = wrap_type<ov::op::v1::Multiply>({fully_connected_m, dequantization_scales_m});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto fc_output = pattern_map.at(fully_connected_m);
@@ -44,7 +50,7 @@ ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
         const auto& multiply_output_shape = multiply.get_partial_shape();
 
         if (*fc_output_shape.rbegin() != *multiply_output_shape.rbegin() ||
-            !ov::op::util::is_on_path<ov::op::v0::Constant>(weights)) {
+            !ov::op::util::is_on_path<v0::Constant>(weights)) {
             return false;
         }
 
@@ -52,7 +58,7 @@ ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
             ov::as_type_ptr<ov::op::internal::FullyConnected>(pattern_map.at(fully_connected_m).get_node_shared_ptr());
 
         ov::NodeVector new_ops;
-        auto zp = std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0});
+        auto zp = std::make_shared<v0::Constant>(element::dynamic, Shape{0});
         new_ops.push_back(zp);
 
         auto fc_quantized =
@@ -73,6 +79,6 @@ ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(multiply_m, "ConvertFullyConnectedToFullyConnectedQuantized");
+    auto m = std::make_shared<Matcher>(multiply_m, "ConvertFullyConnectedToFullyConnectedQuantized");
     this->register_matcher(m, callback);
 }

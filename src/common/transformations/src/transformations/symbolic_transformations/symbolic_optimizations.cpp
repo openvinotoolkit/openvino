@@ -33,6 +33,10 @@
 using namespace ov::pass;
 using namespace ov::symbol::util;
 
+
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::Matcher;
 namespace {
 void symbolic_set_up_for_shape(ov::PartialShape& shape) {
     if (shape.rank().is_dynamic())
@@ -119,19 +123,19 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
 
 ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
     MATCHER_SCOPE(LabelResolvingThroughSelect);
-    auto add = ov::pass::pattern::wrap_type<op::util::BinaryElementwiseArithmetic>();
-    auto input_reshape = ov::pass::pattern::wrap_type<op::v1::Reshape>({add, ov::pass::pattern::any_input()});
+    auto add = wrap_type<op::util::BinaryElementwiseArithmetic>();
+    auto input_reshape = wrap_type<op::v1::Reshape>({add, any_input()});
 
-    auto select_then = ov::pass::pattern::wrap_type<op::v1::Select>(
-        {ov::pass::pattern::any_input(), input_reshape, ov::pass::pattern::any_input()});
-    auto select_else = ov::pass::pattern::wrap_type<op::v1::Select>(
-        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), input_reshape});
+    auto select_then = wrap_type<op::v1::Select>(
+        {any_input(), input_reshape, any_input()});
+    auto select_else = wrap_type<op::v1::Select>(
+        {any_input(), any_input(), input_reshape});
     auto select = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{select_then, select_else});
 
-    auto softmax = ov::pass::pattern::wrap_type<op::v1::Softmax>({select});
-    auto reshape = ov::pass::pattern::wrap_type<op::v1::Reshape>({softmax, ov::pass::pattern::any_input()});
+    auto softmax = wrap_type<op::v1::Softmax>({select});
+    auto reshape = wrap_type<op::v1::Reshape>({softmax, any_input()});
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& value_map = m.get_pattern_value_map();
         ov::TensorSymbol reshape_symbols, add_0_symbols, add_1_symbols;
         if (!get_symbols(value_map.at(reshape).get_partial_shape(), reshape_symbols))
@@ -169,7 +173,7 @@ ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape, matcher_name);
+    auto m = std::make_shared<Matcher>(reshape, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 

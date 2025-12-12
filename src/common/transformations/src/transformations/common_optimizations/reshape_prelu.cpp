@@ -15,13 +15,18 @@
 
 using namespace ov::pass;
 
+
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
 ReshapePRelu::ReshapePRelu() {
     MATCHER_SCOPE(ReshapePRelu);
-    auto input_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto slope_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto prelu_m = ov::pass::pattern::wrap_type<ov::op::v0::PRelu>({input_m, slope_m});
+    auto input_m = any_input(ov::pass::pattern::has_static_rank());
+    auto slope_m = any_input(ov::pass::pattern::has_static_rank());
+    auto prelu_m = ov::pass::pattern::wrap_type<v0::PRelu>({input_m, slope_m});
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto prelu = pattern_map.at(prelu_m).get_node_shared_ptr();
         const auto input = pattern_map.at(input_m);
@@ -47,7 +52,7 @@ ReshapePRelu::ReshapePRelu() {
         std::vector<std::int64_t> target_shape(prelu_rank.get_length(), 1);
         target_shape[channel_dim_idx] = -1;
         const auto target_shape_const =
-            ov::op::v0::Constant::create(ov::element::i64, {target_shape.size()}, target_shape);
+            v0::Constant::create(ov::element::i64, {target_shape.size()}, target_shape);
         auto new_slope = ov::op::util::make_try_fold<ov::op::v1::Reshape>(slope, target_shape_const, true);
         auto new_prelu = prelu->clone_with_new_inputs({input, new_slope});
 
@@ -59,6 +64,6 @@ ReshapePRelu::ReshapePRelu() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(prelu_m, matcher_name);
+    auto m = std::make_shared<Matcher>(prelu_m, matcher_name);
     this->register_matcher(m, callback);
 }

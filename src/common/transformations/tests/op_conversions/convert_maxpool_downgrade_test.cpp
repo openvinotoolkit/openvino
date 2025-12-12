@@ -23,11 +23,15 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/manager.hpp"
 
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v8 = ov::op::v8;
 namespace {
 
 std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_type,
                                             const ov::PartialShape input_shape) {
-    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    const auto input = std::make_shared<v0::Parameter>(ov::element::f32, input_shape);
     const ov::Strides strides{2, 2}, dilations{1, 1};
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
@@ -48,11 +52,11 @@ std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_
 }
 
 std::shared_ptr<ov::Model> create_v8_model(const ov::op::RoundingType rounding_type) {
-    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
+    const auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
     const ov::Strides strides{2, 2}, dilations{1, 1};
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
-    const auto max_pool_v8 = std::make_shared<ov::op::v8::MaxPool>(input,
+    const auto max_pool_v8 = std::make_shared<v8::MaxPool>(input,
                                                                    strides,
                                                                    dilations,
                                                                    pads_begin,
@@ -70,19 +74,19 @@ std::shared_ptr<ov::Model> create_v8_model(const ov::op::RoundingType rounding_t
 
 std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::RoundingType rounding_type,
                                                               const bool dynamic_input = false) {
-    using ov::op::v0::Concat;
-    using ov::op::v0::Constant;
-    using ov::op::v0::Parameter;
-    using ov::op::v1::Add;
-    using ov::op::v1::ConvertLike;
-    using ov::op::v1::Greater;
-    using ov::op::v1::Multiply;
-    using ov::op::v1::Select;
-    using ov::op::v1::Subtract;
+    using v0::Concat;
+    using v0::Constant;
+    using v0::Parameter;
+    using v1::Add;
+    using v1::ConvertLike;
+    using v1::Greater;
+    using v1::Multiply;
+    using v1::Select;
+    using v1::Subtract;
     using ov::op::v12::Pad;
     using ov::op::v3::ShapeOf;
     using ov::op::v4::Range;
-    using ov::op::v8::Gather;
+    using v8::Gather;
     const auto& input_shape =
         dynamic_input
             ? ov::PartialShape{ov::Dimension::dynamic(), 3, ov::Dimension::dynamic(), ov::Dimension::dynamic()}
@@ -109,7 +113,7 @@ std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::Roun
     const auto in_left_padded = std::make_shared<Add>(gth_in_dims, padding_begin_node);
 
     // gather output spatial dims and prepare it for compare as values (out_dim - 1) * stride
-    const auto mp = std::make_shared<ov::op::v8::MaxPool>(input,
+    const auto mp = std::make_shared<v8::MaxPool>(input,
                                                           strides,
                                                           dilations,
                                                           pads_begin,
@@ -135,7 +139,7 @@ std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::Roun
     std::fill_n(pads_begin.begin(), pads_begin.size(), 0);
     std::fill_n(pads_end.begin(), pads_end.size(), 0);
 
-    const auto max_pool_v8 = std::make_shared<ov::op::v8::MaxPool>(pad_node,
+    const auto max_pool_v8 = std::make_shared<v8::MaxPool>(pad_node,
                                                                    strides,
                                                                    dilations,
                                                                    pads_begin,
@@ -154,21 +158,21 @@ std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::Roun
 
 TEST_F(TransformationTestsF, ConvertMaxPool8ToMaxPool1) {
     {
-        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
+        auto data = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
         ov::Strides strides{1}, dilations{1};
         ov::Shape pads_begin{0}, pads_end{0}, kernel{1};
-        auto maxpool_8 = std::make_shared<ov::op::v8::MaxPool>(data, strides, dilations, pads_begin, pads_end, kernel);
-        auto result = std::make_shared<ov::op::v0::Result>(maxpool_8->output(0));
+        auto maxpool_8 = std::make_shared<v8::MaxPool>(data, strides, dilations, pads_begin, pads_end, kernel);
+        auto result = std::make_shared<v0::Result>(maxpool_8->output(0));
         model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{data});
         manager.register_pass<ov::pass::ConvertMaxPool8ToMaxPool1>();
     }
 
     {
-        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
+        auto data = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
         ov::Strides strides{1};
         ov::Shape pads_begin{0}, pads_end{0}, kernel{1};
-        auto maxpool_1 = std::make_shared<ov::op::v1::MaxPool>(data, strides, pads_begin, pads_end, kernel);
-        auto result = std::make_shared<ov::op::v0::Result>(maxpool_1->output(0));
+        auto maxpool_1 = std::make_shared<v1::MaxPool>(data, strides, pads_begin, pads_end, kernel);
+        auto result = std::make_shared<v0::Result>(maxpool_1->output(0));
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{data});
     }
 }

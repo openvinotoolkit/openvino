@@ -25,16 +25,22 @@
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
 
+
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 namespace {
 template <ov::element::Type_t PREC_FROM>
-std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::op::v0::Constant>& constant,
+std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::Constant>& constant,
                                                             bool postponed = false) {
     using src_type = typename ov::element_type_traits<PREC_FROM>::value_type;
 
     const auto* src_data = constant->get_data_ptr<src_type>();
     const auto size = ov::shape_size(constant->get_shape());
 
-    auto new_constant = std::make_shared<ov::op::v0::Constant>(ov::element::f16, constant->get_shape());
+    auto new_constant = std::make_shared<v0::Constant>(ov::element::f16, constant->get_shape());
     auto* dst_data = const_cast<ov::float16*>(reinterpret_cast<const ov::float16*>(new_constant->get_data_ptr()));
     if (!dst_data || !size)
         return nullptr;
@@ -78,13 +84,13 @@ using namespace ov::pass;
 class DetectFakeQuantizeOrFakeConvert : public MatcherPass {
 public:
     DetectFakeQuantizeOrFakeConvert() {
-        auto root = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize, ov::op::v13::FakeConvert>();
+        auto root = wrap_type<v0::FakeQuantize, ov::op::v13::FakeConvert>();
 
-        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](Matcher& m) {
             return true;
         };
 
-        auto m = std::make_shared<ov::pass::pattern::Matcher>(root, "DetectFakeQuantizeOrFakeConvert");
+        auto m = std::make_shared<Matcher>(root, "DetectFakeQuantizeOrFakeConvert");
         register_matcher(m, callback);
     }
 };
@@ -92,7 +98,7 @@ public:
 class DetectCompressedWeights : public MatcherPass {
 public:
     DetectCompressedWeights() {
-        auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(
+        auto weights = wrap_type<v0::Constant>(
             ov::pass::pattern::type_matches_any({ov::element::i4,
                                                  ov::element::u4,
                                                  ov::element::i8,
@@ -100,19 +106,19 @@ public:
                                                  ov::element::nf4,
                                                  ov::element::f8e4m3,
                                                  ov::element::f8e5m2}));
-        auto convert = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights});
-        auto zero_point_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-        auto zero_point = ov::pass::pattern::optional<ov::op::v0::Convert>(zero_point_const);
-        auto subtract = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert, zero_point});
+        auto convert = wrap_type<v0::Convert>({weights});
+        auto zero_point_const = wrap_type<v0::Constant>();
+        auto zero_point = ov::pass::pattern::optional<v0::Convert>(zero_point_const);
+        auto subtract = wrap_type<v1::Subtract>({convert, zero_point});
         auto subtract_or_convert = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{convert, subtract});
-        auto multiply = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>(
-            {subtract_or_convert, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
+        auto multiply = wrap_type<v1::Multiply>(
+            {subtract_or_convert, wrap_type<v0::Constant>()});
 
-        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](Matcher& m) {
             return true;
         };
 
-        auto m = std::make_shared<ov::pass::pattern::Matcher>(multiply, "DetectCompressedWeights");
+        auto m = std::make_shared<Matcher>(multiply, "DetectCompressedWeights");
         register_matcher(m, callback);
     }
 };
@@ -137,13 +143,13 @@ void ov::pass::compress_model_to_f16(const std::shared_ptr<Model>& model, bool p
 
 ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
     MATCHER_SCOPE(CompressFloatConstantsImpl);
-    auto const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_pattern = wrap_type<v0::Constant>();
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& const_node_pattern = pattern_map.at(const_pattern);
 
-        auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(const_node_pattern.get_node_shared_ptr());
+        auto const_node = ov::as_type_ptr<v0::Constant>(const_node_pattern.get_node_shared_ptr());
         if (!const_node)
             return false;
 
@@ -180,7 +186,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
             } else {
                 const auto* src_data = const_node->get_data_ptr<float>();
                 auto compressed_const =
-                    std::make_shared<ov::op::v0::Constant>(ov::element::f16, const_node->get_shape());
+                    std::make_shared<v0::Constant>(ov::element::f16, const_node->get_shape());
                 auto* dst_data =
                     const_cast<ov::float16*>(reinterpret_cast<const ov::float16*>(compressed_const->get_data_ptr()));
                 OPENVINO_ASSERT(dst_data);
@@ -213,12 +219,12 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
             if (is_fp16_compression_postponed(postponed_constant_node->get_rt_info())) {
                 // Convert was already added after postponed_constant_node. Get it and just update rt info
                 auto next_node = postponed_constant_node->get_output_target_inputs(0).begin()->get_node();
-                OPENVINO_ASSERT(ov::as_type<ov::op::v0::Convert>(next_node));
+                OPENVINO_ASSERT(ov::as_type<v0::Convert>(next_node));
                 ov::copy_runtime_info(const_node, next_node->shared_from_this());
             } else {
                 auto postponed_constant_target_inputs = postponed_constant_node->get_output_target_inputs(0);
                 auto convert =
-                    std::make_shared<ov::op::v0::Convert>(postponed_constant_node, const_node->get_element_type());
+                    std::make_shared<v0::Convert>(postponed_constant_node, const_node->get_element_type());
 
                 convert->set_friendly_name(postponed_constant_node->get_friendly_name());
                 ov::mark_as_decompression(convert);
@@ -233,7 +239,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
                 }
             }
         } else {
-            auto convert = std::make_shared<ov::op::v0::Convert>(new_const, const_node->get_element_type());
+            auto convert = std::make_shared<v0::Convert>(new_const, const_node->get_element_type());
 
             convert->set_friendly_name(const_node->get_friendly_name());
             new_const->set_friendly_name(const_node->get_friendly_name() + "_compressed");
@@ -253,6 +259,6 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(const_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(const_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

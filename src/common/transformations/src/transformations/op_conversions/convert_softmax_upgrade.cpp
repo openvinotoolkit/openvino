@@ -10,13 +10,17 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+
+using ov::pass::pattern::Matcher;
+
+namespace v1 = ov::op::v1;
 ov::pass::ConvertSoftMax1ToSoftMax8::ConvertSoftMax1ToSoftMax8() {
     MATCHER_SCOPE(ConvertSoftMax1ToSoftMax8);
 
-    auto softmax_v1_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Softmax>();
+    auto softmax_v1_pattern = ov::pass::pattern::wrap_type<v1::Softmax>();
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        auto softmax_v1_node = ov::as_type_ptr<ov::op::v1::Softmax>(m.get_match_root());
+    matcher_pass_callback callback = [=](Matcher& m) {
+        auto softmax_v1_node = ov::as_type_ptr<v1::Softmax>(m.get_match_root());
         if (!softmax_v1_node)
             return false;
 
@@ -29,6 +33,6 @@ ov::pass::ConvertSoftMax1ToSoftMax8::ConvertSoftMax1ToSoftMax8() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(softmax_v1_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(softmax_v1_pattern, matcher_name);
     register_matcher(m, callback);
 }

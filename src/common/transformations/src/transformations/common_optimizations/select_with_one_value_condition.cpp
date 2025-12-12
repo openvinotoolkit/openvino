@@ -19,26 +19,32 @@ using namespace std;
 using namespace ov;
 using namespace ov::element;
 
+
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
     MATCHER_SCOPE(SelectWithOneValueCondition);
 
-    auto condition = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto then_branch = ov::pass::pattern::any_input();
-    auto else_branch = ov::pass::pattern::any_input();
-    auto select_pattern = make_shared<ov::op::v1::Select>(condition, then_branch, else_branch);
+    auto condition = ov::pass::pattern::wrap_type<v0::Constant>();
+    auto then_branch = any_input();
+    auto else_branch = any_input();
+    auto select_pattern = make_shared<v1::Select>(condition, then_branch, else_branch);
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](Matcher& m) {
         pass::NodeRegistry copy_from;
         pass::NodeRegistry copy_to;
         auto& pattern_map = m.get_pattern_value_map();
         auto& select_value = pattern_map.at(select_pattern);
-        auto select = ov::as_type_ptr<ov::op::v1::Select>(select_value.get_node_shared_ptr());
+        auto select = ov::as_type_ptr<v1::Select>(select_value.get_node_shared_ptr());
         if (!select) {
             return false;
         }
 
         auto condition_value = pattern_map.at(condition);
-        auto condition_const = ov::as_type_ptr<ov::op::v0::Constant>(condition_value.get_node_shared_ptr());
+        auto condition_const = ov::as_type_ptr<v0::Constant>(condition_value.get_node_shared_ptr());
         if (!condition_const) {
             return false;
         }
@@ -81,7 +87,7 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
             }
 
             auto target_shape =
-                copy_to.make<ov::op::v0::Constant>(element::i32, Shape{select_rank}, select_shape_values);
+                copy_to.make<v0::Constant>(element::i32, Shape{select_rank}, select_shape_values);
             auto broadcast = copy_to.make<ov::op::v3::Broadcast>(branch_output, target_shape);
             select->output(0).replace(broadcast->output(0));
             broadcast->set_friendly_name(select->get_friendly_name());
@@ -93,6 +99,6 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
         return true;
     };
 
-    auto m = make_shared<ov::pass::pattern::Matcher>(select_pattern, matcher_name);
+    auto m = make_shared<Matcher>(select_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

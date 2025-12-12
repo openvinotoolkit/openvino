@@ -13,13 +13,20 @@
 using namespace std;
 using namespace ov;
 
+
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v7 = ov::op::v7;
+namespace v8 = ov::op::v8;
 pass::ConvertGather7ToGather1::ConvertGather7ToGather1() {
     MATCHER_SCOPE(ConvertGather7ToGather1);
 
-    auto gather_v7_pattern = ov::pass::pattern::wrap_type<ov::op::v7::Gather>();
+    auto gather_v7_pattern = wrap_type<v7::Gather>();
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        auto gather_v7_node = ov::as_type_ptr<ov::op::v7::Gather>(m.get_match_root());
+    matcher_pass_callback callback = [=](Matcher& m) {
+        auto gather_v7_node = ov::as_type_ptr<v7::Gather>(m.get_match_root());
         if (!gather_v7_node)
             return false;
         if (gather_v7_node->get_batch_dims() != 0)
@@ -35,25 +42,25 @@ pass::ConvertGather7ToGather1::ConvertGather7ToGather1() {
         return true;
     };
 
-    auto m = make_shared<ov::pass::pattern::Matcher>(gather_v7_pattern, matcher_name);
+    auto m = make_shared<Matcher>(gather_v7_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
 pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
     MATCHER_SCOPE(ConvertGather8ToGather7);
 
-    auto gather_v8_pattern = ov::pass::pattern::wrap_type<ov::op::v8::Gather>();
+    auto gather_v8_pattern = wrap_type<v8::Gather>();
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        auto gather_v8_node = ov::as_type_ptr<ov::op::v8::Gather>(m.get_match_root());
+    matcher_pass_callback callback = [=](Matcher& m) {
+        auto gather_v8_node = ov::as_type_ptr<v8::Gather>(m.get_match_root());
         if (!gather_v8_node)
             return false;
 
         auto data = gather_v8_node->input_value(0);
         auto indices_constant =
-            ov::as_type_ptr<ov::op::v0::Constant>(gather_v8_node->input_value(1).get_node_shared_ptr());
+            ov::as_type_ptr<v0::Constant>(gather_v8_node->input_value(1).get_node_shared_ptr());
         auto axis_constant =
-            ov::as_type_ptr<ov::op::v0::Constant>(gather_v8_node->input_value(2).get_node_shared_ptr());
+            ov::as_type_ptr<v0::Constant>(gather_v8_node->input_value(2).get_node_shared_ptr());
         if (!indices_constant || !axis_constant)
             return false;
 
@@ -93,14 +100,14 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
 
         std::shared_ptr<ov::Node> new_indices_constant;
         if (do_indices_normalization) {
-            new_indices_constant = std::make_shared<ov::op::v0::Constant>(indices_constant->get_element_type(),
+            new_indices_constant = std::make_shared<v0::Constant>(indices_constant->get_element_type(),
                                                                           indices_constant->get_shape(),
                                                                           indices);
         } else {
             new_indices_constant = indices_constant;
         }
 
-        auto gather_v7_node = make_shared<ov::op::v7::Gather>(gather_v8_node->input_value(0),
+        auto gather_v7_node = make_shared<v7::Gather>(gather_v8_node->input_value(0),
                                                               new_indices_constant,
                                                               gather_v8_node->input_value(2),
                                                               gather_v8_node->get_batch_dims());
@@ -111,6 +118,6 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
         return true;
     };
 
-    auto m = make_shared<ov::pass::pattern::Matcher>(gather_v8_pattern, matcher_name);
+    auto m = make_shared<Matcher>(gather_v8_pattern, matcher_name);
     register_matcher(m, callback);
 }

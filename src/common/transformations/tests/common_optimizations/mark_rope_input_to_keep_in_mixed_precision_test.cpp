@@ -14,6 +14,8 @@
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
+
+namespace v0 = ov::op::v0;
 TEST_F(TransformationTestsF, MarkRopeInputsToKeepInMixedPrecisionTest) {
     /*
     The 2nd/3rd inputs of ROPE is marked as FP32
@@ -39,7 +41,7 @@ TEST_F(TransformationTestsF, MarkRopeInputsToKeepInMixedPrecisionTest) {
         auto input_b = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 1, 10});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input_a, input_b);
         auto transpose_order =
-            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 2, 1});
+            v0::Constant::create(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 2, 1});
         auto transpose = std::make_shared<ov::opset1::Transpose>(matmul, transpose_order);
         auto concat = std::make_shared<ov::opset1::Concat>(ov::NodeVector{transpose, transpose}, -1);
         auto cos = std::make_shared<ov::opset1::Cos>(concat);
@@ -59,7 +61,7 @@ TEST_F(TransformationTestsF, MarkRopeInputsToKeepInMixedPrecisionTest) {
         auto input_b = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 1, 10});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input_a, input_b);
         auto transpose_order =
-            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 2, 1});
+            v0::Constant::create(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 2, 1});
         auto transpose = std::make_shared<ov::opset1::Transpose>(matmul, transpose_order);
         auto concat = std::make_shared<ov::opset1::Concat>(ov::NodeVector{transpose, transpose}, -1);
         auto cos = std::make_shared<ov::opset1::Cos>(concat);
