@@ -1084,6 +1084,80 @@ int64_t PositionIDs::context_length() const {
     return _query_size + _past_length;
 }
 
+// ============================================================================
+// HFARuntimeContext Implementation
+// ============================================================================
+
+void HFARuntimeContext::reset() {
+    m_mask_tile_cache.clear();
+    m_mask_tile_buffers.clear();
+    m_state_buffers.reset();
+    m_current_buffer_idx = 0;
+}
+
+ov::SoPtr<ov::ITensor> HFARuntimeContext::find_cached_mask_tile(const ov::SoPtr<ov::ITensor>& mask_tensor,
+                                                                int64_t mask_offset,
+                                                                int64_t tile_length) const {
+    HFATileMaskKey cache_key{mask_tensor, mask_offset, tile_length};
+    auto it = m_mask_tile_cache.find(cache_key);
+    if (it != m_mask_tile_cache.end()) {
+        return it->second;
+    }
+    return {};
+}
+
+ov::SoPtr<ov::ITensor> HFARuntimeContext::get_mask_tile_buffer(size_t index) const {
+    if (index >= m_mask_tile_buffers.size()) {
+        throw std::out_of_range("HFA: mask tile buffer index " + std::to_string(index) + " out of range [0, " +
+                                std::to_string(m_mask_tile_buffers.size()) + ")");
+    }
+    return m_mask_tile_buffers[index];
+}
+
+void HFARuntimeContext::cache_mask_tile(const ov::SoPtr<ov::ITensor>& mask_tensor,
+                                        int64_t mask_offset,
+                                        int64_t tile_length,
+                                        const ov::SoPtr<ov::ITensor>& cached_tile) {
+    HFATileMaskKey cache_key{mask_tensor, mask_offset, tile_length};
+    m_mask_tile_cache[cache_key] = cached_tile;
+}
+
+void HFARuntimeContext::clear_mask_cache() {
+    m_mask_tile_cache.clear();
+}
+
+void HFARuntimeContext::initialize_state_tensors(ov::SoPtr<ov::ITensor>& acc,
+                                                 ov::SoPtr<ov::ITensor>& max,
+                                                 ov::SoPtr<ov::ITensor>& sum) {
+    const auto type = acc->get_element_type();
+    if (type == ov::element::f16) {
+        std::memset(acc->data<ov::float16>(), 0, acc->get_byte_size());
+        std::fill_n(max->data<ov::float16>(), max->get_size(), std::numeric_limits<ov::float16>::lowest());
+        std::memset(sum->data<ov::float16>(), 0, sum->get_byte_size());
+    } else if (type == ov::element::f32) {
+        std::memset(acc->data<float>(), 0, acc->get_byte_size());
+        std::fill_n(max->data<float>(), max->get_size(), std::numeric_limits<float>::lowest());
+        std::memset(sum->data<float>(), 0, sum->get_byte_size());
+    } else {
+        throw std::runtime_error("HFA: Unsupported state tensor type");
+    }
+}
+
+void HFARuntimeContext::prepare_next_state_buffers() {
+    if (!m_state_buffers.has_value()) {
+        return;
+    }
+    size_t next_idx = 1 - m_current_buffer_idx;
+    auto& next_buffer = (*m_state_buffers)[next_idx];
+    initialize_state_tensors(next_buffer.acc, next_buffer.max, next_buffer.sum);
+}
+
+void HFARuntimeContext::switch_buffers() {
+    if (m_state_buffers.has_value()) {
+        m_current_buffer_idx = 1 - m_current_buffer_idx;
+    }
+}
+
 }  // namespace host_flash_attention
 }  // namespace runtime
 

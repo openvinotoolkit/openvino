@@ -5,11 +5,8 @@
 #include "just_sync_infer_request.hpp"
 
 #include <algorithm>
-#include <future>
-#include <map>
 #include <memory>
 #include <string>
-#include <utility>
 
 #include "compiled_model.hpp"
 #include "host_flash_attention.hpp"
@@ -20,7 +17,6 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "plugin.hpp"
 #include "pyramid_attention.hpp"
-#include "util.hpp"
 #include "weights_bank.hpp"
 
 ov::npuw::MemAccessSim::MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model) {
@@ -328,7 +324,10 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             }
             // Create HFA tile infer requests if this function has host flash attention
             if (proto_comp_model_desc.host_flash_attention) {
-                setup_hfa_infer_requests(real_idx, is_piped, /* is_recreate */ false, /* enable_mask_cache */ true);
+                setup_hfa_infer_requests(real_idx,
+                                         is_piped,
+                                         /* is_recreate */ false,
+                                         /* enable_hfa_optimizations */ true);
             }
         }
 
@@ -607,7 +606,7 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     if (m_hfa_selector) {
         m_hfa_selector->prepare(get_history_size());
         if (m_hfa_runtime_ctx) {
-            m_hfa_runtime_ctx->clear_cache();
+            m_hfa_runtime_ctx->clear_mask_cache();
         }
     }
 
@@ -981,7 +980,7 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
         }
         // Recreate HFA tile infer requests if this function has host flash attention
         if (proto_comp_model_desc.host_flash_attention) {
-            setup_hfa_infer_requests(real_idx, is_piped, /* is_recreate */ true, /* enable_mask_cache */ true);
+            setup_hfa_infer_requests(real_idx, is_piped, /* is_recreate */ true, /* enable_hfa_optimizations */ true);
         }
     }
 
@@ -1082,7 +1081,7 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
 void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
                                                           bool is_piped,
                                                           bool is_recreate,
-                                                          bool enable_mask_cache) {
+                                                          bool enable_hfa_optimizations) {
     auto& submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
     if (!submodel_desc.host_flash_attention.has_value()) {
         return;
@@ -1159,9 +1158,9 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
     LOG_INFO("Successfully " << (is_recreate ? "recreated" : "created")
                              << " HFA tile infer requests with shared input tensors");
 
-    // Initialize mask cache if enabled
-    if (enable_mask_cache) {
-        LOG_INFO("Mask cache is ENABLED");
+    // Initialize HFA optimizations (mask cache + state double-buffering) if enabled
+    if (enable_hfa_optimizations) {
+        LOG_INFO("HFA optimizations are ENABLED (mask cache + state double-buffering)");
 
         // Initialize runtime context if needed
         if (!m_hfa_runtime_ctx) {
@@ -1175,16 +1174,49 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
         LOG_INFO("Pre-allocating HFA mask tile buffers...");
 
         // Initialize pre-allocated buffers
-        m_hfa_runtime_ctx->initialize_preallocated_buffers(
+        m_hfa_runtime_ctx->initialize_mask_cache(
             hfa,
             *submodel_desc.device_it,
             [this](const ov::element::Type& dtype, const ov::Shape& shape, const std::string& device) {
                 return allocMem(dtype, shape, device);
             });
 
-        LOG_INFO("Pre-allocated " << m_hfa_runtime_ctx->num_preallocated_tiles() << " mask tile buffer(s)");
+        LOG_INFO("Pre-allocated " << m_hfa_runtime_ctx->num_mask_tile_buffers() << " mask tile buffer(s)");
+
+        // Initialize state buffers and double-buffering for first inference
+        LOG_INFO("Initializing HFA state tensors and double-buffering...");
+
+        // Get pre-cached indices
+        const auto& tile_in = hfa._sdpa_attention_info._tile_input_indices;
+
+        // Get state tensors from regular tile request
+        auto state_acc =
+            submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->get_tensor(
+                hfa._compiled_tile_model->inputs()[tile_in.acc]);
+        auto state_max =
+            submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->get_tensor(
+                hfa._compiled_tile_model->inputs()[tile_in.max]);
+        auto state_sum =
+            submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->get_tensor(
+                hfa._compiled_tile_model->inputs()[tile_in.d]);
+
+        // Initialize state tensors with zeros/minus infinity
+        runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(state_acc, state_max, state_sum);
+
+        // Setup double-buffering with initialized state
+        runtime::host_flash_attention::HFARuntimeContext::StateBuffers initial_buffers{state_acc, state_max, state_sum};
+
+        m_hfa_runtime_ctx->initialize_state_buffers(
+            initial_buffers,
+            hfa,
+            *submodel_desc.device_it,
+            [this](const ov::element::Type& dtype, const ov::Shape& shape, const std::string& device) {
+                return allocMem(dtype, shape, device);
+            });
+
+        LOG_INFO("HFA state tensors and double-buffering initialized successfully");
     } else {
-        LOG_INFO("Mask cache is DISABLED - will extract mask tiles on-the-fly");
+        LOG_INFO("HFA optimizations are DISABLED - will extract mask tiles on-the-fly without state caching");
 
         // Clear runtime context if it exists
         if (m_hfa_runtime_ctx) {
@@ -1444,27 +1476,30 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
     const auto& tile_in = sdpa_info._tile_input_indices;
     const auto& tile_out = sdpa_info._tile_output_indices;
 
-    // Initialize state tensors to zero/negative infinity
-    auto state_acc = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.acc]);
-    auto state_max = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.max]);
-    auto state_sum = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.d]);
+    // Get pre-initialized state buffers from runtime context (initialized during setup phase)
+    // If optimizations are disabled, get tensors directly from request (no double-buffering)
+    ov::SoPtr<ov::ITensor> state_acc, state_max, state_sum;
 
-    // Template lambda for state initialization
-    auto initialize_state = [](auto& acc, auto& max, auto& sum, ov::element::Type type) {
-        if (type == ov::element::f16) {
-            std::fill_n(acc->template data<ov::float16>(), acc->get_size(), ov::float16(0.0f));
-            std::fill_n(max->template data<ov::float16>(), max->get_size(), ov::float16(-65500.0f));
-            std::fill_n(sum->template data<ov::float16>(), sum->get_size(), ov::float16(0.0f));
-        } else if (type == ov::element::f32) {
-            std::fill_n(acc->template data<float>(), acc->get_size(), 0.0f);
-            std::fill_n(max->template data<float>(), max->get_size(), -65500.0f);
-            std::fill_n(sum->template data<float>(), sum->get_size(), 0.0f);
-        } else {
-            OPENVINO_THROW("Unsupported element type for HFA state tensors: ", type);
-        }
-    };
+    if (m_hfa_runtime_ctx && m_hfa_runtime_ctx->has_state_buffers()) {
+        // Use pre-initialized state from current buffer (double-buffering enabled)
+        const auto& current_buffer = m_hfa_runtime_ctx->get_current_state_buffers();
 
-    initialize_state(state_acc, state_max, state_sum, state_acc->get_element_type());
+        state_acc = current_buffer.acc;
+        state_max = current_buffer.max;
+        state_sum = current_buffer.sum;
+
+        regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.acc], state_acc);
+        regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.max], state_max);
+        regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.d], state_sum);
+    } else {
+        // Optimizations disabled: use tensors directly without double-buffering
+        state_acc = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.acc]);
+        state_max = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.max]);
+        state_sum = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.d]);
+
+        // Initialize state tensors for each inference run (no caching)
+        runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(state_acc, state_max, state_sum);
+    }
 
     // Set query tensor once (constant across all tiles)
     regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.q], query_tensor);
@@ -1494,14 +1529,15 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
 
     size_t next_available_mask_buffer_idx = 0;  // Track next available pre-allocated mask buffer for cache misses
 
-    // Helper lambda: Process a single tile (factored out to avoid code duplication)
+    // Helper lambda: Process a single tile
     auto process_tile = [&](auto& request,
                             auto& model,
                             const ov::SoPtr<ov::ITensor>& k_source,
                             const ov::SoPtr<ov::ITensor>& v_source,
                             int64_t kv_offset,
                             int64_t mask_offset,
-                            int64_t tile_length) {
+                            int64_t tile_length,
+                            bool async = false) {
         // Get tile input buffers
         auto k_tile_buffer = request->get_tensor(model->inputs()[tile_in.k]);
         auto v_tile_buffer = request->get_tensor(model->inputs()[tile_in.v]);
@@ -1546,7 +1582,7 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
 
                     // Use pre-allocated mask buffer for this tile
                     ov::SoPtr<ov::ITensor> cached_mask_tile =
-                        m_hfa_runtime_ctx->get_preallocated_mask_tile(next_available_mask_buffer_idx);
+                        m_hfa_runtime_ctx->get_mask_tile_buffer(next_available_mask_buffer_idx);
 
                     // Extract mask data into the pre-allocated buffer
                     hfa_extract_and_copy_tile(attention_mask_tensor,
@@ -1581,8 +1617,16 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
             }
         }
 
-        // Execute tile inference
-        request->infer();
+        // Execute tile (async mode pre-initializes next state buffer in parallel if optimizations enabled)
+        if (async) {
+            request->start_async();
+            if (m_hfa_runtime_ctx && m_hfa_runtime_ctx->has_state_buffers()) {
+                m_hfa_runtime_ctx->prepare_next_state_buffers();
+            }
+            request->wait();
+        } else {
+            request->infer();
+        }
     };
 
     int64_t mask_tile_offset = 0;
@@ -1624,7 +1668,13 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
                      present_value_tensor,
                      0,
                      final_mask_offset,
-                     final_tile_length);
+                     final_tile_length,
+                     true);  // async: pre-init next state buffer
+    }
+
+    // Switch to other buffer for next inference (only if optimizations enabled)
+    if (m_hfa_runtime_ctx && m_hfa_runtime_ctx->has_state_buffers()) {
+        m_hfa_runtime_ctx->switch_buffers();
     }
 }
 
