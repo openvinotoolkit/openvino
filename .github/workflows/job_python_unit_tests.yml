@@ -138,8 +138,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Python Frontend tests
-        if: fromJSON(inputs.affected-components).PyTorch_FE.test ||
-            fromJSON(inputs.affected-components).PDPD_FE.test
+        if: ${{ (fromJSON(inputs.affected-components).PyTorch_FE.test || fromJSON(inputs.affected-components).PDPD_FE.test) && (runner.arch != 'ARM64' && runner.os != 'macOS') }} # Ticket: 172658
         run: |
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
