@@ -330,12 +330,35 @@ void fuse_mean_scale(ov::preprocess::PrePostProcessor& preproc, const benchmark_
 }  // namespace
 
 /**
+ * Sentry class to ensure the resource releasing from CompiledModel.
+ * Release static global oneDNN cache used for inference with release_memory
+ * method. To be called once at the end of inference.
+ */
+class ModelSentry {
+public:
+    ModelSentry() : _model() {}
+
+    ov::CompiledModel& model() {
+        return _model;
+    }
+
+    ~ModelSentry() {
+        if (_model) {
+            _model.release_memory();
+        }
+    }
+
+private:
+    ov::CompiledModel _model;
+};
+
+/**
  * @brief The entry point of the benchmark application
  */
 int main(int argc, char* argv[]) {
     std::shared_ptr<StatisticsReport> statistics;
     try {
-        ov::CompiledModel compiledModel;
+        ModelSentry modelContainer;
 
         // ----------------- 1. Parsing and validating input arguments
         // -------------------------------------------------
@@ -654,7 +677,7 @@ int main(int argc, char* argv[]) {
             slog::info << "Skipping the step for loading model from file" << slog::endl;
             auto compile_model_mem_start = get_peak_memory_usage();
             auto startTime = Time::now();
-            compiledModel = core.compile_model(FLAGS_m, device_name, device_config);
+            modelContainer.model() = core.compile_model(FLAGS_m, device_name, device_config);
             auto duration_ms = get_duration_ms_till_now(startTime);
             auto compile_model_mem_end = get_peak_memory_usage();
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
@@ -665,14 +688,14 @@ int main(int argc, char* argv[]) {
                        << slog::endl;
 
             slog::info << "Original model I/O parameters:" << slog::endl;
-            printInputAndOutputsInfoShort(compiledModel);
+            printInputAndOutputsInfoShort(modelContainer.model());
 
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
                     {StatisticsVariant("compile model time (ms)", "load_model_time", duration_ms)});
 
-            convert_io_names_in_map(inputFiles, compiledModel.inputs());
+            convert_io_names_in_map(inputFiles, modelContainer.model().inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
                                               FLAGS_layout,
                                               batchSize,
@@ -680,7 +703,7 @@ int main(int argc, char* argv[]) {
                                               inputFiles,
                                               FLAGS_scale_values,
                                               FLAGS_mean_values,
-                                              compiledModel.inputs());
+                                              modelContainer.model().inputs());
             if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -844,7 +867,7 @@ int main(int argc, char* argv[]) {
             next_step();
             auto compile_model_mem_start = get_peak_memory_usage();
             startTime = Time::now();
-            compiledModel = core.compile_model(model, device_name, device_config);
+            modelContainer.model() = core.compile_model(model, device_name, device_config);
             duration_ms = get_duration_ms_till_now(startTime);
             auto compile_model_mem_end = get_peak_memory_usage();
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
@@ -880,7 +903,7 @@ int main(int argc, char* argv[]) {
                 throw std::runtime_error("Cannot open model file " + FLAGS_m);
             }
 
-            compiledModel = core.import_model(modelStream, device_name, device_config);
+            modelContainer.model() = core.import_model(modelStream, device_name, device_config);
             modelStream.close();
 
             auto duration_ms = get_duration_ms_till_now(startTime);
@@ -893,14 +916,14 @@ int main(int argc, char* argv[]) {
                        << slog::endl;
 
             slog::info << "Original model I/O paramteters:" << slog::endl;
-            printInputAndOutputsInfoShort(compiledModel);
+            printInputAndOutputsInfoShort(modelContainer.model());
 
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
                     {StatisticsVariant("import model time (ms)", "import_model_time", duration_ms)});
 
-            convert_io_names_in_map(inputFiles, compiledModel.inputs());
+            convert_io_names_in_map(inputFiles, modelContainer.model().inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
                                               FLAGS_layout,
                                               FLAGS_b,
@@ -908,7 +931,7 @@ int main(int argc, char* argv[]) {
                                               inputFiles,
                                               FLAGS_scale_values,
                                               FLAGS_mean_values,
-                                              compiledModel.inputs());
+                                              modelContainer.model().inputs());
             isDynamicNetwork = areNetworkInputsDynamic(app_inputs_info.at(0));
 
             batchSize = get_batch_size(app_inputs_info.at(0));
@@ -943,12 +966,12 @@ int main(int argc, char* argv[]) {
         next_step();
 
         // output of the actual settings that the device selected
-        auto supported_properties = compiledModel.get_property(ov::supported_properties);
+        auto supported_properties = modelContainer.model().get_property(ov::supported_properties);
         slog::info << "Model:" << slog::endl;
         for (const auto& cfg : supported_properties) {
             if (cfg == ov::supported_properties)
                 continue;
-            auto prop = compiledModel.get_property(cfg);
+            auto prop = modelContainer.model().get_property(cfg);
             if (cfg == ov::device::properties) {
                 auto devices_properties = prop.as<ov::AnyMap>();
                 for (auto& item : devices_properties) {
@@ -966,9 +989,10 @@ int main(int argc, char* argv[]) {
         for (auto&& ds : device_nstreams) {
             try {
                 const std::string key = getDeviceTypeFromName(ds.first) + "_THROUGHPUT_STREAMS";
-                device_nstreams[ds.first] = compiledModel.get_property(key).as<std::string>();
+                device_nstreams[ds.first] = modelContainer.model().get_property(key).as<std::string>();
             } catch (const ov::Exception&) {
-                device_nstreams[ds.first] = compiledModel.get_property(ov::num_streams.name()).as<std::string>();
+                device_nstreams[ds.first] =
+                    modelContainer.model().get_property(ov::num_streams.name()).as<std::string>();
             }
         }
 
@@ -979,7 +1003,7 @@ int main(int argc, char* argv[]) {
                 nireq = 1;
             } else {
                 try {
-                    nireq = compiledModel.get_property(ov::optimal_number_of_infer_requests);
+                    nireq = modelContainer.model().get_property(ov::optimal_number_of_infer_requests);
                 } catch (const std::exception& ex) {
                     OPENVINO_THROW("Every device used with the benchmark_app should support " +
                                    std::string(ov::optimal_number_of_infer_requests.name()) +
@@ -1050,7 +1074,7 @@ int main(int argc, char* argv[]) {
         // ----------------------------------------
         next_step();
 
-        InferRequestsQueue inferRequestsQueue(compiledModel, nireq, app_inputs_info.size(), FLAGS_pcseq);
+        InferRequestsQueue inferRequestsQueue(modelContainer.model(), nireq, app_inputs_info.size(), FLAGS_pcseq);
 
         bool inputHasName = false;
         if (inputFiles.size() > 0) {
@@ -1067,7 +1091,7 @@ int main(int argc, char* argv[]) {
             if (device_name.find("GPU") == 0) {
                 inputsData = ::gpu::get_remote_input_tensors(inputFiles,
                                                              app_inputs_info,
-                                                             compiledModel,
+                                                             modelContainer.model(),
                                                              clInputsBuffer,
                                                              inferRequestsQueue.requests.size());
                 useGpuMem = true;
@@ -1084,7 +1108,7 @@ int main(int argc, char* argv[]) {
             } else if (device_name.find("NPU") == 0) {
                 inputsData = ::npu::get_remote_input_tensors(inputFiles,
                                                              app_inputs_info,
-                                                             compiledModel,
+                                                             modelContainer.model(),
                                                              inferRequestsQueue.requests.size());
                 useNpuMem = true;
             } else {
@@ -1170,8 +1194,8 @@ int main(int argc, char* argv[]) {
 
                 if (useGpuMem) {
                     auto outputTensors =
-                        ::gpu::get_remote_output_tensors(compiledModel, inferRequest->get_output_cl_buffer());
-                    for (auto& output : compiledModel.outputs()) {
+                        ::gpu::get_remote_output_tensors(modelContainer.model(), inferRequest->get_output_cl_buffer());
+                    for (auto& output : modelContainer.model().outputs()) {
                         inferRequest->set_tensor(output.get_any_name(), outputTensors[output.get_any_name()]);
                     }
                 }
@@ -1199,8 +1223,8 @@ int main(int argc, char* argv[]) {
 
                 if (useGpuMem) {
                     auto outputTensors =
-                        ::gpu::get_remote_output_tensors(compiledModel, inferRequest->get_output_cl_buffer());
-                    for (auto& output : compiledModel.outputs()) {
+                        ::gpu::get_remote_output_tensors(modelContainer.model(), inferRequest->get_output_cl_buffer());
+                    for (auto& output : modelContainer.model().outputs()) {
                         inferRequest->set_tensor(output.get_any_name(), outputTensors[output.get_any_name()]);
                     }
                 }
@@ -1261,8 +1285,8 @@ int main(int argc, char* argv[]) {
 
                 if (useGpuMem) {
                     auto outputTensors =
-                        ::gpu::get_remote_output_tensors(compiledModel, inferRequest->get_output_cl_buffer());
-                    for (auto& output : compiledModel.outputs()) {
+                        ::gpu::get_remote_output_tensors(modelContainer.model(), inferRequest->get_output_cl_buffer());
+                    for (auto& output : modelContainer.model().outputs()) {
                         inferRequest->set_tensor(output.get_any_name(), outputTensors[output.get_any_name()]);
                     }
                 }
@@ -1350,7 +1374,7 @@ int main(int argc, char* argv[]) {
 
         if (!FLAGS_exec_graph_path.empty()) {
             try {
-                ov::serialize(compiledModel.get_runtime_model(), FLAGS_exec_graph_path);
+                ov::serialize(modelContainer.model().get_runtime_model(), FLAGS_exec_graph_path);
                 slog::info << "Executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
             } catch (const std::exception& ex) {
                 slog::err << "Can't get executable graph: " << ex.what() << slog::endl;
@@ -1384,7 +1408,7 @@ int main(int argc, char* argv[]) {
 
         // Performance metrics report
         try {
-            auto exeDevice = compiledModel.get_property(ov::execution_devices);
+            auto exeDevice = modelContainer.model().get_property(ov::execution_devices);
             slog::info << "Execution Devices: " << exeDevice << slog::endl;
         } catch (const ov::Exception&) {
         }
