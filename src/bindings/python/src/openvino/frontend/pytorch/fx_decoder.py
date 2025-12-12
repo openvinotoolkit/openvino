@@ -213,19 +213,48 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
         elif isinstance(pt_module, torch.fx.Node):
             self._nodes = nodes  # passed from outer context
+            self._subgraph_inputs = []  # For higher-order ops like cond, while_loop
 
             # FIXME: Quadratic complexity nodes*nodes considering the outer loop over all nodes
             self._outputs = [("", self._nodes.index(pt_module))]
 
+            is_higher_order_op = self._is_higher_order_op(pt_module)
+
             self.input_types = []
-            for arg in pt_module.args:
+            for arg_idx, arg in enumerate(pt_module.args):
+                # Check if this argument is a subgraph reference (for higher-order ops)
+                is_subgraph, graph_module = self._is_subgraph_arg(arg)
+                if is_subgraph:
+                    self._subgraph_inputs.append(SubgraphInput(arg, graph_module, arg_idx))
+                    # Skip adding to _inputs - subgraphs are accessed via get_subgraphs()
+                    continue
+
                 if isinstance(arg, torch.fx.Node):
                     self._inputs.append(self._nodes.index(arg))
+                    self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
+                elif is_higher_order_op and isinstance(arg, (tuple, list)):
+                    # Handle operands tuple ONLY for higher-order ops (e.g., torch.cond, torch.while_loop)
+                    # Skip empty tuples/lists
+                    if len(arg) == 0:
+                        continue
+                    # Unpack the tuple/list and add each element as an input
+                    for element in arg:
+                        if isinstance(element, torch.fx.Node):
+                            # Check if element is a subgraph reference
+                            is_sub, gm = self._is_subgraph_arg(element)
+                            if is_sub:
+                                self._subgraph_inputs.append(SubgraphInput(element, gm, arg_idx))
+                            else:
+                                self._inputs.append(self._nodes.index(element))
+                                self.input_types.append(BaseFXDecoder.get_type_for_value(element))
+                        else:
+                            # Inlined constant in tuple
+                            self._inputs.append(InlinedInput(element))
+                            self.input_types.append(BaseFXDecoder.get_type_for_value(element))
                 else:
-                    # Not a node, consider it inlined
+                    # Not a node or non-higher-order tuple - consider it inlined
                     self._inputs.append(InlinedInput(arg))
-                self.input_types.append(
-                    BaseFXDecoder.get_type_for_value(arg))
+                    self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
 
     @classmethod
     def from_exported_program(cls, exported_program: torch.export.ExportedProgram) -> "TorchFXPythonDecoder":
@@ -352,6 +381,14 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 continue  # skipping non-operational nodes
             if node.op == "call_function" and str(node.target) in ["aten._assert_async.msg"]:
                 continue
+            # Skip get_attr nodes that reference GraphModule subgraphs
+            # These are handled by higher-order operations like cond, while_loop
+            if node.op == "get_attr":
+                attr = getattr(self.fx_gm, node.target, None)
+                if attr is not None and isinstance(attr, torch.fx.GraphModule):
+                    continue
+                if callable(attr) and hasattr(attr, "graph"):
+                    continue
             decoder = TorchFXPythonDecoder(
                 node, self.fx_gm, self._nodes, mark_node_callback=self.mark_node_callback)
             self.m_decoders.append(decoder)
@@ -429,6 +466,41 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def debug(self):
         self.pt_module.print()
 
+    def _is_subgraph_arg(self, arg):
+        """Check if argument is a subgraph reference (get_attr node pointing to GraphModule).
+
+        Returns:
+            tuple: (is_subgraph, graph_module) where graph_module is None if not a subgraph
+        """
+        if not isinstance(arg, torch.fx.Node):
+            return False, None
+        if arg.op != "get_attr":
+            return False, None
+        subgraph = getattr(self.fx_gm, arg.target, None)
+        if subgraph is not None and isinstance(subgraph, torch.fx.GraphModule):
+            return True, subgraph
+        # Handle callable GraphModule instances (e.g., from torch.export)
+        if callable(subgraph) and hasattr(subgraph, "graph"):
+            return True, subgraph
+        return False, None
+
+    def _is_higher_order_op(self, node):
+        """Check if the node is a higher-order operation.
+
+        All higher-order operations in PyTorch (while_loop, cond, map, scan, etc.)
+        are registered under torch.ops.higher_order namespace.
+        """
+        if node.op != "call_function":
+            return False
+        target_str = str(node.target)
+        return target_str.startswith("torch.ops.higher_order.")
+
+    def get_subgraphs(self):
+        """Return list of subgraphs for higher-order operations like cond, while_loop."""
+        if not hasattr(self, "_subgraph_inputs") or not self._subgraph_inputs:
+            return []
+        return [sg.graph_module for sg in self._subgraph_inputs]
+
 
 class InlinedInput:
     """Represents an inlined input.
@@ -438,6 +510,19 @@ class InlinedInput:
 
     def __init__(self, data) -> None:
         self.data = data
+
+
+class SubgraphInput:
+    """Represents a subgraph input (GraphModule reference via get_attr).
+
+    This is used for higher-order operations like torch.cond and torch.while_loop
+    where subgraphs are passed as arguments.
+    """
+
+    def __init__(self, node, graph_module, original_arg_index) -> None:
+        self.node = node
+        self.graph_module = graph_module
+        self.original_arg_index = original_arg_index
 
 
 class InlinedInputDecoder (BaseFXDecoder):
