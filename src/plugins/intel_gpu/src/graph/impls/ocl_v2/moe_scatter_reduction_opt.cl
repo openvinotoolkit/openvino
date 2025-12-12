@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/fetch_utils.cl"
 
 #define VLOAD CAT(vload, VEC_BLK_SIZE)
 #define VSTORE CAT(vstore, VEC_BLK_SIZE)
@@ -19,6 +18,9 @@ KERNEL(moe_scatter_reduction_ref)(
     const __global INPUT4_TYPE* experts_start_offset,
     const __global INPUT5_TYPE* tokens_len_per_expert,
     const __global INPUT6_TYPE* experts_ids,
+#ifdef SET_ACTUAL_USED_EXPERTS_NUM
+    const uint actual_used_expert_num,
+#endif
     __global OUTPUT_TYPE* output
 )
 {
@@ -32,7 +34,11 @@ KERNEL(moe_scatter_reduction_ref)(
 
     if (threads_index < ACTIVE_EXPERTS) {
         INPUT1_TYPE expert_id = experts_per_token[token_group_id * ACTIVE_EXPERTS  + threads_index];
+#ifdef SET_ACTUAL_USED_EXPERTS_NUM
+        for (int i = 0; i < actual_used_expert_num; i++) {
+#else
         for (int i = 0; i < INPUT6_BATCH_NUM; i++) {
+#endif
              if (experts_ids[i] == expert_id) {
                 start_offset_index[threads_index] = i;
                 break;
