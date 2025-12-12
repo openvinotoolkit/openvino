@@ -77,7 +77,7 @@ Core::Core(const std::string& xml_config_file) {
     OV_CORE_CALL_STATEMENT(_impl->register_compile_time_plugins();)
 }
 
-Core::Core(const std::filesystem::path& xml_config_file) : Core(ov::util::path_to_string(xml_config_file.wstring())) {}
+Core::Core(const std::filesystem::path& xml_config_file) : Core(ov::util::path_to_string(xml_config_file)) {}
 
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
     OV_CORE_CALL_STATEMENT({ return _impl->get_versions(device_name); })}
