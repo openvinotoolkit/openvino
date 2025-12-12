@@ -13,6 +13,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/abs.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -23,6 +24,7 @@
 #include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -470,3 +472,34 @@ INSTANTIATE_TEST_SUITE_P(AbsSinkingConstantTests,
                          [](const ::testing::TestParamInfo<AbsSinkingConstantTestParams>& info) {
                              return info.param.test_name;
                          });
+
+TEST_F(TransformationTestsF, AbsSinkingWithSymbolicOptimizations) {
+    PartialShape shape = PartialShape::dynamic(4);
+    {
+        auto data = std::make_shared<opset7::Parameter>(element::f32, shape);
+        auto shape_op = std::make_shared<opset7::ShapeOf>(data);
+        auto gather = gatherv8(shape_op, {0});
+
+        auto one = opset7::Constant::create(element::i64, {1}, {1});
+        auto minus_one = opset7::Constant::create(element::i64, {1}, {-1});
+        auto concat = std::make_shared<opset7::Concat>(OutputVector{gather, minus_one, one, minus_one}, 0);
+        auto abs = std::make_shared<opset7::Abs>(concat);
+        auto const_3d = opset7::Constant::create(element::i64, {3, 3, 3}, {1});
+        auto broadcast = std::make_shared<opset7::Broadcast>(const_3d, abs, ov::op::BroadcastType::BIDIRECTIONAL);
+
+        model = std::make_shared<Model>(OutputVector{broadcast}, ParameterVector{data});
+        manager.register_pass<pass::SymbolicOptimizations>();
+    }
+    {
+        auto data = std::make_shared<opset7::Parameter>(element::f32, shape);
+        auto shape_op = std::make_shared<opset7::ShapeOf>(data);
+        auto gather = gatherv8(shape_op, {0});
+
+        auto one = opset7::Constant::create(element::i64, {1}, {1});
+        auto concat = std::make_shared<opset7::Concat>(OutputVector{gather, one, one, one}, 0);
+        auto const_3d = opset7::Constant::create(element::i64, {3, 3, 3}, {1});
+        auto broadcast = std::make_shared<opset7::Broadcast>(const_3d, concat, ov::op::BroadcastType::BIDIRECTIONAL);
+
+        model_ref = std::make_shared<Model>(OutputVector{broadcast}, ParameterVector{data});
+    }
+}
