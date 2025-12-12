@@ -35,6 +35,7 @@ void conv_groupnorm_stat::run(program& p) {
                                                            gn_prim->num_groups,
                                                            gn_prim->epsilon);
                 program_node& new_gn_node = p.get_or_create(new_gn_prim);
+                new_gn_node.add_fused_primitives(gn_node.get_fused_primitives());
                 p.replace(gn_node, new_gn_node);
                 p.add_connection(*parent, new_gn_node, 1);
                 p.add_connection(*parent, new_gn_node, 2);
@@ -52,6 +53,8 @@ void conv_groupnorm_stat::run(program& p) {
                                                            ov::op::PadType::EXPLICIT,
                                                            gn_prim->num_groups);
                 program_node& new_conv_node = p.get_or_create(new_conv_prim);
+                if (parent->get_fused_primitives().size() > 0)
+                new_conv_node.add_fused_primitives(parent->get_fused_primitives());
                 p.replace(*parent, new_conv_node);
                 auto stat_layout = layout({batch_size, gn_prim->num_groups, 1, 1}, data_types::f32, format::bfyx);
                 new_conv_node.set_output_layout(stat_layout, false, 1);
