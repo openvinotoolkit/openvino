@@ -164,6 +164,19 @@ std::vector<ov::AnyMap> filterAdditionalConfig_Brgemm() {
     return additionalConfig;
 }
 
+std::vector<ov::AnyMap> filterAdditionalConfig_Brgemm_Small_K() {
+#ifndef OV_CPU_WITH_MLAS
+    // FP32 precision is covered by MLAS
+    std::vector<ov::AnyMap> additionalConfig = {
+        ov::AnyMap{/* empty config */}
+    };
+#else
+    std::vector<ov::AnyMap> additionalConfig = {{}};
+#endif
+
+    return additionalConfig;
+}
+
 //For FP32 precision, FC has brgemm avx2 support but Matmul doen't have brgemm avx2.
 //Need to specify tryBrgAVX2 based on test case.
 std::vector<CPUSpecificParams> filterSpecificParams_Brgemm(bool tryBrgAVX2 = false) {
@@ -172,6 +185,15 @@ std::vector<CPUSpecificParams> filterSpecificParams_Brgemm(bool tryBrgAVX2 = fal
         specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
     } else if (tryBrgAVX2 && with_cpu_x86_avx2()) {
         specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx2"}, "brgemm_avx2"});
+    }
+
+    return specificParams;
+}
+
+std::vector<CPUSpecificParams> filterSpecificParams_Brgemm_Small_K() {
+    std::vector<CPUSpecificParams> specificParams;
+    if (with_cpu_x86_avx512_core()) {
+        specificParams.push_back(CPUSpecificParams{{}, {}, {"jit_gemm"}, "jit_gemm"});
     }
 
     return specificParams;
@@ -278,6 +300,25 @@ const auto testParams2D_Brgemm_FP16_smoke = ::testing::Combine(fullyConnectedPar
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm, MatMulLayerCPUTest, testParams2D_Brgemm_smoke, MatMulLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm_FP16, MatMulLayerCPUTest, testParams2D_Brgemm_FP16_smoke, MatMulLayerCPUTest::getTestCaseName);
 
+const std::vector<ShapeRelatedParams> IS_brgemm_small_k_smoke = {
+        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, true}},
+        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, true}},
+};
+const auto matMulBrgemmSmallKParams_smoke = ::testing::Combine(::testing::ValuesIn(IS_brgemm_small_k_smoke),
+                                                               ::testing::Values(ElementType::f32),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::Values(utils::InputLayerType::PARAMETER),
+                                                               ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                               ::testing::ValuesIn(filterAdditionalConfig_Brgemm_Small_K()));
+
+const auto testBrgemmSmallKParams_smoke = ::testing::Combine(matMulBrgemmSmallKParams_smoke,
+                                                             ::testing::Values(MatMulNodeType::MatMul),
+                                                             ::testing::ValuesIn(matmulFusingParams()),
+                                                             ::testing::ValuesIn(filterSpecificParams_Brgemm_Small_K()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Small_K_Static, MatMulLayerCPUTest, testBrgemmSmallKParams_smoke, MatMulLayerCPUTest::getTestCaseName);
+
 const std::vector<ShapeRelatedParams> IS_brgemm_smoke = {
         {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, false}},
         {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, false}},
@@ -287,9 +328,6 @@ const std::vector<ShapeRelatedParams> IS_brgemm_smoke = {
 
         {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, false}},
         {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, false}},
-
-        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, true}},
-        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, true}},
 };
 
 const auto matMulBrgemmParams_smoke = ::testing::Combine(::testing::ValuesIn(IS_brgemm_smoke),
@@ -366,21 +404,39 @@ const auto testBrgemmParams_FP16_nightly = ::testing::Combine(matMulBrgemmParams
 
 INSTANTIATE_TEST_SUITE_P(nightly_MM_Brgemm_Static_FP16, MatMulLayerCPUTest, testBrgemmParams_FP16_nightly, MatMulLayerCPUTest::getTestCaseName);
 
+const std::vector<ShapeRelatedParams> IS_Brgemm_Small_K_Dynamic = {
+    {
+            {
+                    {{-1, 256}, {{1, 256}}},
+                    {{256, 384}, {{256, 384}}}
+            },
+            {false, false}
+    },
+    {
+            {
+                    {{-1, -1}, {{55, 12}, {33, 7}}},
+                    {{-1, -1}, {{12, 55}, {7, 33}}}
+            },
+            {false, false}
+    },
+};
+
+const auto matMulBrgemmSmallKParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Brgemm_Small_K_Dynamic),
+                                                                ::testing::Values(ElementType::f32),
+                                                                ::testing::Values(ElementType::dynamic),
+                                                                ::testing::Values(ElementType::dynamic),
+                                                                ::testing::Values(utils::InputLayerType::PARAMETER),
+                                                                ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                                ::testing::ValuesIn(filterAdditionalConfig_Brgemm_Small_K()));
+
+const auto testBrgemmSmallKParamsDynamic = ::testing::Combine(matMulBrgemmSmallKParamsDynamic,
+                                                              ::testing::Values(MatMulNodeType::MatMul),
+                                                              ::testing::Values(emptyFusingSpec),
+                                                              ::testing::ValuesIn(filterSpecificParams_Brgemm_Small_K()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Small_K_Dynamic, MatMulLayerCPUTest, testBrgemmSmallKParamsDynamic, MatMulLayerCPUTest::getTestCaseName);
+
 const std::vector<ShapeRelatedParams> IS_Brgemm_Dynamic = {
-        {
-                {
-                        {{-1, 256}, {{1, 256}}},
-                        {{256, 384}, {{256, 384}}}
-                },
-                {false, false}
-        },
-        {
-                {
-                        {{-1, -1}, {{55, 12}, {33, 7}}},
-                        {{-1, -1}, {{12, 55}, {7, 33}}}
-                },
-                {false, false}
-        },
         {
                 {
                         {{-1, -1, -1, -1}, {{1, 2, 32, 60}, {1, 2, 32, 30}}},
@@ -431,7 +487,7 @@ const auto matMulBrgemmParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS
                                                           ::testing::Values(ElementType::dynamic),
                                                           ::testing::Values(utils::InputLayerType::PARAMETER),
                                                           ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                                          ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
+                                                          ::testing::ValuesIn(filterAdditionalConfig_Brgemm_Small_K()));
 
 const auto testBrgemmParamsDynamic = ::testing::Combine(matMulBrgemmParamsDynamic,
                                                         ::testing::Values(MatMulNodeType::MatMul),
@@ -455,7 +511,7 @@ const auto testBrgemmParamsDynamic_FP16 = ::testing::Combine(matMulBrgemmParamsD
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Dynamic_FP16, MatMulLayerCPUTest, testBrgemmParamsDynamic_FP16, MatMulLayerCPUTest::getTestCaseName);
 
-const std::vector<ShapeRelatedParams> IS_Dynamic_Fusing = {
+const std::vector<ShapeRelatedParams> IS_Dynamic_Fusing_Small_K = {
     {
         { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
             {{-1, -1}, {{16, 12}, {33, 7}, {16, 12}}}, // input 0
@@ -463,6 +519,9 @@ const std::vector<ShapeRelatedParams> IS_Dynamic_Fusing = {
         },
         {false, false}
     },
+};
+
+const std::vector<ShapeRelatedParams> IS_Dynamic_Fusing = {
     {
         { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
             {{-1, -1, -1, -1}, {{1, 2, 32, 60}, {1, 2, 32, 30}}}, // input 0
@@ -533,6 +592,21 @@ const auto testParamsDynamicFusing_FP16 = ::testing::Combine(matMulParamsDynamic
                                                   ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic_Fusing_FP16, MatMulLayerCPUTest, testParamsDynamicFusing_FP16, MatMulLayerCPUTest::getTestCaseName);
+
+const auto matMulParamsBrgemmSmallKDynamicFusing = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_Fusing_Small_K),
+                                                                      ::testing::Values(ElementType::f32),
+                                                                      ::testing::Values(ElementType::dynamic),
+                                                                      ::testing::Values(ElementType::dynamic),
+                                                                      ::testing::Values(utils::InputLayerType::PARAMETER),
+                                                                      ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                                      ::testing::ValuesIn(filterAdditionalConfig_Brgemm_Small_K()));
+
+const auto testParamsBrgemmSmallKDynamicFusing = ::testing::Combine(matMulParamsBrgemmSmallKDynamicFusing,
+                                                                    ::testing::Values(MatMulNodeType::MatMul),
+                                                                    ::testing::ValuesIn(matmulFusingParams()),
+                                                                    ::testing::ValuesIn(filterSpecificParams_Brgemm_Small_K()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Small_K_Dynamic_Fusing, MatMulLayerCPUTest, testParamsBrgemmSmallKDynamicFusing, MatMulLayerCPUTest::getTestCaseName);
 
 const auto matMulParamsBrgemmDynamicFusing = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_Fusing),
                                                                 ::testing::Values(ElementType::f32),
