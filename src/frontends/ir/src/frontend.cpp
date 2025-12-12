@@ -18,6 +18,7 @@
 #include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "utils.hpp"
+#include "openvino/core/model_util.hpp"
 
 namespace ov {
 namespace frontend {
@@ -260,6 +261,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
                                                                                         mapped_memory->size(),
                                                                                         mapped_memory);
+            ov::util::BufferRegistry::get().register_buffer(weights, true);
         } else {
             std::ifstream bin_stream;
             bin_stream.open(weights_path.c_str(), std::ios::binary);
@@ -282,6 +284,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                 aligned_weights_buffer->get_ptr<char>(),
                 aligned_weights_buffer->size(),
                 aligned_weights_buffer);
+            ov::util::BufferRegistry::get().register_buffer(weights, false);            
         }
     }
 

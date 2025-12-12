@@ -5,6 +5,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/op/convolution.hpp"
+#include "openvino/core/model_util.hpp"
 
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
@@ -26,7 +27,7 @@
 #include "openvino/op/bucketize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/util/binary_elementwise_bitwise.hpp"
-
+#include "openvino/op/util/node_util.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
@@ -89,6 +90,15 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     cldnn::primitive_id initialconstPrimID = layer_type_name_ID(op);
     cldnn::primitive_id constPrimID;
     auto data = op->get_data_ptr<char>();
+    [[maybe_unused]] bool is_mmaped = false;
+
+    auto const_desc = op->get_desc();
+    if (const_desc) {
+        auto buffer_desc = ov::util::BufferRegistry::get().get_desc(const_desc->m_buffer_id);
+        is_mmaped = buffer_desc.is_mmaped();
+    }
+
+    
 
     const auto cache_key = std::make_tuple(data, const_shape, op->get_output_element_type(0));
 

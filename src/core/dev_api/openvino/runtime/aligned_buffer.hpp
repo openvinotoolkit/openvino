@@ -14,6 +14,12 @@ namespace ov {
 /// allocated memory is larger than the requested size by the alignment, so allocating 1
 /// byte
 /// on 64 byte alignment will allocate 65 bytes.
+
+namespace util {
+class BufferDescriptor;
+class BufferRegistry;
+}  // namespace util
+
 class OPENVINO_API AlignedBuffer {
 public:
     // Allocator objects and the allocation interfaces are owned by the
@@ -60,6 +66,10 @@ protected:
     char* m_allocated_buffer;
     char* m_aligned_buffer;
     size_t m_byte_size;
+
+    friend ov::util::BufferDescriptor;
+    friend ov::util::BufferRegistry;
+    size_t m_buffer_id;
 };
 
 template <>
