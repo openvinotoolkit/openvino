@@ -69,7 +69,7 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
     MATCHER_SCOPE(ConvertMaxPool14ToMaxPool8);
     const auto max_pool_v14_pattern = pattern::wrap_type<ov::op::v14::MaxPool>();
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [=, this](pattern::Matcher& m) {
         using ov::op::v0::Constant;
         using ov::op::v0::Concat;
         using ov::op::v1::Subtract;

@@ -37,7 +37,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
-#include "openvino/util/pp.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
@@ -202,7 +201,7 @@ void Split::initSupportedPrimitiveDescriptors() {
                     [](size_t dim) {
                         return dim == 1;
                     }) &&
-        std::all_of(outputShapes.begin(), outputShapes.end(), [OV_CAPTURE_CPY_AND_THIS](const Shape& shape) {
+        std::all_of(outputShapes.begin(), outputShapes.end(), [=, this](const Shape& shape) {
             return shape.getDims()[axis] != Shape::UNDEFINED_DIM;
         })) {
         for (auto refPdIndex : pdIndexesToReuse) {

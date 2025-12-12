@@ -72,7 +72,7 @@ ov::pass::FuseVectorizedMOE2GEMM::FuseVectorizedMOE2GEMM() {
     auto reduce_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()}, {{"keep_dims", false}});
     auto moe_pattern = reduce_sum;
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -158,7 +158,7 @@ ov::pass::FuseVectorizedMOE3GEMM::FuseVectorizedMOE3GEMM() {
     auto reduce_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()}, {{"keep_dims", false}});
     auto moe_pattern = reduce_sum;
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {

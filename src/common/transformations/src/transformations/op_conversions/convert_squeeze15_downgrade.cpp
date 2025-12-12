@@ -16,7 +16,7 @@ ov::pass::ConvertSqueeze15ToSqueeze0::ConvertSqueeze15ToSqueeze0() {
 
     const auto& squeeze_v15_pattern = pattern::wrap_type<ov::op::v15::Squeeze>();
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [=, this](pattern::Matcher& m) {
         const auto& squeeze_v15 = ov::as_type_ptr<ov::op::v15::Squeeze>(m.get_match_root());
         if (!squeeze_v15 || transformation_callback(squeeze_v15)) {
             return false;

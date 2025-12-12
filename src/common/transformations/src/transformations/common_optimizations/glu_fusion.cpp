@@ -47,7 +47,7 @@ GLUFusion::GLUFusion() {
     auto glu_m = std::make_shared<Or>(OutputVector{swish_m, gelu_m});
     auto mul_m = wrap_type<ov::op::v1::Multiply>({glu_m, variadic_split_m->output(1)});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         OPENVINO_ASSERT(pattern_map.count(mul_m));
         OPENVINO_ASSERT(pattern_map.count(swish_m) || pattern_map.count(gelu_m));

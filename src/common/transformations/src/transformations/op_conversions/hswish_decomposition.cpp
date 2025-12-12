@@ -23,7 +23,7 @@ ov::pass::HSwishDecomposition::HSwishDecomposition() {
     // Decomposes HSwish(x) op into sub-graph x * (min(Relu(x + 3), 6) * const(1/6)
     auto hswish = ov::pass::pattern::wrap_type<ov::op::v4::HSwish>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto hswish_node = pattern_to_output.at(hswish).get_node_shared_ptr();
 

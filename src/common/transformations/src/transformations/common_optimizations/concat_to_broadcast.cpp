@@ -42,7 +42,7 @@ ov::pass::ConcatToBroadcast::ConcatToBroadcast() {
         });
     });
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto root_node = pattern_map.at(concat_label).get_node_shared_ptr();

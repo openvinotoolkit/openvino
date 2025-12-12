@@ -25,7 +25,7 @@ KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
     auto moe_3gemm_fused_compressed_m = wrap_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
         {any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(), zp_2_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto moe_3gemm_fused_compressed =

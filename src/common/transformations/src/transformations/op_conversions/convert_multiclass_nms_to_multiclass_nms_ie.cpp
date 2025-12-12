@@ -21,7 +21,7 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
     MATCHER_SCOPE(ConvertMulticlassNmsToMulticlassNmsIE);
     auto nms = pattern::wrap_type<op::util::MulticlassNmsBase>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](pattern::Matcher& m) {
         auto nms = ov::as_type_ptr<op::util::MulticlassNmsBase>(m.get_match_root());
         if (!nms || transformation_callback(nms)) {
             return false;

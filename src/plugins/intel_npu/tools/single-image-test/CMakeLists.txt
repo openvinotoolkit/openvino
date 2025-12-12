@@ -54,11 +54,13 @@ ov_set_threading_interface_for(${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
-                          CXX_STANDARD 17)
+                          CXX_STANDARD 20)
 
 # TODO: fix warnings and remove this exception
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ov_add_compiler_flags(-Wno-missing-declarations)
+    # OpenCV headers trigger deprecated enum conversion warnings; silence them for this third-party dep
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-deprecated-enum-enum-conversion)
 endif()
 
 #

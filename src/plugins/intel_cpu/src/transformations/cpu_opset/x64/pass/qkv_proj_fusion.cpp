@@ -26,7 +26,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
@@ -53,7 +52,7 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
     auto q_proj = pattern::wrap_type<v0::MatMul>({input, q_proj_weight_cvt | q_proj_weight_deq},
                                                  {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -213,7 +212,7 @@ ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
     auto qkv_split = pattern::wrap_type<ov::op::v1::VariadicSplit>({qkv_proj, 2, qkv_split_lengths});
     auto result = qkv_split->output(0);
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 

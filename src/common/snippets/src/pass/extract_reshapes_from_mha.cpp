@@ -26,7 +26,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 
@@ -47,7 +46,7 @@ ov::snippets::pass::ExtractPairsAfterMatmul::ExtractPairsAfterMatmul() {
     auto reshape_2_m = pattern::wrap_type<opset1::Reshape>({add_2_m, pattern::wrap_type<opset1::Constant>()},
                                                            pattern::has_static_shape());
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::ExtractPairsAfterMatmul")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& matmul = pattern_map.at(matmul_m);
@@ -152,7 +151,7 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
     auto reshape_2_m = pattern::wrap_type<opset1::Reshape>({eltwise_2_m, pattern::wrap_type<opset1::Constant>()},
                                                            rank_reduction_reshape);
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::RankUpgradeToRankReduction")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& matmul = pattern_map.at(matmul_m);

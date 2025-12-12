@@ -36,7 +36,8 @@ FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& lev
     auto fq_m = pattern::wrap_type<ov::op::v0::FakeQuantize>(
         {pattern::any_input(), input_low_m, input_high_m, output_low_m, output_high_m});
 
-    ov::graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [=, this](pattern::Matcher& m) {
+        (void)this;
         const auto& pattern_map = m.get_pattern_value_map();
         auto node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_map.at(fq_m).get_node_shared_ptr());
         if (!node) {

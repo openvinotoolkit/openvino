@@ -27,7 +27,6 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 
@@ -81,7 +80,7 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
 
     auto rnn_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{lstm_seq_m, gru_seq_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         auto rnn = m.get_match_root();
         if (!rnn || transformation_callback(rnn)) {
             return false;

@@ -36,7 +36,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/deformable_convolution_base.hpp"
-#include "openvino/util/pp.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -1185,7 +1184,7 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
 
     const int channel_per_deformable_group = (IC * G) / DG;
     const size_t group_wei_stride = weiStrides[0] * OC;
-    auto compKer = [OV_CAPTURE_CPY_AND_THIS](int g, int mb, int oc, int oh, int ow) {
+    auto compKer = [=, this](int g, int mb, int oc, int oh, int ow) {
         float d = 0;
         for (int ic = 0; ic < IC; ic++) {
             const float* data_im_ptr = src + mb * srcStrides[0] + (g * IC + ic) * srcStrides[1];

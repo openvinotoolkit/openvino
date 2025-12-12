@@ -27,7 +27,6 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
@@ -119,7 +118,7 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
 
     auto result = down_proj;
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 

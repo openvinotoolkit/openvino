@@ -23,7 +23,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 
 /*
@@ -70,7 +69,7 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
     auto out_transpose_node = wrap_type<op::v1::Transpose>({sdpa_node, out_transpose_order_node});
     auto out_reshape_node = wrap_type<op::v1::Reshape>({out_transpose_node, wrap_type<op::v0::Constant>()});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](pass::pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto sdpa = as_type_ptr<op::v13::ScaledDotProductAttention>(pattern_map.at(sdpa_node).get_node_shared_ptr());
         if (sdpa == nullptr || transformation_callback(sdpa)) {
