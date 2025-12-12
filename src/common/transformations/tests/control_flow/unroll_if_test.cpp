@@ -8,6 +8,7 @@
 
 #include <limits>
 #include <memory>
+#include <sstream>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
@@ -67,11 +68,11 @@ std::shared_ptr<ov::Model> get_else_body() {
     return else_body;
 }
 
-// Integer versions for self-comparison tests (NaN-safe optimization only applies to integer types)
-std::shared_ptr<ov::Model> get_then_body_i64() {
-    auto Xt = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{3});
+// Generic helper functions for self-comparison tests with configurable element type and shape
+std::shared_ptr<ov::Model> get_then_body_generic(ov::element::Type et, const ov::PartialShape& shape) {
+    auto Xt = std::make_shared<ov::op::v0::Parameter>(et, shape);
     Xt->set_friendly_name("Xt");
-    auto Yt = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{3});
+    auto Yt = std::make_shared<ov::op::v0::Parameter>(et, shape);
     Yt->set_friendly_name("Yt");
     auto add_op = std::make_shared<ov::op::v1::Add>(Xt, Yt);
     add_op->set_friendly_name("add_op");
@@ -82,10 +83,10 @@ std::shared_ptr<ov::Model> get_then_body_i64() {
     return then_body;
 }
 
-std::shared_ptr<ov::Model> get_else_body_i64() {
-    auto Xe = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{3});
+std::shared_ptr<ov::Model> get_else_body_generic(ov::element::Type et, const ov::PartialShape& shape) {
+    auto Xe = std::make_shared<ov::op::v0::Parameter>(et, shape);
     Xe->set_friendly_name("Xe");
-    auto Ye = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{3});
+    auto Ye = std::make_shared<ov::op::v0::Parameter>(et, shape);
     Ye->set_friendly_name("Ye");
     auto mul_op = std::make_shared<ov::op::v1::Multiply>(Xe, Ye);
     mul_op->set_friendly_name("mul_op");
@@ -94,6 +95,15 @@ std::shared_ptr<ov::Model> get_else_body_i64() {
     auto else_body = std::make_shared<ov::Model>(ov::OutputVector{else_op_result}, ov::ParameterVector{Xe, Ye});
     ov::pass::InitNodeInfo().run_on_model(else_body);
     return else_body;
+}
+
+// Backwards-compatible wrappers for i64 with Shape{3}
+std::shared_ptr<ov::Model> get_then_body_i64() {
+    return get_then_body_generic(ov::element::i64, ov::Shape{3});
+}
+
+std::shared_ptr<ov::Model> get_else_body_i64() {
+    return get_else_body_generic(ov::element::i64, ov::Shape{3});
 }
 
 std::shared_ptr<ov::Model> create_if_model(bool condition) {
@@ -447,25 +457,80 @@ TEST(TransformationTests, UnrollIfToParameterResultModel) {
     EXPECT_THAT(model->output(0).get_names(), UnorderedElementsAre("Output"));
 }
 
-// Helper function to create If model with self-comparison condition (integer type for NaN-safe optimization)
-template <typename CompareOp>
-std::shared_ptr<ov::Model> create_if_model_with_self_comparison() {
-    // Use integer type (i64) because self-comparison optimization only applies to non-float types
-    // to preserve IEEE 754 NaN semantics for floating-point
-    auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{3});
+// Enum for comparison operations in parameterized tests
+enum class ComparisonType { Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual };
+
+// Parameters for self-comparison tests
+struct UnrollIfSelfComparisonParams {
+    ov::element::Type element_type;
+    ov::PartialShape shape;
+    ComparisonType comparison_type;
+    bool expected_result;  // true -> then_body (Add), false -> else_body (Multiply)
+};
+
+// Helper to create comparison node based on ComparisonType
+std::shared_ptr<ov::Node> create_comparison(ComparisonType type,
+                                            const ov::Output<ov::Node>& lhs,
+                                            const ov::Output<ov::Node>& rhs) {
+    switch (type) {
+    case ComparisonType::Equal:
+        return std::make_shared<ov::op::v1::Equal>(lhs, rhs);
+    case ComparisonType::NotEqual:
+        return std::make_shared<ov::op::v1::NotEqual>(lhs, rhs);
+    case ComparisonType::Less:
+        return std::make_shared<ov::op::v1::Less>(lhs, rhs);
+    case ComparisonType::LessEqual:
+        return std::make_shared<ov::op::v1::LessEqual>(lhs, rhs);
+    case ComparisonType::Greater:
+        return std::make_shared<ov::op::v1::Greater>(lhs, rhs);
+    case ComparisonType::GreaterEqual:
+        return std::make_shared<ov::op::v1::GreaterEqual>(lhs, rhs);
+    default:
+        return nullptr;
+    }
+}
+
+// String conversion for test naming
+std::string comparison_type_to_string(ComparisonType type) {
+    switch (type) {
+    case ComparisonType::Equal:
+        return "Equal";
+    case ComparisonType::NotEqual:
+        return "NotEqual";
+    case ComparisonType::Less:
+        return "Less";
+    case ComparisonType::LessEqual:
+        return "LessEqual";
+    case ComparisonType::Greater:
+        return "Greater";
+    case ComparisonType::GreaterEqual:
+        return "GreaterEqual";
+    default:
+        return "Unknown";
+    }
+}
+
+// Parameterized test class for self-comparison tests
+class UnrollIfSelfComparisonTest : public ::testing::TestWithParam<UnrollIfSelfComparisonParams> {};
+
+TEST_P(UnrollIfSelfComparisonTest, SelfComparisonOptimization) {
+    const auto& p = GetParam();
+
+    // Create model with self-comparison condition
+    auto X = std::make_shared<ov::op::v0::Parameter>(p.element_type, p.shape);
     X->set_friendly_name("X");
-    auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{3});
+    auto Y = std::make_shared<ov::op::v0::Parameter>(p.element_type, p.shape);
     Y->set_friendly_name("Y");
 
     // Create comparison with identical inputs: X op X
-    auto cond = std::make_shared<CompareOp>(X, X);
+    auto cond = create_comparison(p.comparison_type, X, X);
     cond->set_friendly_name("cond");
 
     auto if_op = std::make_shared<ov::op::v8::If>(cond);
     if_op->set_friendly_name("if_op");
 
-    const auto& then_body = get_then_body_i64();
-    const auto& else_body = get_else_body_i64();
+    const auto& then_body = get_then_body_generic(p.element_type, p.shape);
+    const auto& else_body = get_else_body_generic(p.element_type, p.shape);
 
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
@@ -477,128 +542,99 @@ std::shared_ptr<ov::Model> create_if_model_with_self_comparison() {
     auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
     if_result->set_friendly_name("if_result");
 
-    return std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
-}
+    auto f = std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
 
-// Test: x != x -> false, should select else_body (Multiply) - integer type
-TEST(TransformationTests, UnrollIfSelfComparisonNotEqual) {
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        f = create_if_model_with_self_comparison<ov::op::v1::NotEqual>();
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::UnrollIf>();
+    manager.run_passes(f);
 
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::UnrollIf>();
-        manager.run_passes(f);
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
-        OV_ASSERT_NO_THROW(check_rt_info(f));
-    }
-
-    { f_ref = get_else_body_i64(); }  // NotEqual(x, x) = false -> else body
+    // Create reference model
+    auto f_ref = p.expected_result ? get_then_body_generic(p.element_type, p.shape)
+                                   : get_else_body_generic(p.element_type, p.shape);
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-// Test: x == x -> true, should select then_body (Add) - integer type
-TEST(TransformationTests, UnrollIfSelfComparisonEqual) {
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        f = create_if_model_with_self_comparison<ov::op::v1::Equal>();
+// Test name generator for better readability
+std::string self_comparison_test_name(const ::testing::TestParamInfo<UnrollIfSelfComparisonParams>& info) {
+    const auto& p = info.param;
+    std::ostringstream name;
+    name << p.element_type.get_type_name() << "_";
 
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::UnrollIf>();
-        manager.run_passes(f);
-
-        OV_ASSERT_NO_THROW(check_rt_info(f));
+    // Convert shape to string
+    if (p.shape.is_static()) {
+        name << "shape";
+        for (auto dim : p.shape.get_shape()) {
+            name << "_" << dim;
+        }
+    } else {
+        name << "dynamic";
     }
 
-    { f_ref = get_then_body_i64(); }  // Equal(x, x) = true -> then body
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    name << "_" << comparison_type_to_string(p.comparison_type);
+    return name.str();
 }
 
-// Test: x < x -> false - integer type
-TEST(TransformationTests, UnrollIfSelfComparisonLess) {
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        f = create_if_model_with_self_comparison<ov::op::v1::Less>();
+// Test parameters covering different element types, shapes, and comparison operations
+// Self-comparison semantics (for integer types where NaN is impossible):
+//   x == x  -> true    x != x  -> false
+//   x <= x  -> true    x <  x  -> false
+//   x >= x  -> true    x >  x  -> false
+// NOTE: If condition input must have rank 0 or 1, so we test with 1D shapes only
+static const std::vector<UnrollIfSelfComparisonParams> self_comparison_params = {
+    // Integer types with different 1D shapes - Equal (x == x -> true)
+    {ov::element::i8, ov::Shape{1}, ComparisonType::Equal, true},
+    {ov::element::i16, ov::Shape{3}, ComparisonType::Equal, true},
+    {ov::element::i32, ov::Shape{5}, ComparisonType::Equal, true},
+    {ov::element::i64, ov::Shape{3}, ComparisonType::Equal, true},
+    {ov::element::u8, ov::Shape{1}, ComparisonType::Equal, true},
+    {ov::element::u16, ov::Shape{3}, ComparisonType::Equal, true},
+    {ov::element::u32, ov::Shape{7}, ComparisonType::Equal, true},
+    {ov::element::u64, ov::Shape{3}, ComparisonType::Equal, true},
 
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::UnrollIf>();
-        manager.run_passes(f);
+    // NotEqual (x != x -> false)
+    {ov::element::i8, ov::Shape{1}, ComparisonType::NotEqual, false},
+    {ov::element::i16, ov::Shape{3}, ComparisonType::NotEqual, false},
+    {ov::element::i32, ov::Shape{5}, ComparisonType::NotEqual, false},
+    {ov::element::i64, ov::Shape{3}, ComparisonType::NotEqual, false},
+    {ov::element::u8, ov::Shape{1}, ComparisonType::NotEqual, false},
+    {ov::element::u16, ov::Shape{3}, ComparisonType::NotEqual, false},
+    {ov::element::u32, ov::Shape{7}, ComparisonType::NotEqual, false},
+    {ov::element::u64, ov::Shape{3}, ComparisonType::NotEqual, false},
 
-        OV_ASSERT_NO_THROW(check_rt_info(f));
-    }
+    // Less (x < x -> false)
+    {ov::element::i8, ov::Shape{1}, ComparisonType::Less, false},
+    {ov::element::i32, ov::Shape{3}, ComparisonType::Less, false},
+    {ov::element::i64, ov::Shape{5}, ComparisonType::Less, false},
+    {ov::element::u32, ov::Shape{3}, ComparisonType::Less, false},
 
-    { f_ref = get_else_body_i64(); }  // Less(x, x) = false -> else body
+    // LessEqual (x <= x -> true)
+    {ov::element::i8, ov::Shape{1}, ComparisonType::LessEqual, true},
+    {ov::element::i32, ov::Shape{3}, ComparisonType::LessEqual, true},
+    {ov::element::i64, ov::Shape{5}, ComparisonType::LessEqual, true},
+    {ov::element::u32, ov::Shape{3}, ComparisonType::LessEqual, true},
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-}
+    // Greater (x > x -> false)
+    {ov::element::i8, ov::Shape{1}, ComparisonType::Greater, false},
+    {ov::element::i32, ov::Shape{3}, ComparisonType::Greater, false},
+    {ov::element::i64, ov::Shape{5}, ComparisonType::Greater, false},
+    {ov::element::u32, ov::Shape{3}, ComparisonType::Greater, false},
 
-// Test: x <= x -> true - integer type
-TEST(TransformationTests, UnrollIfSelfComparisonLessEqual) {
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        f = create_if_model_with_self_comparison<ov::op::v1::LessEqual>();
+    // GreaterEqual (x >= x -> true)
+    {ov::element::i8, ov::Shape{1}, ComparisonType::GreaterEqual, true},
+    {ov::element::i32, ov::Shape{3}, ComparisonType::GreaterEqual, true},
+    {ov::element::i64, ov::Shape{5}, ComparisonType::GreaterEqual, true},
+    {ov::element::u32, ov::Shape{3}, ComparisonType::GreaterEqual, true},
+};
 
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::UnrollIf>();
-        manager.run_passes(f);
-
-        OV_ASSERT_NO_THROW(check_rt_info(f));
-    }
-
-    { f_ref = get_then_body_i64(); }  // LessEqual(x, x) = true -> then body
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-}
-
-// Test: x > x -> false - integer type
-TEST(TransformationTests, UnrollIfSelfComparisonGreater) {
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        f = create_if_model_with_self_comparison<ov::op::v1::Greater>();
-
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::UnrollIf>();
-        manager.run_passes(f);
-
-        OV_ASSERT_NO_THROW(check_rt_info(f));
-    }
-
-    { f_ref = get_else_body_i64(); }  // Greater(x, x) = false -> else body
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-}
-
-// Test: x >= x -> true - integer type
-TEST(TransformationTests, UnrollIfSelfComparisonGreaterEqual) {
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        f = create_if_model_with_self_comparison<ov::op::v1::GreaterEqual>();
-
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::UnrollIf>();
-        manager.run_passes(f);
-
-        OV_ASSERT_NO_THROW(check_rt_info(f));
-    }
-
-    { f_ref = get_then_body_i64(); }  // GreaterEqual(x, x) = true -> then body
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-}
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         UnrollIfSelfComparisonTest,
+                         ::testing::ValuesIn(self_comparison_params),
+                         self_comparison_test_name);
 
 // Test: NaN behavior - Constant with NaN values
 // Per IEEE 754: NaN != NaN should be true
