@@ -11,6 +11,7 @@
 #include "buffer.hpp"
 #include "helpers.hpp"
 #include "bind.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 namespace cldnn {
 struct memory;
@@ -58,6 +59,25 @@ public:
     void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }
     void* getKernelImplParams() const { return _impl_params; }
 
+    bool canZeroCopy() const noexcept {
+        return tryGetZeroCopybuffer() != nullptr;
+    }
+
+    const char* readView(std::streamsize size) {
+        const auto buf = tryGetZeroCopybuffer();
+        OPENVINO_ASSERT(buf != nullptr, "[GPU] Failed to read view due to stream is not zero-copy buffer backed!");
+        const auto data = buf->view(size);
+        OPENVINO_ASSERT(data != nullptr, "[GPU] Failed to read view due to buffer does not have enough size!");
+        if (data) {
+            buf->pubseekoff(size, std::ios_base::cur, std::ios_base::in);
+        }
+        return data;
+    }
+
+protected:
+    virtual ov::SharedStreamBuffer* tryGetZeroCopybuffer() const noexcept { 
+        return dynamic_cast<ov::SharedStreamBuffer*>(_stream.rdbuf());
+    }
 private:
     std::istream& _stream;
     void* _impl_params;
@@ -108,21 +128,27 @@ public:
         BinaryInputBuffer::read(
             make_data(const_cast<void*>(reinterpret_cast<const void*>(str.c_str())), str.size()).data,
             str.size());
-        plaintext_stream.str(decrypt(str));
+        plaintext = decrypt(str);
+        // use SharedStreamBuffer for protential zero-copy, stringstream/stringbuf provides view() since C++20
+        buffer = std::make_unique<ov::SharedStreamBuffer>(plaintext.data(), plaintext.size());
     }
 
     ~EncryptedBinaryInputBuffer() override = default;
 
     void read(void* const data, std::streamsize size) override {
-        auto const read_size = plaintext_stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
+        auto const read_size = buffer->sgetn(reinterpret_cast<char*>(data), size);
         OPENVINO_ASSERT(
             read_size == size,
             "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
     }
 
 private:
-    std::stringstream plaintext_stream;
+    std::string plaintext;
+    std::unique_ptr<ov::SharedStreamBuffer> buffer;
     std::function<std::string(const std::string&)> decrypt;
+    ov::SharedStreamBuffer* tryGetZeroCopybuffer() const noexcept override { 
+        return buffer.get();
+    }
 };
 
 template <typename T>
