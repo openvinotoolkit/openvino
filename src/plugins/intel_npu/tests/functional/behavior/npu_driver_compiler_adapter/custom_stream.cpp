@@ -9,12 +9,39 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "intel_npu/config/options.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "vcl_serializer.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
                                      >;
+
+namespace {
+
+// As of writing this, the "all weights copy" solution serializes the model below using ~500KB. The "no weights copy"
+// uses ~100KB. If sizes change significantly, then investigation may be required.
+constexpr size_t SERIALIZED_MODEL_THRESHOLD_ALL_WEIGHTS_COPY = 300000;
+constexpr size_t SERIALIZED_MODEL_THRESHOLD_NO_WEIGHTS_COPY = 200000;
+
+std::shared_ptr<ov::Model> createModelWithLargeWeights() {
+    auto data = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{100000});
+    auto mul_constant = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1}, {1.5});
+    auto mul = std::make_shared<ov::opset11::Multiply>(data, mul_constant);
+    auto add_constant = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1}, {0.5});
+    auto add = std::make_shared<ov::opset11::Add>(mul, add_constant);
+
+    // Just a sample model here, large iteration to make the model large
+    for (int i = 0; i < 100; i++) {
+        add_constant = ov::opset11::Constant::create(ov::element::f32, ov::Shape{100000}, {0.5});
+        add = std::make_shared<ov::opset11::Add>(add, add_constant);
+    }
+    auto res = std::make_shared<ov::opset11::Result>(add);
+
+    return std::make_shared<ov::Model>(ov::ResultVector{std::move(res)}, ov::ParameterVector{std::move(data)});
+}
+
+}  // namespace
 
 namespace ov::test::behavior {
 
@@ -57,16 +84,29 @@ protected:
 };
 
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelWeightsCopy) {
-    auto model = createModelWithLargeSize();
+    auto model = createModelWithLargeWeights();
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
-    EXPECT_NO_THROW(::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, true));
+
+    ::intel_npu::SerializedIR serializedModel;
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, true));
+    // If the size changes significantly, then investigation may be required
+    ASSERT_TRUE(serializedModel.first > SERIALIZED_MODEL_THRESHOLD_ALL_WEIGHTS_COPY);
 }
 
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelNoWeightsCopy) {
-    auto model = createModelWithLargeSize();
+    auto model = createModelWithLargeWeights();
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
 
-    EXPECT_NO_THROW(::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false));
+    ::intel_npu::SerializedIR serializedModel;
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false));
+    // If the size changes significantly, then investigation may be required
+    ASSERT_TRUE(serializedModel.first < SERIALIZED_MODEL_THRESHOLD_NO_WEIGHTS_COPY);
+
+    ov::pass::StreamSerialize::DataHeader dataHeader;
+    memcpy(&dataHeader, serializedModel.second.get(), sizeof(dataHeader));
+    ASSERT_TRUE(dataHeader.consts_size == 0);
 }
 
 const std::vector<ov::AnyMap> configs = {
