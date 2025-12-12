@@ -165,11 +165,11 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
 
     TensorInfo srcTensorInfo = TensorInfo(srcShape,
                                           1,
-                                          precisionToAclDataType(srcDescs[0]->getPrecision()),
+                                          convertToQuantizedType(precisionToAclDataType(srcDescs[0]->getPrecision())),
                                           getAclDataLayoutByMemoryDesc(srcDescs[0]));
     TensorInfo dstTensorInfo = TensorInfo(dstShape,
                                           1,
-                                          precisionToAclDataType(dstDescs[0]->getPrecision()),
+                                          convertToQuantizedType(precisionToAclDataType(dstDescs[0]->getPrecision())),
                                           getAclDataLayoutByMemoryDesc(dstDescs[0]));
 
     srcTensor.allocator()->init(srcTensorInfo);
