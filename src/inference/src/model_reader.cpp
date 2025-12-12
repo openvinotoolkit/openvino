@@ -8,6 +8,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/op/util/node_util.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
@@ -76,11 +77,7 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
         // we need to add operation names as tensor names for inputs and outputs
         {
             for (const auto& result : model->get_results()) {
-                const auto& prev_layer = result->input_value(0).get_node_shared_ptr();
-                auto res_name =
-                    prev_layer->get_friendly_name() + (prev_layer->get_output_size() != 1
-                                                           ? "." + std::to_string(result->input_value(0).get_index())
-                                                           : "");
+                auto res_name = ov::util::make_default_tensor_name(result->input_value(0));
                 OPENVINO_ASSERT(leaf_names.find(res_name) == leaf_names.end() ||
                                     result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",
