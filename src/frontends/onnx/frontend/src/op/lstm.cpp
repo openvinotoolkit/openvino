@@ -96,103 +96,6 @@ ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
                    ". Missing num_directions dimension cannot be automatically inferred.");
 }
 
-// Helper to extract num_directions dimension from a tensor (at specified dimension index).
-// Returns -1 if the dimension is dynamic or unknown.
-int64_t get_num_directions_dim(const ov::Output<ov::Node>& tensor, size_t dim_index) {
-    const auto& shape = tensor.get_partial_shape();
-    if (shape.rank().is_dynamic() || shape.rank().get_length() <= static_cast<int64_t>(dim_index)) {
-        return -1;
-    }
-    if (shape[dim_index].is_dynamic()) {
-        return -1;
-    }
-    return shape[dim_index].get_length();
-}
-
-// Validate that num_directions is consistent across all LSTM inputs.
-// This catches non-conformant models where some inputs have num_directions and others don't.
-void validate_num_directions_consistency(const std::map<LSTMInput, ov::Output<ov::Node>>& input_map) {
-    // After normalization, num_directions is at index 0 for W, R, B, P
-    // and at index 1 for initial_h, initial_c (after reorder to OpenVINO format: [batch, num_directions, hidden])
-    // But we validate BEFORE reorder, so for initial_h/initial_c it's also at index 0
-
-    // Since we're called after inputs are stored, and initial_h/initial_c have been reordered,
-    // num_directions is at index 1 for them in OpenVINO format
-
-    std::vector<std::pair<std::string, int64_t>> dims;
-
-    // W: [num_directions, 4*hidden_size, input_size] -> dim 0
-    auto it_w = input_map.find(LSTMInput::LSTM_INPUT_W);
-    if (it_w != input_map.end()) {
-        auto d = get_num_directions_dim(it_w->second, 0);
-        if (d > 0)
-            dims.push_back({"W", d});
-    }
-
-    // R: [num_directions, 4*hidden_size, hidden_size] -> dim 0
-    auto it_r = input_map.find(LSTMInput::LSTM_INPUT_R);
-    if (it_r != input_map.end()) {
-        auto d = get_num_directions_dim(it_r->second, 0);
-        if (d > 0)
-            dims.push_back({"R", d});
-    }
-
-    // B: [num_directions, 4*hidden_size] -> dim 0
-    auto it_b = input_map.find(LSTMInput::LSTM_INPUT_B);
-    if (it_b != input_map.end()) {
-        auto d = get_num_directions_dim(it_b->second, 0);
-        if (d > 0)
-            dims.push_back({"B", d});
-    }
-
-    // initial_h: OpenVINO format [batch_size, num_directions, hidden_size] -> dim 1
-    auto it_h = input_map.find(LSTMInput::LSTM_INPUT_INIT_H);
-    if (it_h != input_map.end()) {
-        auto d = get_num_directions_dim(it_h->second, 1);
-        if (d > 0)
-            dims.push_back({"initial_h", d});
-    }
-
-    // initial_c: OpenVINO format [batch_size, num_directions, hidden_size] -> dim 1
-    auto it_c = input_map.find(LSTMInput::LSTM_INPUT_INIT_C);
-    if (it_c != input_map.end()) {
-        auto d = get_num_directions_dim(it_c->second, 1);
-        if (d > 0)
-            dims.push_back({"initial_c", d});
-    }
-
-    // P: [num_directions, 3*hidden_size] -> dim 0
-    auto it_p = input_map.find(LSTMInput::LSTM_INPUT_P);
-    if (it_p != input_map.end()) {
-        // Skip P_blank (default value)
-        const auto& names = it_p->second.get_names();
-        if (names.find("P_blank") == names.end()) {
-            auto d = get_num_directions_dim(it_p->second, 0);
-            if (d > 0)
-                dims.push_back({"P", d});
-        }
-    }
-
-    // Check consistency
-    if (dims.size() < 2) {
-        return;  // Not enough static dimensions to validate
-    }
-
-    const auto& first = dims[0];
-    for (size_t i = 1; i < dims.size(); ++i) {
-        if (dims[i].second != first.second) {
-            OPENVINO_THROW("LSTM inputs have inconsistent num_directions: ",
-                           first.first,
-                           " has ",
-                           first.second,
-                           ", but ",
-                           dims[i].first,
-                           " has ",
-                           dims[i].second);
-        }
-    }
-}
-
 struct LSTMNgInputMap {
     explicit LSTMNgInputMap(const Node& node) {
         const auto& ng_inputs = node.get_ov_inputs();
@@ -343,9 +246,6 @@ struct LSTMNgInputMap {
                 p_shape);
             m_input_map[LSTMInput::LSTM_INPUT_P].set_names({"P_blank"});
         }
-
-        // Validate that num_directions is consistent across all inputs
-        validate_num_directions_consistency(m_input_map);
     }
 
     ov::Output<ov::Node>& at(const LSTMInput& key) {
