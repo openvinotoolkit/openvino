@@ -37,30 +37,30 @@ extern const std::string EMPTY_OP_TYPE;
 
 class DecoderProtoTensor : public ov::frontend::onnx::DecoderBaseTensor {
     ov::frontend::onnx::TensorMetaInfo m_tensor_meta_info;
-    int64_t m_input_idx, m_output_idx;
+    int64_t m_input_idx = -1;
+    int64_t m_output_idx = -1;
 
 public:
     DecoderProtoTensor(const TensorProto* tensor_info,
                        GraphIteratorProto* parent,
-                       const int64_t input_idx,
-                       const int64_t output_idx)
-        // Probably, we may need to force it to 0/0
+                       const int64_t input_idx = -1,
+                       const int64_t output_idx = -1)
         : m_input_idx(input_idx),
           m_output_idx(output_idx) {
         m_tensor_meta_info = extract_tensor_meta_info(tensor_info, nullptr, parent);
     }
     DecoderProtoTensor(const ValueInfoProto* value_info,
                        GraphIteratorProto* parent,
-                       const int64_t input_idx,
-                       const int64_t output_idx)
+                       const int64_t input_idx = -1,
+                       const int64_t output_idx = -1)
         : m_input_idx(input_idx),
           m_output_idx(output_idx) {
         m_tensor_meta_info = extract_tensor_meta_info(nullptr, value_info, parent);
     }
     DecoderProtoTensor(const std::string& name,
                        GraphIteratorProto* parent,
-                       const int64_t input_idx,
-                       const int64_t output_idx)
+                       const int64_t input_idx = -1,
+                       const int64_t output_idx = -1)
         : m_input_idx(input_idx),
           m_output_idx(output_idx) {
         m_tensor_meta_info.m_tensor_name = &name;
