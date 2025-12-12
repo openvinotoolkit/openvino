@@ -6,8 +6,8 @@ inputs:
     required: true
   wheels-to-install:
     description: 'List of wheel names to install in the form of "openvino openvino_tokenizers"'
-  free-threading-python:
-    description: 'Whether to look for free-threading Python wheels (with "cpXYt" in their names)'
+  free-threaded-python:
+    description: 'Whether to look for free-threaded Python wheels (with "cpXYt" in their names)'
     required: false
     default: 'false'
 runs:
@@ -30,7 +30,7 @@ runs:
             # Search for the python-specific wheel version and install it if exists
             
             # free-threading Python wheels have 'cpXYt' in their names
-            if ("${{ inputs.free-threading-python }}" -eq "true") {
+            if ("${{ inputs.free-threaded-python }}" -eq "true") {
                 $wheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*cp$($pyVersion)t*.whl" | Select-Object -First 1
             } else {
                 $wheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*cp$pyVersion*.whl" | Where-Object { $_.Name -notlike "*cp$($pyVersion)t*.whl" } | Select-Object -First 1
@@ -63,7 +63,7 @@ runs:
           # Search for the python-specific wheel version and install it if exists
 
           # free-threading Python wheels have 'cpXYt' in their names
-          if [ "${{ inputs.free-threading-python }}" == "true" ]; then
+          if [ "${{ inputs.free-threaded-python }}" == "true" ]; then
             wheel_path=$(find ${{ inputs.wheels-dir-path }} -name "$wheel-*cp${py_version}t*.whl")
           else
             wheel_path=$(find ${{ inputs.wheels-dir-path }} -name "$wheel-*cp$py_version*.whl" ! -name "*cp${py_version}t*.whl")
