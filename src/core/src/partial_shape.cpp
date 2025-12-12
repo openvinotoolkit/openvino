@@ -368,13 +368,13 @@ bool ov::PartialShape::all_non_negative() const {
     return true;
 }
 
-const ov::Dimension& ov::PartialShape::operator[](std::ptrdiff_t i) const {
-    return m_dimensions[util::normalize_shape_index(i, m_dimensions.size())];
+ov::Dimension& ov::PartialShape::at(std::ptrdiff_t pos) {
+    m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    return m_dimensions.at(normalize(pos));
 }
 
-ov::Dimension& ov::PartialShape::operator[](std::ptrdiff_t i) {
-    m_shape_type = ShapeType::SHAPE_IS_UPDATED;  // We can't guarantee that the shape remains static or dynamic.
-    return m_dimensions[util::normalize_shape_index(i, m_dimensions.size())];
+const ov::Dimension& ov::PartialShape::at(std::ptrdiff_t pos) const {
+    return m_dimensions.at(normalize(pos));
 }
 
 ov::AttributeAdapter<ov::PartialShape>::~AttributeAdapter() = default;

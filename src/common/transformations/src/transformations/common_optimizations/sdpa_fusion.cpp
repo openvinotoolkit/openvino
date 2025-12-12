@@ -354,16 +354,16 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
      */
     auto corner_case_check = [](const Output<Node>& out) {
         auto add = out.get_node_shared_ptr();
-        auto in0_pshape = add->input(0).get_partial_shape();
-        auto out_pshape = add->output(0).get_partial_shape();
+        const auto& in0_pshape = add->input(0).get_partial_shape();
+        const auto& out_pshape = add->output(0).get_partial_shape();
 
-        auto corner_case = in0_pshape.rank().get_length() > 1 && out_pshape.rank().get_length() > 1 &&
-                           in0_pshape[-1].is_dynamic() && in0_pshape[-2].is_dynamic() && out_pshape[-1].is_dynamic() &&
-                           out_pshape[-2].is_dynamic();
+        const auto corner_case = in0_pshape.rank().get_length() > 1 && out_pshape.rank().get_length() > 1 &&
+                                 in0_pshape(-1).is_dynamic() && in0_pshape(-2).is_dynamic() &&
+                                 out_pshape(-1).is_dynamic() && out_pshape(-2).is_dynamic();
 
         if (corner_case) {
-            ov::symbol::set_equal(in0_pshape[-1].get_symbol(), out_pshape[-1].get_symbol());
-            ov::symbol::set_equal(in0_pshape[-2].get_symbol(), out_pshape[-2].get_symbol());
+            ov::symbol::set_equal(in0_pshape(-1).get_symbol(), out_pshape(-1).get_symbol());
+            ov::symbol::set_equal(in0_pshape(-2).get_symbol(), out_pshape(-2).get_symbol());
         }
         return true;
     };

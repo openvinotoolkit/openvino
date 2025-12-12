@@ -43,12 +43,12 @@ ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1ToMatmul(b
 ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressedConv1x1ToMatmulMatcher(bool supports_immad) {
     auto filter1x1_path = [](const ov::Output<ov::Node>& output) {
         const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_path<ov::op::v0::Constant, ov::op::v0::Parameter>(output) && pshape.is_static() && pshape[-1] == 1 && pshape[-2] == 1;
+        return ov::op::util::is_on_path<ov::op::v0::Constant, ov::op::v0::Parameter>(output) && pshape.is_static() && pshape(-1) == 1 && pshape(-2) == 1;
     };
 
     auto bias_path = [](const ov::Output<ov::Node>& output) {
         const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_path<ov::op::v0::Constant>(output) && pshape.is_static() && pshape[0] == 1 && pshape[2] == 1 && pshape[3] == 1;
+        return ov::op::util::is_on_path<ov::op::v0::Constant>(output) && pshape.is_static() && pshape(0) == 1 && pshape(2) == 1 && pshape(3) == 1;
     };
 
     auto first_input_m = ov::pass::pattern::any_input();
