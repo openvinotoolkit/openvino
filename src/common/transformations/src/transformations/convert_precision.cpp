@@ -28,7 +28,6 @@
 
 using namespace ov;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
@@ -274,8 +273,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
     auto register_constants = [&const_to_internal_output](const std::vector<std::shared_ptr<Node>>& ops) {
         for (auto& node : ops) {
             for (auto& input : node->inputs()) {
-                if (auto const_node =
-                        ov::as_type_ptr<v0::Constant>(input.get_source_output().get_node_shared_ptr())) {
+                if (auto const_node = ov::as_type_ptr<v0::Constant>(input.get_source_output().get_node_shared_ptr())) {
                     const_to_internal_output[const_node.get()].emplace_back(input);
                 }
             }
@@ -483,8 +481,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         {v1::LogicalXor::get_type_info_static(), fuse_type_to_logical<v1::LogicalXor>},
         {v1::LogicalNot::get_type_info_static(), fuse_type_to_logical<v1::LogicalNot>},
         {v0::Xor::get_type_info_static(), fuse_type_to_logical<v0::Xor>},
-        {v1::ReduceLogicalAnd::get_type_info_static(),
-         fuse_type_to_reduce_logical<v1::ReduceLogicalAnd>},
+        {v1::ReduceLogicalAnd::get_type_info_static(), fuse_type_to_reduce_logical<v1::ReduceLogicalAnd>},
         {v1::ReduceLogicalOr::get_type_info_static(), fuse_type_to_reduce_logical<v1::ReduceLogicalOr>},
         {v0::ShapeOf::get_type_info_static(), fuse_type_to_shapeof_v0},
         {v4::Range::get_type_info_static(), fuse_type_to_range_v4},
@@ -794,9 +791,8 @@ bool fuse_type_to_nms5(const std::shared_ptr<ov::Node>& node, const precisions_m
         output_types.push_back(to);
     }
 
-    auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<v5::NonMaxSuppression>>(*nms,
-                                                                                           ov::element::TypeVector{},
-                                                                                           output_types);
+    auto relaxed_op =
+        std::make_shared<ov::op::TypeRelaxed<v5::NonMaxSuppression>>(*nms, ov::element::TypeVector{}, output_types);
     replace_node(node, relaxed_op);
     return true;
 }
@@ -844,9 +840,8 @@ bool fuse_type_to_nms9(const std::shared_ptr<ov::Node>& node, const precisions_m
         output_types.push_back(to);
     }
 
-    auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<v9::NonMaxSuppression>>(*nms,
-                                                                                           ov::element::TypeVector{},
-                                                                                           output_types);
+    auto relaxed_op =
+        std::make_shared<ov::op::TypeRelaxed<v9::NonMaxSuppression>>(*nms, ov::element::TypeVector{}, output_types);
     replace_node(node, relaxed_op);
     return true;
 }
@@ -1047,8 +1042,8 @@ bool fuse_type_to_shapeof_v0(const std::shared_ptr<ov::Node>& node, const precis
         return true;
     } else if (auto casted = ov::as_type_ptr<v0::ShapeOf>(node)) {
         auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<v0::ShapeOf>>(*casted,
-                                                                                     ov::element::TypeVector{},
-                                                                                     ov::element::TypeVector{to});
+                                                                             ov::element::TypeVector{},
+                                                                             ov::element::TypeVector{to});
         replace_node(node, relaxed_op);
         return true;
     }
@@ -1063,8 +1058,8 @@ bool extend_select_type(const std::shared_ptr<ov::Node>& node, const precisions_
         if (precisions.count(ov::element::boolean) != 0) {
             auto relaxed_op =
                 std::make_shared<op::TypeRelaxed<v1::Select>>(*casted,
-                                                                      ov::element::TypeVector{ov::element::boolean},
-                                                                      ov::element::TypeVector{});
+                                                              ov::element::TypeVector{ov::element::boolean},
+                                                              ov::element::TypeVector{});
             replace_node(node, relaxed_op);
             return true;
         }
@@ -1278,8 +1273,7 @@ void convert_lp_value(const SRC& src,
     dst &= new_val;
 }
 
-std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<v0::Constant>& constant,
-                                                 ov::element::Type to) {
+std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<v0::Constant>& constant, ov::element::Type to) {
     // Supported integer precisions
     static const precisions_set_t supported_integer_precisions = {ov::element::i4,
                                                                   ov::element::u4,

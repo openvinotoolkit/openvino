@@ -18,7 +18,6 @@
 
 using namespace ov;
 
-
 namespace v1 = ov::op::v1;
 std::string ov::getPrimitivesPriority(const std::shared_ptr<ov::Node>& node) {
     if (node) {

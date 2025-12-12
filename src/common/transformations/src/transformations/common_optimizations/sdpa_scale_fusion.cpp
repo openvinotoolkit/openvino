@@ -20,11 +20,10 @@
 #include "openvino/util/pp.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::rank_equals;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -49,20 +48,15 @@ SDPAScaleFusionPass::SDPAScaleFusionPass() {
     auto v = any_input(rank_equals(4));
     auto mask = any_input();
     auto sdpa_scale = ov::pass::pattern::wrap_const();
-    auto scale_q =
-        any_input(ov::pass::pattern::shape_matches("[]") || ov::pass::pattern::shape_matches("[1]"));
-    auto scale_k =
-        any_input(ov::pass::pattern::shape_matches("[]") || ov::pass::pattern::shape_matches("[1]"));
+    auto scale_q = any_input(ov::pass::pattern::shape_matches("[]") || ov::pass::pattern::shape_matches("[1]"));
+    auto scale_k = any_input(ov::pass::pattern::shape_matches("[]") || ov::pass::pattern::shape_matches("[1]"));
 
     auto scaled_q = ov::pass::pattern::optional<v1::Multiply>({q, scale_q});
     auto scaled_k = ov::pass::pattern::optional<v1::Multiply>({k, scale_k});
     auto sdpa_mask_scale =
-        wrap_type<v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask, sdpa_scale},
-                                                                             {{"causal", false}});
-    auto sdpa_mask = wrap_type<v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask},
-                                                                                          {{"causal", false}});
-    auto sdpa_simple = wrap_type<v13::ScaledDotProductAttention>({scaled_q, scaled_k, v},
-                                                                                            {{"causal", false}});
+        wrap_type<v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask, sdpa_scale}, {{"causal", false}});
+    auto sdpa_mask = wrap_type<v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask}, {{"causal", false}});
+    auto sdpa_simple = wrap_type<v13::ScaledDotProductAttention>({scaled_q, scaled_k, v}, {{"causal", false}});
     auto sdpa = sdpa_simple | sdpa_mask | sdpa_mask_scale;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
@@ -92,8 +86,7 @@ SDPAScaleFusionPass::SDPAScaleFusionPass() {
         std::shared_ptr<ov::Node> scale_k_node = nullptr;
 
         if (pattern_map.find(sdpa_scale) != pattern_map.end()) {
-            auto prev_scale_node =
-                ov::as_type_ptr<v0::Constant>(pattern_map.at(sdpa_scale).get_node_shared_ptr());
+            auto prev_scale_node = ov::as_type_ptr<v0::Constant>(pattern_map.at(sdpa_scale).get_node_shared_ptr());
             prev_scale_value = prev_scale_node->cast_vector<float>()[0];
             scale_et = prev_scale_node->get_output_element_type(0);
         } else {

@@ -16,7 +16,6 @@
 #include "ov_ops/nms_static_shape_ie.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -41,9 +40,8 @@ ov::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool forc
         NodeVector new_ops;
         auto attrs = nms->get_attrs();
         attrs.output_type = force_i32_output_type ? element::i32 : attrs.output_type;
-        auto nms_new = std::make_shared<op::internal::NmsStaticShapeIE<v8::MatrixNms>>(new_args.at(0),
-                                                                                               new_args.at(1),
-                                                                                               attrs);
+        auto nms_new =
+            std::make_shared<op::internal::NmsStaticShapeIE<v8::MatrixNms>>(new_args.at(0), new_args.at(1), attrs);
         new_ops.emplace_back(nms_new);
 
         Output<Node> output_0 = nms_new->output(0);

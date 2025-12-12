@@ -21,9 +21,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -32,16 +31,14 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
 
     auto data_pattern = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto reduce_max_axes_pattern = wrap_type<v0::Constant>();
-    auto reduce_max_pattern =
-        wrap_type<v1::ReduceMax>({data_pattern, reduce_max_axes_pattern});
+    auto reduce_max_pattern = wrap_type<v1::ReduceMax>({data_pattern, reduce_max_axes_pattern});
     auto sub_pattern = wrap_type<v1::Subtract>({data_pattern, reduce_max_pattern});
 
     auto exp_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sub_pattern, data_pattern});
     auto exp_pattern = wrap_type<v0::Exp>({exp_input});
 
     auto reduce_sum_axes_pattern = wrap_type<v0::Constant>();
-    auto reduce_sum_pattern =
-        wrap_type<v1::ReduceSum>({exp_pattern, reduce_sum_axes_pattern});
+    auto reduce_sum_pattern = wrap_type<v1::ReduceSum>({exp_pattern, reduce_sum_axes_pattern});
     auto div_pattern = wrap_type<v1::Divide>({exp_pattern, reduce_sum_pattern});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {

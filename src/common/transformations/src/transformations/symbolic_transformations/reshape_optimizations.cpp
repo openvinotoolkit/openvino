@@ -15,7 +15,6 @@ using namespace std;
 using namespace ov;
 using namespace ov::symbol::util;
 
-
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
 
@@ -23,8 +22,8 @@ namespace v0 = ov::op::v0;
 ov::pass::ReshapeOptimizations::ReshapeOptimizations() {
     MATCHER_SCOPE(ReshapeOptimizations);
     auto data_label = any_input(ov::pass::pattern::has_static_rank());
-    auto pattern_label = any_input(ov::pass::pattern::has_static_shape() &&
-                                                      ov::pass::pattern::class_other_than<v0::Constant>());
+    auto pattern_label =
+        any_input(ov::pass::pattern::has_static_shape() && ov::pass::pattern::class_other_than<v0::Constant>());
     auto reshape_label = ov::pass::pattern::wrap_type<op::v1::Reshape>({data_label, pattern_label},
                                                                        ov::pass::pattern::has_static_rank());
 

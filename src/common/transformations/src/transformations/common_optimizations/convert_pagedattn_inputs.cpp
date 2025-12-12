@@ -19,8 +19,8 @@
 using namespace ov::pass;
 
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func)
@@ -55,30 +55,30 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
     auto adaptive_rkv_diversity_block_set_indices_begins = any_input(ov::pass::pattern::has_static_rank());
 
     auto result = wrap_type<ov::op::PagedAttentionExtension>({Q,
-                                                                                 K,
-                                                                                 V,
-                                                                                 key_cache_0,
-                                                                                 value_cache_0,
-                                                                                 past_lens,
-                                                                                 subsequence_begins,
-                                                                                 block_indices,
-                                                                                 block_indices_begins,
-                                                                                 scale,
-                                                                                 sliding_window,
-                                                                                 alibi_slopes,
-                                                                                 max_context_len,
-                                                                                 score_aggregation_window,
-                                                                                 rotated_block_indices,
-                                                                                 rotation_deltas,
-                                                                                 rotation_trig_lut,
-                                                                                 xattention_threshold,
-                                                                                 xattention_block_size,
-                                                                                 xattention_stride,
-                                                                                 sinks,
-                                                                                 adaptive_rkv_start_size,
-                                                                                 adaptive_rkv_evictable_sizes,
-                                                                                 adaptive_rkv_diversity_block_set_indices,
-                                                                                 adaptive_rkv_diversity_block_set_indices_begins});
+                                                              K,
+                                                              V,
+                                                              key_cache_0,
+                                                              value_cache_0,
+                                                              past_lens,
+                                                              subsequence_begins,
+                                                              block_indices,
+                                                              block_indices_begins,
+                                                              scale,
+                                                              sliding_window,
+                                                              alibi_slopes,
+                                                              max_context_len,
+                                                              score_aggregation_window,
+                                                              rotated_block_indices,
+                                                              rotation_deltas,
+                                                              rotation_trig_lut,
+                                                              xattention_threshold,
+                                                              xattention_block_size,
+                                                              xattention_stride,
+                                                              sinks,
+                                                              adaptive_rkv_start_size,
+                                                              adaptive_rkv_evictable_sizes,
+                                                              adaptive_rkv_diversity_block_set_indices,
+                                                              adaptive_rkv_diversity_block_set_indices_begins});
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto pa_op = m.get_match_root();
         auto key_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(3));

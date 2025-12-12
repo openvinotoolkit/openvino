@@ -20,7 +20,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -72,12 +71,10 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
             const auto pads_len = node_registry.make<Constant>(element::i64, Shape{}, pads_begin_v14.size());
             const auto pads_diff = node_registry.make<Subtract>(rank, pads_len);
             const auto pads_remaining = node_registry.make<Broadcast>(zero_i64, pads_diff);
-            const auto pads_begin_v1 = node_registry.make<v0::Concat>(
-                OutputVector{std::move(pads_remaining), std::move(pads_begin_node)},
-                0);
-            const auto pads_end_v1 = node_registry.make<v0::Concat>(
-                OutputVector{std::move(pads_remaining), std::move(pads_begin_node)},
-                0);
+            const auto pads_begin_v1 =
+                node_registry.make<v0::Concat>(OutputVector{std::move(pads_remaining), std::move(pads_begin_node)}, 0);
+            const auto pads_end_v1 =
+                node_registry.make<v0::Concat>(OutputVector{std::move(pads_remaining), std::move(pads_begin_node)}, 0);
             const auto pad_node =
                 node_registry.make<Pad>(input, pads_begin_v1, pads_end_v1, zero_node, ov::op::PadMode::CONSTANT);
             pads_begin = Shape(pads_begin_v14.size(), 0);
@@ -89,13 +86,13 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
             new_input = input;
         }
         const auto avg_pool_v1 = node_registry.make<v1::AvgPool>(new_input,
-                                                                         avg_pool_v14->get_strides(),
-                                                                         pads_begin,
-                                                                         pads_end,
-                                                                         avg_pool_v14->get_kernel(),
-                                                                         exclude_pad,
-                                                                         rounding_type_v1,
-                                                                         avg_pool_v14->get_auto_pad());
+                                                                 avg_pool_v14->get_strides(),
+                                                                 pads_begin,
+                                                                 pads_end,
+                                                                 avg_pool_v14->get_kernel(),
+                                                                 exclude_pad,
+                                                                 rounding_type_v1,
+                                                                 avg_pool_v14->get_auto_pad());
         avg_pool_v1->set_friendly_name(avg_pool_v14->get_friendly_name());
         copy_runtime_info(avg_pool_v14, node_registry.get());
         replace_node(avg_pool_v14, avg_pool_v1);

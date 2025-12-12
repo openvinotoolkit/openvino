@@ -32,7 +32,6 @@ using namespace ov;
 using namespace op;
 using namespace ov::pass;
 
-
 using ov::pass::pattern::Matcher;
 namespace {
 // This function creates a shape to which we need to reshape the input

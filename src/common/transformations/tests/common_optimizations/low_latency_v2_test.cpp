@@ -34,7 +34,6 @@ using namespace ov;
 using namespace opset7;
 using namespace std;
 
-
 namespace op_util = ov::op::util;
 Output<Node> create_init_subgraph(const Output<Node>& in_node) {
     auto const_zero = make_shared<Constant>(in_node.get_element_type(), Shape{1}, 0);

@@ -34,7 +34,6 @@
 using namespace ov;
 using namespace testing;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
@@ -215,8 +214,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_ScalarScale_
     const bool casual = false;
 
     {
-        auto sdp =
-            std::make_shared<v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, casual);
+        auto sdp = std::make_shared<v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, casual);
         model = std::make_shared<ov::Model>(OutputVector{sdp}, ParameterVector{query, key, value, attention_mask});
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
     }
@@ -243,8 +241,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_DynamicScale
     const bool casual = false;
 
     {
-        auto sdp =
-            std::make_shared<v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, casual);
+        auto sdp = std::make_shared<v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, casual);
         model =
             std::make_shared<ov::Model>(OutputVector{sdp}, ParameterVector{query, key, value, attention_mask, scale});
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
@@ -295,11 +292,9 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
     const auto k_last_dim = std::make_shared<v1::Add>(k_rank, minus_one);
     const auto k_next_dim = std::make_shared<v1::Add>(k_rank, minus_two)->output(0);
     k_rank = std::make_shared<v0::Squeeze>(k_rank, zero_i);
-    auto minus_inf =
-        v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()})->output(0);
+    auto minus_inf = v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()})->output(0);
     const auto keep_dim_last = std::make_shared<v0::Squeeze>(k_next_dim, zero_i);
-    const auto k_dims_before_transpose =
-        std::make_shared<v4::Range>(zero_i, keep_dim_last, one_i, element::i32);
+    const auto k_dims_before_transpose = std::make_shared<v4::Range>(zero_i, keep_dim_last, one_i, element::i32);
 
     const auto transpose_dims =
         std::make_shared<v0::Concat>(OutputVector{k_dims_before_transpose, k_last_dim, k_next_dim}, 0);
@@ -331,8 +326,7 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
         const auto tsl = std::make_shared<v0::Unsqueeze>(target_s_len, zero_i);
         const auto mask_shape = std::make_shared<v0::Concat>(OutputVector{tsl, ssl}, 0);
         mask = std::make_shared<v1::Broadcast>(minus_inf, mask_shape);
-        auto horizontal_range =
-            std::make_shared<v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
+        auto horizontal_range = std::make_shared<v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
         horizontal_range = std::make_shared<v0::Unsqueeze>(horizontal_range, zero_i);
         const auto stop = std::make_shared<v1::Add>(target_s_len, one_i);
         auto vertical_range = std::make_shared<v4::Range>(one_i, stop, one_i, element::i32)->output(0);
@@ -348,9 +342,8 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
         auto zero_i = v0::Constant::create(element::i32, Shape{1}, {0});
         auto one_i = v0::Constant::create(element::i32, Shape{1}, {1});
 
-        auto q_last_but_one_dim =
-            std::make_shared<v1::Subtract>(std::make_shared<v0::ShapeOf>(q_shape),
-                                                   v0::Constant::create(ov::element::i64, Shape{}, {1}));
+        auto q_last_but_one_dim = std::make_shared<v1::Subtract>(std::make_shared<v0::ShapeOf>(q_shape),
+                                                                 v0::Constant::create(ov::element::i64, Shape{}, {1}));
         auto sinks_target_shape_1 = std::make_shared<v8::Slice>(q_shape, zero_i, q_last_but_one_dim, one_i);
         auto sinks_target_shape = std::make_shared<v0::Concat>(OutputVector{sinks_target_shape_1, one_i}, 0);
         auto sinks_broadcast = std::make_shared<v1::Broadcast>(sinks, sinks_target_shape);
@@ -386,13 +379,8 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_Sinks) {
     const bool casual = false;
 
     {
-        auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query,
-                                                                             key,
-                                                                             value,
-                                                                             attention_mask,
-                                                                             scale,
-                                                                             sinks,
-                                                                             casual);
+        auto sdpa =
+            std::make_shared<v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sinks, casual);
         model = std::make_shared<ov::Model>(OutputVector{sdpa},
                                             ParameterVector{query, key, value, attention_mask, scale, sinks});
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();

@@ -22,7 +22,6 @@
 
 using namespace ov;
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -97,8 +96,7 @@ ov::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
             reshape->output(0),
             v0::Constant::create(element::i64, Shape({transpose_order.size()}), transpose_order));
         // restore original shape
-        auto reshape_back =
-            std::make_shared<v1::Reshape>(transpose->output(0), original_shape->output(0), false);
+        auto reshape_back = std::make_shared<v1::Reshape>(transpose->output(0), original_shape->output(0), false);
 
         ::NodeVector new_ops = {original_shape, split_input_dimensions, transpose, reshape, reshape_back, new_shape};
         for (auto output : new_dimensions)

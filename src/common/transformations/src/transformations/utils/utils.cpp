@@ -39,7 +39,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 
-
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::wrap_type;
 
@@ -160,13 +159,11 @@ bool is_large_language_model(const ov::Model& model, std::function<bool(std::sha
     const auto past = wrap_type<v6::ReadValue>();
     const auto convert_past = ov::pass::pattern::optional<v0::Convert>(past);
     const auto beam_idx = wrap_type<v0::Parameter>();
-    const auto gather_past = wrap_type<v8::Gather>(
-        {convert_past, beam_idx, wrap_type<v0::Constant>()});
+    const auto gather_past = wrap_type<v8::Gather>({convert_past, beam_idx, wrap_type<v0::Constant>()});
     const auto gather_convert = ov::pass::pattern::optional<v0::Convert>(gather_past);
     const auto concat_past_input =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{convert_past, gather_convert});
-    const auto concat =
-        wrap_type<v0::Concat>({concat_past_input, any_input()});
+    const auto concat = wrap_type<v0::Concat>({concat_past_input, any_input()});
     const auto convert_present = ov::pass::pattern::optional<v0::Convert>(concat);
     const auto present = wrap_type<v6::Assign>({convert_present});
     const auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
@@ -350,8 +347,7 @@ void visit_shape_path(Node* node, std::unordered_set<ov::Node*>& visited, std::f
 
 void visit_constant_path(ov::Node* node, std::unordered_set<ov::Node*>& visited, std::function<void(ov::Node*)> func) {
     auto check_parameter = [](ov::Node* node) {
-        OPENVINO_ASSERT(!ov::is_type<v0::Parameter>(node),
-                        "visit_constant_path is called for non-constant path.");
+        OPENVINO_ASSERT(!ov::is_type<v0::Parameter>(node), "visit_constant_path is called for non-constant path.");
         return false;
     };
     visit_path(node, visited, func, check_parameter);
@@ -393,8 +389,8 @@ bool is_dequantization_subgraph(const Output<Node>& node) {
 bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
                                 const Output<Node>& constant,
                                 const Output<Node>& non_constant_input) {
-    if (!is_type<v1::Add>(eltwise) && !is_type<v1::Subtract>(eltwise) &&
-        !is_type<v1::Multiply>(eltwise) && !is_type<v1::Divide>(eltwise)) {
+    if (!is_type<v1::Add>(eltwise) && !is_type<v1::Subtract>(eltwise) && !is_type<v1::Multiply>(eltwise) &&
+        !is_type<v1::Divide>(eltwise)) {
         return false;
     }
 
@@ -557,11 +553,11 @@ std::shared_ptr<ov::Node> NewGenStridedSlice(const std::shared_ptr<ov::Node>& da
     end_mask[axis] = 0;
 
     return wrap_type<v1::StridedSlice>({data, start, stop, step},
-                                                                  {{"begin_mask", begin_mask},
-                                                                   {"end_mask", end_mask},
-                                                                   {"new_axis_mask", new_axis_mask},
-                                                                   {"shrink_axis_mask", shrink_axis_mask},
-                                                                   {"ellipsis_mask", ellipsis_mask}});
+                                       {{"begin_mask", begin_mask},
+                                        {"end_mask", end_mask},
+                                        {"new_axis_mask", new_axis_mask},
+                                        {"shrink_axis_mask", shrink_axis_mask},
+                                        {"ellipsis_mask", ellipsis_mask}});
 }
 
 std::shared_ptr<ov::Node> NewGenSlice(const std::shared_ptr<ov::Node>& data,
@@ -575,8 +571,7 @@ std::shared_ptr<ov::Node> NewGenSlice(const std::shared_ptr<ov::Node>& data,
     auto slice_step = ParseSymbolVariant({step});
     auto slice_axis = ParseSymbolVariant({static_cast<int64_t>(axis)});
 
-    auto opt1 =
-        wrap_type<v8::Slice>({data, slice_start, slice_stop, slice_step, slice_axis});
+    auto opt1 = wrap_type<v8::Slice>({data, slice_start, slice_stop, slice_step, slice_axis});
 
     std::vector<symbol_variant> vbegin(axis + 1, 0);
     std::vector<symbol_variant> vend(axis + 1, 0);
@@ -600,11 +595,11 @@ std::shared_ptr<ov::Node> NewGenSlice(const std::shared_ptr<ov::Node>& data,
     end_mask[axis] = 0;
 
     auto opt2 = wrap_type<v1::StridedSlice>({data, begin, end, stride},
-                                                                       {{"begin_mask", begin_mask},
-                                                                        {"end_mask", end_mask},
-                                                                        {"new_axis_mask", new_axis_mask},
-                                                                        {"shrink_axis_mask", shrink_axis_mask},
-                                                                        {"ellipsis_mask", ellipsis_mask}});
+                                            {{"begin_mask", begin_mask},
+                                             {"end_mask", end_mask},
+                                             {"new_axis_mask", new_axis_mask},
+                                             {"shrink_axis_mask", shrink_axis_mask},
+                                             {"ellipsis_mask", ellipsis_mask}});
 
     return opt1 | opt2;
 }
@@ -632,18 +627,12 @@ match_multi_query_bcst(const std::shared_ptr<ov::Node>& kv) {
     };
     auto constant_bcst = wrap_type<v0::Constant>(check_one);
 
-    auto computed_bcst = wrap_type<v1::Broadcast>(
-        {constant_bcst, any_input(), any_input()},
-        {{"mode", "numpy"}});
+    auto computed_bcst = wrap_type<v1::Broadcast>({constant_bcst, any_input(), any_input()}, {{"mode", "numpy"}});
 
-    auto multiply_kv =
-        wrap_type<v1::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
-    auto computed_bcst3 =
-        wrap_type<v3::Broadcast>({unsqueeze_kv, any_input()},
-                                                            {{"mode", "bidirectional"}});
+    auto multiply_kv = wrap_type<v1::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
+    auto computed_bcst3 = wrap_type<v3::Broadcast>({unsqueeze_kv, any_input()}, {{"mode", "bidirectional"}});
 
-    auto result = wrap_type<v1::Reshape>(
-        {multiply_kv | computed_bcst3, any_input()});
+    auto result = wrap_type<v1::Reshape>({multiply_kv | computed_bcst3, any_input()});
     return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv, computed_bcst3);
 }
 

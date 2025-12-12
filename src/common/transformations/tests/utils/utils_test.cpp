@@ -14,7 +14,6 @@
 
 using namespace ov;
 
-
 namespace op_util = ov::op::util;
 namespace ov {
 namespace op {

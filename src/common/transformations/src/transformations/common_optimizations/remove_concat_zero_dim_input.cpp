@@ -15,7 +15,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -55,10 +54,9 @@ ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
                     return false;
                 if (concat->get_output_partial_shape(0).is_dynamic())
                     return false;
-                const auto& empty_constant =
-                    v0::Constant::create(concat->get_output_element_type(0),
-                                                 concat->get_output_partial_shape(0).to_shape(),
-                                                 {});
+                const auto& empty_constant = v0::Constant::create(concat->get_output_element_type(0),
+                                                                  concat->get_output_partial_shape(0).to_shape(),
+                                                                  {});
                 copy_runtime_info(concat, empty_constant);
                 concat->output(0).replace(empty_constant);
                 empty_constant->set_friendly_name(concat->get_friendly_name());

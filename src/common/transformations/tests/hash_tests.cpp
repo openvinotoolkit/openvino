@@ -10,7 +10,6 @@
 #include "openvino/op/parameter.hpp"
 #include "transformations/hash.hpp"
 
-
 namespace v0 = ov::op::v0;
 namespace ov::test {
 using v0::Parameter, v0::Constant, ov::op::v1::Add;

@@ -33,7 +33,6 @@
 
 using namespace testing;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
@@ -202,8 +201,7 @@ TEST(TransformationTests, UnrollIfWithSplitInput) {
     {
         auto X = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
         auto Y = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{3});
-        auto split =
-            std::make_shared<v1::Split>(X, v0::Constant::create(ov::element::i32, ov::Shape{}, {0}), 2);
+        auto split = std::make_shared<v1::Split>(X, v0::Constant::create(ov::element::i32, ov::Shape{}, {0}), 2);
         auto cond = std::make_shared<v0::Constant>(ov::element::boolean, ov::Shape{1}, false);
         auto if_op = std::make_shared<v8::If>(cond);
         const auto& then_body = get_then_body();
@@ -233,8 +231,7 @@ TEST(TransformationTests, UnrollIfWithSplitInput) {
     {
         auto X = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
         auto Y = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{3});
-        auto split =
-            std::make_shared<v1::Split>(X, v0::Constant::create(ov::element::i32, ov::Shape{}, {0}), 2);
+        auto split = std::make_shared<v1::Split>(X, v0::Constant::create(ov::element::i32, ov::Shape{}, {0}), 2);
         auto mul_op = std::make_shared<v1::Multiply>(split->output(1), Y);
         auto if_result = std::make_shared<v0::Result>(mul_op);
         f_ref = std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
@@ -284,8 +281,8 @@ TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
     {
         auto data = std::make_shared<v0::Parameter>(element::f32, Shape{3});
         auto X = std::make_shared<v1::VariadicSplit>(data,
-                                                             v0::Constant::create(element::i32, {1}, {0}),
-                                                             v0::Constant::create(element::i32, {2}, {1, 2}));
+                                                     v0::Constant::create(element::i32, {1}, {0}),
+                                                     v0::Constant::create(element::i32, {2}, {1, 2}));
         auto cond = std::make_shared<v0::Constant>(element::boolean, Shape{1}, true);
         auto if_op = std::make_shared<v8::If>(cond);
         auto Xt = std::make_shared<v0::Parameter>(element::f32, Shape{2});
@@ -315,8 +312,8 @@ TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
     {
         auto data = std::make_shared<v0::Parameter>(element::f32, Shape{3});
         auto X = std::make_shared<v1::VariadicSplit>(data,
-                                                             v0::Constant::create(element::i32, {1}, {0}),
-                                                             v0::Constant::create(element::i32, {2}, {1, 2}));
+                                                     v0::Constant::create(element::i32, {1}, {0}),
+                                                     v0::Constant::create(element::i32, {2}, {1, 2}));
         auto if_result = std::make_shared<v0::Result>(X->output(1));
         f_ref = std::make_shared<ov::Model>(OutputVector{if_result}, ParameterVector{data});
     }

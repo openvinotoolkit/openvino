@@ -14,7 +14,6 @@
 
 using namespace ov;
 
-
 namespace v0 = ov::op::v0;
 bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(AlignMixedFP32FP16Types);
@@ -43,8 +42,7 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
                 if (!incoming_output.get_element_type().is_real())
                     continue;
 
-                auto convert =
-                    std::make_shared<v0::Convert>(incoming_output, incoming_output.get_element_type());
+                auto convert = std::make_shared<v0::Convert>(incoming_output, incoming_output.get_element_type());
                 auto init_name = incoming_node->get_friendly_name() + "_decompressed_to_f32";
                 convert->set_friendly_name(generate_uniq_name(init_name));
                 copy_runtime_info(incoming_node, convert);

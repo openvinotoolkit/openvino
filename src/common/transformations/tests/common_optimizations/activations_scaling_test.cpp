@@ -27,7 +27,6 @@
 using namespace ov;
 using namespace testing;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v6 = ov::op::v6;
@@ -38,11 +37,11 @@ TEST_F(TransformationTestsF, ScaleDownSingleLayerTest) {
         auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
         auto weights_const = v0::Constant::create(ov::element::f16, ov::Shape{3, 3, 3, 3}, {1});
         auto conv = std::make_shared<v1::Convolution>(input,
-                                                              weights_const,
-                                                              Strides{},
-                                                              CoordinateDiff{},
-                                                              CoordinateDiff{},
-                                                              Strides{});
+                                                      weights_const,
+                                                      Strides{},
+                                                      CoordinateDiff{},
+                                                      CoordinateDiff{},
+                                                      Strides{});
         auto bias_const = v0::Constant::create(ov::element::f16, ov::Shape{1, 3, 1, 1}, {2.3f});
         auto add = std::make_shared<v1::Add>(conv, bias_const);
         auto convert = std::make_shared<v0::Convert>(add, ov::element::f32);
@@ -57,11 +56,11 @@ TEST_F(TransformationTestsF, ScaleDownSingleLayerTest) {
         auto scale_down_const = v0::Constant::create(ov::element::f16, ov::Shape{}, {1.f / scale_factor});
         auto scale_down = std::make_shared<v1::Multiply>(input, scale_down_const);
         auto conv = std::make_shared<v1::Convolution>(scale_down,
-                                                              weights_const,
-                                                              Strides{},
-                                                              CoordinateDiff{},
-                                                              CoordinateDiff{},
-                                                              Strides{});
+                                                      weights_const,
+                                                      Strides{},
+                                                      CoordinateDiff{},
+                                                      CoordinateDiff{},
+                                                      Strides{});
         auto bias_const = v0::Constant::create(ov::element::f16, ov::Shape{1, 3, 1, 1}, {2.3f});
         auto scale_down_bias = std::make_shared<v1::Multiply>(bias_const, scale_down_const);
         auto add = std::make_shared<v1::Add>(conv, scale_down_bias);
@@ -83,8 +82,7 @@ TEST_F(TransformationTestsF, EliminateScalarMulTest) {
         auto mul = std::make_shared<v1::Multiply>(input, scale_const);
         auto norm_scale_const = v0::Constant::create(ov::element::f16, ov::Shape{3}, {10});
         auto norm_bias_const = v0::Constant::create(ov::element::f16, ov::Shape{3}, {10});
-        auto group_norm =
-            std::make_shared<v12::GroupNormalization>(mul, norm_scale_const, norm_bias_const, 1, epsilon);
+        auto group_norm = std::make_shared<v12::GroupNormalization>(mul, norm_scale_const, norm_bias_const, 1, epsilon);
         auto convert = std::make_shared<v0::Convert>(group_norm, ov::element::f32);
         auto result = std::make_shared<v0::Result>(convert);
 

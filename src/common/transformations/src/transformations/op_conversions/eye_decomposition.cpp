@@ -26,10 +26,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -92,12 +91,11 @@ std::shared_ptr<Node> make_eye_model(NodeRegistry& reg,
     const auto zeros = reg.make<v0::Tile>(zero, eye_size);
     const auto one_followed_by_zeros = reg.make<v0::Concat>(OutputVector{one, zeros}, 0);
     const auto eye_1d = reg.make<v1::Pad>(reg.make<v0::Tile>(one_followed_by_zeros, eye_size),
-                                                  zero_int,
-                                                  reg.make<v0::Negative>(eye_size),
-                                                  op::PadMode::CONSTANT);
+                                          zero_int,
+                                          reg.make<v0::Negative>(eye_size),
+                                          op::PadMode::CONSTANT);
     // Reshape 1d-eye to 2d-eye
-    const auto eye_2d =
-        reg.make<v1::Reshape>(eye_1d, reg.make<v0::Concat>(OutputVector{eye_size, eye_size}, 0), false);
+    const auto eye_2d = reg.make<v1::Reshape>(eye_1d, reg.make<v0::Concat>(OutputVector{eye_size, eye_size}, 0), false);
 
     // Pad Eye to get final shape
     return reg.make<v1::Pad>(eye_2d, pad_start, pad_end, op::PadMode::CONSTANT);

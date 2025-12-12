@@ -28,7 +28,6 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/subtract_fusion.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;

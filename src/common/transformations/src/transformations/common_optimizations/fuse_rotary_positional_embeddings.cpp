@@ -50,10 +50,10 @@
 using namespace ov::pass;
 
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::rank_equals;
 using ov::pass::pattern::type_matches;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -126,9 +126,8 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux(bool num_heads_transposed) {
     auto opt_unsqueeze = ov::pass::pattern::optional<opset1::Unsqueeze>({opt_squeeze_1, -1});
 
     auto x2 = wrap_type<opset1::Concat>({opt_unsqueeze, split->output(0)}, {{"axis", -1}});
-    auto x3 = wrap_type<opset1::Reshape>(
-        {x2, any_input()},
-        ov::pass::pattern::shape_matches("[" + num_heads_pattern + ", head_size]"));
+    auto x3 = wrap_type<opset1::Reshape>({x2, any_input()},
+                                         ov::pass::pattern::shape_matches("[" + num_heads_pattern + ", head_size]"));
 
     auto y1 = wrap_type<opset1::Multiply>({x, t_cos}, {{"auto_broadcast", "numpy"}});
     auto y2 = wrap_type<opset1::Multiply>({x3, t_sin}, {{"auto_broadcast", "numpy"}});
@@ -204,16 +203,12 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
     auto x2 = op_util::NewGenSlice(x, "half_ndims", int32_max, 1, rank - 1);
-    auto x2neg = wrap_type<v1::Multiply>({x2 | varsplit->output(1), -1.0f},
-                                                                    {{"auto_broadcast", "numpy"}});
+    auto x2neg = wrap_type<v1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
     auto x1 = op_util::NewGenSlice(x, 0, "half_ndims", 1, rank - 1);
-    auto x_rotate_half =
-        wrap_type<v0::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
+    auto x_rotate_half = wrap_type<v0::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
 
-    auto mul_cos =
-        wrap_type<v1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
-    auto mul_sin =
-        wrap_type<v1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
+    auto mul_cos = wrap_type<v1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
+    auto mul_sin = wrap_type<v1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
 
     auto result = wrap_type<v1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
@@ -277,45 +272,35 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     auto cos_const = wrap_type<v0::Constant>(type_matches(element::f32));
     auto sin_const = wrap_type<v0::Constant>(type_matches(element::f32));
 
-    auto node_batch_size = any_input(type_matches(element::i32) &&
-                                                        ov::pass::pattern::shape_matches("[1]"));
-    auto tile_batch = any_input(type_matches(element::i32) &&
-                                                   ov::pass::pattern::shape_matches("[1]"));
-    auto gather_positions = any_input(type_matches(element::i32) &&
-                                                         rank_equals(4));
+    auto node_batch_size = any_input(type_matches(element::i32) && ov::pass::pattern::shape_matches("[1]"));
+    auto tile_batch = any_input(type_matches(element::i32) && ov::pass::pattern::shape_matches("[1]"));
+    auto gather_positions = any_input(type_matches(element::i32) && rank_equals(4));
 
     auto prepare_cos_sin_gptneox = [&](std::shared_ptr<Node> const_tab) {
         auto slice = wrap_type<v8::Slice>({const_tab, {0}, node_batch_size, {1}, {0}});
         auto strided_slice = op_util::NewGenStridedSlice(const_tab, {0}, node_batch_size, {1}, 0);
-        return wrap_type<ov::op::v6::GatherElements>({strided_slice | slice, gather_positions},
-                                                                        {{"axis", 2}});
+        return wrap_type<ov::op::v6::GatherElements>({strided_slice | slice, gather_positions}, {{"axis", 2}});
     };
 
-    auto seq_len = any_input(type_matches(element::i32) &&
-                                                ov::pass::pattern::shape_matches("[1]"));
-    auto gather_positions_2d = any_input(type_matches(element::i32) &&
-                                                            rank_equals(2));
+    auto seq_len = any_input(type_matches(element::i32) && ov::pass::pattern::shape_matches("[1]"));
+    auto gather_positions_2d = any_input(type_matches(element::i32) && rank_equals(2));
 
     auto prepare_cos_sin_llama = [&](std::shared_ptr<Node> const_tab) {
         auto ScatterUpdate = wrap_type<v3::ScatterUpdate>({{0, 0, 0}, 2, seq_len, 0});
         auto slice_Slice = wrap_type<v8::Slice>({const_tab, {0}, seq_len, {1}, {2}});
         auto slice_StridedSlice = op_util::NewGenStridedSlice(const_tab, {0, 0, 0}, ScatterUpdate, {1, 1, 1}, 2);
-        auto squeeze = wrap_type<v1::Reshape>(
-            {slice_StridedSlice | slice_Slice, any_input()},
-            ov::pass::pattern::shape_matches("[?, head_dims]"));
-        auto index_Gather =
-            wrap_type<v8::Gather>({squeeze, gather_positions_2d, 0}, {{"batch_dims", 0}});
+        auto squeeze = wrap_type<v1::Reshape>({slice_StridedSlice | slice_Slice, any_input()},
+                                              ov::pass::pattern::shape_matches("[?, head_dims]"));
+        auto index_Gather = wrap_type<v8::Gather>({squeeze, gather_positions_2d, 0}, {{"batch_dims", 0}});
 
         // another simplified pattern for gathering at position_ids
         auto slice_Slice2 = wrap_type<v8::Slice>({const_tab, {0}, seq_len, {1}, {0}});
         auto slice_StridedSlice2 = op_util::NewGenStridedSlice(const_tab, {0}, seq_len, {1}, 0);
-        auto index_Gather2 = wrap_type<v8::Gather>(
-            {slice_Slice2 | slice_StridedSlice2, gather_positions_2d, 0},
-            {{"batch_dims", 0}});
+        auto index_Gather2 =
+            wrap_type<v8::Gather>({slice_Slice2 | slice_StridedSlice2, gather_positions_2d, 0}, {{"batch_dims", 0}});
 
-        auto unsqueeze = wrap_type<v1::Reshape>(
-            {index_Gather | index_Gather2, any_input()},
-            ov::pass::pattern::shape_matches("[1, 1, ?, head_dims]"));
+        auto unsqueeze = wrap_type<v1::Reshape>({index_Gather | index_Gather2, any_input()},
+                                                ov::pass::pattern::shape_matches("[1, 1, ?, head_dims]"));
         auto unsqueeze2 = wrap_type<v0::Unsqueeze>({index_Gather2, 1});
 
         return unsqueeze2 | unsqueeze;
@@ -370,12 +355,8 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
 
     auto x = op_util::NewGenSlice(data, 0, "ndims", 1, 3);
     auto y = op_util::NewGenSlice(data, "ndims", int32_max, 1, 3);
-    auto x_emb = wrap_type<ov::op::internal::RoPE>(
-                     {x | varsplit->output(0), any_input(), any_input()}) |
-                 wrap_type<ov::op::internal::RoPE>({x | varsplit->output(0),
-                                                                       any_input(),
-                                                                       any_input(),
-                                                                       any_input()});
+    auto x_emb = wrap_type<ov::op::internal::RoPE>({x | varsplit->output(0), any_input(), any_input()}) |
+                 wrap_type<ov::op::internal::RoPE>({x | varsplit->output(0), any_input(), any_input(), any_input()});
     auto result = wrap_type<v0::Concat>({x_emb, y | varsplit->output(1)}, {{"axis", -1}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
@@ -425,11 +406,8 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
     auto x = wrap_type<v1::Transpose>({input_slice | input_to_trans, {0, 2, 1, 3}});
 
     // RoPE node: supports both 3 and 4 inputs
-    auto result =
-        wrap_type<ov::op::internal::RoPE>(
-            {x, any_input(), any_input()}) |
-        wrap_type<ov::op::internal::RoPE>(
-            {x, any_input(), any_input(), any_input()});
+    auto result = wrap_type<ov::op::internal::RoPE>({x, any_input(), any_input()}) |
+                  wrap_type<ov::op::internal::RoPE>({x, any_input(), any_input(), any_input()});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -476,12 +454,10 @@ auto const_idx_predicate = [](ov::pass::pattern::PatternSymbolMap&, const ov::Ou
 };
 
 static std::shared_ptr<ov::Node> repeat_interleave_pattern(const ov::Output<ov::Node>& var_split_output) {
-    auto unsqueeze =
-        wrap_type<ov::opset1::Reshape>({var_split_output, {"dim0", "dim1", "1", "32"}}) |
-        wrap_type<ov::opset1::Unsqueeze>({var_split_output, 2});
+    auto unsqueeze = wrap_type<ov::opset1::Reshape>({var_split_output, {"dim0", "dim1", "1", "32"}}) |
+                     wrap_type<ov::opset1::Unsqueeze>({var_split_output, 2});
     // repeate cos/sin table
-    auto const_idx = wrap_type<ov::opset1::Constant>(
-        type_matches(ov::element::i32) && const_idx_predicate);
+    auto const_idx = wrap_type<ov::opset1::Constant>(type_matches(ov::element::i32) && const_idx_predicate);
     return wrap_type<ov::opset8::Gather>({unsqueeze, const_idx, 3}, {{"batch_dims", 0}});
 }
 
@@ -497,54 +473,43 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     auto view_Reshape = any_input(rank_equals(4));
     auto slice_Slice_965 = op_util::NewGenSlice(view_Reshape, 0, "ndims", 1, 3);
     // view_Reshape : B,L,H,S
-    auto varsplit_view_Reshape =
-        wrap_type<opset1::VariadicSplit>({view_Reshape, 3, {"ndims", "end"}});
+    auto varsplit_view_Reshape = wrap_type<opset1::VariadicSplit>({view_Reshape, 3, {"ndims", "end"}});
     varsplit_view_Reshape->set_output_size(2);
     // x interleave (-x[:,:,:, 1::2], x[:,:,:, 0::2])
-    auto slice_Slice_1174 =
-        op_util::NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 1, INT_MAX, 2, 3);
+    auto slice_Slice_1174 = op_util::NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 1, INT_MAX, 2, 3);
 
-    auto neg_Multiply_1177 =
-        wrap_type<opset1::Multiply>({slice_Slice_1174, -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto neg_Multiply_1177 = wrap_type<opset1::Multiply>({slice_Slice_1174, -1.0f}, {{"auto_broadcast", "numpy"}});
     auto Unsqueeze_65524 = wrap_type<opset1::Unsqueeze>({neg_Multiply_1177, -1});
     auto Unsqueeze_28998 =
-        wrap_type<opset1::Reshape>({neg_Multiply_1177, {"-1", "1", "head_num", "32", "1"}},
-                                                      {{"special_zero", false}});
+        wrap_type<opset1::Reshape>({neg_Multiply_1177, {"-1", "1", "head_num", "32", "1"}}, {{"special_zero", false}});
 
-    auto slice_Slice_1168 =
-        op_util::NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 0, INT_MAX, 2, 3);
+    auto slice_Slice_1168 = op_util::NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 0, INT_MAX, 2, 3);
     auto Unsqueeze_65525 = wrap_type<opset1::Unsqueeze>({slice_Slice_1168, -1});
     auto Unsqueeze_28999 =
-        wrap_type<opset1::Reshape>({slice_Slice_1168, {"-1", "1", "head_num", "32", "1"}},
-                                                      {{"special_zero", false}});
-    auto stack_1182 = wrap_type<opset1::Concat>(
-        {Unsqueeze_65524 | Unsqueeze_28998, Unsqueeze_65525 | Unsqueeze_28999},
-        {{"axis", -1}});
+        wrap_type<opset1::Reshape>({slice_Slice_1168, {"-1", "1", "head_num", "32", "1"}}, {{"special_zero", false}});
+    auto stack_1182 = wrap_type<opset1::Concat>({Unsqueeze_65524 | Unsqueeze_28998, Unsqueeze_65525 | Unsqueeze_28999},
+                                                {{"axis", -1}});
 
     auto ShapeOf_169068 = wrap_type<opset1::ShapeOf>({stack_1182});
     auto flatten_Slice_1194 = op_util::NewGenSlice(ShapeOf_169068, 0, 3, 1, 0);
     auto flatten_Concat_1197 = wrap_type<opset1::Concat>({flatten_Slice_1194, {-1}}, {{"axis", 0}});
     // If with special zero, no need to use shapeof to get full shape
     auto flatten_Reshape_1198 = wrap_type<opset1::Reshape>({stack_1182, flatten_Concat_1197});
-    auto flatten_Reshape_Zero =
-        wrap_type<opset1::Reshape>({stack_1182, any_input()},
-                                                      {{"special_zero", true}});
+    auto flatten_Reshape_Zero = wrap_type<opset1::Reshape>({stack_1182, any_input()}, {{"special_zero", true}});
 
     // x*cos [B,L,H,ndims]
-    auto mul_cos = wrap_type<opset1::Multiply>(
-        {slice_Slice_965 | varsplit_view_Reshape->output(0), repeat_interleave_cos},
-        {{"auto_broadcast", "numpy"}});
-    auto mul_sin = wrap_type<opset1::Multiply>(
-        {flatten_Reshape_1198 | flatten_Reshape_Zero, repeat_interleave_sin},
-        {{"auto_broadcast", "numpy"}});
+    auto mul_cos =
+        wrap_type<opset1::Multiply>({slice_Slice_965 | varsplit_view_Reshape->output(0), repeat_interleave_cos},
+                                    {{"auto_broadcast", "numpy"}});
+    auto mul_sin = wrap_type<opset1::Multiply>({flatten_Reshape_1198 | flatten_Reshape_Zero, repeat_interleave_sin},
+                                               {{"auto_broadcast", "numpy"}});
 
     // *cos + *sin
     auto rotary_emb = wrap_type<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
     auto slice_Slice_971 = op_util::NewGenSlice(view_Reshape, "ndims", INT_MAX, 1, 3);
     auto result =
-        wrap_type<opset1::Concat>({rotary_emb, slice_Slice_971 | varsplit_view_Reshape->output(1)},
-                                                     {{"axis", -1}});
+        wrap_type<opset1::Concat>({rotary_emb, slice_Slice_971 | varsplit_view_Reshape->output(1)}, {{"axis", -1}});
 
     matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -618,19 +583,15 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
     //  [seq_length, batch_size, input_size(will be cropped to match hidden state size)]
     //  [batch_size, seq_length, input_size] support_2d_rope
     auto qkv_linear = any_input(rank_equals(3));
-    auto seq_length = any_input(type_matches(element::i32) &&
-                                                   ov::pass::pattern::shape_matches("[1]"));
+    auto seq_length = any_input(type_matches(element::i32) && ov::pass::pattern::shape_matches("[1]"));
     // [max_pos_embeddings, batch_size, half_rotary_dims, 2]
     // [batch_size, max_pos_embeddings, half_rotary_dims, 2] support_2d_rope
     auto cos_sin_cache = any_input(rank_equals(4));
 
-    auto qkv_proj = wrap_type<v1::VariadicSplit>(
-        {qkv_linear, -1, {"total_size_q", "total_size_k", "total_size_v"}});
+    auto qkv_proj = wrap_type<v1::VariadicSplit>({qkv_linear, -1, {"total_size_q", "total_size_k", "total_size_v"}});
     qkv_proj->set_output_size(3);
-    auto reshape_pattern_const = wrap_type<v0::Constant>(
-        ov::pass::pattern::value_matches("0, 0, head_cnt, head_size"));
-    auto cur_key =
-        wrap_type<v1::Reshape>({qkv_proj, reshape_pattern_const}, {{"special_zero", true}});
+    auto reshape_pattern_const = wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0, 0, head_cnt, head_size"));
+    auto cur_key = wrap_type<v1::Reshape>({qkv_proj, reshape_pattern_const}, {{"special_zero", true}});
     std::shared_ptr<ov::Node> input_key = nullptr;
     // Extended the RoPE to a two-dimensional form to accommodate the 2D positional encoding in GLM.
     // Calculate positional embedding independent of batch and each head
@@ -640,8 +601,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
         // all sequences have the size == 1, we move sequences to the batch, this is the PagedAttention specific,
         // so seq_length dim will be always 1, this means that Transpose is unnecessary and Reshape op can be used.
         auto transposed_cur_key =
-            wrap_type<v1::Reshape>({qkv_proj, {"-1", "head_cnt", "1", "head_size"}},
-                                                              {{"special_zero", false}});
+            wrap_type<v1::Reshape>({qkv_proj, {"-1", "head_cnt", "1", "head_size"}}, {{"special_zero", false}});
         // Transpose for SDPA version:
         input_key = wrap_type<v1::Transpose>({cur_key, {0, 2, 1, 3}}) | transposed_cur_key;
     } else {
@@ -656,19 +616,16 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
     // rotate half
     std::shared_ptr<ov::Node> reshape0 = nullptr;
     if (support_2d_rope) {
-        auto const_target_shape0 = wrap_type<v0::Constant>(
-            ov::pass::pattern::value_matches("0, head_cnt, 0, ndims/2, 2"));
+        auto const_target_shape0 =
+            wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0, head_cnt, 0, ndims/2, 2"));
         reshape0 =
-            wrap_type<v1::Reshape>({slice0 | var_split0->output(0), const_target_shape0},
-                                                              {{"special_zero", true}});
+            wrap_type<v1::Reshape>({slice0 | var_split0->output(0), const_target_shape0}, {{"special_zero", true}});
     } else {
-        auto concat0 =
-            wrap_type<v0::Concat>({seq_length, {-1}, {"head_cnt"}, {"ndims/2"}, {2}},
-                                                             {{"axis", 0}});
-        auto const_target_shape1 = wrap_type<v0::Constant>(
-            ov::pass::pattern::value_matches("0, 0, head_cnt, ndims/2, 2"));
-        auto const_target_shape2 = wrap_type<v0::Constant>(
-            ov::pass::pattern::value_matches("seq_len, batch, head_cnt, ndims/2, 2"));
+        auto concat0 = wrap_type<v0::Concat>({seq_length, {-1}, {"head_cnt"}, {"ndims/2"}, {2}}, {{"axis", 0}});
+        auto const_target_shape1 =
+            wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0, 0, head_cnt, ndims/2, 2"));
+        auto const_target_shape2 =
+            wrap_type<v0::Constant>(ov::pass::pattern::value_matches("seq_len, batch, head_cnt, ndims/2, 2"));
         reshape0 = wrap_type<v1::Reshape>(
             {slice0 | var_split0->output(0), concat0 | const_target_shape1 | const_target_shape2});
     }
@@ -682,30 +639,24 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
     std::shared_ptr<ov::Node> reshape1 = nullptr;
     if (support_2d_rope) {
         // Slice cos_sin_cache to support 2-dimentional RoPE
-        auto scatter_update0 =
-            wrap_type<v3::ScatterUpdate>({{0, 0}, {1}, seq_length, {0}}, {});
+        auto scatter_update0 = wrap_type<v3::ScatterUpdate>({{0, 0}, {1}, seq_length, {0}}, {});
         auto slice1 = wrap_type<v8::Slice>({cos_sin_cache, {0}, seq_length, {1}, {1}});
-        auto slice2 =
-            wrap_type<v8::Slice>({cos_sin_cache, {0, 0}, scatter_update0, {1, 1}, {0}});
+        auto slice2 = wrap_type<v8::Slice>({cos_sin_cache, {0, 0}, scatter_update0, {1, 1}, {0}});
         auto ss_stop = wrap_type<v0::Constant>();
-        auto strided_slice0 =
-            op_util::NewGenStridedSlice(cos_sin_cache, {0, 0}, ss_stop | scatter_update0, {1, 1}, 1);
+        auto strided_slice0 = op_util::NewGenStridedSlice(cos_sin_cache, {0, 0}, ss_stop | scatter_update0, {1, 1}, 1);
 
-        auto concat1 =
-            wrap_type<v0::Concat>({{-1}, {1}, seq_length, {"ndims/2"}, {2}}, {{"axis", 0}});
-        auto const_target_shape3 = wrap_type<v0::Constant>(
-            ov::pass::pattern::value_matches("batch, 1, seq_len, ndims/2, 2"));
+        auto concat1 = wrap_type<v0::Concat>({{-1}, {1}, seq_length, {"ndims/2"}, {2}}, {{"axis", 0}});
+        auto const_target_shape3 =
+            wrap_type<v0::Constant>(ov::pass::pattern::value_matches("batch, 1, seq_len, ndims/2, 2"));
 
         // [batch, 1, seq_length, half_rotary_dims, 2]
         reshape1 = wrap_type<v1::Reshape>(
             {strided_slice0 | slice1 | slice2 | var_split1->output(0), concat1 | const_target_shape3});
     } else {
-        auto concat2 =
-            wrap_type<v0::Concat>({seq_length, {-1}, {1}, {"ndims/2"}, {2}}, {{"axis", 0}});
-        auto const_target_shape4 = wrap_type<v0::Constant>(
-            ov::pass::pattern::value_matches("1, -1, 1, ndims/2, 2"));
-        auto const_target_shape5 = wrap_type<v0::Constant>(
-            ov::pass::pattern::value_matches("seq_len, batch, 1, ndims/2, 2"));
+        auto concat2 = wrap_type<v0::Concat>({seq_length, {-1}, {1}, {"ndims/2"}, {2}}, {{"axis", 0}});
+        auto const_target_shape4 = wrap_type<v0::Constant>(ov::pass::pattern::value_matches("1, -1, 1, ndims/2, 2"));
+        auto const_target_shape5 =
+            wrap_type<v0::Constant>(ov::pass::pattern::value_matches("seq_len, batch, 1, ndims/2, 2"));
 
         auto slice3 = wrap_type<v8::Slice>({cos_sin_cache, {0}, seq_length, {1}, {0}});
         auto strided_slice1 = op_util::NewGenStridedSlice(cos_sin_cache, {0}, seq_length, {1}, 0);
@@ -716,27 +667,19 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
     }
 
     auto cos_tab = wrap_type<v8::Gather>({reshape1, 0, -1}, {{"batch_dims", 0}});
-    auto x_even_cos =
-        wrap_type<v1::Multiply>({x_even, cos_tab}, {{"auto_broadcast", "numpy"}});
+    auto x_even_cos = wrap_type<v1::Multiply>({x_even, cos_tab}, {{"auto_broadcast", "numpy"}});
 
     auto sin_tab = wrap_type<v8::Gather>({reshape1, 1, -1}, {{"batch_dims", 0}});
-    auto x_odd_sin =
-        wrap_type<v1::Multiply>({x_odd, sin_tab}, {{"auto_broadcast", "numpy"}});
-    auto neg_x_odd_sin =
-        wrap_type<v1::Multiply>({x_odd_sin, -1.000000f}, {{"auto_broadcast", "numpy"}});
-    auto add0 =
-        wrap_type<v1::Add>({x_even_cos, neg_x_odd_sin}, {{"auto_broadcast", "numpy"}});
-    auto y_even =
-        wrap_type<v0::Unsqueeze>({add0, -1}) |
-        wrap_type<v1::Reshape>({add0, gen_chatglm_const()}, {{"special_zero", false}});
-    auto x_odd_cos =
-        wrap_type<v1::Multiply>({x_odd, cos_tab}, {{"auto_broadcast", "numpy"}});
-    auto x_even_sin =
-        wrap_type<v1::Multiply>({x_even, sin_tab}, {{"auto_broadcast", "numpy"}});
+    auto x_odd_sin = wrap_type<v1::Multiply>({x_odd, sin_tab}, {{"auto_broadcast", "numpy"}});
+    auto neg_x_odd_sin = wrap_type<v1::Multiply>({x_odd_sin, -1.000000f}, {{"auto_broadcast", "numpy"}});
+    auto add0 = wrap_type<v1::Add>({x_even_cos, neg_x_odd_sin}, {{"auto_broadcast", "numpy"}});
+    auto y_even = wrap_type<v0::Unsqueeze>({add0, -1}) |
+                  wrap_type<v1::Reshape>({add0, gen_chatglm_const()}, {{"special_zero", false}});
+    auto x_odd_cos = wrap_type<v1::Multiply>({x_odd, cos_tab}, {{"auto_broadcast", "numpy"}});
+    auto x_even_sin = wrap_type<v1::Multiply>({x_even, sin_tab}, {{"auto_broadcast", "numpy"}});
     auto add1 = wrap_type<v1::Add>({x_odd_cos, x_even_sin}, {{"auto_broadcast", "numpy"}});
-    auto y_odd =
-        wrap_type<v0::Unsqueeze>({add1, -1}) |
-        wrap_type<v1::Reshape>({add1, gen_chatglm_const()}, {{"special_zero", false}});
+    auto y_odd = wrap_type<v0::Unsqueeze>({add1, -1}) |
+                 wrap_type<v1::Reshape>({add1, gen_chatglm_const()}, {{"special_zero", false}});
 
     auto concat2 = wrap_type<v0::Concat>({y_even, y_odd}, {{"axis", -1}});
 
@@ -748,25 +691,21 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
     std::shared_ptr<ov::Node> reshape2 = nullptr;
     if (support_2d_rope) {
         // [batch, head_cnt, length, half_rotary_dims, 2]
-        const_target_shape6 = wrap_type<v0::Constant>(
-            ov::pass::pattern::value_matches("batch, head_cnt, seq_len, ndims") ||
-            ov::pass::pattern::value_matches("0, head_cnt, 0, ndims"));
-        reshape2 = wrap_type<v1::Reshape>({concat2, concat3 | const_target_shape6},
-                                                                     {{"special_zero", true}});
+        const_target_shape6 =
+            wrap_type<v0::Constant>(ov::pass::pattern::value_matches("batch, head_cnt, seq_len, ndims") ||
+                                    ov::pass::pattern::value_matches("0, head_cnt, 0, ndims"));
+        reshape2 = wrap_type<v1::Reshape>({concat2, concat3 | const_target_shape6}, {{"special_zero", true}});
     } else {
         // [length, batch, head_cnt, half_rotary_dims, 2]
-        auto const_target_shape7 = wrap_type<v0::Constant>(
-            ov::pass::pattern::value_matches("0, 0, head_cnt, ndims"));
-        const_target_shape6 = wrap_type<v0::Constant>(
-            ov::pass::pattern::value_matches("seq_len, batch, head_cnt, ndims"));
-        reshape2 = wrap_type<v1::Reshape>(
-            {concat2, concat3 | const_target_shape6 | const_target_shape7},
-            {{"special_zero", true}});
+        auto const_target_shape7 = wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0, 0, head_cnt, ndims"));
+        const_target_shape6 =
+            wrap_type<v0::Constant>(ov::pass::pattern::value_matches("seq_len, batch, head_cnt, ndims"));
+        reshape2 = wrap_type<v1::Reshape>({concat2, concat3 | const_target_shape6 | const_target_shape7},
+                                          {{"special_zero", true}});
     }
     auto slice5 = op_util::NewGenSlice(input_key, "ndims", INT_MAX, 1, 3);
 
-    auto concat4 =
-        wrap_type<v0::Concat>({reshape2, slice5 | var_split0->output(1)}, {{"axis", -1}});
+    auto concat4 = wrap_type<v0::Concat>({reshape2, slice5 | var_split0->output(1)}, {{"axis", -1}});
     auto result = concat4 | reshape2;
 
     matcher_pass_callback callback = [=](Matcher& m) {
@@ -850,10 +789,9 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
     auto cos = any_input(ov::pass::pattern::shape_matches("[?, 1, 1, ?]"));
     auto sin = any_input(ov::pass::pattern::shape_matches("[?, 1, 1, ?]"));
 
-    auto reshape = wrap_type<v1::Reshape>(
-        {qk_linear, any_input()},
-        ov::pass::pattern::shape_matches("[?, head_cnt, 1, head_size]"),
-        {{"special_zero", false}});
+    auto reshape = wrap_type<v1::Reshape>({qk_linear, any_input()},
+                                          ov::pass::pattern::shape_matches("[?, head_cnt, 1, head_size]"),
+                                          {{"special_zero", false}});
 
     auto vsplit_out0 = wrap_type<op::v1::VariadicSplit>(
         {reshape, 3, any_input()},
@@ -866,26 +804,21 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
     auto repeat_interleave_cos = build_ChatGLMHF_interleave_pattern(cos);
     auto repeat_interleave_sin = build_ChatGLMHF_interleave_pattern(sin);
 
-    auto multiply = wrap_type<v1::Multiply>({slice_1, repeat_interleave_cos},
-                                                                       {{"auto_broadcast", "numpy"}});
+    auto multiply = wrap_type<v1::Multiply>({slice_1, repeat_interleave_cos}, {{"auto_broadcast", "numpy"}});
     auto slice_2 = op_util::NewGenSlice(slice_1, 1, INT_MAX, 2, 3);
     auto neg = wrap_type<v1::Multiply>({slice_2, -1}, {{"auto_broadcast", "numpy"}});
-    auto unsqueeze_1 = wrap_type<v1::Reshape>(
-        {neg, any_input()},
-        ov::pass::pattern::shape_matches("[?, head_cnt, 1, ndims/2, 1]"),
-        {{"special_zero", false}});
+    auto unsqueeze_1 = wrap_type<v1::Reshape>({neg, any_input()},
+                                              ov::pass::pattern::shape_matches("[?, head_cnt, 1, ndims/2, 1]"),
+                                              {{"special_zero", false}});
     auto slice_3 = op_util::NewGenSlice(slice_1, 0, INT_MAX, 2, 3);
-    auto unsqueeze_2 = wrap_type<v1::Reshape>(
-        {slice_3, any_input()},
-        ov::pass::pattern::shape_matches("[?, head_cnt, 1, ndims/2, 1]"),
-        {{"special_zero", false}});
+    auto unsqueeze_2 = wrap_type<v1::Reshape>({slice_3, any_input()},
+                                              ov::pass::pattern::shape_matches("[?, head_cnt, 1, ndims/2, 1]"),
+                                              {{"special_zero", false}});
     auto stack = wrap_type<v0::Concat>({unsqueeze_1, unsqueeze_2}, {{"axis", -1}});
-    auto flatten =
-        wrap_type<v1::Reshape>({stack, any_input()},
-                                                          ov::pass::pattern::shape_matches("[?, head_cnt, 1, ndims]"),
-                                                          {{"special_zero", true}});
-    auto multiply_1 = wrap_type<v1::Multiply>({flatten, repeat_interleave_sin},
-                                                                         {{"auto_broadcast", "numpy"}});
+    auto flatten = wrap_type<v1::Reshape>({stack, any_input()},
+                                          ov::pass::pattern::shape_matches("[?, head_cnt, 1, ndims]"),
+                                          {{"special_zero", true}});
+    auto multiply_1 = wrap_type<v1::Multiply>({flatten, repeat_interleave_sin}, {{"auto_broadcast", "numpy"}});
     auto add = wrap_type<v1::Add>({multiply, multiply_1}, {{"auto_broadcast", "numpy"}});
 
     auto slice_5 = op_util::NewGenSlice(reshape, "ndims", INT_MAX, 1, 3) | vsplit_out1;
@@ -933,44 +866,35 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
     MATCHER_SCOPE(RoPEFusionQwen);
 
     // rotary_emb_cos & rotary_emb_sin are sliced by present kv-length (past-kv-length + cur_len)
-    auto rotary_emb_cos =
-        any_input(ov::pass::pattern::shape_matches("[1, ?, 1, ?]"));  // [1,..4096,1,128]
-    auto rotary_emb_sin =
-        any_input(ov::pass::pattern::shape_matches("[1, ?, 1, ?]"));           // [1,..4096,1,128]
-    auto qkv_proj = any_input(ov::pass::pattern::shape_matches("[?, ?, ?]"));  // [?,?,12288]
+    auto rotary_emb_cos = any_input(ov::pass::pattern::shape_matches("[1, ?, 1, ?]"));  // [1,..4096,1,128]
+    auto rotary_emb_sin = any_input(ov::pass::pattern::shape_matches("[1, ?, 1, ?]"));  // [1,..4096,1,128]
+    auto qkv_proj = any_input(ov::pass::pattern::shape_matches("[?, ?, ?]"));           // [?,?,12288]
     auto position_ids = any_input();
 
-    auto ListUnpack_410_VariadicSplit = wrap_type<v1::VariadicSplit>(
-        {qkv_proj, 2, {"head_cnt*head_size", "head_cnt*head_size", "?"}});
+    auto ListUnpack_410_VariadicSplit =
+        wrap_type<v1::VariadicSplit>({qkv_proj, 2, {"head_cnt*head_size", "head_cnt*head_size", "?"}});
     ListUnpack_410_VariadicSplit->set_output_size(3);
     // B,L,H,S
-    auto view_Reshape_424 = wrap_type<v1::Reshape>(
-        {ListUnpack_410_VariadicSplit, any_input()},
-        ov::pass::pattern::shape_matches("[?, ?, head_cnt, head_size]"),
-        {{"special_zero", true}});
+    auto view_Reshape_424 = wrap_type<v1::Reshape>({ListUnpack_410_VariadicSplit, any_input()},
+                                                   ov::pass::pattern::shape_matches("[?, ?, head_cnt, head_size]"),
+                                                   {{"special_zero", true}});
     auto slice_Slice_543 = op_util::NewGenSlice(view_Reshape_424, 0, "head_size", 1, 3);
 
     auto ShapeOf_485735 = wrap_type<op_util::ShapeOfBase>({any_input()}, {});
-    auto Multiply_567524 =
-        wrap_type<v1::Multiply>({ShapeOf_485735, -1}, {{"auto_broadcast", "numpy"}});
+    auto Multiply_567524 = wrap_type<v1::Multiply>({ShapeOf_485735, -1}, {{"auto_broadcast", "numpy"}});
     auto Gather_377635 = wrap_type<v8::Gather>({Multiply_567524, 1, 0}, {{"batch_dims", 0}});
 
     auto ShapeOf_409241 = wrap_type<op_util::ShapeOfBase>({any_input()}, {});
     auto Gather_311651 = wrap_type<v8::Gather>({ShapeOf_409241, 1, 0}, {{"batch_dims", 0}});
-    auto neg_Multiply =
-        wrap_type<v1::Multiply>({Gather_311651, -1}, {{"auto_broadcast", "numpy"}});
+    auto neg_Multiply = wrap_type<v1::Multiply>({Gather_311651, -1}, {{"auto_broadcast", "numpy"}});
 
-    auto ScatterUpdate_463814 =
-        wrap_type<v3::ScatterUpdate>({{0, 0}, 1, Gather_377635 | neg_Multiply, 0});
-    auto slice_Slice_446 =
-        wrap_type<v8::Slice>({rotary_emb_cos, Gather_377635 | neg_Multiply, INT_MAX, 1, 1});
+    auto ScatterUpdate_463814 = wrap_type<v3::ScatterUpdate>({{0, 0}, 1, Gather_377635 | neg_Multiply, 0});
+    auto slice_Slice_446 = wrap_type<v8::Slice>({rotary_emb_cos, Gather_377635 | neg_Multiply, INT_MAX, 1, 1});
 
-    auto gather_cos_by_pos_ids =
-        wrap_type<v8::Gather>({rotary_emb_cos, position_ids, 1}, {{"batch_dims", 0}});
-    auto reshape_cos_to_expected_layout =
-        wrap_type<v1::Reshape>({gather_cos_by_pos_ids, any_input()},
-                                                          ov::pass::pattern::shape_matches("[?, 1, 1, 128]"),
-                                                          {{"special_zero", false}});
+    auto gather_cos_by_pos_ids = wrap_type<v8::Gather>({rotary_emb_cos, position_ids, 1}, {{"batch_dims", 0}});
+    auto reshape_cos_to_expected_layout = wrap_type<v1::Reshape>({gather_cos_by_pos_ids, any_input()},
+                                                                 ov::pass::pattern::shape_matches("[?, 1, 1, 128]"),
+                                                                 {{"special_zero", false}});
 
     auto slice_StridedSlice_446 =
         op_util::NewGenStridedSlice(rotary_emb_cos, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1);
@@ -980,71 +904,56 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
 
     auto reshape_opt1 = [&](std::shared_ptr<Node> input_BLHS) {
         auto ShapeOf_485814 = wrap_type<v3::ShapeOf>({input_BLHS}, {});
-        auto Gather_377647 =
-            wrap_type<v8::Gather>({ShapeOf_485814, 1, 0}, {{"batch_dims", 0}});
+        auto Gather_377647 = wrap_type<v8::Gather>({ShapeOf_485814, 1, 0}, {{"batch_dims", 0}});
         // batch-size, we don't care
-        auto Gather_377641 = any_input(type_matches(ov::element::i32) &&
-                                                          ov::pass::pattern::shape_matches("[1]"));
-        auto ListConstruct_581_Concat = wrap_type<v0::Concat>(
-            {Gather_377641, Gather_377647, "head_cnt", 2, "head_size/2"},
-            {{"axis", 0}});
-        auto Gather_391791 =
-            wrap_type<v8::Gather>({ShapeOf_485814, {0, 1}, 0}, {{"batch_dims", 0}});
-        auto ListConstruct_522_Concat =
-            wrap_type<v0::Concat>({Gather_391791, 32, 2, 64}, {{"axis", 0}});
+        auto Gather_377641 = any_input(type_matches(ov::element::i32) && ov::pass::pattern::shape_matches("[1]"));
+        auto ListConstruct_581_Concat =
+            wrap_type<v0::Concat>({Gather_377641, Gather_377647, "head_cnt", 2, "head_size/2"}, {{"axis", 0}});
+        auto Gather_391791 = wrap_type<v8::Gather>({ShapeOf_485814, {0, 1}, 0}, {{"batch_dims", 0}});
+        auto ListConstruct_522_Concat = wrap_type<v0::Concat>({Gather_391791, 32, 2, 64}, {{"axis", 0}});
 
-        auto reshape_Reshape_577 =
-            wrap_type<v1::Reshape>({input_BLHS, any_input()},
-                                                              ov::pass::pattern::shape_matches("[?, 2, head_size/2]"),
-                                                              {{"special_zero", true}});
-        return wrap_type<v1::Reshape>(
-            {reshape_Reshape_577, ListConstruct_581_Concat | ListConstruct_522_Concat},
-            {{"special_zero", false}});
+        auto reshape_Reshape_577 = wrap_type<v1::Reshape>({input_BLHS, any_input()},
+                                                          ov::pass::pattern::shape_matches("[?, 2, head_size/2]"),
+                                                          {{"special_zero", true}});
+        return wrap_type<v1::Reshape>({reshape_Reshape_577, ListConstruct_581_Concat | ListConstruct_522_Concat},
+                                      {{"special_zero", false}});
     };
 
-    auto reshape_special = wrap_type<v1::Reshape>(
-        {slice_Slice_543, any_input()},
-        ov::pass::pattern::shape_matches("[..., 0, 2, head_size/2]") ||
-            ov::pass::pattern::shape_matches("[..., head_cnt, 2, head_size/2]"),
-        {{"special_zero", true}});
+    auto reshape_special =
+        wrap_type<v1::Reshape>({slice_Slice_543, any_input()},
+                               ov::pass::pattern::shape_matches("[..., 0, 2, head_size/2]") ||
+                                   ov::pass::pattern::shape_matches("[..., head_cnt, 2, head_size/2]"),
+                               {{"special_zero", true}});
 
     auto ListUnpack_586_Split =
-        wrap_type<v1::Split>({reshape_opt1(slice_Slice_543) | reshape_special, -2},
-                                                        {{"num_splits", 2}});
+        wrap_type<v1::Split>({reshape_opt1(slice_Slice_543) | reshape_special, -2}, {{"num_splits", 2}});
     ListUnpack_586_Split->set_output_size(2);
-    auto Multiply_567527 = wrap_type<v1::Multiply>({ListUnpack_586_Split->output(1), -1.0f},
-                                                                              {{"auto_broadcast", "numpy"}});
+    auto Multiply_567527 =
+        wrap_type<v1::Multiply>({ListUnpack_586_Split->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
     auto ListUnpack_586_Squeeze_0 = wrap_type<v0::Squeeze>({Multiply_567527, -2});
-    auto ListUnpack_586_Squeeze =
-        wrap_type<v0::Squeeze>({ListUnpack_586_Split->output(0), -2});
+    auto ListUnpack_586_Squeeze = wrap_type<v0::Squeeze>({ListUnpack_586_Split->output(0), -2});
 
-    auto ListUnpack_Squeeze_0_1 =
-        wrap_type<v1::Reshape>({Multiply_567527, any_input()},
-                                                          ov::pass::pattern::shape_matches("[?, 1, 32, 64]"),
-                                                          {{"special_zero", false}});
-    auto ListUnpack_Squeeze_1 = wrap_type<v1::Reshape>(
-        {ListUnpack_586_Split->output(0), any_input()},
-        ov::pass::pattern::shape_matches("[?, 1, 32, 64]"),
-        {{"special_zero", false}});
+    auto ListUnpack_Squeeze_0_1 = wrap_type<v1::Reshape>({Multiply_567527, any_input()},
+                                                         ov::pass::pattern::shape_matches("[?, 1, 32, 64]"),
+                                                         {{"special_zero", false}});
+    auto ListUnpack_Squeeze_1 = wrap_type<v1::Reshape>({ListUnpack_586_Split->output(0), any_input()},
+                                                       ov::pass::pattern::shape_matches("[?, 1, 32, 64]"),
+                                                       {{"special_zero", false}});
 
     auto cat_Concat_593 = wrap_type<v0::Concat>(
         {ListUnpack_586_Squeeze_0 | ListUnpack_Squeeze_0_1, ListUnpack_586_Squeeze | ListUnpack_Squeeze_1},
         {{"axis", -1}});
     auto slice_StridedSlice_470 =
         op_util::NewGenStridedSlice(rotary_emb_sin, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1);
-    auto slice_Slice_470 =
-        wrap_type<v8::Slice>({rotary_emb_sin, Gather_377635 | neg_Multiply, INT_MAX, 1, 1});
-    auto gather_sin_by_pos_ids =
-        wrap_type<v8::Gather>({rotary_emb_sin, position_ids, 1}, {{"batch_dims", 0}});
-    auto reshape_sin_to_expected_layout =
-        wrap_type<v1::Reshape>({gather_sin_by_pos_ids, any_input()},
-                                                          ov::pass::pattern::shape_matches("[?, 1, 1, 128]"),
-                                                          {{"special_zero", false}});
+    auto slice_Slice_470 = wrap_type<v8::Slice>({rotary_emb_sin, Gather_377635 | neg_Multiply, INT_MAX, 1, 1});
+    auto gather_sin_by_pos_ids = wrap_type<v8::Gather>({rotary_emb_sin, position_ids, 1}, {{"batch_dims", 0}});
+    auto reshape_sin_to_expected_layout = wrap_type<v1::Reshape>({gather_sin_by_pos_ids, any_input()},
+                                                                 ov::pass::pattern::shape_matches("[?, 1, 1, 128]"),
+                                                                 {{"special_zero", false}});
     auto mul_Multiply_594 = wrap_type<v1::Multiply>(
         {cat_Concat_593, slice_StridedSlice_470 | slice_Slice_470 | reshape_sin_to_expected_layout},
         {{"auto_broadcast", "numpy"}});
-    auto result = wrap_type<v1::Add>({mul_Multiply_552, mul_Multiply_594},
-                                                                {{"auto_broadcast", "numpy"}});
+    auto result = wrap_type<v1::Add>({mul_Multiply_552, mul_Multiply_594}, {{"auto_broadcast", "numpy"}});
 
     matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -1123,21 +1032,16 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
     std::vector<std::shared_ptr<Node>> inputs = {any_input(), any_input()};
 
     // Broadcast pattern
-    auto const_broadcast_axes = wrap_type<v0::Constant>(
-        type_matches(element::u8) && ov::pass::pattern::value_matches("{0}"));
-    auto broadcast =
-        wrap_type<v1::Broadcast>({"{1.000000f}", inputs[0], const_broadcast_axes},
-                                                            {{"mode", "numpy"}});
+    auto const_broadcast_axes =
+        wrap_type<v0::Constant>(type_matches(element::u8) && ov::pass::pattern::value_matches("{0}"));
+    auto broadcast = wrap_type<v1::Broadcast>({"{1.000000f}", inputs[0], const_broadcast_axes}, {{"mode", "numpy"}});
 
     // Multiply pattern (expand broadcast)
-    auto const_inv_freq =
-        wrap_type<v0::Constant>();  // Pattern for the constant inverse frequency
-    auto multiply =
-        wrap_type<v1::Multiply>({const_inv_freq, broadcast}, {{"auto_broadcast", "numpy"}});
+    auto const_inv_freq = wrap_type<v0::Constant>();  // Pattern for the constant inverse frequency
+    auto multiply = wrap_type<v1::Multiply>({const_inv_freq, broadcast}, {{"auto_broadcast", "numpy"}});
 
     // MatMul pattern
-    auto matmul = wrap_type<v0::MatMul>({multiply, inputs[1]},
-                                                                   {{"transpose_a", false}, {"transpose_b", false}});
+    auto matmul = wrap_type<v0::MatMul>({multiply, inputs[1]}, {{"transpose_a", false}, {"transpose_b", false}});
 
     // Transpose pattern
     auto transpose = wrap_type<v1::Transpose>({matmul, {0, 2, 1}});
@@ -1238,21 +1142,14 @@ ov::pass::RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
     auto vsplit_out1 = wrap_type<op::v1::VariadicSplit>(
         {x, -1, {"half_ndims", "?"}},
         ov::pass::pattern::output_index_matches(1) && ov::pass::pattern::shape_matches("[?, ?, ?, half_ndims]"));
-    auto first_half_mul_cos =
-        wrap_type<v1::Multiply>({vsplit_out0, t_cos}, {{"auto_broadcast", "numpy"}});
-    auto second_half_mul_sin =
-        wrap_type<v1::Multiply>({vsplit_out1, t_sin}, {{"auto_broadcast", "numpy"}});
-    auto neg =
-        wrap_type<v1::Multiply>({second_half_mul_sin, -1.0f}, {{"auto_broadcast", "numpy"}});
-    auto sub_Subtract =
-        wrap_type<v1::Add>({first_half_mul_cos, neg}, {{"auto_broadcast", "numpy"}});
+    auto first_half_mul_cos = wrap_type<v1::Multiply>({vsplit_out0, t_cos}, {{"auto_broadcast", "numpy"}});
+    auto second_half_mul_sin = wrap_type<v1::Multiply>({vsplit_out1, t_sin}, {{"auto_broadcast", "numpy"}});
+    auto neg = wrap_type<v1::Multiply>({second_half_mul_sin, -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto sub_Subtract = wrap_type<v1::Add>({first_half_mul_cos, neg}, {{"auto_broadcast", "numpy"}});
 
-    auto second_half_mul_cos =
-        wrap_type<v1::Multiply>({vsplit_out1, t_cos}, {{"auto_broadcast", "numpy"}});
-    auto first_half_mul_sin =
-        wrap_type<v1::Multiply>({vsplit_out0, t_sin}, {{"auto_broadcast", "numpy"}});
-    auto add_Add = wrap_type<v1::Add>({second_half_mul_cos, first_half_mul_sin},
-                                                                 {{"auto_broadcast", "numpy"}});
+    auto second_half_mul_cos = wrap_type<v1::Multiply>({vsplit_out1, t_cos}, {{"auto_broadcast", "numpy"}});
+    auto first_half_mul_sin = wrap_type<v1::Multiply>({vsplit_out0, t_sin}, {{"auto_broadcast", "numpy"}});
+    auto add_Add = wrap_type<v1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});
     auto concat_result = wrap_type<opset1::Concat>({sub_Subtract, add_Add}, {{"axis", -1}});
 
     auto result = concat_result;

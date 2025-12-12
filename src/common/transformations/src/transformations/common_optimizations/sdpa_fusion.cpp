@@ -34,10 +34,10 @@
 #include "transformations/utils/utils.hpp"
 
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::Matcher;
 using ov::pass::pattern::rank_equals;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -115,36 +115,26 @@ bool SDPAFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
 SDPAReshapeFusion::SDPAReshapeFusion() {
     MATCHER_SCOPE(SDPAReshapeFusion);
     auto q = any_input(ov::pass::pattern::shape_matches("Batches..., S_q, D"));
-    auto k = any_input(ov::pass::pattern::shape_matches("AnyLayout...") &&
-                                          ov::pass::pattern::rank_more_than(2));
-    auto v = any_input(ov::pass::pattern::shape_matches("Batches..., S_kv, D") &&
-                                          check_layout("AnyLayout"));
+    auto k = any_input(ov::pass::pattern::shape_matches("AnyLayout...") && ov::pass::pattern::rank_more_than(2));
+    auto v = any_input(ov::pass::pattern::shape_matches("Batches..., S_kv, D") && check_layout("AnyLayout"));
     auto mask = any_input(ov::pass::pattern::has_static_rank());
 
     // these Reshape/Unsqueeze may already exist in the graph
-    auto unsq_q =
-        wrap_type<v1::Reshape, v0::Unsqueeze>({q, any_input()});
-    auto unsq_k =
-        wrap_type<v1::Reshape, v0::Unsqueeze>({k, any_input()});
-    auto unsq_v =
-        wrap_type<v1::Reshape, v0::Unsqueeze>({v, any_input()});
+    auto unsq_q = wrap_type<v1::Reshape, v0::Unsqueeze>({q, any_input()});
+    auto unsq_k = wrap_type<v1::Reshape, v0::Unsqueeze>({k, any_input()});
+    auto unsq_v = wrap_type<v1::Reshape, v0::Unsqueeze>({v, any_input()});
 
     // this Transpose may already exist in the graph
-    auto opt_original_transpose_k =
-        ov::pass::pattern::optional<v1::Transpose>({unsq_k, any_input()});
+    auto opt_original_transpose_k = ov::pass::pattern::optional<v1::Transpose>({unsq_k, any_input()});
 
     // these Reshape/Unsqueeze may be inserted by SDPAFusionMatcher
-    auto opt_unsq_q = ov::pass::pattern::optional<v1::Reshape, v0::Unsqueeze>(
-        {unsq_q, any_input()});
-    auto opt_unsq_k = ov::pass::pattern::optional<v1::Reshape, v0::Unsqueeze>(
-        {opt_original_transpose_k, any_input()});
-    auto opt_unsq_v = ov::pass::pattern::optional<v1::Reshape, v0::Unsqueeze>(
-        {unsq_v, any_input()});
+    auto opt_unsq_q = ov::pass::pattern::optional<v1::Reshape, v0::Unsqueeze>({unsq_q, any_input()});
+    auto opt_unsq_k = ov::pass::pattern::optional<v1::Reshape, v0::Unsqueeze>({opt_original_transpose_k, any_input()});
+    auto opt_unsq_v = ov::pass::pattern::optional<v1::Reshape, v0::Unsqueeze>({unsq_v, any_input()});
 
     // this Transpose may be inserted by SDPAFusionMatcher
-    auto opt_transpose_k =
-        ov::pass::pattern::optional<v1::Transpose>({opt_unsq_k, any_input()},
-                                                           ov::pass::pattern::shape_matches("..., S_kv, D"));
+    auto opt_transpose_k = ov::pass::pattern::optional<v1::Transpose>({opt_unsq_k, any_input()},
+                                                                      ov::pass::pattern::shape_matches("..., S_kv, D"));
 
     auto sdpa_pattern = wrap_type<v13::ScaledDotProductAttention>({
         opt_unsq_q,
@@ -154,11 +144,9 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
         any_input(),
     });
 
-    auto opt_sdpa_reshape = ov::pass::pattern::optional<v1::Reshape, v0::Unsqueeze>(
-        {sdpa_pattern, any_input()});
-    auto post_sdpa = wrap_type<v1::Reshape, v0::Unsqueeze>(
-        {opt_sdpa_reshape, any_input()},
-        ov::pass::pattern::shape_matches("Batches..., S_q, D"));
+    auto opt_sdpa_reshape = ov::pass::pattern::optional<v1::Reshape, v0::Unsqueeze>({sdpa_pattern, any_input()});
+    auto post_sdpa = wrap_type<v1::Reshape, v0::Unsqueeze>({opt_sdpa_reshape, any_input()},
+                                                           ov::pass::pattern::shape_matches("Batches..., S_q, D"));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
@@ -248,10 +236,9 @@ static std::shared_ptr<ov::Node> get_scale(std::shared_ptr<ov::Node> scale_patte
             return nullptr;
         } else {
             if (rank.get_length() > 1) {
-                scale_node = op_util::make_try_fold<v1::Reshape>(
-                    scale_node,
-                    v0::Constant::create(ov::element::i64, {1}, {1}),
-                    false);
+                scale_node = op_util::make_try_fold<v1::Reshape>(scale_node,
+                                                                 v0::Constant::create(ov::element::i64, {1}, {1}),
+                                                                 false);
             }
             return scale_node.get_node_shared_ptr();
         }
@@ -384,14 +371,14 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
         return true;
     };
 
-    auto q = any_input(ov::pass::pattern::shape_matches("..., H, S_q, E") ||
-                                          ov::pass::pattern::shape_matches("S_q, E"));
-    auto k = any_input(ov::pass::pattern::shape_matches("..., H, S_kv, E") ||
-                                          ov::pass::pattern::shape_matches("S_kv, E"));
-    auto kT = any_input(ov::pass::pattern::shape_matches("..., H, E, S_kv") ||
-                                           ov::pass::pattern::shape_matches("E, S_kv"));
-    auto v = any_input(ov::pass::pattern::shape_matches("..., H, S_kv, Ev") ||
-                                          ov::pass::pattern::shape_matches("S_kv, Ev"));
+    auto q =
+        any_input(ov::pass::pattern::shape_matches("..., H, S_q, E") || ov::pass::pattern::shape_matches("S_q, E"));
+    auto k =
+        any_input(ov::pass::pattern::shape_matches("..., H, S_kv, E") || ov::pass::pattern::shape_matches("S_kv, E"));
+    auto kT =
+        any_input(ov::pass::pattern::shape_matches("..., H, E, S_kv") || ov::pass::pattern::shape_matches("E, S_kv"));
+    auto v =
+        any_input(ov::pass::pattern::shape_matches("..., H, S_kv, Ev") || ov::pass::pattern::shape_matches("S_kv, Ev"));
 
     auto attn_scale = any_input();
 
@@ -401,13 +388,9 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
     auto qk_pred =
         (ov::pass::pattern::shape_matches("..., H, S_q, S_kv") || ov::pass::pattern::shape_matches("S_q, S_kv")) &&
         consumers_count(1);
-    auto qk = wrap_type<v0::MatMul>({q, opt_kT_scale},
-                                                               qk_pred,
-                                                               {{"transpose_a", false}, {"transpose_b", false}});
+    auto qk = wrap_type<v0::MatMul>({q, opt_kT_scale}, qk_pred, {{"transpose_a", false}, {"transpose_b", false}});
     auto qk_transpose_b =
-        wrap_type<v0::MatMul>({q, opt_k_scale},
-                                                         qk_pred,
-                                                         {{"transpose_a", false}, {"transpose_b", true}});
+        wrap_type<v0::MatMul>({q, opt_k_scale}, qk_pred, {{"transpose_a", false}, {"transpose_b", true}});
     auto qk_alternatives = qk | qk_transpose_b;
 
     // Optional unsqueeze that is converted to Reshape
@@ -423,14 +406,13 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
     // 3. Mask add
     // 4. Reshape after adding mask
     auto mask = any_input(ov::pass::pattern::has_static_rank());
-    auto qk_opt_scaled_pre_mask_opt_reshaped =
-        ov::pass::pattern::optional<v1::Reshape>({qk_opt_scaled, any_input()});
+    auto qk_opt_scaled_pre_mask_opt_reshaped = ov::pass::pattern::optional<v1::Reshape>({qk_opt_scaled, any_input()});
 
     auto add_pred = consumers_count(1) && corner_case_check;
     auto qk_opt_scaled_opt_mask_added =
         ov::pass::pattern::optional<v1::Add>({qk_opt_scaled_pre_mask_opt_reshaped, mask}, add_pred);
-    auto qk_post_mask_opt_reshaped = ov::pass::pattern::optional<v1::Reshape>(
-        {qk_opt_scaled_opt_mask_added, any_input()});
+    auto qk_post_mask_opt_reshaped =
+        ov::pass::pattern::optional<v1::Reshape>({qk_opt_scaled_opt_mask_added, any_input()});
 
     // Softmax axis can be:
     // Pattern 1: axis = -1 (last axis)
@@ -449,13 +431,11 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
         consumers_count(1) && axis_predicate &&
         (ov::pass::pattern::shape_matches("..., H, S_q, S_kv") || ov::pass::pattern::shape_matches("S_q, S_kv"));
     auto softmax = wrap_type<v8::Softmax>({qk_post_mask_opt_reshaped}, softmax_pred);
-    auto softmax_opt_reshaped =
-        ov::pass::pattern::optional<v1::Reshape>({softmax, any_input()});
+    auto softmax_opt_reshaped = ov::pass::pattern::optional<v1::Reshape>({softmax, any_input()});
 
     auto qkv_shape = ov::pass::pattern::shape_matches("..., H, S_q, Ev") || ov::pass::pattern::shape_matches("S_q, Ev");
-    auto qkv = wrap_type<v0::MatMul>({softmax_opt_reshaped, v},
-                                                                qkv_shape,
-                                                                {{"transpose_a", false}, {"transpose_b", false}});
+    auto qkv =
+        wrap_type<v0::MatMul>({softmax_opt_reshaped, v}, qkv_shape, {{"transpose_a", false}, {"transpose_b", false}});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
@@ -490,12 +470,8 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
         if (qkv.size() == 0)
             return false;
 
-        std::shared_ptr<ov::Node> sdpa = std::make_shared<v13::ScaledDotProductAttention>(qkv[0],
-                                                                                                  qkv[1],
-                                                                                                  qkv[2],
-                                                                                                  mask_input,
-                                                                                                  scale_node,
-                                                                                                  false);
+        std::shared_ptr<ov::Node> sdpa =
+            std::make_shared<v13::ScaledDotProductAttention>(qkv[0], qkv[1], qkv[2], mask_input, scale_node, false);
         sdpa->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa);
         ov::replace_node(m.get_match_root(), sdpa);
@@ -513,9 +489,7 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
     auto q = any_input(rank_equals(4));
 
     auto qk_transpose_b =
-        wrap_type<v0::MatMul>({q, k},
-                                                         consumers_count(1),
-                                                         {{"transpose_a", false}, {"transpose_b", true}});
+        wrap_type<v0::MatMul>({q, k}, consumers_count(1), {{"transpose_a", false}, {"transpose_b", true}});
 
     auto attn_scale = any_input();
     auto opt_qk_scaled = ov::pass::pattern::optional<v1::Multiply>({qk_transpose_b, attn_scale});
@@ -546,14 +520,8 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
     auto softmax_pred = consumers_count(1) && axis_predicate;
     auto softmax = wrap_type<v8::Softmax>({sinks_sub}, softmax_pred);
 
-    auto sinks_slice =
-        wrap_type<v1::StridedSlice>(
-            {softmax, any_input(), any_input(), any_input()}) |
-        wrap_type<v8::Slice>({softmax,
-                                                         any_input(),
-                                                         any_input(),
-                                                         any_input(),
-                                                         any_input()});
+    auto sinks_slice = wrap_type<v1::StridedSlice>({softmax, any_input(), any_input(), any_input()}) |
+                       wrap_type<v8::Slice>({softmax, any_input(), any_input(), any_input(), any_input()});
     auto qkv = wrap_type<v0::MatMul>({sinks_slice, v});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
@@ -589,19 +557,15 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
         if (sinks_present) {
             const auto& sinks_node = pm.at(sinks);
             sdpa = std::make_shared<v13::ScaledDotProductAttention>(qkv[0],
-                                                                            qkv[1],
-                                                                            qkv[2],
-                                                                            mask_input,
-                                                                            scale_node,
-                                                                            sinks_node,
-                                                                            false);
+                                                                    qkv[1],
+                                                                    qkv[2],
+                                                                    mask_input,
+                                                                    scale_node,
+                                                                    sinks_node,
+                                                                    false);
         } else {
-            sdpa = std::make_shared<v13::ScaledDotProductAttention>(qkv[0],
-                                                                            qkv[1],
-                                                                            qkv[2],
-                                                                            mask_input,
-                                                                            scale_node,
-                                                                            false);
+            sdpa =
+                std::make_shared<v13::ScaledDotProductAttention>(qkv[0], qkv[1], qkv[2], mask_input, scale_node, false);
         }
         sdpa->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa);

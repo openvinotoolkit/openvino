@@ -16,7 +16,6 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -45,11 +44,9 @@ ov::pass::ConvertGather0D::ConvertGather0D() {
         }
 
         auto axis = axes_constant->cast_vector<int64_t>()[0];
-        indices =
-            std::make_shared<v0::Unsqueeze>(indices, v0::Constant::create(element::i64, Shape{1}, {0}));
+        indices = std::make_shared<v0::Unsqueeze>(indices, v0::Constant::create(element::i64, Shape{1}, {0}));
         auto gather_new = std::make_shared<v1::Gather>(gather->input_value(0), indices, axes_constant);
-        auto sq = std::make_shared<v0::Squeeze>(gather_new,
-                                                        v0::Constant::create(element::i64, Shape{1}, {axis}));
+        auto sq = std::make_shared<v0::Squeeze>(gather_new, v0::Constant::create(element::i64, Shape{1}, {axis}));
         sq->set_friendly_name(gather->get_friendly_name());
 
         ov::copy_runtime_info(gather, {indices.get_node_shared_ptr(), gather_new, sq});

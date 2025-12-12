@@ -16,11 +16,10 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations_visibility.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -28,8 +27,7 @@ ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(StridedSliceSqueeze);
     auto ss_label = wrap_type<v1::StridedSlice>(consumers_count(1));
-    auto squeeze_label = wrap_type<v0::Squeeze>(
-        {ss_label, wrap_type<v0::Constant>()});
+    auto squeeze_label = wrap_type<v0::Squeeze>({ss_label, wrap_type<v0::Constant>()});
 
     matcher_pass_callback callback = [](Matcher& m) -> bool {
         const auto& squeeze = m.get_match_root();
@@ -104,16 +102,16 @@ ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
             shrink_axis_mask[axis] = 1;
         }
 
-        auto new_slice = std::make_shared<v1::StridedSlice>(
-            slice->input_value(0),
-            v0::Constant::create(element::i64, {begin_vec.size()}, begin_vec),
-            v0::Constant::create(element::i64, {end_vec.size()}, end_vec),
-            v0::Constant::create(element::i64, {strides_vec.size()}, strides_vec),
-            begin_mask,
-            end_mask,
-            new_axis_mask,
-            shrink_axis_mask,
-            ellipsis_mask);
+        auto new_slice =
+            std::make_shared<v1::StridedSlice>(slice->input_value(0),
+                                               v0::Constant::create(element::i64, {begin_vec.size()}, begin_vec),
+                                               v0::Constant::create(element::i64, {end_vec.size()}, end_vec),
+                                               v0::Constant::create(element::i64, {strides_vec.size()}, strides_vec),
+                                               begin_mask,
+                                               end_mask,
+                                               new_axis_mask,
+                                               shrink_axis_mask,
+                                               ellipsis_mask);
 
         return replace_output_update_name(squeeze->output(0), new_slice->output(squeeze->input_value(0).get_index()));
     };
@@ -123,13 +121,8 @@ ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
 ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(SqueezeStridedSlice);
-    auto squeeze_label = wrap_type<v0::Squeeze>(
-        {any_input(), wrap_type<v0::Constant>()},
-        consumers_count(1));
-    auto ss_label = wrap_type<v1::StridedSlice>({squeeze_label,
-                                                                            any_input(),
-                                                                            any_input(),
-                                                                            any_input()});
+    auto squeeze_label = wrap_type<v0::Squeeze>({any_input(), wrap_type<v0::Constant>()}, consumers_count(1));
+    auto ss_label = wrap_type<v1::StridedSlice>({squeeze_label, any_input(), any_input(), any_input()});
 
     matcher_pass_callback callback = [](Matcher& m) -> bool {
         auto slice = ov::as_type_ptr<v1::StridedSlice>(m.get_match_root());
@@ -185,16 +178,16 @@ ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
             ellipsis_mask.insert(ellipsis_mask.begin() + axis, 0);
         }
 
-        auto new_slice = std::make_shared<v1::StridedSlice>(
-            slice->get_input_node_shared_ptr(0)->input_value(0),
-            v0::Constant::create(element::i64, {begin_vec.size()}, begin_vec),
-            v0::Constant::create(element::i64, {end_vec.size()}, end_vec),
-            v0::Constant::create(element::i64, {strides_vec.size()}, strides_vec),
-            begin_mask,
-            end_mask,
-            new_axis_mask,
-            shrink_axis_mask,
-            ellipsis_mask);
+        auto new_slice =
+            std::make_shared<v1::StridedSlice>(slice->get_input_node_shared_ptr(0)->input_value(0),
+                                               v0::Constant::create(element::i64, {begin_vec.size()}, begin_vec),
+                                               v0::Constant::create(element::i64, {end_vec.size()}, end_vec),
+                                               v0::Constant::create(element::i64, {strides_vec.size()}, strides_vec),
+                                               begin_mask,
+                                               end_mask,
+                                               new_axis_mask,
+                                               shrink_axis_mask,
+                                               ellipsis_mask);
 
         replace_node(slice, new_slice);
         new_slice->set_friendly_name(slice->get_friendly_name());

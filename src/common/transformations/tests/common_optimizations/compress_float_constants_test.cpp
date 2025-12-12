@@ -28,7 +28,6 @@
 using namespace ov;
 using namespace testing;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 TEST_F(TransformationTestsF, CompressConstants_f32) {
@@ -531,10 +530,9 @@ TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_denormal_vals) {
 TEST_F(TransformationTestsF, KeepFWPrecisionForFP16Constants_test_1) {
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
-        auto const_weights = v0::Constant::create(
-            ov::element::f16,
-            ov::Shape{1, 3, 3, 3},
-            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+        auto const_weights =
+            v0::Constant::create(ov::element::f16, ov::Shape{1, 3, 3, 3}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                           6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
         auto convert_node = std::make_shared<v0::Convert>(const_weights, element::f32);
 
         auto conv = std::make_shared<ov::opset8::Convolution>(input,
@@ -571,10 +569,9 @@ TEST_F(TransformationTestsF, KeepFWPrecisionForFP16Constants_test_1) {
 TEST_F(TransformationTestsF, KeepFWPrecisionForBF16Constants_test_1) {
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
-        auto const_weights = v0::Constant::create(
-            ov::element::bf16,
-            ov::Shape{1, 3, 3, 3},
-            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+        auto const_weights =
+            v0::Constant::create(ov::element::bf16, ov::Shape{1, 3, 3, 3}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                            6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
         auto convert_node = std::make_shared<v0::Convert>(const_weights, element::f32);
 
         auto conv = std::make_shared<ov::opset8::Convolution>(input,

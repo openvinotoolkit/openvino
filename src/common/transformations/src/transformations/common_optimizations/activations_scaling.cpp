@@ -32,10 +32,9 @@
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -78,11 +77,11 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
                                                                      const size_t input_idx) {
             const std::vector<float> scale_down_value = {1.f / scale_factor};
 
-            auto scale_down_layer = std::make_shared<v1::Multiply>(
-                node->input(input_idx).get_source_output(),
-                std::make_shared<v0::Constant>(node->input(input_idx).get_element_type(),
-                                                       ov::Shape(),
-                                                       scale_down_value));
+            auto scale_down_layer =
+                std::make_shared<v1::Multiply>(node->input(input_idx).get_source_output(),
+                                               std::make_shared<v0::Constant>(node->input(input_idx).get_element_type(),
+                                                                              ov::Shape(),
+                                                                              scale_down_value));
             scale_down_layer->set_friendly_name(node->get_friendly_name() + "_scale_down");
             ov::copy_runtime_info(node, scale_down_layer);
 
@@ -121,8 +120,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         // adding a scale_down layer before the target node
         insert_scale_down_layer(scaled_op, 0);
         if (scaled_op->input(1).get_element_type() != scaled_prec) {
-            auto convert_prec1 =
-                std::make_shared<v0::Convert>(scaled_op->input(1).get_source_output(), scaled_prec);
+            auto convert_prec1 = std::make_shared<v0::Convert>(scaled_op->input(1).get_source_output(), scaled_prec);
             scaled_op->input(1).replace_source_output(convert_prec1->output(0));
         }
 
@@ -163,16 +161,15 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         } else {
             target_inputs = output_of_scaled_op->get_output_target_inputs(0);
             if (output_of_scaled_op->output(0).get_element_type() != output_prec) {
-                output_of_scaled_op =
-                    std::make_shared<v0::Convert>(output_of_scaled_op->output(0), output_prec);
+                output_of_scaled_op = std::make_shared<v0::Convert>(output_of_scaled_op->output(0), output_prec);
             }
         }
 
         auto scale_up = register_new_node<v1::Multiply>(
             output_of_scaled_op->output(0),
             std::make_shared<v0::Constant>(output_of_scaled_op->output(0).get_element_type(),
-                                                   ov::Shape(),
-                                                   scale_up_value));
+                                           ov::Shape(),
+                                           scale_up_value));
         scale_up->set_friendly_name(scaled_op->get_friendly_name() + "_scale_up");
         ov::copy_runtime_info(scaled_op, scale_up);
         for (auto& in : target_inputs) {
@@ -195,8 +192,7 @@ ov::pass::activations_scaling::EliminateScalarMul::EliminateScalarMul() {
     auto mul_m = wrap_type<v1::Multiply>({convert_m, scale_const_m});
     auto mvn_m = wrap_type<v6::MVN>({mul_m, any_input()});
     auto rms_m = wrap_type<ov::op::internal::RMS>({mul_m, any_input()});
-    auto group_norm_m = wrap_type<v12::GroupNormalization>(
-        {mul_m, any_input(), any_input()});
+    auto group_norm_m = wrap_type<v12::GroupNormalization>({mul_m, any_input(), any_input()});
     auto shape_of_m = wrap_type<v3::ShapeOf>({mul_m});
     auto norm_m = std::make_shared<Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
 
@@ -250,12 +246,9 @@ ov::pass::activations_scaling::EliminateScalarMul::EliminateScalarMul() {
 ov::pass::activations_scaling::MulShareTransformation::MulShareTransformation() {
     MATCHER_SCOPE(MulShareTransformation);
 
-    auto mvn_m =
-        wrap_type<v6::MVN>({any_input(), any_input()});
-    auto rms_m = wrap_type<ov::op::internal::RMS>(
-        {any_input(), any_input()});
-    auto group_norm_m = wrap_type<v12::GroupNormalization>(
-        {any_input(), any_input(), any_input()});
+    auto mvn_m = wrap_type<v6::MVN>({any_input(), any_input()});
+    auto rms_m = wrap_type<ov::op::internal::RMS>({any_input(), any_input()});
+    auto group_norm_m = wrap_type<v12::GroupNormalization>({any_input(), any_input(), any_input()});
     auto shape_of_m = wrap_type<v3::ShapeOf>({any_input()});
     auto norm_m = std::make_shared<Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
 

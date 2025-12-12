@@ -25,7 +25,6 @@
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
 
@@ -104,8 +103,7 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_we
             std::vector<int32_t> new_order(fc_input_b->get_output_partial_shape(0).size());
             std::iota(new_order.begin(), new_order.end(), 0);
             std::swap(new_order[new_order.size() - 1], new_order[new_order.size() - 2]);
-            transpose_const =
-                std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{new_order.size()}, new_order);
+            transpose_const = std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{new_order.size()}, new_order);
         }
 
         fc_input_b = transpose->clone_with_new_inputs({fc_input_b->output(0), transpose_const});
@@ -121,8 +119,7 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_we
         }
     }
 
-    fc_input_zp =
-        with_zero_point ? fc_input_zp : std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{0});
+    fc_input_zp = with_zero_point ? fc_input_zp : std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{0});
     ov::disable_constant_folding(fc_input_zp);
     result_nodes.push_back(fc_input_zp);
 
@@ -185,7 +182,6 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(fully_connected,
-                                                          "ConvertFullyConnectedToFullyConnectedCompressed");
+    auto m = std::make_shared<Matcher>(fully_connected, "ConvertFullyConnectedToFullyConnectedCompressed");
     this->register_matcher(m, callback);
 }

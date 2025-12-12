@@ -15,7 +15,6 @@
 #include "openvino/op/negative.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -29,9 +28,8 @@ ov::pass::ConvertNegative::ConvertNegative() {
             return false;
         }
 
-        auto mul = std::make_shared<ov::op::v1::Multiply>(
-            neg->input(0).get_source_output(),
-            v0::Constant::create(neg->get_element_type(), Shape{}, {-1}));
+        auto mul = std::make_shared<ov::op::v1::Multiply>(neg->input(0).get_source_output(),
+                                                          v0::Constant::create(neg->get_element_type(), Shape{}, {-1}));
         mul->set_friendly_name(neg->get_friendly_name());
         ov::copy_runtime_info(neg, mul);
         ov::replace_node(neg, mul);

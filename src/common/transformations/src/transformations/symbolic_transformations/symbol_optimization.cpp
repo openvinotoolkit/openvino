@@ -22,7 +22,6 @@
 #include "openvino/op/util/op_types.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
@@ -241,8 +240,7 @@ std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<o
         if (ov::as_type_ptr<v0::Parameter>(op)) {
             op->get_rt_info()[op_depends_on_parameter] = true;
         } else if (ov::as_type_ptr<v0::Constant>(op) || ov::as_type_ptr<v0::ShapeOf>(op) ||
-                   ov::as_type_ptr<v3::ShapeOf>(op) ||
-                   std::dynamic_pointer_cast<op_util::VariableExtension>(op)) {
+                   ov::as_type_ptr<v3::ShapeOf>(op) || std::dynamic_pointer_cast<op_util::VariableExtension>(op)) {
             op->get_rt_info()[op_depends_on_parameter] = false;
         } else {  // deduce op type from inputs
             const auto& inputs = op->input_values();

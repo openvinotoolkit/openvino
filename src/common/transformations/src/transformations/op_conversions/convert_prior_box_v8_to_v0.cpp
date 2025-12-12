@@ -10,7 +10,6 @@
 #include "openvino/op/prior_box.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -44,8 +43,8 @@ ov::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
         attrs_v0.scale_all_sizes = attrs_v8.scale_all_sizes;
 
         auto prior_box_v0 = std::make_shared<v0::PriorBox>(prior_box_v8_node->input_value(0),
-                                                                   prior_box_v8_node->input_value(1),
-                                                                   attrs_v0);
+                                                           prior_box_v8_node->input_value(1),
+                                                           attrs_v0);
         prior_box_v0->set_friendly_name(prior_box_v8_node->get_friendly_name());
         ov::copy_runtime_info(prior_box_v8_node, prior_box_v0);
         ov::replace_node(prior_box_v8_node, prior_box_v0);

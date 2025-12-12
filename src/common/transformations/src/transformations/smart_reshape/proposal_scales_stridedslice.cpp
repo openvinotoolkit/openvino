@@ -16,10 +16,9 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -55,13 +54,11 @@ ov::pass::Proposal1Scales::Proposal1Scales() {
     });
 
     auto optional_convert = ov::pass::pattern::optional<v0::Convert>(parameter_label);
-    auto reshape_label = wrap_type<v1::Reshape>(
-        {optional_convert, wrap_type<v0::Constant>()},
-        [](const Output<Node>& output) {
+    auto reshape_label =
+        wrap_type<v1::Reshape>({optional_convert, wrap_type<v0::Constant>()}, [](const Output<Node>& output) {
             return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
         });
-    auto proposal_label = wrap_type<v0::Proposal>(
-        {any_input(), any_input(), reshape_label});
+    auto proposal_label = wrap_type<v0::Proposal>({any_input(), any_input(), reshape_label});
 
     matcher_pass_callback callback = [parameter_label, proposal_label](Matcher& m) -> bool {
         return crop_scales_for_proposal(m.get_pattern_value_map(), parameter_label, proposal_label);
@@ -79,13 +76,11 @@ ov::pass::Proposal4Scales::Proposal4Scales() {
                (shape[1].get_length() == 3 || shape[1].get_length() == 4);
     });
     auto optional_convert = ov::pass::pattern::optional<v0::Convert>(parameter_label);
-    auto reshape_label = wrap_type<v1::Reshape>(
-        {optional_convert, wrap_type<v0::Constant>()},
-        [](const Output<Node>& output) {
+    auto reshape_label =
+        wrap_type<v1::Reshape>({optional_convert, wrap_type<v0::Constant>()}, [](const Output<Node>& output) {
             return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
         });
-    auto proposal_label = wrap_type<ov::op::v4::Proposal>(
-        {any_input(), any_input(), reshape_label});
+    auto proposal_label = wrap_type<ov::op::v4::Proposal>({any_input(), any_input(), reshape_label});
 
     matcher_pass_callback callback = [parameter_label, proposal_label](Matcher& m) -> bool {
         return crop_scales_for_proposal(m.get_pattern_value_map(), parameter_label, proposal_label);

@@ -13,7 +13,6 @@
 using namespace ov;
 using namespace ov::pass::transpose_sinking;
 
-
 using ov::pass::pattern::Matcher;
 TSResetNoSinkingAttribute::TSResetNoSinkingAttribute() {
     MATCHER_SCOPE(TSResetNoSinkingAttribute);

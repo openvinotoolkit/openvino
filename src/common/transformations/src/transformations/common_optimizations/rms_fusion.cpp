@@ -20,9 +20,8 @@
 #include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::op::Or;
 
 namespace v0 = ov::op::v0;

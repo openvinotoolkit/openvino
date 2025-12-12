@@ -29,8 +29,8 @@ using namespace std;
 using namespace ov::element;
 
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -42,8 +42,7 @@ static std::shared_ptr<ov::Node> get_bias_add(const std::shared_ptr<ov::Node>& b
     auto input_source_1_ps = bias_add->input_value(1).get_partial_shape();
     if (input_source_1_ps.is_static() && input_source_1_ps.rank().get_length() == 1) {
         auto unsqueeze =
-            rg.make<v0::Unsqueeze>(bias_add->input_value(1),
-                                           v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
+            rg.make<v0::Unsqueeze>(bias_add->input_value(1), v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
         bias_add->input(1).replace_source_output(unsqueeze);
     }
 
@@ -61,9 +60,8 @@ static std::shared_ptr<ov::Node> get_weights_matmul(const std::shared_ptr<ov::No
                                                     ov::pass::NodeRegistry& rg) {
     if (auto matmul = ov::as_type_ptr<v0::MatMul>(mat_mul)) {
         if (!matmul->get_transpose_b()) {
-            auto transpose =
-                rg.make<v1::Transpose>(matmul->input_value(1),
-                                               v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0}));
+            auto transpose = rg.make<v1::Transpose>(matmul->input_value(1),
+                                                    v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0}));
             matmul->input(1).replace_source_output(transpose);
         }
     }
@@ -80,10 +78,8 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
         return !(p_shape.rank().is_dynamic() || p_shape[1].is_dynamic());
     };
 
-    auto concat_1 = wrap_type<v0::Concat>(
-        {any_input(is_first_dim_static), any_input(is_first_dim_static)});
-    auto matmul_1 =
-        wrap_type<v0::MatMul>({concat_1, any_input(is_first_dim_static)});
+    auto concat_1 = wrap_type<v0::Concat>({any_input(is_first_dim_static), any_input(is_first_dim_static)});
+    auto matmul_1 = wrap_type<v0::MatMul>({concat_1, any_input(is_first_dim_static)});
     auto add_1 = wrap_type<v1::Add>({matmul_1, any_input()});
     // only Sigmoid is supported in the current version of AUGRUCell
     auto sigmoid = wrap_type<v0::Sigmoid>({add_1});
@@ -91,14 +87,12 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
     auto multiply = wrap_type<v1::Multiply>({split, any_input()});
 
     auto concat_2 = wrap_type<v0::Concat>({any_input(), multiply});
-    auto matmul_2 =
-        wrap_type<v0::MatMul>({concat_2, any_input(is_first_dim_static)});
+    auto matmul_2 = wrap_type<v0::MatMul>({concat_2, any_input(is_first_dim_static)});
     auto add_2 = wrap_type<v1::Add>({matmul_2, any_input()});
     // only Tanh is supported in the current version of AUGRUCell
     auto tanh = wrap_type<v0::Tanh>({add_2});
 
-    auto subtract_1 = wrap_type<v1::Subtract>(
-        {any_input(), any_input()});
+    auto subtract_1 = wrap_type<v1::Subtract>({any_input(), any_input()});
     auto multiply_2 = wrap_type<v1::Multiply>({subtract_1, split});
     auto subtract_2 = wrap_type<v1::Subtract>({any_input(), multiply_2});
     auto multiply_3 = wrap_type<v1::Multiply>({subtract_2, tanh});
@@ -140,12 +134,10 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
         auto split_W_r_z = rg.make<v1::Split>(split_WRrz->output(0), axis_0, 2);
         auto split_R_r_z = rg.make<v1::Split>(split_WRrz->output(1), axis_0, 2);
         auto split_WRh = rg.make<v1::VariadicSplit>(WRh, axis_1, split_lenghts);
-        auto Wzrh = rg.make<v0::Concat>(
-            OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)},
-            0);
-        auto Rzrh = rg.make<v0::Concat>(
-            OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)},
-            0);
+        auto Wzrh =
+            rg.make<v0::Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
+        auto Rzrh =
+            rg.make<v0::Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
 
         auto squeeze_B = rg.make<v0::Squeeze>(B, axis_0);
         auto cell =

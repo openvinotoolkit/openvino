@@ -10,7 +10,6 @@
 #include "openvino/op/multiclass_nms.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v8 = ov::op::v8;

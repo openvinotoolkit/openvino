@@ -31,8 +31,8 @@ using namespace ov::element;
 using namespace ov::pass;
 
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::op::Or;
 
 namespace v0 = ov::op::v0;
@@ -74,12 +74,10 @@ tuple<ov::Output<ov::Node>, ov::Output<ov::Node>> process_weights(NodeRegistry& 
         auto split_WRrz = rg.make<v1::VariadicSplit>(WR, axis_1, split_lenghts);
         auto split_W_r_z = rg.make<v1::Split>(split_WRrz->output(0), axis_0, 2);
         auto split_R_r_z = rg.make<v1::Split>(split_WRrz->output(1), axis_0, 2);
-        auto Wzrh = rg.make<v0::Concat>(
-            OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)},
-            0);
-        auto Rzrh = rg.make<v0::Concat>(
-            OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)},
-            0);
+        auto Wzrh =
+            rg.make<v0::Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
+        auto Rzrh =
+            rg.make<v0::Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
         return {Wzrh, Rzrh};
     }
 }
@@ -94,24 +92,19 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
         return !(p_shape.rank().is_dynamic() || p_shape[1].is_dynamic());
     };
 
-    auto concat_1 = wrap_type<v0::Concat>(
-        {any_input(is_first_dim_static), any_input(is_first_dim_static)});
-    auto matmul_1 =
-        wrap_type<v0::MatMul>({concat_1, any_input(is_first_dim_static)});
+    auto concat_1 = wrap_type<v0::Concat>({any_input(is_first_dim_static), any_input(is_first_dim_static)});
+    auto matmul_1 = wrap_type<v0::MatMul>({concat_1, any_input(is_first_dim_static)});
     auto add_1 = wrap_type<v1::Add>({matmul_1, any_input()});
     auto optional_bias_add_1 = make_shared<Or>(OutputVector{matmul_1, add_1});
-    auto activation_1 =
-        wrap_type<v0::Relu, v0::Tanh, v0::Sigmoid>({optional_bias_add_1});
+    auto activation_1 = wrap_type<v0::Relu, v0::Tanh, v0::Sigmoid>({optional_bias_add_1});
     auto split = wrap_type<v1::Split>({activation_1, any_input()});
 
     auto multiply_1 = wrap_type<v1::Multiply>({split, any_input()});
     auto concat_2 = wrap_type<v0::Concat>({any_input(), multiply_1});
-    auto matmul_2 =
-        wrap_type<v0::MatMul>({concat_2, any_input(is_first_dim_static)});
+    auto matmul_2 = wrap_type<v0::MatMul>({concat_2, any_input(is_first_dim_static)});
     auto add_2 = wrap_type<v1::Add>({matmul_2, any_input()});
     auto optional_bias_add_2 = make_shared<Or>(OutputVector{matmul_2, add_2});
-    auto activation_2 =
-        wrap_type<v0::Relu, v0::Tanh, v0::Sigmoid>({optional_bias_add_2});
+    auto activation_2 = wrap_type<v0::Relu, v0::Tanh, v0::Sigmoid>({optional_bias_add_2});
 
     auto subtract = wrap_type<v1::Subtract>({any_input(), split});
     auto multiply_2 = wrap_type<v1::Multiply>({subtract, activation_2});

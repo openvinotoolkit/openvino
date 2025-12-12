@@ -26,10 +26,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::has_static_shape;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -293,8 +292,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
-        const auto reshape_2_node =
-            ov::as_type_ptr<v1::Reshape>(pattern_to_output.at(reshape_2).get_node_shared_ptr());
+        const auto reshape_2_node = ov::as_type_ptr<v1::Reshape>(pattern_to_output.at(reshape_2).get_node_shared_ptr());
         const auto mul_node = ov::as_type_ptr<v1::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr());
         if (!reshape_2_node || !mul_node)
             return false;
@@ -304,8 +302,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         if (!mul_const_node)
             return false;
 
-        const auto reshape_1_node =
-            ov::as_type_ptr<v1::Reshape>(pattern_to_output.at(reshape_1).get_node_shared_ptr());
+        const auto reshape_1_node = ov::as_type_ptr<v1::Reshape>(pattern_to_output.at(reshape_1).get_node_shared_ptr());
         if (!reshape_1_node)
             return false;
 
@@ -325,8 +322,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
             return false;
         }
 
-        const auto concat_1_node =
-            ov::as_type_ptr<v0::Concat>(pattern_to_output.at(concat_1).get_node_shared_ptr());
+        const auto concat_1_node = ov::as_type_ptr<v0::Concat>(pattern_to_output.at(concat_1).get_node_shared_ptr());
         if (!concat_1_node)
             return false;
 
@@ -334,8 +330,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         if (!check_concat_1(concat_1_node, input_shape))
             return false;
 
-        const auto concat_2_node =
-            ov::as_type_ptr<v0::Concat>(pattern_to_output.at(concat_2).get_node_shared_ptr());
+        const auto concat_2_node = ov::as_type_ptr<v0::Concat>(pattern_to_output.at(concat_2).get_node_shared_ptr());
         if (!concat_2_node)
             return false;
 
@@ -373,8 +368,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         const auto& input_node = pattern_to_output.at(input);
         const auto& type = input_node.get_element_type();
         const auto scales_node = v0::Constant::create(type, {scales.size()}, scales);
-        const auto sizes_node =
-            v0::Constant::create(element::i64, {new_spatial_shape.size()}, new_spatial_shape);
+        const auto sizes_node = v0::Constant::create(element::i64, {new_spatial_shape.size()}, new_spatial_shape);
 
         std::vector<int64_t> axes(input_rank - 2);
         std::iota(axes.begin(), axes.end(), static_cast<int64_t>(1));

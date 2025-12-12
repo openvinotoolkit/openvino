@@ -10,7 +10,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 
-
 using ov::pass::pattern::Matcher;
 ov::pass::DisableRandomUniformConstantFolding::DisableRandomUniformConstantFolding() {
     auto random_uniform = ov::pass::pattern::wrap_type<ov::op::v8::RandomUniform>();

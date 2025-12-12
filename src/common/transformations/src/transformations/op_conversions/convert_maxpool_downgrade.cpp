@@ -26,9 +26,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -50,12 +49,12 @@ ov::pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
                 return false;
 
         auto maxpool_v1_node = std::make_shared<v1::MaxPool>(maxpool_v8_node->input_value(0),
-                                                                     maxpool_v8_node->get_strides(),
-                                                                     maxpool_v8_node->get_pads_begin(),
-                                                                     maxpool_v8_node->get_pads_end(),
-                                                                     maxpool_v8_node->get_kernel(),
-                                                                     maxpool_v8_node->get_rounding_type(),
-                                                                     maxpool_v8_node->get_auto_pad());
+                                                             maxpool_v8_node->get_strides(),
+                                                             maxpool_v8_node->get_pads_begin(),
+                                                             maxpool_v8_node->get_pads_end(),
+                                                             maxpool_v8_node->get_kernel(),
+                                                             maxpool_v8_node->get_rounding_type(),
+                                                             maxpool_v8_node->get_auto_pad());
 
         maxpool_v1_node->set_friendly_name(maxpool_v8_node->get_friendly_name());
         maxpool_v8_node->output(0).replace(maxpool_v1_node->output(0));
@@ -121,12 +120,12 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
 
             // gather output spatial dims and prepare it for compare as values (out_dim - 1) * stride
             const auto mp = node_registry.make<v8::MaxPool>(input,
-                                                                    max_pool_v14->get_strides(),
-                                                                    max_pool_v14->get_dilations(),
-                                                                    max_pool_v14->get_pads_begin(),
-                                                                    max_pool_v14->get_pads_end(),
-                                                                    max_pool_v14->get_kernel(),
-                                                                    ov::op::RoundingType::CEIL);
+                                                            max_pool_v14->get_strides(),
+                                                            max_pool_v14->get_dilations(),
+                                                            max_pool_v14->get_pads_begin(),
+                                                            max_pool_v14->get_pads_end(),
+                                                            max_pool_v14->get_kernel(),
+                                                            ov::op::RoundingType::CEIL);
             const auto shape_of_mp = node_registry.make<ShapeOf>(mp, element::i32);
             const auto gth_out_dims = node_registry.make<Gather>(shape_of_mp, dim_idxs, zero);
             const auto out_sub_one = node_registry.make<Subtract>(gth_out_dims, one);
@@ -150,27 +149,27 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
             std::fill_n(pads_end.begin(), pads_end.size(), 0);
 
             max_pool_v8 = node_registry.make<v8::MaxPool>(pad_node,
-                                                                  max_pool_v14->get_strides(),
-                                                                  max_pool_v14->get_dilations(),
-                                                                  pads_begin,
-                                                                  pads_end,
-                                                                  max_pool_v14->get_kernel(),
-                                                                  ov::op::RoundingType::CEIL,
-                                                                  ov::op::PadType::EXPLICIT,
-                                                                  max_pool_v14->get_index_element_type(),
-                                                                  max_pool_v14->get_axis());
+                                                          max_pool_v14->get_strides(),
+                                                          max_pool_v14->get_dilations(),
+                                                          pads_begin,
+                                                          pads_end,
+                                                          max_pool_v14->get_kernel(),
+                                                          ov::op::RoundingType::CEIL,
+                                                          ov::op::PadType::EXPLICIT,
+                                                          max_pool_v14->get_index_element_type(),
+                                                          max_pool_v14->get_axis());
             copy_runtime_info(max_pool_v14, node_registry.get());
         } else {
             max_pool_v8 = std::make_shared<v8::MaxPool>(max_pool_v14->input_value(0),
-                                                                max_pool_v14->get_strides(),
-                                                                max_pool_v14->get_dilations(),
-                                                                max_pool_v14->get_pads_begin(),
-                                                                max_pool_v14->get_pads_end(),
-                                                                max_pool_v14->get_kernel(),
-                                                                rounding_type_v14,
-                                                                max_pool_v14->get_auto_pad(),
-                                                                max_pool_v14->get_index_element_type(),
-                                                                max_pool_v14->get_axis());
+                                                        max_pool_v14->get_strides(),
+                                                        max_pool_v14->get_dilations(),
+                                                        max_pool_v14->get_pads_begin(),
+                                                        max_pool_v14->get_pads_end(),
+                                                        max_pool_v14->get_kernel(),
+                                                        rounding_type_v14,
+                                                        max_pool_v14->get_auto_pad(),
+                                                        max_pool_v14->get_index_element_type(),
+                                                        max_pool_v14->get_axis());
             copy_runtime_info(max_pool_v14, max_pool_v8);
         }
         max_pool_v8->set_friendly_name(max_pool_v14->get_friendly_name());

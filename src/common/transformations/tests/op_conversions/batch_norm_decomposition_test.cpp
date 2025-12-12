@@ -27,7 +27,6 @@
 using namespace ov;
 using namespace testing;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
@@ -52,13 +51,12 @@ std::shared_ptr<ov::Model> get_ref_model_with_dyn_shapes(ov::element::Type preci
     // create new shape [1, C, 1, 1, ...]
     const auto new_shape = std::make_shared<v0::Concat>(OutputVector{one, C_dim, tail_shape}, 0);
 
-    std::shared_ptr<Node> gamma_div_scale_aligned =
-        std::make_shared<v1::Reshape>(gamma_div_scale, new_shape, true);
+    std::shared_ptr<Node> gamma_div_scale_aligned = std::make_shared<v1::Reshape>(gamma_div_scale, new_shape, true);
     std::shared_ptr<Node> beta_aligned = std::make_shared<v1::Reshape>(beta, new_shape, true);
     std::shared_ptr<Node> mean_aligned = std::make_shared<v1::Reshape>(mean, new_shape, true);
-    std::shared_ptr<Node> mean_negative = std::make_shared<v1::Multiply>(
-        mean_aligned,
-        v0::Constant::create(mean_aligned->get_output_element_type(0), Shape{}, {-1}));
+    std::shared_ptr<Node> mean_negative =
+        std::make_shared<v1::Multiply>(mean_aligned,
+                                       v0::Constant::create(mean_aligned->get_output_element_type(0), Shape{}, {-1}));
 
     // input_sub_mean = input + mean * -1
     auto input_sub_mean = std::make_shared<v1::Add>(input, mean_negative);

@@ -16,7 +16,6 @@
 
 using namespace ov;
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v1 = ov::op::v1;

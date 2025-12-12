@@ -27,7 +27,6 @@
 
 using namespace testing;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 class MoveEltwiseUpThroughDataMovTest : public TransformationTestsF {};

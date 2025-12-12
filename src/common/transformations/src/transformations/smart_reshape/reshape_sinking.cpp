@@ -15,11 +15,10 @@
 
 using namespace std;
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::rank_equals;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -37,22 +36,15 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
      *     |    shape=[1, S, O]                      |    shape=[B, S, O]
      */
     auto input_pattern = any_input(ov::pass::pattern::has_static_rank());
-    auto reshape_label = wrap_type<v1::Reshape>(
-        {input_pattern, wrap_type<v0::Constant>()},
-        rank_equals(2));
+    auto reshape_label = wrap_type<v1::Reshape>({input_pattern, wrap_type<v0::Constant>()}, rank_equals(2));
 
-    auto matmul_label = wrap_type<v0::MatMul>(
-        {reshape_label, wrap_type<v0::Constant>()},
-        rank_equals(2));
-    auto add_label = wrap_type<v1::Add>(
-        {matmul_label, wrap_type<v0::Constant>()},
-        rank_equals(2));
+    auto matmul_label = wrap_type<v0::MatMul>({reshape_label, wrap_type<v0::Constant>()}, rank_equals(2));
+    auto add_label = wrap_type<v1::Add>({matmul_label, wrap_type<v0::Constant>()}, rank_equals(2));
 
     auto matmul_or_matmul_add_label = make_shared<ov::pass::pattern::op::Or>(OutputVector{add_label, matmul_label});
 
-    auto reshape_1_label = wrap_type<v1::Reshape>(
-        {matmul_or_matmul_add_label, wrap_type<v0::Constant>()},
-        ov::pass::pattern::has_static_rank());
+    auto reshape_1_label = wrap_type<v1::Reshape>({matmul_or_matmul_add_label, wrap_type<v0::Constant>()},
+                                                  ov::pass::pattern::has_static_rank());
 
     matcher_pass_callback callback = [=](Matcher& m) -> bool {
         auto pattern_to_node = m.get_pattern_map();
@@ -150,8 +142,7 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
 
         vector<int64_t> output_pattern_vector(input_rank - 1, 0);
         output_pattern_vector.push_back(K);
-        auto new_reshape_constant =
-            v0::Constant::create(ov::element::i64, Shape{input_rank}, output_pattern_vector);
+        auto new_reshape_constant = v0::Constant::create(ov::element::i64, Shape{input_rank}, output_pattern_vector);
         reshape->input(1).replace_source_output(new_reshape_constant->output(0));
 
         output_pattern[0] = 0;

@@ -22,7 +22,6 @@
 
 using namespace ov;
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -47,11 +46,10 @@ Output<ov::Node> align_indices(const Output<ov::Node>& indices,
 
     const auto default_indices =
         v0::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
-    std::shared_ptr<ov::Node> adjusted_indices =
-        op_util::make_try_fold<ov::op::v3::ScatterUpdate>(default_indices,
-                                                               slice_axes,
-                                                               indices,  // updates
-                                                               scatter_axis);
+    std::shared_ptr<ov::Node> adjusted_indices = op_util::make_try_fold<ov::op::v3::ScatterUpdate>(default_indices,
+                                                                                                   slice_axes,
+                                                                                                   indices,  // updates
+                                                                                                   scatter_axis);
 
     if (!op_util::is_constant(adjusted_indices)) {
         new_ops.push_back(default_indices);
@@ -102,9 +100,8 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
 
         std::shared_ptr<v0::Constant> axes_const;
         if (slice_node->get_input_size() > 4) {
-            axes_const = use_shapes
-                             ? ov::util::get_constant_from_source(slice_node->input_value(4))
-                             : ov::as_type_ptr<v0::Constant>(slice_node->input_value(4).get_node_shared_ptr());
+            axes_const = use_shapes ? ov::util::get_constant_from_source(slice_node->input_value(4))
+                                    : ov::as_type_ptr<v0::Constant>(slice_node->input_value(4).get_node_shared_ptr());
         } else {
             axes_const = slice_node->get_default_const_axes(start_input);
         }

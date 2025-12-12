@@ -22,9 +22,8 @@ using namespace ov;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace op_util = ov::op::util;
@@ -72,11 +71,10 @@ TSReductionForward::TSReductionForward() {
         }
 
         auto new_transpose_order = v0::Constant::create(transpose_order->get_element_type(),
-                                                                {transpose_order_values.size()},
-                                                                transpose_order_values);
+                                                        {transpose_order_values.size()},
+                                                        transpose_order_values);
 
-        auto new_const =
-            v0::Constant::create(reduction_axes->get_element_type(), {new_values.size()}, new_values);
+        auto new_const = v0::Constant::create(reduction_axes->get_element_type(), {new_values.size()}, new_values);
         main_node->input(1).replace_source_output(new_const);
         TransposeInputsInfo transpose_input_info = {transpose_info.transpose, new_transpose_order, 0};
         // deletes Transpose from 0 input
@@ -97,15 +95,13 @@ TSReductionForward::TSReductionForward() {
 TSReductionBackward::TSReductionBackward() {
     MATCHER_SCOPE(TSReductionBackward);
 
-    auto reduce_label =
-        wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
-            {ov::pass::pattern::any_input(), wrap_type<v0::Constant>()},
-            CheckTransposeConsumers);
-    auto transpose_label = wrap_type<ov::op::v1::Transpose>(
-        {reduce_label, wrap_type<v0::Constant>()},
-        [](const Output<Node>& output) -> bool {
-            return ov::pass::pattern::has_static_rank()(output);
-        });
+    auto reduce_label = wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
+        {ov::pass::pattern::any_input(), wrap_type<v0::Constant>()},
+        CheckTransposeConsumers);
+    auto transpose_label = wrap_type<ov::op::v1::Transpose>({reduce_label, wrap_type<v0::Constant>()},
+                                                            [](const Output<Node>& output) -> bool {
+                                                                return ov::pass::pattern::has_static_rank()(output);
+                                                            });
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
@@ -132,16 +128,15 @@ TSReductionBackward::TSReductionBackward() {
         }
         auto reversed_order_values = ReverseTransposeOrder(transpose_order_values);
         auto new_transpose_order = v0::Constant::create(transpose_order->get_element_type(),
-                                                                {transpose_order_values.size()},
-                                                                transpose_order_values);
+                                                        {transpose_order_values.size()},
+                                                        transpose_order_values);
 
         std::vector<size_t> new_values;
         for (const auto& axis : non_negative_axes) {
             new_values.push_back(reversed_order_values[axis]);
         }
 
-        auto new_const =
-            v0::Constant::create(reduction_axes->get_element_type(), {new_values.size()}, new_values);
+        auto new_const = v0::Constant::create(reduction_axes->get_element_type(), {new_values.size()}, new_values);
         main_node->input(1).replace_source_output(new_const);
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, new_transpose_order, {0})) {
             register_new_node(new_node);

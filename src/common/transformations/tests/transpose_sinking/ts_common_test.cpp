@@ -28,7 +28,6 @@ using namespace ov::pass::transpose_sinking;
 using namespace transpose_sinking::testing;
 using namespace transpose_sinking::testing::utils;
 
-
 namespace v0 = ov::op::v0;
 namespace v8 = ov::op::v8;
 namespace transpose_sinking {

@@ -114,8 +114,7 @@ std::shared_ptr<ov::Node> extract_diagonal(const std::shared_ptr<ov::Node>& data
         std::vector<size_t> label_indices = {dim_iota.begin() + dimension_iter,
                                              dim_iota.begin() + dimension_iter + num_repeats};
         auto repeated_label_indices_len = v0::Constant::create(ov::element::i64, {}, {num_repeats});
-        auto repeated_label_indices =
-            v0::Constant::create(ov::element::i64, ov::Shape({num_repeats}), label_indices);
+        auto repeated_label_indices = v0::Constant::create(ov::element::i64, ov::Shape({num_repeats}), label_indices);
         auto repeated_dimensions =
             std::make_shared<v7::Gather>(shapeof_transposed_data, repeated_label_indices, const_0);
         auto repeated_dimension = std::make_shared<v7::Gather>(repeated_dimensions, const_0, const_0);
@@ -139,10 +138,9 @@ std::shared_ptr<ov::Node> extract_diagonal(const std::shared_ptr<ov::Node>& data
 
     // Process unrepeated labels, do not perform flatten or pads on dimensions.
     std::vector<size_t> unrepeated_indices_after_transpose = {dim_iota.begin() + dimension_iter, dim_iota.end()};
-    const auto& unrepeated_dimensions_indices =
-        v0::Constant::create(ov::element::i64,
-                                     {unrepeated_indices_after_transpose.size()},
-                                     unrepeated_indices_after_transpose);
+    const auto& unrepeated_dimensions_indices = v0::Constant::create(ov::element::i64,
+                                                                     {unrepeated_indices_after_transpose.size()},
+                                                                     unrepeated_indices_after_transpose);
     const auto unrepeated_dimensions =
         std::make_shared<v7::Gather>(shapeof_transposed_data, unrepeated_dimensions_indices, const_0);
     begins.insert(begins.end(), unrepeated_indices_after_transpose.size(), const_0);
@@ -152,8 +150,7 @@ std::shared_ptr<ov::Node> extract_diagonal(const std::shared_ptr<ov::Node>& data
 
     // Flatten the tensor to isolate diagonal elements
     auto flatten_labels_shape_target = std::make_shared<v0::Concat>(flattened_shapes, 0);
-    auto flatten_labels =
-        std::make_shared<v1::Reshape>(transpose_group_labels, flatten_labels_shape_target, false);
+    auto flatten_labels = std::make_shared<v1::Reshape>(transpose_group_labels, flatten_labels_shape_target, false);
 
     // Pad the tensor to prepare for gathering diagonal elements
     auto pad_begin = std::make_shared<v0::Concat>(begins, 0);
@@ -172,8 +169,7 @@ std::shared_ptr<ov::Node> extract_diagonal(const std::shared_ptr<ov::Node>& data
     }
 
     // Squeeze the tensor to remove the reduced dimensions
-    auto squeeze_reduced_axes =
-        v0::Constant::create(ov::element::i64, ov::Shape({reduced_axes.size()}), reduced_axes);
+    auto squeeze_reduced_axes = v0::Constant::create(ov::element::i64, ov::Shape({reduced_axes.size()}), reduced_axes);
     auto diagonal = std::make_shared<v0::Squeeze>(gather, squeeze_reduced_axes);
 
     return diagonal;
@@ -202,16 +198,13 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul) {
 
         // Broadcast data_1 and data_2 to common broadcasted shapes for common and reduced subshapes.
         // Subgraphes are constant-folded, target subshapes are calculated broadcast_merge_shapes function.
-        auto broadcast_shape_constant_1 =
-            v0::Constant::create(element::i64, Shape{data_shape_1.size()}, {5, 2});
-        auto broadcast_shape_constant_2 =
-            v0::Constant::create(element::i64, Shape{data_shape_2.size()}, {10, 25, 2});
-        auto broadcast_1 = std::make_shared<v3::Broadcast>(data_1,
-                                                                   broadcast_shape_constant_1,
-                                                                   ov::op::BroadcastType::BIDIRECTIONAL);
+        auto broadcast_shape_constant_1 = v0::Constant::create(element::i64, Shape{data_shape_1.size()}, {5, 2});
+        auto broadcast_shape_constant_2 = v0::Constant::create(element::i64, Shape{data_shape_2.size()}, {10, 25, 2});
+        auto broadcast_1 =
+            std::make_shared<v3::Broadcast>(data_1, broadcast_shape_constant_1, ov::op::BroadcastType::BIDIRECTIONAL);
         auto broadcast_2 = std::make_shared<v3::Broadcast>(transpose_2,
-                                                                   broadcast_shape_constant_2,
-                                                                   ov::op::BroadcastType::BIDIRECTIONAL);
+                                                           broadcast_shape_constant_2,
+                                                           ov::op::BroadcastType::BIDIRECTIONAL);
         // Optionally reshape broadcasted data_1 and data_2 so separate and reduced labels are represented by one
         // dimension. Subgraphes are constant-folded, target subshapes are calculated broadcast_merge_shapes function.
         auto shape_constant_1 = v0::Constant::create(element::i64, Shape{2}, {5, 2});

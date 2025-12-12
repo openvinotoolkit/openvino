@@ -22,9 +22,8 @@ using namespace ov;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -44,8 +43,7 @@ std::vector<size_t> get_indices_by_op_type(const std::shared_ptr<Node>& main_nod
 
 TSDataMovementForward::TSDataMovementForward() {
     MATCHER_SCOPE(TSDataMovementForward);
-    create_pattern<op::util::PadBase, v1::BatchToSpace, v1::SpaceToBatch, v0::ReverseSequence>(
-        {0});
+    create_pattern<op::util::PadBase, v1::BatchToSpace, v1::SpaceToBatch, v0::ReverseSequence>({0});
 
     auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {
@@ -78,8 +76,8 @@ TSDataMovementForward::TSDataMovementForward() {
 TSDataMovementBackward::TSDataMovementBackward() {
     MATCHER_SCOPE(TSDataMovementBackward);
 
-    auto main_node_label = ov::pass::pattern::
-        wrap_type<op::util::PadBase, v1::BatchToSpace, v1::SpaceToBatch, v0::ReverseSequence>(
+    auto main_node_label =
+        ov::pass::pattern::wrap_type<op::util::PadBase, v1::BatchToSpace, v1::SpaceToBatch, v0::ReverseSequence>(
             [](const Output<Node>& output) -> bool {
                 return ov::pass::pattern::has_static_rank()(output) && CheckTransposeConsumers(output);
             });
@@ -87,10 +85,9 @@ TSDataMovementBackward::TSDataMovementBackward() {
     auto transpose_const_label = wrap_type<v0::Constant>();
 
     auto transpose_label =
-        wrap_type<v1::Transpose>({main_node_label, transpose_const_label},
-                                                            [](const Output<Node>& output) -> bool {
-                                                                return ov::pass::pattern::has_static_rank()(output);
-                                                            });
+        wrap_type<v1::Transpose>({main_node_label, transpose_const_label}, [](const Output<Node>& output) -> bool {
+            return ov::pass::pattern::has_static_rank()(output);
+        });
 
     matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();

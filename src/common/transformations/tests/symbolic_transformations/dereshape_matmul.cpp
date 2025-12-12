@@ -23,7 +23,6 @@
 using namespace ov;
 using namespace std;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace op_util = ov::op::util;
@@ -265,8 +264,7 @@ public:
         }
 
         if (bea_scalar_mode == 1 || bea_scalar_mode == 3)
-            lhs_output =
-                make_shared<v1::Multiply>(lhs_output, v0::Constant::create(element::f32, {}, {0.125}));
+            lhs_output = make_shared<v1::Multiply>(lhs_output, v0::Constant::create(element::f32, {}, {0.125}));
 
         // RHS input of MatMul
         auto rhs_input = make_shared<v0::Parameter>(element::f32, rhs_original_pshape);
@@ -287,19 +285,16 @@ public:
         }
 
         if (bea_scalar_mode == 2 || bea_scalar_mode == 3)
-            rhs_output =
-                make_shared<v1::Multiply>(rhs_output, v0::Constant::create(element::f32, {}, {0.125}));
+            rhs_output = make_shared<v1::Multiply>(rhs_output, v0::Constant::create(element::f32, {}, {0.125}));
 
         Output<Node> matmul = make_shared<v0::MatMul>(lhs_output, rhs_output);
 
         if (final_add_mode == 1)  // 1 - add has matmul on lhs
-            matmul = make_shared<v1::Add>(
-                matmul,
-                v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}));
+            matmul =
+                make_shared<v1::Add>(matmul, v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}));
         else if (final_add_mode == 2)  // 2 - add has matmul on rhs
-            matmul = make_shared<v1::Add>(
-                v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}),
-                matmul);
+            matmul =
+                make_shared<v1::Add>(v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}), matmul);
 
         auto output_reshape = reshape(matmul, out_reshape_idx, dims);
 
@@ -309,9 +304,7 @@ public:
         outputs.emplace_back(output_reshape);
 
         for (auto& output : outputs)
-            output = std::make_shared<v1::Reshape>(output,
-                                                           v0::Constant::create(element::i32, {1}, {-1}),
-                                                           false);
+            output = std::make_shared<v1::Reshape>(output, v0::Constant::create(element::i32, {1}, {-1}), false);
         auto output = make_shared<v0::Concat>(outputs, 0);
         model = make_shared<Model>(output, inputs, "Tested model");
     }
@@ -354,8 +347,7 @@ public:
         }
 
         if (bea_scalar_mode == 1 || bea_scalar_mode == 3)
-            lhs_output =
-                make_shared<v1::Multiply>(lhs_output, v0::Constant::create(element::f32, {}, {0.125}));
+            lhs_output = make_shared<v1::Multiply>(lhs_output, v0::Constant::create(element::f32, {}, {0.125}));
 
         // RHS input of MatMul
         auto rhs_input = make_shared<v0::Parameter>(element::f32, rhs_original_pshape);
@@ -383,23 +375,18 @@ public:
         }
 
         if (bea_scalar_mode == 2 || bea_scalar_mode == 3)
-            rhs_output =
-                make_shared<v1::Multiply>(rhs_output, v0::Constant::create(element::f32, {}, {0.125}));
+            rhs_output = make_shared<v1::Multiply>(rhs_output, v0::Constant::create(element::f32, {}, {0.125}));
 
         Output<Node> matmul = make_shared<v0::MatMul>(lhs_output, rhs_output);
 
         if (final_add_mode > 0) {
-            const auto original_add_in =
-                v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1});
+            const auto original_add_in = v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1});
             auto divisor = op_util::node_to_get_shape_value_of_indices_from_shape_source(lhs_input, {1});
             auto first_batch_dim =
-                std::make_shared<v1::Divide>(v0::Constant::create(element::i64, {1}, {1}),
-                                                     divisor,
-                                                     true);
+                std::make_shared<v1::Divide>(v0::Constant::create(element::i64, {1}, {1}), divisor, true);
             auto minus_one = v0::Constant::create(element::i64, {1}, {-1});
             auto non_batch_dims = v0::Constant::create(element::i64, {2}, {1, 1});
-            auto pattern =
-                std::make_shared<v0::Concat>(OutputVector{first_batch_dim, minus_one, non_batch_dims}, 0);
+            auto pattern = std::make_shared<v0::Concat>(OutputVector{first_batch_dim, minus_one, non_batch_dims}, 0);
             auto other_input_reshape = op::util::make_try_fold<v1::Reshape>(original_add_in, pattern, true);
 
             if (final_add_mode == 1) {  // 1 - add has matmul on lhs
@@ -414,9 +401,7 @@ public:
         outputs.emplace_back(matmul);
 
         for (auto& output : outputs)
-            output = std::make_shared<v1::Reshape>(output,
-                                                           v0::Constant::create(element::i32, {1}, {-1}),
-                                                           false);
+            output = std::make_shared<v1::Reshape>(output, v0::Constant::create(element::i32, {1}, {-1}), false);
         auto output = make_shared<v0::Concat>(outputs, 0);
 
         model_ref = make_shared<Model>(output, inputs, "Reference model");

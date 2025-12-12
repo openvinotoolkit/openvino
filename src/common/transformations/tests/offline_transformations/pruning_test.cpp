@@ -47,7 +47,6 @@
 #include "openvino/util/env_util.hpp"
 #include "transformations/init_node_info.hpp"
 
-
 namespace v1 = ov::op::v1;
 namespace v12 = ov::op::v12;
 #define VISUALIZE_TESTS_TREE false

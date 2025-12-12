@@ -18,9 +18,8 @@ using namespace ov;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 TSConcatForward::TSConcatForward() {
@@ -74,8 +73,7 @@ TSConcatBackward::TSConcatBackward() {
 
     auto transpose_const_label = wrap_type<v0::Constant>();
 
-    auto transpose_label =
-        wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
+    auto transpose_label = wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
                                                             [](const Output<Node>& output) -> bool {
                                                                 return ov::pass::pattern::has_static_rank()(output);
                                                             });

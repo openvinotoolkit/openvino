@@ -14,7 +14,6 @@
 using namespace ov;
 using namespace testing;
 
-
 namespace v0 = ov::op::v0;
 namespace {
 template <typename TOpFunc>

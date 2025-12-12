@@ -31,7 +31,6 @@
 
 using namespace ov;
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -62,8 +61,7 @@ std::vector<std::vector<uint64_t>> grouped_vector(const std::vector<uint64_t>& v
     return result;
 }
 
-std::pair<std::shared_ptr<v1::Split>, uint64_t> get_split_before_concat(
-    const std::shared_ptr<v0::Concat>& concat) {
+std::pair<std::shared_ptr<v1::Split>, uint64_t> get_split_before_concat(const std::shared_ptr<v0::Concat>& concat) {
     // This function gets producers of the 'concat' node, checks that the following conditions are fulfilled:
     // 1) all producers for 'concat' are Split nodes;
     // 2) 'concat' has only one unique producer ('split');
@@ -229,11 +227,8 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
         if (!sizes_node)
             sizes_node = cast_mul_result_to_int;
 
-        auto interpolate = register_new_node<v4::Interpolate>(split->input_value(0),
-                                                                      sizes_node,
-                                                                      scales_node,
-                                                                      axis_node,
-                                                                      attrs);
+        auto interpolate =
+            register_new_node<v4::Interpolate>(split->input_value(0), sizes_node, scales_node, axis_node, attrs);
 
         interpolate->set_friendly_name(concat->get_friendly_name());
         copy_runtime_info({split, concat},

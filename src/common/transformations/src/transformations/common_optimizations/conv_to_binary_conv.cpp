@@ -21,10 +21,9 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -45,15 +44,10 @@ static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) 
 
 ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
     MATCHER_SCOPE(ConvToBinaryConv);
-    auto fq_pattern =
-        wrap_type<v0::FakeQuantize>({any_input(),
-                                                                any_input(),
-                                                                any_input(),
-                                                                wrap_type<v0::Constant>(),
-                                                                wrap_type<v0::Constant>()},
-                                                               ov::pass::pattern::consumers_count(1));
-    auto conv_pattern = wrap_type<v1::Convolution>(
-        {fq_pattern, wrap_type<v0::Constant>()});
+    auto fq_pattern = wrap_type<v0::FakeQuantize>(
+        {any_input(), any_input(), any_input(), wrap_type<v0::Constant>(), wrap_type<v0::Constant>()},
+        ov::pass::pattern::consumers_count(1));
+    auto conv_pattern = wrap_type<v1::Convolution>({fq_pattern, wrap_type<v0::Constant>()});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         auto conv = ov::as_type_ptr<v1::Convolution>(m.get_match_root());
@@ -99,16 +93,16 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
             std::make_shared<v0::Constant>(element::u1, weights_constant->get_shape(), bin_weights.data());
 
         if (output_low_is_zero && output_high_is_one) {
-            auto new_conv = std::make_shared<v1::BinaryConvolution>(
-                conv->input_value(0),
-                bin_weights_constant,
-                conv->get_strides(),
-                conv->get_pads_begin(),
-                conv->get_pads_end(),
-                conv->get_dilations(),
-                v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
-                -1.f,
-                conv->get_auto_pad());
+            auto new_conv =
+                std::make_shared<v1::BinaryConvolution>(conv->input_value(0),
+                                                        bin_weights_constant,
+                                                        conv->get_strides(),
+                                                        conv->get_pads_begin(),
+                                                        conv->get_pads_end(),
+                                                        conv->get_dilations(),
+                                                        v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
+                                                        -1.f,
+                                                        conv->get_auto_pad());
             new_conv->set_friendly_name(conv->get_friendly_name());
             std::vector<int64_t> axes;
             std::vector<int64_t> weights_reduced_shape = {-1};
@@ -128,24 +122,23 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
                 false);
             weights_reduced_reshaped = ov::util::get_constant_from_source(weights_reduced_reshaped);
             auto add = std::make_shared<v1::Add>(new_conv, weights_reduced_reshaped);
-            auto mul =
-                std::make_shared<v1::Multiply>(add, v0::Constant::create(element::f32, Shape{}, {0.5}));
+            auto mul = std::make_shared<v1::Multiply>(add, v0::Constant::create(element::f32, Shape{}, {0.5}));
             copy_runtime_info(conv, {new_conv, add, mul});
             replace_node(conv, mul);
 
             return true;
         }
 
-        auto new_conv = std::make_shared<v1::BinaryConvolution>(
-            conv->input_value(0),
-            bin_weights_constant,
-            conv->get_strides(),
-            conv->get_pads_begin(),
-            conv->get_pads_end(),
-            conv->get_dilations(),
-            v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
-            0.f,
-            conv->get_auto_pad());
+        auto new_conv =
+            std::make_shared<v1::BinaryConvolution>(conv->input_value(0),
+                                                    bin_weights_constant,
+                                                    conv->get_strides(),
+                                                    conv->get_pads_begin(),
+                                                    conv->get_pads_end(),
+                                                    conv->get_dilations(),
+                                                    v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
+                                                    0.f,
+                                                    conv->get_auto_pad());
 
         new_conv->set_friendly_name(conv->get_friendly_name());
         copy_runtime_info(conv, new_conv);

@@ -20,11 +20,10 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
-using ov::pass::pattern::op::Or;
 using ov::pass::pattern::rank_equals;
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::op::Or;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -32,12 +31,8 @@ namespace op_util = ov::op::util;
 ov::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
     MATCHER_SCOPE(SpaceToBatchFusion);
     auto data_pattern = ov::pass::pattern::any_input();
-    auto reshape_before_pattern = wrap_type<v1::Reshape>(
-        {data_pattern, wrap_type<v0::Constant>()},
-        rank_equals(4));
-    auto trans_before_pattern = wrap_type<v1::Transpose>(
-        {data_pattern, wrap_type<v0::Constant>()},
-        rank_equals(4));
+    auto reshape_before_pattern = wrap_type<v1::Reshape>({data_pattern, wrap_type<v0::Constant>()}, rank_equals(4));
+    auto trans_before_pattern = wrap_type<v1::Transpose>({data_pattern, wrap_type<v0::Constant>()}, rank_equals(4));
     auto reshape_or_transpose_before_pattern =
         std::make_shared<Or>(OutputVector{reshape_before_pattern, trans_before_pattern});
     auto pads_begin_pattern = wrap_type<v0::Constant>();
@@ -45,14 +40,11 @@ ov::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
     auto pad_value = wrap_type<v0::Constant>();
     auto pad_pattern = wrap_type<op_util::PadBase>(
         {reshape_or_transpose_before_pattern, pads_begin_pattern, pads_end_pattern, pad_value});
-    auto space_to_depth_pattern =
-        wrap_type<v0::SpaceToDepth>({pad_pattern}, ov::pass::pattern::has_static_shape());
-    auto reshape_after_pattern = wrap_type<v1::Reshape>(
-        {space_to_depth_pattern, wrap_type<v0::Constant>()},
-        rank_equals(4));
-    auto trans_after_pattern = wrap_type<v1::Transpose>(
-        {space_to_depth_pattern, wrap_type<v0::Constant>()},
-        rank_equals(4));
+    auto space_to_depth_pattern = wrap_type<v0::SpaceToDepth>({pad_pattern}, ov::pass::pattern::has_static_shape());
+    auto reshape_after_pattern =
+        wrap_type<v1::Reshape>({space_to_depth_pattern, wrap_type<v0::Constant>()}, rank_equals(4));
+    auto trans_after_pattern =
+        wrap_type<v1::Transpose>({space_to_depth_pattern, wrap_type<v0::Constant>()}, rank_equals(4));
     auto reshape_or_transpose_after_pattern =
         std::make_shared<Or>(OutputVector{reshape_after_pattern, trans_after_pattern});
 
@@ -129,10 +121,8 @@ ov::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
         auto block_size = static_cast<int64_t>(space_to_depth->get_block_size());
         auto block_shape =
             v0::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{1, 1, block_size, block_size});
-        auto space_to_batch = register_new_node<v1::SpaceToBatch>(pattern_map.at(data_pattern),
-                                                                          block_shape,
-                                                                          pads_begin,
-                                                                          pads_end);
+        auto space_to_batch =
+            register_new_node<v1::SpaceToBatch>(pattern_map.at(data_pattern), block_shape, pads_begin, pads_end);
         space_to_batch->set_friendly_name(reshape_or_trans_after->get_friendly_name());
 
         copy_runtime_info(

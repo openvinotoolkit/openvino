@@ -18,7 +18,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -65,8 +64,7 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
         new_iou_threshold = std::make_shared<v1::Reshape>(iou_threshold, new_shape_for_iou_threshold, true);
         new_ops.emplace_back(new_iou_threshold.get_node_shared_ptr());
 
-        new_score_threshold =
-            std::make_shared<v1::Reshape>(score_threshold, new_shape_for_score_threshold, true);
+        new_score_threshold = std::make_shared<v1::Reshape>(score_threshold, new_shape_for_score_threshold, true);
         new_ops.emplace_back(new_score_threshold.get_node_shared_ptr());
 
         int center_point_box = 0;
@@ -84,8 +82,7 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
         std::shared_ptr<op::internal::NonMaxSuppressionIEInternal> nms_legacy{nullptr};
 
         if (num_of_inputs > 5 && !nms_9->is_soft_nms_sigma_constant_and_default()) {
-            new_soft_nms_sigma =
-                std::make_shared<v1::Reshape>(new_args.at(5), new_shape_for_soft_nms_sigma, true);
+            new_soft_nms_sigma = std::make_shared<v1::Reshape>(new_args.at(5), new_shape_for_soft_nms_sigma, true);
             new_ops.emplace_back(new_soft_nms_sigma.get_node_shared_ptr());
             nms_legacy =
                 std::make_shared<op::internal::NonMaxSuppressionIEInternal>(new_args.at(0),

@@ -19,27 +19,24 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::consumers_count;
 using ov::pass::pattern::has_static_shape;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     MATCHER_SCOPE(PullTransposeThroughFQUp);
     const auto weights = wrap_type<v0::Constant>();
-    const auto convert_p =
-        ov::pass::pattern::optional<v0::Convert>(weights, consumers_count(1));
-    auto m_fq = wrap_type<v0::FakeQuantize>(
-        {convert_p,
-         any_input(has_static_shape()),
-         any_input(has_static_shape()),
-         any_input(has_static_shape()),
-         any_input(has_static_shape())},
-        consumers_count(1));
+    const auto convert_p = ov::pass::pattern::optional<v0::Convert>(weights, consumers_count(1));
+    auto m_fq = wrap_type<v0::FakeQuantize>({convert_p,
+                                             any_input(has_static_shape()),
+                                             any_input(has_static_shape()),
+                                             any_input(has_static_shape()),
+                                             any_input(has_static_shape())},
+                                            consumers_count(1));
     auto m_transpose_perm = wrap_type<v0::Constant>();
     auto m_transpose = wrap_type<v1::Transpose>({m_fq, m_transpose_perm});
 

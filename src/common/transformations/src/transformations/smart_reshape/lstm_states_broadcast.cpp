@@ -22,7 +22,6 @@
 
 using namespace std;
 
-
 namespace v0 = ov::op::v0;
 namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
@@ -42,9 +41,8 @@ ov::Input<ov::Node> get_outer_input_of_ti_by_parameter(const shared_ptr<v0::Para
                    parameter);
 }
 
-shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(
-    const shared_ptr<v0::TensorIterator>& ti,
-    const shared_ptr<v4::LSTMCell>& lstm_cell) {
+shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(const shared_ptr<v0::TensorIterator>& ti,
+                                                                      const shared_ptr<v4::LSTMCell>& lstm_cell) {
     const auto& body = ti->get_body();  // body is not nullptr -- we checked earlier
 
     map<v0::Parameter*, ov::PartialShape> original_shapes;
@@ -102,10 +100,10 @@ shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(
 
     const auto& batched_source = get_outer_input_of_ti_by_parameter(batch_delivering_parameter, ti);
     const auto& batched_shape = make_shared<v3::ShapeOf>(batched_source.get_source_output());
-    const auto& batch = make_shared<v8::Gather>(
-        batched_shape,
-        v0::Constant::create(ov::element::i64, ov::Shape{1}, {index_of_batch_dim}),
-        v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    const auto& batch =
+        make_shared<v8::Gather>(batched_shape,
+                                v0::Constant::create(ov::element::i64, ov::Shape{1}, {index_of_batch_dim}),
+                                v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
     return batch;
 }
 
@@ -121,13 +119,12 @@ bool broadcast_state_by_batch(ov::Input<ov::Node> input, const shared_ptr<ov::No
     const auto& constant_copy = constant_state->copy_with_new_inputs({});
     const auto& broadcast_by_batch = make_shared<v3::Broadcast>(
         constant_copy,
-        make_shared<v0::Concat>(
-            ov::NodeVector{batch_delivering_node,
-                           op_util::make_try_fold<v8::Gather>(
-                               op_util::make_try_fold<v3::ShapeOf>(constant_copy),
-                               v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
-                               v0::Constant::create(ov::element::i64, ov::Shape{}, {0}))},
-            0));
+        make_shared<v0::Concat>(ov::NodeVector{batch_delivering_node,
+                                               op_util::make_try_fold<v8::Gather>(
+                                                   op_util::make_try_fold<v3::ShapeOf>(constant_copy),
+                                                   v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+                                                   v0::Constant::create(ov::element::i64, ov::Shape{}, {0}))},
+                                0));
     input.replace_source_output(broadcast_by_batch->output(0));
     return true;
 }
@@ -154,8 +151,8 @@ bool relax_batch_for_initial_states_of_lstm(const shared_ptr<v4::LSTMCell>& lstm
     const auto& batched_shape = make_shared<v3::ShapeOf>(lstm_cell->get_input_source_output(0));
     const auto& batch_delivering_node =
         make_shared<v8::Gather>(batched_shape,
-                                        v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
-                                        v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+                                v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
+                                v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
     rewritten = broadcast_state_by_batch(lstm_cell->input(1), batch_delivering_node) || rewritten;
     rewritten = broadcast_state_by_batch(lstm_cell->input(2), batch_delivering_node) || rewritten;
     return rewritten;

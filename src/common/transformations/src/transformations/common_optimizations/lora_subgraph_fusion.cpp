@@ -21,11 +21,10 @@
 #include "ov_ops/lora_subgraph.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -34,32 +33,24 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
     MATCHER_SCOPE(LoraSubgraphFusion);
     auto lora_input_m = any_input();
     auto transpose_const1_m = wrap_type<v0::Constant>(consumers_count(1));
-    auto transpose1_m = ov::pass::pattern::optional<v1::Transpose>({lora_input_m, transpose_const1_m},
-                                                                           consumers_count(1));
+    auto transpose1_m =
+        ov::pass::pattern::optional<v1::Transpose>({lora_input_m, transpose_const1_m}, consumers_count(1));
 
     auto read_value1_m = wrap_type<op_util::ReadValueBase>();
-    auto convert1_m =
-        ov::pass::pattern::optional<v0::Convert>(read_value1_m, consumers_count(1));
-    auto matmul1_m = wrap_type<v0::MatMul>({transpose1_m, convert1_m},
-                                                                      consumers_count(1));
+    auto convert1_m = ov::pass::pattern::optional<v0::Convert>(read_value1_m, consumers_count(1));
+    auto matmul1_m = wrap_type<v0::MatMul>({transpose1_m, convert1_m}, consumers_count(1));
 
     auto read_value2_m = wrap_type<op_util::ReadValueBase>();
-    auto convert2_m =
-        ov::pass::pattern::optional<v0::Convert>(read_value2_m, consumers_count(1));
-    auto multiply_m = wrap_type<v1::Multiply>({matmul1_m, convert2_m},
-                                                                         consumers_count(1));
+    auto convert2_m = ov::pass::pattern::optional<v0::Convert>(read_value2_m, consumers_count(1));
+    auto multiply_m = wrap_type<v1::Multiply>({matmul1_m, convert2_m}, consumers_count(1));
 
     auto read_value3_m = wrap_type<op_util::ReadValueBase>();
-    auto convert3_m =
-        ov::pass::pattern::optional<v0::Convert>(read_value3_m, consumers_count(1));
-    auto matmul2_m = wrap_type<v0::MatMul>({multiply_m, convert3_m},
-                                                                      consumers_count(1));
+    auto convert3_m = ov::pass::pattern::optional<v0::Convert>(read_value3_m, consumers_count(1));
+    auto matmul2_m = wrap_type<v0::MatMul>({multiply_m, convert3_m}, consumers_count(1));
 
     auto transpose_const2_m = wrap_type<v0::Constant>(consumers_count(1));
-    auto transpose2_m = ov::pass::pattern::optional<v1::Transpose>({matmul2_m, transpose_const2_m},
-                                                                           consumers_count(1));
-    auto main_flow_m = wrap_type<v0::MatMul, v1::Convolution>(
-        {lora_input_m, any_input()});
+    auto transpose2_m = ov::pass::pattern::optional<v1::Transpose>({matmul2_m, transpose_const2_m}, consumers_count(1));
+    auto main_flow_m = wrap_type<v0::MatMul, v1::Convolution>({lora_input_m, any_input()});
     auto add_m = wrap_type<v1::Add>({transpose2_m, main_flow_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {

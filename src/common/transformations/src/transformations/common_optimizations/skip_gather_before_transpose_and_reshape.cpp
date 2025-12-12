@@ -17,9 +17,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -59,14 +58,12 @@ ov::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndResha
         }
 
         const auto transpose = pattern_map.at(transpose_m).get_node_shared_ptr();
-        const auto transpose_const =
-            as_type_ptr<v0::Constant>(pattern_map.at(transpose_const_m).get_node_shared_ptr());
+        const auto transpose_const = as_type_ptr<v0::Constant>(pattern_map.at(transpose_const_m).get_node_shared_ptr());
         if (!transpose_const) {
             return false;
         }
 
-        const auto reshape_const =
-            as_type_ptr<v0::Constant>(pattern_map.at(reshape_const_m).get_node_shared_ptr());
+        const auto reshape_const = as_type_ptr<v0::Constant>(pattern_map.at(reshape_const_m).get_node_shared_ptr());
         if (!reshape_const) {
             return false;
         }
@@ -85,9 +82,8 @@ ov::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndResha
             new_transpose_vals.push_back(++elem);
         }
 
-        const auto new_transpose_const = v0::Constant::create(transpose_const->get_element_type(),
-                                                                      {new_transpose_vals.size()},
-                                                                      new_transpose_vals);
+        const auto new_transpose_const =
+            v0::Constant::create(transpose_const->get_element_type(), {new_transpose_vals.size()}, new_transpose_vals);
         const auto new_transpose = transpose->clone_with_new_inputs({input, new_transpose_const});
         new_transpose->set_friendly_name(transpose->get_friendly_name());
         ov::copy_runtime_info({transpose, gather}, new_transpose);

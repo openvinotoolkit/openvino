@@ -18,7 +18,6 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
@@ -49,13 +48,13 @@ std::shared_ptr<ov::Model> create_v1_model(const ov::op::RoundingType rounding_t
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
     const auto avg_pool_v1 = std::make_shared<v1::AvgPool>(input,
-                                                                   strides,
-                                                                   pads_begin,
-                                                                   pads_end,
-                                                                   kernel,
-                                                                   true,
-                                                                   rounding_type,
-                                                                   ov::op::PadType::EXPLICIT);
+                                                           strides,
+                                                           pads_begin,
+                                                           pads_end,
+                                                           kernel,
+                                                           true,
+                                                           rounding_type,
+                                                           ov::op::PadType::EXPLICIT);
 
     avg_pool_v1->set_friendly_name("avg_pool_v1");
 
@@ -94,13 +93,13 @@ std::shared_ptr<ov::Model> create_exclude_pad_workaround_model() {
     const auto pads_begin_zeros = ov::Shape{0, 0};
     const auto pads_end_zeros = ov::Shape{0, 0};
     const auto avg_pool_v1 = std::make_shared<v1::AvgPool>(pad_node,
-                                                                   strides,
-                                                                   pads_begin_zeros,
-                                                                   pads_end_zeros,
-                                                                   kernel,
-                                                                   false,
-                                                                   ov::op::RoundingType::CEIL,
-                                                                   ov::op::PadType::EXPLICIT);
+                                                           strides,
+                                                           pads_begin_zeros,
+                                                           pads_end_zeros,
+                                                           kernel,
+                                                           false,
+                                                           ov::op::RoundingType::CEIL,
+                                                           ov::op::PadType::EXPLICIT);
 
     avg_pool_v1->set_friendly_name("avg_pool_v1");
 

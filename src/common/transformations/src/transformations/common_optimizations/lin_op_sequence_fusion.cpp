@@ -18,11 +18,10 @@
 
 using namespace ov;
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -39,8 +38,7 @@ ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
     // Create Add->Multiply pattern where Add has exactly one consumer
     auto m_data = any_input();
     auto m_add_constant = wrap_type<v0::Constant>();
-    auto m_add =
-        wrap_type<v1::Add>({m_data, m_add_constant}, consumers_count(1));
+    auto m_add = wrap_type<v1::Add>({m_data, m_add_constant}, consumers_count(1));
     auto m_mul_constant = wrap_type<v0::Constant>();
     auto m_mul = wrap_type<v1::Multiply>({m_add, m_mul_constant});
 
@@ -87,8 +85,7 @@ ov::pass::AddAddFusion::AddAddFusion() {
     // Create Add->Add pattern where first Add has exactly one consumer
     auto m_data = any_input();
     auto m_add1_constant = wrap_type<v0::Constant>();
-    auto m_add1 =
-        wrap_type<v1::Add>({m_data, m_add1_constant}, consumers_count(1));
+    auto m_add1 = wrap_type<v1::Add>({m_data, m_add1_constant}, consumers_count(1));
     auto m_add2_constant = wrap_type<v0::Constant>();
     auto m_add2 = wrap_type<v1::Add>({m_add1, m_add2_constant});
 
@@ -122,8 +119,7 @@ ov::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     // Create Multiply->Multiply pattern where first Multiply has exactly one consumer
     auto m_data = any_input();
     auto m_mul1_constant = wrap_type<v0::Constant>();
-    auto m_mul1 =
-        wrap_type<v1::Multiply>({m_data, m_mul1_constant}, is_eltwise_supported_type);
+    auto m_mul1 = wrap_type<v1::Multiply>({m_data, m_mul1_constant}, is_eltwise_supported_type);
     auto m_mul2_constant = wrap_type<v0::Constant>();
     auto m_mul2 = wrap_type<v1::Multiply>({m_mul1, m_mul2_constant});
 

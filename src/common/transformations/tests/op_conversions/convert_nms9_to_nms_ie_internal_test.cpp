@@ -24,7 +24,6 @@
 using namespace testing;
 using namespace ov;
 
-
 namespace v0 = ov::op::v0;
 TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
     {

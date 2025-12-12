@@ -20,9 +20,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v8 = ov::op::v8;
@@ -32,9 +31,9 @@ ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
     const auto shape_pattern = ov::pass::pattern::any_input();
     const auto ru_min_const_pattern = wrap_type<v0::Constant>();
     const auto ru_max_const_pattern = wrap_type<v0::Constant>();
-    const auto random_uniform_pattern = wrap_type<v8::RandomUniform>(
-        {shape_pattern, ru_min_const_pattern, ru_max_const_pattern},
-        ov::pass::pattern::consumers_count(1));
+    const auto random_uniform_pattern =
+        wrap_type<v8::RandomUniform>({shape_pattern, ru_min_const_pattern, ru_max_const_pattern},
+                                     ov::pass::pattern::consumers_count(1));
 
     const auto optional_convert = ov::pass::pattern::optional<v0::Convert>(random_uniform_pattern);
     const auto add_const_pattern = wrap_type<v0::Constant>();
@@ -57,8 +56,7 @@ ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
             ov::as_type_ptr<v0::Constant>(pattern_map.at(ru_min_const_pattern).get_node_shared_ptr());
         auto max_const_value =
             ov::as_type_ptr<v0::Constant>(pattern_map.at(ru_max_const_pattern).get_node_shared_ptr());
-        auto add_const_value =
-            ov::as_type_ptr<v0::Constant>(pattern_map.at(add_const_pattern).get_node_shared_ptr());
+        auto add_const_value = ov::as_type_ptr<v0::Constant>(pattern_map.at(add_const_pattern).get_node_shared_ptr());
 
         bool valid_constant_values = op_util::has_constant_value<double>(min_const_value, 0.0) &&
                                      op_util::has_constant_value<double>(max_const_value, 1.0);

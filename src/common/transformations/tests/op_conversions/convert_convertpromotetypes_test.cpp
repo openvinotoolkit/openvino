@@ -10,7 +10,6 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/manager.hpp"
 
-
 namespace v0 = ov::op::v0;
 namespace {
 

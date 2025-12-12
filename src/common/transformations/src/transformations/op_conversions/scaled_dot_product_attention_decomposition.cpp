@@ -35,7 +35,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -80,8 +79,8 @@ ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecom
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto node = ov::as_type_ptr<v13::ScaledDotProductAttention>(
-            pattern_to_output.at(pattern_node).get_node_shared_ptr());
+        auto node =
+            ov::as_type_ptr<v13::ScaledDotProductAttention>(pattern_to_output.at(pattern_node).get_node_shared_ptr());
 
         if (node == nullptr || transformation_callback(node)) {
             return false;
@@ -144,9 +143,9 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto k_last_dim = register_new_node<v1::Add>(k_rank, minus_one);
     auto k_next_dim = register_new_node<v1::Add>(k_rank, minus_two)->output(0);
     k_rank = register_new_node<v0::Squeeze>(k_rank, zero_i);
-    auto minus_inf = register_new_node(
-                         v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}))
-                         ->output(0);
+    auto minus_inf =
+        register_new_node(v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}))
+            ->output(0);
     auto keep_dim_last = register_new_node<v0::Squeeze>(k_next_dim, zero_i);
     auto k_dims_before_transpose = register_new_node<v4::Range>(zero_i, keep_dim_last, one_i, element::i32);
 
@@ -186,8 +185,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
             auto tsl = register_new_node<v0::Unsqueeze>(target_s_len, zero_i);
             auto mask_shape = register_new_node<v0::Concat>(OutputVector{tsl, ssl}, 0);
             mask = register_new_node<v1::Broadcast>(minus_inf, mask_shape);
-            auto horizontal_range =
-                register_new_node<v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
+            auto horizontal_range = register_new_node<v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
             horizontal_range = register_new_node<v0::Unsqueeze>(horizontal_range, zero_i);
             auto stop = register_new_node<v1::Add>(target_s_len, one_i);
             auto vertical_range = register_new_node<v4::Range>(one_i, stop, one_i, element::i32)->output(0);
@@ -204,9 +202,8 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         auto zero_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {0}));
         auto one_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {1}));
 
-        auto q_last_but_one_dim =
-            register_new_node<v1::Subtract>(register_new_node<v0::ShapeOf>(q_shape),
-                                                    v0::Constant::create(element::i64, Shape{}, {1}));
+        auto q_last_but_one_dim = register_new_node<v1::Subtract>(register_new_node<v0::ShapeOf>(q_shape),
+                                                                  v0::Constant::create(element::i64, Shape{}, {1}));
         auto sink_target_shape_1 = register_new_node<v8::Slice>(q_shape, zero_i, q_last_but_one_dim, one_i);
         auto sink_target_shape = register_new_node<v0::Concat>(OutputVector{sink_target_shape_1, one_i}, 0);
         auto sink_broadcast = register_new_node<v1::Broadcast>(sink, sink_target_shape);

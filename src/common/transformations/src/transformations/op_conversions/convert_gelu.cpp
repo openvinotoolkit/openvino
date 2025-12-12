@@ -18,7 +18,6 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -35,8 +34,7 @@ ov::pass::ConvertGELU::ConvertGELU() {
         auto input_type = input.get_element_type();
 
         // f(x) = 0.5 * x * (1.0 + erf( x / sqrt(2.0) )
-        auto mul =
-            std::make_shared<v1::Multiply>(input, v0::Constant::create(input_type, Shape{}, {0.5}));
+        auto mul = std::make_shared<v1::Multiply>(input, v0::Constant::create(input_type, Shape{}, {0.5}));
         auto sq2 = std::make_shared<v0::Sqrt>(v0::Constant::create(input_type, Shape{}, {2.0}));
         auto div = register_new_node<v1::Divide>(input, sq2);  // can be decomposed
         auto erf = std::make_shared<v0::Erf>(div);

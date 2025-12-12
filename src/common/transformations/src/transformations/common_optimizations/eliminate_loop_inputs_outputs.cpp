@@ -30,7 +30,6 @@ using OutputDescMap = std::unordered_map<ResultPtr, OutputDescPtr>;
 using InputDescPtr = op_util::MultiSubGraphOp::InputDescription::Ptr;
 using BodyResultIdxMap = std::unordered_map<ResultPtr, uint64_t>;
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -102,8 +101,7 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
 
         const auto& pattern_to_output = m.get_pattern_value_map();
 
-        auto subgraph =
-            as_type_ptr<op_util::SubGraphOp>(pattern_to_output.at(subgraph_label).get_node_shared_ptr());
+        auto subgraph = as_type_ptr<op_util::SubGraphOp>(pattern_to_output.at(subgraph_label).get_node_shared_ptr());
         if (!subgraph) {
             return false;
         }

@@ -27,9 +27,8 @@
 
 using namespace std;
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -43,9 +42,9 @@ public:
     InitNMSPath() {
         MATCHER_SCOPE(InitNMSPath);
         auto nms_pattern = wrap_type<v1::NonMaxSuppression,
-                                                        ov::op::v3::NonMaxSuppression,
-                                                        ov::op::v5::NonMaxSuppression,
-                                                        ov::op::v9::NonMaxSuppression>();
+                                     ov::op::v3::NonMaxSuppression,
+                                     ov::op::v5::NonMaxSuppression,
+                                     ov::op::v9::NonMaxSuppression>();
         matcher_pass_callback callback = [=](Matcher& m) {
             const auto& out_nodes = m.get_match_root()->output(0).get_target_inputs();
             for (const auto& out_node : out_nodes) {
@@ -63,16 +62,16 @@ public:
     PropagateNMSPath() {
         MATCHER_SCOPE(PropagateNMSPath);
         auto node_pattern = wrap_type<v0::Squeeze,
-                                                         v0::Unsqueeze,
-                                                         v1::Reshape,
-                                                         op_util::BroadcastBase,
-                                                         v1::StridedSlice,
-                                                         v8::Slice,
-                                                         v1::VariadicSplit,
-                                                         op_util::GatherBase,
-                                                         v0::Concat,
-                                                         v0::Convert,
-                                                         v8::If>();
+                                      v0::Unsqueeze,
+                                      v1::Reshape,
+                                      op_util::BroadcastBase,
+                                      v1::StridedSlice,
+                                      v8::Slice,
+                                      v1::VariadicSplit,
+                                      op_util::GatherBase,
+                                      v0::Concat,
+                                      v0::Convert,
+                                      v8::If>();
         matcher_pass_callback callback = [=](Matcher& m) {
             auto propagate_path = [](const ov::OutputVector& input_nodes, ov::Node* target_node) {
                 if (any_of(input_nodes.begin(), input_nodes.end(), [](const Output<Node>& output) {

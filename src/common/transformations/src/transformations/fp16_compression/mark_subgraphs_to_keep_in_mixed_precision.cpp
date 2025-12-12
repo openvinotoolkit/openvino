@@ -56,10 +56,9 @@
 
 using namespace std;
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -94,27 +93,26 @@ void erase_fq_path(const std::shared_ptr<Node>& node) {
 }
 
 // Marking continues to propagate through these ops.
-const std::shared_ptr<Node> propagate_through_ops =
-    wrap_type<v0::Squeeze,
-                                 v0::Unsqueeze,
-                                 v1::Reshape,
-                                 op::util::BroadcastBase,
-                                 op::util::BinaryElementwiseArithmetic,
-                                 op::util::UnaryElementwiseArithmetic,
-                                 ov::op::v6::MVN,
-                                 v0::MVN,
-                                 v0::NormalizeL2,
-                                 v0::Sqrt,
-                                 v1::StridedSlice,
-                                 v1::ReduceSum,
-                                 v1::ReduceMean,
-                                 v8::Slice,
-                                 v1::VariadicSplit,
-                                 v1::Split,
-                                 v0::Concat,
-                                 v0::Convert,  // through Convert can go only to Constants
-                                 v0::Constant,
-                                 v0::Tile>();
+const std::shared_ptr<Node> propagate_through_ops = wrap_type<v0::Squeeze,
+                                                              v0::Unsqueeze,
+                                                              v1::Reshape,
+                                                              op::util::BroadcastBase,
+                                                              op::util::BinaryElementwiseArithmetic,
+                                                              op::util::UnaryElementwiseArithmetic,
+                                                              ov::op::v6::MVN,
+                                                              v0::MVN,
+                                                              v0::NormalizeL2,
+                                                              v0::Sqrt,
+                                                              v1::StridedSlice,
+                                                              v1::ReduceSum,
+                                                              v1::ReduceMean,
+                                                              v8::Slice,
+                                                              v1::VariadicSplit,
+                                                              v1::Split,
+                                                              v0::Concat,
+                                                              v0::Convert,  // through Convert can go only to Constants
+                                                              v0::Constant,
+                                                              v0::Tile>();
 
 }  // namespace
 
@@ -346,8 +344,7 @@ public:
         auto eps_const_pattern = wrap_type<v0::Constant>();
         auto optional_eps_convert = ov::pass::pattern::optional<v0::Convert>(eps_const_pattern);
 
-        auto max_or_add = wrap_type<v1::Maximum, v1::Add>(
-            OutputVector{input_2, optional_eps_convert});
+        auto max_or_add = wrap_type<v1::Maximum, v1::Add>(OutputVector{input_2, optional_eps_convert});
 
         auto optional_sqrt = ov::pass::pattern::optional<v0::Sqrt>(max_or_add);
         // whether is divided directly or after sqrt (e.g. in L2Norm after sqrt, in MVN is divided directly)
@@ -413,30 +410,29 @@ public:
         MATCHER_SCOPE(PropagateDownDisableSensitivityForQuantized);
 
         // through this nodes
-        const std::shared_ptr<Node> quantization_propagating_nodes =
-            wrap_type<v0::Squeeze,
-                                         v0::Unsqueeze,
-                                         v0::FakeQuantize,
-                                         v1::Reshape,
-                                         op::util::BroadcastBase,
-                                         v0::DepthToSpace,
-                                         v0::Interpolate,
-                                         ov::op::v4::Interpolate,
-                                         ov::op::v11::Interpolate,
-                                         v1::MaxPool,
-                                         v8::MaxPool,
-                                         op::util::PadBase,
-                                         v1::ReduceMax,
-                                         v1::ReduceMin,
-                                         v0::Relu,
-                                         v1::Transpose,
-                                         v0::ShuffleChannels,
-                                         v1::StridedSlice,
-                                         v8::Slice,
-                                         v1::VariadicSplit,
-                                         v1::Split,
-                                         v0::Concat,
-                                         v0::Tile>();
+        const std::shared_ptr<Node> quantization_propagating_nodes = wrap_type<v0::Squeeze,
+                                                                               v0::Unsqueeze,
+                                                                               v0::FakeQuantize,
+                                                                               v1::Reshape,
+                                                                               op::util::BroadcastBase,
+                                                                               v0::DepthToSpace,
+                                                                               v0::Interpolate,
+                                                                               ov::op::v4::Interpolate,
+                                                                               ov::op::v11::Interpolate,
+                                                                               v1::MaxPool,
+                                                                               v8::MaxPool,
+                                                                               op::util::PadBase,
+                                                                               v1::ReduceMax,
+                                                                               v1::ReduceMin,
+                                                                               v0::Relu,
+                                                                               v1::Transpose,
+                                                                               v0::ShuffleChannels,
+                                                                               v1::StridedSlice,
+                                                                               v8::Slice,
+                                                                               v1::VariadicSplit,
+                                                                               v1::Split,
+                                                                               v0::Concat,
+                                                                               v0::Tile>();
 
         matcher_pass_callback callback = [=](Matcher& m) {
             const auto& node = m.get_match_root();

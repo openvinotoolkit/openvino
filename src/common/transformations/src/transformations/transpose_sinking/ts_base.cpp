@@ -19,7 +19,6 @@ using namespace ov;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
-
 using ov::pass::pattern::Matcher;
 void TSForwardBase::transpose_sinking(const std::string& pass_name,
                                       const TSForwardBase::sinking_function& sinking_transformation) {

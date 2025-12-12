@@ -39,7 +39,6 @@ using namespace testing;
 using namespace ov;
 using namespace opset8;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v12 = ov::op::v12;

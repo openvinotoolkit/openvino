@@ -19,9 +19,8 @@
 
 using namespace ov;
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertConstantFolding() {
@@ -63,8 +62,7 @@ pass::KeepConstAndDecompression::KeepConstAndDecompression() {
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto node = m.get_match_root();
-        if (!is_decompression(node) || !is_type<v0::Convert>(node) ||
-            ov::is_shape_subgraph(node->shared_from_this()))
+        if (!is_decompression(node) || !is_type<v0::Convert>(node) || ov::is_shape_subgraph(node->shared_from_this()))
             return false;
 
         if (transformation_callback(node)) {

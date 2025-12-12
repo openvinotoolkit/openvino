@@ -25,7 +25,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -69,12 +68,10 @@ std::vector<int64_t> get_interpolated_axes(const std::shared_ptr<v4::Interpolate
 
         return default_value;
     }
-    return ov::as_type_ptr<v0::Constant>(interpolate->input_value(3).get_node_shared_ptr())
-        ->cast_vector<int64_t>();
+    return ov::as_type_ptr<v0::Constant>(interpolate->input_value(3).get_node_shared_ptr())->cast_vector<int64_t>();
 }
 
-bool can_be_fused(const std::shared_ptr<v4::Interpolate>& fst,
-                  const std::shared_ptr<v4::Interpolate>& snd) {
+bool can_be_fused(const std::shared_ptr<v4::Interpolate>& fst, const std::shared_ptr<v4::Interpolate>& snd) {
     // The first Interpolate (fst) must have only one consumer.
     for (const auto& output : fst->outputs()) {
         for (const auto& consumer : output.get_target_inputs()) {
@@ -220,8 +217,7 @@ ov::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
         if (!snd_interpolate)
             return false;
 
-        auto fst_interpolate =
-            ov::as_type_ptr<v4::Interpolate>(snd_interpolate->input_value(0).get_node_shared_ptr());
+        auto fst_interpolate = ov::as_type_ptr<v4::Interpolate>(snd_interpolate->input_value(0).get_node_shared_ptr());
         if (!fst_interpolate)
             return false;
 

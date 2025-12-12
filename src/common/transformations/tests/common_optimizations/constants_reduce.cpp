@@ -19,7 +19,6 @@
 using namespace testing;
 using namespace ov;
 
-
 namespace v0 = ov::op::v0;
 TEST(TransformationTests, ConstantsReduce) {
     auto param = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 4});

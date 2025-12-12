@@ -24,7 +24,6 @@
 using namespace ov;
 using namespace std;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
@@ -65,13 +64,12 @@ TEST_F(TransformationTestsF, ApplySymbolEquivalence_Concat_Values) {
 
         auto shape = make_shared<v0::ShapeOf>(concat);
         auto gather = make_shared<v1::Gather>(shape,
-                                                      v0::Constant::create(element::i64, {1}, {-1}),
-                                                      v0::Constant::create(element::i64, {}, {0}));
+                                              v0::Constant::create(element::i64, {1}, {-1}),
+                                              v0::Constant::create(element::i64, {}, {0}));
 
         auto reshape = make_shared<v1::Reshape>(
             concat,
-            make_shared<v0::Concat>(OutputVector{gather, v0::Constant::create(element::i64, {1}, {-1})},
-                                            0),
+            make_shared<v0::Concat>(OutputVector{gather, v0::Constant::create(element::i64, {1}, {-1})}, 0),
             false);
 
         model = make_shared<Model>(OutputVector{reshape}, ParameterVector{input_2, input_1});
@@ -88,20 +86,19 @@ TEST_F(TransformationTestsF, ApplySymbolEquivalence_Concat_Values) {
 
         auto shape_1 = make_shared<v3::ShapeOf>(input_1);
         auto gather_1 = make_shared<v8::Gather>(shape_1,
-                                                        v0::Constant::create(element::i64, {1}, {3}),
-                                                        v0::Constant::create(element::i64, {}, {0}));
+                                                v0::Constant::create(element::i64, {1}, {3}),
+                                                v0::Constant::create(element::i64, {}, {0}));
 
         auto shape_2 = make_shared<v3::ShapeOf>(input_2);
         auto gather_2 = make_shared<v8::Gather>(shape_2,
-                                                        v0::Constant::create(element::i64, {1}, {3}),
-                                                        v0::Constant::create(element::i64, {}, {0}));
+                                                v0::Constant::create(element::i64, {1}, {3}),
+                                                v0::Constant::create(element::i64, {}, {0}));
 
         auto sum = make_shared<v1::Add>(gather_1, gather_2);
 
         auto reshape = make_shared<v1::Reshape>(
             concat,
-            make_shared<v0::Concat>(OutputVector{sum, v0::Constant::create(element::i64, {1}, {-1})},
-                                            0),
+            make_shared<v0::Concat>(OutputVector{sum, v0::Constant::create(element::i64, {1}, {-1})}, 0),
             false);
         model_ref = make_shared<Model>(OutputVector{reshape}, ParameterVector{input_2, input_1});
     }
@@ -110,8 +107,8 @@ TEST_F(TransformationTestsF, ApplySymbolEquivalence_Concat_Values) {
 Output<Node> get_dim_by_idx(const Output<Node>& source, const int64_t& idx, element::Type type = element::i64) {
     auto shape = make_shared<v3::ShapeOf>(source, type);
     auto gather = make_shared<v1::Gather>(shape,
-                                                  v0::Constant::create(element::i64, {}, {idx}),
-                                                  v0::Constant::create(element::i64, {}, {0}));
+                                          v0::Constant::create(element::i64, {}, {idx}),
+                                          v0::Constant::create(element::i64, {}, {0}));
     return gather->output(0);
 }
 
@@ -120,8 +117,8 @@ Output<Node> get_dim_by_idx(const Output<Node>& source,
                             element::Type type = element::i64) {
     auto shape = make_shared<v3::ShapeOf>(source, type);
     auto gather = make_shared<v8::Gather>(shape,
-                                                  v0::Constant::create(element::i64, {idx.size()}, idx),
-                                                  v0::Constant::create(element::i64, {}, {0}));
+                                          v0::Constant::create(element::i64, {idx.size()}, idx),
+                                          v0::Constant::create(element::i64, {}, {0}));
     return gather->output(0);
 }
 
@@ -135,18 +132,16 @@ TEST_F(TransformationTestsF, ValueOptimizationSingleValue) {
 
         auto reshape_0 = make_shared<v1::Reshape>(
             input,
-            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_0},
-                                            0),
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_0}, 0),
             false);
         auto reshape_1 = make_shared<v1::Reshape>(
             input,
-            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_1},
-                                            0),
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_1}, 0),
             false);
         auto range = make_shared<v4::Range>(v0::Constant::create(element::i32, {}, {0}),
-                                                    dim_2,
-                                                    v0::Constant::create(element::i32, {}, {1}),
-                                                    element::i32);
+                                            dim_2,
+                                            v0::Constant::create(element::i32, {}, {1}),
+                                            element::i32);
 
         model = make_shared<Model>(OutputVector{reshape_0, reshape_1, range}, ParameterVector{input});
 
@@ -162,18 +157,16 @@ TEST_F(TransformationTestsF, ValueOptimizationSingleValue) {
         auto dim_2 = std::make_shared<v0::Squeeze>(dim_1);
         auto reshape_0 = make_shared<v1::Reshape>(
             input,
-            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_0},
-                                            0),
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_0}, 0),
             false);
         auto reshape_1 = make_shared<v1::Reshape>(
             input,
-            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_1},
-                                            0),
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_1}, 0),
             false);
         auto range = make_shared<v4::Range>(v0::Constant::create(element::i32, {}, {0}),
-                                                    dim_2,
-                                                    v0::Constant::create(element::i32, {}, {1}),
-                                                    element::i32);
+                                            dim_2,
+                                            v0::Constant::create(element::i32, {}, {1}),
+                                            element::i32);
 
         model_ref = make_shared<Model>(OutputVector{reshape_0, reshape_1, range}, ParameterVector{input});
     }
@@ -189,13 +182,11 @@ TEST_F(TransformationTestsF, ValueOptimizationDoubleValue) {
 
         auto reshape_0 = make_shared<v1::Reshape>(
             input,
-            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_0},
-                                            0),
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_0}, 0),
             false);
         auto reshape_1 = make_shared<v1::Reshape>(
             input,
-            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_1},
-                                            0),
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_1}, 0),
             false);
 
         model = make_shared<Model>(OutputVector{reshape_0, reshape_1}, ParameterVector{input});
@@ -212,13 +203,11 @@ TEST_F(TransformationTestsF, ValueOptimizationDoubleValue) {
 
         auto reshape_0 = make_shared<v1::Reshape>(
             input,
-            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_1},
-                                            0),
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_1}, 0),
             false);
         auto reshape_1 = make_shared<v1::Reshape>(
             input,
-            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_0},
-                                            0),
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_0}, 0),
             false);
 
         model_ref = make_shared<Model>(OutputVector{reshape_0, reshape_1}, ParameterVector{input});
@@ -235,13 +224,11 @@ TEST_F(TransformationTestsF, ValueOptimizationSymbolAndValue) {
 
         auto reshape_0 = make_shared<v1::Reshape>(
             input,
-            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_0},
-                                            0),
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_0}, 0),
             false);
         auto reshape_1 = make_shared<v1::Reshape>(
             input,
-            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {-1}), dim_1},
-                                            0),
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {-1}), dim_1}, 0),
             false);
 
         model = make_shared<Model>(OutputVector{reshape_0, reshape_1}, ParameterVector{input});
@@ -253,9 +240,9 @@ TEST_F(TransformationTestsF, ValueOptimizationSymbolAndValue) {
     }
     {
         auto input = make_shared<v0::Parameter>(element::f32, PartialShape({-1, -1, 4, -1}));
-        auto dim_0 = make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {-1}),
-                                                                  get_dim_by_idx(input, {3, 2}, element::i32)},
-                                                     0);
+        auto dim_0 = make_shared<v0::Concat>(
+            OutputVector{v0::Constant::create(element::i32, {1}, {-1}), get_dim_by_idx(input, {3, 2}, element::i32)},
+            0);
         auto dim_1 = std::make_shared<v0::Convert>(dim_0, element::i64);
 
         auto reshape_0 = make_shared<v1::Reshape>(input, dim_1, false);

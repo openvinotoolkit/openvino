@@ -23,9 +23,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -114,8 +113,7 @@ ov::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         decomp_ops.push_back(after_ish_apply);
 
         // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low))
-        const auto round =
-            std::make_shared<v5::Round>(after_ish_apply, v5::Round::RoundMode::HALF_TO_EVEN);
+        const auto round = std::make_shared<v5::Round>(after_ish_apply, v5::Round::RoundMode::HALF_TO_EVEN);
         decomp_ops.push_back(round);
 
         // (output_high - output_low)

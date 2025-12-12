@@ -10,7 +10,6 @@
 #include "openvino/op/roi_align.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v3 = ov::op::v3;
@@ -50,13 +49,13 @@ ov::pass::ConvertROIAlign9To3::ConvertROIAlign9To3() {
         }
 
         auto roi_align_v3 = std::make_shared<v3::ROIAlign>(roi_align_v9_node->input_value(0),
-                                                                   roi_align_v9_node->input_value(1),
-                                                                   roi_align_v9_node->input_value(2),
-                                                                   pooled_h,
-                                                                   pooled_w,
-                                                                   sampling_ratio,
-                                                                   spatial_scale,
-                                                                   m_mode_v3);
+                                                           roi_align_v9_node->input_value(1),
+                                                           roi_align_v9_node->input_value(2),
+                                                           pooled_h,
+                                                           pooled_w,
+                                                           sampling_ratio,
+                                                           spatial_scale,
+                                                           m_mode_v3);
         roi_align_v3->set_friendly_name(roi_align_v9_node->get_friendly_name());
         ov::copy_runtime_info(roi_align_v9_node, roi_align_v3);
         ov::replace_node(roi_align_v9_node, roi_align_v3);

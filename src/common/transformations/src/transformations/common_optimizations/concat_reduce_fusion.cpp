@@ -24,10 +24,9 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -94,18 +93,16 @@ ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
 ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
     MATCHER_SCOPE(ReplaceConcatReduceByMinOrMax);
 
-    auto concat_pattern = wrap_type<v0::Concat>(
-        {any_input(), any_input()});
+    auto concat_pattern = wrap_type<v0::Concat>({any_input(), any_input()});
     auto reduce_axes_pattern = wrap_type<v0::Constant>();
-    auto reduce_pattern = wrap_type<v1::ReduceMin, v1::ReduceMax>(
-        {concat_pattern, reduce_axes_pattern});
+    auto reduce_pattern = wrap_type<v1::ReduceMin, v1::ReduceMax>({concat_pattern, reduce_axes_pattern});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto concat = as_type_ptr<v0::Concat>(pattern_map.at(concat_pattern).get_node_shared_ptr());
-        auto reduce = as_type_ptr<op_util::ArithmeticReductionKeepDims>(
-            pattern_map.at(reduce_pattern).get_node_shared_ptr());
+        auto reduce =
+            as_type_ptr<op_util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
         if (!reduce || !concat)
             return false;
 
@@ -130,8 +127,7 @@ ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
         copy_runtime_info({concat, reduce}, result_node);
 
         if (!reduce->get_keep_dims()) {
-            const auto squeeze_axis_node =
-                v0::Constant::create(ov::element::i64, {}, {*reduction_axes.begin()});
+            const auto squeeze_axis_node = v0::Constant::create(ov::element::i64, {}, {*reduction_axes.begin()});
             result_node = register_new_node<v0::Squeeze>(result_node, squeeze_axis_node);
             copy_runtime_info({concat, reduce}, result_node);
         }

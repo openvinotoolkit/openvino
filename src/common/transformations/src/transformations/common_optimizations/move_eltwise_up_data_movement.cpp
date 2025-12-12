@@ -29,9 +29,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -76,9 +75,9 @@ std::vector<ov::DiscreteTypeInfo> ov::pass::MoveEltwiseUpThroughDataMov::get_def
 ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
     std::vector<DiscreteTypeInfo> allowed_data_movement_ops) {
     MATCHER_SCOPE(MoveEltwiseUpThroughDataMovScalar);
-    auto eltwise_pattern = wrap_type<op_util::UnaryElementwiseArithmetic,
-                                                        op_util::BinaryElementwiseArithmetic,
-                                                        v0::FakeQuantize>(ov::pass::pattern::has_static_rank());
+    auto eltwise_pattern =
+        wrap_type<op_util::UnaryElementwiseArithmetic, op_util::BinaryElementwiseArithmetic, v0::FakeQuantize>(
+            ov::pass::pattern::has_static_rank());
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -185,13 +184,10 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
         return true;
     };
 
-    auto eltw_data_flow_in =
-        wrap_type<v1::Reshape, v0::Squeeze, v0::Unsqueeze>(
-            ov::pass::pattern::consumers_count(1));
+    auto eltw_data_flow_in = wrap_type<v1::Reshape, v0::Squeeze, v0::Unsqueeze>(ov::pass::pattern::consumers_count(1));
     auto eltw_const_in = wrap_type<v0::Constant>(const_predicate);
     auto eltwise_pattern =
-        wrap_type<op_util::BinaryElementwiseArithmetic>({eltw_data_flow_in, eltw_const_in},
-                                                                                eltw_predicate);
+        wrap_type<op_util::BinaryElementwiseArithmetic>({eltw_data_flow_in, eltw_const_in}, eltw_predicate);
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

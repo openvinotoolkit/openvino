@@ -25,7 +25,6 @@
 using namespace ov;
 using namespace testing;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 TEST_F(TransformationTestsF, FQTransposeTest1) {
@@ -71,8 +70,7 @@ TEST_F(TransformationTestsF, FQTransposeNegativeCase) {
         auto output_high = v0::Constant::create(element::f32, Shape{1}, {3});
         auto transpose_order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
 
-        auto fq =
-            std::make_shared<v0::FakeQuantize>(sigmoid, input_low, input_high, output_low, output_high, 1);
+        auto fq = std::make_shared<v0::FakeQuantize>(sigmoid, input_low, input_high, output_low, output_high, 1);
         auto transpose = std::make_shared<v1::Transpose>(fq, transpose_order);
 
         return std::make_shared<ov::Model>(ov::OutputVector{transpose}, ParameterVector{data});

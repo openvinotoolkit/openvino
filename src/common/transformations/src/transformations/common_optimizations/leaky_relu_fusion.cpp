@@ -16,9 +16,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -26,8 +25,8 @@ ov::pass::LeakyReluFusion::LeakyReluFusion() {
     MATCHER_SCOPE(LeakyReluFusion);
     auto data_pattern = ov::pass::pattern::any_input();
     auto alpha_pattern = wrap_type<v0::Constant>();
-    auto multiply_pattern = wrap_type<v1::Multiply>({data_pattern, alpha_pattern},
-                                                                               ov::pass::pattern::consumers_count(1));
+    auto multiply_pattern =
+        wrap_type<v1::Multiply>({data_pattern, alpha_pattern}, ov::pass::pattern::consumers_count(1));
     auto max_pattern = wrap_type<v1::Maximum>({data_pattern, multiply_pattern});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {

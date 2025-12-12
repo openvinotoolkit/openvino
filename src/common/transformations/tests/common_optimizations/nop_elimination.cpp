@@ -27,7 +27,6 @@
 using namespace ov;
 using namespace std;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v5 = ov::op::v5;
@@ -1319,8 +1318,8 @@ TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
         split = make_shared<v1::Split>(data->output(0), axis_const, p.seq_len / p.split_len);
     } else if (p.split_type == SplitType::VariadicSplit) {
         auto split_lengths = make_shared<v0::Constant>(element::i64,
-                                                               Shape{seq_len / p.split_len},
-                                                               std::vector<size_t>(seq_len / p.split_len, p.split_len));
+                                                       Shape{seq_len / p.split_len},
+                                                       std::vector<size_t>(seq_len / p.split_len, p.split_len));
         split = make_shared<v1::VariadicSplit>(data->output(0), axis_const, split_lengths);
     }
 
@@ -1345,8 +1344,7 @@ TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
         << "SplitConcatElimination transformation has failed. "
            "The number of Concat ops is not " +
                to_string(expect_concat);
-    EXPECT_EQ(count_ops_of_type<v1::Split>(model) + count_ops_of_type<v1::VariadicSplit>(model),
-              expect_split)
+    EXPECT_EQ(count_ops_of_type<v1::Split>(model) + count_ops_of_type<v1::VariadicSplit>(model), expect_split)
         << "SplitConcatElimination transformation has failed. "
            "The number of Split/VariadicSplit ops is not " +
                to_string(expect_split);
@@ -1389,9 +1387,9 @@ TEST(SplitConcatElimination, split_inputs_not_in_order) {
     pass_manager.run_passes(model);
     // the transformation shouldn't be applied
     EXPECT_EQ(count_ops_of_type<v0::Concat>(model), 1) << "SplitConcatElimination transformation has failed. "
-                                                                  "The number of Concat ops is not 1";
+                                                          "The number of Concat ops is not 1";
     EXPECT_EQ(count_ops_of_type<v1::Split>(model), 1) << "SplitConcatElimination transformation has failed. "
-                                                                 "The number of Split ops is not 1";
+                                                         "The number of Split ops is not 1";
 }
 
 TEST(SplitConcatElimination, no_sequence_found) {
@@ -1415,9 +1413,9 @@ TEST(SplitConcatElimination, no_sequence_found) {
     pass_manager.run_passes(model);
     // the transformation shouldn't be applied
     EXPECT_EQ(count_ops_of_type<v0::Concat>(model), 1) << "SplitConcatElimination transformation has failed. "
-                                                                  "The number of Concat ops is not 1";
+                                                          "The number of Concat ops is not 1";
     EXPECT_EQ(count_ops_of_type<v1::Split>(model), 1) << "SplitConcatElimination transformation has failed. "
-                                                                 "The number of Split ops is not 1";
+                                                         "The number of Split ops is not 1";
 }
 
 TEST(nop_elimination, gather_to_squeeze) {
@@ -1572,10 +1570,10 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSlice) {
         auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
         auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
         auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const1,
-                                                                         end_const1,
-                                                                         std::vector<int64_t>{1, 1, 0},
-                                                                         std::vector<int64_t>{1, 1, 0});
+                                                                 begin_const1,
+                                                                 end_const1,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
 
         auto add_param = make_shared<op::v0::Parameter>(element::f32, Shape{2, 10, 3});
         auto add = std::make_shared<op::v1::Add>(strided_slice1, add_param);
@@ -1584,10 +1582,10 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSlice) {
         auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
         auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 18});
         auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const2,
-                                                                         end_const2,
-                                                                         std::vector<int64_t>{1, 1, 0},
-                                                                         std::vector<int64_t>{1, 1, 0});
+                                                                 begin_const2,
+                                                                 end_const2,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
         auto relu = std::make_shared<op::v0::Relu>(strided_slice2);
         auto result2 = std::make_shared<op::v0::Result>(relu);
 
@@ -1609,10 +1607,10 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSlice) {
         auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
         auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 15});
         auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const2,
-                                                                         end_const2,
-                                                                         std::vector<int64_t>{1, 1, 0},
-                                                                         std::vector<int64_t>{1, 1, 0});
+                                                                 begin_const2,
+                                                                 end_const2,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
         auto relu = std::make_shared<op::v0::Relu>(strided_slice2);
         auto result2 = std::make_shared<op::v0::Result>(relu);
 
@@ -1631,10 +1629,10 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceAll) {
         auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
         auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 1});
         auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const1,
-                                                                         end_const1,
-                                                                         std::vector<int64_t>{1, 1, 0},
-                                                                         std::vector<int64_t>{1, 1, 0});
+                                                                 begin_const1,
+                                                                 end_const1,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
 
         auto relu1 = std::make_shared<op::v0::Relu>(strided_slice1);
         auto result1 = std::make_shared<op::v0::Result>(relu1);
@@ -1642,10 +1640,10 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceAll) {
         auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 1});
         auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 4});
         auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const2,
-                                                                         end_const2,
-                                                                         std::vector<int64_t>{1, 1, 0},
-                                                                         std::vector<int64_t>{1, 1, 0});
+                                                                 begin_const2,
+                                                                 end_const2,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
         auto relu2 = std::make_shared<op::v0::Relu>(strided_slice2);
         auto result2 = std::make_shared<op::v0::Result>(relu2);
 
@@ -1677,19 +1675,19 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceConcat) {
         auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
         auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
         auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const1,
-                                                                         end_const1,
-                                                                         std::vector<int64_t>{1, 1, 0},
-                                                                         std::vector<int64_t>{1, 1, 0});
+                                                                 begin_const1,
+                                                                 end_const1,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
         auto relu = std::make_shared<op::v0::Relu>(strided_slice1);
 
         auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
         auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 12});
         auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const2,
-                                                                         end_const2,
-                                                                         std::vector<int64_t>{1, 1, 0},
-                                                                         std::vector<int64_t>{1, 1, 0});
+                                                                 begin_const2,
+                                                                 end_const2,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
         auto concat1 = make_shared<v0::Concat>(ov::as_output_vector({relu, strided_slice2}), axis);
 
         auto result = std::make_shared<op::v0::Result>(concat1);
@@ -1721,19 +1719,19 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceConcatMismatch) {
         auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
         auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 4});
         auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const1,
-                                                                         end_const1,
-                                                                         std::vector<int64_t>{1, 1, 0},
-                                                                         std::vector<int64_t>{1, 1, 0});
+                                                                 begin_const1,
+                                                                 end_const1,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
         auto relu = std::make_shared<op::v0::Relu>(strided_slice1);
 
         auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
         auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 10});
         auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const2,
-                                                                         end_const2,
-                                                                         std::vector<int64_t>{1, 1, 0},
-                                                                         std::vector<int64_t>{1, 1, 0});
+                                                                 begin_const2,
+                                                                 end_const2,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
         auto concat1 = make_shared<v0::Concat>(ov::as_output_vector({relu, strided_slice2}), axis);
 
         auto result = std::make_shared<op::v0::Result>(concat1);
@@ -1750,19 +1748,19 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceConcatMismatch) {
         auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
         auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 4});
         auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const1,
-                                                                         end_const1,
-                                                                         std::vector<int64_t>{1, 1, 0},
-                                                                         std::vector<int64_t>{1, 1, 0});
+                                                                 begin_const1,
+                                                                 end_const1,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
         auto relu = std::make_shared<op::v0::Relu>(strided_slice1);
 
         auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
         auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 10});
         auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const2,
-                                                                         end_const2,
-                                                                         std::vector<int64_t>{1, 1, 0},
-                                                                         std::vector<int64_t>{1, 1, 0});
+                                                                 begin_const2,
+                                                                 end_const2,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
         auto concat1 = make_shared<v0::Concat>(ov::as_output_vector({relu, strided_slice2}), axis);
 
         auto result = std::make_shared<op::v0::Result>(concat1);
@@ -1780,23 +1778,23 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceTopKConcat) {
         auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
         auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
         auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const1,
-                                                                         end_const1,
-                                                                         std::vector<int64_t>{1, 1, 0},
-                                                                         std::vector<int64_t>{1, 1, 0});
+                                                                 begin_const1,
+                                                                 end_const1,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
         auto topk = std::make_shared<v1::TopK>(strided_slice1,
-                                                       v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
-                                                       axis,
-                                                       op::v1::TopK::Mode::MAX,
-                                                       op::v1::TopK::SortType::NONE);
+                                               v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
+                                               axis,
+                                               op::v1::TopK::Mode::MAX,
+                                               op::v1::TopK::SortType::NONE);
 
         auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
         auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 7});
         auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const2,
-                                                                         end_const2,
-                                                                         std::vector<int64_t>{1, 1, 0},
-                                                                         std::vector<int64_t>{1, 1, 0});
+                                                                 begin_const2,
+                                                                 end_const2,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
         auto topk_values = std::make_shared<v0::Result>(topk->output(0));
         auto concat1 = make_shared<v0::Concat>(ov::as_output_vector({topk_values, strided_slice2}), axis);
 
@@ -1810,10 +1808,10 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceTopKConcat) {
         auto param2 = make_shared<v0::Parameter>(element::f32, Shape{1, 10, 4});
         auto axis_const = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{}, axis);
         auto topk = std::make_shared<v1::TopK>(param1,
-                                                       v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
-                                                       axis,
-                                                       op::v1::TopK::Mode::MAX,
-                                                       op::v1::TopK::SortType::NONE);
+                                               v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
+                                               axis,
+                                               op::v1::TopK::Mode::MAX,
+                                               op::v1::TopK::SortType::NONE);
         auto topk_values = std::make_shared<v0::Result>(topk->output(0));
         auto concat = make_shared<v0::Concat>(ov::as_output_vector({topk_values, param2}), axis);
         auto result = std::make_shared<op::v0::Result>(concat);
@@ -1832,10 +1830,10 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceConcatDiffAxis) {
         auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
         auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 3, 0});
         auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const1,
-                                                                         end_const1,
-                                                                         std::vector<int64_t>{1, 0, 1},
-                                                                         std::vector<int64_t>{1, 0, 1});
+                                                                 begin_const1,
+                                                                 end_const1,
+                                                                 std::vector<int64_t>{1, 0, 1},
+                                                                 std::vector<int64_t>{1, 0, 1});
         auto relu = std::make_shared<op::v0::Relu>(strided_slice1);
 
         auto result = std::make_shared<op::v0::Result>(relu);
@@ -1852,10 +1850,10 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceConcatDiffAxis) {
         auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
         auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 3, 0});
         auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                         begin_const1,
-                                                                         end_const1,
-                                                                         std::vector<int64_t>{1, 0, 1},
-                                                                         std::vector<int64_t>{1, 0, 1});
+                                                                 begin_const1,
+                                                                 end_const1,
+                                                                 std::vector<int64_t>{1, 0, 1},
+                                                                 std::vector<int64_t>{1, 0, 1});
         auto relu = std::make_shared<op::v0::Relu>(strided_slice1);
 
         auto result = std::make_shared<op::v0::Result>(relu);
@@ -1877,11 +1875,11 @@ TEST_F(TransformationTestsF, EliminateStridedSlice) {
         auto optional_stride_const =
             std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>{1, 1});
         auto strided_slice = std::make_shared<v1::StridedSlice>(relu,
-                                                                        begin_const,
-                                                                        end_const,
-                                                                        optional_stride_const,
-                                                                        std::vector<int64_t>{1, 0, 1, 1},
-                                                                        std::vector<int64_t>{1, 0, 1, 1});
+                                                                begin_const,
+                                                                end_const,
+                                                                optional_stride_const,
+                                                                std::vector<int64_t>{1, 0, 1, 1},
+                                                                std::vector<int64_t>{1, 0, 1, 1});
         auto result = std::make_shared<op::v0::Result>(strided_slice);
 
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input});
@@ -1909,11 +1907,11 @@ TEST_F(TransformationTestsF, EliminateStridedSlice_int32max) {
         auto optional_stride_const =
             std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>{1, 1});
         auto strided_slice = std::make_shared<v1::StridedSlice>(relu,
-                                                                        begin_const,
-                                                                        end_const,
-                                                                        optional_stride_const,
-                                                                        std::vector<int64_t>{1, 0, 1, 1},
-                                                                        std::vector<int64_t>{1, 0, 1, 1});
+                                                                begin_const,
+                                                                end_const,
+                                                                optional_stride_const,
+                                                                std::vector<int64_t>{1, 0, 1, 1},
+                                                                std::vector<int64_t>{1, 0, 1, 1});
         auto result = std::make_shared<op::v0::Result>(strided_slice);
 
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input});
@@ -1940,10 +1938,10 @@ TEST_F(TransformationTestsF, EliminateStridedSliceWithoutStrides) {
                                                ov::Shape{2},
                                                std::vector<int64_t>{0, std::numeric_limits<int64_t>::max()});
         auto strided_slice = std::make_shared<v1::StridedSlice>(relu,
-                                                                        begin_const,
-                                                                        end_const,
-                                                                        std::vector<int64_t>{1, 0},
-                                                                        std::vector<int64_t>{1, 0});
+                                                                begin_const,
+                                                                end_const,
+                                                                std::vector<int64_t>{1, 0},
+                                                                std::vector<int64_t>{1, 0});
         auto result = std::make_shared<op::v0::Result>(strided_slice);
 
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input});
@@ -1971,11 +1969,11 @@ TEST_F(TransformationTestsF, EliminateStridedSliceByShape) {
         auto optional_stride_const =
             std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>{1, 1});
         auto strided_slice = std::make_shared<v1::StridedSlice>(relu,
-                                                                        begin_const,
-                                                                        end_const,
-                                                                        optional_stride_const,
-                                                                        std::vector<int64_t>{1, 0, 1, 1},
-                                                                        std::vector<int64_t>{1, 0, 1, 1});
+                                                                begin_const,
+                                                                end_const,
+                                                                optional_stride_const,
+                                                                std::vector<int64_t>{1, 0, 1, 1},
+                                                                std::vector<int64_t>{1, 0, 1, 1});
         auto result = std::make_shared<op::v0::Result>(strided_slice);
 
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input});
@@ -1999,11 +1997,11 @@ TEST_F(TransformationTestsF, EliminateStridedSliceByShapeNegative) {
         auto optional_stride_const =
             std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>{1, 1});
         auto strided_slice = std::make_shared<v1::StridedSlice>(relu,
-                                                                        begin_const,
-                                                                        end_const,
-                                                                        optional_stride_const,
-                                                                        std::vector<int64_t>{1, 0},
-                                                                        std::vector<int64_t>{1, 0});
+                                                                begin_const,
+                                                                end_const,
+                                                                optional_stride_const,
+                                                                std::vector<int64_t>{1, 0},
+                                                                std::vector<int64_t>{1, 0});
         auto result = std::make_shared<op::v0::Result>(strided_slice);
 
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input});
@@ -2017,11 +2015,11 @@ TEST_F(TransformationTestsF, EliminateStridedSliceByShapeNegative) {
         auto optional_stride_const =
             std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>{1, 1});
         auto strided_slice = std::make_shared<v1::StridedSlice>(relu,
-                                                                        begin_const,
-                                                                        end_const,
-                                                                        optional_stride_const,
-                                                                        std::vector<int64_t>{1, 0},
-                                                                        std::vector<int64_t>{1, 0});
+                                                                begin_const,
+                                                                end_const,
+                                                                optional_stride_const,
+                                                                std::vector<int64_t>{1, 0},
+                                                                std::vector<int64_t>{1, 0});
         auto result = std::make_shared<op::v0::Result>(strided_slice);
 
         model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input});

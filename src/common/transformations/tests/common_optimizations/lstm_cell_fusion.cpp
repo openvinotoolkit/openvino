@@ -29,7 +29,6 @@ using LSTMCellFusionParam = std::tuple<bool,  // true if second input to matmul 
                                        int,   // rank of bias (B)
                                        int>;  // split axis
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 class LSTMCellFusionTestSuite : public testing::WithParamInterface<LSTMCellFusionParam>, public TransformationTestsF {};

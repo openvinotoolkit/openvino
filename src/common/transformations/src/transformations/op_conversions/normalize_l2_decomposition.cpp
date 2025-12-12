@@ -20,7 +20,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -36,9 +35,9 @@ ov::pass::NormalizeL2Decomposition::NormalizeL2Decomposition() {
             return false;
         }
 
-        auto power = std::make_shared<v1::Power>(
-            normalize_l2->input_value(0),
-            v0::Constant::create(normalize_l2->get_input_element_type(0), Shape{}, {2.0}));
+        auto power =
+            std::make_shared<v1::Power>(normalize_l2->input_value(0),
+                                        v0::Constant::create(normalize_l2->get_input_element_type(0), Shape{}, {2.0}));
         auto reduce_sum = std::make_shared<v1::ReduceSum>(power, normalize_l2->input_value(1), true);
 
         std::shared_ptr<Node> eps_node;

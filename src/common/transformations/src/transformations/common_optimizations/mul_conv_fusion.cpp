@@ -20,12 +20,11 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::consumers_count;
 using ov::pass::pattern::has_static_shape;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -34,8 +33,7 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     MATCHER_SCOPE(MultiplyConvolutionFusion);
     auto input_pattern = any_input(ov::pass::pattern::has_static_rank());
     auto mul_const_pattern = wrap_type<v0::Constant>();
-    auto mul_pattern = wrap_type<v1::Multiply>({input_pattern, mul_const_pattern},
-                                                                          consumers_count(1));
+    auto mul_pattern = wrap_type<v1::Multiply>({input_pattern, mul_const_pattern}, consumers_count(1));
     auto weights_pattern = any_input(has_static_shape());
     auto conv_pattern = wrap_type<v1::Convolution>({mul_pattern, weights_pattern});
 
@@ -94,8 +92,7 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
     MATCHER_SCOPE(MultiplyGroupConvolutionFusion);
     auto input_pattern = any_input();
     auto mul_const_pattern = wrap_type<v0::Constant>();
-    auto mul_pattern = wrap_type<v1::Multiply>({input_pattern, mul_const_pattern},
-                                                                          consumers_count(1));
+    auto mul_pattern = wrap_type<v1::Multiply>({input_pattern, mul_const_pattern}, consumers_count(1));
     auto weights_pattern = any_input(has_static_shape());
     auto conv_pattern = wrap_type<v1::GroupConvolution>({mul_pattern, weights_pattern});
 
@@ -140,10 +137,10 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
             if (!op_util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
-            mul_const = std::make_shared<v1::Reshape>(
-                mul_const,
-                v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
-                false);
+            mul_const =
+                std::make_shared<v1::Reshape>(mul_const,
+                                              v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                                              false);
         }
 
         auto weights_multiply = std::make_shared<v1::Multiply>(weights, mul_const);
@@ -169,11 +166,9 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
     MATCHER_SCOPE(MultiplyConvolutionBackpropDataFusion);
     auto input_pattern = any_input();
     auto mul_const_pattern = wrap_type<v0::Constant>();
-    auto mul_pattern = wrap_type<v1::Multiply>({input_pattern, mul_const_pattern},
-                                                                          consumers_count(1));
+    auto mul_pattern = wrap_type<v1::Multiply>({input_pattern, mul_const_pattern}, consumers_count(1));
     auto weights_pattern = any_input(has_static_shape());
-    auto conv_pattern =
-        wrap_type<v1::ConvolutionBackpropData>({mul_pattern, weights_pattern});
+    auto conv_pattern = wrap_type<v1::ConvolutionBackpropData>({mul_pattern, weights_pattern});
 
     matcher_pass_callback callback = [=](Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -217,10 +212,10 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
             if (!op_util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
-            mul_const = std::make_shared<v1::Reshape>(
-                mul_const,
-                v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
-                false);
+            mul_const =
+                std::make_shared<v1::Reshape>(mul_const,
+                                              v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                                              false);
         }
 
         auto weights_multiply = std::make_shared<v1::Multiply>(weights, mul_const);
@@ -246,11 +241,9 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
     MATCHER_SCOPE(MultiplyGroupConvolutionBackpropDataFusion);
     auto input_pattern = any_input();
     auto mul_const_pattern = wrap_type<v0::Constant>();
-    auto mul_pattern = wrap_type<v1::Multiply>({input_pattern, mul_const_pattern},
-                                                                          consumers_count(1));
+    auto mul_pattern = wrap_type<v1::Multiply>({input_pattern, mul_const_pattern}, consumers_count(1));
     auto weights_pattern = any_input(has_static_shape());
-    auto conv_pattern =
-        wrap_type<v1::GroupConvolutionBackpropData>({mul_pattern, weights_pattern});
+    auto conv_pattern = wrap_type<v1::GroupConvolutionBackpropData>({mul_pattern, weights_pattern});
 
     matcher_pass_callback callback = [=](Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -296,10 +289,10 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
             if (!op_util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
-            mul_const = std::make_shared<v1::Reshape>(
-                mul_const,
-                v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
-                false);
+            mul_const =
+                std::make_shared<v1::Reshape>(mul_const,
+                                              v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                                              false);
         }
 
         auto weights_multiply = std::make_shared<v1::Multiply>(weights, mul_const);

@@ -18,7 +18,6 @@
 using namespace ov;
 using namespace std;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace op_util = ov::op::util;
@@ -28,16 +27,14 @@ TEST_F(TransformationTestsF, DeReshapeFC) {
 
     {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
-        auto in_reshape =
-            make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, {2}, {-1, 40}), true);
+        auto in_reshape = make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, {2}, {-1, 40}), true);
         auto second_input = make_shared<v0::Parameter>(element::f32, Shape{40, 80});
 
         auto matmul = make_shared<v0::MatMul>(in_reshape, second_input);
 
         auto batch_dims = op_util::node_to_get_shape_value_of_indices_from_shape_source(data, {0, 1});
-        auto pattern = make_shared<v0::Concat>(
-            OutputVector{batch_dims, v0::Constant::create(element::i64, {1}, {80})},
-            0);
+        auto pattern =
+            make_shared<v0::Concat>(OutputVector{batch_dims, v0::Constant::create(element::i64, {1}, {80})}, 0);
         auto out_reshape = make_shared<v1::Reshape>(matmul, pattern, false);
 
         model = make_shared<Model>(OutputVector{out_reshape}, ParameterVector{data, second_input});
@@ -57,17 +54,15 @@ TEST_F(TransformationTestsF, DeReshapeFCWithConvert) {
     set_shape_symbols(shape);  // we label shape with consecutive labels: A, B, C
     {
         auto data = make_shared<v0::Parameter>(element::f16, shape);
-        auto in_reshape =
-            make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, {2}, {-1, 40}), true);
+        auto in_reshape = make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, {2}, {-1, 40}), true);
         auto convert = make_shared<v0::Convert>(in_reshape, element::f32);
         auto second_input = make_shared<v0::Parameter>(element::f32, Shape{40, 80});
 
         auto matmul = make_shared<v0::MatMul>(convert, second_input);
 
         auto batch_dims = op_util::node_to_get_shape_value_of_indices_from_shape_source(data, {0, 1});
-        auto pattern = make_shared<v0::Concat>(
-            OutputVector{batch_dims, v0::Constant::create(element::i64, {1}, {80})},
-            0);
+        auto pattern =
+            make_shared<v0::Concat>(OutputVector{batch_dims, v0::Constant::create(element::i64, {1}, {80})}, 0);
         auto out_reshape = make_shared<v1::Reshape>(matmul, pattern, false);
 
         model = make_shared<Model>(OutputVector{out_reshape}, ParameterVector{data, second_input});
@@ -88,8 +83,7 @@ TEST_F(TransformationTestsF, DeReshapeFCNegative) {
     set_shape_symbols(shape);  // we label shape with consecutive labels: A, B, C
     {
         auto data = make_shared<v0::Parameter>(element::f16, shape);
-        auto in_reshape =
-            make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, {2}, {-1, 40}), true);
+        auto in_reshape = make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, {2}, {-1, 40}), true);
         auto convert = make_shared<v0::Convert>(in_reshape, element::f32);
         auto second_input = make_shared<v0::Parameter>(element::f32, Shape{40, 80});
 

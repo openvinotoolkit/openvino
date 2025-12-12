@@ -15,7 +15,6 @@
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
 
@@ -25,8 +24,7 @@ ov::pass::MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPreci
     MATCHER_SCOPE(MarkRopeInputsToKeepInMixedPrecision);
     auto cos_tab = any_input();
     auto sin_tab = any_input();
-    auto rope =
-        ov::pass::pattern::wrap_type<ov::op::internal::RoPE>({any_input(), cos_tab, sin_tab});
+    auto rope = ov::pass::pattern::wrap_type<ov::op::internal::RoPE>({any_input(), cos_tab, sin_tab});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

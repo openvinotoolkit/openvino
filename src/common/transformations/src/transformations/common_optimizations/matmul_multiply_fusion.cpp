@@ -17,10 +17,9 @@
 
 using namespace ov;
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -138,9 +137,8 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         std::vector<int64_t> perm(const_shape.size());
         std::iota(perm.begin(), perm.end(), 0);
         std::swap(*(perm.end() - 1), *(perm.end() - 2));
-        auto transpose = std::make_shared<v1::Transpose>(
-            new_const,
-            v0::Constant::create(element::i64, Shape{perm.size()}, perm));
+        auto transpose =
+            std::make_shared<v1::Transpose>(new_const, v0::Constant::create(element::i64, Shape{perm.size()}, perm));
         return ov::util::get_constant_from_source(transpose);
     };
 
@@ -159,8 +157,8 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
     auto input_pattern = any_input();
     auto weights_pattern = any_input(ov::pass::pattern::has_static_rank());
     auto mul_const_pattern = wrap_type<v0::Constant>();
-    auto matmul_pattern = wrap_type<v0::MatMul>({input_pattern, weights_pattern},
-                                                                           ov::pass::pattern::consumers_count(1));
+    auto matmul_pattern =
+        wrap_type<v0::MatMul>({input_pattern, weights_pattern}, ov::pass::pattern::consumers_count(1));
     auto mul_pattern = wrap_type<v1::Multiply>({matmul_pattern, mul_const_pattern});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {

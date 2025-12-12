@@ -20,7 +20,6 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -90,8 +89,7 @@ ov::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
         const auto last_perm = reverse_permutation(first_perm);
 
         auto first_transpose_perm = v0::Constant::create(element::i64, {first_perm.size()}, first_perm);
-        auto first_transpose =
-            std::make_shared<v1::Transpose>(interpolate->input_value(0), first_transpose_perm);
+        auto first_transpose = std::make_shared<v1::Transpose>(interpolate->input_value(0), first_transpose_perm);
         auto new_axes = build_new_axes(axes.size(), input_rank);
         auto new_axes_node = v0::Constant::create(element::i64, {new_axes.size()}, new_axes);
         auto new_interpolate = interpolate->clone_with_new_inputs(

@@ -14,7 +14,6 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
 
-
 namespace op_util = ov::op::util;
 namespace ov::pass {
 

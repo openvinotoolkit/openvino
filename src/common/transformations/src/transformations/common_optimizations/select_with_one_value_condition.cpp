@@ -19,7 +19,6 @@ using namespace std;
 using namespace ov;
 using namespace ov::element;
 
-
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
 
@@ -86,8 +85,7 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
                 select_shape_values[i] = static_cast<int32_t>(select_shape[i].get_length());
             }
 
-            auto target_shape =
-                copy_to.make<v0::Constant>(element::i32, Shape{select_rank}, select_shape_values);
+            auto target_shape = copy_to.make<v0::Constant>(element::i32, Shape{select_rank}, select_shape_values);
             auto broadcast = copy_to.make<ov::op::v3::Broadcast>(branch_output, target_shape);
             select->output(0).replace(broadcast->output(0));
             broadcast->set_friendly_name(select->get_friendly_name());
