@@ -218,6 +218,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             # FIXME: Quadratic complexity nodes*nodes considering the outer loop over all nodes
             self._outputs = [("", self._nodes.index(pt_module))]
 
+            is_higher_order_op = self._is_higher_order_op(pt_module)
+
             self.input_types = []
             for arg_idx, arg in enumerate(pt_module.args):
                 # Check if this argument is a subgraph reference (for higher-order ops)
@@ -230,8 +232,11 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 if isinstance(arg, torch.fx.Node):
                     self._inputs.append(self._nodes.index(arg))
                     self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
-                elif isinstance(arg, (tuple, list)):
-                    # Handle operands tuple (e.g., the last arg in torch.cond)
+                elif is_higher_order_op and isinstance(arg, (tuple, list)):
+                    # Handle operands tuple ONLY for higher-order ops (e.g., torch.cond, torch.while_loop)
+                    # Skip empty tuples/lists
+                    if len(arg) == 0:
+                        continue
                     # Unpack the tuple/list and add each element as an input
                     for element in arg:
                         if isinstance(element, torch.fx.Node):
@@ -247,7 +252,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                             self._inputs.append(InlinedInput(element))
                             self.input_types.append(BaseFXDecoder.get_type_for_value(element))
                 else:
-                    # Not a node, consider it inlined
+                    # Not a node or non-higher-order tuple - consider it inlined
                     self._inputs.append(InlinedInput(arg))
                     self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
 
@@ -478,6 +483,17 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if callable(subgraph) and hasattr(subgraph, "graph"):
             return True, subgraph
         return False, None
+
+    def _is_higher_order_op(self, node):
+        """Check if the node is a higher-order operation.
+
+        All higher-order operations in PyTorch (while_loop, cond, map, scan, etc.)
+        are registered under torch.ops.higher_order namespace.
+        """
+        if node.op != "call_function":
+            return False
+        target_str = str(node.target)
+        return target_str.startswith("torch.ops.higher_order.")
 
     def get_subgraphs(self):
         """Return list of subgraphs for higher-order operations like cond, while_loop."""
