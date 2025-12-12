@@ -228,6 +228,55 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic) {
     }
 }
 
+TEST(prepare_buffer_fusing, in_place_concat_dynamic_and_static) {
+    auto& engine = get_test_engine();
+    auto in_layout1_dyn = layout{ ov::PartialShape{1, 2, ov::Dimension() }, data_types::f32, format::bfyx };
+    auto in_layout3_dyn = layout{ ov::PartialShape{1, 2, ov::Dimension(21, ov::Interval::s_max) }, data_types::f32, format::yxfb };
+    auto reorder_layout = layout{ ov::PartialShape{1, 2, ov::Dimension(21, ov::Interval::s_max) }, data_types::f32, format::bfyx };
+
+    auto in_layout1 = layout{ {1, 2, 42}, data_types::f32, format::bfyx };
+    auto in_layout2 = layout{ {1, 2, 42}, data_types::f32, format::bfyx };
+    auto in_layout3 = layout{ {1, 2, 42}, data_types::f32, format::yxfb };
+
+    auto input_memory1 = engine.allocate_memory(in_layout1);
+    auto input_memory2 = engine.allocate_memory(in_layout2);
+    auto input_memory3 = engine.allocate_memory(in_layout3);
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout1_dyn));
+    topology.add(input_layout("input2", in_layout2));
+    topology.add(input_layout("input3", in_layout3_dyn));
+    topology.add(eltwise("add", input_info("input1"), input_info("input2"), eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("input3"), reorder_layout));
+    topology.add(concatenation("concat", { input_info("add"), input_info("reorder") }, 1));
+    topology.add(permute("output", input_info("concat"), {0, 2, 1}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(prog, nullptr);
+    cldnn::network net(prog, 0);
+
+    net.set_input_data("input1", input_memory1);
+    net.set_input_data("input2", input_memory2);
+    net.set_input_data("input3", input_memory3);
+    auto outputs = net.execute();
+
+    auto output_memory = outputs.at("output").get_memory();
+    auto output_layout = output_memory->get_layout();
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 1);
+    ASSERT_EQ(f_size, 42);
+    ASSERT_EQ(b_size, 1);
+}
+
 TEST(prepare_buffer_fusing, in_place_concat_dynamic_memory_reallocation) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
