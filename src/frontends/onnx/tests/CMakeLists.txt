@@ -86,6 +86,7 @@ set(SRC
     onnx_ops_registration.cpp
     onnx_reader_external_data.cpp
     skip_tests_config.cpp
+    reverse_sequence_frontend_test.cpp
     ../frontend/src/core/graph_iterator_proto.cpp
     ../frontend/src/core/decoder_proto.cpp
 )
