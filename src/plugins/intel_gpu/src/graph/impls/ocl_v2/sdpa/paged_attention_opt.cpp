@@ -1222,14 +1222,19 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        rt_params->use_micro_sdpa = supports_micro_sdpa(params);// && rt_params->stage != PagedAttentionStage::GENERATE;
+        rt_params->use_micro_sdpa = supports_micro_sdpa(params);
 #else
         rt_params->use_micro_sdpa = false;
 #endif
         rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
 
-        if (rt_params->stage == PagedAttentionStage::GENERATE && !rt_params->use_micro_sdpa) {
-            rt_params->use_gqa_kernel = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
+        if (rt_params->stage == PagedAttentionStage::GENERATE) {
+            if (rt_params->use_micro_sdpa) {
+                size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
+                rt_params->use_gqa_kernel = (kv_group_size == 8);
+            } else {
+                rt_params->use_gqa_kernel = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
+            }
         } else {
             rt_params->use_gqa_kernel = false;
         }
@@ -1263,25 +1268,21 @@ public:
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            if (rt_params->use_micro_sdpa) {
+            if (rt_params->use_micro_sdpa)
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
-            } else {
-                res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
-            }
-#else
-            res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
+            else
 #endif
+                res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = rt_params->num_of_partitions;
-            if (rt_params->use_gqa_kernel) {
+            if (rt_params->use_gqa_kernel && !rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_gqa_single_token)};
             } else {
-                size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 if (multi_tokens_mode && rt_params->use_micro_sdpa)
                     res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
-                else if (!multi_tokens_mode && rt_params->use_micro_sdpa && kv_group_size >= 8 && kv_group_size <= 16)
+                else if (!multi_tokens_mode && rt_params->use_micro_sdpa && rt_params->use_gqa_kernel)
                     res_event = {execute_stage(res_event, instance, pa_sdpa_micro_gqa_single_token)};
                 else
 #endif
@@ -1377,7 +1378,9 @@ public:
         }
         bool can_use_micro_sdpa = false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        can_use_micro_sdpa = has_stage(pa_sdpa_micro);// && stage != PagedAttentionStage::GENERATE;
+        can_use_micro_sdpa = has_stage(pa_sdpa_micro);
+        if (stage == PagedAttentionStage::GENERATE && rt_params->use_gqa_kernel == false)
+            can_use_micro_sdpa = false;
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
