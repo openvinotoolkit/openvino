@@ -31,6 +31,8 @@ add_definitions(-DNAPI_VERSION=8)
 
 include(FetchContent)
 
+set(FETCHCONTENT_QUIET FALSE)
+
 FetchContent_Declare(
     node-api-headers
     URL      https://github.com/nodejs/node-api-headers/archive/refs/tags/v1.1.0.tar.gz
