@@ -441,6 +441,16 @@ if(BUILD_SHARED_LIBS)
     ov_build_target_faster(${TARGET_NAME}_obj PCH PCH_EXCLUDE ${PCH_EXCLUDE_FILES})
 endif()
 
+if(OV_CPU_WITH_ACL)
+    target_include_directories(${TARGET_NAME} PRIVATE
+        ${OpenVINO_SOURCE_DIR}/src/inference/include)
+
+    if(BUILD_SHARED_LIBS)
+        target_include_directories(${TARGET_NAME}_obj PRIVATE
+            ${OpenVINO_SOURCE_DIR}/src/inference/include)
+    endif()
+endif()
+
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
