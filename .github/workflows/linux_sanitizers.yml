@@ -257,8 +257,6 @@ jobs:
     name: C++ unit tests
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
-    timeout-minutes: 180
-    runs-on: aks-linux-16-cores-64gb
     timeout-minutes: 580
     runs-on: aks-linux-16-cores-64gb
     container:
