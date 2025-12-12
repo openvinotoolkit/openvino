@@ -1307,15 +1307,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
 void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t idx, const std::function<void()>& f) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
-    // Perform HFA tiled inference if enabled
-    if (comp_model_desc.host_flash_attention.has_value()) {
-        auto future = std::async(std::launch::async, f);
-        unsafe_infer(real_idx, idx);
-        future.wait();
-        return;
-    }
-
-    if (!comp_model_desc.spatial) {
+    if (!comp_model_desc.spatial && !comp_model_desc.host_flash_attention.has_value()) {
         // Normal: trigger request asynchronously, run `f` in this context
         // FIXME: dynamic could hit here too, but it has special logic
         // around execution which makes it harder to run than a plain start_async()
@@ -1324,8 +1316,7 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
         f();  // expect noexcept
         r->wait();
     } else {
-        // Spatial... Do the opposite - run f
-        // asynchronously, and meanwhile run the spatial inference
+        // Spatial or HFA: Run f asynchronously while executing spatial/HFA inference
         auto future = std::async(std::launch::async, f);
         unsafe_infer(real_idx, idx);
         future.wait();
