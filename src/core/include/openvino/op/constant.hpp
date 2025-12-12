@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <variant>
 
 #include "openvino/core/axis_set.hpp"
 #include "openvino/core/axis_vector.hpp"
@@ -18,11 +19,6 @@
 namespace ov {
 
 class AlignedBuffer;
-
-namespace element {
-template <Type_t ET, class T>
-class Iterator;
-}
 
 namespace op {
 namespace v0 {
@@ -79,94 +75,12 @@ public:
 
     template <typename T>
     void fill_data(const element::Type& type, T value) {
-        using Type_t = element::Type_t;
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic error "-Wswitch"
-#    pragma GCC diagnostic error "-Wswitch-enum"
-#endif
-        switch (type) {
-        case Type_t::boolean:
-            fill_data<Type_t::boolean>(value);
-            break;
-        case Type_t::bf16:
-            fill_data<Type_t::bf16>(value);
-            break;
-        case Type_t::f16:
-            fill_data<Type_t::f16>(value);
-            break;
-        case Type_t::f32:
-            fill_data<Type_t::f32>(value);
-            break;
-        case Type_t::f64:
-            fill_data<Type_t::f64>(value);
-            break;
-        case Type_t::i4:
-            fill_lp_data<Type_t::i4>(value);
-            break;
-        case Type_t::i8:
-            fill_data<Type_t::i8>(value);
-            break;
-        case Type_t::i16:
-            fill_data<Type_t::i16>(value);
-            break;
-        case Type_t::i32:
-            fill_data<Type_t::i32>(value);
-            break;
-        case Type_t::i64:
-            fill_data<Type_t::i64>(value);
-            break;
-        case Type_t::u1:
-            fill_lp_data<Type_t::u1>(value);
-            break;
-        case Type_t::u2:
-            fill_lp_data<Type_t::u2>(value);
-            break;
-        case Type_t::u3:
-            fill_lp_data<Type_t::u3>(value);
-            break;
-        case Type_t::u4:
-            fill_lp_data<Type_t::u4>(value);
-            break;
-        case Type_t::u6:
-            fill_lp_data<Type_t::u6>(value);
-            break;
-        case Type_t::u8:
-            fill_data<Type_t::u8>(value);
-            break;
-        case Type_t::u16:
-            fill_data<Type_t::u16>(value);
-            break;
-        case Type_t::u32:
-            fill_data<Type_t::u32>(value);
-            break;
-        case Type_t::u64:
-            fill_data<Type_t::u64>(value);
-            break;
-        case Type_t::nf4:
-            fill_lp_data<Type_t::nf4>(value);
-            break;
-        case Type_t::f8e4m3:
-            fill_data<Type_t::f8e4m3>(value);
-            break;
-        case Type_t::f8e5m2:
-            fill_data<Type_t::f8e5m2>(value);
-            break;
-        case Type_t::string:
-            fill_data<Type_t::string>(value);
-            break;
-        case Type_t::f4e2m1:
-            fill_lp_data<Type_t::f4e2m1>(value);
-            break;
-        case Type_t::f8e8m0:
-            fill_data<Type_t::f8e8m0>(value);
-            break;
-        case Type_t::dynamic:
-            OPENVINO_THROW("unsupported type");
+        if constexpr (data::is_supported_type<T>) {
+            data::fill(m_element_type, get_data_ptr_nc(), shape_size(m_shape), value);
+        } else {
+            proxy_type<T> proxy_value = value;
+            data::fill(m_element_type, get_data_ptr_nc(), shape_size(m_shape), proxy_value);
         }
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
-#    pragma GCC diagnostic pop
-#endif
     }
 
     /// \brief Constructs a tensor constant
@@ -322,89 +236,22 @@ public:
     /// \return    Constant's data vector.
     template <typename T>
     std::vector<T> cast_vector(int64_t num_elements = -1) const {
-        std::vector<T> rc;
-        using Type_t = element::Type_t;
-
         const auto num_elements_to_cast = get_num_elements_to_cast(num_elements);
-        rc.reserve(num_elements_to_cast);
 
-        switch (m_element_type) {
-        case Type_t::boolean:
-            cast_vector<Type_t::boolean>(rc, num_elements_to_cast);
-            break;
-        case Type_t::bf16:
-            cast_vector<Type_t::bf16>(rc, num_elements_to_cast);
-            break;
-        case Type_t::f16:
-            cast_vector<Type_t::f16>(rc, num_elements_to_cast);
-            break;
-        case Type_t::f32:
-            cast_vector<Type_t::f32>(rc, num_elements_to_cast);
-            break;
-        case Type_t::f64:
-            cast_vector<Type_t::f64>(rc, num_elements_to_cast);
-            break;
-        case Type_t::i4:
-            cast_lp_vector<Type_t::i4>(rc, num_elements_to_cast);
-            break;
-        case Type_t::i8:
-            cast_vector<Type_t::i8>(rc, num_elements_to_cast);
-            break;
-        case Type_t::i16:
-            cast_vector<Type_t::i16>(rc, num_elements_to_cast);
-            break;
-        case Type_t::i32:
-            cast_vector<Type_t::i32>(rc, num_elements_to_cast);
-            break;
-        case Type_t::i64:
-            cast_vector<Type_t::i64>(rc, num_elements_to_cast);
-            break;
-        case Type_t::u1:
-            cast_lp_vector<Type_t::u1>(rc, num_elements_to_cast);
-            break;
-        case Type_t::u2:
-            cast_lp_vector<Type_t::u2>(rc, num_elements_to_cast);
-            break;
-        case Type_t::u3:
-            cast_lp_vector<Type_t::u3>(rc, num_elements_to_cast);
-            break;
-        case Type_t::u4:
-            cast_lp_vector<Type_t::u4>(rc, num_elements_to_cast);
-            break;
-        case Type_t::u6:
-            cast_lp_vector<Type_t::u6>(rc, num_elements_to_cast);
-            break;
-        case Type_t::u8:
-            cast_vector<Type_t::u8>(rc, num_elements_to_cast);
-            break;
-        case Type_t::u16:
-            cast_vector<Type_t::u16>(rc, num_elements_to_cast);
-            break;
-        case Type_t::u32:
-            cast_vector<Type_t::u32>(rc, num_elements_to_cast);
-            break;
-        case Type_t::u64:
-            cast_vector<Type_t::u64>(rc, num_elements_to_cast);
-            break;
-        case Type_t::f8e4m3:
-            cast_vector<Type_t::f8e4m3>(rc, num_elements_to_cast);
-            break;
-        case Type_t::f8e5m2:
-            cast_vector<Type_t::f8e5m2>(rc, num_elements_to_cast);
-            break;
-        case Type_t::string:
-            cast_vector<Type_t::string>(rc, num_elements_to_cast);
-            break;
-        case Type_t::f4e2m1:
-            cast_lp_vector<Type_t::f4e2m1>(rc, num_elements_to_cast);
-            break;
-        case Type_t::f8e8m0:
-            cast_vector<Type_t::f8e8m0>(rc, num_elements_to_cast);
-            break;
-        default:
-            OPENVINO_THROW("unsupported type");
+        if constexpr (data::is_supported_type<T>) {
+            std::vector<T> rc(num_elements_to_cast);
+
+            if constexpr (std::is_same_v<bool, T>) {
+                data::cast_n(m_element_type, get_data_ptr(), num_elements_to_cast, rc.begin());
+            } else {
+                data::cast_n(m_element_type, get_data_ptr(), num_elements_to_cast, rc.data());
+            }
+            return rc;
+        } else {
+            std::vector<proxy_type<T>> rc(num_elements_to_cast);
+            data::cast_n(m_element_type, get_data_ptr(), num_elements_to_cast, rc.data());
+            return {rc.begin(), rc.end()};
         }
-        return rc;
     }
 
     const void* get_data_ptr() const;
@@ -450,165 +297,6 @@ private:
     /// \param buffer  Pointer to buffer with Constant values.
     void set_unused_bits(void* buffer) const;
 
-#ifdef __clang__
-#    pragma clang diagnostic push
-#    ifdef __has_warning
-#        if __has_warning("-Wimplicit-const-int-float-conversion")
-#            pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
-#        elif __has_warning("-Wimplicit-int-float-conversion")
-#            pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
-#        endif
-#    endif
-#elif defined(__GNUC__)
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wsign-compare"
-#    pragma GCC diagnostic ignored "-Wbool-compare"
-#elif defined(_MSC_VER)
-#    pragma warning(push)
-#    pragma warning(disable : 4018)
-#    pragma warning(disable : 4804)
-#endif
-    template <class U, class ConstantT, std::enable_if_t<!std::is_same_v<U, ConstantT>>* = nullptr>
-    static bool in_type_range(const ConstantT v) {
-        if constexpr (std::is_unsigned_v<ConstantT> && std::is_integral_v<U>) {
-            if constexpr (std::numeric_limits<ConstantT>::max() < std::numeric_limits<U>::max()) {
-                return true;
-            } else {
-                return v <= std::numeric_limits<U>::max();
-            }
-        } else if constexpr (std::is_unsigned_v<ConstantT>) {
-            return v <= std::numeric_limits<U>::max();
-        } else if constexpr (std::is_integral_v<ConstantT> && std::is_integral_v<U>) {
-            if constexpr (std::numeric_limits<U>::lowest() < std::numeric_limits<ConstantT>::lowest() &&
-                          std::numeric_limits<U>::max() > std::numeric_limits<ConstantT>::max()) {
-                return true;
-            } else if constexpr (std::numeric_limits<ConstantT>::lowest() < std::numeric_limits<U>::lowest() &&
-                                 std::numeric_limits<U>::max() <= std::numeric_limits<ConstantT>::max()) {
-                return std::numeric_limits<U>::lowest() <= v;
-            } else if constexpr (std::numeric_limits<ConstantT>::lowest() >= std::numeric_limits<U>::lowest() &&
-                                 std::numeric_limits<U>::max() > std::numeric_limits<ConstantT>::max()) {
-                return v <= std::numeric_limits<U>::max();
-            } else {
-                return std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max();
-            }
-        } else {
-            return std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max();
-        }
-    }
-#if defined(__clang__)
-#    pragma clang diagnostic pop
-#elif defined(__GNUC__)
-#    pragma GCC diagnostic pop
-#elif defined(_MSC_VER)
-#    pragma warning(pop)
-#endif
-
-    template <class U, class ConstantT, std::enable_if_t<std::is_same_v<U, ConstantT>>* = nullptr>
-    static constexpr bool in_type_range(const ConstantT) {
-        return true;
-    }
-
-    /// \brief Cast constant data to std::vector of User type.
-    /// This version is for user type which is unknown for OpenVINO.
-    /// The minimum requirement for this type is to support conversion from OV type.
-    ///
-    /// \param output_vector  Output vector with casted data.
-    /// \param num_elements   number of elements to cast from constant.
-    template <
-        element::Type_t Type,
-        class UserT,
-        typename std::enable_if<Type != element::string && !std::is_same<UserT, std::string>::value>::type* = nullptr>
-    void cast_vector(std::vector<UserT>& output_vector, size_t num_elements) const {
-        using T = ov::fundamental_type_for<Type>;
-        const auto first = get_data_ptr<T>();
-        std::transform(first, first + num_elements, std::back_inserter(output_vector), [](const T v) {
-            return static_cast<UserT>(v);
-        });
-    }
-
-    template <element::Type_t Type,
-              class U,
-              typename std::enable_if<Type == element::string && std::is_same<U, std::string>::value>::type* = nullptr>
-    void cast_vector(std::vector<U>& output_vector, size_t num_elements) const {
-        const auto p = get_data_ptr<Type>();
-        std::copy_n(p, num_elements, std::back_inserter(output_vector));
-    }
-
-    template <
-        element::Type_t Type,
-        class U,
-        typename std::enable_if<(Type == element::string) != std::is_same<U, std::string>::value>::type* = nullptr>
-    void cast_vector(std::vector<U>& output, size_t num_elements) const {
-        OPENVINO_THROW("'cast_vector' does not support casting Constant of type ",
-                       Type,
-                       " into std::vector of ",
-                       element::from<U>());
-    }
-
-    // generic cast_LP_data if input is not std or OV type (do additional conversion)
-    template <element::Type_t ET, class U>
-    void cast_lp_vector(std::vector<U>& output, size_t num_elements) const {
-        auto lp_buffer = LPBuffer<ET>(get_data_ptr());
-        auto out_inserter = std::back_inserter(output);
-        for (size_t i = 0; i < num_elements; ++i, ++lp_buffer) {
-            using UT = typename std::decay<U>::type;
-            using LPT = decltype(lp_buffer.read());
-            using CastT = typename std::
-                conditional<!std::is_same<UT, LPT>::value && !std::is_integral<U>::value, float, LPT>::type;
-            *out_inserter = static_cast<CastT>(lp_buffer.read());
-        }
-    }
-
-    template <element::Type_t ET>
-    void cast_lp_vector(std::vector<std::string>& output, size_t num_elements) const {
-        cast_vector<element::i8>(output, num_elements);
-    }
-
-    template <element::Type_t Type,
-              class T,
-              typename std::enable_if<Type != element::string && !std::is_same<T, std::string>::value>::type* = nullptr>
-    void fill_data(const T& value) {
-        using StorageDataType = ov::fundamental_type_for<Type>;
-        OPENVINO_ASSERT(in_type_range<StorageDataType>(value),
-                        "Cannot fill constant data. Values is outside the range.");
-        const auto size = shape_size(m_shape);
-        const auto v = static_cast<StorageDataType>(value);
-        std::fill_n(get_data_ptr_nc<Type>(), size, v);
-    }
-
-    template <element::Type_t Type,
-              class T,
-              typename std::enable_if<Type == element::string && std::is_same<T, std::string>::value>::type* = nullptr>
-    void fill_data(const T& value) {
-        auto num_elements = shape_size(m_shape);
-        std::uninitialized_fill_n(get_data_ptr_nc<Type>(), num_elements, value);
-    }
-
-    template <
-        element::Type_t Type,
-        class T,
-        typename std::enable_if<(Type == element::string) != std::is_same<T, std::string>::value>::type* = nullptr>
-    void fill_data(const T& value) {
-        if (Type == element::string) {
-            fill_data<element::string, std::string>(std::string());
-        }
-        OPENVINO_THROW("'fill_data' does not support writing elements of type ",
-                       element::from<T>(),
-                       " into Constant of type ",
-                       Type);
-    }
-
-    // generic fill_lp_data if input is not std or OV type (do additional conversion)
-    template <element::Type_t ET, class T>
-    void fill_lp_data(const T& value) {
-        fill_lp_data<ET>(static_cast<float>(value));
-    }
-
-    template <element::Type_t ET>
-    void fill_lp_data(const std::string& value) {
-        fill_data<element::i8>(value);
-    }
-
     void allocate_buffer(bool memset_allocation);
 
     void* get_data_ptr_nc();
@@ -620,152 +308,17 @@ private:
     }
 
     template <typename T>
-    void write_values(const std::vector<T>& values) {
-        write_to_buffer(values);
-    }
+    void write_values(const std::vector<T>& source) {
+        OPENVINO_ASSERT(source.size() == shape_size(m_shape), "Constant initializer does not match shape");
 
-    template <element::Type_t Type,
-              typename T,
-              typename std::enable_if<Type != element::string && !std::is_same<T, std::string>::value>::type* = nullptr>
-    void write_buffer(const std::vector<T>& source) {
-        using StorageDataType = fundamental_type_for<Type>;
-        auto p = get_data_ptr_nc<Type>();
-        for (size_t i = 0; i < source.size(); ++i) {
-            p[i] = static_cast<StorageDataType>(source[i]);
+        if constexpr (!data::is_supported_type<T>) {
+            std::vector<proxy_type<T>> temp{source.begin(), source.end()};
+            data::copy_n(m_element_type, temp.data(), temp.size(), get_data_ptr_nc());
+        } else if constexpr (std::is_same_v<bool, T>) {
+            data::copy_n(m_element_type, source.begin(), source.size(), get_data_ptr_nc());
+        } else {
+            data::copy_n(m_element_type, source.data(), source.size(), get_data_ptr_nc());
         }
-    }
-
-    template <element::Type_t Type,
-              typename T,
-              typename std::enable_if<Type == element::string && std::is_same<T, std::string>::value>::type* = nullptr>
-    void write_buffer(const std::vector<T>& source) {
-        // elements of string are already pre-initialized in allocate_buffer
-        auto p = get_data_ptr_nc<Type>();
-        std::uninitialized_copy_n(source.begin(), source.size(), p);
-    }
-
-    template <
-        element::Type_t Type,
-        typename T,
-        typename std::enable_if<(Type == element::string) != std::is_same<T, std::string>::value>::type* = nullptr>
-    void write_buffer(const std::vector<T>& source) {
-        if (Type == element::string) {
-            fill_data<element::string>(std::string());
-        }
-        OPENVINO_THROW("'write_buffer' does not support writing elements of type ",
-                       element::from<T>(),
-                       " into Constant of type ",
-                       Type);
-    }
-
-    // generic write_lp_buffer if input is not std or OV type (do additional conversion)
-    template <element::Type_t ET, class T>
-    void write_lp_buffer(const std::vector<T>& source) {
-        auto lp_buffer = LPBuffer<ET>(get_data_ptr_nc());
-        for (const auto& value : source) {
-            lp_buffer.write(static_cast<float>(value));
-            ++lp_buffer;
-        }
-    }
-
-    template <element::Type_t ET>
-    void write_lp_buffer(const std::vector<std::string>& source) {
-        write_buffer<element::i8>(source);
-    }
-
-    template <typename T>
-    void write_to_buffer(const std::vector<T>& source) {
-        if (source.size() != shape_size(m_shape)) {
-            OPENVINO_THROW("Constant initializer does not match shape");
-        }
-        using Type_t = element::Type_t;
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic error "-Wswitch"
-#    pragma GCC diagnostic error "-Wswitch-enum"
-#endif
-        switch (m_element_type) {
-        case Type_t::boolean:
-            write_buffer<Type_t::boolean>(source);
-            break;
-        case Type_t::bf16:
-            write_buffer<Type_t::bf16>(source);
-            break;
-        case Type_t::f16:
-            write_buffer<Type_t::f16>(source);
-            break;
-        case Type_t::f32:
-            write_buffer<Type_t::f32>(source);
-            break;
-        case Type_t::f64:
-            write_buffer<Type_t::f64>(source);
-            break;
-        case Type_t::i4:
-            write_lp_buffer<Type_t::i4>(source);
-            break;
-        case Type_t::i8:
-            write_buffer<Type_t::i8>(source);
-            break;
-        case Type_t::i16:
-            write_buffer<Type_t::i16>(source);
-            break;
-        case Type_t::i32:
-            write_buffer<Type_t::i32>(source);
-            break;
-        case Type_t::i64:
-            write_buffer<Type_t::i64>(source);
-            break;
-        case Type_t::u1:
-            write_lp_buffer<Type_t::u1>(source);
-            break;
-        case Type_t::u2:
-            write_lp_buffer<Type_t::u2>(source);
-            break;
-        case Type_t::u3:
-            write_lp_buffer<Type_t::u3>(source);
-            break;
-        case Type_t::u4:
-            write_lp_buffer<Type_t::u4>(source);
-            break;
-        case Type_t::u6:
-            write_lp_buffer<Type_t::u6>(source);
-            break;
-        case Type_t::u8:
-            write_buffer<Type_t::u8>(source);
-            break;
-        case Type_t::u16:
-            write_buffer<Type_t::u16>(source);
-            break;
-        case Type_t::u32:
-            write_buffer<Type_t::u32>(source);
-            break;
-        case Type_t::u64:
-            write_buffer<Type_t::u64>(source);
-            break;
-        case Type_t::nf4:
-            write_lp_buffer<Type_t::nf4>(source);
-            break;
-        case Type_t::f8e4m3:
-            write_buffer<Type_t::f8e4m3>(source);
-            break;
-        case Type_t::f8e5m2:
-            write_buffer<Type_t::f8e5m2>(source);
-            break;
-        case Type_t::string:
-            write_buffer<Type_t::string>(source);
-            break;
-        case Type_t::f4e2m1:
-            write_lp_buffer<Type_t::f4e2m1>(source);
-            break;
-        case Type_t::f8e8m0:
-            write_buffer<Type_t::f8e8m0>(source);
-            break;
-        case Type_t::dynamic:
-            OPENVINO_THROW("unsupported type");
-        }
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
-#    pragma GCC diagnostic pop
-#endif
     }
 
     template <class T>
@@ -785,20 +338,48 @@ private:
         return 64;
     }
 
-    // Internal helper to read/write low precision values for not standard or OV type.
-    template <element::Type_t ET>
-    struct LPBuffer {
-        using lp_iter = element::Iterator<ET, typename ov::fundamental_type_for<ET>>;
-        using lp_iter_ptr = std::shared_ptr<lp_iter>;
+    template <class... Ts>
+    struct Data {
+        using value = std::variant<Ts...>;
+        using pointer =
+            std::variant<std::conditional_t<std::is_same_v<Ts, bool>, typename std::vector<Ts>::iterator, Ts*>...>;
+        using const_pointer = std::variant<
+            std::conditional_t<std::is_same_v<Ts, bool>, typename std::vector<Ts>::const_iterator, const Ts*>...>;
 
-        LPBuffer(void* ptr);
-        LPBuffer(const void* ptr) : LPBuffer{const_cast<void*>(ptr)} {}
-        void write(const float value);
-        ov::fundamental_type_for<ET> read() const;
-        LPBuffer& operator++();
+        template <class U>
+        static constexpr auto is_supported_type = std::disjunction_v<std::is_same<U, Ts>...>;
 
-        lp_iter_ptr iter;
+        static void fill(const element::Type& type, void* dst, const size_t n, const value& value);
+        static void copy_n(const element::Type& type, const_pointer src, const size_t n, void* dst);
+        static void cast_n(const element::Type& type, const void* src, const size_t n, pointer dst);
     };
+
+    template <class U>
+    using proxy_type = std::conditional_t<std::is_integral_v<U>,
+                                          long long,
+                                          std::conditional_t<std::is_unsigned_v<U>, unsigned long long, double>>;
+
+    using data = Data<bool,
+                      char,
+                      signed char,
+                      unsigned char,
+                      short,
+                      unsigned short,
+                      int,
+                      unsigned int,
+                      long,
+                      unsigned long,
+                      long long,
+                      unsigned long long,
+                      float,
+                      double,
+                      float4_e2m1,
+                      float8_e4m3,
+                      float8_e5m2,
+                      float8_e8m0,
+                      float16,
+                      bfloat16,
+                      std::string>;
 
     element::Type m_element_type{};
     Shape m_shape{};
@@ -810,437 +391,13 @@ private:
 };
 
 template <>
-OPENVINO_API Constant::LPBuffer<element::u1>::LPBuffer(void* ptr);
-template <>
-OPENVINO_API Constant::LPBuffer<element::u2>::LPBuffer(void* ptr);
-template <>
-OPENVINO_API Constant::LPBuffer<element::u3>::LPBuffer(void* ptr);
-template <>
-OPENVINO_API Constant::LPBuffer<element::u4>::LPBuffer(void* ptr);
-template <>
-OPENVINO_API Constant::LPBuffer<element::u6>::LPBuffer(void* ptr);
-template <>
-OPENVINO_API Constant::LPBuffer<element::i4>::LPBuffer(void* ptr);
-template <>
-OPENVINO_API Constant::LPBuffer<element::nf4>::LPBuffer(void* ptr);
-template <>
-OPENVINO_API Constant::LPBuffer<element::f4e2m1>::LPBuffer(void* ptr);
+OPENVINO_API void Constant::data::fill(const element::Type& type, void* dst, const size_t n, const value& value);
 
 template <>
-OPENVINO_API void Constant::LPBuffer<element::u1>::write(const float value);
-template <>
-OPENVINO_API void Constant::LPBuffer<element::u2>::write(const float value);
-template <>
-OPENVINO_API void Constant::LPBuffer<element::u3>::write(const float value);
-template <>
-OPENVINO_API void Constant::LPBuffer<element::u4>::write(const float value);
-template <>
-OPENVINO_API void Constant::LPBuffer<element::u6>::write(const float value);
-template <>
-OPENVINO_API void Constant::LPBuffer<element::i4>::write(const float value);
-template <>
-OPENVINO_API void Constant::LPBuffer<element::nf4>::write(const float value);
-template <>
-OPENVINO_API void Constant::LPBuffer<element::f4e2m1>::write(const float value);
+OPENVINO_API void Constant::data::copy_n(const element::Type& type, const_pointer src, const size_t n, void* dst);
 
 template <>
-OPENVINO_API ov::fundamental_type_for<element::u1> Constant::LPBuffer<element::u1>::read() const;
-template <>
-OPENVINO_API ov::fundamental_type_for<element::u2> Constant::LPBuffer<element::u2>::read() const;
-template <>
-OPENVINO_API ov::fundamental_type_for<element::u3> Constant::LPBuffer<element::u3>::read() const;
-template <>
-OPENVINO_API ov::fundamental_type_for<element::u4> Constant::LPBuffer<element::u4>::read() const;
-template <>
-OPENVINO_API ov::fundamental_type_for<element::u6> Constant::LPBuffer<element::u6>::read() const;
-template <>
-OPENVINO_API ov::fundamental_type_for<element::i4> Constant::LPBuffer<element::i4>::read() const;
-template <>
-OPENVINO_API ov::fundamental_type_for<element::nf4> Constant::LPBuffer<element::nf4>::read() const;
-template <>
-OPENVINO_API ov::fundamental_type_for<element::f4e2m1> Constant::LPBuffer<element::f4e2m1>::read() const;
-
-template <>
-OPENVINO_API Constant::LPBuffer<element::u1>& Constant::LPBuffer<element::u1>::operator++();
-template <>
-OPENVINO_API Constant::LPBuffer<element::u2>& Constant::LPBuffer<element::u2>::operator++();
-template <>
-OPENVINO_API Constant::LPBuffer<element::u3>& Constant::LPBuffer<element::u3>::operator++();
-template <>
-OPENVINO_API Constant::LPBuffer<element::u4>& Constant::LPBuffer<element::u4>::operator++();
-template <>
-OPENVINO_API Constant::LPBuffer<element::u6>& Constant::LPBuffer<element::u6>::operator++();
-template <>
-OPENVINO_API Constant::LPBuffer<element::i4>& Constant::LPBuffer<element::i4>::operator++();
-template <>
-OPENVINO_API Constant::LPBuffer<element::nf4>& Constant::LPBuffer<element::nf4>::operator++();
-template <>
-OPENVINO_API Constant::LPBuffer<element::f4e2m1>& Constant::LPBuffer<element::f4e2m1>::operator++();
-
-#define CONSTANT_FILL_DATA_SPECIALIZATION(ET, SRC_TYPE) \
-    template <>                                         \
-    OPENVINO_API void Constant::fill_lp_data<element::Type_t::ET>(const SRC_TYPE& value);
-
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, bool)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, signed char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, unsigned char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, short)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, unsigned short)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, int)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, unsigned int)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, unsigned long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, unsigned long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, float8_e4m3)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, float8_e5m2)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, float8_e8m0)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, float16)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, bfloat16)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, float)
-CONSTANT_FILL_DATA_SPECIALIZATION(u1, double)
-
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, bool)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, signed char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, unsigned char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, short)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, unsigned short)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, int)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, unsigned int)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, unsigned long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, unsigned long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, float8_e4m3)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, float8_e5m2)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, float8_e8m0)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, float16)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, bfloat16)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, float)
-CONSTANT_FILL_DATA_SPECIALIZATION(u2, double)
-
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, bool)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, signed char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, unsigned char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, short)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, unsigned short)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, int)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, unsigned int)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, unsigned long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, unsigned long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, float8_e4m3)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, float8_e5m2)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, float8_e8m0)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, float16)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, bfloat16)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, float)
-CONSTANT_FILL_DATA_SPECIALIZATION(u3, double)
-
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, bool)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, signed char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, unsigned char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, short)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, unsigned short)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, int)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, unsigned int)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, unsigned long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, unsigned long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, float8_e4m3)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, float8_e5m2)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, float8_e8m0)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, float16)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, bfloat16)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, float)
-CONSTANT_FILL_DATA_SPECIALIZATION(u4, double)
-
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, bool)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, signed char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, unsigned char)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, short)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, unsigned short)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, int)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, unsigned int)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, unsigned long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, unsigned long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, float8_e4m3)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, float8_e5m2)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, float8_e8m0)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, float16)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, bfloat16)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, float)
-CONSTANT_FILL_DATA_SPECIALIZATION(u6, double)
-
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, bool)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, char)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, signed char)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, unsigned char)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, short)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, unsigned short)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, int)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, unsigned int)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, long)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, unsigned long)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, unsigned long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, float8_e4m3)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, float8_e5m2)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, float8_e8m0)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, float16)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, bfloat16)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, float)
-CONSTANT_FILL_DATA_SPECIALIZATION(i4, double)
-
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, bool)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, char)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, signed char)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, unsigned char)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, short)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, unsigned short)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, int)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, unsigned int)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, long)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, unsigned long)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, unsigned long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, float8_e4m3)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, float8_e5m2)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, float8_e8m0)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, float16)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, bfloat16)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, float)
-CONSTANT_FILL_DATA_SPECIALIZATION(nf4, double)
-
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, bool)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, char)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, signed char)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, unsigned char)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, short)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, unsigned short)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, int)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, unsigned int)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, long)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, unsigned long)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, unsigned long long)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, float8_e4m3)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, float8_e5m2)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, float8_e8m0)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, float16)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, bfloat16)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, float)
-CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, double)
-
-#undef CONSTANT_FILL_DATA_SPECIALIZATION
-
-#define CONSTANT_WRITE_BUFFER_SPECIALIZATION(ET, SRC_TYPE) \
-    template <>                                            \
-    OPENVINO_API void Constant::write_lp_buffer<element::Type_t::ET>(const std::vector<SRC_TYPE>& source);
-
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, bool)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, signed char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, unsigned char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, unsigned short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, unsigned int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, unsigned long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, unsigned long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, float8_e4m3)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, float8_e5m2)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, float8_e8m0)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, float16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, bfloat16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, float)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, double)
-
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, bool)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, signed char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, unsigned char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, unsigned short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, unsigned int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, unsigned long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, unsigned long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, float8_e4m3)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, float8_e5m2)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, float8_e8m0)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, float16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, bfloat16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, float)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, double)
-
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, bool)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, signed char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, unsigned char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, unsigned short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, unsigned int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, unsigned long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, unsigned long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, float8_e4m3)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, float8_e5m2)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, float8_e8m0)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, float16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, bfloat16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, float)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, double)
-
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, bool)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, signed char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, unsigned char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, unsigned short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, unsigned int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, unsigned long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, unsigned long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, float8_e4m3)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, float8_e5m2)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, float8_e8m0)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, float16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, bfloat16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, float)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, double)
-
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, bool)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, signed char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, unsigned char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, unsigned short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, unsigned int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, unsigned long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, unsigned long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, float8_e4m3)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, float8_e5m2)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, float8_e8m0)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, float16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, bfloat16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, float)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, double)
-
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, bool)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, signed char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, unsigned char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, unsigned short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, unsigned int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, unsigned long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, unsigned long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, float8_e4m3)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, float8_e5m2)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, float8_e8m0)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, float16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, bfloat16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, float)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, double)
-
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, bool)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, signed char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, unsigned char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, unsigned short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, unsigned int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, unsigned long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, unsigned long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, float8_e4m3)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, float8_e5m2)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, float8_e8m0)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, float16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, bfloat16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, float)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, double)
-
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, bool)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, signed char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, unsigned char)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, unsigned short)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, unsigned int)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, unsigned long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, unsigned long long)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, float8_e4m3)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, float8_e5m2)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, float8_e8m0)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, float16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, bfloat16)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, float)
-CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, double)
-
-#undef CONSTANT_WRITE_BUFFER_SPECIALIZATION
-
-template <>
-OPENVINO_API std::vector<bool> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<char> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<signed char> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<unsigned char> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<short> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<unsigned short> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<int> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<unsigned int> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<long> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<unsigned long> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<long long> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<unsigned long long> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<float16> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<bfloat16> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<float> Constant::cast_vector(int64_t num_elements) const;
-template <>
-OPENVINO_API std::vector<double> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API void Constant::data::cast_n(const element::Type& type, const void* src, const size_t n, pointer dst);
 
 }  // namespace v0
 }  // namespace op
