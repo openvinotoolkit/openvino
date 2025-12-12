@@ -55,6 +55,19 @@ static constexpr ov::Property<std::string> weights_bank_alloc{"NPUW_WEIGHTS_BANK
 
 /**
  * @brief
+ * Type: ov::FileHandleProvider.
+ * Callback function to get file handle for weights (cross-platform).
+ * The callback takes no arguments and returns a platform-specific file handle.
+ * On Linux/Unix: returns int (file descriptor)
+ * On Windows: returns void* (HANDLE)
+ * This is useful for scenarios where file access needs to be controlled externally,
+ * such as Android content providers or restricted file access scenarios.
+ * Default value: nullptr.
+ */
+static constexpr ov::Property<ov::FileHandleProvider> weights_handle_provider{"NPUW_WEIGHTS_HANDLE_PROVIDER"};
+
+/**
+ * @brief
  * Type: std::string.
  * Specify a directory where to store cached submodels.
  * Default value: empty.
