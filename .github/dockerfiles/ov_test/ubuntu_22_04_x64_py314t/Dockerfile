@@ -27,6 +27,7 @@ RUN apt-get update && \
         # Python
         python3.14-nogil \
         python3.14-venv \
+        python3.14-dev \
         && \
     rm -rf /var/lib/apt/lists/*
 
