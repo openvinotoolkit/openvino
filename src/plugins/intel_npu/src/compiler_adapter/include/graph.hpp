@@ -28,7 +28,7 @@ public:
           const ov::SoPtr<ICompiler>& compiler = {nullptr},
           const bool calledFromWeightlessGraph = false);
 
-    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
+    std::pair<AddrSizePair, std::optional<std::vector<AddrSizePair>>> export_blob() const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const Config& config) const override;

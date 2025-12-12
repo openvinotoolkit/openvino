@@ -5,7 +5,6 @@
 #include "weightless_graph.hpp"
 
 #include <condition_variable>
-#include <iterator>
 #include <mutex>
 #include <queue>
 
@@ -181,25 +180,24 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
     initialize(config);
 }
 
-std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::export_blob(std::ostream& stream) const {
+std::pair<AddrSizePair, std::optional<std::vector<AddrSizePair>>> WeightlessGraph::export_blob() const {
     if (_blobIsReleased) {
-        OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
-                       "its lifetime.");
+        OPENVINO_THROW("Model was imported and released after initialization. Model export is not allowed anymore.");
     }
 
     size_t blobIndex = 0;
     std::uint32_t totalResult = 1171117u;
     totalResult = ((totalResult << 7) + totalResult);
 
-    const auto writeToStream = [&](GraphDescriptor _graphDesc,
-                                   const std::optional<ov::Tensor>& blobTensor) -> uint64_t {
+    const auto extractInitSchedules = [&](GraphDescriptor graphDesc,
+                                          const std::optional<ov::Tensor>& blobTensor) -> AddrSizePair {
         uint64_t blobSize;
         const uint8_t* blobRawPtr = nullptr;
         std::vector<uint8_t> blob;
 
         if (blobTensor == std::nullopt) {
             // when compiling the model using Compiler in Driver, the blob is handled by the driver
-            _zeGraphExt->getGraphBinary(_graphDesc, blob, blobRawPtr, blobSize);
+            _zeGraphExt->getGraphBinary(graphDesc, blob, blobRawPtr, blobSize);
         } else {
             // in all other cases, the blob is handled by the plugin
             blobRawPtr = static_cast<const uint8_t*>(blobTensor->data());
@@ -208,12 +206,6 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
             OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
-        }
-        stream.write(reinterpret_cast<const char*>(blobRawPtr), static_cast<std::streamsize>(blobSize));
-
-        if (!stream) {
-            _wgLogger.error("Write blob to stream failed. Blob is broken!");
-            return 0;
         }
 
         if (_wgLogger.level() >= ov::log::Level::INFO) {
@@ -225,53 +217,33 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
             totalResult += result;
 
             std::stringstream str;
-            if (blobIndex == MAIN_SCHEDULE_INDEX) {
-                str << "Main blob size " << blobSize << ", hash " << std::hex << result;
-            } else {
+            if (blobIndex != MAIN_SCHEDULE_INDEX) {
                 str << "Init part " << blobIndex << " blob size " << blobSize << ", hash " << std::hex << result;
             }
             _wgLogger.info(str.str().c_str());
         }
 
-        size_t size = utils::align_size_to_standard_page_size(blobSize);
-        size_t paddingSize = size - blobSize;
-        if (paddingSize > 0) {
-            std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
-
-            if (!stream) {
-                _wgLogger.error("Write padding to stream failed. Blob is broken!");
-                return 0;
-            }
-
-            _wgLogger.info("Blob size with padding: %ld", size);
-        }
-
-        return size;
+        return std::make_pair(blobRawPtr, blobSize);
     };
 
     // By convention, first write the main part
-    uint64_t mainBlobSize = writeToStream(_graphDesc, _blob);
-    uint64_t totalBlobSize = mainBlobSize;
+    auto [mainBlobAddrSize, nulloptInitAddrsSizes] = Graph::export_blob();
+    OPENVINO_ASSERT(nulloptInitAddrsSizes == std::nullopt,
+                    "Main graph's init schedules should be nullopt after export!");
     ++blobIndex;
 
     // Then the init schedules
-    std::vector<uint64_t> initSizes;
+    std::vector<AddrSizePair> initAddrsSizes;
     for (size_t initIndex = 0; initIndex < _initsGraphDesc.size(); ++initIndex) {
-        uint64_t initBlobSize = writeToStream(_initsGraphDesc.at(initIndex)._handle,
-                                              _initBlobs.has_value() && _initBlobs->at(initIndex)
-                                                  ? std::make_optional(_initBlobs->at(initIndex))
-                                                  : std::nullopt);
-        totalBlobSize += initBlobSize;
-        initSizes.push_back(initBlobSize);
+        auto initBlobAddrSize = extractInitSchedules(_initsGraphDesc.at(initIndex)._handle,
+                                                     _initBlobs.has_value() && _initBlobs->at(initIndex)
+                                                         ? std::make_optional(_initBlobs->at(initIndex))
+                                                         : std::nullopt);
+        initAddrsSizes.push_back(initBlobAddrSize);
         ++blobIndex;
     }
 
-    std::stringstream str;
-    str << "Blob size: " << totalBlobSize << ", hash: " << std::hex << totalResult;
-    _wgLogger.info(str.str().c_str());
-
-    _wgLogger.info("Write blob to stream successfully.");
-    return std::make_pair(totalBlobSize, initSizes);
+    return std::make_pair(mainBlobAddrSize, initAddrsSizes);
 }
 
 void WeightlessGraph::initialize(const Config& config) {
