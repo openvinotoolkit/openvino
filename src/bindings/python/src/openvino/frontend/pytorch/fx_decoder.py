@@ -293,25 +293,21 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             return OVAny(pt_to_ov_type_map[str(value.meta["tensor_meta"].dtype)])
         return None
 
-    # Known higher-order operations that require special tuple handling
-    HIGHER_ORDER_OPS = frozenset([
-        "torch.ops.higher_order.while_loop",
-        "torch.ops.higher_order.cond",
-        "torch.ops.higher_order.map",
-        "torch.ops.higher_order.scan",
-    ])
-
     def _is_higher_order_op(self, node):
-        """Check if the node is a higher-order operation that needs special tuple handling.
+        """Check if the node is a higher-order operation.
 
-        Higher-order operations (while_loop, cond, map, scan) pass tuple of tensors
-        as carried inputs that need to be unpacked into separate inputs.
-        Regular operations should keep tuples as-is (InlinedInput).
+        All higher-order operations in PyTorch (while_loop, cond, map, scan, etc.)
+        are registered under torch.ops.higher_order namespace. This provides
+        automatic support for any new higher-order ops added in future PyTorch versions.
+
+        Higher-order operations pass tuple of tensors as carried inputs that need
+        to be unpacked into separate inputs. Regular operations should keep
+        tuples as-is (InlinedInput).
         """
         if node.op != "call_function":
             return False
         target_str = str(node.target)
-        return target_str in self.HIGHER_ORDER_OPS
+        return target_str.startswith("torch.ops.higher_order.")
 
     def _is_subgraph_arg(self, arg):
         """Check if argument is a subgraph reference (get_attr node pointing to GraphModule).
