@@ -123,7 +123,7 @@ TEST_P(RoiTensorsTestsRun, CompileAndRunStridedTensorsPropertyEnabled) {
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, shape, "N...");
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0", "dummy"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0,dummy";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -176,7 +176,7 @@ TEST_P(RoiTensorsTestsRun, CreateStridedTensorFromHostTensorAndRunInfer) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -206,7 +206,7 @@ TEST_P(RoiTensorsTestsRun, SetStridedTensorForUnexpectedTensorExpectedThrow) {
     auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 25, 25, 25});
     auto output_strides = output_host_tensor.get_strides();
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0";
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
@@ -222,8 +222,7 @@ TEST_P(RoiTensorsTestsRun, SetStridedMultipleOutputTensorForUnexpectedTensorExpe
     auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 25, 25, 25});
     auto output_strides = output_host_tensor.get_strides();
 
-    configuration[ov::intel_npu::enable_strides_for.name()] =
-        std::vector<std::string>{"input0", "input1", "tensor_output0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,input1,tensor_output0";
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
@@ -250,7 +249,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInfer) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -291,7 +290,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInferWithBatching)
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -332,7 +331,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorAndRunInferWithBatchingU
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -393,7 +392,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiBatchedTensorsFromHostTensorAndRunInferWithB
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -467,7 +466,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiBatchedTensorsFromHostTensorAndRegularTensor
         input_data[i] = 50.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -540,7 +539,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpy) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -595,7 +594,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContext) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -652,7 +651,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyToA
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -717,7 +716,7 @@ TEST_P(RoiTensorsTestsRun, FallbackOnMemcpyRemoteTensorFromAnotherContextCopyFro
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -775,7 +774,7 @@ TEST_P(RoiTensorsTestsRun, ImportStandardAllocation) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -826,7 +825,7 @@ TEST_P(RoiTensorsTestsRun, RunWithRemoteTensor) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -874,7 +873,7 @@ TEST_P(RoiTensorsTestsRun, MultipleIOCreateRoiTensorFromHostTensorAndRunInfer) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "input1", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,input1,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -926,7 +925,7 @@ TEST_P(RoiTensorsTestsRun, RunStridedTensorWithDynamicBatching) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -969,7 +968,7 @@ TEST_P(RoiTensorsTestsRun, RunStridedTensorWithDynamicBoundedBatching) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0 Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -996,7 +995,7 @@ TEST_P(RoiTensorsTestsRun, TryToCompileStridedTensorWithDynamicBoundsExpectedThr
     ov::CompiledModel compiled_model;
     auto model = createModelWithNInputs(element::f32, model_shape, "N...");
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     EXPECT_THROW(core->compile_model(model, target_device, configuration), ov::Exception);
 }
@@ -1020,7 +1019,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorUpdateCommandListAndRunI
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = std::vector<std::string>{"input0", "Result0"};
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0, Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
