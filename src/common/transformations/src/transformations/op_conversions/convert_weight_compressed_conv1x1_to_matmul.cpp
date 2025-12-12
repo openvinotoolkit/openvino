@@ -34,8 +34,8 @@
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;
 
-ov::pass::ConvertWeightCompressedConv1x1ToMatmulMatcher::ConvertWeightCompressedConv1x1ToMatmulMatcher() {
-    MATCHER_SCOPE(ConvertWeightCompressedConv1x1ToMatmulMatcher);
+ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1ToMatmul() {
+    MATCHER_SCOPE(ConvertWeightCompressedConv1x1ToMatmul);
     auto filter1x1_path = [](const ov::Output<ov::Node>& output) {
         const auto& pshape = output.get_partial_shape();
         return ov::op::util::is_on_path<ov::op::v0::Constant, ov::op::v0::Parameter>(output) && pshape.is_static() &&
