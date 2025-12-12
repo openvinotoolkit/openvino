@@ -283,6 +283,7 @@ jobs:
           allow-prerelases: 'true'
 
       - name: Build free-threading Python wheel for 3.14t
+        if: ${{ inputs.build-additional-python-wheels }}
         run: |
           $pyBuildDir = "${{ github.workspace }}/py3.14t"
           New-Item -ItemType Directory -Path "$pyBuildDir" -Force
