@@ -81,6 +81,19 @@ enum class shared_mem_type {
     shared_mem_usm
 };
 
+inline std::ostream& operator<<(std::ostream& out, const shared_mem_type& mem_type) {
+    switch (mem_type) {
+        case shared_mem_type::shared_mem_empty:     out << "shared_mem_empty"; break;
+        case shared_mem_type::shared_mem_buffer:    out << "shared_mem_buffer"; break;
+        case shared_mem_type::shared_mem_image:     out << "shared_mem_image"; break;
+        case shared_mem_type::shared_mem_vasurface: out << "shared_mem_vasurface"; break;
+        case shared_mem_type::shared_mem_dxbuffer:  out << "shared_mem_dxbuffer"; break;
+        case shared_mem_type::shared_mem_usm:       out << "shared_mem_usm"; break;
+        default: out << "unknown"; break;
+    }
+    return out;
+}
+
 using shared_handle = void*;
 using shared_surface = uint32_t;
 

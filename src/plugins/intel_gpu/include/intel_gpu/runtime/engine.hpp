@@ -12,6 +12,7 @@
 #include "layout.hpp"
 #include "execution_config.hpp"
 #include "engine_configuration.hpp"
+#include "kernel_builder.hpp"
 
 #include <memory>
 #include <set>
@@ -143,6 +144,8 @@ public:
     /// Returns service stream which can be used during program build and optimizations
     virtual stream& get_service_stream() const = 0;
 
+    virtual std::shared_ptr<kernel_builder> create_kernel_builder() const = 0;
+
     virtual allocation_type detect_usm_allocation_type(const void* memory) const = 0;
 
     void set_enable_large_allocations(bool enable_large_allocations);
@@ -156,10 +159,6 @@ public:
     /// Returns onednn engine object which shares device and context with current engine
     virtual dnnl::engine& get_onednn_engine() const = 0;
 #endif
-
-    /// This method is intended to create kernel handle for current engine from handle from arbitrary engine
-    /// For instance, source kernel can be compiled using ocl engine, and then we can build L0 kernel object based on that
-    virtual kernel::ptr prepare_kernel(const kernel::ptr kernel) const = 0;
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type

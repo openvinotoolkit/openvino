@@ -33,6 +33,9 @@ public:
 
         return std::make_shared<ocl_kernel>(get_handle().clone(), _kernel_id);
     }
+
+    std::vector<uint8_t> get_binary() const override;
+    std::string get_build_log() const override;
 };
 
 }  // namespace ocl
