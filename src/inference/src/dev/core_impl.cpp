@@ -396,9 +396,11 @@ ov::Parsed parse_device_config(const std::string& device_name,
     return parsed;
 }
 
-void emplace_cache_dir_if_supported(ov::AnyMap& config, const ov::Plugin& plugin, const std::string& cache_dir) {
+void emplace_cache_dir_if_supported(ov::AnyMap& config,
+                                    const ov::Plugin& plugin,
+                                    const std::filesystem::path& cache_dir) {
     if (ov::util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir)) {
-        config.emplace(ov::cache_dir(cache_dir));
+        config.emplace(ov::cache_dir(ov::util::path_to_string(cache_dir)));
     }
 }
 }  // namespace
