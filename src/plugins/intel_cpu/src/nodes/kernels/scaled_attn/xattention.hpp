@@ -151,9 +151,8 @@ struct Xattn {
             return;
         }
 
-        auto prev_k_len = _k_len;
-        _k_len = B;
-        if (_xattn_gemm.empty() || _k_len != prev_k_len) {
+        if (_xattn_gemm.empty() || _k_len != B) {
+            _k_len = B;
             _xattn_gemm.resize(_m_block_size);
             for (size_t i = 1; i < _m_block_size + 1; i++) {
                 _xattn_gemm[i - 1] = std::make_shared<BrgemmKernel>(i,                         // M
