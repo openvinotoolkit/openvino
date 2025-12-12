@@ -38,7 +38,6 @@ using namespace std;
 using namespace ov;
 using namespace ov::pass;
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -130,12 +129,7 @@ ov::pass::UniqueDecomposition::UniqueDecomposition() {
 
         // compute unique elements but not in the original order
         // 1. sort elements in x in order to compute unique elements
-        auto x_sorted = rg.make<v3::TopK>(x,
-                                                  n,
-                                                  0,
-                                                  v3::TopK::Mode::MIN,
-                                                  v3::TopK::SortType::SORT_VALUES,
-                                                  element::i32);
+        auto x_sorted = rg.make<v3::TopK>(x, n, 0, v3::TopK::Mode::MIN, v3::TopK::SortType::SORT_VALUES, element::i32);
         // 2. generate two vectors from x_sorted vector by padding in the beginning and in the end:
         // x1 = [0, x0, x1, ..., xn]
         // x2 = [x0, x1, ..., xn, 0]
@@ -174,11 +168,11 @@ ov::pass::UniqueDecomposition::UniqueDecomposition() {
         // denote a number of unique elements as m
         auto m = get_elements_number_1d(minimum_indices, element::i32, rg);
         auto sorted_minumum_indices = rg.make<v3::TopK>(minimum_indices,
-                                                                m,
-                                                                0,
-                                                                v3::TopK::Mode::MIN,
-                                                                v3::TopK::SortType::SORT_VALUES,
-                                                                element::i32);
+                                                        m,
+                                                        0,
+                                                        v3::TopK::Mode::MIN,
+                                                        v3::TopK::SortType::SORT_VALUES,
+                                                        element::i32);
         auto output_unique_elements = rg.make<v8::Gather>(x, sorted_minumum_indices->output(0), zero_const);
 
         if (!unique_node->get_output_target_inputs(0).empty()) {
@@ -193,12 +187,10 @@ ov::pass::UniqueDecomposition::UniqueDecomposition() {
             auto unsqueeze_output_unique_elements = rg.make<v0::Unsqueeze>(output_unique_elements, one_const);
             auto unique_vs_x_orig = rg.make<v1::Equal>(unsqueeze_output_unique_elements, unsqueeze_x);
             auto mplus1 = rg.make<v1::Add>(m, one_const_scalar);
-            auto unique_vs_x_orig_01 =
-                rg.make<v1::Select>(unique_vs_x_orig, one_const_out_idx, zero_const_out_idx);
+            auto unique_vs_x_orig_01 = rg.make<v1::Select>(unique_vs_x_orig, one_const_out_idx, zero_const_out_idx);
             // 2. compute positions where each element from x is located in unique elements vector
             // the position counts from 1
-            auto range_1mplus1 =
-                rg.make<v4::Range>(one_const_scalar, mplus1, one_const_scalar, output_indices_type);
+            auto range_1mplus1 = rg.make<v4::Range>(one_const_scalar, mplus1, one_const_scalar, output_indices_type);
             auto unsqueeze_range_1mplus1 = rg.make<v0::Unsqueeze>(range_1mplus1, one_const);
             auto unique_vs_x_ind_orig = rg.make<v1::Multiply>(unique_vs_x_orig_01, unsqueeze_range_1mplus1);
             auto output_idx_plus1 = rg.make<v1::ReduceMax>(unique_vs_x_ind_orig, zero_const);

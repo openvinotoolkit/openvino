@@ -18,7 +18,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;

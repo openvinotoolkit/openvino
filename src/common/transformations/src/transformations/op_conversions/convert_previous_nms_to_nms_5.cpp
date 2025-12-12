@@ -16,9 +16,8 @@
 
 using namespace ov;
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -147,13 +146,13 @@ bool callback_func(Matcher& m, pass::MatcherPass* impl) {
     const auto& arg4 = num_of_args > 4 ? new_args.at(4) : v0::Constant::create(element::f32, Shape{}, {.0f});
 
     const auto nms_5 = impl->register_new_node<v5::NonMaxSuppression>(new_args.at(0),
-                                                                              new_args.at(1),
-                                                                              arg2,
-                                                                              arg3,
-                                                                              arg4,
-                                                                              attrs.box_encoding,
-                                                                              attrs.sort_result_descending,
-                                                                              attrs.output_type);
+                                                                      new_args.at(1),
+                                                                      arg2,
+                                                                      arg3,
+                                                                      arg4,
+                                                                      attrs.box_encoding,
+                                                                      attrs.sort_result_descending,
+                                                                      attrs.output_type);
 
     nms_5->set_friendly_name(root->get_friendly_name());
     ov::copy_runtime_info(root, nms_5);

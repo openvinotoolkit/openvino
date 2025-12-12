@@ -19,7 +19,6 @@
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/squeeze.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -214,9 +213,9 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
         }
 
         auto scatter_update = std::make_shared<v3::ScatterUpdate>(scatter->input_value(0),
-                                                                          indices_input,
-                                                                          scatter->input_value(2),
-                                                                          scatter->input_value(3));
+                                                                  indices_input,
+                                                                  scatter->input_value(2),
+                                                                  scatter->input_value(3));
         new_ops.push_back(scatter_update);
         scatter_update->set_friendly_name(scatter->get_friendly_name());
         ov::copy_runtime_info({scatter, broadcast}, {new_ops});

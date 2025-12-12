@@ -36,7 +36,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -321,13 +320,11 @@ ov::OutputVector compute_sub_shape(const ov::Output<ov::Node>& data_shape,
     auto begin_const = v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {begin});
     auto end_const = v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {end});
     auto stride_const = v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {1});
-    auto sub_shape =
-        std::make_shared<v1::StridedSlice>(data_shape, begin_const, end_const, begin_mask, end_mask);
+    auto sub_shape = std::make_shared<v1::StridedSlice>(data_shape, begin_const, end_const, begin_mask, end_mask);
 
     if (is_product) {
         auto reduce_axis_const = v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {0});
-        auto separate_shape_prod =
-            std::make_shared<v1::ReduceProd>(sub_shape->output(0), reduce_axis_const, true);
+        auto separate_shape_prod = std::make_shared<v1::ReduceProd>(sub_shape->output(0), reduce_axis_const, true);
         sub_shape_vector.push_back(separate_shape_prod->output(0));
         subgraph_nodes.insert(subgraph_nodes.end(), {reduce_axis_const, separate_shape_prod});
     } else {
@@ -437,9 +434,8 @@ ov::Output<ov::Node> broadcast_input(const ov::Output<ov::Node>& input_node,
             std::make_shared<v3::Broadcast>(input_node, new_shape_const, ov::op::BroadcastType::BIDIRECTIONAL);
         subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_const});
     } else {
-        reshaped_input_op = std::make_shared<v3::Broadcast>(input_node,
-                                                                    new_shape_op->output(0),
-                                                                    ov::op::BroadcastType::BIDIRECTIONAL);
+        reshaped_input_op =
+            std::make_shared<v3::Broadcast>(input_node, new_shape_op->output(0), ov::op::BroadcastType::BIDIRECTIONAL);
         subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_op});
     }
 
@@ -483,8 +479,7 @@ ov::Output<ov::Node> reshape_input_for_matmul(const ov::Output<ov::Node>& input_
     } else if (separate_sub_shape.size() > 0) {
         // in this case compute a product of separate dimension sizes since they must be
         // presented with just one dimension for MatMul
-        auto separate_shape_prod =
-            std::make_shared<v1::ReduceProd>(separate_sub_shape[0], reduce_axis_const, true);
+        auto separate_shape_prod = std::make_shared<v1::ReduceProd>(separate_sub_shape[0], reduce_axis_const, true);
         separate_parts.push_back(separate_shape_prod->output(0));
         subgraph_nodes.insert(subgraph_nodes.end(), {reduce_axis_const, separate_shape_prod});
     }
@@ -779,8 +774,7 @@ void extract_diagonal(ov::OutputVector& inputs,
             v0::Constant::create(ov::element::i64, {repeated_label_dims.size()}, repeated_label_dims);
         const auto& repeated_label_indices_len =
             v0::Constant::create(ov::element::i64, {}, {repeated_label_dims.size()});
-        const auto& repeated_dimensions =
-            std::make_shared<v7::Gather>(input_shape, repeated_label_indices, const_0);
+        const auto& repeated_dimensions = std::make_shared<v7::Gather>(input_shape, repeated_label_indices, const_0);
         const auto& repeated_dimension = std::make_shared<v7::Gather>(repeated_dimensions, const_0, const_0);
         const auto& range_max_val = std::make_shared<v1::Power>(repeated_dimension, repeated_label_indices_len);
         const auto& step_numerator = std::make_shared<v1::Subtract>(range_max_val, const_1);
@@ -827,8 +821,8 @@ void extract_diagonal(ov::OutputVector& inputs,
 
     // Gather the dimensions for unrepeated labels in single call
     const auto& unrepeated_dimensions_indices = v0::Constant::create(ov::element::i64,
-                                                                             {unrepeated_dimension_indices_vec.size()},
-                                                                             unrepeated_dimension_indices_vec);
+                                                                     {unrepeated_dimension_indices_vec.size()},
+                                                                     unrepeated_dimension_indices_vec);
     const auto& unrepeated_dimensions =
         std::make_shared<v7::Gather>(input_shape, unrepeated_dimensions_indices, const_0);
     subgraph_nodes.insert(subgraph_nodes.end(), {unrepeated_dimensions_indices, unrepeated_dimensions});
@@ -841,8 +835,7 @@ void extract_diagonal(ov::OutputVector& inputs,
     // Create the pads for the label-flattened input tensor to extract the diagonal elements
     const auto& pads_end = std::make_shared<v0::Concat>(ends, 0);
     const auto& pads_begin = std::make_shared<v0::Concat>(begins, 0);
-    const auto& pad =
-        std::make_shared<v1::Pad>(reshaped_input, pads_begin, pads_end, ov::op::PadMode::CONSTANT);
+    const auto& pad = std::make_shared<v1::Pad>(reshaped_input, pads_begin, pads_end, ov::op::PadMode::CONSTANT);
     // Reshape the tensor after padding to extract the diagonal elements to separate dimensions
     const auto& reshape_after_pad_target = std::make_shared<v0::Concat>(shape_after_pad_vector, 0);
     const auto& reshape_after_pad = std::make_shared<v1::Reshape>(pad, reshape_after_pad_target, false);
@@ -1037,9 +1030,8 @@ void contract_two_inputs(ov::OutputVector& input_nodes,
         auto unsqueeze_output2 = unsqueeze_input(input_node2, unsqueeze_axis2, subgraph_nodes);
 
         // multiply both operands with broadcasting
-        auto mul = std::make_shared<v1::Multiply>(unsqueeze_output1,
-                                                          unsqueeze_output2,
-                                                          ov::op::AutoBroadcastType::NUMPY);
+        auto mul =
+            std::make_shared<v1::Multiply>(unsqueeze_output1, unsqueeze_output2, ov::op::AutoBroadcastType::NUMPY);
 
         // update input operand and input subscript for Einsum operation
         update_operands(input_nodes, input_subscripts, input_ind1, input_ind2, mul->output(0), resultant_subscript);

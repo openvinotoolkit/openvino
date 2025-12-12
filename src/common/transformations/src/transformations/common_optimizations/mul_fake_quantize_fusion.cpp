@@ -20,10 +20,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -32,13 +31,8 @@ ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
     MATCHER_SCOPE(MulFakeQuantizeFusion);
     auto input_pattern = any_input();
     auto const_pattern = wrap_type<v0::Constant>();
-    auto mul_pattern = wrap_type<v1::Multiply>({input_pattern, const_pattern},
-                                                                          ov::pass::pattern::consumers_count(1));
-    auto fq_pattern = wrap_type<v0::FakeQuantize>({mul_pattern,
-                                                                              any_input(),
-                                                                              any_input(),
-                                                                              any_input(),
-                                                                              any_input()});
+    auto mul_pattern = wrap_type<v1::Multiply>({input_pattern, const_pattern}, ov::pass::pattern::consumers_count(1));
+    auto fq_pattern = wrap_type<v0::FakeQuantize>({mul_pattern, any_input(), any_input(), any_input(), any_input()});
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& input = pattern_value_map.at(input_pattern);
@@ -48,8 +42,7 @@ ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         auto fq = ov::as_type_ptr<v0::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
         if (!fq)
             return false;
-        auto mul_const =
-            ov::as_type_ptr<v0::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
+        auto mul_const = ov::as_type_ptr<v0::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
         if (!mul_const)
             return false;
 

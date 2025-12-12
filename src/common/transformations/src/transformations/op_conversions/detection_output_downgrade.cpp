@@ -14,7 +14,6 @@
 using namespace std;
 using namespace ov;
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -55,19 +54,17 @@ pass::ConvertDetectionOutput8ToDetectionOutput1::ConvertDetectionOutput8ToDetect
 
         std::shared_ptr<v0::DetectionOutput> detection_output_v1_node = nullptr;
         if (detection_output_v8_node->get_input_size() == 3) {
-            detection_output_v1_node =
-                make_shared<v0::DetectionOutput>(detection_output_v8_node->input_value(0),
-                                                         detection_output_v8_node->input_value(1),
-                                                         detection_output_v8_node->input_value(2),
-                                                         attributes_v1);
+            detection_output_v1_node = make_shared<v0::DetectionOutput>(detection_output_v8_node->input_value(0),
+                                                                        detection_output_v8_node->input_value(1),
+                                                                        detection_output_v8_node->input_value(2),
+                                                                        attributes_v1);
         } else if (detection_output_v8_node->get_input_size() == 5) {
-            detection_output_v1_node =
-                make_shared<v0::DetectionOutput>(detection_output_v8_node->input_value(0),
-                                                         detection_output_v8_node->input_value(1),
-                                                         detection_output_v8_node->input_value(2),
-                                                         detection_output_v8_node->input_value(3),
-                                                         detection_output_v8_node->input_value(4),
-                                                         attributes_v1);
+            detection_output_v1_node = make_shared<v0::DetectionOutput>(detection_output_v8_node->input_value(0),
+                                                                        detection_output_v8_node->input_value(1),
+                                                                        detection_output_v8_node->input_value(2),
+                                                                        detection_output_v8_node->input_value(3),
+                                                                        detection_output_v8_node->input_value(4),
+                                                                        attributes_v1);
         }
         if (!detection_output_v1_node)
             return false;

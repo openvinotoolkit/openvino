@@ -18,7 +18,6 @@
 #include "ov_ops/nms_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -37,12 +36,9 @@ ov::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
         const auto new_args = nms_5->input_values();
         const std::size_t num_of_inputs = new_args.size();
 
-        const auto& arg2 =
-            num_of_inputs > 2 ? new_args.at(2) : v0::Constant::create(element::i32, Shape{}, {0});
-        const auto& arg3 =
-            num_of_inputs > 3 ? new_args.at(3) : v0::Constant::create(element::f32, Shape{}, {.0f});
-        const auto& arg4 =
-            num_of_inputs > 4 ? new_args.at(4) : v0::Constant::create(element::f32, Shape{}, {.0f});
+        const auto& arg2 = num_of_inputs > 2 ? new_args.at(2) : v0::Constant::create(element::i32, Shape{}, {0});
+        const auto& arg3 = num_of_inputs > 3 ? new_args.at(3) : v0::Constant::create(element::f32, Shape{}, {.0f});
+        const auto& arg4 = num_of_inputs > 4 ? new_args.at(4) : v0::Constant::create(element::f32, Shape{}, {.0f});
 
         // vector of new openvino operations
         NodeVector new_ops;
@@ -83,8 +79,7 @@ ov::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
         std::shared_ptr<op::internal::NonMaxSuppressionIEInternal> nms_legacy{nullptr};
 
         if (num_of_inputs > 5 && !nms_5->is_soft_nms_sigma_constant_and_default()) {
-            new_soft_nms_sigma =
-                std::make_shared<v1::Reshape>(new_args.at(5), new_shape_for_soft_nms_sigma, true);
+            new_soft_nms_sigma = std::make_shared<v1::Reshape>(new_args.at(5), new_shape_for_soft_nms_sigma, true);
             new_ops.emplace_back(new_soft_nms_sigma.get_node_shared_ptr());
             nms_legacy =
                 std::make_shared<op::internal::NonMaxSuppressionIEInternal>(new_args.at(0),

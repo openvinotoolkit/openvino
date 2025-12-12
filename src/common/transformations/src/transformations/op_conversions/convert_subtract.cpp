@@ -17,9 +17,8 @@
 
 using namespace ov;
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -37,9 +36,9 @@ static bool convert_subtract(const std::shared_ptr<Node>& node) {
         return false;
     }
 
-    std::shared_ptr<Node> neg = std::make_shared<v1::Multiply>(
-        sub->input_value(1),
-        v0::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
+    std::shared_ptr<Node> neg =
+        std::make_shared<v1::Multiply>(sub->input_value(1),
+                                       v0::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
     NodeVector new_nodes;
     if (auto constant = ov::util::get_constant_from_source(neg)) {
         neg = constant;
@@ -72,8 +71,7 @@ pass::ConvertSubtract::ConvertSubtract() {
 
 pass::ConvertSubtractWithConstant::ConvertSubtractWithConstant() {
     MATCHER_SCOPE(ConvertSubtractWithConstant);
-    auto sub = wrap_type<v1::Subtract>(
-        {ov::pass::pattern::any_input(), wrap_type<v0::Constant>()});
+    auto sub = wrap_type<v1::Subtract>({ov::pass::pattern::any_input(), wrap_type<v0::Constant>()});
 
     matcher_pass_callback callback = [=](Matcher& m) {
         auto node = m.get_match_root();

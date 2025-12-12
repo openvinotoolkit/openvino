@@ -29,7 +29,6 @@
 using namespace ov;
 using namespace testing;
 
-
 namespace op_util = ov::op::util;
 TEST_F(TransformationTestsF, ConvertDivide) {
     {

@@ -18,10 +18,9 @@
 #include "ov_ops/fully_connected_quantized_legacy.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
@@ -32,8 +31,7 @@ ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
     auto weights_m = any_input();
     auto bias_m = any_input();
 
-    auto fully_connected_m =
-        wrap_type<ov::op::internal::FullyConnected>({activations_m, weights_m, bias_m});
+    auto fully_connected_m = wrap_type<ov::op::internal::FullyConnected>({activations_m, weights_m, bias_m});
     auto dequantization_scales_m = wrap_type<v0::Constant>();
     auto multiply_m = wrap_type<ov::op::v1::Multiply>({fully_connected_m, dequantization_scales_m});
 

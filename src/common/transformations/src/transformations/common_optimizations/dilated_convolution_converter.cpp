@@ -19,10 +19,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -34,33 +33,28 @@ ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
     auto block_shape_pattern = wrap_type<v0::Constant>();
     auto pads_begin_pattern = wrap_type<v0::Constant>();
     auto pads_end_pattern = wrap_type<v0::Constant>();
-    auto space_to_batch_pattern = wrap_type<v1::SpaceToBatch>(
-        {data_pattern, block_shape_pattern, pads_begin_pattern, pads_end_pattern});
-    auto conv_p =
-        wrap_type<v1::Convolution>({space_to_batch_pattern, any_input()});
-    auto gconv_p = wrap_type<v1::GroupConvolution>(
-        {space_to_batch_pattern, any_input()});
+    auto space_to_batch_pattern =
+        wrap_type<v1::SpaceToBatch>({data_pattern, block_shape_pattern, pads_begin_pattern, pads_end_pattern});
+    auto conv_p = wrap_type<v1::Convolution>({space_to_batch_pattern, any_input()});
+    auto gconv_p = wrap_type<v1::GroupConvolution>({space_to_batch_pattern, any_input()});
     auto conv_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{conv_p, gconv_p});
     auto crops_begin_pattern = wrap_type<v0::Constant>();
     auto crops_end_pattern = wrap_type<v0::Constant>();
-    auto batch_to_space_pattern = wrap_type<v1::BatchToSpace>(
-        {conv_pattern, any_input(), crops_begin_pattern, crops_end_pattern});
+    auto batch_to_space_pattern =
+        wrap_type<v1::BatchToSpace>({conv_pattern, any_input(), crops_begin_pattern, crops_end_pattern});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto block_shape =
-            ov::as_type_ptr<v0::Constant>(pattern_map.at(block_shape_pattern).get_node_shared_ptr());
+        auto block_shape = ov::as_type_ptr<v0::Constant>(pattern_map.at(block_shape_pattern).get_node_shared_ptr());
         if (!block_shape)
             return false;
-        auto pads_begin =
-            ov::as_type_ptr<v0::Constant>(pattern_map.at(pads_begin_pattern).get_node_shared_ptr());
+        auto pads_begin = ov::as_type_ptr<v0::Constant>(pattern_map.at(pads_begin_pattern).get_node_shared_ptr());
         if (!pads_begin)
             return false;
         auto pads_end = ov::as_type_ptr<v0::Constant>(pattern_map.at(pads_end_pattern).get_node_shared_ptr());
         if (!pads_end)
             return false;
-        auto crops_begin =
-            ov::as_type_ptr<v0::Constant>(pattern_map.at(crops_begin_pattern).get_node_shared_ptr());
+        auto crops_begin = ov::as_type_ptr<v0::Constant>(pattern_map.at(crops_begin_pattern).get_node_shared_ptr());
         if (!crops_begin)
             return false;
         auto crops_end = ov::as_type_ptr<v0::Constant>(pattern_map.at(crops_end_pattern).get_node_shared_ptr());
@@ -113,20 +107,20 @@ ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
         std::shared_ptr<ov::Node> new_conv;
         if (pattern_map.count(gconv_p)) {
             new_conv = register_new_node<v1::GroupConvolution>(pattern_map.at(data_pattern),
-                                                                       conv_node->input_value(1),
-                                                                       strides,
-                                                                       new_pads_begin,
-                                                                       new_pads_end,
-                                                                       dilations,
-                                                                       ov::op::PadType::EXPLICIT);
+                                                               conv_node->input_value(1),
+                                                               strides,
+                                                               new_pads_begin,
+                                                               new_pads_end,
+                                                               dilations,
+                                                               ov::op::PadType::EXPLICIT);
         } else {
             new_conv = register_new_node<v1::Convolution>(pattern_map.at(data_pattern),
-                                                                  conv_node->input_value(1),
-                                                                  strides,
-                                                                  new_pads_begin,
-                                                                  new_pads_end,
-                                                                  dilations,
-                                                                  ov::op::PadType::EXPLICIT);
+                                                          conv_node->input_value(1),
+                                                          strides,
+                                                          new_pads_begin,
+                                                          new_pads_end,
+                                                          dilations,
+                                                          ov::op::PadType::EXPLICIT);
         }
 
         auto batch_to_space = pattern_map.at(batch_to_space_pattern).get_node_shared_ptr();

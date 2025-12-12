@@ -27,8 +27,8 @@
 #include "transformations/utils/utils.hpp"
 
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -40,15 +40,13 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
     MATCHER_SCOPE(PositionIDsReplacer);
 
     auto input_ids = any_input();
-    auto input_embed = wrap_type<v8::Gather>(
-        {any_input(), input_ids, any_input()});
+    auto input_embed = wrap_type<v8::Gather>({any_input(), input_ids, any_input()});
 
     auto position_ids_pattern = any_input();
     auto offset = wrap_type<v0::Constant>();
     auto add_offset = wrap_type<v1::Add>({position_ids_pattern, offset});
     auto convert = wrap_type<v0::Convert>({add_offset});
-    auto position_embed = wrap_type<v8::Gather>(
-        {any_input(), convert, any_input()});
+    auto position_embed = wrap_type<v8::Gather>({any_input(), convert, any_input()});
 
     auto mul = ov::pass::pattern::optional<v0::MatMul>({input_embed, any_input()});
 
@@ -70,8 +68,7 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     // total seq len:
     auto p_max_context_len = wrap_type<v0::Parameter>();
     auto p_opt_convert = ov::pass::pattern::optional<v0::Convert>(p_max_context_len);
-    auto p_opt_reshape =
-        ov::pass::pattern::optional<v1::Reshape>({p_opt_convert, any_input()});
+    auto p_opt_reshape = ov::pass::pattern::optional<v1::Reshape>({p_opt_convert, any_input()});
 
     // current seq len:
     // it might be present in 2 different ways:
@@ -80,13 +77,12 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     // Probably we can use the symbols to re-use one of these ways.
     // Currently, "any_input" is used to detect the both places.
     auto p_shape_of = wrap_type<ov::op::v3::ShapeOf>({any_input()});
-    auto p_current_len = wrap_type<v8::Gather>(
-        {p_shape_of, ov::pass::pattern::wrap_const(), ov::pass::pattern::wrap_const()});
+    auto p_current_len =
+        wrap_type<v8::Gather>({p_shape_of, ov::pass::pattern::wrap_const(), ov::pass::pattern::wrap_const()});
 
     auto p_neg_const = wrap_type<v0::Constant>();
     auto p_neg_const_convert = ov::pass::pattern::optional<v0::Convert>(p_neg_const);
-    auto p_neg_const_reshape =
-        ov::pass::pattern::optional<v1::Reshape>({p_neg_const_convert, any_input()});
+    auto p_neg_const_reshape = ov::pass::pattern::optional<v1::Reshape>({p_neg_const_convert, any_input()});
     auto p_neg_mul = wrap_type<v1::Multiply>({p_current_len, p_neg_const_reshape});
 
     // For now, it has always been a constant, but this may change in the future.
@@ -98,15 +94,15 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     auto p_rotary_emb_sincos = any_input();
     // the rotary_emb_cos/rotary_emb_sin are sliced by the total length [1,..4096,1,128]
     auto p_slice_1 = wrap_type<v8::Slice>({p_rotary_emb_sincos,
-                                                                      ov::pass::pattern::wrap_const(),
-                                                                      p_opt_reshape,
-                                                                      ov::pass::pattern::wrap_const(),
-                                                                      ov::pass::pattern::wrap_const()});
+                                           ov::pass::pattern::wrap_const(),
+                                           p_opt_reshape,
+                                           ov::pass::pattern::wrap_const(),
+                                           ov::pass::pattern::wrap_const()});
     auto p_slice_2 = wrap_type<v8::Slice>({p_slice_1,
-                                                                      p_neg_mul,
-                                                                      ov::pass::pattern::wrap_const(),
-                                                                      ov::pass::pattern::wrap_const(),
-                                                                      ov::pass::pattern::wrap_const()});
+                                           p_neg_mul,
+                                           ov::pass::pattern::wrap_const(),
+                                           ov::pass::pattern::wrap_const(),
+                                           ov::pass::pattern::wrap_const()});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -135,8 +131,7 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
         // so here we need to reshape the output tensor to move the seq dim (num tokens) to the batch
         // num_kv_heads * head_size are already handled in the StateManagementPattern transformation
         auto head_size = static_cast<int64_t>(pshape[3].get_length());
-        auto new_shape =
-            v0::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{-1, 1, 1, head_size});
+        auto new_shape = v0::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{-1, 1, 1, head_size});
         auto reshape = std::make_shared<v1::Reshape>(gather, new_shape, false);
         replace_node(slice_2, reshape);
         return true;
@@ -146,8 +141,7 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     register_matcher(m, callback);
 }
 
-ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(
-    const std::shared_ptr<v0::Parameter>& position_ids) {
+ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(const std::shared_ptr<v0::Parameter>& position_ids) {
     MATCHER_SCOPE(PositionIDsReplacerCodeGen2);
 
     auto p_range = wrap_type<ov::op::v4::Range>();
@@ -157,13 +151,10 @@ ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(
     auto p_reshape = wrap_type<v1::Reshape>({p_sin_cos, any_input()});
     auto p_tile = wrap_type<v0::Tile>({p_reshape, any_input()});
     auto p_opt_reshape = ov::pass::pattern::optional<v1::Reshape>({p_tile, any_input()});
-    auto p_opt_unsq =
-        ov::pass::pattern::optional<v0::Unsqueeze>({p_opt_reshape, any_input()});
+    auto p_opt_unsq = ov::pass::pattern::optional<v0::Unsqueeze>({p_opt_reshape, any_input()});
 
-    auto p_reshape_1in = wrap_type<v1::Reshape>(
-        {any_input(), any_input()});
-    auto p_add_2in =
-        wrap_type<v1::Add>({any_input(), any_input()});
+    auto p_reshape_1in = wrap_type<v1::Reshape>({any_input(), any_input()});
+    auto p_add_2in = wrap_type<v1::Add>({any_input(), any_input()});
     auto p_slice = wrap_type<v8::Slice>(
         {p_opt_unsq, p_reshape_1in, p_add_2in, ov::pass::pattern::wrap_const(), ov::pass::pattern::wrap_const()});
 
@@ -173,15 +164,14 @@ ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(
         auto slice = pvm.at(p_slice).get_node_shared_ptr();
 
         auto gather = std::make_shared<v8::Gather>(slice->input_value(0),
-                                                           position_ids,
-                                                           v0::Constant::create(element::i64, Shape{}, {1}));
+                                                   position_ids,
+                                                   v0::Constant::create(element::i64, Shape{}, {1}));
         if (gather->output(0).get_partial_shape().rank() != 3) {
             return false;
         }
 
         auto transpose =
-            std::make_shared<v1::Transpose>(gather,
-                                                    v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
+            std::make_shared<v1::Transpose>(gather, v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
 
         replace_node(slice, transpose);
         return true;

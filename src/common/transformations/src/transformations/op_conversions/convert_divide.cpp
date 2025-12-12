@@ -20,9 +20,8 @@
 #include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -34,9 +33,9 @@ bool convert_divide(std::shared_ptr<ov::Node> node) {
         return false;
     }
 
-    std::shared_ptr<ov::Node> pow = std::make_shared<v1::Power>(
-        div->input_value(1),
-        v0::Constant::create(div->get_input_element_type(1), ov::Shape{}, {-1}));
+    std::shared_ptr<ov::Node> pow =
+        std::make_shared<v1::Power>(div->input_value(1),
+                                    v0::Constant::create(div->get_input_element_type(1), ov::Shape{}, {-1}));
 
     if (ov::as_type_ptr<v0::Constant>(div->get_input_node_shared_ptr(1))) {
         if (auto const_pow = ov::util::get_constant_from_source(pow)) {
@@ -77,8 +76,7 @@ ov::pass::ConvertDivide::ConvertDivide() {
 
 ov::pass::ConvertDivideWithConstant::ConvertDivideWithConstant() {
     MATCHER_SCOPE(ConvertDivideWithConstant);
-    auto div = wrap_type<v1::Divide>(
-        {ov::pass::pattern::any_input(), wrap_type<v0::Constant>()});
+    auto div = wrap_type<v1::Divide>({ov::pass::pattern::any_input(), wrap_type<v0::Constant>()});
 
     matcher_pass_callback callback = [](Matcher& m) {
         return convert_divide(m.get_match_root());

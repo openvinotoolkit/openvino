@@ -20,12 +20,11 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::Matcher;
 using ov::pass::pattern::rank_equals;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -81,8 +80,7 @@ ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
     auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {
         return rank_equals(2)(output) && consumers_count(1)(output);
     };
-    auto reshape_label = wrap_type<v1::Reshape>({reshape_input_label, reshape_pattern_label},
-                                                                           reshape_predicate);
+    auto reshape_label = wrap_type<v1::Reshape>({reshape_input_label, reshape_pattern_label}, reshape_predicate);
     auto matmul_label = wrap_type<v0::MatMul>({reshape_label, other_input_label});
 
     matcher_pass_callback callback = [=](Matcher& m) -> bool {
@@ -106,8 +104,7 @@ ov::pass::ReshapeBMatMul::ReshapeBMatMul() {
     auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {
         return rank_equals(2)(output) && consumers_count(1)(output);
     };
-    auto reshape_label = wrap_type<v1::Reshape>({reshape_input_label, reshape_pattern_label},
-                                                                           reshape_predicate);
+    auto reshape_label = wrap_type<v1::Reshape>({reshape_input_label, reshape_pattern_label}, reshape_predicate);
     auto matmul_label = wrap_type<v0::MatMul>({other_input_label, reshape_label});
 
     matcher_pass_callback callback = [=](Matcher& m) -> bool {

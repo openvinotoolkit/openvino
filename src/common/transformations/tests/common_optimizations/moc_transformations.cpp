@@ -31,7 +31,6 @@ using namespace ov;
 using namespace ov::element;
 using namespace ov::opset12;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace {
@@ -215,11 +214,11 @@ TEST_P(QuantWeightsTestP, MatMul_Conv_QuantWeights) {
         auto reshape = std::make_shared<v1::Reshape>(matmul, reshape_const, false);
         auto conv_weight = make_dq_weights(qtype, ov::Shape{8, 64, 1, 1}, conv_scale, conv_zp);
         auto conv = std::make_shared<v1::Convolution>(reshape,
-                                                              conv_weight,
-                                                              ov::Strides{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::Strides{1, 1});
+                                                      conv_weight,
+                                                      ov::Strides{1, 1},
+                                                      ov::CoordinateDiff{1, 1},
+                                                      ov::CoordinateDiff{1, 1},
+                                                      ov::Strides{1, 1});
 
         model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
 
@@ -242,11 +241,11 @@ TEST_P(QuantWeightsTestP, MatMul_Conv_QuantWeights) {
         auto reshape = std::make_shared<v1::Reshape>(matmul, reshape_const, false);
         auto conv_weight = make_dq_weights(qtype, ov::Shape{8, 64, 1, 1}, conv_scale, conv_zp, true);
         auto conv = std::make_shared<v1::Convolution>(reshape,
-                                                              conv_weight,
-                                                              ov::Strides{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::Strides{1, 1});
+                                                      conv_weight,
+                                                      ov::Strides{1, 1},
+                                                      ov::CoordinateDiff{1, 1},
+                                                      ov::CoordinateDiff{1, 1},
+                                                      ov::Strides{1, 1});
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 

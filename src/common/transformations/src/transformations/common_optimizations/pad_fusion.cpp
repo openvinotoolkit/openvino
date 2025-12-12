@@ -21,11 +21,10 @@
 
 using namespace ov;
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -107,9 +106,9 @@ pass::PadFusionAvgPool::PadFusionAvgPool() {
     auto pads_begin_pattern = wrap_type<v0::Constant>();
     auto pads_end_pattern = wrap_type<v0::Constant>();
     auto pad_value_pattern = any_input();
-    auto pad_node_pattern = wrap_type<op_util::PadBase>(
-        {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-        consumers_count(1));
+    auto pad_node_pattern =
+        wrap_type<op_util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
+                                    consumers_count(1));
     auto avg_pool_pattern = wrap_type<v1::AvgPool>({pad_node_pattern});
 
     matcher_pass_callback callback = [=](Matcher& m) {
@@ -138,26 +137,25 @@ pass::PadFusionAvgPool::PadFusionAvgPool() {
                 return false;
             auto pads_begin_val = pads_begin->cast_vector<size_t>();
             auto pads_end_val = pads_end->cast_vector<size_t>();
-            new_avg_pool =
-                std::make_shared<v1::AvgPool>(data,
-                                                      avg_pool->get_strides(),
-                                                      Shape{pads_begin_val.begin() + 2, pads_begin_val.end()},
-                                                      Shape{pads_end_val.begin() + 2, pads_end_val.end()},
-                                                      avg_pool->get_kernel(),
-                                                      false,
-                                                      avg_pool->get_rounding_type(),
-                                                      ov::op::PadType::EXPLICIT);
+            new_avg_pool = std::make_shared<v1::AvgPool>(data,
+                                                         avg_pool->get_strides(),
+                                                         Shape{pads_begin_val.begin() + 2, pads_begin_val.end()},
+                                                         Shape{pads_end_val.begin() + 2, pads_end_val.end()},
+                                                         avg_pool->get_kernel(),
+                                                         false,
+                                                         avg_pool->get_rounding_type(),
+                                                         ov::op::PadType::EXPLICIT);
         } else {
             Shape new_pads_begin, new_pads_end;
             std::tie(new_pads_begin, new_pads_end) = new_pooling_pad_values(pads_begin, pads_end, avg_pool);
             new_avg_pool = std::make_shared<v1::AvgPool>(data,
-                                                                 avg_pool->get_strides(),
-                                                                 new_pads_begin,
-                                                                 new_pads_end,
-                                                                 avg_pool->get_kernel(),
-                                                                 false,
-                                                                 avg_pool->get_rounding_type(),
-                                                                 ov::op::PadType::EXPLICIT);
+                                                         avg_pool->get_strides(),
+                                                         new_pads_begin,
+                                                         new_pads_end,
+                                                         avg_pool->get_kernel(),
+                                                         false,
+                                                         avg_pool->get_rounding_type(),
+                                                         ov::op::PadType::EXPLICIT);
         }
         new_avg_pool->set_friendly_name(avg_pool->get_friendly_name());
 
@@ -172,10 +170,9 @@ pass::PadFusionAvgPool::PadFusionAvgPool() {
 }
 
 template <typename T>
-static std::tuple<CoordinateDiff, CoordinateDiff> new_conv_pad_values(
-    const std::shared_ptr<v0::Constant>& pads_begin,
-    const std::shared_ptr<v0::Constant>& pads_end,
-    const std::shared_ptr<T>& node) {
+static std::tuple<CoordinateDiff, CoordinateDiff> new_conv_pad_values(const std::shared_ptr<v0::Constant>& pads_begin,
+                                                                      const std::shared_ptr<v0::Constant>& pads_end,
+                                                                      const std::shared_ptr<T>& node) {
     auto node_pads_begin = node->get_pads_begin();
     auto node_pads_end = node->get_pads_end();
     auto pads_begin_val = pads_begin->cast_vector<size_t>();
@@ -206,9 +203,9 @@ pass::PadFusionConvolution::PadFusionConvolution() {
     auto pads_begin_pattern = wrap_type<v0::Constant>();
     auto pads_end_pattern = wrap_type<v0::Constant>();
     auto pad_value_pattern = any_input();
-    auto pad_node_pattern = wrap_type<op_util::PadBase>(
-        {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-        consumers_count(1));
+    auto pad_node_pattern =
+        wrap_type<op_util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
+                                    consumers_count(1));
     auto conv_pattern = wrap_type<v1::Convolution>({pad_node_pattern, filter_pattern});
 
     matcher_pass_callback callback = [=](Matcher& m) {
@@ -226,12 +223,12 @@ pass::PadFusionConvolution::PadFusionConvolution() {
         CoordinateDiff new_pads_begin, new_pads_end;
         std::tie(new_pads_begin, new_pads_end) = new_conv_pad_values(pads_begin, pads_end, conv);
         auto new_conv = std::make_shared<v1::Convolution>(data,
-                                                                  filter,
-                                                                  conv->get_strides(),
-                                                                  new_pads_begin,
-                                                                  new_pads_end,
-                                                                  conv->get_dilations(),
-                                                                  ov::op::PadType::EXPLICIT);
+                                                          filter,
+                                                          conv->get_strides(),
+                                                          new_pads_begin,
+                                                          new_pads_end,
+                                                          conv->get_dilations(),
+                                                          ov::op::PadType::EXPLICIT);
         new_conv->set_friendly_name(conv->get_friendly_name());
 
         copy_runtime_info({pad, conv}, new_conv);
@@ -251,11 +248,10 @@ pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
     auto pads_begin_pattern = wrap_type<v0::Constant>();
     auto pads_end_pattern = wrap_type<v0::Constant>();
     auto pad_value_pattern = any_input();
-    auto pad_node_pattern = wrap_type<op_util::PadBase>(
-        {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-        consumers_count(1));
-    auto conv_pattern =
-        wrap_type<v1::ConvolutionBackpropData>({pad_node_pattern, filter_pattern});
+    auto pad_node_pattern =
+        wrap_type<op_util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
+                                    consumers_count(1));
+    auto conv_pattern = wrap_type<v1::ConvolutionBackpropData>({pad_node_pattern, filter_pattern});
 
     matcher_pass_callback callback = [=](Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
@@ -265,8 +261,7 @@ pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
         auto pad_value = pattern_map[pad_value_pattern].get_node_shared_ptr();
         auto pads_begin = ov::as_type_ptr<v0::Constant>(pattern_map[pads_begin_pattern].get_node_shared_ptr());
         auto pads_end = ov::as_type_ptr<v0::Constant>(pattern_map[pads_end_pattern].get_node_shared_ptr());
-        auto conv =
-            ov::as_type_ptr<v1::ConvolutionBackpropData>(pattern_map[conv_pattern].get_node_shared_ptr());
+        auto conv = ov::as_type_ptr<v1::ConvolutionBackpropData>(pattern_map[conv_pattern].get_node_shared_ptr());
         if (!can_be_fused(pad, conv, pad_value, pads_begin, pads_end))
             return false;
 
@@ -282,13 +277,13 @@ pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
         }
 
         auto new_conv = std::make_shared<v1::ConvolutionBackpropData>(data,
-                                                                              filter,
-                                                                              conv->get_strides(),
-                                                                              conv_pads_begin,
-                                                                              conv_pads_end,
-                                                                              conv->get_dilations(),
-                                                                              ov::op::PadType::EXPLICIT,
-                                                                              conv->get_output_padding());
+                                                                      filter,
+                                                                      conv->get_strides(),
+                                                                      conv_pads_begin,
+                                                                      conv_pads_end,
+                                                                      conv->get_dilations(),
+                                                                      ov::op::PadType::EXPLICIT,
+                                                                      conv->get_output_padding());
         new_conv->set_friendly_name(conv->get_friendly_name());
 
         copy_runtime_info({pad, conv}, new_conv);
@@ -308,9 +303,9 @@ pass::PadFusionGroupConvolution::PadFusionGroupConvolution() {
     auto pads_begin_pattern = wrap_type<v0::Constant>();
     auto pads_end_pattern = wrap_type<v0::Constant>();
     auto pad_value_pattern = any_input();
-    auto pad_node_pattern = wrap_type<op_util::PadBase>(
-        {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-        consumers_count(1));
+    auto pad_node_pattern =
+        wrap_type<op_util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
+                                    consumers_count(1));
     auto conv_pattern = wrap_type<v1::GroupConvolution>({pad_node_pattern, filter_pattern});
 
     matcher_pass_callback callback = [=](Matcher& m) {
@@ -328,12 +323,12 @@ pass::PadFusionGroupConvolution::PadFusionGroupConvolution() {
         CoordinateDiff new_pads_begin, new_pads_end;
         std::tie(new_pads_begin, new_pads_end) = new_conv_pad_values(pads_begin, pads_end, conv);
         auto new_conv = std::make_shared<v1::GroupConvolution>(data,
-                                                                       filter,
-                                                                       conv->get_strides(),
-                                                                       new_pads_begin,
-                                                                       new_pads_end,
-                                                                       conv->get_dilations(),
-                                                                       ov::op::PadType::EXPLICIT);
+                                                               filter,
+                                                               conv->get_strides(),
+                                                               new_pads_begin,
+                                                               new_pads_end,
+                                                               conv->get_dilations(),
+                                                               ov::op::PadType::EXPLICIT);
         new_conv->set_friendly_name(conv->get_friendly_name());
 
         copy_runtime_info({pad, conv}, new_conv);
@@ -353,11 +348,10 @@ pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropDa
     auto pads_begin_pattern = wrap_type<v0::Constant>();
     auto pads_end_pattern = wrap_type<v0::Constant>();
     auto pad_value_pattern = any_input();
-    auto pad_node_pattern = wrap_type<op_util::PadBase>(
-        {data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-        consumers_count(1));
-    auto conv_pattern =
-        wrap_type<v1::GroupConvolutionBackpropData>({pad_node_pattern, filter_pattern});
+    auto pad_node_pattern =
+        wrap_type<op_util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
+                                    consumers_count(1));
+    auto conv_pattern = wrap_type<v1::GroupConvolutionBackpropData>({pad_node_pattern, filter_pattern});
 
     matcher_pass_callback callback = [=](Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
@@ -367,8 +361,7 @@ pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropDa
         auto pad_value = pattern_map[pad_value_pattern].get_node_shared_ptr();
         auto pads_begin = ov::as_type_ptr<v0::Constant>(pattern_map[pads_begin_pattern].get_node_shared_ptr());
         auto pads_end = ov::as_type_ptr<v0::Constant>(pattern_map[pads_end_pattern].get_node_shared_ptr());
-        auto conv =
-            ov::as_type_ptr<v1::GroupConvolutionBackpropData>(pattern_map[conv_pattern].get_node_shared_ptr());
+        auto conv = ov::as_type_ptr<v1::GroupConvolutionBackpropData>(pattern_map[conv_pattern].get_node_shared_ptr());
         if (!can_be_fused(pad, conv, pad_value, pads_begin, pads_end))
             return false;
 
@@ -384,13 +377,13 @@ pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropDa
         }
 
         auto new_conv = std::make_shared<v1::GroupConvolutionBackpropData>(data,
-                                                                                   filter,
-                                                                                   conv->get_strides(),
-                                                                                   conv_pads_begin,
-                                                                                   conv_pads_end,
-                                                                                   conv->get_dilations(),
-                                                                                   ov::op::PadType::EXPLICIT,
-                                                                                   conv->get_output_padding());
+                                                                           filter,
+                                                                           conv->get_strides(),
+                                                                           conv_pads_begin,
+                                                                           conv_pads_end,
+                                                                           conv->get_dilations(),
+                                                                           ov::op::PadType::EXPLICIT,
+                                                                           conv->get_output_padding());
         new_conv->set_friendly_name(conv->get_friendly_name());
 
         copy_runtime_info({pad, conv}, new_conv);

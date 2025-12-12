@@ -17,10 +17,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -71,8 +70,7 @@ ov::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimin
     MATCHER_SCOPE(ReshapeSequenceFusion);
     auto reshape_input = any_input();
     auto reshape_a_pattern = wrap_type<v0::Constant>();
-    auto reshape_a = wrap_type<v1::Reshape>({reshape_input, reshape_a_pattern},
-                                                                       ov::pass::pattern::consumers_count(1));
+    auto reshape_a = wrap_type<v1::Reshape>({reshape_input, reshape_a_pattern}, ov::pass::pattern::consumers_count(1));
     auto reshape_b_pattern = any_input();
     auto reshape_b = wrap_type<v1::Reshape>({reshape_a, reshape_b_pattern});
 

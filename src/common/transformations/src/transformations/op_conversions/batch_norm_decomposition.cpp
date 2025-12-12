@@ -27,10 +27,9 @@
 
 using namespace ov;
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -39,17 +38,9 @@ namespace v5 = ov::op::v5;
 ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
     MATCHER_SCOPE(BatchNormDecomposition);
     auto bn_1 = wrap_type<v0::BatchNormInference>(
-        {any_input(),
-         any_input(),
-         any_input(ov::pass::pattern::has_static_rank()),
-         any_input(),
-         any_input()});
+        {any_input(), any_input(), any_input(ov::pass::pattern::has_static_rank()), any_input(), any_input()});
     auto bn_5 = wrap_type<v5::BatchNormInference>(
-        {any_input(ov::pass::pattern::has_static_rank()),
-         any_input(),
-         any_input(),
-         any_input(),
-         any_input()});
+        {any_input(ov::pass::pattern::has_static_rank()), any_input(), any_input(), any_input(), any_input()});
     auto bn = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{bn_1, bn_5});
 
     matcher_pass_callback callback = [this](Matcher& m) {
@@ -76,8 +67,7 @@ ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
 
         const auto& input_type = m_input.get_element_type();
         // scale_add = variance + eps
-        auto scale_add =
-            std::make_shared<v1::Add>(m_var, v0::Constant::create(input_type, Shape{}, {eps}));
+        auto scale_add = std::make_shared<v1::Add>(m_var, v0::Constant::create(input_type, Shape{}, {eps}));
         // scale = sqrt(variance + eps)
         auto scale = std::make_shared<v0::Sqrt>(scale_add);
         // Divide `gamma` by `sqrt(variance + eps)`
@@ -91,8 +81,7 @@ ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
         // create new shape [1, C, 1, 1, ...]
         const auto new_shape = std::make_shared<v0::Concat>(OutputVector{one, C_dim, tail_shape}, 0);
 
-        std::shared_ptr<Node> gamma_div_scale_aligned =
-            std::make_shared<v1::Reshape>(gamma_div_scale, new_shape, true);
+        std::shared_ptr<Node> gamma_div_scale_aligned = std::make_shared<v1::Reshape>(gamma_div_scale, new_shape, true);
         std::shared_ptr<Node> beta_aligned = std::make_shared<v1::Reshape>(m_beta, new_shape, true);
         std::shared_ptr<Node> mean_aligned = std::make_shared<v1::Reshape>(m_mean, new_shape, true);
         auto mul_const = v0::Constant::create(mean_aligned->get_output_element_type(0), Shape{}, {-1});

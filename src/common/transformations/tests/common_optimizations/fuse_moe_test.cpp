@@ -24,7 +24,6 @@ using namespace testing;
 using namespace ov::gen_pattern;
 using namespace ov;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
@@ -279,17 +278,13 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto normalized_topk =
         makeOP<opset1::Divide>({topk_values, sum_reduce}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
     auto zeros_scalar = makeConst(ov::element::f32, ov::Shape{}, std::vector<float>{0.0f});
-    auto scatter_shape =
-        std::make_shared<v0::Concat>(ov::OutputVector{batch_dim_unsqueeze, num_experts_unsqueeze}, 0);
+    auto scatter_shape = std::make_shared<v0::Concat>(ov::OutputVector{batch_dim_unsqueeze, num_experts_unsqueeze}, 0);
     auto zeros_tensor = std::make_shared<v3::Broadcast>(zeros_scalar, scatter_shape);
-    auto scatter = std::make_shared<v12::ScatterElementsUpdate>(zeros_tensor,
-                                                                        topk_TopK->output(1),
-                                                                        normalized_topk,
-                                                                        axis1_vector);
+    auto scatter =
+        std::make_shared<v12::ScatterElementsUpdate>(zeros_tensor, topk_TopK->output(1), normalized_topk, axis1_vector);
     auto router_transpose = std::make_shared<v1::Transpose>(scatter, transpose_axes);
     auto router_shape =
-        std::make_shared<v0::Concat>(ov::OutputVector{num_experts_unsqueeze, batch_dim_unsqueeze, minus_one},
-                                             0);
+        std::make_shared<v0::Concat>(ov::OutputVector{num_experts_unsqueeze, batch_dim_unsqueeze, minus_one}, 0);
     auto router_reshape = std::make_shared<v1::Reshape>(router_transpose, router_shape, true);
     auto routing_unsqueeze = std::make_shared<v0::Unsqueeze>(router_reshape, axis_minus_one_vector);
 
@@ -347,17 +342,13 @@ static std::shared_ptr<ov::Model> BuildFusedMOEWithInternalOp(const int expert_n
     auto num_experts_unsqueeze = makeOP<opset1::Unsqueeze>({num_experts_const, axis0_vector});
 
     auto zeros_scalar = makeConst(ov::element::f32, ov::Shape{}, std::vector<float>{0.0f});
-    auto scatter_shape =
-        std::make_shared<v0::Concat>(ov::OutputVector{batch_dim_unsqueeze, num_experts_unsqueeze}, 0);
+    auto scatter_shape = std::make_shared<v0::Concat>(ov::OutputVector{batch_dim_unsqueeze, num_experts_unsqueeze}, 0);
     auto zeros_tensor = std::make_shared<v3::Broadcast>(zeros_scalar, scatter_shape);
-    auto scatter = std::make_shared<v12::ScatterElementsUpdate>(zeros_tensor,
-                                                                        router_topk_indices,
-                                                                        normalized_topk,
-                                                                        axis1_vector);
+    auto scatter =
+        std::make_shared<v12::ScatterElementsUpdate>(zeros_tensor, router_topk_indices, normalized_topk, axis1_vector);
     auto router_transpose = std::make_shared<v1::Transpose>(scatter, transpose_axes);
     auto router_shape =
-        std::make_shared<v0::Concat>(ov::OutputVector{num_experts_unsqueeze, batch_dim_unsqueeze, minus_one},
-                                             0);
+        std::make_shared<v0::Concat>(ov::OutputVector{num_experts_unsqueeze, batch_dim_unsqueeze, minus_one}, 0);
     auto router_reshape = std::make_shared<v1::Reshape>(router_transpose, router_shape, true);
     auto routing_weights = std::make_shared<v0::Unsqueeze>(router_reshape, axis_minus_one_vector);
 

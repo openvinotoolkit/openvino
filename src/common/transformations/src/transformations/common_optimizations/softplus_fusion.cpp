@@ -17,7 +17,6 @@
 #include "openvino/op/softplus.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -26,8 +25,8 @@ ov::pass::SoftPlusFusion::SoftPlusFusion() {
     // fuses ln(exp(x) + 1.0) operations into SoftPlus(x)
     auto input = ov::pass::pattern::any_input();
     auto exp = std::make_shared<v0::Exp>(input);
-    auto add_constant = ov::pass::pattern::wrap_type<v0::Constant>(
-        ov::pass::pattern::type_matches_any({element::f32, element::f16}));
+    auto add_constant =
+        ov::pass::pattern::wrap_type<v0::Constant>(ov::pass::pattern::type_matches_any({element::f32, element::f16}));
     auto add = std::make_shared<ov::op::v1::Add>(exp, add_constant);
     auto log = std::make_shared<v0::Log>(add);
 

@@ -30,8 +30,8 @@
 using namespace ov;
 
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::op::Or;
 
 namespace v0 = ov::op::v0;

@@ -19,7 +19,6 @@
 
 using namespace testing;
 
-
 namespace v1 = ov::op::v1;
 namespace ov {
 namespace test {

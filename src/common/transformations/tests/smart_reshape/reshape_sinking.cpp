@@ -11,7 +11,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/opsets/opset9_decl.hpp"
 
-
 namespace v0 = ov::op::v0;
 struct ReshapeSinkingAttributes {
     ov::element::Type_t data_et;

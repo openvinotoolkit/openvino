@@ -23,7 +23,6 @@
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;

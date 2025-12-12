@@ -11,10 +11,9 @@
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v3 = ov::op::v3;
 namespace op_util = ov::op::util;
@@ -79,9 +78,7 @@ bool can_eliminate_broadcast(const ov::Output<ov::Node>& eltwise,
 ov::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     MATCHER_SCOPE(BroadcastElementwiseFusion);
     auto broadcast_input = any_input();
-    auto broadcast =
-        wrap_type<v3::Broadcast>({broadcast_input, any_input()},
-                                                            ov::pass::pattern::consumers_count(1));
+    auto broadcast = wrap_type<v3::Broadcast>({broadcast_input, any_input()}, ov::pass::pattern::consumers_count(1));
     auto eltwise_input = any_input();
     auto eltwise = wrap_type<op_util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
 

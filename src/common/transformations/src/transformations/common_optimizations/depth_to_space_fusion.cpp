@@ -17,11 +17,10 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -134,10 +133,8 @@ ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
     auto input1 = any_input();
     auto input2 = any_input();
     auto input3 = any_input();
-    auto reshape_before =
-        wrap_type<v1::Reshape>({input0, input1}, consumers_count(1));
-    auto permute = wrap_type<v1::Transpose>({reshape_before, input2},
-                                                                       consumers_count(1));
+    auto reshape_before = wrap_type<v1::Reshape>({input0, input1}, consumers_count(1));
+    auto permute = wrap_type<v1::Transpose>({reshape_before, input2}, consumers_count(1));
     auto reshape_after = wrap_type<v1::Reshape>({permute, input3});
 
     ov::matcher_pass_callback callback = [](Matcher& m) {
@@ -202,8 +199,7 @@ ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
             return false;
         }
 
-        auto depth_to_space =
-            std::make_shared<v0::DepthToSpace>(reshape_before->input_value(0), mode, block_size);
+        auto depth_to_space = std::make_shared<v0::DepthToSpace>(reshape_before->input_value(0), mode, block_size);
         depth_to_space->set_friendly_name(reshape_after->get_friendly_name());
         ov::copy_runtime_info({reshape_before, permute, reshape_after}, depth_to_space);
         ov::replace_node(reshape_after, depth_to_space);

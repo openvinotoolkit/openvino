@@ -85,7 +85,6 @@ using namespace testing;
 using namespace ov;
 using namespace std;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;

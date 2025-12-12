@@ -18,19 +18,17 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::type_matches;
+using ov::pass::pattern::wrap_type;
 
 namespace v1 = ov::op::v1;
 namespace v13 = ov::op::v13;
 ov::pass::ConvertBitwiseAndToLogicalAnd::ConvertBitwiseAndToLogicalAnd() {
     MATCHER_SCOPE(ConvertBitwiseAndToLogicalAnd);
     auto pattern = wrap_type<v13::BitwiseAnd>(
-        {any_input(type_matches(element::boolean)),
-         any_input(type_matches(element::boolean))});
+        {any_input(type_matches(element::boolean)), any_input(type_matches(element::boolean))});
 
     const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto bitwise = ov::as_type_ptr<v13::BitwiseAnd>(m.get_match_root());
@@ -38,9 +36,8 @@ ov::pass::ConvertBitwiseAndToLogicalAnd::ConvertBitwiseAndToLogicalAnd() {
             return false;
         }
 
-        const auto logical = std::make_shared<v1::LogicalAnd>(bitwise->input_value(0),
-                                                                      bitwise->input_value(1),
-                                                                      bitwise->get_autob());
+        const auto logical =
+            std::make_shared<v1::LogicalAnd>(bitwise->input_value(0), bitwise->input_value(1), bitwise->get_autob());
 
         logical->set_friendly_name(bitwise->get_friendly_name());
         copy_runtime_info(bitwise, logical);
@@ -53,8 +50,7 @@ ov::pass::ConvertBitwiseAndToLogicalAnd::ConvertBitwiseAndToLogicalAnd() {
 }
 ov::pass::ConvertBitwiseNotToLogicalNot::ConvertBitwiseNotToLogicalNot() {
     MATCHER_SCOPE(ConvertBitwiseNotToLogicalNot);
-    auto pattern = wrap_type<v13::BitwiseNot>(
-        {any_input(type_matches(element::boolean))});
+    auto pattern = wrap_type<v13::BitwiseNot>({any_input(type_matches(element::boolean))});
 
     const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto bitwise = ov::as_type_ptr<v13::BitwiseNot>(m.get_match_root());
@@ -77,8 +73,7 @@ ov::pass::ConvertBitwiseNotToLogicalNot::ConvertBitwiseNotToLogicalNot() {
 ov::pass::ConvertBitwiseOrToLogicalOr::ConvertBitwiseOrToLogicalOr() {
     MATCHER_SCOPE(ConvertBitwiseOrToLogicalOr);
     auto pattern = wrap_type<v13::BitwiseOr>(
-        {any_input(type_matches(element::boolean)),
-         any_input(type_matches(element::boolean))});
+        {any_input(type_matches(element::boolean)), any_input(type_matches(element::boolean))});
 
     const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto bitwise = ov::as_type_ptr<v13::BitwiseOr>(m.get_match_root());
@@ -86,9 +81,8 @@ ov::pass::ConvertBitwiseOrToLogicalOr::ConvertBitwiseOrToLogicalOr() {
             return false;
         }
 
-        const auto logical = std::make_shared<v1::LogicalOr>(bitwise->input_value(0),
-                                                                     bitwise->input_value(1),
-                                                                     bitwise->get_autob());
+        const auto logical =
+            std::make_shared<v1::LogicalOr>(bitwise->input_value(0), bitwise->input_value(1), bitwise->get_autob());
 
         logical->set_friendly_name(bitwise->get_friendly_name());
         copy_runtime_info(bitwise, logical);
@@ -103,8 +97,7 @@ ov::pass::ConvertBitwiseOrToLogicalOr::ConvertBitwiseOrToLogicalOr() {
 ov::pass::ConvertBitwiseXorToLogicalXor::ConvertBitwiseXorToLogicalXor() {
     MATCHER_SCOPE(ConvertBitwiseXorToLogicalXor);
     auto pattern = wrap_type<v13::BitwiseXor>(
-        {any_input(type_matches(element::boolean)),
-         any_input(type_matches(element::boolean))});
+        {any_input(type_matches(element::boolean)), any_input(type_matches(element::boolean))});
 
     const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto bitwise = ov::as_type_ptr<v13::BitwiseXor>(m.get_match_root());
@@ -112,9 +105,8 @@ ov::pass::ConvertBitwiseXorToLogicalXor::ConvertBitwiseXorToLogicalXor() {
             return false;
         }
 
-        const auto logical = std::make_shared<v1::LogicalXor>(bitwise->input_value(0),
-                                                                      bitwise->input_value(1),
-                                                                      bitwise->get_autob());
+        const auto logical =
+            std::make_shared<v1::LogicalXor>(bitwise->input_value(0), bitwise->input_value(1), bitwise->get_autob());
 
         logical->set_friendly_name(bitwise->get_friendly_name());
         copy_runtime_info(bitwise, logical);

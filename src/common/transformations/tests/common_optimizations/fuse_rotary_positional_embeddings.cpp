@@ -33,7 +33,6 @@
 using namespace testing;
 using namespace ov::gen_pattern;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 static ov::OutputVector makeCosSinCache(size_t max_position_embeddings, size_t rotary_ndims) {

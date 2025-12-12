@@ -8,7 +8,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/util/log.hpp"
 
-
 namespace v0 = ov::op::v0;
 #define LARGE_TENSOR_BYTE_SIZE 64
 

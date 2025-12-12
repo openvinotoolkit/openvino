@@ -20,7 +20,6 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
@@ -153,8 +152,7 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
                 // we do not need to walk through shape-of sub-graphs
                 for (const auto& t_input : output.get_target_inputs()) {
                     if (ov::is_type<v1::ConvertLike>(t_input.get_node()) ||
-                        ov::is_type<v0::ShapeOf>(t_input.get_node()) ||
-                        ov::is_type<v3::ShapeOf>(t_input.get_node()))
+                        ov::is_type<v0::ShapeOf>(t_input.get_node()) || ov::is_type<v3::ShapeOf>(t_input.get_node()))
                         continue;
                     nodes.push_back(t_input.get_node());
                 }

@@ -16,7 +16,6 @@
 
 using namespace ov::op::util;
 
-
 namespace v0 = ov::op::v0;
 namespace v5 = ov::op::v5;
 namespace v8 = ov::op::v8;

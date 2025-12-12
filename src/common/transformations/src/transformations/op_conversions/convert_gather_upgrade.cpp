@@ -13,9 +13,8 @@
 using namespace std;
 using namespace ov;
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v1 = ov::op::v1;
 namespace v7 = ov::op::v7;
@@ -30,9 +29,9 @@ pass::ConvertGather1ToGather7::ConvertGather1ToGather7() {
             return false;
 
         auto gather_v7_node = make_shared<v7::Gather>(gather_v1_node->input_value(0),
-                                                              gather_v1_node->input_value(1),
-                                                              gather_v1_node->input_value(2),
-                                                              0);
+                                                      gather_v1_node->input_value(1),
+                                                      gather_v1_node->input_value(2),
+                                                      0);
 
         gather_v7_node->set_friendly_name(gather_v1_node->get_friendly_name());
         ov::copy_runtime_info(gather_v1_node, gather_v7_node);

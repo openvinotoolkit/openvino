@@ -19,7 +19,6 @@
 #include "ov_ops/nms_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -64,8 +63,7 @@ ov::pass::ConvertNMSRotatedToNMSIEInternal::ConvertNMSRotatedToNMSIEInternal() {
         new_iou_threshold = std::make_shared<v1::Reshape>(iou_threshold, new_shape_for_iou_threshold, true);
         new_ops.emplace_back(new_iou_threshold.get_node_shared_ptr());
 
-        new_score_threshold =
-            std::make_shared<v1::Reshape>(score_threshold, new_shape_for_score_threshold, true);
+        new_score_threshold = std::make_shared<v1::Reshape>(score_threshold, new_shape_for_score_threshold, true);
         new_ops.emplace_back(new_score_threshold.get_node_shared_ptr());
 
         constexpr int BoxEncodingType_Center = 1;             // see NonMaxSuppression::BoxEncodingType

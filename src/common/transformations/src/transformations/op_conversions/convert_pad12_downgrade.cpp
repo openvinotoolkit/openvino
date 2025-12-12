@@ -11,7 +11,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v1 = ov::op::v1;
@@ -30,19 +29,19 @@ ov::pass::ConvertPad12ToPad1::ConvertPad12ToPad1() {
         std::shared_ptr<ov::Node> pad_v1;
         if (pad_v12->get_input_size() == 4) {
             pad_v1 = std::make_shared<v1::Pad>(pad_v12->input_value(0),
-                                                       pad_v12->input_value(1),
-                                                       pad_v12->input_value(2),
-                                                       pad_v12->input_value(3),
-                                                       pad_v12->get_pad_mode());
+                                               pad_v12->input_value(1),
+                                               pad_v12->input_value(2),
+                                               pad_v12->input_value(3),
+                                               pad_v12->get_pad_mode());
         } else {
             const auto pad_value =
                 ov::op::v0::Constant::create(pad_v12->input_value(0).get_element_type(), ov::Shape{}, {0});
 
             pad_v1 = std::make_shared<v1::Pad>(pad_v12->input_value(0),
-                                                       pad_v12->input_value(1),
-                                                       pad_v12->input_value(2),
-                                                       pad_value,
-                                                       pad_v12->get_pad_mode());
+                                               pad_v12->input_value(1),
+                                               pad_v12->input_value(2),
+                                               pad_value,
+                                               pad_v12->get_pad_mode());
         }
         pad_v1->set_friendly_name(pad_v12->get_friendly_name());
         copy_runtime_info(pad_v12, pad_v1);

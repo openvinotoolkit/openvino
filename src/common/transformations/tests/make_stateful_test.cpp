@@ -23,7 +23,6 @@ using namespace ov;
 using namespace opset8;
 using namespace std;
 
-
 namespace op_util = ov::op::util;
 std::shared_ptr<ov::Model> get_test_model(bool insert_squeeze, bool use_friendly_names) {
     std::shared_ptr<ov::Model> model;

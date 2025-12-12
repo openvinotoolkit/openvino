@@ -23,9 +23,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::op::Or;
 
 namespace v0 = ov::op::v0;
@@ -64,16 +63,13 @@ ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
         const auto data_input = pattern_to_output.at(input);
         const auto exp_input = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
         const auto axes_input = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
-        const auto eps_attr =
-            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
-        const auto exp2_input =
-            pattern_to_output.count(exp2)
-                ? ov::as_type_ptr<v0::Constant>(pattern_to_output.at(exp2).get_node_shared_ptr())
-                : nullptr;
-        const auto exp3_input =
-            pattern_to_output.count(exp3)
-                ? ov::as_type_ptr<v0::Constant>(pattern_to_output.at(exp3).get_node_shared_ptr())
-                : nullptr;
+        const auto eps_attr = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
+        const auto exp2_input = pattern_to_output.count(exp2)
+                                    ? ov::as_type_ptr<v0::Constant>(pattern_to_output.at(exp2).get_node_shared_ptr())
+                                    : nullptr;
+        const auto exp3_input = pattern_to_output.count(exp3)
+                                    ? ov::as_type_ptr<v0::Constant>(pattern_to_output.at(exp3).get_node_shared_ptr())
+                                    : nullptr;
 
         if (exp_input && !op_util::has_constant_value<float>(exp_input, 2.0f)) {
             return false;

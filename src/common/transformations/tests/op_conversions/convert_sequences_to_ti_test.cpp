@@ -32,7 +32,6 @@
 using namespace testing;
 using namespace ov;
 
-
 namespace v0 = ov::op::v0;
 namespace v5 = ov::op::v5;
 TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
@@ -817,10 +816,8 @@ TEST(TransformationTests, ConvertQuantizedGRUSequenceToTensorIterator) {
 
 TEST(TransformationTests, convert_lstm_seq_to_ti_with_enabled_mask) {
     auto param_x = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, -1});
-    auto param_init_cell_state =
-        std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 256});
-    auto param_hidden_cell_state =
-        std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 256});
+    auto param_init_cell_state = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 256});
+    auto param_hidden_cell_state = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 256});
     auto param_seq_len = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
     auto param_w = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1024, 40});
     auto param_r = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1024, 256});
@@ -828,14 +825,14 @@ TEST(TransformationTests, convert_lstm_seq_to_ti_with_enabled_mask) {
     std::int64_t hidden_size = 256;
     v5::LSTMSequence::direction lstm_direction = v5::LSTMSequence::direction::FORWARD;
     auto lstm_cell = std::make_shared<v5::LSTMSequence>(param_x,
-                                                                param_init_cell_state,
-                                                                param_hidden_cell_state,
-                                                                param_seq_len,
-                                                                param_w,
-                                                                param_r,
-                                                                param_b,
-                                                                hidden_size,
-                                                                lstm_direction);
+                                                        param_init_cell_state,
+                                                        param_hidden_cell_state,
+                                                        param_seq_len,
+                                                        param_w,
+                                                        param_r,
+                                                        param_b,
+                                                        hidden_size,
+                                                        lstm_direction);
     auto model = std::make_shared<ov::Model>(lstm_cell->outputs(),
                                              ov::ParameterVector{param_x,
                                                                  param_init_cell_state,

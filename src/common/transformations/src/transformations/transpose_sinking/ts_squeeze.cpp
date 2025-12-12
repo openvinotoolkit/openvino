@@ -23,10 +23,9 @@ using namespace ov;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -155,8 +154,8 @@ TSSqueezeForward::TSSqueezeForward() {
 
         transpose_order_values = GetOrderAfterReduction(non_negative_axes, transpose_order_values);
         auto new_transpose_order = v0::Constant::create(transpose_info.transpose_const->get_element_type(),
-                                                                {transpose_order_values.size()},
-                                                                transpose_order_values);
+                                                        {transpose_order_values.size()},
+                                                        transpose_order_values);
 
         if (as_type_ptr<v1::Reshape>(main_node)) {
             std::vector<size_t> to_shape;
@@ -168,8 +167,7 @@ TSSqueezeForward::TSSqueezeForward() {
         }
 
         if (squeeze_axes) {
-            auto new_const =
-                v0::Constant::create(squeeze_axes->get_element_type(), {new_values.size()}, new_values);
+            auto new_const = v0::Constant::create(squeeze_axes->get_element_type(), {new_values.size()}, new_values);
             main_node->input(1).replace_source_output(new_const);
             copy_runtime_info(squeeze_axes, new_const);
         }
@@ -190,15 +188,12 @@ TSSqueezeForward::TSSqueezeForward() {
 
 TSSqueezeBackward::TSSqueezeBackward() {
     MATCHER_SCOPE(TSSqueezeBackward);
-    auto squeeze_with_1_input =
-        wrap_type<v0::Squeeze>({any_input()}, CheckTransposeConsumers);
-    auto squeeze_label = wrap_type<v0::Squeeze, v1::Reshape>(
-        {any_input(), wrap_type<v0::Constant>()},
-        CheckTransposeConsumers);
+    auto squeeze_with_1_input = wrap_type<v0::Squeeze>({any_input()}, CheckTransposeConsumers);
+    auto squeeze_label =
+        wrap_type<v0::Squeeze, v1::Reshape>({any_input(), wrap_type<v0::Constant>()}, CheckTransposeConsumers);
     auto pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{squeeze_with_1_input, squeeze_label});
-    auto transpose_label = wrap_type<v1::Transpose>(
-        {pattern, wrap_type<v0::Constant>()},
-        [](const Output<Node>& output) -> bool {
+    auto transpose_label =
+        wrap_type<v1::Transpose>({pattern, wrap_type<v0::Constant>()}, [](const Output<Node>& output) -> bool {
             return ov::pass::pattern::has_static_rank()(output);
         });
 
@@ -266,8 +261,8 @@ TSSqueezeBackward::TSSqueezeBackward() {
         }
 
         auto new_transpose_order = v0::Constant::create(transpose_order->get_element_type(),
-                                                                {transpose_order_values.size()},
-                                                                transpose_order_values);
+                                                        {transpose_order_values.size()},
+                                                        transpose_order_values);
         auto new_transpose = transpose->clone_with_new_inputs({main_node->input_value(0), new_transpose_order});
         if (as_type_ptr<v1::Reshape>(main_node)) {
             std::vector<size_t> to_shape;
@@ -280,8 +275,7 @@ TSSqueezeBackward::TSSqueezeBackward() {
 
         std::shared_ptr<Node> new_squeeze;
         if (!squeeze_all_dims) {
-            auto new_const =
-                v0::Constant::create(squeeze_axes->get_element_type(), {new_values.size()}, new_values);
+            auto new_const = v0::Constant::create(squeeze_axes->get_element_type(), {new_values.size()}, new_values);
             main_node->input(1).replace_source_output(new_const);
             copy_runtime_info(squeeze_axes, new_const);
         }

@@ -19,10 +19,9 @@ using namespace ov;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -140,8 +139,8 @@ TSGatherForward::TSGatherForward() {
             }
         }
         auto new_order_const = v0::Constant::create(transpose_order->get_element_type(),
-                                                            {new_transpose_order.size()},
-                                                            new_transpose_order);
+                                                    {new_transpose_order.size()},
+                                                    new_transpose_order);
         TransposeInputsInfo transpose_input_info = {transpose_info.transpose, new_order_const, 0};
         // deletes Transpose from 0 input
         auto success = sink_forward::UpdateInputTransposes(main_node, transpose_input_info, {0});
@@ -163,13 +162,9 @@ TSGatherBackward::TSGatherBackward() {
     MATCHER_SCOPE(TSGatherBackward);
 
     auto gather_label =
-        wrap_type<v8::Gather>({any_input(),
-                                                          any_input(),
-                                                          wrap_type<v0::Constant>()},
-                                                         CheckTransposeConsumers);
-    auto transpose_label = wrap_type<v1::Transpose>(
-        {gather_label, wrap_type<v0::Constant>()},
-        [](const Output<Node>& output) -> bool {
+        wrap_type<v8::Gather>({any_input(), any_input(), wrap_type<v0::Constant>()}, CheckTransposeConsumers);
+    auto transpose_label =
+        wrap_type<v1::Transpose>({gather_label, wrap_type<v0::Constant>()}, [](const Output<Node>& output) -> bool {
             return ov::pass::pattern::has_static_rank()(output);
         });
 
@@ -340,8 +335,8 @@ TSGatherBackward::TSGatherBackward() {
         }
         const auto reversed_transpose_order = ReverseTransposeOrder(order_val);
         const auto& transpose_const = v0::Constant::create(transpose_order->get_element_type(),
-                                                                   {new_transpose_order.size()},
-                                                                   new_transpose_order);
+                                                           {new_transpose_order.size()},
+                                                           new_transpose_order);
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node,
                                                                        transpose_const,
                                                                        /* input_indexes= */ {0})) {

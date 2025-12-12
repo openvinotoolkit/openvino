@@ -19,12 +19,11 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::consumers_count;
 using ov::pass::pattern::has_static_shape;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -32,18 +31,15 @@ ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
     MATCHER_SCOPE(FakeQuantizeReshapeFusion);
     // for weights only
     const auto data_p = wrap_type<v0::Constant>(has_static_shape());
-    const auto convert_p =
-        ov::pass::pattern::optional<v0::Convert>(data_p, consumers_count(1));
-    const auto fq_node_p = wrap_type<v0::FakeQuantize>(
-        {convert_p,
-         any_input(has_static_shape()),
-         any_input(has_static_shape()),
-         any_input(has_static_shape()),
-         any_input(has_static_shape())},
-        consumers_count(1));
-    const auto reshape_node_p = wrap_type<v1::Reshape>(
-        {fq_node_p, wrap_type<v0::Constant>()},
-        [](const Output<Node>& output) {
+    const auto convert_p = ov::pass::pattern::optional<v0::Convert>(data_p, consumers_count(1));
+    const auto fq_node_p = wrap_type<v0::FakeQuantize>({convert_p,
+                                                        any_input(has_static_shape()),
+                                                        any_input(has_static_shape()),
+                                                        any_input(has_static_shape()),
+                                                        any_input(has_static_shape())},
+                                                       consumers_count(1));
+    const auto reshape_node_p =
+        wrap_type<v1::Reshape>({fq_node_p, wrap_type<v0::Constant>()}, [](const Output<Node>& output) {
             // WA: check that all Reshape node consumers are not GroupConvolution operations
             const auto& target_inputs = output.get_target_inputs();
             return std::all_of(target_inputs.begin(), target_inputs.end(), [](const Input<Node>& input) {

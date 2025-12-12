@@ -17,9 +17,8 @@
 #include "ov_ops/glu.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -44,8 +43,7 @@ GLUFusion::GLUFusion() {
     // VariadicSplit(X, axis, split_lengths) = Xw, Xv
     auto axis_const_m = wrap_type<v0::Constant>();
     auto split_lengths_const_m = wrap_type<v0::Constant>();
-    auto variadic_split_m =
-        wrap_type<v1::VariadicSplit>({data_m, axis_const_m, split_lengths_const_m});
+    auto variadic_split_m = wrap_type<v1::VariadicSplit>({data_m, axis_const_m, split_lengths_const_m});
     variadic_split_m->set_output_size(2);
 
     // Swish(Xw) = Xw * (1.0 + exp(-beta * Xw))
@@ -100,14 +98,13 @@ GLUFusion::GLUFusion() {
         auto last_dim = variadic_split_in_ps.rank().get_length() - 1;
 
         auto axis = ov::as_type_ptr<v0::Constant>(pattern_map.at(axis_const_m).get_node_shared_ptr());
-        bool valid_axis_const_values = op_util::has_constant_value<int64_t>(axis, -1) ||
-                                       op_util::has_constant_value<int64_t>(axis, last_dim);
+        bool valid_axis_const_values =
+            op_util::has_constant_value<int64_t>(axis, -1) || op_util::has_constant_value<int64_t>(axis, last_dim);
         if (!valid_axis_const_values)
             return false;
         auto axis_value = axis->cast_vector<int64_t>()[0];
 
-        auto split_lengths =
-            ov::as_type_ptr<v0::Constant>(pattern_map.at(split_lengths_const_m).get_node_shared_ptr());
+        auto split_lengths = ov::as_type_ptr<v0::Constant>(pattern_map.at(split_lengths_const_m).get_node_shared_ptr());
         auto split_lengths_value = split_lengths->cast_vector<int64_t>()[0];
         // Allow only case that exactly splits in half along the last dimension
         auto split_length = variadic_split_in_ps[last_dim].get_length() / 2;

@@ -55,13 +55,12 @@
 using namespace std;
 using namespace ov;
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::op::Or;
 using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::Matcher;
 using ov::pass::pattern::rank_equals;
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::op::Or;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -251,8 +250,7 @@ static bool replace_squeeze_unsqueeze(const shared_ptr<Node>& node) {
     auto input = node->input_value(0).get_node_shared_ptr();
     auto pat = v0::Constant::create<int64_t>(element::i64, Shape{target_shape.size()}, target_shape);
 
-    if (ov::is_type<v1::Reshape>(input) || ov::is_type<v0::Squeeze>(input) ||
-        ov::is_type<v0::Unsqueeze>(input)) {
+    if (ov::is_type<v1::Reshape>(input) || ov::is_type<v0::Squeeze>(input) || ov::is_type<v0::Unsqueeze>(input)) {
         reshape = make_shared<v1::Reshape>(input->input_value(0), pat, false);
     } else {
         reshape = make_shared<v1::Reshape>(node->input_value(0), pat, false);
@@ -364,37 +362,31 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
 
 #define ECHO(NAME) #NAME
 #define STR(NAME)  ECHO(NAME)
-#define SIMPLE_MATCHER_PASS_DEFINITION(NAME, FUNC, ...)                                 \
-    class NAME : public ov::pass::MatcherPass {                                         \
-    public:                                                                             \
-        OPENVINO_RTTI(STR(NAME), "0", ov::pass::MatcherPass);                           \
-        NAME() {                                                                        \
-            MATCHER_SCOPE(NAME);                                                        \
+#define SIMPLE_MATCHER_PASS_DEFINITION(NAME, FUNC, ...)              \
+    class NAME : public ov::pass::MatcherPass {                      \
+    public:                                                          \
+        OPENVINO_RTTI(STR(NAME), "0", ov::pass::MatcherPass);        \
+        NAME() {                                                     \
+            MATCHER_SCOPE(NAME);                                     \
             auto match_node = wrap_type<__VA_ARGS__>();              \
             ov::matcher_pass_callback callback = [=](Matcher& m) {   \
-                return FUNC(m.get_match_root());                                        \
-            };                                                                          \
+                return FUNC(m.get_match_root());                     \
+            };                                                       \
             auto m = make_shared<Matcher>(match_node, matcher_name); \
-            register_matcher(m, callback);                                              \
-        }                                                                               \
+            register_matcher(m, callback);                           \
+        }                                                            \
     };
 
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, eliminate_reshape_v1, v1::Reshape);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, eliminate_nop, v1::Broadcast, v3::Broadcast);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather,
-                               simplify_gather,
-                               v1::Gather,
-                               ov::op::v7::Gather,
-                               v8::Gather);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, simplify_gather, v1::Gather, ov::op::v7::Gather, v8::Gather);
 
 pass::EliminateReduceReshape::EliminateReduceReshape() {
     MATCHER_SCOPE(EliminateReduceReshape);
     auto axes = wrap_type<v0::Constant>();
-    auto reduce_pattern =
-        wrap_type<op_util::ReductionBase>({any_input(), axes});
+    auto reduce_pattern = wrap_type<op_util::ReductionBase>({any_input(), axes});
     auto requested_shape_pattern = wrap_type<v0::Constant>();
-    auto reshape_pattern = wrap_type<v1::Reshape>({reduce_pattern, requested_shape_pattern},
-                                                                             consumers_count(1));
+    auto reshape_pattern = wrap_type<v1::Reshape>({reduce_pattern, requested_shape_pattern}, consumers_count(1));
 
     matcher_pass_callback callback = [=](Matcher& m) {
         auto pattern_map = m.get_pattern_map();
@@ -927,9 +919,7 @@ bool check_reshape(const shared_ptr<Node>& node) {
     return false;
 }
 
-bool check_axis(const shared_ptr<v0::Concat>& concat,
-                const shared_ptr<Node>& split,
-                bool is_special_case = false) {
+bool check_axis(const shared_ptr<v0::Concat>& concat, const shared_ptr<Node>& split, bool is_special_case = false) {
     auto axis = ov::as_type_ptr<v0::Constant>(split->input_value(1).get_node_shared_ptr());
     if (!axis) {
         return false;
@@ -986,8 +976,7 @@ shared_ptr<T> check_all_inputs(const shared_ptr<v0::Concat>& concat) {
 
             auto seq_node = seq_out.get_node_shared_ptr();
             if (!seq_node || seq_out.get_index() != 0 ||
-                !(ov::as_type_ptr<v5::RNNSequence>(seq_node) ||
-                  ov::as_type_ptr<v5::GRUSequence>(seq_node) ||
+                !(ov::as_type_ptr<v5::RNNSequence>(seq_node) || ov::as_type_ptr<v5::GRUSequence>(seq_node) ||
                   ov::as_type_ptr<v5::LSTMSequence>(seq_node))) {
                 return {};
             }
@@ -1065,8 +1054,7 @@ ov::pass::EliminateSplitConcat::EliminateSplitConcat() {
 pass::EliminateTranspose::EliminateTranspose() {
     MATCHER_SCOPE(EliminateTranspose);
     auto order = wrap_type<v0::Constant>();
-    auto transpose_pattern =
-        wrap_type<v1::Transpose>({any_input(), order});
+    auto transpose_pattern = wrap_type<v1::Transpose>({any_input(), order});
 
     matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
@@ -1098,11 +1086,8 @@ pass::EliminateEltwise::EliminateEltwise() {
     MATCHER_SCOPE(EliminateEltwise);
     auto input = any_input();
     auto constant_pattern = wrap_type<v0::Constant>();
-    auto eltwise_pattern =
-        wrap_type<v1::Add, v1::Subtract, v1::Multiply, v1::Divide>(
-            {input, constant_pattern});
-    auto subtract_pattern = wrap_type<v1::Subtract>(
-        {input, wrap_type<v0::Convert>({constant_pattern})});
+    auto eltwise_pattern = wrap_type<v1::Add, v1::Subtract, v1::Multiply, v1::Divide>({input, constant_pattern});
+    auto subtract_pattern = wrap_type<v1::Subtract>({input, wrap_type<v0::Convert>({constant_pattern})});
     auto root = make_shared<Or>(OutputVector{eltwise_pattern, subtract_pattern});
 
     matcher_pass_callback callback = [=](Matcher& m) {
@@ -1123,10 +1108,8 @@ pass::EliminateEltwise::EliminateEltwise() {
 
 pass::EliminateScatterUpdate::EliminateScatterUpdate() {
     MATCHER_SCOPE(EliminateScatterUpdate);
-    auto scatter_pattern = wrap_type<v3::ScatterUpdate,
-                                                        v3::ScatterNDUpdate,
-                                                        ov::op::v15::ScatterNDUpdate,
-                                                        v3::ScatterElementsUpdate>();
+    auto scatter_pattern =
+        wrap_type<v3::ScatterUpdate, v3::ScatterNDUpdate, ov::op::v15::ScatterNDUpdate, v3::ScatterElementsUpdate>();
 
     matcher_pass_callback callback = [=](Matcher& m) {
         auto scatter = m.get_match_root();
@@ -1149,12 +1132,11 @@ pass::EliminateScatterUpdate::EliminateScatterUpdate() {
 
 ov::pass::EliminateNopBroadcast::EliminateNopBroadcast() {
     MATCHER_SCOPE(EliminateNopBroadcast);
-    auto root = wrap_type<v1::Broadcast, v3::Broadcast, v0::Tile>(
-        [](std::shared_ptr<Node> node) {
-            auto input_rank = node->get_input_partial_shape(0).rank();
-            auto output_rank = node->get_output_partial_shape(0).rank();
-            return input_rank.is_static() && output_rank.is_static() && input_rank == output_rank;
-        });
+    auto root = wrap_type<v1::Broadcast, v3::Broadcast, v0::Tile>([](std::shared_ptr<Node> node) {
+        auto input_rank = node->get_input_partial_shape(0).rank();
+        auto output_rank = node->get_output_partial_shape(0).rank();
+        return input_rank.is_static() && output_rank.is_static() && input_rank == output_rank;
+    });
 
     ov::matcher_pass_callback matcher_pass_callback = [](Matcher& m) {
         const auto& op = m.get_match_root();
@@ -1227,8 +1209,7 @@ ov::pass::EliminateStridedSlice::EliminateStridedSlice() {
     auto begin_const = wrap_type<v0::Constant>();
     auto end_const = wrap_type<v0::Constant>();
     auto optional_stride_const = wrap_type<v0::Constant>();
-    auto pattern =
-        wrap_type<v1::StridedSlice>({input, begin_const, end_const, optional_stride_const});
+    auto pattern = wrap_type<v1::StridedSlice>({input, begin_const, end_const, optional_stride_const});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         auto strided_slice_node = ov::as_type_ptr<v1::StridedSlice>(m.get_match_root());
@@ -1316,8 +1297,7 @@ ov::pass::EliminateStridedSliceByShape::EliminateStridedSliceByShape() {
     auto begin = any_input();
     auto end = any_input();
     auto optional_stride_const = wrap_type<v0::Constant>();
-    auto strided_slice =
-        wrap_type<v1::StridedSlice>({input, begin, end, optional_stride_const});
+    auto strided_slice = wrap_type<v1::StridedSlice>({input, begin, end, optional_stride_const});
 
     auto axes = any_input();
     auto slice = wrap_type<v8::Slice>({input, begin, end, optional_stride_const, axes});
@@ -1349,8 +1329,7 @@ ov::pass::EliminateStridedSliceByShape::EliminateStridedSliceByShape() {
         }
 
         // check that that we will take all values
-        if (node->get_input_size() >= 4 &&
-            !op_util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
+        if (node->get_input_size() >= 4 && !op_util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
             return false;
         }
 
@@ -1368,18 +1347,14 @@ ov::pass::EliminateStridedSliceByShape::EliminateStridedSliceByShape() {
 
 ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAroundBE() {
     MATCHER_SCOPE(PrepareShapeOpsForEliminationAroundBE);
-    auto first_label = ov::pass::pattern::
-        wrap_type<v1::Reshape, v0::Squeeze, v1::StridedSlice, op_util::GatherBase>(
-            rank_equals(0));
+    auto first_label =
+        ov::pass::pattern::wrap_type<v1::Reshape, v0::Squeeze, v1::StridedSlice, op_util::GatherBase>(rank_equals(0));
     auto other_input_label = any_input(rank_equals(0));
     auto binary_op_label =
         wrap_type<op_util::BinaryElementwiseArithmetic,
-                                     op_util::BinaryElementwiseComparison,
-                                     op_util::BinaryElementwiseLogical>({first_label, other_input_label},
-                                                                             consumers_count(1));
-    auto second_label = wrap_type<v1::Reshape, v0::Unsqueeze>(
-        {binary_op_label, any_input()},
-        rank_equals(1));
+                  op_util::BinaryElementwiseComparison,
+                  op_util::BinaryElementwiseLogical>({first_label, other_input_label}, consumers_count(1));
+    auto second_label = wrap_type<v1::Reshape, v0::Unsqueeze>({binary_op_label, any_input()}, rank_equals(1));
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();
@@ -1387,10 +1362,8 @@ ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAr
         auto second_node = pattern_to_node.at(second_label);
         auto binary = pattern_to_node.at(binary_op_label);
 
-        auto lhs_node =
-            op_util::clone_try_fold(second_node, {binary->input_value(0), second_node->input_value(1)});
-        auto rhs_node =
-            op_util::clone_try_fold(second_node, {binary->input_value(1), second_node->input_value(1)});
+        auto lhs_node = op_util::clone_try_fold(second_node, {binary->input_value(0), second_node->input_value(1)});
+        auto rhs_node = op_util::clone_try_fold(second_node, {binary->input_value(1), second_node->input_value(1)});
 
         register_new_node(lhs_node);
         register_new_node(rhs_node);

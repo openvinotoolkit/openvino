@@ -20,11 +20,10 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -55,13 +54,12 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
     const auto fq_output_low_p = any_input();
     const auto fq_output_high_p = any_input();
 
-    const auto fq_node_p = wrap_type<v0::FakeQuantize>(
-        {data_p, any_input(), any_input(), fq_output_low_p, fq_output_high_p},
-        consumers_count(1));
+    const auto fq_node_p =
+        wrap_type<v0::FakeQuantize>({data_p, any_input(), any_input(), fq_output_low_p, fq_output_high_p},
+                                    consumers_count(1));
 
     const auto mul_constant_p = wrap_type<v0::Constant>();
-    const auto mul_node_p = wrap_type<v1::Multiply>({fq_node_p, mul_constant_p},
-                                                                               consumers_count(1));
+    const auto mul_node_p = wrap_type<v1::Multiply>({fq_node_p, mul_constant_p}, consumers_count(1));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

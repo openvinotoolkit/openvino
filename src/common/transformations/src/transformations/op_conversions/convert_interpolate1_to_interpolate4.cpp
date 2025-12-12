@@ -18,7 +18,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
 
@@ -26,8 +25,8 @@ namespace v0 = ov::op::v0;
 namespace v4 = ov::op::v4;
 ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4() {
     MATCHER_SCOPE(ConvertInterpolate1ToInterpolate4);
-    auto interpolate1 = ov::pass::pattern::wrap_type<v0::Interpolate>(
-        {any_input(ov::pass::pattern::has_static_rank()), any_input()});
+    auto interpolate1 =
+        ov::pass::pattern::wrap_type<v0::Interpolate>({any_input(ov::pass::pattern::has_static_rank()), any_input()});
     matcher_pass_callback callback = [](Matcher& m) {
         auto interpolationV0 = ov::as_type_ptr<v0::Interpolate>(m.get_match_root());
         if (!interpolationV0) {
@@ -99,10 +98,10 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
         }
 
         auto interpolateV4 = std::make_shared<v4::Interpolate>(interpolationV0->input_value(0),
-                                                                       interpolationV0->input_value(1),
-                                                                       scales,
-                                                                       axisConstant,
-                                                                       attrsV4);
+                                                               interpolationV0->input_value(1),
+                                                               scales,
+                                                               axisConstant,
+                                                               attrsV4);
 
         interpolateV4->set_friendly_name(interpolationV0->get_friendly_name());
         ov::copy_runtime_info(interpolationV0, interpolateV4);

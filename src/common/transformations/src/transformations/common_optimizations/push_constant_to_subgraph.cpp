@@ -11,7 +11,6 @@
 
 using MultiSubGraphOp = op_util::MultiSubGraphOp;
 
-
 namespace v0 = ov::op::v0;
 namespace op_util = ov::op::util;
 static std::shared_ptr<v0::Constant> try_constantfold_input(

@@ -20,7 +20,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 namespace v0 = ov::op::v0;
 bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollTensorIterator);
@@ -81,8 +80,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                         output.replace(in_data);
                     }
                 }
-            } else if (const auto& merged_desc =
-                           ov::as_type_ptr<v0::TensorIterator::MergedInputDescription>(desc)) {
+            } else if (const auto& merged_desc = ov::as_type_ptr<v0::TensorIterator::MergedInputDescription>(desc)) {
                 // Connect the input to the corresponding copy of the body.
                 auto in_data = sub_graph_op->input_values()[merged_desc->m_input_index];
                 const auto& param = body_functions[0]->get_parameters()[merged_desc->m_body_parameter_index];
@@ -154,8 +152,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                         input.replace_source_output(input_to_res);
                     }
                 }
-            } else if (const auto& output_desc =
-                           ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(desc)) {
+            } else if (const auto& output_desc = ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(desc)) {
                 // Connect outputs of the bodies to the corresponding TI outputs
                 auto iter = output_desc->m_iteration;
                 iter = iter >= 0 ? iter : num_iter - 1;

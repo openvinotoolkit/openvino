@@ -11,7 +11,6 @@
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -22,8 +21,7 @@ ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
     auto has_static_defined_type = [](const Output<Node>& output) -> bool {
         return !ov::pass::pattern::type_matches_any({element::dynamic})(output);
     };
-    auto convert_promote_types =
-        ov::pass::pattern::wrap_type<v14::ConvertPromoteTypes>(has_static_defined_type);
+    auto convert_promote_types = ov::pass::pattern::wrap_type<v14::ConvertPromoteTypes>(has_static_defined_type);
 
     matcher_pass_callback callback = [](Matcher& m) {
         auto convert_promote_types = ov::as_type_ptr<v14::ConvertPromoteTypes>(m.get_match_root());

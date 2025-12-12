@@ -17,8 +17,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -27,8 +27,7 @@ ov::pass::AdaptivePoolToReduce::AdaptivePoolToReduce() {
     MATCHER_SCOPE(AdaptivePoolToReduce);
     auto data_pattern = ov::pass::pattern::any_input();
     auto out_spatial_shape = wrap_type<v0::Constant>();
-    auto a_pool = wrap_type<v8::AdaptiveAvgPool, v8::AdaptiveMaxPool>(
-        {data_pattern, out_spatial_shape});
+    auto a_pool = wrap_type<v8::AdaptiveAvgPool, v8::AdaptiveMaxPool>({data_pattern, out_spatial_shape});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();

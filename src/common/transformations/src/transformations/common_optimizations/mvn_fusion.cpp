@@ -26,10 +26,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::op::Or;
 
 namespace v0 = ov::op::v0;
@@ -130,10 +129,8 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
             return false;
         }
 
-        auto axes_1_node =
-            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
-        auto axes_3_node =
-            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(mean3_axes).get_node_shared_ptr());
+        auto axes_1_node = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
+        auto axes_3_node = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(mean3_axes).get_node_shared_ptr());
 
         if (!axes_1_node || !axes_3_node) {
             return false;
@@ -146,8 +143,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
             return false;
         }
         if (pattern_to_output.count(mean2_axes)) {
-            auto axes_2_node =
-                ov::as_type_ptr<v0::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
+            auto axes_2_node = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
             if (!axes_2_node) {
                 return false;
             }
@@ -269,10 +265,8 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(x);
 
-        auto const_0_5_node =
-            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(const_0_5).get_node_shared_ptr());
-        auto const_gamma_node =
-            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(gamma).get_node_shared_ptr());
+        auto const_0_5_node = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(const_0_5).get_node_shared_ptr());
+        auto const_gamma_node = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(gamma).get_node_shared_ptr());
         auto const_beta_node = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(beta).get_node_shared_ptr());
         auto const_eps_node = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
         if (!const_0_5_node || !const_beta_node || !const_gamma_node || !const_eps_node) {
@@ -286,10 +280,8 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
             return false;
         }
 
-        auto axes_1_node =
-            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
-        auto axes_2_node =
-            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
+        auto axes_1_node = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
+        auto axes_2_node = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
         if (!axes_1_node || !axes_2_node) {
             return false;
         }
@@ -300,8 +292,7 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
             return false;
         }
 
-        auto mvn =
-            std::make_shared<v6::MVN>(x_output, axes_1_node, true, eps_value, ov::op::MVNEpsMode::INSIDE_SQRT);
+        auto mvn = std::make_shared<v6::MVN>(x_output, axes_1_node, true, eps_value, ov::op::MVNEpsMode::INSIDE_SQRT);
         auto mul_gamma = std::make_shared<v1::Multiply>(mvn, const_gamma_node);
         auto add_beta = std::make_shared<v1::Add>(mul_gamma, const_beta_node);
 

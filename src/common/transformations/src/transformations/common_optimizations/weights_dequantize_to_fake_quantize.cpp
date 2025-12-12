@@ -16,11 +16,10 @@
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
-using ov::pass::pattern::op::Or;
 using ov::pass::pattern::type_matches;
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::op::Or;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -28,11 +27,9 @@ namespace op_util = ov::op::util;
 ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     MATCHER_SCOPE(WeightsDequantizeToFakeQuantize);
 
-    const auto weights =
-        wrap_type<v0::Constant>(type_matches(element::i8));
+    const auto weights = wrap_type<v0::Constant>(type_matches(element::i8));
     const auto convert = wrap_type<v0::Convert>({weights});
-    const auto sub_c_integer =
-        wrap_type<v0::Constant>(type_matches(element::i8));
+    const auto sub_c_integer = wrap_type<v0::Constant>(type_matches(element::i8));
     const auto convert_sub_c_integer = wrap_type<v0::Convert>({sub_c_integer});
     const auto sub_integer = wrap_type<v1::Subtract>({convert, convert_sub_c_integer});
     const auto sub_c = wrap_type<v0::Constant>();
@@ -68,8 +65,8 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
         } else if (pattern_map.count(sub_c_integer)) {
             const auto& sub_c_integer_node = ov::as_type_ptr<v0::Constant>(pattern_map.at(sub_c_integer));
             zero_point = v0::Constant::create(convert_node->get_element_type(),
-                                                      sub_c_integer_node->get_output_shape(0),
-                                                      sub_c_integer_node->get_vector<int8_t>());
+                                              sub_c_integer_node->get_output_shape(0),
+                                              sub_c_integer_node->get_vector<int8_t>());
         } else {
             zero_point = v0::Constant::create(convert_node->get_element_type(), {}, {0});
         }
@@ -79,12 +76,8 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
         const auto& output_high_const = op_util::make_try_fold<v1::Subtract>(input_high, zero_point);
         const auto& output_high = op_util::make_try_fold<v1::Multiply>(output_high_const, scale_node);
 
-        auto fq = std::make_shared<v0::FakeQuantize>(convert_node,
-                                                             input_low,
-                                                             input_high,
-                                                             output_low,
-                                                             output_high,
-                                                             levels);
+        auto fq =
+            std::make_shared<v0::FakeQuantize>(convert_node, input_low, input_high, output_low, output_high, levels);
 
         NodeVector nodes_to_copy_RT_info_from{multiply_node, scale_node, zero_point};
         if (pattern_map.count(sub))

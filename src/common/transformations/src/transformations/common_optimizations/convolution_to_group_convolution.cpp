@@ -17,7 +17,6 @@
 #include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -47,7 +46,7 @@ static int64_t get_split_axis(const std::shared_ptr<ov::Node>& split) {
 }
 
 static std::shared_ptr<v0::Concat> create_new_weights(ov::pass::NodeRegistry& node_registry,
-                                                              const std::shared_ptr<ov::Node>& concat) {
+                                                      const std::shared_ptr<ov::Node>& concat) {
     const auto concat_input = concat->get_input_node_ptr(0);
     if (concat_input->get_input_partial_shape(1).is_dynamic())
         return nullptr;
@@ -71,9 +70,9 @@ static std::shared_ptr<v0::Concat> create_new_weights(ov::pass::NodeRegistry& no
         if (auto constant = ov::as_type_ptr<v0::Constant>(weights)) {
             weights_to_concat.push_back(node_registry.make<v0::Constant>(*constant, new_shape));
         } else {
-            weights_to_concat.push_back(node_registry.make<v0::Unsqueeze>(
-                weights_output,
-                v0::Constant::create(ov::element::i32, ov::Shape{}, {0})));
+            weights_to_concat.push_back(
+                node_registry.make<v0::Unsqueeze>(weights_output,
+                                                  v0::Constant::create(ov::element::i32, ov::Shape{}, {0})));
         }
         weights_to_concat.back().get_node()->set_friendly_name(weights->get_friendly_name());
     }
@@ -151,12 +150,12 @@ ov::pass::ConvolutionToGroupConvolutionFusion::ConvolutionToGroupConvolutionFusi
             return false;
 
         const auto conv = node_registry.make<v1::GroupConvolution>(split->input_value(0),
-                                                                           weights,
-                                                                           first_conv->get_strides(),
-                                                                           first_conv->get_pads_begin(),
-                                                                           first_conv->get_pads_end(),
-                                                                           first_conv->get_dilations(),
-                                                                           first_conv->get_auto_pad());
+                                                                   weights,
+                                                                   first_conv->get_strides(),
+                                                                   first_conv->get_pads_begin(),
+                                                                   first_conv->get_pads_end(),
+                                                                   first_conv->get_dilations(),
+                                                                   first_conv->get_auto_pad());
         conv->set_friendly_name(concat->get_friendly_name());
         register_new_node(conv);
 

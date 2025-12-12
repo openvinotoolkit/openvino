@@ -49,7 +49,6 @@
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::rank_equals;
 
@@ -112,13 +111,13 @@ std::shared_ptr<ov::pass::pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto select_Gather_1 = wrap_type<v8::Gather>(
         {permute_Transpose, expert_id, wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0"))},
         {{"batch_dims", 0}});
-    auto squeeze_Squeeze_1 = wrap_type<v0::Squeeze>(
-        {select_Gather_1, wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0"))});
+    auto squeeze_Squeeze_1 =
+        wrap_type<v0::Squeeze>({select_Gather_1, wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0"))});
     // NonZero output_type relaxed to accept both i32 and i64
     auto ListUnpack_NonZero_1 = wrap_type<v3::NonZero>({squeeze_Squeeze_1});
-    auto ListUnpack_Split_1 = wrap_type<v1::Split>(
-        {ListUnpack_NonZero_1, wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0"))},
-        {{"num_splits", 2}});
+    auto ListUnpack_Split_1 =
+        wrap_type<v1::Split>({ListUnpack_NonZero_1, wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0"))},
+                             {{"num_splits", 2}});
     ListUnpack_Split_1->set_output_size(2);
     auto ListUnpack_Squeeze_0_1 = wrap_type<v0::Squeeze>(
         {ListUnpack_Split_1->output(1), wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0"))});
@@ -127,43 +126,36 @@ std::shared_ptr<ov::pass::pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto index_add__Reshape_1 = wrap_type<v1::Reshape>(
         {index_add__Convert_1, wrap_type<v0::Constant>(ov::pass::pattern::value_matches("-1, 1"))},
         {{"special_zero", false}});
-    auto index_add__Slice_1 =
-        wrap_type<v8::Slice>({index_add__ScatterElementsUpdate_2,
-                                      wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0, 0")),
-                                      slice_end_const,
-                                      wrap_type<v0::Constant>(ov::pass::pattern::value_matches("1, 1")),
-                                      wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0, 1"))});
+    auto index_add__Slice_1 = wrap_type<v8::Slice>({index_add__ScatterElementsUpdate_2,
+                                                    wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0, 0")),
+                                                    slice_end_const,
+                                                    wrap_type<v0::Constant>(ov::pass::pattern::value_matches("1, 1")),
+                                                    wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0, 1"))});
     auto index_add__ShapeOf_14 = wrap_type<v3::ShapeOf>({index_add__Slice_1}, {{"output_type", "i32"}});
     auto index_add__Broadcast_16 =
         wrap_type<v3::Broadcast>({index_add__Reshape_1, index_add__ShapeOf_14}, {{"mode", "bidirectional"}});
     auto unsqueeze_Unsqueeze_reshape =
-        wrap_type<v1::Reshape>({unsqueeze_Unsqueeze, any_input()},
-                                       {{"special_zero", false}});
-    auto index_Gather_2 =
-        wrap_type<v8::Gather>({unsqueeze_Unsqueeze_reshape,
-                                       index_add__Convert_1,
-                                       wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0"))},
-                                      {{"batch_dims", 0}});
-    auto reshape_Reshape_1_0 =
-        wrap_type<v1::Reshape>({index_Gather_2, any_input()}, {{"special_zero", true}});
-    auto reshape_Reshape_1_1 =
-        wrap_type<v1::Reshape>({reshape_Reshape_1_0, any_input()}, {{"special_zero", true}});
-    auto reshape_Reshape_1_2 =
-        wrap_type<v1::Reshape>({reshape_Reshape_1_1, any_input()}, {{"special_zero", true}});
+        wrap_type<v1::Reshape>({unsqueeze_Unsqueeze, any_input()}, {{"special_zero", false}});
+    auto index_Gather_2 = wrap_type<v8::Gather>({unsqueeze_Unsqueeze_reshape,
+                                                 index_add__Convert_1,
+                                                 wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0"))},
+                                                {{"batch_dims", 0}});
+    auto reshape_Reshape_1_0 = wrap_type<v1::Reshape>({index_Gather_2, any_input()}, {{"special_zero", true}});
+    auto reshape_Reshape_1_1 = wrap_type<v1::Reshape>({reshape_Reshape_1_0, any_input()}, {{"special_zero", true}});
+    auto reshape_Reshape_1_2 = wrap_type<v1::Reshape>({reshape_Reshape_1_1, any_input()}, {{"special_zero", true}});
 
-    auto reshape_Reshape_1 =
-        wrap_type<v1::Reshape>({reshape_Reshape_1_2, shape_const}, {{"special_zero", true}});
+    auto reshape_Reshape_1 = wrap_type<v1::Reshape>({reshape_Reshape_1_2, shape_const}, {{"special_zero", true}});
     auto gate_proj_weight = any_input(rank_equals(2));
-    auto linear_MatMul_gate = wrap_type<v0::MatMul>({reshape_Reshape_1, gate_proj_weight},
-                                                            {{"transpose_a", false}, {"transpose_b", true}});
+    auto linear_MatMul_gate =
+        wrap_type<v0::MatMul>({reshape_Reshape_1, gate_proj_weight}, {{"transpose_a", false}, {"transpose_b", true}});
     auto silu_Swish = wrap_type<v4::Swish>({linear_MatMul_gate});
     auto up_proj_weight = any_input(rank_equals(2));
-    auto linear_MatMul_up = wrap_type<v0::MatMul>({reshape_Reshape_1, up_proj_weight},
-                                                          {{"transpose_a", false}, {"transpose_b", true}});
+    auto linear_MatMul_up =
+        wrap_type<v0::MatMul>({reshape_Reshape_1, up_proj_weight}, {{"transpose_a", false}, {"transpose_b", true}});
     auto mul_Multiply = wrap_type<v1::Multiply>({silu_Swish, linear_MatMul_up}, {{"auto_broadcast", "numpy"}});
     auto down_proj_weight = any_input(rank_equals(2));
-    auto linear_MatMul_down = wrap_type<v0::MatMul>({mul_Multiply, down_proj_weight},
-                                                            {{"transpose_a", false}, {"transpose_b", true}});
+    auto linear_MatMul_down =
+        wrap_type<v0::MatMul>({mul_Multiply, down_proj_weight}, {{"transpose_a", false}, {"transpose_b", true}});
     auto ListUnpack_Squeeze_1 = wrap_type<v0::Squeeze>(
         {ListUnpack_Split_1->output(0), wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0"))});
     // Convert is optional - pattern matches both with and without type conversion
@@ -174,19 +166,19 @@ std::shared_ptr<ov::pass::pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto index_Gather_3 = wrap_type<v8::Gather>(
         {index_Reshape, index_Add_1, wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0"))},
         {{"batch_dims", 0}});
-    auto index_Reshape_8_1 = wrap_type<v1::Reshape>(
-        {index_Gather_3, wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0, 1"))},
-        {{"special_zero", true}});
+    auto index_Reshape_8_1 =
+        wrap_type<v1::Reshape>({index_Gather_3, wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0, 1"))},
+                               {{"special_zero", true}});
     auto mul_Multiply_2 =
         wrap_type<v1::Multiply>({linear_MatMul_down, index_Reshape_8_1}, {{"auto_broadcast", "numpy"}});
     auto index_add__Broadcast_17 =
         wrap_type<v3::Broadcast>({mul_Multiply_2, index_add__ShapeOf_14}, {{"mode", "bidirectional"}});
-    auto index_add__ScatterElementsUpdate_5 = wrap_type<v12::ScatterElementsUpdate>(
-        {index_add__ScatterElementsUpdate_2,
-         index_add__Broadcast_16,
-         index_add__Broadcast_17,
-         wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0"))},
-        {{"reduction", "sum"}, {"use_init_val", true}});
+    auto index_add__ScatterElementsUpdate_5 =
+        wrap_type<v12::ScatterElementsUpdate>({index_add__ScatterElementsUpdate_2,
+                                               index_add__Broadcast_16,
+                                               index_add__Broadcast_17,
+                                               wrap_type<v0::Constant>(ov::pass::pattern::value_matches("0"))},
+                                              {{"reduction", "sum"}, {"use_init_val", true}});
     auto block = std::make_shared<ov::pass::pattern::op::Block>(
         ov::OutputVector{permute_Transpose, unsqueeze_Unsqueeze, index_Split_out_1, index_Reshape},
         ov::OutputVector{index_add__ScatterElementsUpdate_5},
@@ -244,8 +236,7 @@ std::pair<std::shared_ptr<Node>, std::shared_ptr<Node>> create_router_pattern() 
 // This extracts indices of tokens assigned to each expert
 std::shared_ptr<Node> create_expert_indexing_pattern(const std::shared_ptr<Node>& permute_transpose,
                                                      const AxisPatterns& axes) {
-    auto select_gather =
-        wrap_type<v8::Gather>({permute_transpose, axes.axis0, axes.axis0}, {{"batch_dims", 0}});
+    auto select_gather = wrap_type<v8::Gather>({permute_transpose, axes.axis0, axes.axis0}, {{"batch_dims", 0}});
     auto squeeze = wrap_type<v0::Squeeze>({select_gather, axes.axis0});
     // NonZero output_type relaxed to accept both i32 and i64
     auto non_zero = wrap_type<v3::NonZero>({squeeze});
@@ -264,14 +255,13 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> create_routing_weights_
     const AxisPatterns& axes) {
     auto reduce_neg1 = wrap_type<v0::Constant>(ov::pass::pattern::value_matches("-1"));
     auto sum_reduce = wrap_type<v1::ReduceSum>({topk->output(0), reduce_neg1}, {{"keep_dims", true}});
-    auto normalized = wrap_type<v1::Divide>({topk->output(0), sum_reduce},
-                                                    {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+    auto normalized =
+        wrap_type<v1::Divide>({topk->output(0), sum_reduce}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
     auto unsqueeze = wrap_type<v0::Unsqueeze>({normalized, axes.axis2});
     auto shape_of = wrap_type<v3::ShapeOf>({unsqueeze}, {{"output_type", "i32"}});
     auto split = wrap_type<v1::Split>({shape_of, axes.axis0}, {{"num_splits", 3}});
     split->set_output_size(3);
-    auto reshape =
-        wrap_type<v1::Reshape>({unsqueeze, any_input()}, {{"special_zero", true}});
+    auto reshape = wrap_type<v1::Reshape>({unsqueeze, any_input()}, {{"special_zero", true}});
 
     return {split, reshape};
 }
@@ -454,22 +444,19 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             auto topk_indices_output = topk->output(1);
             auto batch_dim = extract_shape_dim(topk_indices_output, 0);
 
-            auto num_experts_const =
-                v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(num_experts)});
+            auto num_experts_const = v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(num_experts)});
             auto num_experts_dim = std::make_shared<v0::Unsqueeze>(num_experts_const, const_0);
 
             // Tile and reshape input to prepare for batched expert computation
-            auto tile_shape =
-                v0::Constant::create(element::i64,
-                                             Shape{2},
-                                             {static_cast<int64_t>(num_experts), static_cast<int64_t>(1)});
+            auto tile_shape = v0::Constant::create(element::i64,
+                                                   Shape{2},
+                                                   {static_cast<int64_t>(num_experts), static_cast<int64_t>(1)});
 
             auto view_reshape_shape = std::make_shared<v0::Concat>(OutputVector{const_minus_1, hidden_dim}, 0);
             auto view_reshape = std::make_shared<v1::Reshape>(view_reshape_node, view_reshape_shape, false);
             auto repeated_input = std::make_shared<v0::Tile>(view_reshape, tile_shape);
 
-            auto batched_shape =
-                std::make_shared<v0::Concat>(OutputVector{num_experts_dim, batch_dim, hidden_dim}, 0);
+            auto batched_shape = std::make_shared<v0::Concat>(OutputVector{num_experts_dim, batch_dim, hidden_dim}, 0);
             auto batched_input = std::make_shared<v1::Reshape>(repeated_input, batched_shape, false);
 
             // Execute three-GEMM SwiGLU pattern: gate_proj, up_proj, and down_proj
@@ -482,17 +469,14 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             auto down_bmm = std::make_shared<v0::MatMul>(swiglu_mul, fused_down_weights, false, true);
 
             auto minus_one_vec = v0::Constant::create(element::i64, Shape{1}, {-1});
-            auto expert_output_shape = std::make_shared<v0::Concat>(
-                OutputVector{num_experts_dim, batch_dim, minus_one_vec, hidden_dim},
-                0);
+            auto expert_output_shape =
+                std::make_shared<v0::Concat>(OutputVector{num_experts_dim, batch_dim, minus_one_vec, hidden_dim}, 0);
             auto expert_outputs = std::make_shared<v1::Reshape>(down_bmm, expert_output_shape, false);
 
             // Build routing weights tensor from TopK outputs
             auto topk_values = topk->output(0);
             auto sum_reduce =
-                std::make_shared<v1::ReduceSum>(topk_values,
-                                                        v0::Constant::create(element::i64, Shape{1}, {-1}),
-                                                        true);
+                std::make_shared<v1::ReduceSum>(topk_values, v0::Constant::create(element::i64, Shape{1}, {-1}), true);
             auto normalized_topk = std::make_shared<v1::Divide>(topk_values, sum_reduce);
 
             auto scatter_shape = std::make_shared<v0::Concat>(OutputVector{batch_dim, num_experts_dim}, 0);
@@ -500,9 +484,9 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             auto zeros_tensor = std::make_shared<v3::Broadcast>(zeros_scalar, scatter_shape);
 
             auto scatter = std::make_shared<v12::ScatterElementsUpdate>(zeros_tensor,
-                                                                                topk_indices_output,
-                                                                                normalized_topk,
-                                                                                const_1);
+                                                                        topk_indices_output,
+                                                                        normalized_topk,
+                                                                        const_1);
             auto router_transpose = std::make_shared<v1::Transpose>(scatter, transpose_perm);
             auto router_shape =
                 std::make_shared<v0::Concat>(OutputVector{num_experts_dim, batch_dim, minus_one_vec}, 0);

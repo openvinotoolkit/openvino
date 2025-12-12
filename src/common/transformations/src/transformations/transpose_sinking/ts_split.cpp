@@ -19,9 +19,8 @@ using namespace ov;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -119,9 +118,8 @@ TSSplitForward::TSSplitForward() {
         sink_forward::RemoveInputNode(main_node, /* input_idx */ 0);
         const auto transpose_axis_order = transpose_info.transpose_const->get_axis_vector_val();
         const size_t transposed_split_axis = transpose_axis_order[split_axis];
-        auto new_split_axis_const = std::make_shared<v0::Constant>(split_axis_constant->get_element_type(),
-                                                                           Shape{},
-                                                                           transposed_split_axis);
+        auto new_split_axis_const =
+            std::make_shared<v0::Constant>(split_axis_constant->get_element_type(), Shape{}, transposed_split_axis);
         main_node->input(1).replace_source_output(new_split_axis_const);
         copy_runtime_info({split_axis_constant, transpose_info.transpose, transpose_info.transpose_const},
                           new_split_axis_const);
@@ -164,8 +162,7 @@ TSSplitBackward::TSSplitBackward() {
 
     auto transpose_const_label = wrap_type<v0::Constant>();
     auto transpose_label =
-        wrap_type<v1::Transpose>({ov::pass::pattern::any_input(), transpose_const_label},
-                                                            IsSplitSinked);
+        wrap_type<v1::Transpose>({ov::pass::pattern::any_input(), transpose_const_label}, IsSplitSinked);
 
     matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -201,8 +198,8 @@ TSSplitBackward::TSSplitBackward() {
         {
             auto input_node = split->input_value(0);
             auto new_transpose_const = std::make_shared<v0::Constant>(transpose_element_type,
-                                                                              Shape{transpose_axis_order.size()},
-                                                                              transpose_axis_order);
+                                                                      Shape{transpose_axis_order.size()},
+                                                                      transpose_axis_order);
             auto new_transpose = std::make_shared<v1::Transpose>(input_node, new_transpose_const);
 
             split->input(0).replace_source_output(new_transpose->output(0));
@@ -214,8 +211,8 @@ TSSplitBackward::TSSplitBackward() {
 
         // update split axis
         auto new_split_axis_const = std::make_shared<v0::Constant>(split_axis_constant->get_element_type(),
-                                                                           Shape{},
-                                                                           reversed_transposed_split_axis);
+                                                                   Shape{},
+                                                                   reversed_transposed_split_axis);
         split->input(1).replace_source_output(new_split_axis_const);
         copy_runtime_info({split_axis_constant,
                            output_transpose.transpose->shared_from_this(),

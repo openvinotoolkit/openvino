@@ -17,9 +17,8 @@
 #include "openvino/op/split.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -44,35 +43,33 @@ ov::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecom
         auto W = std::make_shared<v1::Split>(lstm_sequence->input_value(4), axis_0, 2);
         auto R = std::make_shared<v1::Split>(lstm_sequence->input_value(5), axis_0, 2);
         auto B = std::make_shared<v1::Split>(lstm_sequence->input_value(6), axis_0, 2);
-        auto lstm_sequence_forward =
-            std::make_shared<v5::LSTMSequence>(lstm_sequence->input_value(0),
-                                                       H->output(0),
-                                                       C->output(0),
-                                                       lstm_sequence->input_value(3),
-                                                       W->output(0),
-                                                       R->output(0),
-                                                       B->output(0),
-                                                       lstm_sequence->get_hidden_size(),
-                                                       ov::op::RecurrentSequenceDirection::FORWARD,
-                                                       lstm_sequence->get_activations_alpha(),
-                                                       lstm_sequence->get_activations_beta(),
-                                                       lstm_sequence->get_activations(),
-                                                       lstm_sequence->get_clip());
+        auto lstm_sequence_forward = std::make_shared<v5::LSTMSequence>(lstm_sequence->input_value(0),
+                                                                        H->output(0),
+                                                                        C->output(0),
+                                                                        lstm_sequence->input_value(3),
+                                                                        W->output(0),
+                                                                        R->output(0),
+                                                                        B->output(0),
+                                                                        lstm_sequence->get_hidden_size(),
+                                                                        ov::op::RecurrentSequenceDirection::FORWARD,
+                                                                        lstm_sequence->get_activations_alpha(),
+                                                                        lstm_sequence->get_activations_beta(),
+                                                                        lstm_sequence->get_activations(),
+                                                                        lstm_sequence->get_clip());
 
-        auto lstm_sequence_reverse =
-            std::make_shared<v5::LSTMSequence>(lstm_sequence->input_value(0),
-                                                       H->output(1),
-                                                       C->output(1),
-                                                       lstm_sequence->input_value(3),
-                                                       W->output(1),
-                                                       R->output(1),
-                                                       B->output(1),
-                                                       lstm_sequence->get_hidden_size(),
-                                                       ov::op::RecurrentSequenceDirection::REVERSE,
-                                                       lstm_sequence->get_activations_alpha(),
-                                                       lstm_sequence->get_activations_beta(),
-                                                       lstm_sequence->get_activations(),
-                                                       lstm_sequence->get_clip());
+        auto lstm_sequence_reverse = std::make_shared<v5::LSTMSequence>(lstm_sequence->input_value(0),
+                                                                        H->output(1),
+                                                                        C->output(1),
+                                                                        lstm_sequence->input_value(3),
+                                                                        W->output(1),
+                                                                        R->output(1),
+                                                                        B->output(1),
+                                                                        lstm_sequence->get_hidden_size(),
+                                                                        ov::op::RecurrentSequenceDirection::REVERSE,
+                                                                        lstm_sequence->get_activations_alpha(),
+                                                                        lstm_sequence->get_activations_beta(),
+                                                                        lstm_sequence->get_activations(),
+                                                                        lstm_sequence->get_clip());
 
         auto concat_0 = std::make_shared<v0::Concat>(
             OutputVector{lstm_sequence_forward->output(0), lstm_sequence_reverse->output(0)},
@@ -116,42 +113,40 @@ ov::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecompo
         auto W = std::make_shared<v1::Split>(gru_sequence->input_value(3), axis_0, 2);
         auto R = std::make_shared<v1::Split>(gru_sequence->input_value(4), axis_0, 2);
         auto B = std::make_shared<v1::Split>(gru_sequence->input_value(5), axis_0, 2);
-        auto gru_sequence_forward =
-            std::make_shared<v5::GRUSequence>(gru_sequence->input_value(0),
-                                                      H->output(0),
-                                                      gru_sequence->input_value(2),
-                                                      W->output(0),
-                                                      R->output(0),
-                                                      B->output(0),
-                                                      gru_sequence->get_hidden_size(),
-                                                      ov::op::RecurrentSequenceDirection::FORWARD,
-                                                      gru_sequence->get_activations(),
-                                                      gru_sequence->get_activations_alpha(),
-                                                      gru_sequence->get_activations_beta(),
-                                                      gru_sequence->get_clip(),
-                                                      gru_sequence->get_linear_before_reset());
+        auto gru_sequence_forward = std::make_shared<v5::GRUSequence>(gru_sequence->input_value(0),
+                                                                      H->output(0),
+                                                                      gru_sequence->input_value(2),
+                                                                      W->output(0),
+                                                                      R->output(0),
+                                                                      B->output(0),
+                                                                      gru_sequence->get_hidden_size(),
+                                                                      ov::op::RecurrentSequenceDirection::FORWARD,
+                                                                      gru_sequence->get_activations(),
+                                                                      gru_sequence->get_activations_alpha(),
+                                                                      gru_sequence->get_activations_beta(),
+                                                                      gru_sequence->get_clip(),
+                                                                      gru_sequence->get_linear_before_reset());
 
-        auto gru_sequence_reverse =
-            std::make_shared<v5::GRUSequence>(gru_sequence->input_value(0),
-                                                      H->output(1),
-                                                      gru_sequence->input_value(2),
-                                                      W->output(1),
-                                                      R->output(1),
-                                                      B->output(1),
-                                                      gru_sequence->get_hidden_size(),
-                                                      ov::op::RecurrentSequenceDirection::REVERSE,
-                                                      gru_sequence->get_activations(),
-                                                      gru_sequence->get_activations_alpha(),
-                                                      gru_sequence->get_activations_beta(),
-                                                      gru_sequence->get_clip(),
-                                                      gru_sequence->get_linear_before_reset());
+        auto gru_sequence_reverse = std::make_shared<v5::GRUSequence>(gru_sequence->input_value(0),
+                                                                      H->output(1),
+                                                                      gru_sequence->input_value(2),
+                                                                      W->output(1),
+                                                                      R->output(1),
+                                                                      B->output(1),
+                                                                      gru_sequence->get_hidden_size(),
+                                                                      ov::op::RecurrentSequenceDirection::REVERSE,
+                                                                      gru_sequence->get_activations(),
+                                                                      gru_sequence->get_activations_alpha(),
+                                                                      gru_sequence->get_activations_beta(),
+                                                                      gru_sequence->get_clip(),
+                                                                      gru_sequence->get_linear_before_reset());
 
-        auto concat_0 = std::make_shared<v0::Concat>(
-            OutputVector{gru_sequence_forward->output(0), gru_sequence_reverse->output(0)},
-            1);
-        auto concat_1 = std::make_shared<v0::Concat>(
-            OutputVector{gru_sequence_forward->output(1), gru_sequence_reverse->output(1)},
-            1);
+        auto concat_0 =
+            std::make_shared<v0::Concat>(OutputVector{gru_sequence_forward->output(0), gru_sequence_reverse->output(0)},
+                                         1);
+        auto concat_1 =
+            std::make_shared<v0::Concat>(OutputVector{gru_sequence_forward->output(1), gru_sequence_reverse->output(1)},
+                                         1);
         ov::copy_runtime_info(gru_sequence,
                               {H, W, R, B, gru_sequence_forward, gru_sequence_reverse, concat_0, concat_1});
         concat_0->set_friendly_name(gru_sequence->get_friendly_name() + ".0");
@@ -183,40 +178,38 @@ ov::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecompo
         auto W = std::make_shared<v1::Split>(rnn_sequence->input_value(3), axis_0, 2);
         auto R = std::make_shared<v1::Split>(rnn_sequence->input_value(4), axis_0, 2);
         auto B = std::make_shared<v1::Split>(rnn_sequence->input_value(5), axis_0, 2);
-        auto rnn_sequence_forward =
-            std::make_shared<v5::RNNSequence>(rnn_sequence->input_value(0),
-                                                      H->output(0),
-                                                      rnn_sequence->input_value(2),
-                                                      W->output(0),
-                                                      R->output(0),
-                                                      B->output(0),
-                                                      rnn_sequence->get_hidden_size(),
-                                                      ov::op::RecurrentSequenceDirection::FORWARD,
-                                                      rnn_sequence->get_activations(),
-                                                      rnn_sequence->get_activations_alpha(),
-                                                      rnn_sequence->get_activations_beta(),
-                                                      rnn_sequence->get_clip());
+        auto rnn_sequence_forward = std::make_shared<v5::RNNSequence>(rnn_sequence->input_value(0),
+                                                                      H->output(0),
+                                                                      rnn_sequence->input_value(2),
+                                                                      W->output(0),
+                                                                      R->output(0),
+                                                                      B->output(0),
+                                                                      rnn_sequence->get_hidden_size(),
+                                                                      ov::op::RecurrentSequenceDirection::FORWARD,
+                                                                      rnn_sequence->get_activations(),
+                                                                      rnn_sequence->get_activations_alpha(),
+                                                                      rnn_sequence->get_activations_beta(),
+                                                                      rnn_sequence->get_clip());
 
-        auto rnn_sequence_reverse =
-            std::make_shared<v5::RNNSequence>(rnn_sequence->input_value(0),
-                                                      H->output(1),
-                                                      rnn_sequence->input_value(2),
-                                                      W->output(1),
-                                                      R->output(1),
-                                                      B->output(1),
-                                                      rnn_sequence->get_hidden_size(),
-                                                      ov::op::RecurrentSequenceDirection::REVERSE,
-                                                      rnn_sequence->get_activations(),
-                                                      rnn_sequence->get_activations_alpha(),
-                                                      rnn_sequence->get_activations_beta(),
-                                                      rnn_sequence->get_clip());
+        auto rnn_sequence_reverse = std::make_shared<v5::RNNSequence>(rnn_sequence->input_value(0),
+                                                                      H->output(1),
+                                                                      rnn_sequence->input_value(2),
+                                                                      W->output(1),
+                                                                      R->output(1),
+                                                                      B->output(1),
+                                                                      rnn_sequence->get_hidden_size(),
+                                                                      ov::op::RecurrentSequenceDirection::REVERSE,
+                                                                      rnn_sequence->get_activations(),
+                                                                      rnn_sequence->get_activations_alpha(),
+                                                                      rnn_sequence->get_activations_beta(),
+                                                                      rnn_sequence->get_clip());
 
-        auto concat_0 = std::make_shared<v0::Concat>(
-            OutputVector{rnn_sequence_forward->output(0), rnn_sequence_reverse->output(0)},
-            1);
-        auto concat_1 = std::make_shared<v0::Concat>(
-            OutputVector{rnn_sequence_forward->output(1), rnn_sequence_reverse->output(1)},
-            1);
+        auto concat_0 =
+            std::make_shared<v0::Concat>(OutputVector{rnn_sequence_forward->output(0), rnn_sequence_reverse->output(0)},
+                                         1);
+        auto concat_1 =
+            std::make_shared<v0::Concat>(OutputVector{rnn_sequence_forward->output(1), rnn_sequence_reverse->output(1)},
+                                         1);
         ov::copy_runtime_info(rnn_sequence,
                               {H, W, R, B, rnn_sequence_forward, rnn_sequence_reverse, concat_0, concat_1});
         concat_0->set_friendly_name(rnn_sequence->get_friendly_name() + ".0");

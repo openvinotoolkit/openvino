@@ -20,10 +20,9 @@ using namespace std;
 using namespace ov;
 using namespace ov::symbol::util;
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 namespace {
 shared_ptr<Node> broadcast_label(const OutputVector& inputs) {
     return wrap_type<op::v1::Broadcast, op::v3::Broadcast>(inputs, [](Output<Node> output) {

@@ -16,10 +16,9 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v4 = ov::op::v4;
 ov::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {

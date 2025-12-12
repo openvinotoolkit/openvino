@@ -20,19 +20,16 @@ using namespace ov;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 TSFuse::TSFuse() {
     MATCHER_SCOPE(TransposeFuse);
-    auto transpose_1_label = wrap_type<v1::Transpose>(
-        {ov::pass::pattern::any_input(), wrap_type<v0::Constant>()},
-        CheckTransposeConsumers);
-    auto transpose_2_label = wrap_type<v1::Transpose>(
-        {transpose_1_label, wrap_type<v0::Constant>()});
+    auto transpose_1_label =
+        wrap_type<v1::Transpose>({ov::pass::pattern::any_input(), wrap_type<v0::Constant>()}, CheckTransposeConsumers);
+    auto transpose_2_label = wrap_type<v1::Transpose>({transpose_1_label, wrap_type<v0::Constant>()});
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 

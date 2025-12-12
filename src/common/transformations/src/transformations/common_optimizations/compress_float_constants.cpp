@@ -25,9 +25,8 @@
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -98,21 +97,19 @@ public:
 class DetectCompressedWeights : public MatcherPass {
 public:
     DetectCompressedWeights() {
-        auto weights = wrap_type<v0::Constant>(
-            ov::pass::pattern::type_matches_any({ov::element::i4,
-                                                 ov::element::u4,
-                                                 ov::element::i8,
-                                                 ov::element::u8,
-                                                 ov::element::nf4,
-                                                 ov::element::f8e4m3,
-                                                 ov::element::f8e5m2}));
+        auto weights = wrap_type<v0::Constant>(ov::pass::pattern::type_matches_any({ov::element::i4,
+                                                                                    ov::element::u4,
+                                                                                    ov::element::i8,
+                                                                                    ov::element::u8,
+                                                                                    ov::element::nf4,
+                                                                                    ov::element::f8e4m3,
+                                                                                    ov::element::f8e5m2}));
         auto convert = wrap_type<v0::Convert>({weights});
         auto zero_point_const = wrap_type<v0::Constant>();
         auto zero_point = ov::pass::pattern::optional<v0::Convert>(zero_point_const);
         auto subtract = wrap_type<v1::Subtract>({convert, zero_point});
         auto subtract_or_convert = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{convert, subtract});
-        auto multiply = wrap_type<v1::Multiply>(
-            {subtract_or_convert, wrap_type<v0::Constant>()});
+        auto multiply = wrap_type<v1::Multiply>({subtract_or_convert, wrap_type<v0::Constant>()});
 
         ov::matcher_pass_callback callback = [=](Matcher& m) {
             return true;
@@ -185,8 +182,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
                 new_const = const_node;
             } else {
                 const auto* src_data = const_node->get_data_ptr<float>();
-                auto compressed_const =
-                    std::make_shared<v0::Constant>(ov::element::f16, const_node->get_shape());
+                auto compressed_const = std::make_shared<v0::Constant>(ov::element::f16, const_node->get_shape());
                 auto* dst_data =
                     const_cast<ov::float16*>(reinterpret_cast<const ov::float16*>(compressed_const->get_data_ptr()));
                 OPENVINO_ASSERT(dst_data);
@@ -223,8 +219,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
                 ov::copy_runtime_info(const_node, next_node->shared_from_this());
             } else {
                 auto postponed_constant_target_inputs = postponed_constant_node->get_output_target_inputs(0);
-                auto convert =
-                    std::make_shared<v0::Convert>(postponed_constant_node, const_node->get_element_type());
+                auto convert = std::make_shared<v0::Convert>(postponed_constant_node, const_node->get_element_type());
 
                 convert->set_friendly_name(postponed_constant_node->get_friendly_name());
                 ov::mark_as_decompression(convert);

@@ -19,9 +19,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -29,13 +28,10 @@ namespace v3 = ov::op::v3;
 namespace op_util = ov::op::util;
 ov::pass::BroadcastTransition::BroadcastTransition() {
     MATCHER_SCOPE(BroadcastTransition);
-    auto bcast_m = wrap_type<v1::Broadcast, v3::Broadcast>(
-        ov::pass::pattern::consumers_count(1));
+    auto bcast_m = wrap_type<v1::Broadcast, v3::Broadcast>(ov::pass::pattern::consumers_count(1));
     auto eltwise_input_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto eltwise_1 =
-        wrap_type<op_util::BinaryElementwiseArithmetic>({eltwise_input_m, bcast_m});
-    auto eltwise_2 =
-        wrap_type<op_util::BinaryElementwiseArithmetic>({bcast_m, eltwise_input_m});
+    auto eltwise_1 = wrap_type<op_util::BinaryElementwiseArithmetic>({eltwise_input_m, bcast_m});
+    auto eltwise_2 = wrap_type<op_util::BinaryElementwiseArithmetic>({bcast_m, eltwise_input_m});
     auto eltwise_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{eltwise_1, eltwise_2});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {

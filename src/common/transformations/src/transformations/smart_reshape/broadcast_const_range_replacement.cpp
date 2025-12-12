@@ -20,9 +20,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -102,8 +101,8 @@ ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
             std::vector<int64_t> final_shape_axes(const_rank);
             std::iota(final_shape_axes.begin(), final_shape_axes.end(), 0);
             final_shape_axes.erase(final_shape_axes.begin() + target_dim_index);
-            const auto axes_to_unsqueeze = node_registry.add(
-                v0::Constant::create(ov::element::i64, {final_shape_axes.size()}, final_shape_axes));
+            const auto axes_to_unsqueeze =
+                node_registry.add(v0::Constant::create(ov::element::i64, {final_shape_axes.size()}, final_shape_axes));
             replacement = node_registry.make<v0::Unsqueeze>(replacement, axes_to_unsqueeze);
         }
 

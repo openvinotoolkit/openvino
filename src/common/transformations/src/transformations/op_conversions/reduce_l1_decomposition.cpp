@@ -15,7 +15,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v4 = ov::op::v4;
@@ -26,8 +25,7 @@ ov::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto reduce_l1_node =
-            ov::as_type_ptr<v4::ReduceL1>(pattern_to_output.at(reduce_l1).get_node_shared_ptr());
+        auto reduce_l1_node = ov::as_type_ptr<v4::ReduceL1>(pattern_to_output.at(reduce_l1).get_node_shared_ptr());
 
         if (reduce_l1_node == nullptr || transformation_callback(reduce_l1_node)) {
             return false;

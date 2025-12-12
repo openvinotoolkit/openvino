@@ -45,7 +45,6 @@
 using namespace testing;
 using namespace ov;
 
-
 namespace v5 = ov::op::v5;
 namespace {
 
@@ -1468,20 +1467,20 @@ TEST_P(LoopWithLSTMCellToLSTMSequenceFusionTest, FusionTest) {
         auto b = std::make_shared<op::v0::Unsqueeze>(b_const, unsqueeze_axis2);
 
         // create LSTMSequence
-        auto lstm_sequence = std::make_shared<v5::LSTMSequence>(
-            tr_x,
-            h_init_unsqueeze,
-            c_init_unsqueeze,
-            seq_lens,
-            w,
-            r,
-            b,
-            hidden_size,
-            ov::op::RecurrentSequenceDirection::FORWARD,
-            std::vector<float>{},
-            std::vector<float>{},
-            std::vector<std::string>{f_activation, g_activation, h_activation},
-            0.0f);
+        auto lstm_sequence =
+            std::make_shared<v5::LSTMSequence>(tr_x,
+                                               h_init_unsqueeze,
+                                               c_init_unsqueeze,
+                                               seq_lens,
+                                               w,
+                                               r,
+                                               b,
+                                               hidden_size,
+                                               ov::op::RecurrentSequenceDirection::FORWARD,
+                                               std::vector<float>{},
+                                               std::vector<float>{},
+                                               std::vector<std::string>{f_activation, g_activation, h_activation},
+                                               0.0f);
 
         // prepare output
         auto squeeze_axis = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, 1);

@@ -13,7 +13,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -64,8 +63,8 @@ ov::pass::ConcatToBroadcast::ConcatToBroadcast() {
         std::shared_ptr<Node> replacement;
         if (use_broadcast(concat)) {
             auto target_shape = std::make_shared<v0::Constant>(ov::element::i32,
-                                                                       Shape{concat->output(0).get_shape().size()},
-                                                                       concat->output(0).get_shape());
+                                                               Shape{concat->output(0).get_shape().size()},
+                                                               concat->output(0).get_shape());
             replacement = std::make_shared<ov::op::v3::Broadcast>(input, target_shape);
         } else {
             return false;

@@ -14,19 +14,16 @@
 #include "openvino/reference/autobroadcast_binop.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::Matcher;
 using ov::pass::pattern::type_matches;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 ov::pass::ConvertU4WeightsZeroPointToScalar::ConvertU4WeightsZeroPointToScalar() {
     MATCHER_SCOPE(ConvertU4WeightsZeroPointToScalar);
-    auto weights_m =
-        wrap_type<v0::Constant>(type_matches(ov::element::u4));
-    auto convert_m =
-        wrap_type<v0::Convert>({weights_m}, consumers_count(1));
+    auto weights_m = wrap_type<v0::Constant>(type_matches(ov::element::u4));
+    auto convert_m = wrap_type<v0::Convert>({weights_m}, consumers_count(1));
 
     auto float_zp_predicate = [](ov::Output<ov::Node> output) -> bool {
         return ov::pass::pattern::type_matches_any({ov::element::f32, ov::element::f16})(output) &&
@@ -35,12 +32,10 @@ ov::pass::ConvertU4WeightsZeroPointToScalar::ConvertU4WeightsZeroPointToScalar()
     auto float_zero_point_m = wrap_type<v0::Constant>(float_zp_predicate);
 
     auto u4_zp_predicate = [](ov::Output<ov::Node> output) -> bool {
-        return type_matches(ov::element::u4)(output) &&
-               consumers_count(1)(output);
+        return type_matches(ov::element::u4)(output) && consumers_count(1)(output);
     };
     auto u4_zero_point_m = wrap_type<v0::Constant>(u4_zp_predicate);
-    auto zero_point_convert_m =
-        wrap_type<v0::Convert>({u4_zero_point_m}, float_zp_predicate);
+    auto zero_point_convert_m = wrap_type<v0::Convert>({u4_zero_point_m}, float_zp_predicate);
 
     auto zero_point_m =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{float_zero_point_m, zero_point_convert_m});

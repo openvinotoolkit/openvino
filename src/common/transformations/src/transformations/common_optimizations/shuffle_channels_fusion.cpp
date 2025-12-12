@@ -17,10 +17,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -98,14 +97,10 @@ ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_consta
     auto transpose_const_pattern = wrap_type<v0::Constant>();
     auto reshape_after_const_pattern = wrap_type<v0::Constant>();
 
-    auto reshape_before_pattern =
-        wrap_type<v1::Reshape>({input, reshape_before_const_pattern},
-                                                          consumers_count(1));
+    auto reshape_before_pattern = wrap_type<v1::Reshape>({input, reshape_before_const_pattern}, consumers_count(1));
     auto transpose_pattern =
-        wrap_type<v1::Transpose>({reshape_before_pattern, transpose_const_pattern},
-                                                            consumers_count(1));
-    auto reshape_after_pattern =
-        wrap_type<v1::Reshape>({transpose_pattern, reshape_after_const_pattern});
+        wrap_type<v1::Transpose>({reshape_before_pattern, transpose_const_pattern}, consumers_count(1));
+    auto reshape_after_pattern = wrap_type<v1::Reshape>({transpose_pattern, reshape_after_const_pattern});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -115,10 +110,8 @@ ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_consta
             ov::as_type_ptr<v0::Constant>(pattern_map.at(reshape_before_const_pattern).get_node_shared_ptr());
         auto reshape_before =
             ov::as_type_ptr<v1::Reshape>(pattern_map.at(reshape_before_pattern).get_node_shared_ptr());
-        auto transpose =
-            ov::as_type_ptr<v1::Transpose>(pattern_map.at(transpose_pattern).get_node_shared_ptr());
-        auto reshape_after =
-            ov::as_type_ptr<v1::Reshape>(pattern_map.at(reshape_after_pattern).get_node_shared_ptr());
+        auto transpose = ov::as_type_ptr<v1::Transpose>(pattern_map.at(transpose_pattern).get_node_shared_ptr());
+        auto reshape_after = ov::as_type_ptr<v1::Reshape>(pattern_map.at(reshape_after_pattern).get_node_shared_ptr());
         auto reshape_after_constant =
             ov::as_type_ptr<v0::Constant>(pattern_map.at(reshape_after_const_pattern).get_node_shared_ptr());
         if (!reshape_after || !transpose || !reshape_before || !reshape_before_constant || !reshape_after_constant) {

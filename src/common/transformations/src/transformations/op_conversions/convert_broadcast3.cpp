@@ -16,7 +16,6 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -87,30 +86,27 @@ ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
             input = std::make_shared<v1::Broadcast>(input, target_shape_input, op::AutoBroadcastType::PDPD);
         } else if (broadcast_type == op::BroadcastType::NONE) {
             input = std::make_shared<v1::Broadcast>(input,
-                                                            target_shape_input,
-                                                            broadcast->input_value(2),
-                                                            op::AutoBroadcastType::NONE);
+                                                    target_shape_input,
+                                                    broadcast->input_value(2),
+                                                    op::AutoBroadcastType::NONE);
         } else if (broadcast_type == op::BroadcastType::BIDIRECTIONAL) {
-            if (auto const_target_shape =
-                    ov::as_type_ptr<v0::Constant>(target_shape_input.get_node_shared_ptr())) {
+            if (auto const_target_shape = ov::as_type_ptr<v0::Constant>(target_shape_input.get_node_shared_ptr())) {
                 const auto& input_shape = input.get_partial_shape();
                 const auto& target_shape = const_target_shape->cast_vector<size_t>();
                 std::vector<size_t> aligned_target_shape{target_shape};
                 if (make_compatible_shape(input_shape, aligned_target_shape)) {
                     input = std::make_shared<v1::Broadcast>(
                         input,
-                        v0::Constant::create(element::i64,
-                                                     Shape({aligned_target_shape.size()}),
-                                                     aligned_target_shape));
+                        v0::Constant::create(element::i64, Shape({aligned_target_shape.size()}), aligned_target_shape));
                 } else {
                     if (input_element_type == element::boolean) {
                         input = std::make_shared<v1::LogicalAnd>(
                             input,
                             v0::Constant::create(input_element_type, target_shape, {1}));
                     } else {
-                        input = std::make_shared<v1::Multiply>(
-                            input,
-                            v0::Constant::create(input_element_type, target_shape, {1}));
+                        input =
+                            std::make_shared<v1::Multiply>(input,
+                                                           v0::Constant::create(input_element_type, target_shape, {1}));
                     }
                 }
             } else {

@@ -17,9 +17,8 @@
 
 using namespace ov;
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -173,24 +172,21 @@ bool nms_to_nms9_callback_func(Matcher& m, pass::MatcherPass* impl) {
 
     size_t num_of_args = nms_input.size();
 
-    const auto& max_selected_box =
-        num_of_args > 2 ? nms_input.at(2) : v0::Constant::create(element::i64, Shape{}, {0});
-    const auto& iou_threshold =
-        num_of_args > 3 ? nms_input.at(3) : v0::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& max_selected_box = num_of_args > 2 ? nms_input.at(2) : v0::Constant::create(element::i64, Shape{}, {0});
+    const auto& iou_threshold = num_of_args > 3 ? nms_input.at(3) : v0::Constant::create(element::f32, Shape{}, {.0f});
     const auto& score_threshold =
         num_of_args > 4 ? nms_input.at(4) : v0::Constant::create(element::f32, Shape{}, {.0f});
-    const auto& soft_sigma =
-        num_of_args > 5 ? nms_input.at(5) : v0::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& soft_sigma = num_of_args > 5 ? nms_input.at(5) : v0::Constant::create(element::f32, Shape{}, {.0f});
 
     const auto nms_9 = impl->register_new_node<v9::NonMaxSuppression>(nms_input.at(0),
-                                                                              nms_input.at(1),
-                                                                              max_selected_box,
-                                                                              iou_threshold,
-                                                                              score_threshold,
-                                                                              soft_sigma,
-                                                                              attrs.box_encoding,
-                                                                              attrs.sort_result_descending,
-                                                                              attrs.output_type);
+                                                                      nms_input.at(1),
+                                                                      max_selected_box,
+                                                                      iou_threshold,
+                                                                      score_threshold,
+                                                                      soft_sigma,
+                                                                      attrs.box_encoding,
+                                                                      attrs.sort_result_descending,
+                                                                      attrs.output_type);
 
     nms_9->set_friendly_name(root->get_friendly_name());
     ov::copy_runtime_info(root, nms_9);

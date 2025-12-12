@@ -26,7 +26,6 @@
 using namespace testing;
 using namespace ov;
 
-
 namespace v12 = ov::op::v12;
 TEST_F(TransformationTestsF, ConvolutionReverseInfer) {
     {

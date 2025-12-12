@@ -23,10 +23,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -35,13 +34,8 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
     MATCHER_SCOPE(AddFakeQuantizeFusion);
     auto input_pattern = any_input();
     auto const_pattern = wrap_type<v0::Constant>();
-    auto add_pattern = wrap_type<v1::Add>({input_pattern, const_pattern},
-                                                                     ov::pass::pattern::consumers_count(1));
-    auto fq_pattern = wrap_type<v0::FakeQuantize>({add_pattern,
-                                                                              any_input(),
-                                                                              any_input(),
-                                                                              any_input(),
-                                                                              any_input()});
+    auto add_pattern = wrap_type<v1::Add>({input_pattern, const_pattern}, ov::pass::pattern::consumers_count(1));
+    auto fq_pattern = wrap_type<v0::FakeQuantize>({add_pattern, any_input(), any_input(), any_input(), any_input()});
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& input = pattern_value_map.at(input_pattern);
@@ -52,8 +46,7 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
         if (!fq)
             return false;
         const auto& add_node = pattern_value_map.at(add_pattern).get_node_shared_ptr();
-        auto add_const =
-            ov::as_type_ptr<v0::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
+        auto add_const = ov::as_type_ptr<v0::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
         if (!add_const)
             return false;
 
@@ -104,11 +97,9 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             bool add_parent_is_conv_or_mm =
                 std::any_of(add_inputs.begin(), add_inputs.end(), [](const Output<Node>& node) -> bool {
                     auto node_ptr = node.get_node();
-                    return is_type<v1::Convolution>(node_ptr) ||
-                           is_type<v1::GroupConvolution>(node_ptr) ||
+                    return is_type<v1::Convolution>(node_ptr) || is_type<v1::GroupConvolution>(node_ptr) ||
                            is_type<v1::ConvolutionBackpropData>(node_ptr) ||
-                           is_type<v1::GroupConvolutionBackpropData>(node_ptr) ||
-                           is_type<v0::MatMul>(node_ptr);
+                           is_type<v1::GroupConvolutionBackpropData>(node_ptr) || is_type<v0::MatMul>(node_ptr);
                 });
             if (add_parent_is_conv_or_mm)
                 return false;

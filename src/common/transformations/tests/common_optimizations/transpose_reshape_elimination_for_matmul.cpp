@@ -24,7 +24,6 @@
 using namespace testing;
 using namespace ov;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
@@ -151,15 +150,12 @@ TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul_Einsum) {
             std::make_shared<v0::Constant>(element::i64, Shape{data_shape_1.size()}, data_shape_1);
         auto broadcast_shape_constant_2 =
             std::make_shared<v0::Constant>(element::i64, Shape{data_shape_2.size()}, data_shape_2);
-        auto broadcast_1 = std::make_shared<v3::Broadcast>(data_1,
-                                                                   broadcast_shape_constant_1,
-                                                                   ov::op::BroadcastType::BIDIRECTIONAL);
-        auto broadcast_2 = std::make_shared<v3::Broadcast>(data_2,
-                                                                   broadcast_shape_constant_2,
-                                                                   ov::op::BroadcastType::BIDIRECTIONAL);
+        auto broadcast_1 =
+            std::make_shared<v3::Broadcast>(data_1, broadcast_shape_constant_1, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto broadcast_2 =
+            std::make_shared<v3::Broadcast>(data_2, broadcast_shape_constant_2, ov::op::BroadcastType::BIDIRECTIONAL);
         // for some cases Reshape may be first input for Matmul
-        auto shape_constant =
-            std::make_shared<v0::Constant>(element::i64, Shape{data_shape_1.size()}, data_shape_1);
+        auto shape_constant = std::make_shared<v0::Constant>(element::i64, Shape{data_shape_1.size()}, data_shape_1);
         auto reshape = std::make_shared<v1::Reshape>(broadcast_1, shape_constant, false);
         auto matmul = std::make_shared<v0::MatMul>(reshape, broadcast_2, false, false);
         model_ref = std::make_shared<Model>(OutputVector{matmul}, ParameterVector{data_1, data_2});

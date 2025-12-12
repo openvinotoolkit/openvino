@@ -23,7 +23,6 @@
 using namespace testing;
 using namespace ov::pass;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
@@ -192,11 +191,8 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressedMultiOutput) {
         auto input1 = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
 
         auto input2 = std::make_shared<v0::Parameter>(ov::element::i32, ov::Shape{});
-        auto topk = std::make_shared<v11::TopK>(input1,
-                                                        input2,
-                                                        0,
-                                                        v11::TopK::Mode::MAX,
-                                                        v11::TopK::SortType::SORT_VALUES);
+        auto topk =
+            std::make_shared<v11::TopK>(input1, input2, 0, v11::TopK::Mode::MAX, v11::TopK::SortType::SORT_VALUES);
 
         auto axis_const = v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
         auto weights_const = v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
@@ -212,11 +208,8 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressedMultiOutput) {
         auto input1 = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
 
         auto input2 = std::make_shared<v0::Parameter>(ov::element::i32, ov::Shape{});
-        auto topk = std::make_shared<v11::TopK>(input1,
-                                                        input2,
-                                                        0,
-                                                        v11::TopK::Mode::MAX,
-                                                        v11::TopK::SortType::SORT_VALUES);
+        auto topk =
+            std::make_shared<v11::TopK>(input1, input2, 0, v11::TopK::Mode::MAX, v11::TopK::SortType::SORT_VALUES);
 
         auto axis_const = v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
         auto weights_const = v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});

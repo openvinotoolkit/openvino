@@ -20,10 +20,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -93,8 +92,8 @@ ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         if (beta_constant) {
             if (check_beta_value(beta_constant)) {
                 new_beta = v0::Constant::create(beta_input.get_element_type(),
-                                                        Shape{},
-                                                        {beta_constant->cast_vector<float>()[0]});
+                                                Shape{},
+                                                {beta_constant->cast_vector<float>()[0]});
             } else {
                 return false;
             }

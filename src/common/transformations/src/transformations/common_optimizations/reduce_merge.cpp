@@ -28,10 +28,9 @@
 using namespace ov;
 using namespace ov::pass;
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -98,7 +97,7 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
 
     std::shared_ptr<Node> axes =
         std::make_shared<v0::Concat>(OutputVector{top_reduce->input_value(1), bottom_reduce->input_value(1)},
-                                             int64_t(0));
+                                     int64_t(0));
     if (auto constant = ov::util::get_constant_from_source(axes)) {
         axes = constant;
     }

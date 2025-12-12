@@ -10,7 +10,6 @@
 #include "openvino/op/one_hot.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::Matcher;
 ov::pass::ConvertOneHot16To1::ConvertOneHot16To1() {
     MATCHER_SCOPE(ConvertOneHot16To1);

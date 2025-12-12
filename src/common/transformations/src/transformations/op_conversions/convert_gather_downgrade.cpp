@@ -13,9 +13,8 @@
 using namespace std;
 using namespace ov;
 
-
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v7 = ov::op::v7;
@@ -57,10 +56,8 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
             return false;
 
         auto data = gather_v8_node->input_value(0);
-        auto indices_constant =
-            ov::as_type_ptr<v0::Constant>(gather_v8_node->input_value(1).get_node_shared_ptr());
-        auto axis_constant =
-            ov::as_type_ptr<v0::Constant>(gather_v8_node->input_value(2).get_node_shared_ptr());
+        auto indices_constant = ov::as_type_ptr<v0::Constant>(gather_v8_node->input_value(1).get_node_shared_ptr());
+        auto axis_constant = ov::as_type_ptr<v0::Constant>(gather_v8_node->input_value(2).get_node_shared_ptr());
         if (!indices_constant || !axis_constant)
             return false;
 
@@ -101,16 +98,16 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
         std::shared_ptr<ov::Node> new_indices_constant;
         if (do_indices_normalization) {
             new_indices_constant = std::make_shared<v0::Constant>(indices_constant->get_element_type(),
-                                                                          indices_constant->get_shape(),
-                                                                          indices);
+                                                                  indices_constant->get_shape(),
+                                                                  indices);
         } else {
             new_indices_constant = indices_constant;
         }
 
         auto gather_v7_node = make_shared<v7::Gather>(gather_v8_node->input_value(0),
-                                                              new_indices_constant,
-                                                              gather_v8_node->input_value(2),
-                                                              gather_v8_node->get_batch_dims());
+                                                      new_indices_constant,
+                                                      gather_v8_node->input_value(2),
+                                                      gather_v8_node->get_batch_dims());
 
         gather_v7_node->set_friendly_name(gather_v8_node->get_friendly_name());
         ov::copy_runtime_info(gather_v8_node, gather_v7_node);

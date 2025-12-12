@@ -17,7 +17,6 @@ using namespace std;
 using namespace ov;
 using namespace pass;
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;

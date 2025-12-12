@@ -8,7 +8,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 
-
 using ov::pass::pattern::Matcher;
 ov::pass::EnableShapeOfConstantFolding::EnableShapeOfConstantFolding(bool check_shape) {
     auto shape_of = ov::pass::pattern::wrap_type<ov::op::util::ShapeOfBase>([=](const Output<Node>& output) {

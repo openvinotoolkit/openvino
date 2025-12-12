@@ -26,12 +26,11 @@
 using namespace ov;
 using namespace ov::pass;
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::Matcher;
 using ov::pass::pattern::has_static_shape;
+using ov::pass::pattern::Matcher;
 using ov::pass::pattern::rank_equals;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -232,21 +231,17 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
     auto bias_add_label = wrap_type<v1::Add>({matmul_label, bias_label});
     auto axis_label = wrap_type<v0::Constant>();
     auto split_label = wrap_type<v1::Split>({bias_add_label, axis_label});
-    auto it_label =
-        wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({split_label});
-    auto ct_label =
-        wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({split_label});
+    auto it_label = wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({split_label});
+    auto ct_label = wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({split_label});
     auto ft_additional_bias_label = wrap_type<v0::Constant>();
     auto add_label = wrap_type<v1::Add>({split_label, ft_additional_bias_label});
     auto ft_label = wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({add_label});
-    auto ot_label =
-        wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({split_label});
+    auto ot_label = wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({split_label});
     auto mul_label = wrap_type<v1::Multiply>({it_label, ct_label});
     auto c_label = any_input();
     auto mul1_label = wrap_type<v1::Multiply>({ft_label, c_label});
     auto Co_label = wrap_type<v1::Add>({mul_label, mul1_label});
-    auto Co_activation_label =
-        wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({Co_label});
+    auto Co_activation_label = wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({Co_label});
     auto Ho_label = wrap_type<v1::Multiply>({Co_activation_label, ot_label});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
@@ -403,12 +398,11 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
 
         // Convert B layout from icfo to fico
         auto B_split = std::make_shared<v1::Split>(B, zero_axis, 4);
-        auto B_f = std::make_shared<v1::Add>(B_split->output(2),
-                                                     std::make_shared<v0::Squeeze>(ft_additional_bias));
+        auto B_f = std::make_shared<v1::Add>(B_split->output(2), std::make_shared<v0::Squeeze>(ft_additional_bias));
 
-        Output<Node> B_fico = std::make_shared<v0::Concat>(
-            OutputVector{B_f, B_split->output(0), B_split->output(1), B_split->output(3)},
-            0);
+        Output<Node> B_fico =
+            std::make_shared<v0::Concat>(OutputVector{B_f, B_split->output(0), B_split->output(1), B_split->output(3)},
+                                         0);
         if (auto constant = ov::util::constantfold_subgraph(B_fico))
             B_fico = constant;
 
@@ -565,8 +559,7 @@ ov::pass::LSTMCellFusionWithSplitWeights::LSTMCellFusionWithSplitWeights() {
     auto ft_mul_c_label = wrap_type<v1::Multiply>({ft_label, c_label});
     auto ct_label = wrap_type<v1::Add>({ft_mul_c_label, it_mul_c1t_label});
 
-    auto ct_activated_label =
-        wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({ct_label});
+    auto ct_activated_label = wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({ct_label});
     auto ht_label = wrap_type<v1::Multiply>({ct_activated_label, ot_label});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
@@ -636,15 +629,15 @@ ov::pass::LSTMCellFusionWithSplitWeights::LSTMCellFusionWithSplitWeights() {
         if (const auto& constant = ov::util::constantfold_subgraph(B))
             B = constant;
 
-        auto lstm_cell = rg.make<v4::LSTMCell>(
-            x,
-            h,
-            c,
-            W,
-            R,
-            B,
-            static_cast<size_t>(hidden_size),
-            std::vector<std::string>{f_activation_name, g_activation_name, h_activation_name});
+        auto lstm_cell =
+            rg.make<v4::LSTMCell>(x,
+                                  h,
+                                  c,
+                                  W,
+                                  R,
+                                  B,
+                                  static_cast<size_t>(hidden_size),
+                                  std::vector<std::string>{f_activation_name, g_activation_name, h_activation_name});
 
         if (transformation_callback(lstm_cell)) {
             return false;

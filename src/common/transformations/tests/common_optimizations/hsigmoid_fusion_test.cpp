@@ -27,7 +27,6 @@
 using namespace ov;
 using namespace testing;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivF16) {

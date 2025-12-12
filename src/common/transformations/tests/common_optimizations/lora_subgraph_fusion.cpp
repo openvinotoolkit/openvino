@@ -21,7 +21,6 @@
 using namespace testing;
 using namespace ov;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v6 = ov::op::v6;
@@ -34,8 +33,8 @@ std::pair<ov::OutputVector, ov::SinkVector> create_states(const std::vector<ov::
     ov::SinkVector assigns;
     size_t idx = 0;
     auto create_state = [&](const ov::PartialShape& shape) {
-        auto variable = std::make_shared<op_util::Variable>(
-            op_util::VariableInfo{shape, states_precision, std::to_string(idx++)});
+        auto variable =
+            std::make_shared<op_util::Variable>(op_util::VariableInfo{shape, states_precision, std::to_string(idx++)});
         auto read_value = std::make_shared<v6::ReadValue>(variable);
         auto assign = std::make_shared<v6::Assign>(read_value, variable);
         assigns.push_back(assign);
@@ -275,8 +274,7 @@ TEST_F(LoraSubgraphFusionConvolutionTests, StandardPattern) {
         auto inner_state_1 = std::make_shared<v0::Parameter>(netType, shape_state_1);
         auto inner_state_2 = std::make_shared<v0::Parameter>(netType, shape_state_2);
         auto inner_state_3 = std::make_shared<v0::Parameter>(netType, shape_state_3);
-        auto inner_param_conv =
-            std::make_shared<v0::Parameter>(netType, main_conv->get_output_partial_shape(0));
+        auto inner_param_conv = std::make_shared<v0::Parameter>(netType, main_conv->get_output_partial_shape(0));
 
         ov::OutputVector states_outs{inner_state_1, inner_state_2, inner_state_3};
         auto lora_subgraph = create_lora_subgraph(inner_param_conv, inner_param_lora, states_outs, true);

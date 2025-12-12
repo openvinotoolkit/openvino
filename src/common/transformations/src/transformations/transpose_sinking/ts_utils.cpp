@@ -32,7 +32,6 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
@@ -67,8 +66,7 @@ Output<Node> ChangeAxes(const Output<Node>& indices,
 Output<Node> ChangeAxes(const Output<Node>& indices,
                         const AxisVector& transpose_axis_order,
                         const std::shared_ptr<v0::Constant>& axis) {
-    auto data =
-        std::make_shared<v0::Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
+    auto data = std::make_shared<v0::Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
     return ChangeAxes(indices, data, axis);
 }
 
@@ -248,10 +246,9 @@ bool UpdateInputTransposes(const NodePtr& main_node,
                 return false;
             }
             const auto reversed_transpose_axis_order = ReverseTransposeOrder(transpose_order);
-            auto new_transpose_const =
-                std::make_shared<v0::Constant>(transpose_element_type,
-                                                       Shape{reversed_transpose_axis_order.size()},
-                                                       reversed_transpose_axis_order);
+            auto new_transpose_const = std::make_shared<v0::Constant>(transpose_element_type,
+                                                                      Shape{reversed_transpose_axis_order.size()},
+                                                                      reversed_transpose_axis_order);
             auto new_transpose = std::make_shared<v1::Transpose>(input_node, new_transpose_const);
 
             main_node->input(i).replace_source_output(new_transpose->output(0));
@@ -327,8 +324,8 @@ NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
         auto input_node = FixInputNodeRank(main_node->input_value(i), max_input_rank, InsertUnsqueeze);
 
         auto new_transpose_const = std::make_shared<v0::Constant>(transpose_element_type,
-                                                                          Shape{transpose_axis_order.size()},
-                                                                          transpose_axis_order);
+                                                                  Shape{transpose_axis_order.size()},
+                                                                  transpose_axis_order);
         auto new_transpose = std::make_shared<v1::Transpose>(input_node, new_transpose_const);
 
         main_node->input(i).replace_source_output(new_transpose->output(0));

@@ -17,7 +17,6 @@
 #include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -49,8 +48,7 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_v4_inputs(
         ret.first = sizes_input;
     } else {
         ret.first = interpolate->input_value(1);
-        std::shared_ptr<ov::Node> scales_input =
-            registry.make<v0::Constant>(ov::element::f32, ov::Shape{}, 1.0f);
+        std::shared_ptr<ov::Node> scales_input = registry.make<v0::Constant>(ov::element::f32, ov::Shape{}, 1.0f);
         scales_input = registry.add(op_util::make_try_fold<v3::Broadcast>(scales_input, broadcast_shape));
         ret.second = scales_input;
     }
@@ -91,15 +89,15 @@ ov::pass::ConvertInterpolate11ToInterpolate4::ConvertInterpolate11ToInterpolate4
 
         if (interpolate_v11->get_input_size() == 3) {  // with axes input
             interpolate_v4 = std::make_shared<v4::Interpolate>(interpolate_v11->input_value(0),
-                                                                       v4_input_output_shape,
-                                                                       v4_input_scales,
-                                                                       interpolate_v11->input_value(2),
-                                                                       interpolate_v11->get_attrs());
+                                                               v4_input_output_shape,
+                                                               v4_input_scales,
+                                                               interpolate_v11->input_value(2),
+                                                               interpolate_v11->get_attrs());
         } else {
             interpolate_v4 = std::make_shared<v4::Interpolate>(interpolate_v11->input_value(0),
-                                                                       v4_input_output_shape,
-                                                                       v4_input_scales,
-                                                                       interpolate_v11->get_attrs());
+                                                               v4_input_output_shape,
+                                                               v4_input_scales,
+                                                               interpolate_v11->get_attrs());
         }
 
         interpolate_v4->set_friendly_name(interpolate_v11->get_friendly_name());

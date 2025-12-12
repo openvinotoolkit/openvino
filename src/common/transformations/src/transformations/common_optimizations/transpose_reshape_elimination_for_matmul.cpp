@@ -18,10 +18,9 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -132,29 +131,26 @@ ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMa
     });
 
     auto const_transpose_before_pattern = wrap_type<v0::Constant>();
-    auto transpose_before_pattern =
-        wrap_type<v1::Transpose>({input_2_pattern, const_transpose_before_pattern});
+    auto transpose_before_pattern = wrap_type<v1::Transpose>({input_2_pattern, const_transpose_before_pattern});
 
     auto const_optional_broadcast_before_pattern = wrap_type<v0::Constant>();
-    auto optional_broadcast_before_pattern = wrap_type<v3::Broadcast>(
-        {transpose_before_pattern, const_optional_broadcast_before_pattern});
+    auto optional_broadcast_before_pattern =
+        wrap_type<v3::Broadcast>({transpose_before_pattern, const_optional_broadcast_before_pattern});
 
     auto transpose_or_transpose_broadcast = std::make_shared<ov::pass::pattern::op::Or>(
         OutputVector{transpose_before_pattern, optional_broadcast_before_pattern});
 
     auto const_reshape_before_pattern = wrap_type<v0::Constant>();
-    auto reshape_before_pattern = wrap_type<v1::Reshape>(
-        {transpose_or_transpose_broadcast, const_reshape_before_pattern});
+    auto reshape_before_pattern =
+        wrap_type<v1::Reshape>({transpose_or_transpose_broadcast, const_reshape_before_pattern});
 
     auto matmul_pattern = wrap_type<v0::MatMul>({input_1_pattern, reshape_before_pattern});
 
     auto const_reshape_after_pattern = wrap_type<v0::Constant>();
-    auto reshape_after_pattern =
-        wrap_type<v1::Reshape>({matmul_pattern, const_reshape_after_pattern});
+    auto reshape_after_pattern = wrap_type<v1::Reshape>({matmul_pattern, const_reshape_after_pattern});
 
     auto const_transpose_after_pattern = wrap_type<v0::Constant>();
-    auto transpose_after_pattern =
-        wrap_type<v1::Transpose>({reshape_after_pattern, const_transpose_after_pattern});
+    auto transpose_after_pattern = wrap_type<v1::Transpose>({reshape_after_pattern, const_transpose_after_pattern});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
@@ -171,25 +167,23 @@ ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMa
             ov::as_type_ptr<v1::Reshape>(pattern_value_map.at(reshape_before_pattern).get_node_shared_ptr());
         auto reshape_after =
             ov::as_type_ptr<v1::Reshape>(pattern_value_map.at(reshape_after_pattern).get_node_shared_ptr());
-        auto reshape_before_constant = ov::as_type_ptr<v0::Constant>(
-            pattern_value_map.at(const_reshape_before_pattern).get_node_shared_ptr());
+        auto reshape_before_constant =
+            ov::as_type_ptr<v0::Constant>(pattern_value_map.at(const_reshape_before_pattern).get_node_shared_ptr());
         if (!reshape_before || !reshape_after || !reshape_before_constant)
             return false;
         if (!check_input_reshape(reshape_before, reshape_before_constant->cast_vector<int64_t>(), transposed_b))
             return false;
 
         // check transpose order before and after matmul
-        auto transpose_before = ov::as_type_ptr<v1::Transpose>(
-            pattern_value_map.at(transpose_before_pattern).get_node_shared_ptr());
+        auto transpose_before =
+            ov::as_type_ptr<v1::Transpose>(pattern_value_map.at(transpose_before_pattern).get_node_shared_ptr());
         auto transpose_after =
             ov::as_type_ptr<v1::Transpose>(pattern_value_map.at(transpose_after_pattern).get_node_shared_ptr());
         if (!transpose_before || !transpose_after)
             return false;
 
-        auto transpose_before_constant =
-            ov::as_type_ptr<v0::Constant>(transpose_before->get_input_node_shared_ptr(1));
-        auto transpose_after_constant =
-            ov::as_type_ptr<v0::Constant>(transpose_after->get_input_node_shared_ptr(1));
+        auto transpose_before_constant = ov::as_type_ptr<v0::Constant>(transpose_before->get_input_node_shared_ptr(1));
+        auto transpose_after_constant = ov::as_type_ptr<v0::Constant>(transpose_after->get_input_node_shared_ptr(1));
         if (!transpose_before_constant || !transpose_after_constant)
             return false;
 
@@ -221,10 +215,9 @@ ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMa
             for (auto idx : transpose_before_order) {
                 broadcast_shape_no_transpose.push_back(broadcast_shape_after_transpose[idx]);
             }
-            auto broadcast_shape_no_transpose_constant =
-                v0::Constant::create(element::i64,
-                                             broadcast_before_constant->get_shape(),
-                                             broadcast_shape_no_transpose);
+            auto broadcast_shape_no_transpose_constant = v0::Constant::create(element::i64,
+                                                                              broadcast_before_constant->get_shape(),
+                                                                              broadcast_shape_no_transpose);
             matmul_2_input = broadcast_before->clone_with_new_inputs({input_2, broadcast_shape_no_transpose_constant});
             copy_runtime_info(broadcast_before, matmul_2_input.get_node_shared_ptr());
         }

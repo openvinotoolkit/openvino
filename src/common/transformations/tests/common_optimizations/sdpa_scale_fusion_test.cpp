@@ -20,7 +20,6 @@ using namespace testing;
 using namespace ov::pass;
 using namespace ov;
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v13 = ov::op::v13;
@@ -38,8 +37,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest1) {
     {
         const auto q_scaled = std::make_shared<v1::Multiply>(query, scale_const);
         const auto k_scaled = std::make_shared<v1::Multiply>(key, scale_const);
-        const auto sdpa =
-            std::make_shared<v13::ScaledDotProductAttention>(q_scaled, k_scaled, v_scaled, casual);
+        const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q_scaled, k_scaled, v_scaled, casual);
 
         model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAScaleFusion>();
@@ -50,11 +48,11 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest1) {
         const auto new_scale_const =
             v0::Constant::create(element::f32, ov::Shape{}, std::vector<float>{64.0f / std::sqrt(32.0f)});
         const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query,
-                                                                                   key,
-                                                                                   v_scaled,
-                                                                                   new_mask_const,
-                                                                                   new_scale_const,
-                                                                                   casual);
+                                                                           key,
+                                                                           v_scaled,
+                                                                           new_mask_const,
+                                                                           new_scale_const,
+                                                                           casual);
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
     }
 
@@ -79,25 +77,24 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest2) {
         const auto q_scaled = std::make_shared<v1::Multiply>(query, scale_const);
         const auto k_scaled = std::make_shared<v1::Multiply>(key, scale_const);
         const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q_scaled,
-                                                                                   k_scaled,
-                                                                                   v_scaled,
-                                                                                   sdpa_mask_const,
-                                                                                   sdpa_scale_const,
-                                                                                   casual);
+                                                                           k_scaled,
+                                                                           v_scaled,
+                                                                           sdpa_mask_const,
+                                                                           sdpa_scale_const,
+                                                                           casual);
 
         model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAScaleFusion>();
     }
 
     {
-        const auto new_scale_const =
-            v0::Constant::create(element::f32, ov::Shape{}, std::vector<float>{128.0f});
+        const auto new_scale_const = v0::Constant::create(element::f32, ov::Shape{}, std::vector<float>{128.0f});
         const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query,
-                                                                                   key,
-                                                                                   v_scaled,
-                                                                                   sdpa_mask_const,
-                                                                                   new_scale_const,
-                                                                                   casual);
+                                                                           key,
+                                                                           v_scaled,
+                                                                           sdpa_mask_const,
+                                                                           new_scale_const,
+                                                                           casual);
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
     }
 
@@ -121,11 +118,11 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest3) {
     {
         const auto q_scaled = std::make_shared<v1::Multiply>(query, scale_const);
         const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q_scaled,
-                                                                                   key,
-                                                                                   v_scaled,
-                                                                                   sdpa_mask_const,
-                                                                                   sdpa_scale_const,
-                                                                                   casual);
+                                                                           key,
+                                                                           v_scaled,
+                                                                           sdpa_mask_const,
+                                                                           sdpa_scale_const,
+                                                                           casual);
 
         model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAScaleFusion>();
@@ -134,11 +131,11 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest3) {
     {
         const auto new_scale_const = v0::Constant::create(element::f32, ov::Shape{}, std::vector<float>{16.0f});
         const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query,
-                                                                                   key,
-                                                                                   v_scaled,
-                                                                                   sdpa_mask_const,
-                                                                                   new_scale_const,
-                                                                                   casual);
+                                                                           key,
+                                                                           v_scaled,
+                                                                           sdpa_mask_const,
+                                                                           new_scale_const,
+                                                                           casual);
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
     }
 
@@ -164,11 +161,11 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest4) {
     {
         const auto k_scaled = std::make_shared<v1::Multiply>(key, scale_const);
         const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q_scaled,
-                                                                                   k_scaled,
-                                                                                   v_scaled,
-                                                                                   sdpa_mask_const,
-                                                                                   sdpa_scale_const,
-                                                                                   casual);
+                                                                           k_scaled,
+                                                                           v_scaled,
+                                                                           sdpa_mask_const,
+                                                                           sdpa_scale_const,
+                                                                           casual);
 
         model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, scale_dyn});
         manager.register_pass<ov::pass::SDPAScaleFusion>();
@@ -177,11 +174,11 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest4) {
     {
         const auto new_scale_const = v0::Constant::create(element::f32, ov::Shape{}, std::vector<float>{16.0f});
         const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q_scaled,
-                                                                                   key,
-                                                                                   v_scaled,
-                                                                                   sdpa_mask_const,
-                                                                                   new_scale_const,
-                                                                                   casual);
+                                                                           key,
+                                                                           v_scaled,
+                                                                           sdpa_mask_const,
+                                                                           new_scale_const,
+                                                                           casual);
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, scale_dyn});
     }
 
@@ -207,23 +204,19 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest5) {
         const auto q_scaled = std::make_shared<v1::Multiply>(query, scale_dyn);
         const auto k_scaled = std::make_shared<v1::Multiply>(key, scale_const);
         const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q_scaled,
-                                                                                   k_scaled,
-                                                                                   v_scaled,
-                                                                                   sdpa_mask_const,
-                                                                                   sdpa_scale_const,
-                                                                                   casual);
+                                                                           k_scaled,
+                                                                           v_scaled,
+                                                                           sdpa_mask_const,
+                                                                           sdpa_scale_const,
+                                                                           casual);
 
         model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, scale_dyn});
         manager.register_pass<ov::pass::SDPAScaleFusion>();
     }
 
     {
-        const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query,
-                                                                                   key,
-                                                                                   v_scaled,
-                                                                                   sdpa_mask_const,
-                                                                                   scale_dyn,
-                                                                                   casual);
+        const auto sdpa =
+            std::make_shared<v13::ScaledDotProductAttention>(query, key, v_scaled, sdpa_mask_const, scale_dyn, casual);
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, scale_dyn});
     }
 
@@ -249,8 +242,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest6) {
             std::vector<element::Type>{element::f16},
             ov::op::TemporaryReplaceOutputType(key, element::f16).get(),
             ov::op::TemporaryReplaceOutputType(scale_const, element::f16).get());
-        const auto sdpa =
-            std::make_shared<v13::ScaledDotProductAttention>(q_scaled, k_scaled, v_scaled, casual);
+        const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q_scaled, k_scaled, v_scaled, casual);
 
         model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAScaleFusion>();
@@ -266,11 +258,11 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest6) {
         const auto new_scale_const =
             v0::Constant::create(element::f16, ov::Shape{}, std::vector<float>{8.0f / std::sqrt(32.0f)});
         const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query,
-                                                                                   k_scaled_ref,
-                                                                                   v_scaled,
-                                                                                   new_mask_const,
-                                                                                   new_scale_const,
-                                                                                   casual);
+                                                                           k_scaled_ref,
+                                                                           v_scaled,
+                                                                           new_mask_const,
+                                                                           new_scale_const,
+                                                                           casual);
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
     }
 

@@ -33,10 +33,9 @@
 using namespace ov::pass;
 using namespace ov::symbol::util;
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 namespace {
 void symbolic_set_up_for_shape(ov::PartialShape& shape) {
     if (shape.rank().is_dynamic())
@@ -126,10 +125,8 @@ ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
     auto add = wrap_type<op::util::BinaryElementwiseArithmetic>();
     auto input_reshape = wrap_type<op::v1::Reshape>({add, any_input()});
 
-    auto select_then = wrap_type<op::v1::Select>(
-        {any_input(), input_reshape, any_input()});
-    auto select_else = wrap_type<op::v1::Select>(
-        {any_input(), any_input(), input_reshape});
+    auto select_then = wrap_type<op::v1::Select>({any_input(), input_reshape, any_input()});
+    auto select_else = wrap_type<op::v1::Select>({any_input(), any_input(), input_reshape});
     auto select = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{select_then, select_else});
 
     auto softmax = wrap_type<op::v1::Softmax>({select});

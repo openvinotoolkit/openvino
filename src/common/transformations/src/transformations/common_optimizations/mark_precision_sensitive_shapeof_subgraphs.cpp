@@ -20,7 +20,6 @@
 
 using namespace std;
 
-
 namespace op_util = ov::op::util;
 ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::MarkPrecisionSensitiveShapeOfSubgraphs() {
     m_markup_func = [](Node* node) {
@@ -68,8 +67,8 @@ bool ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::run_on_model(const shared
                 // earlier from some non precision sensitive path. So we use dedicated "precision_sensitive_visited"
                 // set for precision sensitive nodes, so they can be visited twice and finally marked-up.
                 op_util::visit_shape_path(input.get_source_output().get_node(),
-                                               precision_sensitive_visited,
-                                               m_markup_func);
+                                          precision_sensitive_visited,
+                                          m_markup_func);
             }
         }
 

@@ -21,10 +21,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -47,12 +46,9 @@ ov::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto add_const_value =
-            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        auto min_const_value =
-            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
-        auto div_const_value =
-            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+        auto add_const_value = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto min_const_value = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
+        auto div_const_value = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
 
         bool valid_constant_values = op_util::has_constant_value<float>(add_const_value, 3.0) &&
                                      op_util::has_constant_value<float>(min_const_value, 6.0) &&
@@ -102,12 +98,9 @@ ov::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto add_const_value =
-            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        auto min_const_value =
-            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
-        auto mul_const_value =
-            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
+        auto add_const_value = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto min_const_value = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
+        auto mul_const_value = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
         bool valid_constant_values = op_util::has_constant_value<float>(add_const_value, 3.0f) &&
                                      op_util::has_constant_value<float>(min_const_value, 6.0f) &&
@@ -141,8 +134,7 @@ ov::pass::HSwishFusionWithHSigmoid::HSwishFusionWithHSigmoid() {
     MATCHER_SCOPE(HSwishFusionWithHSigmoid);
     // Replaces a sub-graph x * HSigmoid(x) with a HSwish op.
     auto input = any_input();
-    auto hsigmoid_pattern =
-        wrap_type<ov::op::v5::HSigmoid>({input}, ov::pass::pattern::consumers_count(1));
+    auto hsigmoid_pattern = wrap_type<ov::op::v5::HSigmoid>({input}, ov::pass::pattern::consumers_count(1));
     auto mul_pattern = wrap_type<v1::Multiply>({input, hsigmoid_pattern});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
@@ -184,9 +176,8 @@ ov::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
             return false;
 
         auto hswish = std::make_shared<v4::HSwish>(x_output);
-        auto new_mul_const = std::make_shared<v0::Constant>(add_const_value->get_element_type(),
-                                                                    Shape{},
-                                                                    std::vector<float>{6.0});
+        auto new_mul_const =
+            std::make_shared<v0::Constant>(add_const_value->get_element_type(), Shape{}, std::vector<float>{6.0});
         auto new_mul = std::make_shared<v1::Multiply>(hswish, new_mul_const);
 
         new_mul->set_friendly_name(m.get_match_root()->get_friendly_name());

@@ -26,10 +26,9 @@
 
 using namespace ov;
 
-
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -88,14 +87,14 @@ op_util::SlicePlan get_slice_plan(std::shared_ptr<v1::StridedSlice> slice) {
     const auto end_mask = convert_mask_to_axis_set(slice->get_end_mask());
 
     const auto plan = op_util::make_slice_plan(slice->input(0).get_shape(),
-                                                    begin_vec,
-                                                    end_vec,
-                                                    strides_vec,
-                                                    begin_mask,
-                                                    end_mask,
-                                                    convert_mask_to_axis_set(slice->get_new_axis_mask()),
-                                                    convert_mask_to_axis_set(slice->get_shrink_axis_mask()),
-                                                    convert_mask_to_axis_set(slice->get_ellipsis_mask()));
+                                               begin_vec,
+                                               end_vec,
+                                               strides_vec,
+                                               begin_mask,
+                                               end_mask,
+                                               convert_mask_to_axis_set(slice->get_new_axis_mask()),
+                                               convert_mask_to_axis_set(slice->get_shrink_axis_mask()),
+                                               convert_mask_to_axis_set(slice->get_ellipsis_mask()));
     return plan;
 }
 
@@ -235,8 +234,7 @@ bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<
         std::vector<int64_t> size_splits;
         for (const auto& item : output_to_size)
             size_splits.push_back(item.second);
-        auto size_splits_const =
-            v0::Constant::create(ov::element::i64, ov::Shape{size_splits.size()}, size_splits);
+        auto size_splits_const = v0::Constant::create(ov::element::i64, ov::Shape{size_splits.size()}, size_splits);
         auto variadic_split = std::make_shared<v1::VariadicSplit>(pair.first, axis_const, size_splits_const);
 
         auto i = 0;
@@ -406,17 +404,11 @@ ov::pass::SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
     MATCHER_SCOPE(SliceSequenceToSingleSlice);
     auto const_axes_1_pattern = wrap_type<v0::Constant>();
     auto const_axes_2_pattern = wrap_type<v0::Constant>();
-    auto slice_1_pattern = wrap_type<v8::Slice>({any_input(),
-                                                                            any_input(),
-                                                                            any_input(),
-                                                                            any_input(),
-                                                                            const_axes_1_pattern},
-                                                                           ov::pass::pattern::consumers_count(1));
-    auto slice_2_pattern = wrap_type<v8::Slice>({slice_1_pattern,
-                                                                            any_input(),
-                                                                            any_input(),
-                                                                            any_input(),
-                                                                            const_axes_2_pattern});
+    auto slice_1_pattern =
+        wrap_type<v8::Slice>({any_input(), any_input(), any_input(), any_input(), const_axes_1_pattern},
+                             ov::pass::pattern::consumers_count(1));
+    auto slice_2_pattern =
+        wrap_type<v8::Slice>({slice_1_pattern, any_input(), any_input(), any_input(), const_axes_2_pattern});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
@@ -460,10 +452,10 @@ ov::pass::SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
         auto step = concat_boundaries(slice_1->input_value(3), slice_2->input_value(3));
         auto axes = concat_boundaries(slice_1->input_value(4), slice_2->input_value(4));
         auto one_slice = std::make_shared<v8::Slice>(slice_1->input_value(0),
-                                                             op_util::try_fold_unary_output(begin),
-                                                             op_util::try_fold_unary_output(end),
-                                                             op_util::try_fold_unary_output(step),
-                                                             op_util::try_fold_unary_output(axes));
+                                                     op_util::try_fold_unary_output(begin),
+                                                     op_util::try_fold_unary_output(end),
+                                                     op_util::try_fold_unary_output(step),
+                                                     op_util::try_fold_unary_output(axes));
 
         ov::copy_runtime_info({slice_1, slice_2}, {one_slice, begin, end, step, axes});
         one_slice->set_friendly_name(slice_2->get_friendly_name());

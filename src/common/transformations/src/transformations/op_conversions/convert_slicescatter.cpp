@@ -20,7 +20,6 @@
 #include "openvino/op/slice_scatter.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 using ov::pass::pattern::Matcher;
 
 namespace v0 = ov::op::v0;
@@ -49,27 +48,25 @@ ov::pass::ConvertSliceScatter::ConvertSliceScatter() {
         const auto& num_elements_data = node_registry.make<v1::ReduceProd>(data_shape, const_0, false);
         const auto& data_indices_flatten =
             node_registry.make<ov::op::v4::Range>(const_0, num_elements_data, const_1, ov::element::i64);
-        const auto& full_data_indices =
-            node_registry.make<v1::Reshape>(data_indices_flatten, data_shape, false);
+        const auto& full_data_indices = node_registry.make<v1::Reshape>(data_indices_flatten, data_shape, false);
         std::shared_ptr<v8::Slice> slice_indices;
         if (slice_node->get_input_size() == 5) {
             slice_indices = node_registry.make<v8::Slice>(full_data_indices,
-                                                                  slice_node->input_value(2),
-                                                                  slice_node->input_value(3),
-                                                                  slice_node->input_value(4));
+                                                          slice_node->input_value(2),
+                                                          slice_node->input_value(3),
+                                                          slice_node->input_value(4));
         } else {
             slice_indices = node_registry.make<v8::Slice>(full_data_indices,
-                                                                  slice_node->input_value(2),
-                                                                  slice_node->input_value(3),
-                                                                  slice_node->input_value(4),
-                                                                  slice_node->input_value(5));
+                                                          slice_node->input_value(2),
+                                                          slice_node->input_value(3),
+                                                          slice_node->input_value(4),
+                                                          slice_node->input_value(5));
         }
         const auto& slice_indices_flatten =
             node_registry.make<v1::Reshape>(slice_indices, const_scatter_indices_shape, false);
         const auto& updates_flatten =
             node_registry.make<v1::Reshape>(slice_node->input_value(1), const_1d_neg_1, false);
-        const auto& data_flatten =
-            node_registry.make<v1::Reshape>(slice_node->input_value(0), const_1d_neg_1, false);
+        const auto& data_flatten = node_registry.make<v1::Reshape>(slice_node->input_value(0), const_1d_neg_1, false);
         const auto& output_flatten =
             node_registry.make<v3::ScatterNDUpdate>(data_flatten, slice_indices_flatten, updates_flatten);
         const auto& output = node_registry.make<v1::Reshape>(output_flatten, data_shape, false);

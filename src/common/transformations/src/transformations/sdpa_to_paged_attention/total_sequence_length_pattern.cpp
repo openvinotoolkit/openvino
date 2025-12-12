@@ -20,8 +20,8 @@
 #include "transformations/utils/utils.hpp"
 
 using ov::pass::pattern::any_input;
-using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -48,14 +48,12 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
     MATCHER_SCOPE(TotalSequenceLengthPattern);
 
     auto kv_past = wrap_type<ov::op::v6::ReadValue>({any_input()});
-    auto kv_gather = wrap_type<v8::Gather>(
-        {kv_past, any_input(), any_input()});
+    auto kv_gather = wrap_type<v8::Gather>({kv_past, any_input(), any_input()});
     auto kv_current = any_input();
     auto kv_concat = wrap_type<v0::Concat>({kv_gather, kv_current});
     auto kv_shape = wrap_type<v3::ShapeOf>({kv_concat});
     auto gather_idx_label = wrap_type<v0::Constant>();
-    auto seq =
-        wrap_type<v8::Gather>({kv_shape, gather_idx_label, any_input()});
+    auto seq = wrap_type<v8::Gather>({kv_shape, gather_idx_label, any_input()});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         // TODO: Check that seq has axis that really takes sequence len but not any other dimension --
@@ -126,22 +124,17 @@ ov::pass::TotalSequenceLengthPatternQwen::TotalSequenceLengthPatternQwen(
     MATCHER_SCOPE(TotalSequenceLengthPatternQwen);
 
     auto p_input_ids = wrap_type<v0::Parameter>();
-    auto p_unsqueeze =
-        wrap_type<v0::Unsqueeze>({p_input_ids, any_input()});
-    auto p_opt_reshape_1 =
-        ov::pass::pattern::optional<v1::Reshape>({p_unsqueeze, any_input()});
+    auto p_unsqueeze = wrap_type<v0::Unsqueeze>({p_input_ids, any_input()});
+    auto p_opt_reshape_1 = ov::pass::pattern::optional<v1::Reshape>({p_unsqueeze, any_input()});
     auto p_opt_convert_1 = ov::pass::pattern::optional<v0::Convert>(p_opt_reshape_1);
     auto p_kv_shape_current = wrap_type<v3::ShapeOf>({p_opt_convert_1});
-    auto p_seq_current = wrap_type<v8::Gather>(
-        {p_kv_shape_current, any_input(), any_input()});
+    auto p_seq_current = wrap_type<v8::Gather>({p_kv_shape_current, any_input(), any_input()});
     auto p_opt_convert_2 = ov::pass::pattern::optional<v0::Convert>(p_seq_current);
 
     auto p_max_context_len = wrap_type<v0::Parameter>();
-    auto p_prev_max_seq_len =
-        wrap_type<v1::Subtract>({p_max_context_len, any_input()});
+    auto p_prev_max_seq_len = wrap_type<v1::Subtract>({p_max_context_len, any_input()});
     auto p_opt_convert_3 = ov::pass::pattern::optional<v0::Convert>(p_prev_max_seq_len);
-    auto p_opt_reshape_2 =
-        ov::pass::pattern::optional<v1::Reshape>({p_opt_convert_3, any_input()});
+    auto p_opt_reshape_2 = ov::pass::pattern::optional<v1::Reshape>({p_opt_convert_3, any_input()});
     auto p_total_seq = wrap_type<v1::Add>({p_opt_convert_2, p_opt_reshape_2});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
@@ -166,15 +159,12 @@ ov::pass::TotalSequenceLengthPatternCodeGen2::TotalSequenceLengthPatternCodeGen2
     MATCHER_SCOPE(TotalSequenceLengthPatternCodeGen2);
 
     auto p_max_context_len = wrap_type<v0::Parameter>();
-    auto p_sub =
-        wrap_type<v1::Subtract>({p_max_context_len, any_input()});
+    auto p_sub = wrap_type<v1::Subtract>({p_max_context_len, any_input()});
     auto p_conv = wrap_type<v0::Convert>({p_sub});
 
-    auto p_var_split = wrap_type<v1::VariadicSplit>(
-        {any_input(), any_input(), any_input()});
+    auto p_var_split = wrap_type<v1::VariadicSplit>({any_input(), any_input(), any_input()});
     auto p_kv_shape_current = wrap_type<v3::ShapeOf>({p_var_split});
-    auto p_gather = wrap_type<v8::Gather>(
-        {p_kv_shape_current, any_input(), any_input()});
+    auto p_gather = wrap_type<v8::Gather>({p_kv_shape_current, any_input(), any_input()});
     auto p_total_seq = wrap_type<v1::Add>({p_gather, p_conv});
 
     matcher_pass_callback callback = [=, &max_context_len](Matcher& m) {

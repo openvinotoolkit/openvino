@@ -23,7 +23,6 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/manager.hpp"
 
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
@@ -57,15 +56,15 @@ std::shared_ptr<ov::Model> create_v8_model(const ov::op::RoundingType rounding_t
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
     const auto max_pool_v8 = std::make_shared<v8::MaxPool>(input,
-                                                                   strides,
-                                                                   dilations,
-                                                                   pads_begin,
-                                                                   pads_end,
-                                                                   kernel,
-                                                                   rounding_type,
-                                                                   ov::op::PadType::EXPLICIT,
-                                                                   ov::element::i64,
-                                                                   2);
+                                                           strides,
+                                                           dilations,
+                                                           pads_begin,
+                                                           pads_end,
+                                                           kernel,
+                                                           rounding_type,
+                                                           ov::op::PadType::EXPLICIT,
+                                                           ov::element::i64,
+                                                           2);
 
     max_pool_v8->set_friendly_name("max_pool_v8");
 
@@ -74,6 +73,9 @@ std::shared_ptr<ov::Model> create_v8_model(const ov::op::RoundingType rounding_t
 
 std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::RoundingType rounding_type,
                                                               const bool dynamic_input = false) {
+    using ov::op::v12::Pad;
+    using ov::op::v3::ShapeOf;
+    using ov::op::v4::Range;
     using v0::Concat;
     using v0::Constant;
     using v0::Parameter;
@@ -83,9 +85,6 @@ std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::Roun
     using v1::Multiply;
     using v1::Select;
     using v1::Subtract;
-    using ov::op::v12::Pad;
-    using ov::op::v3::ShapeOf;
-    using ov::op::v4::Range;
     using v8::Gather;
     const auto& input_shape =
         dynamic_input
@@ -114,12 +113,12 @@ std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::Roun
 
     // gather output spatial dims and prepare it for compare as values (out_dim - 1) * stride
     const auto mp = std::make_shared<v8::MaxPool>(input,
-                                                          strides,
-                                                          dilations,
-                                                          pads_begin,
-                                                          pads_end,
-                                                          kernel,
-                                                          ov::op::RoundingType::CEIL);
+                                                  strides,
+                                                  dilations,
+                                                  pads_begin,
+                                                  pads_end,
+                                                  kernel,
+                                                  ov::op::RoundingType::CEIL);
     const auto shape_of_mp = std::make_shared<ShapeOf>(mp, ov::element::i32);
     const auto gth_out_dims = std::make_shared<Gather>(shape_of_mp, dim_idxs, zero);
     const auto out_sub_one = std::make_shared<Subtract>(gth_out_dims, one);
@@ -140,15 +139,15 @@ std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::Roun
     std::fill_n(pads_end.begin(), pads_end.size(), 0);
 
     const auto max_pool_v8 = std::make_shared<v8::MaxPool>(pad_node,
-                                                                   strides,
-                                                                   dilations,
-                                                                   pads_begin,
-                                                                   pads_end,
-                                                                   kernel,
-                                                                   ov::op::RoundingType::CEIL,
-                                                                   ov::op::PadType::EXPLICIT,
-                                                                   ov::element::i64,
-                                                                   2);
+                                                           strides,
+                                                           dilations,
+                                                           pads_begin,
+                                                           pads_end,
+                                                           kernel,
+                                                           ov::op::RoundingType::CEIL,
+                                                           ov::op::PadType::EXPLICIT,
+                                                           ov::element::i64,
+                                                           2);
     max_pool_v8->set_friendly_name("max_pool_v8_ceil_torch_workaround");
 
     return std::make_shared<ov::Model>(max_pool_v8->outputs(), ov::ParameterVector{input});

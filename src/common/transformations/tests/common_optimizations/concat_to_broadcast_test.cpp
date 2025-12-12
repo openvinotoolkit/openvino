@@ -15,7 +15,6 @@
 
 using namespace testing;
 
-
 namespace v0 = ov::op::v0;
 enum class ExpectedType {
     Broadcast,
