@@ -4,21 +4,9 @@
 
 #include "remote_context.hpp"
 
+#include "intel_npu/utils/zero/zero_utils.hpp"
+
 using namespace ov::intel_npu;
-
-namespace {
-
-template <typename Type>
-std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
-    auto itrHandle = params.find(p.name());
-    if (itrHandle == params.end()) {
-        return std::nullopt;
-    }
-
-    return ov::Any(itrHandle->second).as<Type>();
-}
-
-}  // namespace
 
 namespace intel_npu {
 
@@ -34,10 +22,10 @@ RemoteContextImpl::RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBack
     _properties = {l0_context(engineBackend->getContext())};
 
     if (!remote_properties.empty()) {
-        _mem_type_object = extract_object(remote_properties, mem_type);
-        _tensor_type_object = extract_object(remote_properties, tensor_type);
-        _mem_handle_object = extract_object(remote_properties, mem_handle);
-        _file_descriptor_object = extract_object(remote_properties, file_descriptor);
+        _mem_type_object = zeroUtils::extract_object(remote_properties, mem_type);
+        _tensor_type_object = zeroUtils::extract_object(remote_properties, tensor_type);
+        _mem_handle_object = zeroUtils::extract_object(remote_properties, mem_handle);
+        _file_descriptor_object = zeroUtils::extract_object(remote_properties, file_descriptor);
     }
 }
 
@@ -56,10 +44,10 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
 
     if (!params.empty()) {
         // Save local remote properties.
-        mem_type_object = extract_object(params, mem_type);
-        tensor_type_object = extract_object(params, tensor_type);
-        mem_handle_object = extract_object(params, mem_handle);
-        file_descriptor_object = extract_object(params, file_descriptor);
+        mem_type_object = zeroUtils::extract_object(params, mem_type);
+        tensor_type_object = zeroUtils::extract_object(params, tensor_type);
+        mem_handle_object = zeroUtils::extract_object(params, mem_handle);
+        file_descriptor_object = zeroUtils::extract_object(params, file_descriptor);
     }
 
     // Merge local remote properties with global remote properties.

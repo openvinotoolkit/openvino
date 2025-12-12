@@ -5,6 +5,7 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 
 #include <ze_command_queue_npu_ext.h>
+#include <ze_driver_npu_ext.h>
 #include <ze_mem_import_system_memory_ext.h>
 
 #include <mutex>
@@ -110,6 +111,7 @@ void ZeroInitStructsHolder::initNpuDriver() {
     if (loader_version.major > 1 || (loader_version.major == 1 && loader_version.minor > 18) ||
         (loader_version.major == 1 && loader_version.minor == 18 && loader_version.patch >= 5)) {
         uint32_t drivers_count = 0;
+
         ze_init_driver_type_desc_t desc = {};
         desc.stype = ZE_STRUCTURE_TYPE_INIT_DRIVER_TYPE_DESC;
         desc.flags = ZE_INIT_DRIVER_TYPE_FLAG_NPU;
@@ -118,6 +120,11 @@ void ZeroInitStructsHolder::initNpuDriver() {
             fallbackToZeDriverGet();
             return;
         }
+
+        ze_driver_properties_npu_ext_t driver_npu_properties = {};
+        driver_npu_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES_NPU_EXT;
+        driver_npu_properties.options = ZE_NPU_DRIVER_OPTION_INTEGRITY_CHECKS;
+        desc.pNext = &driver_npu_properties;
 
         std::vector<ze_driver_handle_t> all_drivers(drivers_count);
         result = zeInitDrivers(&drivers_count, all_drivers.data(), &desc);
@@ -180,7 +187,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     // Query our graph extension version
     std::string graph_ext_name;
     uint32_t graph_ext_version = 0;
-    uint32_t target_graph_ext_version = ZE_GRAPH_EXT_VERSION_CURRENT;
+    uint32_t target_graph_ext_version = ZE_GRAPH_EXT_VERSION_1_15;
 
 #if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     const char* extVersion = std::getenv("NPU_ZE_GRAPH_EXT_VERSION");
