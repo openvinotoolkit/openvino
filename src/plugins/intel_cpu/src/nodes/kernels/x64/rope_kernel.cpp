@@ -144,25 +144,48 @@ void jit_rotary_kernel<isa>::rotary_interleave(size_t step) {
             vshufps(src1, tmp0, tmp1, 0xdd);
         }
     };
+    const bool no_share_halves = (m_jcp.cos_sin_ndims != 0 && m_jcp.cos_sin_ndims != m_jcp.rotary_ndims / 2);
     deinterlace(vmm_src0, vmm_src1, vmm_dst0, vmm_dst1);
-    // cos[j]
-    load(vmm_cos, reg_cos, ov::element::f32, step, false);
-    // sin[j]
-    if (m_jcp.mix_cos_sin) {
-        load(vmm_sin, reg_cos, ov::element::f32, step, false, step * sizeof(float));
-        deinterlace(vmm_cos, vmm_sin, vmm_dst0, vmm_dst1);
-    } else {
+    if (no_share_halves) {
+        // load cos
+        load(vmm_cos, reg_cos, ov::element::f32, step, false);
+        load(vmm_cos1, reg_cos, ov::element::f32, step, false, step * ov::element::f32.size());
+        deinterlace(vmm_cos, vmm_cos1, vmm_dst0, vmm_dst1);
+        // load sin
         load(vmm_sin, reg_sin, ov::element::f32, step, false);
-    }
-    // sin[j] * src1
-    uni_vmulps(vmm_dst0, vmm_sin, vmm_src1);
-    // cos[j] * src0 - sin[j] * src1
-    vfmsub231ps(vmm_dst0, vmm_cos, vmm_src0);
+        load(vmm_sin1, reg_sin, ov::element::f32, step, false, step * ov::element::f32.size());
+        deinterlace(vmm_sin, vmm_sin1, vmm_dst0, vmm_dst1);
 
-    // cos[j] * src1
-    uni_vmulps(vmm_dst1, vmm_cos, vmm_src1);
-    // cos[j] * src1 + sin[j] * src0
-    vfmadd231ps(vmm_dst1, vmm_sin, vmm_src0);
+        // sin[i] * src1
+        uni_vmulps(vmm_dst0, vmm_sin, vmm_src1);
+        // cos[i] * src0 - sin[i] * src1
+        vfmsub231ps(vmm_dst0, vmm_cos, vmm_src0);
+
+        // cos[i+1] * src1
+        uni_vmulps(vmm_dst1, vmm_cos1, vmm_src1);
+        // cos[i+1] * src1 + sin[i+1] * src0
+        vfmadd231ps(vmm_dst1, vmm_sin1, vmm_src0);
+    } else {
+        // cos[j]
+        load(vmm_cos, reg_cos, ov::element::f32, step, false);
+        // sin[j]
+        if (m_jcp.mix_cos_sin) {
+            load(vmm_sin, reg_cos, ov::element::f32, step, false, step * sizeof(float));
+            deinterlace(vmm_cos, vmm_sin, vmm_dst0, vmm_dst1);
+        } else {
+            load(vmm_sin, reg_sin, ov::element::f32, step, false);
+        }
+        // sin[j] * src1
+        uni_vmulps(vmm_dst0, vmm_sin, vmm_src1);
+        // cos[j] * src0 - sin[j] * src1
+        vfmsub231ps(vmm_dst0, vmm_cos, vmm_src0);
+
+        // cos[j] * src1
+        uni_vmulps(vmm_dst1, vmm_cos, vmm_src1);
+        // cos[j] * src1 + sin[j] * src0
+        vfmadd231ps(vmm_dst1, vmm_sin, vmm_src0);
+    }
+
     if (isa == cpu_isa_t::avx2) {
         // dst0: 0 2 4 6 8 10 12 14
         // dst1: 1 3 5 7 9 11 13 15
@@ -190,11 +213,16 @@ void jit_rotary_kernel<isa>::rotary_interleave(size_t step) {
     store(reg_dst, vmm_dst1, m_jcp.dst_prc, step, step * m_jcp.dst_prc.size());
     add(reg_src, m_jcp.src_prc.size() * step * 2);
     add(reg_dst, m_jcp.dst_prc.size() * step * 2);
-    if (m_jcp.mix_cos_sin) {
-        add(reg_cos, 2 * sizeof(float) * step);
+    if (no_share_halves) {
+        add(reg_cos, sizeof(float) * step * 2);
+        add(reg_sin, sizeof(float) * step * 2);
     } else {
-        add(reg_cos, sizeof(float) * step);
-        add(reg_sin, sizeof(float) * step);
+        if (m_jcp.mix_cos_sin) {
+            add(reg_cos, 2 * sizeof(float) * step);
+        } else {
+            add(reg_cos, sizeof(float) * step);
+            add(reg_sin, sizeof(float) * step);
+        }
     }
 }
 

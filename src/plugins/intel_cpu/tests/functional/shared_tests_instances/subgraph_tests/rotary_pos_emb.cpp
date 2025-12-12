@@ -93,5 +93,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestGPTOSS,
                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          RoPETestGPTOSS::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestFlux,
+                         RoPETestFlux,
+                         ::testing::Combine(
+                            ::testing::Values(ov::element::f32),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         RoPETestFlux::getTestCaseName);
+
 }  // namespace test
 }  // namespace ov
