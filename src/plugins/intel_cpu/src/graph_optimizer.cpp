@@ -299,12 +299,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
             }
         }
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        // Per-channel DQ scales fusion is not supported by ACL
-        return scalesDims[channelAxis] == 1;
-#else
         return true;
-#endif
     };
 
     auto initializeDeQuantizedScales = [](const NodePtr& node, const NodePtr& scales) {
@@ -336,10 +331,10 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         }
 
         if (initializeDeQuantizedScales(node, scales)) {
-            DEBUG_LOG("GraphOptimizer##FusingDQ: Node ##",
-                      mul->getName(),
-                      " optimized as DQ scales of Node ##",
-                      node->getName());
+            std::cout << "GraphOptimizer##FusingDQ: Node ##"
+                      << mul->getName()
+                      << " optimized as DQ scales of Node ##"
+                      << node->getName() << std::endl;
             node->addOriginalLayer(mul->getOriginalLayers());
             auto p_edge = mul->getParentEdgeAt(1);
             graph.RemoveEdge(p_edge);

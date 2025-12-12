@@ -36,8 +36,6 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                const MemoryArgs& memory,
                                                [[maybe_unused]] const ExecutorContext::CPtr& context)
     : weightScale(attrs.dqScales) {
-    OPENVINO_ASSERT(attrs.dqScales.size() == 1, "ACLConvolutionExecutor: per-channel scales are not supported");
-
     MemoryDescPtr srcMemPtr = memory.at(ARG_SRC_0)->getDescPtr();
     MemoryDescPtr weiMemPtr = memory.at(ARG_WEI)->getDescPtr();
     MemoryDescPtr dstMemPtr = memory.at(ARG_DST)->getDescPtr();
@@ -118,8 +116,9 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
     // - destination: scale is formed based on requantization FakeQuantize parameters: scale = 1.0 / input scale
     //                shift = input shift
     aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
-    aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
-        arm_compute::QuantizationInfo(weightScale.empty() ? 1.0F : weightScale[0]));
+    aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(weightScale.empty() ?
+        arm_compute::QuantizationInfo(1.0F) :
+        arm_compute::QuantizationInfo(weightScale));
     aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(
         arm_compute::QuantizationInfo(fqInputScale.empty() ? 1.0F : 1.0F / fqInputScale[0],
                                       fqInputShift.empty() ? 0 : fqInputShift[0]));
