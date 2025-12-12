@@ -14,6 +14,18 @@
 #    include <malloc.h>
 #endif
 
+namespace {
+// Legacy tensor name format for IR v10 compatibility (uses '.' separator instead of ':')
+// Can be removed when IR v10 support is deprecated
+std::string make_ir_v10_tensor_name(const ov::Output<const ov::Node>& output) {
+    auto name = output.get_node()->get_friendly_name();
+    if (output.get_node()->get_output_size() > 1) {
+        name += "." + std::to_string(output.get_index());
+    }
+    return name;
+}
+}  // namespace
+
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
                                    const std::shared_ptr<const ov::IPlugin>& plugin,
                                    const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
@@ -84,7 +96,9 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
         for (const auto& result : model->get_results()) {
             auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                       result->get_output_partial_shape(0));
-            const std::string res_name = ov::util::make_default_tensor_name(result->input_value(0));
+            const std::string res_name = add_operation_names
+                                             ? make_ir_v10_tensor_name(result->input_value(0))
+                                             : ov::util::make_default_tensor_name(result->input_value(0));
             fake_param->set_friendly_name(res_name);
             fake_param->set_element_type(result->get_element_type());
             fake_param->validate_and_infer_types();
