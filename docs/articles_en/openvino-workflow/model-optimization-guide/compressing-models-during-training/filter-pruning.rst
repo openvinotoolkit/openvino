@@ -46,13 +46,6 @@ In this step, NNCF-related imports are added in the beginning of the training sc
          :language: python
          :fragment: [imports]
 
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
-         :language: python
-         :fragment: [imports]
-
 2. Create NNCF configuration
 ++++++++++++++++++++++++++++
 
@@ -65,13 +58,6 @@ of optimization methods (`"compression"` section).
       :sync: pytorch
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_torch.py
-         :language: python
-         :fragment: [nncf_congig]
-
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
          :language: python
          :fragment: [nncf_congig]
 
@@ -103,13 +89,6 @@ optimization.
          :language: python
          :fragment: [wrap_model]
 
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
-         :language: python
-         :fragment: [wrap_model]
-
 4. Fine-tune the model
 ++++++++++++++++++++++
 
@@ -126,14 +105,6 @@ of the original model.
          :language: python
          :fragment: [tune_model]
 
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
-         :language: python
-         :fragment: [tune_model]
-
-
 5. Multi-GPU distributed training
 +++++++++++++++++++++++++++++++++
 
@@ -149,18 +120,11 @@ fine-tuning that will inform optimization methods to do some adjustments to func
          :language: python
          :fragment: [distributed]
 
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
-         :language: python
-         :fragment: [distributed]
-
 6. Export quantized model
 +++++++++++++++++++++++++
 
 When fine-tuning finishes, the quantized model can be exported to the corresponding format for further inference: ONNX in
-the case of PyTorch and frozen graph - for TensorFlow 2.
+the case of PyTorch.
 
 .. tab-set::
 
@@ -170,14 +134,6 @@ the case of PyTorch and frozen graph - for TensorFlow 2.
       .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_torch.py
          :language: python
          :fragment: [export]
-
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
-         :language: python
-         :fragment: [export]
-
 
 These were the basic steps to applying the QAT method from the NNCF. However, it is required in some cases to save/load model
 checkpoints during the training. Since NNCF wraps the original model with its own object it provides an API for these needs.
@@ -197,14 +153,6 @@ To save model checkpoint use the following API:
          :language: python
          :fragment: [save_checkpoint]
 
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
-         :language: python
-         :fragment: [save_checkpoint]
-
-
 8. (Optional) Restore from checkpoint
 +++++++++++++++++++++++++++++++++++++
 
@@ -219,20 +167,13 @@ To restore the model from checkpoint you should use the following API:
          :language: python
          :fragment: [load_checkpoint]
 
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
-         :language: python
-         :fragment: [load_checkpoint]
-
 For more details, see the following `documentation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/usage/training_time_compression/other_algorithms/Pruning.md>`__.
 
 Deploying pruned model
 ######################
 
 The pruned model requires an extra step that should be done to get performance improvement. This step involves removal of the
-zero filters from the model. This is done at the model conversion step using  :doc:`model conversion API <../../model-preparation>` tool when model is converted from the framework representation (ONNX, TensorFlow, etc.) to OpenVINO Intermediate Representation.
+zero filters from the model. This is done at the model conversion step using  :doc:`model conversion API <../../model-preparation>` tool when model is converted from the framework representation (ONNX, etc.) to OpenVINO Intermediate Representation.
 
 * To remove zero filters from the pruned model add the following parameter to the model conversion command: ``transform=Pruning``
 
@@ -244,6 +185,3 @@ Examples
 ####################
 
 * `PyTorch Image Classification example <https://github.com/openvinotoolkit/nncf/blob/develop/examples/torch/classification>`__
-
-* `TensorFlow Image Classification example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/tensorflow/classification>`__
-
