@@ -77,7 +77,7 @@ class TestCondFX(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     def test_multi_output_cond(self, pred_value, input_shape, ie_device, precision, ir_version):
         if ie_device == "GPU":
-            pytest.skip("Multi-output If not supported on GPU - CVS-XXXXX")
+            pytest.skip("Multi-output If not supported on GPU - CVS-178157")
         self.pred_value = pred_value
         self.input_shape = input_shape
         self._test(*self.create_multi_output_cond_model(), ie_device, precision, ir_version,
