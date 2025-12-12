@@ -22,6 +22,8 @@ public:
 
     void* data() override;
     void* data(const element::Type& element_type) override;
+    void* data_rw() override;
+    void* data_rw(const element::Type& element_type) override;
     const void* data() const override;
     const void* data(const element::Type& element_type) const override;
 
