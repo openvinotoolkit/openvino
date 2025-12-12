@@ -10,7 +10,8 @@ class TestCondFX(PytorchLayerTest):
     """Test torch.cond operation for FX export mode."""
 
     def _prepare_input(self):
-        return (np.random.randn(*self.input_shape).astype(np.float32), self.pred_value)
+        rng = np.random.default_rng(43)
+        return (rng.standard_normal(self.input_shape).astype(np.float32), self.pred_value)
 
     def create_simple_cond_model(self):
         import torch
