@@ -21,6 +21,14 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
+
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::consumers_count;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 static std::string write_precisions(const ov::element::TypeVector& precisions) {
     std::stringstream sstream;
 #ifdef OPENVINO_DEBUG
@@ -52,7 +60,7 @@ void set_rt_info(const ov::pass::pattern::PatternValueMap& pt_map,
             auto node = pt_map.at(pattern_node).get_node_shared_ptr();
             // we don't need to mark Converts with disable_cf attribute if the `from` type (input type)
             // is not in the `precisions` list.
-            if (ov::as_type_ptr<ov::op::v0::Convert>(node) && !check_precision(precisions)(node->input_value(0))) {
+            if (ov::as_type_ptr<v0::Convert>(node) && !check_precision(precisions)(node->input_value(0))) {
                 continue;
             }
 
@@ -210,26 +218,26 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
     MATCHER_SCOPE(MarkDequantization);
 
     // data input:
-    auto input_pattern = ov::pass::pattern::any_input(check_precision(precisions));
+    auto input_pattern = any_input(check_precision(precisions));
     auto convert_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({input_pattern}, ov::pass::pattern::consumers_count(1));
+        wrap_type<v0::Convert>({input_pattern}, consumers_count(1));
 
     // zero points:
-    auto zp_pattern = ov::pass::pattern::any_input();
-    auto zp_convert_pattern = ov::pass::pattern::optional<ov::op::v0::Convert>(zp_pattern);
-    auto zp_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>(
-        {zp_convert_pattern, ov::pass::pattern::any_input()});
-    auto subtract_pattern = ov::pass::pattern::optional<ov::op::v1::Subtract>({convert_pattern, zp_reshape_pattern});
+    auto zp_pattern = any_input();
+    auto zp_convert_pattern = ov::pass::pattern::optional<v0::Convert>(zp_pattern);
+    auto zp_reshape_pattern = ov::pass::pattern::optional<v1::Reshape, v0::Unsqueeze>(
+        {zp_convert_pattern, any_input()});
+    auto subtract_pattern = ov::pass::pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
-    auto scale_pattern = ov::pass::pattern::any_input();
-    auto scale_convert_pattern = ov::pass::pattern::optional<ov::op::v0::Convert>(scale_pattern);
-    auto scale_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>(
-        {scale_convert_pattern, ov::pass::pattern::any_input()});
+    auto scale_pattern = any_input();
+    auto scale_convert_pattern = ov::pass::pattern::optional<v0::Convert>(scale_pattern);
+    auto scale_reshape_pattern = ov::pass::pattern::optional<v1::Reshape, v0::Unsqueeze>(
+        {scale_convert_pattern, any_input()});
     auto multiply_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({subtract_pattern, scale_reshape_pattern});
+        wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) -> bool {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) -> bool {
         const auto& pt_map = m.get_pattern_value_map();
         auto convert = pt_map.at(convert_pattern);
         auto input = pt_map.at(input_pattern);
@@ -268,7 +276,7 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
         return changed;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(multiply_pattern, "MarkDequantization");
+    auto m = std::make_shared<Matcher>(multiply_pattern, "MarkDequantization");
     this->register_matcher(m, callback);
 }
 
@@ -278,26 +286,26 @@ ov::pass::KeepConstPrecision::KeepConstPrecision(const element::TypeVector& prec
     MATCHER_SCOPE(KeepConstPrecision);
 
     // data input:
-    auto input_pattern = ov::pass::pattern::any_input();
+    auto input_pattern = any_input();
     auto convert_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({input_pattern}, ov::pass::pattern::consumers_count(1));
+        wrap_type<v0::Convert>({input_pattern}, consumers_count(1));
 
     // zero points:
-    auto zp_pattern = ov::pass::pattern::any_input();
-    auto zp_convert_pattern = ov::pass::pattern::optional<ov::op::v0::Convert>(zp_pattern);
-    auto zp_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>(
-        {zp_convert_pattern, ov::pass::pattern::any_input()});
-    auto subtract_pattern = ov::pass::pattern::optional<ov::op::v1::Subtract>({convert_pattern, zp_reshape_pattern});
+    auto zp_pattern = any_input();
+    auto zp_convert_pattern = ov::pass::pattern::optional<v0::Convert>(zp_pattern);
+    auto zp_reshape_pattern = ov::pass::pattern::optional<v1::Reshape, v0::Unsqueeze>(
+        {zp_convert_pattern, any_input()});
+    auto subtract_pattern = ov::pass::pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
-    auto scale_pattern = ov::pass::pattern::any_input();
-    auto scale_convert_pattern = ov::pass::pattern::optional<ov::op::v0::Convert>(scale_pattern);
-    auto scale_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>(
-        {scale_convert_pattern, ov::pass::pattern::any_input()});
+    auto scale_pattern = any_input();
+    auto scale_convert_pattern = ov::pass::pattern::optional<v0::Convert>(scale_pattern);
+    auto scale_reshape_pattern = ov::pass::pattern::optional<v1::Reshape, v0::Unsqueeze>(
+        {scale_convert_pattern, any_input()});
     auto multiply_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({subtract_pattern, scale_reshape_pattern});
+        wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) -> bool {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) -> bool {
         const auto& pt_map = m.get_pattern_value_map();
         const auto multiply = m.get_match_root();
 
@@ -312,7 +320,7 @@ ov::pass::KeepConstPrecision::KeepConstPrecision(const element::TypeVector& prec
         for (const auto& pattern_node : keep_const_precisions) {
             if (pt_map.count(pattern_node.first)) {
                 auto node = pt_map.at(pattern_node.first).get_node_shared_ptr();
-                if (ov::as_type_ptr<ov::op::v0::Constant>(node) && check_precision(precisions)(node->output(0))) {
+                if (ov::as_type_ptr<v0::Constant>(node) && check_precision(precisions)(node->output(0))) {
                     if (pattern_node.second) {
                         ov::disable_keep_const_precision(node);
                     } else {
@@ -324,7 +332,7 @@ ov::pass::KeepConstPrecision::KeepConstPrecision(const element::TypeVector& prec
         return false;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(multiply_pattern, "KeepConstPrecision");
+    auto m = std::make_shared<Matcher>(multiply_pattern, "KeepConstPrecision");
     this->register_matcher(m, callback);
 }
 
@@ -333,26 +341,26 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
     MATCHER_SCOPE(KeepDequantizationPrecision);
 
     auto input_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches_any(precisions));
+        wrap_type<v0::Constant>(ov::pass::pattern::type_matches_any(precisions));
     auto convert_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({input_pattern}, ov::pass::pattern::consumers_count(1));
+        wrap_type<v0::Convert>({input_pattern}, consumers_count(1));
 
     // zero points:
-    auto zp_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto zp_convert_pattern = ov::pass::pattern::optional<ov::op::v0::Convert>(zp_pattern);
-    auto zp_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>(
-        {zp_convert_pattern, ov::pass::pattern::any_input()});
-    auto subtract_pattern = ov::pass::pattern::optional<ov::op::v1::Subtract>({convert_pattern, zp_reshape_pattern});
+    auto zp_pattern = wrap_type<v0::Constant>();
+    auto zp_convert_pattern = ov::pass::pattern::optional<v0::Convert>(zp_pattern);
+    auto zp_reshape_pattern = ov::pass::pattern::optional<v1::Reshape, v0::Unsqueeze>(
+        {zp_convert_pattern, any_input()});
+    auto subtract_pattern = ov::pass::pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
-    auto scale_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto scale_convert_pattern = ov::pass::pattern::optional<ov::op::v0::Convert>(scale_pattern);
-    auto scale_reshape_pattern = ov::pass::pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>(
-        {scale_convert_pattern, ov::pass::pattern::any_input()});
+    auto scale_pattern = wrap_type<v0::Constant>();
+    auto scale_convert_pattern = ov::pass::pattern::optional<v0::Convert>(scale_pattern);
+    auto scale_reshape_pattern = ov::pass::pattern::optional<v1::Reshape, v0::Unsqueeze>(
+        {scale_convert_pattern, any_input()});
     auto multiply_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({subtract_pattern, scale_reshape_pattern});
+        wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pt_map = m.get_pattern_value_map();
         auto multiply = m.get_match_root();
 
@@ -381,7 +389,7 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
         // Convert insertion (with disable_const_folding flag) inside AlignMixedFP32FP16Types transformation. Use
         // Multiply's output data type to ensure data type consistency.
         if (add_precision_sensitive_convert) {
-            auto convert = std::make_shared<ov::op::v0::Convert>(multiply, multiply->get_output_element_type(0));
+            auto convert = std::make_shared<v0::Convert>(multiply, multiply->get_output_element_type(0));
             multiply->output(0).replace(convert);
             ov::mark_as_precision_sensitive(convert->input(0));
 
@@ -391,7 +399,7 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
         return false;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(multiply_pattern, "KeepDequantizationPrecision");
+    auto m = std::make_shared<Matcher>(multiply_pattern, "KeepDequantizationPrecision");
     this->register_matcher(m, callback);
 }
 
@@ -400,19 +408,19 @@ ov::pass::MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& tabl
     MATCHER_SCOPE(MarkGatherSubgraph);
 
     // 1. Data input → (optional Convert) → (input to Gather[0])
-    auto data_input = ov::pass::pattern::wrap_type<op::v0::Constant>(check_precision(table_values_precisions));
+    auto data_input = wrap_type<op::v0::Constant>(check_precision(table_values_precisions));
     auto data_convert = ov::pass::pattern::optional<op::v0::Convert>({data_input});
 
     // 2. Indices input → (optional Convert) → (input to Gather[1])
     auto indices_input =
-        ov::pass::pattern::wrap_type<op::v0::Constant, op::v0::Parameter>(check_precision(indices_precisions));
+        wrap_type<op::v0::Constant, op::v0::Parameter>(check_precision(indices_precisions));
     auto indices_convert = ov::pass::pattern::optional<op::v0::Convert>({indices_input});
 
     // Gather (fp, integral, any)
-    auto axis = ov::pass::pattern::any_input(ov::pass::pattern::value_matches("0"));
-    auto gather = ov::pass::pattern::wrap_type<op::v8::Gather>({data_convert, indices_convert, axis});
+    auto axis = any_input(ov::pass::pattern::value_matches("0"));
+    auto gather = wrap_type<op::v8::Gather>({data_convert, indices_convert, axis});
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pm = m.get_pattern_map();
         auto gather_node = pm.at(gather);
         if (transformation_callback(gather_node)) {
@@ -432,6 +440,6 @@ ov::pass::MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& tabl
         return false;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(gather, "MarkGatherSubgraph");
+    auto m = std::make_shared<Matcher>(gather, "MarkGatherSubgraph");
     this->register_matcher(m, callback);
 }

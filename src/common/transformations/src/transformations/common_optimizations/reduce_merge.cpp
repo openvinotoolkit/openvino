@@ -28,13 +28,22 @@
 using namespace ov;
 using namespace ov::pass;
 
+
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v4 = ov::op::v4;
+namespace op_util = ov::op::util;
 template <typename T>
 std::shared_ptr<Node> create_pattern() {
-    auto input = ov::pass::pattern::any_input();
-    auto first_axis = ov::pass::pattern::any_input();
-    auto reduce = ov::pass::pattern::wrap_type<T>({input, first_axis});
-    auto second_axis = ov::pass::pattern::any_input();
-    return ov::pass::pattern::wrap_type<T>({reduce, second_axis});
+    auto input = any_input();
+    auto first_axis = any_input();
+    auto reduce = wrap_type<T>({input, first_axis});
+    auto second_axis = any_input();
+    return wrap_type<T>({reduce, second_axis});
 }
 
 template <typename T>
@@ -75,20 +84,20 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
         const auto reduce_axes_node = reduce_axes_output.get_node_shared_ptr();
         const auto reduce_axes_rank = reduce_axes_output.get_partial_shape().rank();
         if (reduce_axes_rank == Dimension(0)) {
-            const auto unsqueeze_const = ov::op::v0::Constant::create(reduce_axes_node->get_element_type(), {}, {0});
-            const auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(reduce_axes_output, unsqueeze_const);
+            const auto unsqueeze_const = v0::Constant::create(reduce_axes_node->get_element_type(), {}, {0});
+            const auto unsqueeze = std::make_shared<v0::Unsqueeze>(reduce_axes_output, unsqueeze_const);
             reduce->inputs()[1].replace_source_output(unsqueeze);
             copy_runtime_info(reduce_axes_node, {unsqueeze_const, unsqueeze});
         }
         if (!dtype_match) {
-            const auto cast = std::make_shared<ov::op::v0::Convert>(reduce->input_value(1), ov::element::i64);
+            const auto cast = std::make_shared<v0::Convert>(reduce->input_value(1), ov::element::i64);
             reduce->inputs()[1].replace_source_output(cast);
             copy_runtime_info(reduce_axes_node, cast);
         }
     }
 
     std::shared_ptr<Node> axes =
-        std::make_shared<ov::op::v0::Concat>(OutputVector{top_reduce->input_value(1), bottom_reduce->input_value(1)},
+        std::make_shared<v0::Concat>(OutputVector{top_reduce->input_value(1), bottom_reduce->input_value(1)},
                                              int64_t(0));
     if (auto constant = ov::util::get_constant_from_source(axes)) {
         axes = constant;
@@ -105,15 +114,15 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
 pass::ReduceMerge::ReduceMerge() {
     MATCHER_SCOPE(ReduceMerge);
 
-    auto reducel1_pattern = create_pattern<ov::op::v4::ReduceL1>();
-    auto reducel2_pattern = create_pattern<ov::op::v4::ReduceL2>();
-    auto reduce_log_and_pattern = create_pattern<ov::op::v1::ReduceLogicalAnd>();
-    auto reduce_log_or_pattern = create_pattern<ov::op::v1::ReduceLogicalOr>();
-    auto reduce_max_pattern = create_pattern<ov::op::v1::ReduceMax>();
-    auto reduce_mean_pattern = create_pattern<ov::op::v1::ReduceMean>();
-    auto reduce_min_pattern = create_pattern<ov::op::v1::ReduceMin>();
-    auto reduce_prod_pattern = create_pattern<ov::op::v1::ReduceProd>();
-    auto reduce_sum_pattern = create_pattern<ov::op::v1::ReduceSum>();
+    auto reducel1_pattern = create_pattern<v4::ReduceL1>();
+    auto reducel2_pattern = create_pattern<v4::ReduceL2>();
+    auto reduce_log_and_pattern = create_pattern<v1::ReduceLogicalAnd>();
+    auto reduce_log_or_pattern = create_pattern<v1::ReduceLogicalOr>();
+    auto reduce_max_pattern = create_pattern<v1::ReduceMax>();
+    auto reduce_mean_pattern = create_pattern<v1::ReduceMean>();
+    auto reduce_min_pattern = create_pattern<v1::ReduceMin>();
+    auto reduce_prod_pattern = create_pattern<v1::ReduceProd>();
+    auto reduce_sum_pattern = create_pattern<v1::ReduceSum>();
 
     auto pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reducel1_pattern,
                                                                             reducel2_pattern,
@@ -125,16 +134,16 @@ pass::ReduceMerge::ReduceMerge() {
                                                                             reduce_prod_pattern,
                                                                             reduce_sum_pattern});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto node = m.get_match_root();
-        if (ov::is_type<ov::op::util::ArithmeticReductionKeepDims>(node)) {
-            return fuse_reduce_operations<ov::op::util::ArithmeticReductionKeepDims>(node);
-        } else if (ov::is_type<ov::op::util::LogicalReductionKeepDims>(node)) {
-            return fuse_reduce_operations<ov::op::util::LogicalReductionKeepDims>(node);
+        if (ov::is_type<op_util::ArithmeticReductionKeepDims>(node)) {
+            return fuse_reduce_operations<op_util::ArithmeticReductionKeepDims>(node);
+        } else if (ov::is_type<op_util::LogicalReductionKeepDims>(node)) {
+            return fuse_reduce_operations<op_util::LogicalReductionKeepDims>(node);
         } else {
             return false;
         }
     };
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(pattern, matcher_name);
     register_matcher(m, callback);
 }

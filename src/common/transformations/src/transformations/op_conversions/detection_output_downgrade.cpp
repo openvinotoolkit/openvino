@@ -14,13 +14,18 @@
 using namespace std;
 using namespace ov;
 
+
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v8 = ov::op::v8;
 pass::ConvertDetectionOutput8ToDetectionOutput1::ConvertDetectionOutput8ToDetectionOutput1() {
     MATCHER_SCOPE(ConvertDetectionOutput8ToDetectionOutput1);
 
-    auto detection_output_v8_pattern = ov::pass::pattern::wrap_type<ov::op::v8::DetectionOutput>();
+    auto detection_output_v8_pattern = ov::pass::pattern::wrap_type<v8::DetectionOutput>();
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        auto detection_output_v8_node = ov::as_type_ptr<ov::op::v8::DetectionOutput>(m.get_match_root());
+    matcher_pass_callback callback = [=](Matcher& m) {
+        auto detection_output_v8_node = ov::as_type_ptr<v8::DetectionOutput>(m.get_match_root());
         if (!detection_output_v8_node)
             return false;
         const auto& attributes_v8 = detection_output_v8_node->get_attrs();
@@ -30,7 +35,7 @@ pass::ConvertDetectionOutput8ToDetectionOutput1::ConvertDetectionOutput8ToDetect
         if (num_classes.is_dynamic())
             return false;
 
-        ov::op::v0::DetectionOutput::Attributes attributes_v1;
+        v0::DetectionOutput::Attributes attributes_v1;
         attributes_v1.background_label_id = attributes_v8.background_label_id;
         attributes_v1.clip_after_nms = attributes_v8.clip_after_nms;
         attributes_v1.clip_before_nms = attributes_v8.clip_before_nms;
@@ -48,16 +53,16 @@ pass::ConvertDetectionOutput8ToDetectionOutput1::ConvertDetectionOutput8ToDetect
         attributes_v1.top_k = attributes_v8.top_k;
         attributes_v1.variance_encoded_in_target = attributes_v8.variance_encoded_in_target;
 
-        std::shared_ptr<ov::op::v0::DetectionOutput> detection_output_v1_node = nullptr;
+        std::shared_ptr<v0::DetectionOutput> detection_output_v1_node = nullptr;
         if (detection_output_v8_node->get_input_size() == 3) {
             detection_output_v1_node =
-                make_shared<ov::op::v0::DetectionOutput>(detection_output_v8_node->input_value(0),
+                make_shared<v0::DetectionOutput>(detection_output_v8_node->input_value(0),
                                                          detection_output_v8_node->input_value(1),
                                                          detection_output_v8_node->input_value(2),
                                                          attributes_v1);
         } else if (detection_output_v8_node->get_input_size() == 5) {
             detection_output_v1_node =
-                make_shared<ov::op::v0::DetectionOutput>(detection_output_v8_node->input_value(0),
+                make_shared<v0::DetectionOutput>(detection_output_v8_node->input_value(0),
                                                          detection_output_v8_node->input_value(1),
                                                          detection_output_v8_node->input_value(2),
                                                          detection_output_v8_node->input_value(3),
@@ -73,6 +78,6 @@ pass::ConvertDetectionOutput8ToDetectionOutput1::ConvertDetectionOutput8ToDetect
         return true;
     };
 
-    auto m = make_shared<ov::pass::pattern::Matcher>(detection_output_v8_pattern, matcher_name);
+    auto m = make_shared<Matcher>(detection_output_v8_pattern, matcher_name);
     register_matcher(m, callback);
 }

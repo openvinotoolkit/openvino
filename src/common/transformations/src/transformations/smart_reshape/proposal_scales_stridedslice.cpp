@@ -16,6 +16,13 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 namespace {
 
 bool crop_scales_for_proposal(const ov::pass::pattern::PatternValueMap& pattern_to_output,
@@ -24,11 +31,11 @@ bool crop_scales_for_proposal(const ov::pass::pattern::PatternValueMap& pattern_
     const auto& parameter = pattern_to_output.at(parameter_label);
     const auto& proposal = pattern_to_output.at(proposal_label).get_node_shared_ptr();
 
-    auto cropped_scales = std::make_shared<ov::op::v1::StridedSlice>(
+    auto cropped_scales = std::make_shared<v1::StridedSlice>(
         proposal->input_value(2),
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {parameter.get_partial_shape()[1].get_length()}),
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+        v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
+        v0::Constant::create(ov::element::i64, ov::Shape{1}, {parameter.get_partial_shape()[1].get_length()}),
+        v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
         std::vector<int64_t>{0},
         std::vector<int64_t>{0});
 
@@ -41,48 +48,48 @@ bool crop_scales_for_proposal(const ov::pass::pattern::PatternValueMap& pattern_
 ov::pass::Proposal1Scales::Proposal1Scales() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(Proposal1Scales);
-    auto parameter_label = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>([](const Output<Node>& output) {
+    auto parameter_label = wrap_type<v0::Parameter>([](const Output<Node>& output) {
         const auto& shape = output.get_partial_shape();
         return shape.rank().is_static() && shape.rank().get_length() == 2 && shape[1].is_static() &&
                (shape[1].get_length() == 3 || shape[1].get_length() == 4);
     });
 
-    auto optional_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(parameter_label);
-    auto reshape_label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
-        {optional_convert, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+    auto optional_convert = ov::pass::pattern::optional<v0::Convert>(parameter_label);
+    auto reshape_label = wrap_type<v1::Reshape>(
+        {optional_convert, wrap_type<v0::Constant>()},
         [](const Output<Node>& output) {
             return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
         });
-    auto proposal_label = ov::pass::pattern::wrap_type<ov::op::v0::Proposal>(
-        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), reshape_label});
+    auto proposal_label = wrap_type<v0::Proposal>(
+        {any_input(), any_input(), reshape_label});
 
-    matcher_pass_callback callback = [parameter_label, proposal_label](ov::pass::pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [parameter_label, proposal_label](Matcher& m) -> bool {
         return crop_scales_for_proposal(m.get_pattern_value_map(), parameter_label, proposal_label);
     };
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(proposal_label /*, matcher_name */);
+    auto m = std::make_shared<Matcher>(proposal_label /*, matcher_name */);
     register_matcher(m, callback);
 }
 
 ov::pass::Proposal4Scales::Proposal4Scales() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(Proposal4Scales);
-    auto parameter_label = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>([](const Output<Node>& output) {
+    auto parameter_label = wrap_type<v0::Parameter>([](const Output<Node>& output) {
         const auto& shape = output.get_partial_shape();
         return shape.rank().is_static() && shape.rank().get_length() == 2 && shape[1].is_static() &&
                (shape[1].get_length() == 3 || shape[1].get_length() == 4);
     });
-    auto optional_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(parameter_label);
-    auto reshape_label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
-        {optional_convert, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+    auto optional_convert = ov::pass::pattern::optional<v0::Convert>(parameter_label);
+    auto reshape_label = wrap_type<v1::Reshape>(
+        {optional_convert, wrap_type<v0::Constant>()},
         [](const Output<Node>& output) {
             return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
         });
-    auto proposal_label = ov::pass::pattern::wrap_type<ov::op::v4::Proposal>(
-        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input(), reshape_label});
+    auto proposal_label = wrap_type<ov::op::v4::Proposal>(
+        {any_input(), any_input(), reshape_label});
 
-    matcher_pass_callback callback = [parameter_label, proposal_label](ov::pass::pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [parameter_label, proposal_label](Matcher& m) -> bool {
         return crop_scales_for_proposal(m.get_pattern_value_map(), parameter_label, proposal_label);
     };
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(proposal_label /*, matcher_name */);
+    auto m = std::make_shared<Matcher>(proposal_label /*, matcher_name */);
     register_matcher(m, callback);
 }

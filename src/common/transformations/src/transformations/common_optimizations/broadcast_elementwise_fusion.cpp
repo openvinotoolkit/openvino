@@ -11,12 +11,19 @@
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::Matcher;
+
+namespace v3 = ov::op::v3;
+namespace op_util = ov::op::util;
 namespace {
 
 bool can_eliminate_broadcast(const ov::Output<ov::Node>& eltwise,
                              const ov::Output<ov::Node>& eltwise_input,
                              const ov::Output<ov::Node>& broadcast) {
-    auto b = ov::as_type_ptr<ov::op::util::BinaryElementwiseArithmetic>(eltwise.get_node_shared_ptr());
+    auto b = ov::as_type_ptr<op_util::BinaryElementwiseArithmetic>(eltwise.get_node_shared_ptr());
     if (!b || b->get_autob() == ov::op::AutoBroadcastType::NONE) {
         return false;
     }
@@ -25,7 +32,7 @@ bool can_eliminate_broadcast(const ov::Output<ov::Node>& eltwise,
     // to Broadcast operation as a output shape target. In this case we can eliminate
     // Broadcast since eltwise_input will broadcast another eltwise input automatically.
     auto broadcast_input = broadcast.get_node()->get_input_node_shared_ptr(1);
-    if ((ov::is_type<ov::op::v3::ShapeOf>(broadcast_input) || ov::is_type<ov::op::v0::ShapeOf>(broadcast_input)) &&
+    if ((ov::is_type<v3::ShapeOf>(broadcast_input) || ov::is_type<ov::op::v0::ShapeOf>(broadcast_input)) &&
         broadcast_input->input_value(0) == eltwise_input) {
         return true;
     }
@@ -71,14 +78,14 @@ bool can_eliminate_broadcast(const ov::Output<ov::Node>& eltwise,
 
 ov::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     MATCHER_SCOPE(BroadcastElementwiseFusion);
-    auto broadcast_input = ov::pass::pattern::any_input();
+    auto broadcast_input = any_input();
     auto broadcast =
-        ov::pass::pattern::wrap_type<ov::op::v3::Broadcast>({broadcast_input, ov::pass::pattern::any_input()},
+        wrap_type<v3::Broadcast>({broadcast_input, any_input()},
                                                             ov::pass::pattern::consumers_count(1));
-    auto eltwise_input = ov::pass::pattern::any_input();
-    auto eltwise = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
+    auto eltwise_input = any_input();
+    auto eltwise = wrap_type<op_util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         auto& pattern_value = m.get_pattern_value_map();
 
         const auto& m_eltwise_input = pattern_value.at(eltwise_input);
@@ -97,6 +104,6 @@ ov::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
         return false;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(eltwise, matcher_name);
+    auto m = std::make_shared<Matcher>(eltwise, matcher_name);
     register_matcher(m, callback);
 }

@@ -22,12 +22,18 @@ using namespace ov;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
+
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 namespace {
 
 std::vector<size_t> get_indices_by_op_type(const std::shared_ptr<Node>& main_node) {
     if (as_type_ptr<ov::op::util::PadBase>(main_node)) {
         return {1, 2};
-    } else if (as_type_ptr<ov::op::v1::BatchToSpace>(main_node) || as_type_ptr<ov::op::v1::SpaceToBatch>(main_node)) {
+    } else if (as_type_ptr<v1::BatchToSpace>(main_node) || as_type_ptr<v1::SpaceToBatch>(main_node)) {
         return {1, 2, 3};
     } else {
         return {};
@@ -38,7 +44,7 @@ std::vector<size_t> get_indices_by_op_type(const std::shared_ptr<Node>& main_nod
 
 TSDataMovementForward::TSDataMovementForward() {
     MATCHER_SCOPE(TSDataMovementForward);
-    create_pattern<op::util::PadBase, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>(
+    create_pattern<op::util::PadBase, v1::BatchToSpace, v1::SpaceToBatch, v0::ReverseSequence>(
         {0});
 
     auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
@@ -49,7 +55,7 @@ TSDataMovementForward::TSDataMovementForward() {
 
         const auto transpose_axis_order = transpose_info.transpose_const->get_axis_vector_val();
         const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
-        auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+        auto axis = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
 
         const auto& indices = get_indices_by_op_type(main_node);
         for (const auto& idx : indices) {
@@ -57,7 +63,7 @@ TSDataMovementForward::TSDataMovementForward() {
                 ChangeValuesOrder(main_node->input_value(idx), reversed_transpose_order, axis));
         }
 
-        if (auto reverse_seq = as_type_ptr<ov::op::v0::ReverseSequence>(main_node)) {
+        if (auto reverse_seq = as_type_ptr<v0::ReverseSequence>(main_node)) {
             reverse_seq->set_batch_axis(transpose_axis_order[reverse_seq->get_batch_axis()]);
             reverse_seq->set_sequence_axis(transpose_axis_order[reverse_seq->get_sequence_axis()]);
         }
@@ -73,23 +79,23 @@ TSDataMovementBackward::TSDataMovementBackward() {
     MATCHER_SCOPE(TSDataMovementBackward);
 
     auto main_node_label = ov::pass::pattern::
-        wrap_type<op::util::PadBase, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>(
+        wrap_type<op::util::PadBase, v1::BatchToSpace, v1::SpaceToBatch, v0::ReverseSequence>(
             [](const Output<Node>& output) -> bool {
                 return ov::pass::pattern::has_static_rank()(output) && CheckTransposeConsumers(output);
             });
 
-    auto transpose_const_label = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto transpose_const_label = wrap_type<v0::Constant>();
 
     auto transpose_label =
-        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
+        wrap_type<v1::Transpose>({main_node_label, transpose_const_label},
                                                             [](const Output<Node>& output) -> bool {
                                                                 return ov::pass::pattern::has_static_rank()(output);
                                                             });
 
-    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
-            as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+            as_type_ptr<v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
         if (transformation_callback(main_node)) {
@@ -105,14 +111,14 @@ TSDataMovementBackward::TSDataMovementBackward() {
         RemoveTransposeConsumers(main_node);
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
-        auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+        auto axis = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         const auto& indices = get_indices_by_op_type(main_node);
         for (const auto& idx : indices) {
             main_node->input(idx).replace_source_output(
                 ChangeValuesOrder(main_node->input_value(idx), transpose_axis_order, axis));
         }
 
-        if (auto reverse_seq = as_type_ptr<ov::op::v0::ReverseSequence>(main_node)) {
+        if (auto reverse_seq = as_type_ptr<v0::ReverseSequence>(main_node)) {
             reverse_seq->set_batch_axis(reversed_transpose_order[reverse_seq->get_batch_axis()]);
             reverse_seq->set_sequence_axis(reversed_transpose_order[reverse_seq->get_sequence_axis()]);
         }
@@ -120,6 +126,6 @@ TSDataMovementBackward::TSDataMovementBackward() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

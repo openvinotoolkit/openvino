@@ -13,15 +13,19 @@
 
 using namespace ov::symbol::util;
 
+
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::Matcher;
 ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
     MATCHER_SCOPE(ChainedMaximumOptimization);
-    auto A_input = ov::pass::pattern::any_input();
-    auto B_input = ov::pass::pattern::any_input();
-    auto C_input = ov::pass::pattern::any_input();
-    auto first_maximum = ov::pass::pattern::wrap_type<op::v1::Maximum>({A_input, B_input});
-    auto maximum = ov::pass::pattern::wrap_type<op::v1::Maximum>({first_maximum, C_input});
+    auto A_input = any_input();
+    auto B_input = any_input();
+    auto C_input = any_input();
+    auto first_maximum = wrap_type<op::v1::Maximum>({A_input, B_input});
+    auto maximum = wrap_type<op::v1::Maximum>({first_maximum, C_input});
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& vm = m.get_pattern_value_map();
 
         auto A = vm.at(A_input), B = vm.at(B_input), C = vm.at(C_input);
@@ -45,6 +49,6 @@ ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
         return false;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(maximum, matcher_name);
+    auto m = std::make_shared<Matcher>(maximum, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

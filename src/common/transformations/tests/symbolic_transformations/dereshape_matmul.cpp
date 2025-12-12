@@ -23,6 +23,10 @@
 using namespace ov;
 using namespace std;
 
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace op_util = ov::op::util;
 namespace {
 /* Helps to organize dimension representation in the following tests:
  * 1. Creates requested amount of dimensions
@@ -41,7 +45,7 @@ public:
     explicit DimensionTestHelper(const size_t& num_dims) {
         auto dimensions = PartialShape::dynamic(Rank(num_dims));
         set_shape_symbols(dimensions);
-        parameter = make_shared<ov::op::v0::Parameter>(element::f32, dimensions);
+        parameter = make_shared<v0::Parameter>(element::f32, dimensions);
         for (size_t i = 0; i < num_dims; ++i)
             m_map[i] = {dimensions[i], op::util::node_to_get_shape_value_of_indices_from_shape_source(parameter, {i})};
     }
@@ -61,16 +65,16 @@ public:
         OutputVector sources(dims_indices.size());
         for (size_t i = 0; i < dims_indices.size(); ++i)
             sources[i] = m_map.at(dims_indices[i]).source;
-        auto concat = make_shared<ov::op::v0::Concat>(sources, 0);
-        return make_shared<ov::op::v1::Reshape>(source, concat, false);
+        auto concat = make_shared<v0::Concat>(sources, 0);
+        return make_shared<v1::Reshape>(source, concat, false);
     }
 
-    std::shared_ptr<ov::op::v0::Parameter> get_parameter() const {
+    std::shared_ptr<v0::Parameter> get_parameter() const {
         return parameter;
     }
 
 private:
-    std::shared_ptr<ov::op::v0::Parameter> parameter;
+    std::shared_ptr<v0::Parameter> parameter;
     std::map<size_t, DimensionWithOutput> m_map;
 };
 
@@ -87,14 +91,14 @@ shared_ptr<Node> reshape(const Output<Node>& source,
     OutputVector sources(dims_indices.size());
     for (size_t i = 0; i < dims_indices.size(); ++i)
         sources[i] = helper[dims_indices[i]].source;
-    auto concat = make_shared<ov::op::v0::Concat>(sources, 0);
-    return make_shared<ov::op::v1::Reshape>(source, concat, false);
+    auto concat = make_shared<v0::Concat>(sources, 0);
+    return make_shared<v1::Reshape>(source, concat, false);
 }
 
 void get_dims(const ov::Output<ov::Node>& source, const size_t& from, const size_t& to, ov::NodeVector& dims) {
     std::vector<size_t> non_constant_ids;
     for (size_t i = from; i < to; ++i) {
-        auto node = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(source, {i});
+        auto node = op_util::node_to_get_shape_value_of_indices_from_shape_source(source, {i});
         if (auto constant = ov::util::get_constant_from_source(node)) {
             node = constant;
         } else {
@@ -117,20 +121,20 @@ ov::Output<ov::Node> get_target_shape_from_sources(const ov::Output<ov::Node>& b
     size_t num_non_const_nodes = 0;  // candidates for becoming a Constant -1 -- special value for Reshape pattern
     for (size_t curr_i = 0; curr_i + 1 < dims.size(); ++curr_i) {
         auto curr_node = dims[curr_i], next_node = dims[curr_i + 1];
-        bool curr_is_const = ov::op::util::is_constant(curr_node), next_is_const = ov::op::util::is_constant(next_node);
+        bool curr_is_const = op_util::is_constant(curr_node), next_is_const = op_util::is_constant(next_node);
         if (num_non_const_nodes == 0 && !curr_is_const && next_is_const) {
-            curr_node = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+            curr_node = v0::Constant::create(ov::element::i64, {1}, {-1});
             curr_is_const = true;
             num_non_const_nodes += 1;
         }
         if (num_non_const_nodes == 0 && !next_is_const && curr_is_const) {
-            next_node = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+            next_node = v0::Constant::create(ov::element::i64, {1}, {-1});
             next_is_const = true;
             num_non_const_nodes += 1;
         }
         if (curr_is_const && next_is_const) {
             dims[curr_i] = nullptr;
-            dims[curr_i + 1] = ov::op::util::make_try_fold<ov::op::v0::Concat>(ov::NodeVector{curr_node, next_node}, 0);
+            dims[curr_i + 1] = op_util::make_try_fold<v0::Concat>(ov::NodeVector{curr_node, next_node}, 0);
         }
     }
     dims.erase(std::remove_if(dims.begin(),
@@ -139,7 +143,7 @@ ov::Output<ov::Node> get_target_shape_from_sources(const ov::Output<ov::Node>& b
                                   return node == nullptr;
                               }),
                dims.end());
-    auto target_shape = ov::op::util::make_try_fold<ov::op::v0::Concat>(dims, 0);
+    auto target_shape = op_util::make_try_fold<v0::Concat>(dims, 0);
     return target_shape->output(0);
 }
 
@@ -242,17 +246,17 @@ public:
         OutputVector outputs;
 
         // LHS input of MatMul
-        auto lhs_input = make_shared<ov::op::v0::Parameter>(element::f32, lhs_original_pshape);
+        auto lhs_input = make_shared<v0::Parameter>(element::f32, lhs_original_pshape);
         auto lhs_output = dims.make_reshape(lhs_input, lhs_reshape_idx);
 
         if (set<size_t>{10, 11, 300, 301, 310, 311}.count(concat_mode)) {
             const auto& another_pshape = make_concat_input_pshape(dims, lhs_reshape_idx);
-            const auto& another_input = make_shared<ov::op::v0::Parameter>(element::f32, another_pshape);
+            const auto& another_input = make_shared<v0::Parameter>(element::f32, another_pshape);
 
             if (set<size_t>{10, 300, 301}.count(concat_mode)) {  // reshape on 0 port
-                lhs_output = make_shared<ov::op::v0::Concat>(OutputVector{lhs_output, another_input}, -1);
+                lhs_output = make_shared<v0::Concat>(OutputVector{lhs_output, another_input}, -1);
             } else if (set<size_t>{11, 310, 311}.count(concat_mode)) {  // reshape on 1 port
-                lhs_output = make_shared<ov::op::v0::Concat>(OutputVector{another_input, lhs_output}, -1);
+                lhs_output = make_shared<v0::Concat>(OutputVector{another_input, lhs_output}, -1);
             } else {
                 ASSERT_TRUE(false) << "Unknown mode of concat: " << concat_mode;
             }
@@ -262,19 +266,19 @@ public:
 
         if (bea_scalar_mode == 1 || bea_scalar_mode == 3)
             lhs_output =
-                make_shared<ov::op::v1::Multiply>(lhs_output, ov::op::v0::Constant::create(element::f32, {}, {0.125}));
+                make_shared<v1::Multiply>(lhs_output, v0::Constant::create(element::f32, {}, {0.125}));
 
         // RHS input of MatMul
-        auto rhs_input = make_shared<ov::op::v0::Parameter>(element::f32, rhs_original_pshape);
+        auto rhs_input = make_shared<v0::Parameter>(element::f32, rhs_original_pshape);
         auto rhs_output = dims.make_reshape(rhs_input, rhs_reshape_idx);
 
         if (set<size_t>{20, 21, 300, 301, 310, 311}.count(concat_mode)) {
             const auto& another_pshape = make_concat_input_pshape(dims, rhs_reshape_idx);
-            const auto& another_input = make_shared<ov::op::v0::Parameter>(element::f32, another_pshape);
+            const auto& another_input = make_shared<v0::Parameter>(element::f32, another_pshape);
             if (set<size_t>{20, 300, 310}.count(concat_mode)) {  // reshape on 0 port
-                rhs_output = make_shared<ov::op::v0::Concat>(OutputVector{rhs_output, another_input}, -1);
+                rhs_output = make_shared<v0::Concat>(OutputVector{rhs_output, another_input}, -1);
             } else if (set<size_t>{21, 301, 311}.count(concat_mode)) {  // reshape on 1 port
-                rhs_output = make_shared<ov::op::v0::Concat>(OutputVector{another_input, rhs_output}, -1);
+                rhs_output = make_shared<v0::Concat>(OutputVector{another_input, rhs_output}, -1);
             } else {
                 ASSERT_TRUE(false) << "Unknown mode of concat: " << concat_mode;
             }
@@ -284,17 +288,17 @@ public:
 
         if (bea_scalar_mode == 2 || bea_scalar_mode == 3)
             rhs_output =
-                make_shared<ov::op::v1::Multiply>(rhs_output, ov::op::v0::Constant::create(element::f32, {}, {0.125}));
+                make_shared<v1::Multiply>(rhs_output, v0::Constant::create(element::f32, {}, {0.125}));
 
-        Output<Node> matmul = make_shared<ov::op::v0::MatMul>(lhs_output, rhs_output);
+        Output<Node> matmul = make_shared<v0::MatMul>(lhs_output, rhs_output);
 
         if (final_add_mode == 1)  // 1 - add has matmul on lhs
-            matmul = make_shared<ov::op::v1::Add>(
+            matmul = make_shared<v1::Add>(
                 matmul,
-                ov::op::v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}));
+                v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}));
         else if (final_add_mode == 2)  // 2 - add has matmul on rhs
-            matmul = make_shared<ov::op::v1::Add>(
-                ov::op::v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}),
+            matmul = make_shared<v1::Add>(
+                v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}),
                 matmul);
 
         auto output_reshape = reshape(matmul, out_reshape_idx, dims);
@@ -305,10 +309,10 @@ public:
         outputs.emplace_back(output_reshape);
 
         for (auto& output : outputs)
-            output = std::make_shared<ov::op::v1::Reshape>(output,
-                                                           ov::op::v0::Constant::create(element::i32, {1}, {-1}),
+            output = std::make_shared<v1::Reshape>(output,
+                                                           v0::Constant::create(element::i32, {1}, {-1}),
                                                            false);
-        auto output = make_shared<ov::op::v0::Concat>(outputs, 0);
+        auto output = make_shared<v0::Concat>(outputs, 0);
         model = make_shared<Model>(output, inputs, "Tested model");
     }
 
@@ -324,26 +328,26 @@ public:
         OutputVector outputs;
 
         // LHS input of MatMul
-        auto lhs_input = make_shared<ov::op::v0::Parameter>(element::f32, lhs_original_pshape);
+        auto lhs_input = make_shared<v0::Parameter>(element::f32, lhs_original_pshape);
         auto lhs_output = lhs_input->output(0);
 
         if (set<size_t>{10, 11, 300, 301, 310, 311}.count(concat_mode)) {
             const auto& another_pshape = make_concat_input_pshape(dims, lhs_reshape_idx);
-            const auto& another_input = make_shared<ov::op::v0::Parameter>(element::f32, another_pshape);
+            const auto& another_input = make_shared<v0::Parameter>(element::f32, another_pshape);
 
             auto target_shape_of_input = get_target_shape_from_sources(lhs_output, another_input);
-            auto input_reshape = make_shared<ov::op::v1::Reshape>(another_input, target_shape_of_input, false);
+            auto input_reshape = make_shared<v1::Reshape>(another_input, target_shape_of_input, false);
 
             if (set<size_t>{10, 300, 301}.count(concat_mode)) {  // reshape on 0 port
-                lhs_output = make_shared<ov::op::v0::Concat>(OutputVector{lhs_output, input_reshape}, -1);
+                lhs_output = make_shared<v0::Concat>(OutputVector{lhs_output, input_reshape}, -1);
             } else if (set<size_t>{11, 310, 311}.count(concat_mode)) {  // reshape on 1 port
-                lhs_output = make_shared<ov::op::v0::Concat>(OutputVector{input_reshape, lhs_output}, -1);
+                lhs_output = make_shared<v0::Concat>(OutputVector{input_reshape, lhs_output}, -1);
             } else {
                 ASSERT_TRUE(false) << "Unknown mode of concat: " << concat_mode;
             }
 
             auto target_shape_of_output = get_target_shape_from_sources(input_reshape->input_value(0), lhs_output);
-            auto output_reshape = make_shared<ov::op::v1::Reshape>(lhs_output, target_shape_of_output, false);
+            auto output_reshape = make_shared<v1::Reshape>(lhs_output, target_shape_of_output, false);
 
             inputs.push_back(another_input);
             outputs.emplace_back(output_reshape);
@@ -351,28 +355,28 @@ public:
 
         if (bea_scalar_mode == 1 || bea_scalar_mode == 3)
             lhs_output =
-                make_shared<ov::op::v1::Multiply>(lhs_output, ov::op::v0::Constant::create(element::f32, {}, {0.125}));
+                make_shared<v1::Multiply>(lhs_output, v0::Constant::create(element::f32, {}, {0.125}));
 
         // RHS input of MatMul
-        auto rhs_input = make_shared<ov::op::v0::Parameter>(element::f32, rhs_original_pshape);
+        auto rhs_input = make_shared<v0::Parameter>(element::f32, rhs_original_pshape);
         auto rhs_output = rhs_input->output(0);
 
         if (set<size_t>{20, 21, 300, 301, 310, 311}.count(concat_mode)) {
             const auto& another_pshape = make_concat_input_pshape(dims, rhs_reshape_idx);
-            const auto& another_input = make_shared<ov::op::v0::Parameter>(element::f32, another_pshape);
+            const auto& another_input = make_shared<v0::Parameter>(element::f32, another_pshape);
 
             auto target_shape_of_input = get_target_shape_from_sources(rhs_output, another_input);
-            auto input_reshape = make_shared<ov::op::v1::Reshape>(another_input, target_shape_of_input, false);
+            auto input_reshape = make_shared<v1::Reshape>(another_input, target_shape_of_input, false);
 
             if (set<size_t>{20, 300, 310}.count(concat_mode)) {  // reshape on 0 port
-                rhs_output = make_shared<ov::op::v0::Concat>(OutputVector{rhs_output, input_reshape}, -1);
+                rhs_output = make_shared<v0::Concat>(OutputVector{rhs_output, input_reshape}, -1);
             } else if (set<size_t>{21, 301, 311}.count(concat_mode)) {  // reshape on 1 port
-                rhs_output = make_shared<ov::op::v0::Concat>(OutputVector{input_reshape, rhs_output}, -1);
+                rhs_output = make_shared<v0::Concat>(OutputVector{input_reshape, rhs_output}, -1);
             } else {
                 ASSERT_TRUE(false) << "Unknown mode of concat: " << concat_mode;
             }
             auto target_shape_of_output = get_target_shape_from_sources(input_reshape->input_value(0), rhs_output);
-            auto output_reshape = make_shared<ov::op::v1::Reshape>(rhs_output, target_shape_of_output, false);
+            auto output_reshape = make_shared<v1::Reshape>(rhs_output, target_shape_of_output, false);
 
             inputs.push_back(another_input);
             outputs.emplace_back(output_reshape);
@@ -380,28 +384,28 @@ public:
 
         if (bea_scalar_mode == 2 || bea_scalar_mode == 3)
             rhs_output =
-                make_shared<ov::op::v1::Multiply>(rhs_output, ov::op::v0::Constant::create(element::f32, {}, {0.125}));
+                make_shared<v1::Multiply>(rhs_output, v0::Constant::create(element::f32, {}, {0.125}));
 
-        Output<Node> matmul = make_shared<ov::op::v0::MatMul>(lhs_output, rhs_output);
+        Output<Node> matmul = make_shared<v0::MatMul>(lhs_output, rhs_output);
 
         if (final_add_mode > 0) {
             const auto original_add_in =
-                ov::op::v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1});
-            auto divisor = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(lhs_input, {1});
+                v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1});
+            auto divisor = op_util::node_to_get_shape_value_of_indices_from_shape_source(lhs_input, {1});
             auto first_batch_dim =
-                std::make_shared<ov::op::v1::Divide>(ov::op::v0::Constant::create(element::i64, {1}, {1}),
+                std::make_shared<v1::Divide>(v0::Constant::create(element::i64, {1}, {1}),
                                                      divisor,
                                                      true);
-            auto minus_one = ov::op::v0::Constant::create(element::i64, {1}, {-1});
-            auto non_batch_dims = ov::op::v0::Constant::create(element::i64, {2}, {1, 1});
+            auto minus_one = v0::Constant::create(element::i64, {1}, {-1});
+            auto non_batch_dims = v0::Constant::create(element::i64, {2}, {1, 1});
             auto pattern =
-                std::make_shared<ov::op::v0::Concat>(OutputVector{first_batch_dim, minus_one, non_batch_dims}, 0);
-            auto other_input_reshape = op::util::make_try_fold<ov::op::v1::Reshape>(original_add_in, pattern, true);
+                std::make_shared<v0::Concat>(OutputVector{first_batch_dim, minus_one, non_batch_dims}, 0);
+            auto other_input_reshape = op::util::make_try_fold<v1::Reshape>(original_add_in, pattern, true);
 
             if (final_add_mode == 1) {  // 1 - add has matmul on lhs
-                matmul = make_shared<ov::op::v1::Add>(matmul, other_input_reshape);
+                matmul = make_shared<v1::Add>(matmul, other_input_reshape);
             } else if (final_add_mode == 2) {  // 2 - add has matmul on rhs
-                matmul = make_shared<ov::op::v1::Add>(other_input_reshape, matmul);
+                matmul = make_shared<v1::Add>(other_input_reshape, matmul);
             }
         }
         inputs.push_back(dims.get_parameter());
@@ -410,10 +414,10 @@ public:
         outputs.emplace_back(matmul);
 
         for (auto& output : outputs)
-            output = std::make_shared<ov::op::v1::Reshape>(output,
-                                                           ov::op::v0::Constant::create(element::i32, {1}, {-1}),
+            output = std::make_shared<v1::Reshape>(output,
+                                                           v0::Constant::create(element::i32, {1}, {-1}),
                                                            false);
-        auto output = make_shared<ov::op::v0::Concat>(outputs, 0);
+        auto output = make_shared<v0::Concat>(outputs, 0);
 
         model_ref = make_shared<Model>(output, inputs, "Reference model");
     }

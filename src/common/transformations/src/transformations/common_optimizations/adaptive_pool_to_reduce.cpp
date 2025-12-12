@@ -16,17 +16,24 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v8 = ov::op::v8;
 ov::pass::AdaptivePoolToReduce::AdaptivePoolToReduce() {
     MATCHER_SCOPE(AdaptivePoolToReduce);
     auto data_pattern = ov::pass::pattern::any_input();
-    auto out_spatial_shape = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto a_pool = ov::pass::pattern::wrap_type<ov::op::v8::AdaptiveAvgPool, ov::op::v8::AdaptiveMaxPool>(
+    auto out_spatial_shape = wrap_type<v0::Constant>();
+    auto a_pool = wrap_type<v8::AdaptiveAvgPool, v8::AdaptiveMaxPool>(
         {data_pattern, out_spatial_shape});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
 
-        const auto& spatial_shape_c = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(out_spatial_shape));
+        const auto& spatial_shape_c = ov::as_type_ptr<v0::Constant>(pattern_map.at(out_spatial_shape));
         auto spatial_shape = spatial_shape_c->cast_vector<int64_t>();
         // Verify that all dimensions in adaptive pool shape are 1
         for (auto& s : spatial_shape) {
@@ -36,17 +43,17 @@ ov::pass::AdaptivePoolToReduce::AdaptivePoolToReduce() {
 
         auto axes = std::vector<int64_t>(spatial_shape.size(), 0);
         std::iota(axes.begin(), axes.end(), 2);
-        auto axes_const = ov::op::v0::Constant::create(element::i64, {spatial_shape.size()}, axes);
+        auto axes_const = v0::Constant::create(element::i64, {spatial_shape.size()}, axes);
         const auto adaptive_pool = pattern_map.at(a_pool);
         std::shared_ptr<Node> res_node;
-        if (ov::as_type_ptr<ov::op::v8::AdaptiveAvgPool>(adaptive_pool)) {
-            res_node = std::make_shared<ov::op::v1::ReduceMean>(adaptive_pool->input_value(0), axes_const, true);
-        } else if (ov::as_type_ptr<ov::op::v8::AdaptiveMaxPool>(adaptive_pool)) {
+        if (ov::as_type_ptr<v8::AdaptiveAvgPool>(adaptive_pool)) {
+            res_node = std::make_shared<v1::ReduceMean>(adaptive_pool->input_value(0), axes_const, true);
+        } else if (ov::as_type_ptr<v8::AdaptiveMaxPool>(adaptive_pool)) {
             if (adaptive_pool->outputs().size() > 1 && adaptive_pool->output(1).get_target_inputs().size() != 0) {
                 // If indexes are used we can't replace it
                 return false;
             }
-            res_node = std::make_shared<ov::op::v1::ReduceMax>(adaptive_pool->input_value(0), axes_const, true);
+            res_node = std::make_shared<v1::ReduceMax>(adaptive_pool->input_value(0), axes_const, true);
         } else {
             return false;
         }
@@ -56,6 +63,6 @@ ov::pass::AdaptivePoolToReduce::AdaptivePoolToReduce() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(a_pool, matcher_name);
+    auto m = std::make_shared<Matcher>(a_pool, matcher_name);
     this->register_matcher(m, callback);
 }

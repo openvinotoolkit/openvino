@@ -21,20 +21,26 @@
 
 using namespace ov;
 
+
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 ov::pass::TransposeToReshape::TransposeToReshape() {
     MATCHER_SCOPE(TransposeToReshape);
 
-    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>(
+    auto transpose_label = wrap_type<v1::Transpose>(
         {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
-         ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
-    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+         wrap_type<v0::Constant>()});
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto transpose = m.get_match_root();
         auto data = transpose->input_value(0);
         const auto input_shape = transpose->input(0).get_partial_shape();
 
         const size_t input_shape_rank = input_shape.rank().get_length();
 
-        auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
+        auto order = ov::as_type_ptr<v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
         if (!order || !ov::shape_size(order->get_shape())) {
             return false;
         }
@@ -92,18 +98,18 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
             for (const auto& item : dims) {
                 reshape_value[item.pos] = item.dim.is_dynamic() ? -1 : item.dim.get_length();
             }
-            reshape_dim = ov::op::v0::Constant::create(element::i64, Shape{reshape_value.size()}, reshape_value);
+            reshape_dim = v0::Constant::create(element::i64, Shape{reshape_value.size()}, reshape_value);
         } else {
             auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
             new_ops.push_back(shape_of);
             reshape_dim =
-                std::make_shared<ov::op::v1::Gather>(shape_of,
+                std::make_shared<v1::Gather>(shape_of,
                                                      order,
-                                                     ov::op::v0::Constant::create(element::i64, Shape{1}, {0}));
+                                                     v0::Constant::create(element::i64, Shape{1}, {0}));
             new_ops.push_back(reshape_dim.get_node_shared_ptr());
         }
 
-        auto reshape_op = register_new_node<ov::op::v1::Reshape>(data, reshape_dim, true);
+        auto reshape_op = register_new_node<v1::Reshape>(data, reshape_dim, true);
         new_ops.push_back(reshape_op);
 
         reshape_op->set_friendly_name(transpose->get_friendly_name());
@@ -112,6 +118,6 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

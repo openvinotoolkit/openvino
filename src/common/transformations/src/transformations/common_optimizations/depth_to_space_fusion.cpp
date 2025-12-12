@@ -17,6 +17,15 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::consumers_count;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace op_util = ov::op::util;
 namespace {
 bool check_block_first(const ov::PartialShape& shape_input,
                        const ov::PartialShape& shape_reshape_before,
@@ -41,7 +50,7 @@ bool check_block_first(const ov::PartialShape& shape_input,
     for (int i = 2; i < input_rank.get_length(); ++i)
         expected_shape.push_back(shape_input[i]);
 
-    if (!ov::op::util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_before)) {
+    if (!op_util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_before)) {
         return false;
     }
 
@@ -62,7 +71,7 @@ bool check_block_first(const ov::PartialShape& shape_input,
     for (int i = 2; i < input_rank.get_length(); ++i)
         expected_shape.push_back(shape_input[i] * possible_block_size);
 
-    if (!ov::op::util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_after)) {
+    if (!op_util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_after)) {
         return false;
     }
 
@@ -90,7 +99,7 @@ bool check_depth_first(const ov::PartialShape& shape_input,
     for (int i = 2; i < input_rank.get_length(); ++i)
         expected_shape.push_back(shape_input[i]);
 
-    if (!ov::op::util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_before)) {
+    if (!op_util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_before)) {
         return false;
     }
 
@@ -110,7 +119,7 @@ bool check_depth_first(const ov::PartialShape& shape_input,
     for (int i = 2; i < input_rank.get_length(); ++i)
         expected_shape.push_back(shape_input[i] * possible_block_size);
 
-    if (!ov::op::util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_after)) {
+    if (!op_util::shapes_equal_except_dynamic_expected_batch(expected_shape, shape_reshape_after)) {
         return false;
     }
 
@@ -121,28 +130,28 @@ bool check_depth_first(const ov::PartialShape& shape_input,
 
 ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
     MATCHER_SCOPE(DepthToSpaceFusion);
-    auto input0 = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(4));
-    auto input1 = ov::pass::pattern::any_input();
-    auto input2 = ov::pass::pattern::any_input();
-    auto input3 = ov::pass::pattern::any_input();
+    auto input0 = any_input(ov::pass::pattern::rank_equals(4));
+    auto input1 = any_input();
+    auto input2 = any_input();
+    auto input3 = any_input();
     auto reshape_before =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({input0, input1}, ov::pass::pattern::consumers_count(1));
-    auto permute = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({reshape_before, input2},
-                                                                       ov::pass::pattern::consumers_count(1));
-    auto reshape_after = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({permute, input3});
+        wrap_type<v1::Reshape>({input0, input1}, consumers_count(1));
+    auto permute = wrap_type<v1::Transpose>({reshape_before, input2},
+                                                                       consumers_count(1));
+    auto reshape_after = wrap_type<v1::Reshape>({permute, input3});
 
-    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto reshape_after = ov::as_type_ptr<ov::op::v1::Reshape>(m.get_match_root());
+    ov::matcher_pass_callback callback = [](Matcher& m) {
+        auto reshape_after = ov::as_type_ptr<v1::Reshape>(m.get_match_root());
         if (!reshape_after) {
             return false;
         }
 
-        auto permute = ov::as_type_ptr<ov::op::v1::Transpose>(reshape_after->get_input_node_shared_ptr(0));
+        auto permute = ov::as_type_ptr<v1::Transpose>(reshape_after->get_input_node_shared_ptr(0));
         if (!permute) {
             return false;
         }
 
-        auto reshape_before = ov::as_type_ptr<ov::op::v1::Reshape>(permute->get_input_node_shared_ptr(0));
+        auto reshape_before = ov::as_type_ptr<v1::Reshape>(permute->get_input_node_shared_ptr(0));
         if (!reshape_before) {
             return false;
         }
@@ -173,34 +182,34 @@ ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
         }
 
         ov::AxisVector permutation;
-        if (auto input_const = ov::as_type_ptr<ov::op::v0::Constant>(permute->get_input_node_shared_ptr(1))) {
+        if (auto input_const = ov::as_type_ptr<v0::Constant>(permute->get_input_node_shared_ptr(1))) {
             permutation = input_const->get_axis_vector_val();
         } else {
             return false;
         }
 
-        ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
+        v0::DepthToSpace::DepthToSpaceMode mode;
         size_t block_size;
         if (check_depth_first(p_shape_input, p_shape_reshape_before, permutation, p_shape_reshape_after, block_size)) {
-            mode = ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST;
+            mode = v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST;
         } else if (check_block_first(p_shape_input,
                                      p_shape_reshape_before,
                                      permutation,
                                      p_shape_reshape_after,
                                      block_size)) {
-            mode = ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
+            mode = v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
         } else {
             return false;
         }
 
         auto depth_to_space =
-            std::make_shared<ov::op::v0::DepthToSpace>(reshape_before->input_value(0), mode, block_size);
+            std::make_shared<v0::DepthToSpace>(reshape_before->input_value(0), mode, block_size);
         depth_to_space->set_friendly_name(reshape_after->get_friendly_name());
         ov::copy_runtime_info({reshape_before, permute, reshape_after}, depth_to_space);
         ov::replace_node(reshape_after, depth_to_space);
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_after, matcher_name);
+    auto m = std::make_shared<Matcher>(reshape_after, matcher_name);
     register_matcher(m, callback);
 }

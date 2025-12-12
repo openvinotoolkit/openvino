@@ -37,6 +37,9 @@
 using namespace ov;
 using namespace testing;
 
+
+namespace v0 = ov::op::v0;
+namespace v8 = ov::op::v8;
 TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion_Negative1) {
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
@@ -1042,11 +1045,11 @@ ov::Output<ov::Node> make_slice(const ov::Output<ov::Node>& out,
                                 const int64_t& step,
                                 const int64_t& axis,
                                 element::Type et = element::i64) {
-    return std::make_shared<ov::op::v8::Slice>(out,
-                                               ov::op::v0::Constant::create(et, ov::Shape{1}, {start}),
-                                               ov::op::v0::Constant::create(et, ov::Shape{1}, {stop}),
-                                               ov::op::v0::Constant::create(et, ov::Shape{1}, {step}),
-                                               ov::op::v0::Constant::create(et, ov::Shape{1}, {axis}));
+    return std::make_shared<v8::Slice>(out,
+                                               v0::Constant::create(et, ov::Shape{1}, {start}),
+                                               v0::Constant::create(et, ov::Shape{1}, {stop}),
+                                               v0::Constant::create(et, ov::Shape{1}, {step}),
+                                               v0::Constant::create(et, ov::Shape{1}, {axis}));
 }
 
 ov::OutputVector make_vsplit(const ov::Output<ov::Node>& out,
@@ -1054,8 +1057,8 @@ ov::OutputVector make_vsplit(const ov::Output<ov::Node>& out,
                              const std::vector<int64_t>& split_length) {
     return std::make_shared<ov::op::v1::VariadicSplit>(
                out,
-               ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {axis}),
-               ov::op::v0::Constant::create(ov::element::i64, ov::Shape{split_length.size()}, split_length))
+               v0::Constant::create(ov::element::i64, ov::Shape{}, {axis}),
+               v0::Constant::create(ov::element::i64, ov::Shape{split_length.size()}, split_length))
         ->outputs();
 }
 
@@ -1068,7 +1071,7 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplit) {
         auto slice_1 = make_slice(relu, 1, 2, 1, 1);
         auto slice_2 = make_slice(relu, 2, 7, 1, 1);
 
-        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{slice_0, slice_2, slice_1}, 1);
+        auto concat = std::make_shared<v0::Concat>(ov::OutputVector{slice_0, slice_2, slice_1}, 1);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{data});
         manager.register_pass<ov::pass::GroupedSliceToVSplitOptimization>();
@@ -1079,7 +1082,7 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplit) {
 
         auto vsplit = make_vsplit(relu, 1, {1, 1, 1});
 
-        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{vsplit[0], vsplit[2], vsplit[1]}, 1);
+        auto concat = std::make_shared<v0::Concat>(ov::OutputVector{vsplit[0], vsplit[2], vsplit[1]}, 1);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{data});
     }
@@ -1109,7 +1112,7 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplitChained) {
         auto slice_2_0_0 = make_slice(slice_2, 0, 3, 1, 1);  // negative case as slices overlap
         auto slice_2_1_0 = make_slice(slice_2, 2, 10, 1, 1);
 
-        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{slice_0,
+        auto concat = std::make_shared<v0::Concat>(ov::OutputVector{slice_0,
                                                                             slice_2,
                                                                             slice_1,
                                                                             slice_0_0,
@@ -1153,7 +1156,7 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplitChained) {
         auto slice_2_0_0 = make_slice(slice_2, 0, 3, 1, 1);  // negative case as slices overlap
         auto slice_2_1_0 = make_slice(slice_2, 2, 10, 1, 1);
 
-        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{slice_0,
+        auto concat = std::make_shared<v0::Concat>(ov::OutputVector{slice_0,
                                                                             slice_2,
                                                                             slice_1,
                                                                             slice_0_0,
@@ -1184,10 +1187,10 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplitSameSourceDifferentAxis) {
         auto slice_2 = make_slice(relu, 0, 5, 1, -2);
         auto slice_3 = make_slice(relu, 5, 10, 1, 2);
 
-        auto concat_0 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{slice_1, slice_0}, 1);
-        auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{slice_2, slice_3}, 2);
+        auto concat_0 = std::make_shared<v0::Concat>(ov::OutputVector{slice_1, slice_0}, 1);
+        auto concat_1 = std::make_shared<v0::Concat>(ov::OutputVector{slice_2, slice_3}, 2);
 
-        auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{concat_0, concat_1}, 0);
+        auto concat_2 = std::make_shared<v0::Concat>(ov::OutputVector{concat_0, concat_1}, 0);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{concat_2}, ov::ParameterVector{data});
         manager.register_pass<ov::pass::GroupedSliceToVSplitOptimization>();
@@ -1204,10 +1207,10 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplitSameSourceDifferentAxis) {
         auto slice_2 = vsplit_1[0];
         auto slice_3 = vsplit_1[1];
 
-        auto concat_0 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{slice_1, slice_0}, 1);
-        auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{slice_2, slice_3}, 2);
+        auto concat_0 = std::make_shared<v0::Concat>(ov::OutputVector{slice_1, slice_0}, 1);
+        auto concat_1 = std::make_shared<v0::Concat>(ov::OutputVector{slice_2, slice_3}, 2);
 
-        auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{concat_0, concat_1}, 0);
+        auto concat_2 = std::make_shared<v0::Concat>(ov::OutputVector{concat_0, concat_1}, 0);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{concat_2}, ov::ParameterVector{data});
     }
@@ -1222,7 +1225,7 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplitNegativeStartStop) {
         auto slice_1 = make_slice(relu, -4, -2, 1, 1);
         auto slice_2 = make_slice(relu, -2, INT32_MAX, 1, 1);
 
-        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{slice_0, slice_2, slice_1}, 1);
+        auto concat = std::make_shared<v0::Concat>(ov::OutputVector{slice_0, slice_2, slice_1}, 1);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{data});
         manager.register_pass<ov::pass::GroupedSliceToVSplitOptimization>();
@@ -1233,7 +1236,7 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplitNegativeStartStop) {
 
         auto vsplit = make_vsplit(relu, 1, {1, 2, 2});
 
-        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{vsplit[0], vsplit[2], vsplit[1]}, 1);
+        auto concat = std::make_shared<v0::Concat>(ov::OutputVector{vsplit[0], vsplit[2], vsplit[1]}, 1);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{data});
     }
@@ -1254,12 +1257,12 @@ TEST_F(TransformationTestsF, SliceSequenceToSingleSlice) {
     }
     {
         auto data = std::make_shared<ov::opset8::Parameter>(data_type, data_pshape);
-        auto slice = std::make_shared<ov::op::v8::Slice>(
+        auto slice = std::make_shared<v8::Slice>(
             data,
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, -1, -7}),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {10, 1, INT32_MAX}),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, -1, 2}),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 1, 3}));
+            v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, -1, -7}),
+            v0::Constant::create(ov::element::i64, ov::Shape{3}, {10, 1, INT32_MAX}),
+            v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, -1, 2}),
+            v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 1, 3}));
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{slice}, ov::ParameterVector{data});
     }
 }
@@ -1274,25 +1277,25 @@ TEST_F(TransformationTestsF, SliceSequenceToSingleSliceStartAsParameter) {
         auto start_1 = std::make_shared<ov::opset8::Parameter>(element::i64, ov::PartialShape{1});
         auto start_2 = std::make_shared<ov::opset8::Parameter>(element::i64, ov::PartialShape{1});
         auto slice_0 =
-            std::make_shared<ov::op::v8::Slice>(data,
+            std::make_shared<v8::Slice>(data,
                                                 start_0,
-                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {10}),
-                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
-                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+                                                v0::Constant::create(ov::element::i64, ov::Shape{1}, {10}),
+                                                v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+                                                v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
 
         auto slice_1 =
-            std::make_shared<ov::op::v8::Slice>(slice_0,
+            std::make_shared<v8::Slice>(slice_0,
                                                 start_1,
-                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
-                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}),
-                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+                                                v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+                                                v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}),
+                                                v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
 
-        auto slice_2 = std::make_shared<ov::op::v8::Slice>(
+        auto slice_2 = std::make_shared<v8::Slice>(
             slice_1,
             start_2,
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {INT32_MAX}),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}));
+            v0::Constant::create(ov::element::i64, ov::Shape{1}, {INT32_MAX}),
+            v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}),
+            v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}));
 
         model = std::make_shared<ov::Model>(ov::OutputVector{slice_2},
                                             ov::ParameterVector{data, start_0, start_1, start_2});
@@ -1305,12 +1308,12 @@ TEST_F(TransformationTestsF, SliceSequenceToSingleSliceStartAsParameter) {
         auto start_2 = std::make_shared<ov::opset8::Parameter>(element::i64, ov::PartialShape{1});
         auto concat_0_1 = std::make_shared<ov::opset8::Concat>(OutputVector{start_0, start_1}, 0);
         auto concat_1_2 = std::make_shared<ov::opset8::Concat>(OutputVector{concat_0_1, start_2}, 0);
-        auto slice = std::make_shared<ov::op::v8::Slice>(
+        auto slice = std::make_shared<v8::Slice>(
             data,
             concat_1_2,
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {10, 1, INT32_MAX}),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, -1, 2}),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 1, 3}));
+            v0::Constant::create(ov::element::i64, ov::Shape{3}, {10, 1, INT32_MAX}),
+            v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, -1, 2}),
+            v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 1, 3}));
         model_ref =
             std::make_shared<ov::Model>(ov::OutputVector{slice}, ov::ParameterVector{data, start_0, start_1, start_2});
     }
@@ -1320,7 +1323,7 @@ TEST_F(TransformationTestsF, SliceSequenceToSingleSliceMixedTypes) {
     auto data_pshape = ov::PartialShape{10, 5, 5, 10};
     auto data_type = ov::element::f32;
     {
-        auto data = std::make_shared<ov::op::v0::Parameter>(data_type, data_pshape);
+        auto data = std::make_shared<v0::Parameter>(data_type, data_pshape);
 
         auto slice_0 = make_slice(data, 1, 10, 1, 0);
         auto slice_1 = make_slice(slice_0, -1, 1, -1, 1, element::i32);
@@ -1330,13 +1333,13 @@ TEST_F(TransformationTestsF, SliceSequenceToSingleSliceMixedTypes) {
         manager.register_pass<ov::pass::SliceSequenceToSingleSlice>();
     }
     {
-        auto data = std::make_shared<ov::op::v0::Parameter>(data_type, data_pshape);
-        auto slice = std::make_shared<ov::op::v8::Slice>(
+        auto data = std::make_shared<v0::Parameter>(data_type, data_pshape);
+        auto slice = std::make_shared<v8::Slice>(
             data,
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, -1, -7}),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {10, 1, INT32_MAX}),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, -1, 2}),
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 1, 3}));
+            v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, -1, -7}),
+            v0::Constant::create(ov::element::i64, ov::Shape{3}, {10, 1, INT32_MAX}),
+            v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, -1, 2}),
+            v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 1, 3}));
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{slice}, ov::ParameterVector{data});
     }
 }

@@ -19,22 +19,28 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::Matcher;
+
+namespace op_util = ov::op::util;
 ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
     MATCHER_SCOPE(ReduceReshapeFusion);
 
-    const auto reduce_axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto reduce_axes = wrap_type<ov::op::v0::Constant>();
     const auto reduce =
-        ov::pass::pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims, ov::op::util::LogicalReductionKeepDims>(
-            {ov::pass::pattern::any_input(), reduce_axes},
+        wrap_type<op_util::ArithmeticReductionKeepDims, op_util::LogicalReductionKeepDims>(
+            {any_input(), reduce_axes},
             ov::pass::pattern::consumers_count(1));
-    const auto reshape = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reduce, ov::pass::pattern::any_input()},
+    const auto reshape = wrap_type<ov::op::v1::Reshape>({reduce, any_input()},
                                                                            ov::pass::pattern::has_static_shape());
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
         const auto reduce_node =
-            ov::as_type_ptr<ov::op::util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
+            ov::as_type_ptr<op_util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
         if (!reduce_node) {
             return false;
         }
@@ -59,9 +65,9 @@ ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
             return false;
         }
 
-        if (auto arithmetic_reduce_node = ov::as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)) {
+        if (auto arithmetic_reduce_node = ov::as_type_ptr<op_util::ArithmeticReductionKeepDims>(reduce_node)) {
             arithmetic_reduce_node->set_keep_dims(true);
-        } else if (auto logical_reduce_node = ov::as_type_ptr<ov::op::util::LogicalReductionKeepDims>(reduce_node)) {
+        } else if (auto logical_reduce_node = ov::as_type_ptr<op_util::LogicalReductionKeepDims>(reduce_node)) {
             logical_reduce_node->set_keep_dims(true);
         }
         reduce_node->validate_and_infer_types();
@@ -72,6 +78,6 @@ ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape, matcher_name);
+    auto m = std::make_shared<Matcher>(reshape, matcher_name);
     register_matcher(m, callback);
 }
