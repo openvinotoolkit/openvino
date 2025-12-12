@@ -215,12 +215,14 @@ jobs:
       - name: Build Python API and wheels
         if: ${{ inputs.build-additional-python-packages }}
         run: |
-          for py_version in "3.10" "3.11" "3.12" "3.13"
+          for py_version in "3.10" "3.11" "3.12" "3.13" "3.14" "3.14t"
           do
+            echo "Building Python API and wheels for Python ${py_version}"
             export PY_BUILD_DIR=${{ github.workspace }}/py$py_version
             mkdir -p $PY_BUILD_DIR
           
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
+            echo "Using Python executable at: ${python_exec_path}"
           
             $python_exec_path -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
             

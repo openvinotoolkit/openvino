@@ -232,10 +232,24 @@ jobs:
           version: "3.12"
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
+      
+      - name: Setup Python 3.13
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: "3.13"
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+      
+      - name: Setup Python 3.14
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: "3.14"
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Build additional Python wheels
         run: |
-          for py_version in "3.10" "3.11" "3.12"
+          for py_version in "3.10" "3.11" "3.12" "3.13" "3.14"
           do
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
             $python_exec_path -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
