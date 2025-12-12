@@ -18,6 +18,13 @@
 using namespace std;
 using namespace ov;
 using namespace ov::element;
+
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v5 = ov::op::v5;
+namespace op_util = ov::op::util;
+
 using InvariantD = op_util::MultiSubGraphOp::InvariantInputDescription;
 using SlicedD = op_util::MultiSubGraphOp::SliceInputDescription;
 using MergedD = op_util::MultiSubGraphOp::MergedInputDescription;
@@ -29,12 +36,6 @@ using OutputDescPtr = op_util::MultiSubGraphOp::OutputDescription::Ptr;
 using OutputDescMap = std::unordered_map<ResultPtr, OutputDescPtr>;
 using InputDescPtr = op_util::MultiSubGraphOp::InputDescription::Ptr;
 using BodyResultIdxMap = std::unordered_map<ResultPtr, uint64_t>;
-
-using ov::pass::pattern::Matcher;
-
-namespace v0 = ov::op::v0;
-namespace v5 = ov::op::v5;
-namespace op_util = ov::op::util;
 namespace {
 std::unordered_set<uint64_t> remove_results(const std::shared_ptr<v0::Parameter>& param,
                                             const InputDescPtr& input_desc,
