@@ -273,10 +273,9 @@ class Core(openvino._pyopenvino.Core):
     """
     Core class represents OpenVINO runtime Core entity.
     
-        User applications can create several Core class instances, but in this
-        case, the underlying plugins are created multiple times and not shared
-        between several Core instances. The recommended way is to have a single
-        Core instance per application.
+        User applications can create several Core class instances. In that case
+        the device plugins will still share underlying resources (such as OCL context)
+        in per-device singleton.
         
     """
     def compile_model(self, model: typing.Union[openvino._ov_api.Model, str, pathlib.Path], device_name: typing.Optional[str] = None, config: typing.Optional[dict[str, typing.Any]] = None, *, weights: typing.Optional[bytes] = None) -> CompiledModel:
