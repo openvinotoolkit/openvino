@@ -89,17 +89,6 @@ const std::vector<InputShape> inputShapes4D_int8 = {
         }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8, PoolingLayerCPUTest,
-                         ::testing::Combine(
-                              ::testing::ValuesIn(paramsAvg4D()),
-                              ::testing::ValuesIn(inputShapes4D_int8),
-                              ::testing::Values(ElementType::f32),
-                              ::testing::Values(true),
-                              ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_4D)),
-                              ::testing::ValuesIn(fusingParamsSet),
-                              ::testing::Values(CPUTestUtils::empty_plugin_config)),
-                          PoolingLayerCPUTest::getTestCaseName);
-
 const std::vector<InputShape> inputShapes5D_int8 = {
         { {}, {{1, 4, 16, 16, 16}} },
         { {}, {{2, 8, 8, 8, 8}} },

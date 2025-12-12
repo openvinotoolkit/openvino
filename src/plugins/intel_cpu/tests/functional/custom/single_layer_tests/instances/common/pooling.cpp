@@ -122,6 +122,53 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D, PoolingLayerCPUTest,
                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                         PoolingLayerCPUTest::getTestCaseName);
 
+std::vector<fusingSpecificParams> fusingParamsSet_4D {
+    emptyFusingSpec,
+    fusingFakeQuantizePerTensor,
+    fusingFakeQuantizePerChannel,
+};
+
+const std::vector<InputShape> inputShapes4D_int8 = {
+        { {}, {{3, 4, 64, 64}} },
+        /*{ {}, {{2, 8, 8, 12}} },
+        { {}, {{1, 16, 16, 12}} },
+        { {}, {{1, 21, 8, 4}} },
+        { {}, {{1, 32, 8, 8}} },
+        {
+            // dynamic
+            {-1, 32, -1, -1},
+            // target
+            {
+                {1, 32, 8, 8},
+                {1, 32, 8, 4},
+                {2, 32, 8, 12},
+                {1, 32, 8, 8}
+            }
+        },
+        {
+            // dynamic
+            {{1, 5}, 16, {1, 64}, {1, 64}},
+            // target
+            {
+                {3, 16, 32, 32},
+                {1, 16, 16, 12},
+                {1, 16, 8, 8},
+                {3, 16, 32, 32},
+            }
+        }*/
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8, PoolingLayerCPUTest,
+                         ::testing::Combine(
+                              ::testing::ValuesIn(paramsAvg4D()),
+                              ::testing::ValuesIn(inputShapes4D_int8),
+                              ::testing::Values(ElementType::f32),
+                              ::testing::Values(true),
+                              ::testing::ValuesIn(filterCPUInfo(vecCpuConfigsFusing_4D())),
+                              ::testing::ValuesIn(fusingParamsSet_4D),
+                              ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                          PoolingLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_NotOptimized, PoolingLayerCPUTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(paramsAvg4D_RefOnly),

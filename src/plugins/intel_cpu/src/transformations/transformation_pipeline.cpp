@@ -972,10 +972,10 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         AddTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
-    CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
+    //CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
+    //CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MVNTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, NormalizeL2Transformation);
     CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
@@ -1634,7 +1634,7 @@ void Transformations::MainSnippets() {
 void Transformations::PostSnippets() {
     ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
-    CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
+    //CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
     CPU_SET_CALLBACK_X64(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
@@ -1644,20 +1644,21 @@ void Transformations::PostSnippets() {
         ov::pass::FakeQuantizeDecomposition);
     // FQ node is not decomposed on ARM only if it is fused into Convolution node
     // Otherwise FQ node is decomposed because there is no native support of FQ on ARM
-    CPU_SET_CALLBACK_ARM(
+    /*CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
             if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
                 ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
                 auto parent = node->get_input_node_shared_ptr(0);
-                if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty() &&
-                    ov::is_type<const ov::op::v1::Convolution>(parent->get_input_node_shared_ptr(0))) {
+                if ((ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty() &&
+                     ov::is_type<const ov::op::v1::Convolution>(parent->get_input_node_shared_ptr(0))) ||
+                    ov::is_type<const ov::op::v1::AvgPool>(parent)) {
                     return true;
                 }
             }
             return false;
         },
-        ov::pass::FakeQuantizeDecomposition);
+        ov::pass::FakeQuantizeDecomposition);*/
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::ConstantFolding);
     postSnippetsManager.run_passes(model);

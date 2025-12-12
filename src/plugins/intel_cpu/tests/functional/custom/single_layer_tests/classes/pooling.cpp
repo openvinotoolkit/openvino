@@ -8,6 +8,9 @@
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/matmul.hpp"
 
 using namespace CPUTestUtils;
 
@@ -90,7 +93,20 @@ void PoolingLayerCPUTest::SetUp() {
         pooling = std::make_shared<ov::op::v1::AvgPool>(poolInput, stride, padBegin, padEnd, kernel, excludePad, roundingType, padType);
     }
 
-    function = makeNgraphFunction(inPrc, params, pooling, "PoolingCPU");
+    if (isInt8) {
+        //auto fq_after = ov::test::utils::make_fake_quantize(pooling, inPrc, 256, {});
+
+        //add i8 matmul after pooling to force pooling i8 output
+        auto matmul_const = ov::test::utils::make_constant(ov::element::i8, {1, 1, 32, 32});
+        auto convert_mm = std::make_shared<op::v0::Convert>(matmul_const, inPrc);
+        auto multiply_mm = std::make_shared<op::v1::Multiply>(convert_mm, op::v0::Constant::create(inPrc, {1, 1, 32, 32}, {0.1}));
+        const auto matMul = std::make_shared<ov::op::v0::MatMul>(pooling, multiply_mm, false, false);
+        auto fq_after = ov::test::utils::make_fake_quantize(matMul, inPrc, 256, {});
+        
+        function = makeNgraphFunction(inPrc, params, fq_after, "PoolingCPU");
+    } else {
+        function = makeNgraphFunction(inPrc, params, pooling, "PoolingCPU");
+    }
 }
 
 std::string AvgPoolingV14LayerCPUTest::getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
