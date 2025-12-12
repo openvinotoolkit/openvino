@@ -298,6 +298,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
                 return false;
             }
         }
+
         return true;
     };
 
@@ -330,10 +331,10 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         }
 
         if (initializeDeQuantizedScales(node, scales)) {
-            DEBUG_LOG("GraphOptimizer##FusingDQ: Node ##",
-                      mul->getName(),
-                      " optimized as DQ scales of Node ##",
-                      node->getName());
+            std::cout << "GraphOptimizer##FusingDQ: Node ##"
+                      << mul->getName()
+                      << " optimized as DQ scales of Node ##"
+                      << node->getName() << std::endl;
             node->addOriginalLayer(mul->getOriginalLayers());
             auto p_edge = mul->getParentEdgeAt(1);
             graph.RemoveEdge(p_edge);
