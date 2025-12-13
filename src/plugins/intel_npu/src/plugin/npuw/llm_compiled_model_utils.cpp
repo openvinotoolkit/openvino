@@ -648,15 +648,6 @@ public:
 #    pragma GCC diagnostic pop
 #endif
 
-std::optional<ov::Any> ov::npuw::util::pop_option(ov::AnyMap& config, const std::string& option_name) {
-    if (auto it = config.find(option_name); it != config.end()) {
-        std::optional<ov::Any> found = std::make_optional(it->second);
-        config.erase(it);
-        return found;
-    }
-    return std::nullopt;
-}
-
 bool ov::npuw::util::has_input(const std::shared_ptr<ov::Model>& model, const std::string& name) {
     auto inputs = model->inputs();
     auto it = std::find_if(inputs.begin(), inputs.end(), [&](const auto& port) {
@@ -786,115 +777,7 @@ bool update_kv_concat_shape(std::shared_ptr<ov::Model> model) {
     return true;
 }
 
-/**
- * CLS pooling slices first element from seq_length dimension
- * [batch_size, seq_length, hidden_size] -> [batch_size, seq_length[0], hidden_size]
- * [10, 5, 768] -> [10, 768]
- */
-std::shared_ptr<ov::op::Op> get_cls_pooling_op(const ov::Output<ov::Node>& last_hidden_state_node) {
-    using namespace ov;
-    auto start = std::make_shared<op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
-    auto stop = std::make_shared<op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
-    auto step = std::make_shared<op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
-    auto axis = std::make_shared<op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
-
-    auto slice = std::make_shared<op::v8::Slice>(last_hidden_state_node, start, stop, step, axis);
-
-    auto squeeze_axis = std::make_shared<op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
-    return std::make_shared<op::v15::Squeeze>(slice, squeeze_axis);
-}
-
-std::shared_ptr<ov::op::Op> get_mean_pooling_op(std::shared_ptr<ov::Model> model,
-                                                const ov::Output<ov::Node>& last_hidden_state_node,
-                                                const ov::Output<ov::Node>& attention_mask) {
-    using namespace ov;
-    auto shape_of = std::make_shared<op::v3::ShapeOf>(last_hidden_state_node);
-
-    auto unsqueze_axis = std::make_shared<op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-
-    auto unsqueze = std::make_shared<op::v0::Unsqueeze>(attention_mask, unsqueze_axis);
-
-    auto input_mask_expanded = std::make_shared<op::v3::Broadcast>(unsqueze, shape_of);
-
-    auto input_mask_expanded_convert =
-        std::make_shared<op::v0::Convert>(input_mask_expanded, last_hidden_state_node.get_element_type());
-
-    auto last_hidden_node_with_applied_attention_mask =
-        std::make_shared<op::v1::Multiply>(last_hidden_state_node, input_mask_expanded_convert->outputs()[0]);
-
-    auto axis_1 = std::make_shared<op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
-    auto sum_hidden_state = std::make_shared<op::v1::ReduceSum>(last_hidden_node_with_applied_attention_mask, axis_1);
-    auto sum_expanded_mask = std::make_shared<op::v1::ReduceSum>(input_mask_expanded_convert, axis_1);
-
-    auto nearest_to_zero = std::make_shared<op::v0::Constant>(ov::element::f32,
-                                                              ov::Shape{1},
-                                                              std::vector<float>{static_cast<float>(1e-12)});
-    auto max_expanded_mask = std::make_shared<op::v1::Maximum>(sum_expanded_mask, nearest_to_zero);
-
-    // shape: [batch_size, hidden_state_size]
-    return std::make_shared<op::v1::Divide>(sum_hidden_state, max_expanded_mask);
-}
-
-std::shared_ptr<ov::op::Op> get_last_token_pooling_op(std::shared_ptr<ov::Model> model,
-                                                      const ov::Output<ov::Node>& last_hidden_state_node,
-                                                      const ov::Output<ov::Node>& attention_mask) {
-    using namespace ov;
-
-    auto one = std::make_shared<op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
-    auto reduce_sum = std::make_shared<op::v1::ReduceSum>(attention_mask, one);
-    auto subtract = std::make_shared<op::v1::Subtract>(reduce_sum, one);
-
-    return std::make_shared<op::v8::Gather>(last_hidden_state_node, subtract, one, 1);
-}
-
-std::shared_ptr<ov::op::Op> normalize_output(std::shared_ptr<ov::op::Op> last_hidden_state_node) {
-    using namespace ov;
-
-    auto axis_const = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector{1});
-    return std::make_shared<op::v0::NormalizeL2>(last_hidden_state_node,
-                                                 axis_const,
-                                                 static_cast<float>(1e-12),
-                                                 op::EpsMode::MAX);
-}
-
 }  // namespace
-
-void ov::npuw::util::create_text_embedding_post_model(std::shared_ptr<ov::Model> model,
-                                                      std::shared_ptr<ov::Model>& post_model,
-                                                      ov::AnyMap& config) {
-    auto output_node = model->outputs()[0];
-    auto input_param =
-        std::make_shared<ov::op::v0::Parameter>(output_node.get_element_type(), output_node.get_partial_shape());
-    set_node_name(input_param, "input_ids");
-
-    auto attention_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
-    set_node_name(attention_mask, "attention_mask");
-
-    auto post_type_opt = pop_option(config, std::string("NPUW_TEXT_EMBED_POST_TYPE"));
-    auto post_type = post_type_opt.value_or(std::string("last_token")).as<std::string>();
-
-    std::shared_ptr<ov::op::Op> post_output;
-    if (post_type == "cls") {
-        post_output = get_cls_pooling_op(input_param);
-    } else if (post_type == "mean") {
-        post_output = get_mean_pooling_op(model, input_param, attention_mask);
-    } else if (post_type == "last_token") {
-        post_output = get_last_token_pooling_op(model, input_param, attention_mask);
-    }
-    OPENVINO_ASSERT(post_output != nullptr);
-
-    auto is_to_normalize_opt = pop_option(config, std::string("NPUW_TEXT_EMBED_NORMALIZE"));
-    auto is_to_normalize = is_to_normalize_opt.value_or(true).as<bool>();
-    if (is_to_normalize) {
-        post_output = normalize_output(post_output);
-    }
-
-    auto result_node = std::make_shared<ov::op::v0::Result>(post_output);
-    post_model =
-        std::make_shared<ov::Model>(ov::OutputVector{result_node}, ov::ParameterVector{input_param, attention_mask});
-    post_model->set_friendly_name(model->get_friendly_name() + "_post_process");
-    post_model->validate_nodes_and_infer_types();
-}
 
 void ov::npuw::util::prepare_text_embedding_model(std::shared_ptr<ov::Model> model, uint32_t seq_len_dim) {
     auto new_mask = create_new_mask(model);
@@ -914,7 +797,7 @@ void ov::npuw::util::prepare_text_embedding_model(std::shared_ptr<ov::Model> mod
     kvcache_rewr.run_on_model(model);
     ov::pass::Validate().run_on_model(model);
 
-    update_kv_concat_shape(model);
+    OPENVINO_ASSERT(update_kv_concat_shape(model), "Fail to re-construct text-embedding model");
     model->validate_nodes_and_infer_types();
 }
 

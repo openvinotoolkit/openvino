@@ -698,7 +698,6 @@ namespace text_embed {
  * Default value: false.
  */
 static constexpr ov::Property<bool> enabled{"NPUW_TEXT_EMBED"};
-static constexpr ov::Property<std::string> post_type{"NPUW_TEXT_EMBED_POST_TYPE"};
 
 }  // namespace text_embed
 

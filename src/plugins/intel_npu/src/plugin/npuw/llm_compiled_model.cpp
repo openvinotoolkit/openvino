@@ -1123,6 +1123,15 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     return std::make_optional(std::move(desc));
 }
 
+std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
+    if (auto it = config.find(option_name); it != config.end()) {
+        std::optional<ov::Any> found = std::make_optional(it->second);
+        config.erase(it);
+        return found;
+    }
+    return std::nullopt;
+}
+
 void apply_weights_bank_name(ov::AnyMap& config, const std::string& bank_name) {
     auto it = config.find("NPUW_WEIGHTS_BANK");
     if (it != config.end()) {
@@ -1205,10 +1214,6 @@ ov::AnyMap get_default_lm_head_config(const std::optional<NPUDesc>& npudesc) {
     config.erase("NPUW_FUNCALL_ASYNC");
     config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     return config;
-}
-
-ov::AnyMap get_default_text_embedding_post_config(const std::optional<NPUDesc>& npudesc) {
-    return get_default_lm_head_config(npudesc);
 }
 
 void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
@@ -1582,14 +1587,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
     m_is_text_embed = use_text_embed_key.value_or(false).as<bool>() == true;
 
-    std::shared_ptr<ov::Model> text_embedding_post_model = nullptr;
     if (m_is_text_embed) {
         if (m_use_chunk_prefill) {
-            LOG_DEBUG("Text-Embedding Chunk rebuild");
+            LOG_DEBUG("Text-embedding chunk rebuild");
             ov::npuw::util::prepare_text_embedding_model(kvcache_model, seq_len_dim);
         }
-
-        ov::npuw::util::create_text_embedding_post_model(kvcache_model, text_embedding_post_model, other_props);
     } else {
         LOG_DEBUG("Transform kvcache model from stateful to stateless.");
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
@@ -1673,14 +1675,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Try parametrize Gemma sliding window mask, if it exists.");
     for (auto& model_variant : generate_model_variants) {
         gemma_transformations(model_variant);
-    }
-
-    if (text_embedding_post_model) {
-        auto input_node = text_embedding_post_model->inputs()[0];
-        NPUW_ASSERT(input_node.get_partial_shape().size() == 3u);
-        auto new_shape = ov::PartialShape({1, m_kvcache_desc.max_prompt_size, input_node.get_partial_shape()[2]});
-        auto mask_shape = ov::PartialShape({1, m_kvcache_desc.max_prompt_size});
-        text_embedding_post_model->reshape({{"input_ids", new_shape}, {"attention_mask", mask_shape}});
     }
 
     if (lm_head_model) {
@@ -1910,13 +1904,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         NPUW_ASSERT(m_lm_head_compiled);
     }
 
-    if (text_embedding_post_model) {
-        auto post_config = get_default_text_embedding_post_config(npudesc);
-        merge_config_with(post_config, other_props);
-        m_text_embedding_post_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-            ov::npuw::ICompiledModel::create(text_embedding_post_model, plugin, post_config));
-    }
-
     implement_properties();
     LOG_DEBUG("Done");
 }
@@ -2052,12 +2039,6 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         if (is_shared_lm_head) {
             m_lm_head_compiled->serialize(model_stream, enc_ctx);
         }
-
-        const bool is_text_embed_post = m_text_embedding_post_compiled != nullptr;
-        write(model_stream, is_text_embed_post);
-        if (is_text_embed_post) {
-            m_text_embedding_post_compiled->serialize(model_stream, enc_ctx);
-        }
     };
 
     std::stringstream non_encrypted_stream;
@@ -2160,11 +2141,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
                 compiled->m_lm_head_compiled->m_weights_bank = bank;
                 compiled->m_lm_head_compiled->finalize_weights_bank();
             }
-
-            if (compiled->m_text_embedding_post_compiled) {
-                compiled->m_text_embedding_post_compiled->m_weights_bank = bank;
-                compiled->m_text_embedding_post_compiled->finalize_weights_bank();
-            }
         } else {
             auto bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
@@ -2181,11 +2157,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             if (compiled->m_lm_head_compiled) {
                 compiled->m_lm_head_compiled->m_weights_bank = bank;
                 compiled->m_lm_head_compiled->reconstruct_closure();
-            }
-
-            if (compiled->m_text_embedding_post_compiled) {
-                compiled->m_text_embedding_post_compiled->m_weights_bank = bank;
-                compiled->m_text_embedding_post_compiled->reconstruct_closure();
             }
         }
     };
@@ -2303,13 +2274,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, is_shared_lm_head);
         if (is_shared_lm_head) {
             compiled->m_lm_head_compiled =
-                ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
-        }
-
-        bool is_text_embed_post = false;
-        read(model_stream, is_text_embed_post);
-        if (is_text_embed_post) {
-            compiled->m_text_embedding_post_compiled =
                 ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
 
