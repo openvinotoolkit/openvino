@@ -132,7 +132,7 @@ void transpose_16NxK(TDST* dst,
             attn_dequant_by_channel_kernel<TDST,
                                            SRC_PREC>(s, t, N, K, K / sub_byte_multiplier, src_stride, p_scales, p_zps);
         } else {
-            static_assert(SRC_PREC != ov::element::i8, "i8 doesn't support by-channel quantization");
+            OPENVINO_THROW("i8 doesn't support by-channel quantization");
         }
     } else {
         for (size_t n = 0; n < N; n++) {
