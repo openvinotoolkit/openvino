@@ -54,8 +54,6 @@ ReorderWeightsKernelInt2::DispatchData ReorderWeightsKernelInt2::SetDefault(cons
 
 JitConstants ReorderWeightsKernelInt2::GetJitConstants(const reorder_weights_params& params) const {
     auto jit = ReorderKernelBase::GetJitConstants(params);
-    const auto& input = params.input;
-    const auto& output = params.output;
 
 
     return jit;
@@ -65,18 +63,10 @@ bool ReorderWeightsKernelInt2::Validate(const Params& params) const {
     const auto& p = static_cast<const reorder_weights_params&>(params);
     const auto& input = p.input;
     const auto& output = p.output;
-
-    // To use the reorder weight i4 kernel for adding padding to an odd innermost dimension,
-    // the input tensor should have an odd innermost dimension without any padding,
-    // and the output tensor should have padding with only the pad.after value for the innermost dimension.
-    // Simplified validation for simple copy/reshape scenarios
-    if ((input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::oiyx) ||
+    if((input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::oiyx) ||
         (input.GetLayout() == WeightsLayout::ioyx && output.GetLayout() == WeightsLayout::ioyx)) {
         return true;
     }
-
-    // We don't support fancy blocked layouts yet
-    // We don't support fancy blocked layouts yet
     return false;
 }
 
