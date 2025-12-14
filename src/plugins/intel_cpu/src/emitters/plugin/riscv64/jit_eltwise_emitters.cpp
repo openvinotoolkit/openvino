@@ -3068,7 +3068,7 @@ jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* ho
                                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                      const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)),
-      beta(1.0f),
+      beta(1.0F),
       sigmoid_emitter(std::make_unique<jit_sigmoid_emitter>(host, host_isa, exec_prc_)) {
     if (const auto swish = ov::as_type_ptr<ov::intel_cpu::SwishNode>(node)) {
         beta = swish->get_alpha();
@@ -3089,7 +3089,7 @@ size_t jit_swish_emitter::aux_vecs_count() const {
 }
 
 size_t jit_swish_emitter::aux_fp_gprs_count() const {
-    return std::max(sigmoid_emitter->aux_fp_gprs_count(), beta != 1.0f ? 1LU : 0LU);
+    return std::max(sigmoid_emitter->aux_fp_gprs_count(), beta != 1.0F ? 1LU : 0LU);
 }
 
 void jit_swish_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -3102,7 +3102,7 @@ void jit_swish_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 }
 
 void jit_swish_emitter::register_table_entries() {
-    if (beta != 1.0f) {
+    if (beta != 1.0F) {
         push_arg_entry_of("beta", dnnl::impl::float2int(beta));
     }
 }
@@ -3129,7 +3129,7 @@ void jit_swish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     h->vmv_v_v(src_copy, src);  // need since we are overwriting src
 
-    if (beta != 1.0f) {
+    if (beta != 1.0F) {
         auto beta_reg = FReg(aux_fp_gpr_idxs[0]);
         load_table_val("beta", beta_reg);
         h->vfmul_vf(dst, src, beta_reg);
