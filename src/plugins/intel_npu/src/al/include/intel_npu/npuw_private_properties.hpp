@@ -499,6 +499,22 @@ static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
 /**
  * @brief
  * Type: boolean
+ * Enable MoE (Mixture of Experts) architecture optimizations for prefill stage
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> prefill_enable_moe{"NPUW_LLM_PREFILL_ENABLE_MOE"};
+
+/**
+ * @brief
+ * Type: boolean
+ * Enable MoE (Mixture of Experts) architecture optimizations for generate stage
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> generate_enable_moe{"NPUW_LLM_GENERATE_ENABLE_MOE"};
+
+/**
+ * @brief
+ * Type: boolean
  * Enable multiple generate model variants with different static shapes (1K, 2K, 4K, 8K stepping).
  * When enabled, multiple generate models will be compiled and the appropriate one will be
  * selected at runtime based on the required KV cache size.

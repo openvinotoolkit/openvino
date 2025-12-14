@@ -1758,18 +1758,24 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         merge_config_with(generate_config, dyn_attn_opts);
     }
 
-    // Check if GPT-OSS Expert pattern should be enabled
-    // Default to true for development phase
-    bool enable_expert = true;
-
-    if (enable_expert) {
-        LOG_INFO("GPT-OSS Expert pattern isolation is ENABLED");
-        std::cout << "GPT-OSS Expert pattern isolation is ENABLED" << std::endl;
+    // Check if MoE (Mixture of Experts) architecture optimization should be enabled for prefill
+    const bool prefill_enable_moe = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ENABLE_MOE>();
+    if (prefill_enable_moe) {
+        LOG_INFO("MoE architecture optimization for PREFILL stage is ENABLED");
+        std::cout << "MoE architecture optimization for PREFILL stage is ENABLED" << std::endl;
         merge_config_with(prefill_config, expert_opts);
+    } else {
+        LOG_INFO("MoE architecture optimization for PREFILL stage is DISABLED");
+    }
+
+    // Check if MoE architecture optimization should be enabled for generate
+    const bool generate_enable_moe = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_ENABLE_MOE>();
+    if (generate_enable_moe) {
+        LOG_INFO("MoE architecture optimization for GENERATE stage is ENABLED");
+        std::cout << "MoE architecture optimization for GENERATE stage is ENABLED" << std::endl;
         merge_config_with(generate_config, expert_opts);
     } else {
-        LOG_INFO("GPT-OSS Expert pattern isolation is DISABLED");
-        std::cout << "GPT-OSS Expert pattern isolation is DISABLED" << std::endl;
+        LOG_INFO("MoE architecture optimization for GENERATE stage is DISABLED");
     }
 
     // Note: with dynamic attention in EITHER STAGE, we have to
@@ -2300,6 +2306,8 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
+                          BIND(npuw::llm::prefill_enable_moe, NPUW_LLM_PREFILL_ENABLE_MOE, get),
+                          BIND(npuw::llm::generate_enable_moe, NPUW_LLM_GENERATE_ENABLE_MOE, get),
                           BIND(npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID, get),
                           BIND(npuw::llm::prefill_chunk_size, NPUW_LLM_PREFILL_CHUNK_SIZE, get),
                           BIND(npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT, getString),
