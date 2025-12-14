@@ -175,34 +175,31 @@ void OutputDataVisitor::operator()(const LayerVariantAttr<std::string>&) {
                 " Provide either a single directory, a single file, or omit output data to skip dumping!");
 }
 
-// TODO: modify so it will dump the reference data from reference and target device
 void OutputDataVisitor::operator()(std::string path_str) {
-    if (path_str.back() == '\\' || path_str.back() == '/') {
+    // NB: Strip trailing path separators before appending suffixes.
+    while (path_str.back() == '\\' || path_str.back() == '/') {
         path_str.pop_back();
     }
-    std::string reference_path{path_str + "_REFERENCE"};
-    std::string target_path{path_str + "_TARGET"};
-    std::filesystem::path ref_root{reference_path};
-    std::filesystem::path tgt_root{target_path};
+    std::filesystem::path ref_root{path_str + "_REFERENCE"};
+    std::filesystem::path tgt_root{path_str + "_TARGET"};
 
-    std::cout << "Ref root: " << ref_root.string() << "\n";
-    std::cout << "Tgt root: " << tgt_root.string() << "\n";
+    const auto layer_names = extractLayerNames(infer.output_layers);
 
-    std::vector<std::filesystem::path> ref_dump_paths;
-    std::vector<std::filesystem::path> tgt_dump_paths;
-    // NB: It doesn't matter if path exist or not - regenerate and dump outputs anyway.
-    if (isDirectory(ref_root) && isDirectory(tgt_root)) {
-        ref_dump_paths = createDirectoryLayout(ref_root, extractLayerNames(infer.output_layers));
-        tgt_dump_paths = createDirectoryLayout(tgt_root, extractLayerNames(infer.output_layers));
-    } else {
+    auto createDumpPaths = [&](const std::filesystem::path& root) -> std::vector<std::filesystem::path> {
+        if (isDirectory(root)) {
+            return createDirectoryLayout(root, layer_names);
+        }
         if (infer.output_layers.size() > 1) {
             THROW_ERROR("Model: " << infer.tag
                                   << " must have exactly one output layer in order to dump output data to file: "
-                                  << ref_root);
+                                  << root);
         }
-        ref_dump_paths = {ref_root};
-        tgt_dump_paths = {tgt_root};
-    }
+        return {root};
+    };
+
+    std::vector<std::filesystem::path> ref_dump_paths{createDumpPaths(ref_root)};
+    std::vector<std::filesystem::path> tgt_dump_paths{createDumpPaths(tgt_root)};
+
     for (uint32_t i = 0; i < infer.output_layers.size(); ++i) {
         metas[i].set(DualDeviceDump{ref_dump_paths[i], tgt_dump_paths[i]});
     }
@@ -458,7 +455,7 @@ Result PipelinedSimulation::run(ITermCriterion::Ptr criterion) {
     std::stringstream ss;
     ss << "Reference data has been generated for " << m_iter_idx << " iteration(s)";
     return Success{ss.str()};
-};
+}
 
 bool PipelinedSimulation::process(cv::GStreamingCompiled& pipeline) {
     cv::GOptRunArgsP pipeline_outputs;
@@ -481,8 +478,14 @@ bool PipelinedSimulation::process(cv::GStreamingCompiled& pipeline) {
 
 static void changeDeviceParam(InferenceParamsMap& params, const std::string& device_name) {
     for (auto& [tag, inference_params] : params) {
-        if (std::holds_alternative<OpenVINOParams>(inference_params)) {
-            std::get<OpenVINOParams>(inference_params).device = device_name;
+        if (auto* ov = std::get_if<OpenVINOParams>(&inference_params)) {
+            ov->device = device_name;
+        } else if (auto* onnx = std::get_if<ONNXRTParams>(&inference_params)) {
+            if (auto* ov_ep = std::get_if<ONNXRTParams::OpenVINO>(&onnx->ep)) {
+                ov_ep->params_map["device_type"] = device_name;
+            } else {
+                onnx->ep = ONNXRTParams::OpenVINO{{{"device_type", device_name}}};
+            }
         }
     }
 }
@@ -503,10 +506,9 @@ std::shared_ptr<PipelinedCompiled> AccuracySimulation::compilePipelined(DummySou
 }
 
 std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& sources, cv::GCompileArgs&& ref_compile_args, cv::GCompileArgs&& tgt_compile_args) {
+    // TODO: make them compile in separate threads
     auto ref_compiled = m_comp.compile(descr_of(sources), std::move(ref_compile_args));
     auto ref_out_meta = m_comp.getOutMeta();
-
-    // std::cout << "Compile Sync REF " << ref_out_meta.size() << "\n";
 
     for (auto src : sources) {
         src->reset();
@@ -514,8 +516,6 @@ std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& sou
 
     auto tgt_compiled = m_comp.compile(descr_of(sources), std::move(tgt_compile_args));
     auto tgt_out_meta = m_comp.getOutMeta();
-
-    // std::cout << "Compile Sync TGT " << tgt_out_meta.size() << "\n";
 
     return std::make_shared<SyncSimulation>(std::move(ref_compiled), std::move(tgt_compiled), std::move(sources), 
                                             std::move(ref_out_meta), std::move(tgt_out_meta), m_strategy->required_num_iterations, std::move(m_opts), m_strategy->current_infer);
