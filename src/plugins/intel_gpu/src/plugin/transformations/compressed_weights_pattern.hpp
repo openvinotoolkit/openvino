@@ -4,7 +4,8 @@ using namespace ov::pass::pattern;
 #define FC_COMPRESSED_WEIGHT_PATTERN\
         auto compressed_constant = [](const ov::Output<ov::Node>& output) {\
             return (output.get_element_type() == ov::element::u8 || output.get_element_type() == ov::element::i8 ||\
-                    output.get_element_type() == ov::element::u4 || output.get_element_type() == ov::element::i4);\
+                    output.get_element_type() == ov::element::u4 || output.get_element_type() == ov::element::i4 ||\
+                    output.get_element_type() == ov::element::u2);\
         };\
         \
         auto reshape_squeeze = [](const ov::Output<ov::Node>& output) {\
@@ -40,4 +41,4 @@ using namespace ov::pass::pattern;
         auto transpose_m = wrap_type<ov::op::v1::Transpose>({transpose_input, transpose_const_m});\
 \
         auto compressed_weights_input_m =\
-            std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, convert_reshape_m, transpose_m, mul_m, mul2_m});
+            std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_m, convert_reshape_m, transpose_m, mul_m, mul2_m});
