@@ -83,6 +83,12 @@ void ParamsKey::EnableInputDataType(Datatype dt) {
         case Datatype::BF16:
             key.inputType.val.BF16 = 1;
             break;
+        case Datatype::INT2:
+            key.inputType.val.int2 = 1;
+            break;
+        case Datatype::UINT2:
+            key.inputType.val.uint2 = 1;
+            break;
         default:
             break;
     }
@@ -128,6 +134,12 @@ void ParamsKey::EnableOutputDataType(Datatype dt) {
         case Datatype::BF16:
             key.outputType.val.BF16 = 1;
             break;
+        case Datatype::INT2:
+            key.outputType.val.int2 = 1;
+            break;
+        case Datatype::UINT2:
+            key.outputType.val.uint2 = 1;
+            break;
         default:
             break;
     }
@@ -158,6 +170,12 @@ void ParamsKey::EnableInputWeightsType(WeightsType wt) {
         case WeightsType::BF16:
             key.inputWeightsType.val.BF16 = 1;
             break;
+        case WeightsType::INT2:
+            key.inputWeightsType.val.int2 = 1;
+            break;
+        case WeightsType::UINT2:
+            key.inputWeightsType.val.uint2 = 1;
+            break;
         default:
             break;
     }
@@ -187,6 +205,12 @@ void ParamsKey::EnableOutputWeightsType(WeightsType wt) {
             break;
         case WeightsType::BF16:
             key.outputWeightsType.val.BF16 = 1;
+            break;
+        case WeightsType::INT2:
+            key.outputWeightsType.val.int2 = 1;
+            break;
+        case WeightsType::UINT2:
+            key.outputWeightsType.val.uint2 = 1;
             break;
         default:
             break;

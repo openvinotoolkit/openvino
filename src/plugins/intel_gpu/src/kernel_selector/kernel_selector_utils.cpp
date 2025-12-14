@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,10 @@ static WeightsType DataTypeToWeightsType(Datatype t) {
             return WeightsType::UINT8;
         case Datatype::INT8:
             return WeightsType::INT8;
+        case Datatype::INT2:
+            return WeightsType::INT2;
+        case Datatype::UINT2:
+            return WeightsType::UINT2;
         case Datatype::F16:
             return WeightsType::F16;
         case Datatype::F32:

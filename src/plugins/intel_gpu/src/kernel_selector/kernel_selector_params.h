@@ -256,6 +256,8 @@ public:
                 uint32_t F16 : 1;
                 uint32_t F32 : 1;
                 uint32_t BF16 : 1;
+                uint32_t int2 : 1;
+                uint32_t uint2 : 1;
             } val;
             uint32_t raw;
         } DataTypesKey;
