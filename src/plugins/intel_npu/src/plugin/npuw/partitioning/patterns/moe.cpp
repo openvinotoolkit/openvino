@@ -53,8 +53,9 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto tile = opp::wrap_type<ov::op::v0::Tile>({opp::any_input(), opp::any_input()});
     auto reshape1 = opp::wrap_type<ov::op::v1::Reshape>({tile, opp::any_input()});
 
-    // First MatMul (gate + up projections)
-    auto weights_convert1 = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
+    // First MatMul (gate + up projections) - weights path: Multiply -> Convert -> MatMul
+    auto weights_multiply1 = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
+    auto weights_convert1 = opp::wrap_type<ov::op::v0::Convert>({weights_multiply1});
     auto matmul1 = opp::wrap_type<ov::op::v0::MatMul>({reshape1, weights_convert1});
     auto add1 = opp::wrap_type<ov::op::v1::Add>({matmul1, opp::any_input()});
 
@@ -73,8 +74,9 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     // Merge branches
     auto multiply1 = opp::wrap_type<ov::op::v1::Multiply>({add2, swish});
 
-    // Second MatMul (down projection)
-    auto weights_convert2 = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
+    // Second MatMul (down projection) - weights path: Multiply -> Convert -> MatMul
+    auto weights_multiply2 = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
+    auto weights_convert2 = opp::wrap_type<ov::op::v0::Convert>({weights_multiply2});
     auto matmul2 = opp::wrap_type<ov::op::v0::MatMul>({multiply1, weights_convert2});
     auto add3 = opp::wrap_type<ov::op::v1::Add>({matmul2, opp::any_input()});
 
@@ -90,6 +92,8 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
 
         auto matched_tile = node_to_output.at(tile).get_node_shared_ptr();
         auto matched_reshape1 = node_to_output.at(reshape1).get_node_shared_ptr();
+        auto matched_weights_multiply1 = node_to_output.at(weights_multiply1).get_node_shared_ptr();
+        auto matched_weights_convert1 = node_to_output.at(weights_convert1).get_node_shared_ptr();
         auto matched_matmul1 = node_to_output.at(matmul1).get_node_shared_ptr();
         auto matched_add1 = node_to_output.at(add1).get_node_shared_ptr();
         auto matched_slice = node_to_output.at(slice).get_node_shared_ptr();
@@ -99,6 +103,8 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_clamp = node_to_output.at(clamp).get_node_shared_ptr();
         auto matched_add2 = node_to_output.at(add2).get_node_shared_ptr();
         auto matched_multiply1 = node_to_output.at(multiply1).get_node_shared_ptr();
+        auto matched_weights_multiply2 = node_to_output.at(weights_multiply2).get_node_shared_ptr();
+        auto matched_weights_convert2 = node_to_output.at(weights_convert2).get_node_shared_ptr();
         auto matched_matmul2 = node_to_output.at(matmul2).get_node_shared_ptr();
         auto matched_add3 = node_to_output.at(add3).get_node_shared_ptr();
         auto matched_reshape2 = node_to_output.at(reshape2).get_node_shared_ptr();
@@ -106,6 +112,8 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         // Isolate all matched nodes
         node_to_gptr->at(matched_tile)->isolate(isol_tag);
         node_to_gptr->at(matched_reshape1)->isolate(isol_tag);
+        node_to_gptr->at(matched_weights_multiply1)->isolate(isol_tag);
+        node_to_gptr->at(matched_weights_convert1)->isolate(isol_tag);
         node_to_gptr->at(matched_matmul1)->isolate(isol_tag);
         node_to_gptr->at(matched_add1)->isolate(isol_tag);
         node_to_gptr->at(matched_slice)->isolate(isol_tag);
@@ -115,6 +123,8 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         node_to_gptr->at(matched_clamp)->isolate(isol_tag);
         node_to_gptr->at(matched_add2)->isolate(isol_tag);
         node_to_gptr->at(matched_multiply1)->isolate(isol_tag);
+        node_to_gptr->at(matched_weights_multiply2)->isolate(isol_tag);
+        node_to_gptr->at(matched_weights_convert2)->isolate(isol_tag);
         node_to_gptr->at(matched_matmul2)->isolate(isol_tag);
         node_to_gptr->at(matched_add3)->isolate(isol_tag);
         node_to_gptr->at(matched_reshape2)->isolate(isol_tag);
