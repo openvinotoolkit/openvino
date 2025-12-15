@@ -36,7 +36,7 @@ struct IOLayoutsSection : ISection {
                 for (ov::Layout layout : layouts) {
                     const std::string layout_string = layout.to_string();
                     const uint16_t string_length = static_cast<uint16_t>(layout_string.size());
-                    length += string_length;
+                    length += sizeof(string_length) + string_length; // we serialize the size for each element(string)
                 }
                 return length;
         };
