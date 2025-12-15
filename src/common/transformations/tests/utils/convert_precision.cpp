@@ -17,6 +17,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/bucketize.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -54,6 +55,7 @@
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -2964,4 +2966,60 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_weightless
     const auto& new_rt_info = (*it)->get_rt_info();
     auto weightless_caching_attr_it = new_rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
     ASSERT_TRUE(weightless_caching_attr_it != new_rt_info.end());
+}
+
+TEST_F(TransformationTestsF, ConvertPrecision_Slice_Clamp) {
+    disable_rt_info_check();
+    {
+        auto data_param = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::Shape{2, 2});
+        auto starts_param = std::make_shared<ov::op::v0::Parameter>(element::i64, ov::Shape{2});
+        auto ends_param = std::make_shared<ov::op::v0::Parameter>(element::i64, ov::Shape{2});
+        auto axes_param = std::make_shared<ov::op::v0::Parameter>(element::i64, ov::Shape{2});
+        auto steps_param = std::make_shared<ov::op::v0::Parameter>(element::i64, ov::Shape{2});
+
+        auto slice = std::make_shared<ov::op::v8::Slice>(data_param, starts_param, ends_param, steps_param, axes_param);
+        auto result = std::make_shared<ov::op::v0::Result>(slice);
+
+        model =
+            std::make_shared<ov::Model>(ResultVector{result},
+                                        ParameterVector{data_param, starts_param, ends_param, steps_param, axes_param});
+
+        precisions_map int_convert_precision_map = {{element::i64, element::i32}};
+        type_to_fuse_map type_to_fuse = {};
+        auto keep_precision_sensitive_in_fp32_2 = true;
+        auto convert_input_output_precision = false;
+        manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_map,
+                                                          type_to_fuse,
+                                                          keep_precision_sensitive_in_fp32_2,
+                                                          convert_input_output_precision);
+    }
+
+    {
+        auto data_param = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::Shape{2, 2});
+        auto starts_param = std::make_shared<ov::op::v0::Parameter>(element::i64, ov::Shape{2});
+        auto ends_param = std::make_shared<ov::op::v0::Parameter>(element::i64, ov::Shape{2});
+        auto axes_param = std::make_shared<ov::op::v0::Parameter>(element::i64, ov::Shape{2});
+        auto steps_param = std::make_shared<ov::op::v0::Parameter>(element::i64, ov::Shape{2});
+
+        auto starts_clamp = std::make_shared<ov::op::v0::Clamp>(starts_param,
+                                                                std::numeric_limits<int32_t>::lowest(),
+                                                                std::numeric_limits<int32_t>::max());
+        auto starts_convert = std::make_shared<ov::op::v0::Convert>(starts_clamp, element::i32);
+
+        auto ends_clamp = std::make_shared<ov::op::v0::Clamp>(ends_param,
+                                                              std::numeric_limits<int32_t>::lowest(),
+                                                              std::numeric_limits<int32_t>::max());
+        auto ends_convert = std::make_shared<ov::op::v0::Convert>(ends_clamp, element::i32);
+
+        auto steps_convert = std::make_shared<ov::op::v0::Convert>(steps_param, element::i32);
+        auto axes_convert = std::make_shared<ov::op::v0::Convert>(axes_param, element::i32);
+
+        auto slice =
+            std::make_shared<ov::op::v8::Slice>(data_param, starts_convert, ends_convert, steps_convert, axes_convert);
+        auto result = std::make_shared<ov::op::v0::Result>(slice);
+
+        model_ref =
+            std::make_shared<ov::Model>(ResultVector{result},
+                                        ParameterVector{data_param, starts_param, ends_param, steps_param, axes_param});
+    }
 }
