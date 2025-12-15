@@ -27,7 +27,7 @@ uint16_t OpenvinoVersion::get_patch() const {
 }
 
 bool OpenvinoVersion::operator!=(const OpenvinoVersion& version) {
-    return this->_major != version._major || this->_minor != version._minor || this->_patch != version._patch;
+    return this->_major != version._major || this->_minor != version._minor;
 }
 
 OpenvinoVersion::OpenvinoVersion(const OpenvinoVersion& version)
