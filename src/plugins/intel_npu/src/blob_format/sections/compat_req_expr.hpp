@@ -14,7 +14,7 @@ struct CRESection : ISection {
     explicit CRESection(std::vector<uint16_t>& expression) : expression(expression), expression_view(expression) {
         header.type = SectionType::CRE;
         header.length = expression.size() * sizeof(uint16_t);
-        std::cout << "CRESection::ctor(): header.length: " << header.length << std::endl; 
+        // std::cout << "CRESection::ctor(): header.length: " << header.length << std::endl; 
     }
 
     explicit CRESection(SectionHeader& header) : ISection(header) { };
@@ -25,7 +25,6 @@ struct CRESection : ISection {
     }
 
     void read_value(std::istream& stream) override{
-        std::cout << "CRESection::read_value()" << std::endl;
         expression.resize(header.length / sizeof(expression[0]));
         stream.read(reinterpret_cast<char*>(expression.data()), expression.size() * sizeof(expression[0]));
         expression_view = expression;
@@ -45,7 +44,6 @@ namespace sections::compat_req_expr
             SectionType::CRE,
             [](SectionHeader& header)
             {
-                std::cout << "returning a shared ptr of CRESection" << std::endl;
                 return std::make_shared<CRESection>(header);
             }
         );

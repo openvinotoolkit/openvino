@@ -1,7 +1,7 @@
 #ifndef _ISECTION_HPP_
 #define _ISECTION_HPP_
 
-enum SectionType : uint64_t { 
+enum SectionType : uint16_t {
     // Reserved Ops
     AND             = 0xF001,
     OR              = 0xF002,
@@ -17,16 +17,33 @@ enum SectionType : uint64_t {
 
 struct SectionHeader{
     SectionType type;
-    int64_t length; // Length in bytes
+    uint64_t length; // Length in bytes
+
+    // Compute the size of this structure in its serialized form
+    // sizeof(SectionHeader) might include internal padding
+    static constexpr std::size_t disk_alignment = alignof(uint64_t);
+    static constexpr std::size_t header_size = sizeof(SectionType) + sizeof(uint64_t);
+    static constexpr std::size_t padding_size = (disk_alignment - (header_size % disk_alignment)) % disk_alignment;
 
     void serialize(std::ostream& stream){
         stream.write(reinterpret_cast<const char*>(&type), sizeof(type));
         stream.write(reinterpret_cast<const char*>(&length), sizeof(length));
+
+        static constexpr uint8_t zeros[padding_size] = {};
+        stream.write(reinterpret_cast<const char*>(zeros), padding_size);
     }
 
-    void read(std::istream& stream) {
-        stream.read(reinterpret_cast<char*>(&type), sizeof(type));
-        stream.read(reinterpret_cast<char*>(&length), sizeof(length));
+    // returns true if read succeeded, false otherwise
+    bool read(std::istream& stream) {
+        if(!stream.read(reinterpret_cast<char*>(&type), sizeof(type))) return false;
+        if(!stream.read(reinterpret_cast<char*>(&length), sizeof(length))) return false;
+        
+        stream.ignore(padding_size);
+        return stream.good();
+    }
+
+    static constexpr uint64_t size_on_disk(){
+        return header_size + padding_size;
     }
 
     uint64_t read(const uint8_t* data){
@@ -35,6 +52,7 @@ struct SectionHeader{
         bytes += sizeof(type);
         memcpy(reinterpret_cast<char*>(&length), &data[bytes], sizeof(length));
         bytes += sizeof(length);
+        bytes += padding_size;
         
         return bytes;
     }

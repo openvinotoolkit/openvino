@@ -19,7 +19,7 @@ public:
 
     void registerSection(const SectionType type, Creator creator)
     {
-        std::cout << "Register function for " << type << std::endl;
+        // std::cout << "Register function for " << type << std::endl;
         _creators[type] = std::move(creator);
     }
 
@@ -32,7 +32,7 @@ public:
             return std::make_shared<UnknownSection>(header);
         }
 
-        std::cout << "Calling create function for " << header.type << std::endl;
+        // std::cout << "Calling create function for " << header.type << std::endl;
         return it->second(header);
     }
 

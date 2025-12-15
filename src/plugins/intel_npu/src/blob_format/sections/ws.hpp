@@ -13,15 +13,13 @@ struct WSSection : ISection {
 
     explicit WSSection(std::vector<std::shared_ptr<ELFSection>>& elf_blobs) : elf_blobs(elf_blobs) {
         num_subgraphs = elf_blobs.size(); 
-        // std::cout << "WSSection() subgraphs: " << num_subgraphs << std::endl;
         
         header.type = SectionType::WS;
 
         header.length = sizeof(num_subgraphs);
         for (auto elf : elf_blobs) {
-            header.length += sizeof(elf->header) + elf->header.length;
+            header.length += SectionHeader::size_on_disk() + elf->header.length;
         } 
-        // std::cout << "WSSection() header.length: " << header.length << std::endl;
     }
 
     explicit WSSection(SectionHeader header) : ISection(header) { };
@@ -42,7 +40,7 @@ struct WSSection : ISection {
 
         for (int i = 0; i < num_subgraphs; i++) {
             SectionHeader inner_header;
-            stream.read(reinterpret_cast<char*>(&inner_header), sizeof(inner_header));
+            inner_header.read(stream);
 
             auto section = std::make_shared<ELFSection>(inner_header);
             section->read_value(stream);
@@ -52,18 +50,18 @@ struct WSSection : ISection {
 
     void read_value(const uint8_t* data) override {
         int64_t curr = 0;
-        num_subgraphs = *(const int64_t*)(&data[curr]);
+        memcpy(reinterpret_cast<char*>(&num_subgraphs), &data[curr], sizeof(num_subgraphs));
         curr += sizeof(num_subgraphs);
 
         elf_blobs.resize(num_subgraphs);
 
         for (int i = 0; i < num_subgraphs; i++) {
-            SectionHeader *header = (SectionHeader*)&data[curr];
+            SectionHeader inner_header;
+            curr += inner_header.read(&data[curr]);
 
-            auto section = std::make_shared<ELFSection>(*header);
-            curr += sizeof(SectionHeader);
+            auto section = std::make_shared<ELFSection>(inner_header);
             section->read_value(&data[curr]);
-            curr += header->length;
+            curr += inner_header.length;
             elf_blobs[i] = section;
         }
     }
