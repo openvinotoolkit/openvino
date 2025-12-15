@@ -332,6 +332,7 @@ public:
     void matchRepeatedSubgraphs(const std::string& func_name);
     void spatial(const std::string& func_name);
     void attention(const std::string& func_name);
+    void moe(const std::string& func_name);
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
@@ -1917,6 +1918,30 @@ void Partitioner::attention(const std::string& func_name) {
     LOG_WARN("No pyramid attention found in the ATTN block");
 }
 
+void Partitioner::moe(const std::string& func_name) {
+    ov::npuw::Function& f = P.functions.at(func_name);
+
+    // Support only expert tag at the time
+    if (f._tag != "expert") {
+        LOG_VERB("No MoE handling be done to  " << func_name << " in model " << model->get_friendly_name() << "...");
+        return;
+    }
+
+    LOG_INFO("Transform " << func_name << " into single expert block in model " << model->get_friendly_name() << "...");
+    LOG_BLOCK();
+
+    // Use the factory method to create MoEExperts from the function model
+    f._moe_experts = ov::npuw::function::MoEExperts::from(f._model);
+
+    if (f._moe_experts) {
+        LOG_INFO("Successfully created MoE expert model");
+        f._moe_experts->log_info();
+        LOG_VERB("MoE transformation completed");
+    } else {
+        LOG_WARN("Failed to create MoE expert model from " << func_name);
+    }
+}
+
 void Partitioner::optimize(const std::string& func_name) {
     using namespace ov::npuw::weights;
 
@@ -2513,6 +2538,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.matchRepeatedSubgraphs(func_group);
                 p.spatial(func_group);
                 p.attention(func_group);
+                p.moe(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }

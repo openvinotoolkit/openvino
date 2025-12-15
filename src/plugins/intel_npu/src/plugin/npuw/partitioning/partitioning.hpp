@@ -11,6 +11,7 @@
 
 #include "../attention.hpp"
 #include "../lazy_tensor.hpp"
+#include "../moe_experts.hpp"
 #include "../pyramid_attention.hpp"
 #include "../spatial.hpp"
 #include "intel_npu/config/config.hpp"
@@ -99,6 +100,8 @@ struct Function {
     std::optional<ov::npuw::function::Attention> _attention;
     // Multiple attention graphs with different shapes
     std::optional<ov::npuw::function::PyramidAttention> _pyramid_attention;
+    // MoE expert information - single expert model
+    std::optional<ov::npuw::function::MoEExperts> _moe_experts;
     // FIXME: They should exclude each other (introduce a hierarchy, finally?)
     // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
     std::set<std::size_t> _idx_lazy_unpack;
