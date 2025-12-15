@@ -41,9 +41,10 @@ struct WSSection : ISection {
         elf_blobs.resize(num_subgraphs);
 
         for (int i = 0; i < num_subgraphs; i++) {
-            stream.read(reinterpret_cast<char*>(&header), sizeof(header));
+            SectionHeader inner_header;
+            stream.read(reinterpret_cast<char*>(&inner_header), sizeof(inner_header));
 
-            auto section = std::make_shared<ELFSection>(header);
+            auto section = std::make_shared<ELFSection>(inner_header);
             section->read_value(stream);
             elf_blobs[i] = section;
         }

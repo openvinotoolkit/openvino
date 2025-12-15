@@ -37,7 +37,7 @@ struct CRESection : ISection {
 };
 
 // Self-registration
-namespace compat_req_expr
+namespace sections::compat_req_expr
 {
     const bool registered = []()
     {
