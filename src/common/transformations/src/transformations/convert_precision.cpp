@@ -43,7 +43,7 @@ namespace v14 = ov::op::v14;
 namespace v15 = ov::op::v15;
 namespace op_util = ov::op::util;
 
-bool inline static need_slice_clamping(std::shared_ptr<v0::Parameter> param, ov::element::Type to) {
+bool inline static need_clamping(std::shared_ptr<v0::Parameter> param, ov::element::Type to) {
     auto param_consumers = param->output(0).get_target_inputs();
     auto output_type = param->get_output_element_type(0);
     if (output_type.size() < to.size()) {
@@ -412,8 +412,6 @@ bool convert_function_precision(ov::pass::PassBase& pass,
                     } else {
                         result_input.get_node()->set_friendly_name("");
                     }
-
-                    convert->get_output_tensor(0).set_names(result_input.get_names());
                 } else {
                     convert_f_name += '.' + std::to_string(result_input.get_index());
                 }
@@ -694,7 +692,7 @@ bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
             changed = true;
         } else {
             ov::Output<Node> new_output = param;
-            if (need_slice_clamping(param, to)) {
+            if (need_clamping(param, to)) {
                 auto [lbound, ubound] = get_element_type_bounds(to);
                 new_output = std::make_shared<v0::Clamp>(param, lbound, ubound);
             }
