@@ -23,6 +23,21 @@ struct SectionHeader{
         stream.write(reinterpret_cast<const char*>(&type), sizeof(type));
         stream.write(reinterpret_cast<const char*>(&length), sizeof(length));
     }
+
+    void read(std::istream& stream) {
+        stream.read(reinterpret_cast<char*>(&type), sizeof(type));
+        stream.read(reinterpret_cast<char*>(&length), sizeof(length));
+    }
+
+    uint64_t read(const uint8_t* data){
+        uint64_t bytes = 0;
+        memcpy(reinterpret_cast<char*>(&type), &data[bytes], sizeof(type));
+        bytes += sizeof(type);
+        memcpy(reinterpret_cast<char*>(&length), &data[bytes], sizeof(length));
+        bytes += sizeof(length);
+        
+        return bytes;
+    }
 };
 
 struct ISection {

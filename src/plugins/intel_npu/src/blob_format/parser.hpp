@@ -9,13 +9,15 @@ void read_sections_from_data(const uint8_t* ptr, uint64_t size, std::vector<std:
 {
     std::cout << "read_sections_from_data " << ptr << " size " << size << std::endl; 
     uint64_t curr = 0;
-    while(curr + sizeof(SectionHeader) <= size){
-        SectionHeader *header = (SectionHeader*)&ptr[curr];
-        std::cout << "Found header.type: " << header->type << " header.length: " << header->length << std::endl;
-        std::shared_ptr<ISection> section = SectionFactory::instance().create(*header);
-        curr += sizeof(SectionHeader);
+    while(curr < size){
+        std::cout << "curr: " << curr << " size " << size << std::endl; 
+        SectionHeader header;
+        auto bytes = header.read(&ptr[curr]);
+        std::cout << "Found header.type: " << header.type << " header.length: " << header.length << std::endl;
+        std::shared_ptr<ISection> section = SectionFactory::instance().create(header);
+        curr += bytes;
         section->read_value(&ptr[curr]);
-        curr += header->length;
+        curr += header.length;
         sections.push_back(section);
     }
 }
@@ -41,8 +43,9 @@ void read_blob_from_data(const uint8_t* data, uint64_t size, std::vector<std::sh
 {
     std::cout << "read_blob_from_data " << (uint64_t)data << " size " << size << std::endl; 
 
-    Header *header = (Header*)(&data[0]);
-    read_sections_from_data(&data[sizeof(Header)], size - sizeof(Header), sections);
+    Header header;
+    uint64_t bytes = header.read(data);
+    read_sections_from_data(&data[bytes], size - bytes, sections);
 }
 
 void serialize_sections(std::ostream& stream, std::vector<std::shared_ptr<ISection>>& sections) {
