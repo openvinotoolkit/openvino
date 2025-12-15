@@ -1412,7 +1412,9 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     /* Retrieve pre-tuned kernel configuration */
     sdpa_config_t* config = nullptr;
-    bool thin_q = (!n_queries.is_dynamic() && n_queries.get_length() <= 16) || is_gqa_single_token;
+    bool thin_q = (!n_queries.is_dynamic() && n_queries.get_length() <= 16) || !is_prefill;
+    if (is_paged_attention && !is_prefill)
+        thin_q = is_gqa_single_token;
     bool is_integrated = device_info.dev_type == device_type::integrated_gpu;
 
     bool is_quantized =
