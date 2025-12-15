@@ -11,7 +11,6 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::gtest_main"
         "openvino::runtime"
         "openvino::reference"
-        "openvino::npu_common"
         "openvino::npu_al"
         "openvino::npu_logger_utils"
 )

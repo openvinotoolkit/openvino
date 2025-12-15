@@ -656,11 +656,6 @@ void Properties::registerCompiledModelProperties() {
     REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
                            true,
                            static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(config)));
-    REGISTER_CUSTOM_METRIC(ov::internal::supported_properties, false, [&](const Config&) {
-        static const std::vector<ov::PropertyName> supportedProperty{
-            ov::PropertyName(ov::internal::caching_properties.name(), ov::PropertyMutability::RO)};
-        return supportedProperty;
-    });
     REGISTER_CUSTOM_METRIC(ov::execution_devices, true, [](const Config&) {
         // TODO: log an error here as the code shouldn't have gotten here
         // this property is implemented in compiled model directly

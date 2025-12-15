@@ -326,7 +326,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
                                                    : get_core()->get_available_devices();
 
         std::vector<std::string> capabilities;
-        for (auto const& device : device_list) {
+        for (const auto& device : device_list) {
             try {
                 auto dev_capabilities = get_core()->get_property(device, ov::device::capabilities);
                 capabilities.insert(capabilities.end(), dev_capabilities.begin(), dev_capabilities.end());
@@ -770,13 +770,13 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                                                           dev_properties);
                 else
                     blobId = ov::ModelCache::compute_hash(model_path, dev_properties);
-                std::string cached_model_path = ov::util::make_path(cache_dir, blobId + ".blob");
+                const auto cached_model_path = ov::util::make_path(cache_dir) / (blobId + ".blob");
                 bool is_blob_file_exist = ov::util::file_exists(cached_model_path);
                 num_blob_files += is_blob_file_exist;
                 LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
                               device.c_str(),
                               is_blob_file_exist ? "found" : "not found",
-                              cached_model_path.c_str());
+                              ov::util::path_to_string(cached_model_path).c_str());
             }
 
             if (enable_startup_cpu && num_blob_files) {

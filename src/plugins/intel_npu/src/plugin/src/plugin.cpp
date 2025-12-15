@@ -776,6 +776,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             localConfig.update({{ov::intel_npu::model_serializer_version.name(),
                                  useBaseModelSerializer ? "ALL_WEIGHTS_COPY" : "NO_WEIGHTS_COPY"}});
         }
+    } else {
+        const auto compilerType = localConfig.get<COMPILER_TYPE>();
+        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
+            if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
+                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "NO"}});
+            } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
+            }
+        } else if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
+            if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
+                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "YES"}});
+            } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "ALL_WEIGHTS_COPY"}});
+            }
+        }
     }
 
     std::shared_ptr<intel_npu::IGraph> graph;
@@ -970,6 +985,24 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
     CompilerAdapterFactory compilerAdapterFactory;
     auto npu_plugin_properties = properties;
+    // There is an on-going migration from "USE_BASE_MODEL_SERIALIZER" to "MODEL_SERIALIZER_VERSION". Until done, make
+    // sure only the option supported by the compiler is registered in the config.
+    bool useBaseModelSerializer = true;
+    bool modelSerializerChosenExplicitly = false;
+    const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
+    const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
+    if (npu_plugin_properties.count(useBaseModelSerializerKey)) {
+        modelSerializerChosenExplicitly = true;
+        useBaseModelSerializer = npu_plugin_properties.at(useBaseModelSerializerKey).as<bool>();
+        npu_plugin_properties.erase(useBaseModelSerializerKey);
+        npu_plugin_properties.erase(modelSerializerVersionKey);
+    } else if (npu_plugin_properties.count(modelSerializerVersionKey)) {
+        modelSerializerChosenExplicitly = true;
+        const auto modelSerializerVersion =
+            npu_plugin_properties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
+        useBaseModelSerializer = !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
+        npu_plugin_properties.erase(modelSerializerVersionKey);
+    }
     exclude_model_ptr_from_map(npu_plugin_properties);
     const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
@@ -982,6 +1015,31 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                       localConfig.get<DEVICE_ID>(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
+
+    if (modelSerializerChosenExplicitly) {
+        if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
+            localConfig.update(
+                {{ov::intel_npu::use_base_model_serializer.name(), useBaseModelSerializer ? "YES" : "NO"}});
+        } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+            localConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                                 useBaseModelSerializer ? "ALL_WEIGHTS_COPY" : "NO_WEIGHTS_COPY"}});
+        }
+    } else {
+        const auto compilerType = localConfig.get<COMPILER_TYPE>();
+        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
+            if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
+                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "NO"}});
+            } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
+            }
+        } else if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
+            if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
+                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "YES"}});
+            } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "ALL_WEIGHTS_COPY"}});
+            }
+        }
+    }
 
     ov::SupportedOpsMap supportedOpsMap;
     try {

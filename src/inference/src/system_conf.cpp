@@ -22,6 +22,7 @@
 #    include <sys/auxv.h>
 #    define ARM_COMPUTE_CPU_FEATURE_HWCAP_FPHP    (1 << 9)
 #    define ARM_COMPUTE_CPU_FEATURE_HWCAP_ASIMDHP (1 << 10)
+#    define ARM_COMPUTE_CPU_FEATURE_HWCAP2_I8MM   (1 << 13)
 #    define ARM_COMPUTE_CPU_FEATURE_HWCAP_SVE     (1 << 24)
 #elif defined(__APPLE__) && defined(__aarch64__)
 #    include <sys/sysctl.h>
@@ -224,7 +225,7 @@ bool with_cpu_arm_i8mm() {
 #    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
         !defined(__arm__) && defined(__aarch64__)
     const uint32_t hwcaps = getauxval(AT_HWCAP);
-    return hwcaps & HWCAP2_I8MM;
+    return hwcaps & ARM_COMPUTE_CPU_FEATURE_HWCAP2_I8MM;
 #    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
         !defined(__aarch64__) && defined(__arm__)
     return false;
@@ -588,7 +589,7 @@ int get_org_numa_id(int numa_node_id) {
     if (iter != cpu._numaid_mapping_table.end()) {
         return iter->second;
     }
-    return -1;
+    return numa_node_id;
 }
 #endif
 
