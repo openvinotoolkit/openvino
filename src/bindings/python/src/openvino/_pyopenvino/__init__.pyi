@@ -5253,7 +5253,13 @@ def get_batch(model: typing.Any) -> Dimension:
     ...
 def get_version() -> str:
     ...
-def read_tensor_data(path: typing.Any) -> Tensor:
+def read_tensor_data(
+    path: typing.Any,
+    element_type: Type = Type.u8,
+    shape: PartialShape = ...,
+    offset_in_bytes: int = 0,
+    mmap: bool = True,
+) -> Tensor:
     ...
 def save_model(model: typing.Any, output_model: typing.Any, compress_to_fp16: bool = True) -> None:
     """
