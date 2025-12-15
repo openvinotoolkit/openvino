@@ -22,10 +22,14 @@ namespace ov::intel_gpu::ocl {
 #ifdef ENABLE_ONEDNN_FOR_GPU
 class SDPAMicroGenerator : public SDPABase {
 public:
-    explicit SDPAMicroGenerator(bool prefill, bool gqa_single_token = false) :
-        SDPABase("sdpa_micro", prefill ? "_prefill" : gqa_single_token ? "_gqa_single_token" : "_generate", false),
-        m_is_prefill(prefill),
-        m_is_gqa_single_token(gqa_single_token) {
+    explicit SDPAMicroGenerator(bool prefill, bool gqa_single_token = false)
+        : SDPABase("sdpa_micro",
+                   prefill            ? "_prefill"
+                   : gqa_single_token ? "_gqa_single_token"
+                                      : "_generate",
+                   false),
+          m_is_prefill(prefill),
+          m_is_gqa_single_token(gqa_single_token) {
         if (gqa_single_token)
             OPENVINO_ASSERT(prefill == false, "prefill should be false when gqa_single_token is true");
     }

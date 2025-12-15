@@ -595,9 +595,9 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
                 return &xehpc_q_h64_s1024;
             return &xehpc_q_h64;
         }
-        if (seq > 0 && seq <= 32)
+        if (seq <= 32)
             return &xehpc_h64_s32;
-        if (seq > 0 && seq <= 64)
+        if (seq <= 64)
             return &xehpc_h64_s64;
         return &xehpc_h64;
     } else if (head_size <= 128) {
