@@ -40,6 +40,21 @@ element::Type get_complex_part_type(const Any& raw_type) {
     }
     return complex_part_type;
 }
+
+// Helper to create parameter and register it in tensor_map, wrapping in ComplexTypeMark if needed
+void register_parameter_in_tensor_map(const std::shared_ptr<v0::Parameter>& parameter,
+                                      size_t input_id,
+                                      const Any& type_any,
+                                      const Any& raw_type,
+                                      const std::shared_ptr<std::unordered_map<size_t, Output<Node>>>& tensor_map) {
+    if (type_any.is<type::Complex>()) {
+        auto complex_part_type = get_complex_part_type(raw_type);
+        auto complex_mark = std::make_shared<ComplexTypeMark>(parameter->output(0), complex_part_type);
+        (*tensor_map)[input_id] = complex_mark;
+    } else {
+        (*tensor_map)[input_id] = parameter;
+    }
+}
 }  // namespace
 
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
@@ -145,14 +160,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 encode_tensor_name(parameter->output(0), inputs.at(i), {pytorch_model->get_input_debug_name(i)});
                 parameters->emplace_back(parameter);
 
-                // Check if input is complex and wrap in ComplexTypeMark if so
-                if (type_any.is<type::Complex>()) {
-                    auto complex_part_type = get_complex_part_type(raw_type);
-                    auto complex_mark = std::make_shared<ComplexTypeMark>(parameter->output(0), complex_part_type);
-                    (*tensor_map)[inputs.at(i)] = complex_mark;
-                } else {
-                    (*tensor_map)[inputs.at(i)] = parameter;
-                }
+                register_parameter_in_tensor_map(parameter, inputs.at(i), type_any, raw_type, tensor_map);
             }
         }
         if (input_model) {
@@ -191,14 +199,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     parameters->push_back(parameter);
                     inserted_params.push_back(input);
 
-                    // Check if input is complex and wrap in ComplexTypeMark if so
-                    if (type.is<type::Complex>()) {
-                        auto complex_part_type = get_complex_part_type(raw_type);
-                        auto complex_mark = std::make_shared<ComplexTypeMark>(parameter->output(0), complex_part_type);
-                        (*tensor_map)[input] = complex_mark;
-                    } else {
-                        (*tensor_map)[input] = parameter;
-                    }
+                    register_parameter_in_tensor_map(parameter, input, type, raw_type, tensor_map);
                 }
             }
             auto context = NodeContext(node, external_tensor_map, tensor_map, parameters, mutated_tensors, this);
