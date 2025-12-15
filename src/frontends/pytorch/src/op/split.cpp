@@ -6,9 +6,11 @@
 
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "pt_framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -20,17 +22,45 @@ using namespace ov::op;
 
 OutputVector translate_chunk(const NodeContext& context) {
     // aten::chunk(Tensor self, int chunks, int dim=0) -> Tensor[]
-    // This translator handles complex tensors by preserving ComplexTypeMark through
-    // the FrameworkNode that will be resolved later by PrimListUnpackReplacer.
+    // ComplexTypeMark handling: unwrap input, create FrameworkNode with unwrapped data,
+    // wrap output. This ensures transformations see clean graph without ComplexTypeMark.
     num_inputs_check(context, 2, 3, true);
 
+    // 1. Unwrap ComplexTypeMark from input if present
     auto [data, complex] = unwrap_complex(context.get_input(0));
 
-    // Create FrameworkNode for chunk operation (will be resolved by PrimListUnpackReplacer)
-    auto outputs = make_framework_node(context, "aten::chunk is handled by PrimListUnpackReplacer");
+    // 2. Get chunks and dim inputs
+    auto chunks = context.get_input(1);
+    Output<Node> dim;
+    if (context.input_is_none(2)) {
+        dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    } else {
+        dim = context.get_input(2);
+    }
 
-    // Preserve ComplexTypeMark if input was complex
-    return wrap_complex(context, outputs, complex);
+    // 3. Normalize dim for complex tensors (account for trailing dimension)
+    if (complex) {
+        if (dim.get_element_type() != element::i32) {
+            dim = context.mark_node(std::make_shared<v0::Convert>(dim, element::i32));
+        }
+        auto rank = std::get<1>(get_shape_rank(context, context.get_input(0), true));
+        dim = normalize_axis(context, dim, rank);
+    }
+
+    // 4. Create FrameworkNode with UNWRAPPED inputs (transformations will see clean graph)
+    auto chunk_fw = std::make_shared<PtFrameworkNode>(context.get_decoder(),
+                                                       OutputVector{data, chunks, dim},
+                                                       1);  // 1 output (list)
+    context.mark_node(chunk_fw);
+    add_exception_to_fw_node(chunk_fw, "aten::chunk is handled by PrimListUnpackReplacer");
+
+    // 5. Wrap output in ComplexTypeMark if input was complex
+    Output<Node> result = chunk_fw->output(0);
+    if (complex) {
+        result = context.mark_node(std::make_shared<ComplexTypeMark>(result, complex->get_complex_part_type()));
+    }
+
+    return {result};
 }
 
 OutputVector translate_chunk_fx(const NodeContext& context) {

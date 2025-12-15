@@ -9,7 +9,6 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -47,17 +46,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto list_unpack = m.get_match_root();
 
-        auto input = list_unpack->input_value(0);
-
-        // Unwrap ComplexTypeMark if present at list_unpack input level
-        std::shared_ptr<ComplexTypeMark> complex_mark_wrapper = nullptr;
-        if (auto ctm = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr())) {
-            complex_mark_wrapper = ctm;
-            input = ctm->input_value(0);
-        }
-
-        auto input_node = input.get_node_shared_ptr();
-
+        auto input_node = list_unpack->input_value(0).get_node_shared_ptr();
         ov::pass::NodeRegistry rg;
         if (auto torch_split = cast_fw_node(input_node, "aten::split")) {
             auto rank = torch_split->input(1).get_partial_shape().rank();
@@ -90,25 +79,11 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
 
             return true;
         } else if (auto chunk = cast_fw_node(input_node, {"aten::chunk", "aten::unsafe_chunk"})) {
-            // Get input tensor from chunk (may have ComplexTypeMark inside or at wrapper level)
-            auto raw_input = chunk->get_input_source_output(0);
-
-            // Check for ComplexTypeMark inside chunk input OR at wrapper level
-            auto inner_complex_mark = as_type_ptr<ComplexTypeMark>(raw_input.get_node_shared_ptr());
-            auto complex_mark = complex_mark_wrapper ? complex_mark_wrapper : inner_complex_mark;
-
-            // Unwrap ComplexTypeMark if present inside chunk input
-            auto input_tensor = inner_complex_mark ? inner_complex_mark->input_value(0) : raw_input;
-
             if (list_unpack->get_output_size() == 1) {
-                auto result = input_tensor;
-                if (complex_mark) {
-                    result = std::make_shared<ComplexTypeMark>(result, complex_mark->get_complex_part_type());
-                }
-                list_unpack->output(0).replace(result);
+                list_unpack->output(0).replace(input_node->input_value(0));
                 return true;
             }
-
+            auto input_tensor = chunk->get_input_source_output(0);
             auto chunks = chunk->get_input_source_output(1);
             chunks = rg.make<v0::Convert>(chunks, element::i32);
             auto dim = chunk->get_input_source_output(2);
@@ -136,18 +111,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             auto sliced_chunks = rg.make<v1::VariadicSplit>(input_tensor, dim, split_lengths);
 
             copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
-
-            // Wrap outputs in ComplexTypeMark if input was complex
-            if (complex_mark) {
-                OutputVector wrapped_outputs;
-                for (auto& out : sliced_chunks->outputs()) {
-                    wrapped_outputs.push_back(
-                        std::make_shared<ComplexTypeMark>(out, complex_mark->get_complex_part_type()));
-                }
-                replace_node(list_unpack, wrapped_outputs);
-            } else {
-                replace_node(list_unpack, sliced_chunks);
-            }
+            replace_node(list_unpack, sliced_chunks);
 
             return true;
         } else if (auto tensor_split = cast_fw_node(input_node, "aten::tensor_split")) {

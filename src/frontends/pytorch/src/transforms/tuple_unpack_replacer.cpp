@@ -5,7 +5,6 @@
 #include "tuple_unpack_replacer.hpp"
 
 #include "openvino/core/graph_util.hpp"
-#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -29,23 +28,10 @@ PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto tuple_unpack = m.get_match_root();
         OutputVector outputs;
-        auto input = tuple_unpack->input_value(0);
-
-        // Check if input is wrapped in ComplexTypeMark
-        auto complex = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
-        bool is_complex = complex != nullptr;
-        if (is_complex) {
-            input = complex->input_value(0);
-        }
-
-        auto input_node = input.get_node_shared_ptr();
+        auto input_node = tuple_unpack->get_input_node_shared_ptr(0);
         if (cast_fw_node(input_node, "prim::TupleConstruct")) {
-            for (const auto& inp : input_node->inputs()) {
-                auto out = inp.get_source_output();
-                // Preserve ComplexTypeMark for complex tensor outputs
-                if (is_complex) {
-                    out = std::make_shared<ComplexTypeMark>(out);
-                }
+            for (const auto& input : input_node->inputs()) {
+                const auto& out = input.get_source_output();
                 outputs.push_back(out);
             }
             replace_node(tuple_unpack, outputs);
@@ -56,28 +42,15 @@ PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
             auto axis_zero = v0::Constant::create(element::i32, Shape{}, {0});
             auto split = std::make_shared<v1::Split>(input_node, axis_zero, tuple_unpack->outputs().size());
             for (size_t i = 0; i < split->get_output_size(); ++i) {
-                std::shared_ptr<Node> result = std::make_shared<v15::Squeeze>(split->output(i), axis_zero);
-                // Preserve ComplexTypeMark for complex tensor outputs
-                if (is_complex) {
-                    result = std::make_shared<ComplexTypeMark>(result);
-                }
-                replace_output_update_name(tuple_unpack->output(i), result);
+                auto squeeze = std::make_shared<v15::Squeeze>(split->output(i), axis_zero);
+                replace_output_update_name(tuple_unpack->output(i), squeeze);
             }
             return true;
         } else if (input_node->get_rt_info().count("__torch_tuple_unpackable__")) {
             // This case is produced by inlined_extension
             input_node->get_rt_info().erase("__torch_tuple_unpackable__");
             // remove TupleUnpack just bypassing it with all outputs from a custom operation which returns tuple
-            // Preserve ComplexTypeMark for complex tensor outputs
-            if (is_complex) {
-                OutputVector complex_outputs;
-                for (const auto& out : input_node->outputs()) {
-                    complex_outputs.push_back(std::make_shared<ComplexTypeMark>(out));
-                }
-                replace_node(tuple_unpack, complex_outputs);
-            } else {
-                replace_node(tuple_unpack, input_node->outputs());
-            }
+            replace_node(tuple_unpack, input_node->outputs());
             return true;
         }
         return false;
