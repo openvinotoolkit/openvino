@@ -10,8 +10,7 @@
 namespace cldnn {
 namespace onednn {
 
-#ifdef GPU_DEBUG_CONFIG
-static std::string memory_desc_to_string(const dnnl::memory::desc& desc) {
+std::string memory_desc_to_string(const dnnl::memory::desc& desc) {
     auto get_format_tag_from_desc = [](const dnnl::memory::desc& d) {
         if (d.get_format_kind() != dnnl::memory::format_kind::blocked) {
             return dnnl::memory::format_tag::undef;
@@ -43,8 +42,6 @@ static std::string memory_desc_to_string(const dnnl::memory::desc& desc) {
 
     return ss.str();
 }
-
-#endif  // GPU_DEBUG_CONFIG
 
 template <typename T>
 cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
@@ -334,198 +331,179 @@ static const std::map<cldnn::format::type, dnnl::memory::format_tag> format_map_
 };
 
 // Internal builder class for memory descriptor construction
-class MemoryDescriptorBuilder {
-private:
-    const cldnn::layout& _layout;
-    dnnl::memory::format_tag _target_fmt;
-    const size_t _shape_rank;  // Pre-calculated in constructor
-    bool _flatten;
-    bool _use_strides;
-    bool _keep_rank;
+size_t MemoryDescriptorBuilder::calculate_shape_rank(const cldnn::layout& l) {
+    return l.is_dynamic() ?
+        static_cast<size_t>(l.get_partial_shape().rank().get_length()) :
+        l.get_shape().size();
+}
 
-    // Pre-calculate shape rank once in constructor
-    static size_t calculate_shape_rank(const cldnn::layout& l) {
-        return l.is_dynamic() ?
-            static_cast<size_t>(l.get_partial_shape().rank().get_length()) :
-            l.get_shape().size();
+MemoryDescriptorBuilder::MemoryDescriptorBuilder(const cldnn::layout& l, dnnl::memory::format_tag target_fmt)
+    : _layout(l)
+    , _target_fmt(target_fmt)
+    , _shape_rank(calculate_shape_rank(l))
+    , _flatten(false)
+    , _use_strides(false)
+    , _keep_rank(false) {}
+
+// Builder methods
+MemoryDescriptorBuilder& MemoryDescriptorBuilder::as_flattened() {
+    _flatten = true;
+    return *this;
+}
+
+MemoryDescriptorBuilder& MemoryDescriptorBuilder::with_strides() {
+    _use_strides = true;
+    return *this;
+}
+
+MemoryDescriptorBuilder& MemoryDescriptorBuilder::keep_rank() {
+    _keep_rank = true;
+    return *this;
+}
+
+// Build method
+dnnl::memory::desc MemoryDescriptorBuilder::build() const {
+    auto [dims, updated_fmt] = calculate_dims();
+    auto dt = convert_data_type(_layout.data_type);
+
+    if (_use_strides) {
+        OPENVINO_ASSERT(!_flatten, "The padded layout cannot be flattened.");
+        auto strides = calculate_strides(updated_fmt);
+        return dnnl::memory::desc(dims, dt, strides);
+    } else {
+        dnnl::memory::format_tag fmt = updated_fmt == dnnl::memory::format_tag::undef
+            ? convert_data_format(_layout.format) : updated_fmt;
+        dnnl::memory::desc res(dims, dt, fmt);
+        return res;
     }
+}
 
-public:
-    explicit MemoryDescriptorBuilder(const cldnn::layout& l, dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef)
-        : _layout(l)
-        , _target_fmt(target_fmt)
-        , _shape_rank(calculate_shape_rank(l))  // Calculate once
-        , _flatten(false)
-        , _use_strides(false)
-        , _keep_rank(false) {}
+// Calculate dims method
+std::pair<dnnl::memory::dims, dnnl::memory::format_tag> MemoryDescriptorBuilder::calculate_dims() const {
+    dnnl::memory::dims dims;
+    auto fmt_tag = _target_fmt;
 
-    MemoryDescriptorBuilder& with_format(dnnl::memory::format_tag fmt) {
-        _target_fmt = fmt;
-        return *this;
-    }
+    if (fmt_tag == dnnl::memory::format_tag::ab && _flatten) {
+        dims = flatten_tensor(_layout.get_tensor());
+        dims.insert(dims.begin(), 1);
+    } else if (fmt_tag == dnnl::memory::format_tag::ab) {
+        dims.push_back(_layout.batch());
+        dims.push_back(_layout.get_tensor().count() / _layout.batch());
+    } else if (fmt_tag == dnnl::memory::format_tag::abc) {
+        dims.push_back(_layout.batch());
+        dims.push_back(_layout.feature());
+        dims.push_back(_layout.spatial(1));
+    } else if (fmt_tag == dnnl::memory::format_tag::acb) {
+        dims.push_back(_layout.batch());
+        dims.push_back(_layout.spatial(1));
+        dims.push_back(_layout.feature());
+    } else if (fmt_tag == dnnl::memory::format_tag::abdc) {
+        dims.push_back(_layout.batch());
+        dims.push_back(_layout.feature());
+        dims.push_back(_layout.spatial(0));
+        dims.push_back(_layout.spatial(1));
+    } else if (fmt_tag == dnnl::memory::format_tag::abced) {
+        dims.push_back(_layout.batch());
+        dims.push_back(_layout.feature());
+        dims.push_back(_layout.spatial(2));
+        dims.push_back(_layout.spatial(0));
+        dims.push_back(_layout.spatial(1));
+    } else if (fmt_tag == dnnl::memory::format_tag::abcdfe) {
+        dims.push_back(_layout.batch());
+        dims.push_back(_layout.feature());
+        dims.push_back(_layout.spatial(3));
+        dims.push_back(_layout.spatial(2));
+        dims.push_back(_layout.spatial(0));
+        dims.push_back(_layout.spatial(1));
+    } else if (fmt_tag == dnnl::memory::format_tag::ba) {
+        dims.push_back(_layout.feature());
+        dims.push_back(_layout.get_tensor().count() / _layout.feature());
+    } else if (_flatten) {
+        dims = flatten_tensor(_layout.get_tensor());
+    } else {
+        auto shape_rank = _layout.is_dynamic() ?
+            static_cast<size_t>(_layout.get_partial_shape().rank().get_length()) : 
+            _layout.get_shape().size();
 
-    MemoryDescriptorBuilder& as_flattened() {
-        _flatten = true;
-        return *this;
-    }
-
-    MemoryDescriptorBuilder& with_strides() {
-        _use_strides = true;
-        return *this;
-    }
-
-    MemoryDescriptorBuilder& keep_rank() {
-        _keep_rank = true;
-        return *this;
-    }
-
-    MemoryDescriptorBuilder& change_target_fmt(dnnl::memory::format_tag fmt) {
-        if (_target_fmt != fmt)
-            _target_fmt = fmt;
-        return *this;
-    }
-
-    dnnl::memory::desc build() const {
-        auto [dims, updated_fmt] = calculate_dims();
-        auto dt = convert_data_type(_layout.data_type);
-
-        if (_use_strides) {
-            OPENVINO_ASSERT(!_flatten, "The padded layout cannot be flattened.");
-            auto strides = calculate_strides(updated_fmt);
-            return dnnl::memory::desc(dims, dt, strides);
-        } else {
-            dnnl::memory::format_tag fmt = updated_fmt == dnnl::memory::format_tag::undef ? convert_data_format(_layout.format) : updated_fmt;
-            dnnl::memory::desc res(dims, dt, fmt);
-            return res;
-        }
-    }
-
-private:
-    std::pair<dnnl::memory::dims, dnnl::memory::format_tag> calculate_dims() const {
-        dnnl::memory::dims dims;
-        auto fmt_tag = _target_fmt;
-        if (fmt_tag == dnnl::memory::format_tag::ab && _flatten) {
-            dims = flatten_tensor(_layout.get_tensor());
-            dims.insert(dims.begin(), 1);
-        } else if (fmt_tag == dnnl::memory::format_tag::ab) {
-            dims.push_back(_layout.batch());
-            dims.push_back(_layout.get_tensor().count() / _layout.batch());
-        } else if (fmt_tag == dnnl::memory::format_tag::abc) {
+        if (shape_rank == 3 && !_keep_rank) {
             dims.push_back(_layout.batch());
             dims.push_back(_layout.feature());
-            dims.push_back(_layout.spatial(1));
-        } else if (fmt_tag == dnnl::memory::format_tag::acb) {
-            dims.push_back(_layout.batch());
-            dims.push_back(_layout.spatial(1));
-            dims.push_back(_layout.feature());
-        } else if (fmt_tag == dnnl::memory::format_tag::abdc) {
-            dims.push_back(_layout.batch());
-            dims.push_back(_layout.feature());
-            dims.push_back(_layout.spatial(0));
-            dims.push_back(_layout.spatial(1));
-        } else if (fmt_tag == dnnl::memory::format_tag::abced) {
-            dims.push_back(_layout.batch());
-            dims.push_back(_layout.feature());
-            dims.push_back(_layout.spatial(2));
-            dims.push_back(_layout.spatial(0));
-            dims.push_back(_layout.spatial(1));
-        } else if (fmt_tag == dnnl::memory::format_tag::abcdfe) {
-            dims.push_back(_layout.batch());
-            dims.push_back(_layout.feature());
-            dims.push_back(_layout.spatial(3));
-            dims.push_back(_layout.spatial(2));
-            dims.push_back(_layout.spatial(0));
-            dims.push_back(_layout.spatial(1));
-        } else if (fmt_tag == dnnl::memory::format_tag::ba) {
-            dims.push_back(_layout.feature());
-            dims.push_back(_layout.get_tensor().count() / _layout.feature());
-        } else if (_flatten) {
-            dims = flatten_tensor(_layout.get_tensor());
-        } else {
-            // clDNN expresses 3d tensor with 4d format. This code is to use 3d format on oneDNN for such case.
-            // However, if the memory::desc to be converted is related to another blocked format, it should be expanded to a 4d tensor.
-            auto shape_rank = _layout.is_dynamic() ?
-                static_cast<size_t>(_layout.get_partial_shape().rank().get_length()) : _layout.get_shape().size();
-            if (shape_rank == 3 && !_keep_rank) {
-                dims.push_back(_layout.batch());
-                dims.push_back(_layout.feature());
-                // In cldnn::layer, when it is a 3D shape, the values ​​of the XY axes can sometimes be flipped,
-                // so the larger value of the two is used.
-                dims.push_back(std::max(_layout.spatial(0), _layout.spatial(1)));
-                auto it = format_map_cldnn_4d_to_onednn_3d.find(_layout.format);
-                if (it != format_map_cldnn_4d_to_onednn_3d.end()) {
-                    fmt_tag = it->second;
-                } else {
-                    OPENVINO_THROW("[GPU] Unexpected layout format " + _layout.to_short_string());
-                }
+            dims.push_back(std::max(_layout.spatial(0), _layout.spatial(1)));
+            auto it = format_map_cldnn_4d_to_onednn_3d.find(_layout.format);
+            if (it != format_map_cldnn_4d_to_onednn_3d.end()) {
+                fmt_tag = it->second;
             } else {
-                auto rank = cldnn::format::dimension(_layout.format);
-                dims = convert_tensor(_layout.get_tensor(), rank, cldnn::format::is_grouped(_layout.format));
+                OPENVINO_THROW("[GPU] Unexpected layout format " + _layout.to_short_string());
             }
+        } else {
+            auto rank = cldnn::format::dimension(_layout.format);
+            dims = convert_tensor(_layout.get_tensor(), rank, cldnn::format::is_grouped(_layout.format));
         }
-        return {dims, fmt_tag};
+    }
+    return {dims, fmt_tag};
+}
+
+// Calculate strides method
+dnnl::memory::dims MemoryDescriptorBuilder::calculate_strides(dnnl::memory::format_tag fmt) const {
+    auto padded_dims = _layout.get_padded_dims();
+    dnnl::memory::dims strides;
+
+    switch (fmt) {
+        case dnnl::memory::format_tag::ab:
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            break;
+
+        case dnnl::memory::format_tag::abc:
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[1]);
+            break;
+
+        case dnnl::memory::format_tag::acb:
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[2]);
+            break;
+
+        case dnnl::memory::format_tag::abdc:
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[1]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[3]);
+            break;
+
+        case dnnl::memory::format_tag::abced:
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[1]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2] * padded_dims[4]);
+            break;
+
+        case dnnl::memory::format_tag::abcdfe:
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[1]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2] * padded_dims[3]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2] * padded_dims[3] * padded_dims[5]);
+            break;
+
+        case dnnl::memory::format_tag::ba:
+            strides.push_back(1);
+            strides.push_back(padded_dims[1]);
+            break;
+
+        default: {
+            auto pitches = _layout.get_pitches();
+            strides.assign(pitches.begin(), pitches.end());
+            break;
+        }
     }
 
-    dnnl::memory::dims calculate_strides(dnnl::memory::format_tag fmt) const {
-        auto padded_dims = _layout.get_padded_dims();
-        dnnl::memory::dims strides;
-        switch (fmt) {
-            case dnnl::memory::format_tag::ab:
-                strides.push_back(1);
-                strides.push_back(padded_dims[0]);
-                break;
-
-            case dnnl::memory::format_tag::abc:
-                strides.push_back(1);
-                strides.push_back(padded_dims[0]);
-                strides.push_back(padded_dims[0] * padded_dims[1]);
-                break;
-
-            case dnnl::memory::format_tag::acb:
-                strides.push_back(1);
-                strides.push_back(padded_dims[0]);
-                strides.push_back(padded_dims[0] * padded_dims[2]);
-                break;
-
-            case dnnl::memory::format_tag::abdc:
-                strides.push_back(1);
-                strides.push_back(padded_dims[0]);
-                strides.push_back(padded_dims[0] * padded_dims[1]);
-                strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[3]);
-                break;
-
-            case dnnl::memory::format_tag::abced:
-                strides.push_back(1);
-                strides.push_back(padded_dims[0]);
-                strides.push_back(padded_dims[0] * padded_dims[1]);
-                strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2]);
-                strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2] * padded_dims[4]);
-                break;
-
-            case dnnl::memory::format_tag::abcdfe:
-                strides.push_back(1);
-                strides.push_back(padded_dims[0]);
-                strides.push_back(padded_dims[0] * padded_dims[1]);
-                strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2]);
-                strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2] * padded_dims[3]);
-                strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2] * padded_dims[3] * padded_dims[5]);
-                break;
-
-            case dnnl::memory::format_tag::ba:
-                strides.push_back(1);
-                strides.push_back(padded_dims[1]);
-                break;
-
-            default: {
-                auto pitches = _layout.get_pitches();
-                strides.assign(pitches.begin(), pitches.end());
-                break;
-            }
-        }
-
-        return strides;
-    }
-};
+    return strides;
+}
 
 // Public API functions using the builder
 dnnl::memory::desc layout_to_memory_desc(const cldnn::layout& l, dnnl::memory::format_tag target_fmt) {
@@ -540,22 +518,16 @@ dnnl::memory::desc layout_to_memory_desc_blocked(const cldnn::layout& l, dnnl::m
     return MemoryDescriptorBuilder(l, target_fmt).keep_rank().build();
 }
 
-dnnl::memory::desc layout_to_memory_desc_grouped(const cldnn::layout& l, dnnl::memory::format_tag target_fmt) {
-    return MemoryDescriptorBuilder(l, target_fmt).keep_rank().build();
-}
-
 dnnl::memory::desc layout_to_memory_desc_strides(const cldnn::layout& l, dnnl::memory::format_tag target_fmt) {
     return MemoryDescriptorBuilder(l, target_fmt).with_strides().build();
 }
 
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, bool use_default_format, bool is_output_blocked) {
-    auto md = MemoryDescriptorBuilder(l, dnnl::memory::format_tag::undef);
-
     if (use_default_format) {
-        md.change_target_fmt(get_default_data_format(l));
-        return md.build();
+        return MemoryDescriptorBuilder(l, get_default_data_format(l)).build();
     }
 
+    auto md = MemoryDescriptorBuilder(l, dnnl::memory::format_tag::undef);
     if (is_output_blocked) {
         md.keep_rank();
     }
@@ -582,11 +554,9 @@ get_conv_memory_descs(cldnn::layout input_layout, cldnn::layout weights_layout, 
     auto weights_desc = weights_mdb.build();
     auto output_desc = output_mdb.build();
 
-#ifdef GPU_DEBUG_CONFIG
     GPU_DEBUG_TRACE_DETAIL << "input: " << input_layout.to_short_string() << " -> " << memory_desc_to_string(input_desc) << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "weights: " << weights_layout.to_short_string() << " -> " << memory_desc_to_string(weights_desc) << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "output: " << output_layout.to_short_string() << " -> " << memory_desc_to_string(output_desc) << std::endl;
-#endif
 
     return {input_desc, weights_desc, output_desc};
 }

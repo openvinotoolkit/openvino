@@ -43,7 +43,7 @@ dnnl::memory::desc layout_to_memory_desc(
 
 dnnl::memory::desc layout_to_memory_desc_flatten(
     const cldnn::layout& l,
-    dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::any);
+    dnnl::memory::format_tag target_fmt);
 
 dnnl::memory::desc layout_to_memory_desc_strides(
     const cldnn::layout& l,
@@ -51,11 +51,7 @@ dnnl::memory::desc layout_to_memory_desc_strides(
 
 dnnl::memory::desc layout_to_memory_desc_blocked(
     const cldnn::layout& l,
-    dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef);
-
-dnnl::memory::desc layout_to_memory_desc_grouped(
-    const cldnn::layout& l,
-    dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::any);
+    dnnl::memory::format_tag target_fmt);
 
 /// This function is specifically designed for quantize post-op inputs where:
 ///  - For gemm/fully_connected: always use default format
@@ -85,5 +81,32 @@ bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val);
 int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
                                 const std::function<layout(int32_t)>& get_input_layout,
                                 int32_t slope_input_idx);
+
+std::string memory_desc_to_string(const dnnl::memory::desc& desc);
+
+// Internal builder class for memory descriptor construction
+class MemoryDescriptorBuilder {
+public:
+    explicit MemoryDescriptorBuilder(const cldnn::layout& l, dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef);
+
+    MemoryDescriptorBuilder& as_flattened();
+    MemoryDescriptorBuilder& with_strides();
+    MemoryDescriptorBuilder& keep_rank();
+
+    dnnl::memory::desc build() const;
+
+private:
+    const cldnn::layout& _layout;
+    dnnl::memory::format_tag _target_fmt;
+    const size_t _shape_rank;
+    bool _flatten;
+    bool _use_strides;
+    bool _keep_rank;
+
+    size_t calculate_shape_rank(const cldnn::layout& l);
+    std::pair<dnnl::memory::dims, dnnl::memory::format_tag> calculate_dims() const;
+    dnnl::memory::dims calculate_strides(dnnl::memory::format_tag fmt) const;
+};
+
 }  // namespace onednn
 }  // namespace cldnn

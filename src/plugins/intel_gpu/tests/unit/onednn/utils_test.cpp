@@ -410,13 +410,6 @@ TEST_F(test_layout_to_memory_desc, blocked_format) {
     EXPECT_GT(desc.get_inner_nblks(), 0);  // Should have blocking
 }
 
-TEST_F(test_layout_to_memory_desc, grouped_weights) {
-    layout l = layout{ov::PartialShape{32, 16, 8, 3, 3}, data_types::f16, format::goiyx};
-    auto desc = layout_to_memory_desc_grouped(l, dnnl::memory::format_tag::any);
-    EXPECT_EQ(desc.get_ndims(), 5);
-    EXPECT_EQ(desc.get_dims()[0], 32);  // groups
-}
-
 TEST_F(test_layout_to_memory_desc, strides_with_padding) {
     layout l = layout{ov::PartialShape{1, 64, 56, 56}, data_types::f16, format::bfyx};
     l.data_padding = padding{{0, 0, 2, 2}, {0, 0, 2, 2}};
