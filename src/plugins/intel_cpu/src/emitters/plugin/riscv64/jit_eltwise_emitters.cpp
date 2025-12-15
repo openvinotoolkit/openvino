@@ -158,20 +158,19 @@ void jit_ceil_emitter::register_table_entries() {
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-void jit_ceil_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
-                                const std::vector<size_t>& out_vec_idxs) const {
+void jit_ceil_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,const std::vector<size_t>& out_vec_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
 
-    auto src  = VReg(in_vec_idxs[0]);
-    auto dst  = VReg(out_vec_idxs[0]);
-    auto aux1 = VReg(aux_vec_idxs[0]);
-    auto fp1  = FReg(aux_fp_gpr_idxs[0]);
+    auto src = VReg(in_vec_idxs[0]);
+    auto dst = VReg(out_vec_idxs[0]);
+    auto aux1= VReg(aux_vec_idxs[0]);
+    auto fp1 = FReg(aux_fp_gpr_idxs[0]);
     h->vmv_v_v(aux1, src);
 
     h->vfcvt_x_f_v(dst, src);
     h->vfcvt_f_x_v(dst, dst);
 
-    h->vmflt_vv(mask_vreg(), dst, aux1);
+    h->vmflt_vv(mask_vreg(), dst, src);
     load_table_val("one", fp1);
     h->vfadd_vf(dst, dst, fp1, VM::masked);
 }
