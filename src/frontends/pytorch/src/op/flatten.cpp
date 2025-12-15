@@ -21,12 +21,13 @@ using namespace ov::op;
 
 OutputVector translate_flatten(const NodeContext& context) {
     num_inputs_check(context, 1, 3, true);  // allow_complex = true
-    auto [x, complex] = unwrap_complex(context.get_input(0));
+    auto input = context.get_input(0);
+    auto [x, complex] = unwrap_complex(input);
 
     Output<Node> shape;
     Output<Node> rank;
-    // Use original input for complex-aware rank calculation
-    std::tie(shape, rank) = get_shape_rank(context, context.get_input(0), true);
+    // Use original input to get complex-aware shape (without trailing dimension 2)
+    std::tie(shape, rank) = get_shape_rank(context, input, true);
     // Use opset::If for dim normalization. For now we only have flatten with constant start and end
     Output<Node> start_dim_node;
     Output<Node> end_dim_node;
@@ -54,32 +55,16 @@ OutputVector translate_flatten(const NodeContext& context) {
     auto end_dim_next = std::make_shared<v1::Add>(end_dim_u, one);
     auto slice_end = std::make_shared<v8::Slice>(shape, end_dim_next, int_max, one);
 
+    context.mark_nodes({zero, one, int_max, start_dim_u, end_dim_u, slice_begin, slice_end, neg_1_const});
     Output<Node> new_shape;
     if (complex) {
         // For complex tensors, append dimension 2 to preserve complex representation
         auto two = v0::Constant::create(element::i32, Shape{1}, {2});
-        new_shape = std::make_shared<v0::Concat>(OutputVector{slice_begin, neg_1_const, slice_end, two}, 0);
-        context.mark_nodes({zero,
-                            one,
-                            int_max,
-                            start_dim_u,
-                            end_dim_u,
-                            slice_begin,
-                            slice_end,
-                            neg_1_const,
-                            two,
-                            new_shape.get_node_shared_ptr()});
+        new_shape =
+            context.mark_node(std::make_shared<v0::Concat>(OutputVector{slice_begin, neg_1_const, slice_end, two}, 0));
     } else {
-        new_shape = std::make_shared<v0::Concat>(OutputVector{slice_begin, neg_1_const, slice_end}, 0);
-        context.mark_nodes({zero,
-                            one,
-                            int_max,
-                            start_dim_u,
-                            end_dim_u,
-                            slice_begin,
-                            slice_end,
-                            neg_1_const,
-                            new_shape.get_node_shared_ptr()});
+        new_shape =
+            context.mark_node(std::make_shared<v0::Concat>(OutputVector{slice_begin, neg_1_const, slice_end}, 0));
     }
 
     auto result = context.mark_node(std::make_shared<v1::Reshape>(x, new_shape, true));

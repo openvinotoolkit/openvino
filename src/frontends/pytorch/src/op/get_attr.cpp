@@ -24,13 +24,7 @@ OutputVector translate_get_attr(const NodeContext& context) {
             res[0].add_names({node->get_friendly_name()});
         }
         auto dtype = decoder->get_output_type(0);
-        // Check if dtype indicates a complex tensor
-        // Case 1: dtype is directly Complex (from torch.ComplexFloatTensor, etc.)
-        // Case 2: dtype is Tensor with Complex element type
-        bool is_complex = dtype.is<type::Complex>() ||
-                          (dtype.is<type::Tensor>() && dtype.as<type::Tensor>().element_type.is<type::Complex>());
-
-        if (is_complex) {
+        if (simplified_type_interpret(dtype).is<type::Complex>()) {
             // Add complex mark to complex constant
             res = {context.mark_node(std::make_shared<ComplexTypeMark>(res[0], res[0].get_element_type()))};
         }

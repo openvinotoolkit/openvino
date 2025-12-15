@@ -20,6 +20,28 @@ namespace pytorch {
 
 using namespace ov::op;
 
+namespace {
+// Helper to extract complex part element type from raw type
+element::Type get_complex_part_type(const Any& raw_type) {
+    element::Type complex_part_type = element::dynamic;
+    if (raw_type.is<type::Complex>()) {
+        const auto& complex_type = raw_type.as<type::Complex>();
+        if (complex_type.element_type.is<element::Type>()) {
+            complex_part_type = complex_type.element_type.as<element::Type>();
+        }
+    } else if (raw_type.is<type::Tensor>()) {
+        const auto& tensor_type = raw_type.as<type::Tensor>();
+        if (tensor_type.element_type.is<type::Complex>()) {
+            const auto& complex_type = tensor_type.element_type.as<type::Complex>();
+            if (complex_type.element_type.is<element::Type>()) {
+                complex_part_type = complex_type.element_type.as<element::Type>();
+            }
+        }
+    }
+    return complex_part_type;
+}
+}  // namespace
+
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
                                    const std::unordered_map<std::string, CreatorFunction>& translator_map,
                                    const std::shared_ptr<TelemetryExtension>& telemetry)
@@ -124,26 +146,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 parameters->emplace_back(parameter);
 
                 // Check if input is complex and wrap in ComplexTypeMark if so
-                bool is_complex =
-                    raw_type.is<type::Complex>() ||
-                    (raw_type.is<type::Tensor>() && raw_type.as<type::Tensor>().element_type.is<type::Complex>());
-                if (is_complex) {
-                    // Extract complex part element type if available
-                    element::Type complex_part_type = element::dynamic;
-                    if (raw_type.is<type::Complex>()) {
-                        auto& complex_type = raw_type.as<type::Complex>();
-                        if (complex_type.element_type.is<element::Type>()) {
-                            complex_part_type = complex_type.element_type.as<element::Type>();
-                        }
-                    } else if (raw_type.is<type::Tensor>()) {
-                        auto& tensor_type = raw_type.as<type::Tensor>();
-                        if (tensor_type.element_type.is<type::Complex>()) {
-                            auto& complex_type = tensor_type.element_type.as<type::Complex>();
-                            if (complex_type.element_type.is<element::Type>()) {
-                                complex_part_type = complex_type.element_type.as<element::Type>();
-                            }
-                        }
-                    }
+                if (type_any.is<type::Complex>()) {
+                    auto complex_part_type = get_complex_part_type(raw_type);
                     auto complex_mark = std::make_shared<ComplexTypeMark>(parameter->output(0), complex_part_type);
                     (*tensor_map)[inputs.at(i)] = complex_mark;
                 } else {
@@ -188,26 +192,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     inserted_params.push_back(input);
 
                     // Check if input is complex and wrap in ComplexTypeMark if so
-                    bool is_complex =
-                        raw_type.is<type::Complex>() ||
-                        (raw_type.is<type::Tensor>() && raw_type.as<type::Tensor>().element_type.is<type::Complex>());
-                    if (is_complex) {
-                        // Extract complex part element type if available
-                        element::Type complex_part_type = element::dynamic;
-                        if (raw_type.is<type::Complex>()) {
-                            auto& complex_type = raw_type.as<type::Complex>();
-                            if (complex_type.element_type.is<element::Type>()) {
-                                complex_part_type = complex_type.element_type.as<element::Type>();
-                            }
-                        } else if (raw_type.is<type::Tensor>()) {
-                            auto& tensor_type = raw_type.as<type::Tensor>();
-                            if (tensor_type.element_type.is<type::Complex>()) {
-                                auto& complex_type = tensor_type.element_type.as<type::Complex>();
-                                if (complex_type.element_type.is<element::Type>()) {
-                                    complex_part_type = complex_type.element_type.as<element::Type>();
-                                }
-                            }
-                        }
+                    if (type.is<type::Complex>()) {
+                        auto complex_part_type = get_complex_part_type(raw_type);
                         auto complex_mark = std::make_shared<ComplexTypeMark>(parameter->output(0), complex_part_type);
                         (*tensor_map)[input] = complex_mark;
                     } else {

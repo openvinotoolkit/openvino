@@ -485,6 +485,10 @@ Any simplified_type_interpret(Any type) {
         if (tensor.element_type.is<element::Type>()) {
             return tensor.element_type;
         }
+        // If tensor element type is Complex, return Complex
+        if (tensor.element_type.is<type::Complex>()) {
+            return tensor.element_type;
+        }
     } else if (type.is<type::PyScalar>()) {
         const auto& scalar = type.as<type::PyScalar>();
         if (scalar.element_type.is<element::Type>()) {
