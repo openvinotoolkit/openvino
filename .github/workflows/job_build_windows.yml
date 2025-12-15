@@ -43,8 +43,8 @@ jobs:
     runs-on: ${{ inputs.runner }}
     env:
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
       CCACHE_REMOTE_DIR: C:\\mount\\caches\\ccache\\windows2022_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
@@ -84,7 +84,7 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
-      
+
       - name: Setup NodeJS
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
@@ -137,6 +137,7 @@ jobs:
           python3 -m pip install certifi
 
       - name: Download and install ccache
+        if: ${{ inputs.build-type != 'Debug' }}
         run: |
           Invoke-WebRequest -Uri 'https://github.com/ccache/ccache/releases/download/v4.9.1/ccache-4.9.1-windows-x86_64.zip' -OutFile 'ccache.zip'
           Expand-Archive -Path 'ccache.zip' -DestinationPath 'C:\temp\ccache'
@@ -156,6 +157,7 @@ jobs:
 
       - name: Setup ccache
         uses: ./openvino/.github/actions/cache
+        if: ${{ inputs.build-type != 'Debug' }}
         with:
           save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
@@ -183,12 +185,14 @@ jobs:
           Invoke-Expression $cmakeCommand
 
       - name: Clean ccache stats
+        if: ${{ inputs.build-type != 'Debug' }}
         run: '& ccache --zero-stats'
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel $ENV:NUMBER_OF_PROCESSORS --verbose
 
       - name: Show ccache stats
+        if: ${{ inputs.build-type != 'Debug' }}
         run: '& ccache --show-stats'
 
       - name: Cmake install - OpenVINO
@@ -274,7 +278,7 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/developer_package.zip"
           }
           Compress-Archive @compress
-          
+
           $file=Get-ChildItem -Path "${{ env.INSTALL_TEST_DIR }}"
           $compress = @{
             Path = $file
@@ -320,7 +324,7 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_js_package.zip"
           }
           Compress-Archive @compress
-      
+
       - name: Pack openvino_node_npm_package
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
         run: |
@@ -368,7 +372,7 @@ jobs:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
           if-no-files-found: 'error'
-          
+
       - name: Upload OpenVINO developer package
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:

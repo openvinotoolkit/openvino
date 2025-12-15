@@ -587,10 +587,10 @@ void ov::CoreImpl::register_compile_time_plugins() {
             register_plugin_in_registry_unsafe(device_name, desc);
         }
 #else
-        const auto& pluginPath = ov::util::get_compiled_plugin_path(plugin.second.m_plugin_path);
-        if (m_plugin_registry.find(device_name) == m_plugin_registry.end() && ov::util::file_exists(pluginPath)) {
+        const auto& plugin_path = ov::util::get_compiled_plugin_path(ov::util::make_path(plugin.second.m_plugin_path));
+        if (m_plugin_registry.find(device_name) == m_plugin_registry.end() && ov::util::file_exists(plugin_path)) {
             ov::AnyMap config = any_copy(plugin.second.m_default_config);
-            PluginDescriptor desc{pluginPath, config};
+            PluginDescriptor desc{plugin_path, config};
             register_plugin_in_registry_unsafe(device_name, desc);
         }
 #endif
@@ -620,8 +620,10 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
             OPENVINO_THROW("Device name must not contain dot '.' symbol");
         }
 
-        ov::util::FilePath pluginPath =
-            ov::util::get_plugin_path(pugixml::get_str_attr(pluginNode, "location"), xml_config_file, by_abs_path);
+        const auto& plugin_path =
+            ov::util::get_plugin_path(ov::util::make_path(pugixml::get_str_attr(pluginNode, "location")),
+                                      ov::util::make_path(xml_config_file),
+                                      by_abs_path);
 
         // check properties
         auto propertiesNode = pluginNode.child("properties");
@@ -648,7 +650,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
         // fill value in plugin registry for later lazy initialization
         {
-            PluginDescriptor desc{pluginPath, config, listOfExtentions};
+            PluginDescriptor desc{plugin_path, config, listOfExtentions};
             register_plugin_in_registry_unsafe(device_name, desc);
         }
     }
@@ -1324,7 +1326,7 @@ void ov::CoreImpl::register_plugin(const std::string& plugin,
         OPENVINO_THROW("Device name must not contain dot '.' symbol");
     }
 
-    PluginDescriptor desc{ov::util::get_plugin_path(plugin), properties};
+    PluginDescriptor desc{ov::util::get_plugin_path(ov::util::make_path(plugin)), properties};
     register_plugin_in_registry_unsafe(device_name, desc);
 }
 

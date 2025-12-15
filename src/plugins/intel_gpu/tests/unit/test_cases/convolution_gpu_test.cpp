@@ -11944,6 +11944,45 @@ INSTANTIATE_TEST_SUITE_P(smoke, conv_dyn_test,
     { ov::Shape{1, 64, 16, 16}, ov::Shape{64, 1, 1, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 64 },
 }));
 
+TEST(convolution_gpu_imad_cache, convolution_gpu_b_fs_yx_fsv16_imad_1x1_cache) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_imad)
+        GTEST_SKIP() << "IMAD (dp4a) instructions are not supported on this device; the IMAD 1x1 kernel cannot be selected.";
+
+    const ov::Shape static_input_shape = {1, 64, 7, 7};
+    const ov::Shape weights_shape = {64, 64, 1, 1};
+
+    // The IMAD 1x1 kernel does not accept an undefined batch, so keep the input fully static
+    // to mirror the successful resnet50_int8 runtime selection on the same device.
+    ov::PartialShape dyn_input_shape = static_input_shape;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_vals = rg.generate_random_1d<uint8_t>(ov::shape_size(static_input_shape), 0, 5);
+    auto weights_vals = rg.generate_random_1d<int8_t>(ov::shape_size(weights_shape), -3, 3);
+
+    auto input_mem = engine.allocate_memory({static_input_shape, data_types::u8, format::b_fs_yx_fsv16});
+    auto weights_mem = engine.allocate_memory({weights_shape, data_types::i8, format::bfyx});
+    set_values(input_mem, input_vals);
+    set_values(weights_mem, weights_vals);
+
+    topology topology(
+        input_layout("input", {dyn_input_shape, data_types::u8, format::b_fs_yx_fsv16}),
+        data("weights", weights_mem),
+        convolution("conv", input_info("input"), "weights", no_bias, 1,
+                    ov::Strides{1, 1}, ov::Strides{1, 1},
+                    ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::b_fs_yx_fsv16, "convolution_gpu_b_fs_yx_fsv16_imad_1x1", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}}));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), true);
+    network->set_input_data("input", input_mem);
+
+    ASSERT_NO_THROW(network->execute());
+}
 
 struct conv_dyn_3d_test_params {
     ov::Shape in_shape;
