@@ -15,6 +15,10 @@ on:
         description: 'Runner labels by which the runner will be chosen. Example: [ "self-hosted", "igpu" ]'
         type: string
         required: true
+      runner-group:
+        description: 'Runner group from which the runner will be chosen'
+        type: string
+        required: true
       image:
         description: 'Docker image in which the tests would run'
         type: string
@@ -31,7 +35,9 @@ permissions: read-all
 jobs:
   GPU:
     timeout-minutes: 80
-    runs-on: ${{ fromJSON(inputs.runner) }}
+    runs-on:
+      group: ${{ inputs.runner-group }}
+      labels: ${{ fromJSON(inputs.runner) }}
     container:
       image: ${{ inputs.image }}
       volumes:

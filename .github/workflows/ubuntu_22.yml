@@ -580,11 +580,11 @@ jobs:
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'self-hosted', 'igpu' ]"
+      runner: "[ 'self-hosted' ]"
+      runner-group: 'Intel-GPU'
       image: ubuntu:22.04
-      options: "--group-add 109 --group-add 44 --device /dev/dri:/dev/dri"
+      options: "--group-add 109 --group-add 44 --device /dev/dri:/dev/dri --privileged"
     # if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
-    if: ${{ 'false' }} # Ticket: 143677
 
   dGPU:
     name: dGPU Tests
