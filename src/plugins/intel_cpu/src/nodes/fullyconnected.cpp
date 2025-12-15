@@ -169,6 +169,11 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
         if (IC % G != 0 || IC / G < 4 || OC == 1) {
             return false;
         }
+
+        // 3D weights decompression is not supported due to the oneDNN limitations.
+        if (op->get_input_partial_shape(WEIGHTS).rank().get_length() == 3) {
+            return false;
+        }
     } catch (...) {
         return false;
     }
