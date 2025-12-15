@@ -113,29 +113,40 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto xattention_threshold = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN});
         auto xattention_block_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
         auto xattention_stride = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
-        auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0});
+        auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0, 0, 0, 0});
+        auto adaptive_rkv_start_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
+        auto adaptive_rkv_evictable_sizes = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto adaptive_rkv_diversity_block_set_indices =
+            std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto adaptive_rkv_diversity_block_set_indices_begins =
+            std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
 
-        auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
-                                                                             K,
-                                                                             V,
-                                                                             key_cache_0,
-                                                                             value_cache_0,
-                                                                             past_lens,
-                                                                             subsequence_begins,
-                                                                             block_indices,
-                                                                             block_indices_begins,
-                                                                             scale,
-                                                                             sliding_window,
-                                                                             alibi_slopes,
-                                                                             max_context_len,
-                                                                             score_aggregation_window,
-                                                                             rotated_block_indices,
-                                                                             rotation_deltas,
-                                                                             rotation_trig_lut,
-                                                                             xattention_threshold,
-                                                                             xattention_block_size,
-                                                                             xattention_stride,
-                                                                             sinks});
+        auto pa = std::make_shared<op::PagedAttentionExtension>(
+            OutputVector{Q,
+                         K,
+                         V,
+                         key_cache_0,
+                         value_cache_0,
+                         past_lens,
+                         subsequence_begins,
+                         block_indices,
+                         block_indices_begins,
+                         scale,
+                         sliding_window,
+                         alibi_slopes,
+                         max_context_len,
+                         score_aggregation_window,
+                         rotated_block_indices,
+                         rotation_deltas,
+                         rotation_trig_lut,
+                         xattention_threshold,
+                         xattention_block_size,
+                         xattention_stride,
+                         sinks,
+                         adaptive_rkv_start_size,
+                         adaptive_rkv_evictable_sizes,
+                         adaptive_rkv_diversity_block_set_indices,
+                         adaptive_rkv_diversity_block_set_indices_begins});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
@@ -158,7 +169,12 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                 rotation_trig_lut,
                                                                 xattention_threshold,
                                                                 xattention_block_size,
-                                                                xattention_stride});
+                                                                xattention_stride,
+                                                                adaptive_rkv_start_size,
+                                                                adaptive_rkv_evictable_sizes,
+                                                                adaptive_rkv_diversity_block_set_indices,
+                                                                adaptive_rkv_diversity_block_set_indices_begins});
+
         if (isIRKVCacheF16) {
             model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
         }
@@ -230,29 +246,40 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto xattention_threshold = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN});
         auto xattention_block_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
         auto xattention_stride = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
-        auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0});
+        auto sinks = std::make_shared<v0::Constant>(element::f32, Shape{0, 0, 0, 0});
+        auto adaptive_rkv_start_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
+        auto adaptive_rkv_evictable_sizes = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto adaptive_rkv_diversity_block_set_indices =
+            std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto adaptive_rkv_diversity_block_set_indices_begins =
+            std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
 
-        auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
-                                                                             K,
-                                                                             V,
-                                                                             key_cache_0,
-                                                                             value_cache_0,
-                                                                             past_lens,
-                                                                             subsequence_begins,
-                                                                             block_indices,
-                                                                             block_indices_begins,
-                                                                             scale,
-                                                                             sliding_window,
-                                                                             alibi_slopes,
-                                                                             max_context_len,
-                                                                             score_aggregation_window,
-                                                                             rotated_block_indices,
-                                                                             rotation_deltas,
-                                                                             rotation_trig_lut,
-                                                                             xattention_threshold,
-                                                                             xattention_block_size,
-                                                                             xattention_stride,
-                                                                             sinks});
+        auto pa = std::make_shared<op::PagedAttentionExtension>(
+            OutputVector{Q,
+                         K,
+                         V,
+                         key_cache_0,
+                         value_cache_0,
+                         past_lens,
+                         subsequence_begins,
+                         block_indices,
+                         block_indices_begins,
+                         scale,
+                         sliding_window,
+                         alibi_slopes,
+                         max_context_len,
+                         score_aggregation_window,
+                         rotated_block_indices,
+                         rotation_deltas,
+                         rotation_trig_lut,
+                         xattention_threshold,
+                         xattention_block_size,
+                         xattention_stride,
+                         sinks,
+                         adaptive_rkv_start_size,
+                         adaptive_rkv_evictable_sizes,
+                         adaptive_rkv_diversity_block_set_indices,
+                         adaptive_rkv_diversity_block_set_indices_begins});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
@@ -275,7 +302,11 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                     rotation_trig_lut,
                                                                     xattention_threshold,
                                                                     xattention_block_size,
-                                                                    xattention_stride});
+                                                                    xattention_stride,
+                                                                    adaptive_rkv_start_size,
+                                                                    adaptive_rkv_evictable_sizes,
+                                                                    adaptive_rkv_diversity_block_set_indices,
+                                                                    adaptive_rkv_diversity_block_set_indices_begins});
     }
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCacheBlockSize = blockSize[0];
