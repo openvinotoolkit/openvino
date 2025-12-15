@@ -27,8 +27,6 @@ GPU Plugin contains the following components:
 * [Memory formats](./docs/gpu_memory_formats.md)
 * [Kernels and kernel selectors](./docs/gpu_kernels.md)
 * [GPU plugin operations enabling flow](./docs/gpu_plugin_ops_enabling.md)
-* [Debug utils](./docs/gpu_debug_utils.md)
-* [OpenCL Runtime issues troubleshooting](./docs/gpu_plugin_driver_troubleshooting.md)
 * [GPU plugin unit test](./docs/gpu_plugin_unit_test.md)
 * [Run benchmark from device_mem](./docs/use_device_mem.md)
 
@@ -54,6 +52,11 @@ This contents explain the internal implementation of dynamic shape support in th
 * Performance analysis and debugging features (TBD)
 * Model caching for dynamic shape (TBD)
 -->
+
+## Troubleshooting / Debugging
+* [Debug utils](./docs/gpu_debug_utils.md)
+* [Debugging guide](./docs/debugging_guide.md)
+* [OpenCL Runtime issues troubleshooting](./docs/gpu_plugin_driver_troubleshooting.md)
 
 ## Attached licenses
 
