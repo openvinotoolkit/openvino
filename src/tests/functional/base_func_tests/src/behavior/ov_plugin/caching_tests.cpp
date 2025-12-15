@@ -200,8 +200,11 @@ void CompileModelCacheTestBase::SetUp() {
 }
 
 void CompileModelCacheTestBase::TearDown() {
-    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
-    std::remove(m_cacheFolderName.c_str());
+    inferRequest = {};
+    compiledModel = {};
+
+    ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cacheFolderName, "blob");
+    ov::test::utils::removeDir(m_cacheFolderName);
     core->set_property(ov::cache_dir());
     try {
         core->set_property(targetDevice, ov::cache_dir());
@@ -323,10 +326,13 @@ void CompileModelLoadFromFileTestBase::SetUp() {
 }
 
 void CompileModelLoadFromFileTestBase::TearDown() {
-    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
-    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
+    inferRequest = {};
+    compiledModel = {};
+
+    ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cacheFolderName, "blob");
+    ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cacheFolderName, "cl_cache");
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
-    std::remove(m_cacheFolderName.c_str());
+    ov::test::utils::removeDir(m_cacheFolderName);
     core->set_property(ov::cache_dir());
     ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
@@ -353,12 +359,8 @@ TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutException) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicodePath) {
-    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    auto hash = std::hash<std::string>()(test_name);
-    std::stringstream ss;
-    ss << std::this_thread::get_id();
     std::string cache_path = ov::test::utils::getCurrentWorkingDir() + ov::util::FileTraits<char>::file_separator +
-                             "compiledModel_" + std::to_string(hash) + "_" + ss.str() + "_" + GetTimestamp() + "_cache";
+                             "compiledModel_" + utils::generateTestFilePrefix() + "_cache";
     std::wstring postfix = L"_" + ov::test::utils::test_unicode_postfix_vector[0];
     std::wstring cache_path_w = ov::util::string_to_wstring(cache_path) + postfix;
     auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
@@ -388,7 +390,8 @@ TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicode
         // Check that folder contains cache files and remove them
         auto removed_files_num =
             ov::test::utils::removeFilesWithExt<opt::FORCE>(cache_path_w, ov::util::string_to_wstring("blob"));
-        removed_files_num += ov::test::utils::removeFilesWithExt(cache_path_w, ov::util::string_to_wstring("cl_cache"));
+        removed_files_num +=
+            ov::test::utils::removeFilesWithExt<opt::FORCE>(cache_path_w, ov::util::string_to_wstring("cl_cache"));
         ASSERT_GT(removed_files_num, 0);
         ov::test::utils::removeFile(model_xml_path_w);
         ov::test::utils::removeFile(model_bin_path_w);
@@ -398,10 +401,7 @@ TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicode
     } catch (std::exception& ex) {
         // Cleanup in case of any exception
         if (ov::util::directory_exists(cache_path_w)) {
-            // Check that folder contains cache files and remove them
-            ASSERT_GT(
-                ov::test::utils::removeFilesWithExt<opt::FORCE>(cache_path_w, ov::util::string_to_wstring("blob")),
-                0);
+            ov::test::utils::removeFilesWithExt<opt::FORCE>(cache_path_w, ov::util::string_to_wstring("blob"));
             ov::test::utils::removeFile(model_xml_path_w);
             ov::test::utils::removeFile(model_bin_path_w);
             ov::test::utils::removeDir(cache_path_w);
@@ -446,9 +446,12 @@ void CompileModelCacheRuntimePropertiesTestBase::SetUp() {
 }
 
 void CompileModelCacheRuntimePropertiesTestBase::TearDown() {
-    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
+    inferRequest = {};
+    compiledModel = {};
+
+    ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cacheFolderName, "blob");
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
-    std::remove(m_cacheFolderName.c_str());
+    ov::test::utils::removeDir(m_cacheFolderName);
     core->set_property(ov::cache_dir());
     ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
@@ -562,10 +565,13 @@ void CompileModelLoadFromCacheTest::SetUp() {
 }
 
 void CompileModelLoadFromCacheTest::TearDown() {
-    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
-    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
+    inferRequest = {};
+    compiledModel = {};
+
+    ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cacheFolderName, "blob");
+    ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cacheFolderName, "cl_cache");
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
-    std::remove(m_cacheFolderName.c_str());
+    ov::test::utils::removeDir(m_cacheFolderName);
     core->set_property(ov::cache_dir());
     ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
@@ -672,10 +678,13 @@ void CompileModelLoadFromMemoryTestBase::SetUp() {
 }
 
 void CompileModelLoadFromMemoryTestBase::TearDown() {
-    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
-    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
+    inferRequest = {};
+    compiledModel = {};
+
+    ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cacheFolderName, "blob");
+    ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cacheFolderName, "cl_cache");
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
-    std::remove(m_cacheFolderName.c_str());
+    ov::test::utils::removeDir(m_cacheFolderName);
     core->set_property(ov::cache_dir());
     ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
@@ -787,7 +796,10 @@ void CompiledKernelsCacheTest::SetUp() {
 }
 
 void CompiledKernelsCacheTest::TearDown() {
-    std::remove(cache_path.c_str());
+    inferRequest = {};
+    compiledModel = {};
+
+    ov::test::utils::removeDir(cache_path);
     core->set_property(ov::cache_dir());
     ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
@@ -816,7 +828,7 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
         if (ov::util::directory_exists(cache_path)) {
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
-                ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path, ext), 0);
+                ASSERT_GT(ov::test::utils::removeFilesWithExt<opt::FORCE>(cache_path, ext), 0);
         }
             ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
         }
@@ -860,7 +872,7 @@ TEST_P(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
         if (ov::util::directory_exists(cache_path)) {
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
-                ASSERT_GE(ov::test::utils::removeFilesWithExt(cache_path, ext), 0);
+                ASSERT_GE(ov::test::utils::removeFilesWithExt<opt::FORCE>(cache_path, ext), 0);
             }
             ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
         }
@@ -901,7 +913,9 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
             if (ov::util::directory_exists(cache_path_w)) {
                 for (auto& ext : m_extList) {
                     // Check that folder contains cache files and remove them
-                    ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::test::utils::stringToWString(ext)), 0);
+                    ASSERT_GT(ov::test::utils::removeFilesWithExt<opt::FORCE>(cache_path_w,
+                                                                              ov::test::utils::stringToWString(ext)),
+                              0);
                 }
                 ASSERT_EQ(ov::test::utils::removeDir(cache_path_w), 0);
             }
@@ -942,10 +956,13 @@ void CompileModelWithCacheEncryptionTest::SetUp() {
 }
 
 void CompileModelWithCacheEncryptionTest::TearDown() {
-    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
-    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
+    inferRequest = {};
+    compiledModel = {};
+
+    ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cacheFolderName, "blob");
+    ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cacheFolderName, "cl_cache");
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
-    std::remove(m_cacheFolderName.c_str());
+    ov::test::utils::removeDir(m_cacheFolderName);
     core->set_property(ov::cache_dir());
     ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();

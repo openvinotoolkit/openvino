@@ -480,12 +480,14 @@ public:
                 cache_position->get_output_tensor(0).set_names({"cache_position"});
                 cache_position->set_friendly_name("cache_position");
                 model->add_parameters({cache_position});
-                // If cache_position input is missed in the model, it means that position is calculated
-                // by the model itself using fp32 range constructed from the shapes of inputs.
-                // So operations below this range expect fp32 input.
-                auto cache_position_f32 = std::make_shared<ov::op::v0::Convert>(cache_position, ov::element::f32);
+                std::shared_ptr<ov::Node> cache_pos_unsqueeze_arg;
+                if (matched_unsqueeze->input(0).get_element_type() == ov::element::f32) {
+                    cache_pos_unsqueeze_arg = std::make_shared<ov::op::v0::Convert>(cache_position, ov::element::f32);
+                } else {
+                    cache_pos_unsqueeze_arg = cache_position;
+                }
 
-                matched_unsqueeze->input(0).replace_source_output(cache_position_f32->output(0));
+                matched_unsqueeze->input(0).replace_source_output(cache_pos_unsqueeze_arg->output(0));
                 return false;
             });
     }
@@ -495,6 +497,14 @@ public:
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
 #endif
+
+bool ov::npuw::util::has_input(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    auto inputs = model->inputs();
+    auto it = std::find_if(inputs.begin(), inputs.end(), [&](const auto& port) {
+        return port.get_names().count(name) != 0;
+    });
+    return it != inputs.end();
+}
 
 bool ov::npuw::util::optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
     ov::pass::GraphRewrite rewr;
@@ -753,14 +763,6 @@ void add_cache_position_input(std::shared_ptr<ov::Model> model) {
 
     ov::pass::Validate().run_on_model(model);
 }
-
-bool input_exists(const std::shared_ptr<ov::Model>& model, const std::string& name) {
-    auto inputs = model->inputs();
-    auto it = std::find_if(inputs.begin(), inputs.end(), [&](const auto& port) {
-        return port.get_names().count(name) != 0;
-    });
-    return it != inputs.end();
-}
 }  // namespace
 
 std::shared_ptr<ov::Model> ov::npuw::util::prepare_whisper_prefill_model(std::shared_ptr<ov::Model>& model,
@@ -771,7 +773,7 @@ std::shared_ptr<ov::Model> ov::npuw::util::prepare_whisper_prefill_model(std::sh
     // 3) Expose all states that requires initialization on the first run as outputs
     expose_runtime_states_as_outputs(model);
     // 4) Remove cache_position input if it exists
-    if (input_exists(model, "cache_position")) {
+    if (has_input(model, "cache_position")) {
         remove_cache_position(model);
     }
     // 5) Normalize output names - should be done in stateful_to_stateless_transformation
@@ -789,7 +791,7 @@ std::shared_ptr<ov::Model> ov::npuw::util::prepare_whisper_kvcache_model(std::sh
     normalize_output_key_value_names(model);
     expose_runtime_states_as_inputs(model);
 
-    if (!input_exists(model, "cache_position")) {
+    if (!has_input(model, "cache_position")) {
         add_cache_position_input(model);
     }
 

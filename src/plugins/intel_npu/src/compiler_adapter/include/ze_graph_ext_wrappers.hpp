@@ -10,7 +10,7 @@
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "ir_serializer.hpp"
+#include "vcl_serializer.hpp"
 
 namespace intel_npu {
 
@@ -35,9 +35,9 @@ public:
 
     GraphDescriptor getGraphDescriptor(SerializedIR serializedIR,
                                        const std::string& buildFlags,
-                                       const uint32_t& flags) const;
+                                       const bool bypassUmdCache = false) const;
 
-    GraphDescriptor getGraphDescriptor(void* data, size_t size) const;
+    GraphDescriptor getGraphDescriptor(const void* data, size_t size) const;
 
     NetworkMetadata getNetworkMeta(GraphDescriptor& graphDescriptor) const;
 
@@ -45,7 +45,7 @@ public:
 
     std::string getCompilerSupportedOptions() const;
 
-    bool isOptionSupported(std::string optname) const;
+    bool isOptionSupported(std::string optName, std::optional<std::string> optValue = std::nullopt) const;
     bool isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const;
 
     void getGraphBinary(const GraphDescriptor& graphDescriptor,
@@ -61,18 +61,21 @@ public:
 
 private:
     void getMetadata(ze_graph_handle_t graphHandle,
-                     uint32_t index,
+                     uint32_t indexUsedByDriver,
                      std::vector<IODescriptor>& inputs,
                      std::vector<IODescriptor>& outputs) const;
 
     void initializeGraphThroughCommandList(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const;
 
-    bool canCpuVaBeImported(void* data, size_t size) const;
+    bool canCpuVaBeImported(const void* data, size_t size) const;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     uint32_t _graphExtVersion;
 
     Logger _logger;
 };
+
+// Parse the result string of query from format <name_0><name_1><name_2> to unordered_set of string
+std::unordered_set<std::string> parseQueryResult(std::vector<char>& data);
 
 }  // namespace intel_npu

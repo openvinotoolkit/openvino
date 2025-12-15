@@ -320,7 +320,10 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
 
      // apply concatenation in place optimization
     for (auto& pred_layout : preds_layouts) {
-        auto input_length = pred_layout.get_dims()[concat_axis];
+        const auto& pshape = pred_layout.get_partial_shape();
+        OPENVINO_ASSERT(pshape[concat_axis].is_static(), "[GPU] Dynamic dimension is not allowed for the concat axis when updating padding");
+        auto input_length = pshape[concat_axis].get_length();
+
         // shrink upper pad so it points at the end of the input's buffer
         //
         //   |--- lower padd ---|                    |---------- upper padd -----------|

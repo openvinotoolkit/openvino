@@ -26,5 +26,11 @@ public:
 protected:
     void SetUp() override;
 };
+
+class ConversionSpecifyInputLayerTest : public ConversionLayerTest {
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+};
+
 }  // namespace test
 }  // namespace ov

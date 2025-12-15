@@ -38,6 +38,10 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingSimpleGraphIterator) {
             return 1;
         }
 
+        std::map<std::string, std::string> get_metadata() const override {
+            return {};
+        }
+
         ~SimpleIterator() override {};
     };
 

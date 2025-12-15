@@ -73,6 +73,10 @@ jobs:
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm i
 
+      - name: Check lint
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
+        run: npm run lint
+
       - name: Test OpenVINO JS API
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm run test --loglevel=silly
