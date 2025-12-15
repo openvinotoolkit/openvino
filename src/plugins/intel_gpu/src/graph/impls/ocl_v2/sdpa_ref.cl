@@ -138,7 +138,10 @@ KERNEL(sdpa_ref)(
     const __global INPUT3_TYPE* attn_mask,
 #endif
 #if HAS_SCALE_INPUT
-    const __global SCALE_TYPE* scale,
+    const __global half* scale,
+#endif
+#ifdef HAS_SINK_INPUT
+    global SINK_DATA_T *sink_ptr,
 #endif
     __global OUTPUT_TYPE* output,
 #if IS_KV_COMPRESSED
@@ -239,6 +242,9 @@ KERNEL(sdpa_ref)(
             tmp_buf[tmp_buf_offset] = qk_val;
 
             qk_max = ACCUMULATOR_MAX_FUNC(qk_max, TO_ACCUMULATOR_TYPE(qk_val));
+            #ifdef HAS_SINK_INPUT
+            qk_max = ACCUMULATOR_MAX_FUNC(qk_max, TO_ACCUMULATOR_TYPE(sink_ptr[b1]));
+            #endif
         }
 
         ACCUMULATOR_TYPE exp_sum = ACCUMULATOR_VAL_ZERO;
@@ -253,6 +259,10 @@ KERNEL(sdpa_ref)(
 
             tmp_buf[tmp_buf_offset] = TO_OUTPUT_TYPE(val);
         }
+        #ifdef HAS_SINK_INPUT
+        ACCUMULATOR_TYPE val = native_exp(TO_ACCUMULATOR_TYPE(sink_ptr[b1] - qk_max));
+        exp_sum += val;
+        #endif
 
         const ACCUMULATOR_TYPE inv_sum = ACCUMULATOR_VAL_ONE / exp_sum;
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {

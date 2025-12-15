@@ -3,31 +3,29 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from typing import Optional, cast, overload
+from typing import Optional
 from collections.abc import Callable
 from openvino import Op, Type, Shape, Tensor, PartialShape, TensorVector
 
 
 class PostponedConstant(Op):
-    """Postponed Constant is a way to materialize a big constant only when it is going to be serialized to IR and then immediately dispose."""
-    @overload
-    def __init__(self, element_type: Type, shape: Shape, maker: Callable[[], Tensor], name: Optional[str] = None) -> None:
-        ...
+    """Postponed Constant is a way to materialize a big constant.
 
-    @overload
-    def __init__(self, element_type: Type, shape: Shape, maker: Callable[[Tensor], None], name: Optional[str] = None) -> None:
-        ...
+    This class materializes a big constant only when it is going to be serialized
+    to IR and then immediately disposes of it.
+    """
 
-    def __init__(self, element_type: Type, shape: Shape, maker: Callable, name: Optional[str] = None) -> None:
+    def __init__(
+        self, element_type: Type, shape: Shape, maker: Callable[[], Tensor], name: Optional[str] = None
+    ) -> None:
         """Creates a PostponedConstant.
 
         :param element_type: Element type of the constant.
         :type element_type: openvino.Type
         :param shape: Shape of the constant.
         :type shape: openvino.Shape
-        :param maker: A callable that returns a Tensor or modifies the provided Tensor to represent the constant.
-                    Note: It's recommended to use a callable without arguments (returns Tensor) to avoid unnecessary tensor data copies.
-        :type maker: Union[Callable[[], Tensor], Callable[[Tensor], None]]
+        :param maker: A callable that returns a Tensor.
+        :type maker: Callable[[], Tensor]
         :param name: Optional name for the constant.
         :type name: Optional[str]
 
@@ -50,11 +48,7 @@ class PostponedConstant(Op):
         self.constructor_validate_and_infer_types()
 
     def evaluate(self, outputs: TensorVector, _: list[Tensor]) -> bool:  # type: ignore
-        num_args = self.m_maker.__call__.__code__.co_argcount
-        if num_args == 1:
-            outputs[0] = cast(Callable[[], Tensor], self.m_maker)()
-        else:
-            cast(Callable[[Tensor], None], self.m_maker)(outputs[0])
+        outputs[0] = self.m_maker()
         return True
 
     def validate_and_infer_types(self) -> None:
@@ -68,5 +62,8 @@ class PostponedConstant(Op):
 
 
 # `maker` is a function that returns ov.Tensor that represents a target Constant
-def make_postponed_constant(element_type: Type, shape: Shape, maker: Callable, name: Optional[str] = None) -> Op:
+def make_postponed_constant(element_type: Type,
+                            shape: Shape,
+                            maker: Callable[[], Tensor],
+                            name: Optional[str] = None) -> Op:
     return PostponedConstant(element_type, shape, maker, name)

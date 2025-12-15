@@ -54,6 +54,7 @@ protected:
         jit.make("HEAD_SIZE", desc->config.head_size);
         jit.make("ROTARY_NDIMS", desc->config.rotary_ndims);
         jit.make("HALF_ROTARY_NDIMS", desc->config.rotary_ndims / 2);
+        jit.make("COS_SIN_TABLE_OFFSET", (desc->config.cos_sin_ndims == (desc->config.rotary_ndims / 2)) ? 0 : desc->config.rotary_ndims / 2);
         jit.make("HEAD_COUNT", desc->config.head_cnt);
 
         if (desc->config.head_size > desc->config.rotary_ndims) {
@@ -152,8 +153,10 @@ protected:
                     auto b = extract_channel(ChannelName::BATCH, out_l);
                     auto f = extract_channel(ChannelName::FEATURE, out_l);
                     auto y = extract_channel(ChannelName::Y, out_l);
-
                     wgs.global = {b, f, y * cfg.rotary_ndims / 2ul / vec_size};
+                    if (cfg.support_3d_rope) {
+                        wgs.global = {b, f, cfg.rotary_ndims / 2ul / vec_size};
+                    }
                 }
 
                 wgs.local = ov::intel_gpu::get_optimal_lws(wgs.global, params.get_device_info(), in_l.format, out_l.format, dims_by_gws);

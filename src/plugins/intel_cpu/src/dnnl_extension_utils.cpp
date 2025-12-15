@@ -90,6 +90,8 @@ std::optional<dnnl::memory::data_type> DnnlExtensionUtils::ElementTypeToDataType
         return memory::data_type::s4;
     case ov::element::u4:
         return memory::data_type::u4;
+    case ov::element::u2:
+        return memory::data_type::u2;
     case ov::element::f8e8m0:
         return memory::data_type::e8m0;
     case ov::element::f8e4m3:
@@ -137,6 +139,8 @@ ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::
         return ov::element::i4;
     case memory::data_type::u4:
         return ov::element::u4;
+    case memory::data_type::u2:
+        return ov::element::u2;
     case memory::data_type::e8m0:
         return ov::element::f8e8m0;
     case memory::data_type::f8_e4m3:

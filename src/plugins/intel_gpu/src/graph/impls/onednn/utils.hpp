@@ -9,6 +9,7 @@
 #include <intel_gpu/runtime/layout.hpp>
 #include <intel_gpu/runtime/engine.hpp>
 #include <intel_gpu/runtime/memory.hpp>
+#include <intel_gpu/graph/serialization/weights_reorder_params.hpp>
 #include <intel_gpu/primitives/activation.hpp>
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/format.hpp"
@@ -66,19 +67,8 @@ bool is_supported_pad(const layout& layout);
 template <typename T>
 bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val);
 
-struct WeightsReorderParamsOneDNN : public cldnn::WeightsReorderParams {
-    WeightsReorderParamsOneDNN(const layout& in_layout,
-                               const layout& out_layout,
-                               const dnnl::memory::desc& in_desc,
-                               const dnnl::memory::desc& out_desc,
-                               bool transposed, bool grouped = false)
-        : WeightsReorderParams(in_layout, out_layout, transposed, grouped)
-        , _in_desc(in_desc)
-        , _out_desc(out_desc) {}
-
-    dnnl::memory::desc _in_desc;
-    dnnl::memory::desc _out_desc;
-};
-
+int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
+                                const std::function<layout(int32_t)>& get_input_layout,
+                                int32_t slope_input_idx);
 }  // namespace onednn
 }  // namespace cldnn

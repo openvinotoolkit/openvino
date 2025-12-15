@@ -437,3 +437,36 @@ TEST_F(TransformationTestsF, AbsInTheUnknown) {
         manager.register_pass<pass::AbsSinking>();
     }
 }
+
+// Parameterized test for AbsSinking with constants
+struct AbsSinkingConstantTestParams {
+    std::vector<int64_t> values;
+    std::string test_name;
+};
+
+class AbsSinkingConstantTest : public TransformationTestsF,
+                               public ::testing::WithParamInterface<AbsSinkingConstantTestParams> {};
+
+TEST_P(AbsSinkingConstantTest, AbsSinkingSkipsConstants) {
+    // Test that AbsSinking does NOT process constants (leaves them for ConstantFolding)
+    const auto& params = GetParam();
+
+    {
+        auto constant = op::v0::Constant::create(element::i64, {params.values.size()}, params.values);
+        auto abs_op = std::make_shared<op::v0::Abs>(constant);
+
+        model = std::make_shared<Model>(OutputVector{abs_op}, ParameterVector{});
+        manager.register_pass<pass::AbsSinking>();
+    }
+
+    // Reference model should be identical since AbsSinking skips constants
+    model_ref = model->clone();
+}
+
+INSTANTIATE_TEST_SUITE_P(AbsSinkingConstantTests,
+                         AbsSinkingConstantTest,
+                         ::testing::Values(AbsSinkingConstantTestParams{{-1, -2, 4}, "negative_values"},
+                                           AbsSinkingConstantTestParams{{1, 2}, "positive_values"}),
+                         [](const ::testing::TestParamInfo<AbsSinkingConstantTestParams>& info) {
+                             return info.param.test_name;
+                         });

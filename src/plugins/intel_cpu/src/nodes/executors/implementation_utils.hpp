@@ -16,7 +16,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_format_filter.hpp"
 #include "nodes/common/blocked_desc_creator.h"
-#include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
+#include "nodes/executors/dnnl/dnnl_executor.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
@@ -31,6 +31,11 @@ namespace ov::intel_cpu {
 template <typename Config, int idx>
 ov::element::Type memoryDescType(const Config& config) {
     return config.descs.at(idx)->getPrecision();
+}
+
+template <typename Config>
+bool hasBias(const Config& config) {
+    return !config.descs.at(ARG_BIAS)->empty();
 }
 
 template <typename Config>
@@ -54,7 +59,7 @@ ov::element::Type dstType(const Config& config) {
 }
 
 template <typename Config, int idx>
-ov::element::Type dims(const Config& config) {
+const VectorDims& dims(const Config& config) {
     return config.descs.at(idx)->getShape().getDims();
 }
 
@@ -289,7 +294,7 @@ inline bool MatchesMemoryFormatFilter(const MemoryDescArgs& descs,
             continue;  // no filter for this input
         }
 
-        if (desc->getShape().getRank() > 1) {
+        if (desc->getShape().getRank() < 2) {
             continue;  // rank 1 tensors are always ncsp
         }
 

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -12,6 +13,40 @@
 #include "openvino/core/deprecated.hpp"
 
 namespace ov {
+
+template <class T>
+auto stringify(T&& arg) -> std::conditional_t<std::is_same_v<std::decay_t<T>, std::string>, T&, std::string> {
+    if constexpr (std::is_same_v<std::decay_t<T>, std::string>) {
+        return arg;
+    } else {
+        std::stringstream stream;
+        stream << arg;
+        return stream.str();
+    }
+}
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+OPENVINO_API std::string stringify(const std::filesystem::path& arg);
+#endif
+
+template <typename... TS>
+std::ostream& write_all_to_stream(std::ostream& str, TS&&... args) {
+    if constexpr (std::is_same_v<typename std::filesystem::path::string_type, std::wstring>) {
+        constexpr auto fwd_or_str =
+            [](auto&& arg) -> std::conditional_t<std::is_same_v<std::filesystem::path, std::decay_t<decltype(arg)>>,
+                                                 decltype(stringify(arg)),
+                                                 decltype(arg)&> {
+            if constexpr (std::is_same_v<std::filesystem::path, std::decay_t<decltype(arg)>>) {
+                return stringify(arg);
+            } else {
+                return arg;
+            }
+        };
+        return (str << ... << (fwd_or_str(std::forward<TS>(args))));
+    } else {
+        return (str << ... << args);
+    }
+}
 
 /// Base error for ov runtime errors.
 class OPENVINO_API Exception : public std::runtime_error {
@@ -30,29 +65,6 @@ protected:
                                  const std::string& context_info,
                                  const std::string& explanation);
 };
-
-static inline std::ostream& write_all_to_stream(std::ostream& str) {
-    return str;
-}
-
-template <typename T, typename... TS>
-std::ostream& write_all_to_stream(std::ostream& str, T&& arg, TS&&... args) {
-    return write_all_to_stream(str << arg, std::forward<TS>(args)...);
-}
-
-template <class T,
-          typename std::enable_if<!std::is_same<typename std::decay<T>::type, std::string>::value>::type* = nullptr>
-std::string stringify(T&& arg) {
-    std::stringstream stream;
-    stream << arg;
-    return stream.str();
-}
-
-template <class T,
-          typename std::enable_if<std::is_same<typename std::decay<T>::type, std::string>::value>::type* = nullptr>
-T& stringify(T&& arg) {
-    return arg;
-}
 
 /// Base class for check failure exceptions.
 class OPENVINO_API AssertFailure : public Exception {

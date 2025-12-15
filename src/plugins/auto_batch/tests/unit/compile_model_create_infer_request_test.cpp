@@ -38,7 +38,7 @@ public:
     int m_infer_request_num;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CreateInferRequestTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CreateInferRequestTestParams>& obj) {
         const auto& [batch_size, infer_num] = obj.param;
 
         std::string res;

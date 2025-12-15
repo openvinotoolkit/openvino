@@ -16,7 +16,7 @@ import typing
 """
 Functions related to converting between Python and numpy types and openvino types.
 """
-__all__ = ['Constant', 'Node', 'NodeInput', 'NumericData', 'NumericType', 'OVTypeError', 'Output', 'ScalarData', 'Shape', 'TensorShape', 'Type', 'as_node', 'as_nodes', 'get_dtype', 'get_element_type', 'get_element_type_str', 'get_ndarray', 'get_numpy_ctype', 'get_shape', 'log', 'logging', 'make_constant_node', 'np', 'openvino_to_numpy_types_map', 'openvino_to_numpy_types_str_map']
+__all__: list[str] = ['Constant', 'Node', 'NodeInput', 'NumericData', 'NumericType', 'OVTypeError', 'Output', 'ScalarData', 'Shape', 'TensorShape', 'Type', 'as_node', 'as_nodes', 'get_dtype', 'get_element_type', 'get_element_type_str', 'get_ndarray', 'get_numpy_ctype', 'get_shape', 'log', 'logging', 'make_constant_node', 'np', 'openvino_to_numpy_types_map', 'openvino_to_numpy_types_str_map']
 def as_node(input_value: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray], name: typing.Optional[str] = None) -> typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output]:
     """
     Return input values as nodes. Scalars will be converted to Constant nodes.

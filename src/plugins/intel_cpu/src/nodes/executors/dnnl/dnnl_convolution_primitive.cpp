@@ -47,6 +47,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
@@ -98,7 +99,7 @@ DnnlConvolutionPrimitive::IntermediateReorders::IntermediateReorders(const Key& 
             createIfNotEqual(key.dst->getDnnlDesc(), primDesc.dst_desc(), AllocateMemoryFor::Dst, engine);
     }
 
-    if (key.nonConstantWeights && key.wei->getDnnlDesc() != primDesc.weights_desc()) {
+    if (!key.constantWeights && key.wei->getDnnlDesc() != primDesc.weights_desc()) {
         m_inputReorders[DNNL_ARG_WEIGHTS] =
             createIfNotEqual(key.wei->getDnnlDesc(), primDesc.weights_desc(), AllocateMemoryFor::Dst, engine);
     }
@@ -142,7 +143,7 @@ size_t DnnlConvolutionPrimitive::Key::hash() const {
 
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, fcSemantic);
-    seed = hash_combine(seed, nonConstantWeights);
+    seed = hash_combine(seed, constantWeights);
 
     return seed;
 }
@@ -168,7 +169,7 @@ bool DnnlConvolutionPrimitive::Key::operator==(const Key& rhs) const {
 
     result = result && *attr.get() == *rhs.attr.get();
     result = result && fcSemantic == rhs.fcSemantic;
-    result = result && nonConstantWeights == rhs.nonConstantWeights;
+    result = result && constantWeights == rhs.constantWeights;
 
     return result;
 }
@@ -403,7 +404,6 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                                   paddingR,
                                                   attr,
                                                   engine);
-            return std::move(prim_desc);
         }
 
         for (auto preferredImplType : implPriorities) {
@@ -760,12 +760,14 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
     OPENVINO_ASSERT(!cacheWeightsWithUndefData,
                     "dnnl convolution weights caching for dynamic shapes is not implemented");
 
+    const bool hasBias = !memory.at(ARG_BIAS)->getDesc().empty();
+
     ConvAttrs attrs{{1},
                     {0},
                     {0},
                     {0},
                     AutoPaddingType::None,
-                    fcAttrs.withBias,
+                    hasBias,
                     fcAttrs.weightsNonTransposed,
                     false,
                     false,
@@ -858,13 +860,14 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
                           paddingR,
                           shapeAgnosticData->m_primAttrs.attr,
                           attrs.fcSemantic,
-                          attrs.nonConstantWeights};
+                          attrs.constantWeights};
 
     const auto defaultImplType = shapeAgnosticData->m_implType;
 
     auto builder = [&context, defaultImplType](const Key& dnnlKey) {
         return std::make_shared<DnnlConvolutionPrimitive>(dnnlKey,
                                                           context->getEngine(),
+                                                          context->getThreadPool(),
                                                           context->getImplPriorities(),
                                                           defaultImplType);
     };
@@ -879,8 +882,17 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
 
 DnnlMemoryDescPtr DnnlConvolutionPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                                            const DnnlMemoryDescPtr& dstDesc,
-                                                                           bool weightsNonTransposed) {
-    return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, weightsNonTransposed);
+                                                                           const ConvAttrs& attrs) {
+    FCAttrs fcAttrs{};
+    fcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
+
+    return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, fcAttrs);
+}
+
+DnnlMemoryDescPtr DnnlConvolutionPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                                           const DnnlMemoryDescPtr& dstDesc,
+                                                                           const FCAttrs& attrs) {
+    return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, attrs);
 }
 
 std::tuple<size_t, size_t, size_t, size_t> DnnlConvolutionPrimitive::getChannelParams(const ConvConfig& config) {
@@ -1004,9 +1016,10 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
 
 DnnlConvolutionPrimitive::DnnlConvolutionPrimitive(const Key& key,
                                                    const dnnl::engine& engine,
+                                                   const std::shared_ptr<ThreadPool>& threadPool,
                                                    const std::vector<impl_desc_type>& implPriorities,
                                                    const impl_desc_type defaultImplType)
-    : m_stream(dnnl::stream(engine)),
+    : m_stream(make_stream(engine, threadPool)),
       m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
                                      key.wei->getDnnlDesc(),
                                      key.bias->getDnnlDesc(),

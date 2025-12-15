@@ -500,7 +500,7 @@ TEST_F(ExtractLoopInvariantsRemoveLoopsTest, ExtractedLoopInvariantsAllExprsInLo
                                                                        LoopPort::create<PortType::Incremented>((*multiply.first)->get_input_port(1), 0)},
                                                  std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*multiply.first)->get_output_port(0), 0)});
         // outer loop info
-        const auto loop_begin = std::make_shared<ov::snippets::op::LoopBegin>();
+        const auto loop_begin = std::make_shared<ov::snippets::op::LoopBegin>(false);
         auto loop_begin_expr = linear_ir->insert_node(loop_begin, std::vector<PortConnectorPtr>{}, {}, false, max.first);
         const auto loop_end = std::make_shared<ov::snippets::op::LoopEnd>();
         std::vector<PortConnectorPtr> loop_end_inputs{(*loop_begin_expr)->get_output_port_connector(0)};
@@ -533,7 +533,7 @@ TEST_F(ExtractLoopInvariantsRemoveLoopsTest, ExtractedLoopInvariantsAllExprsInLo
         init_expr_descriptors(*multiply.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(multiply.second);
         // outer loop
-        const auto loop_begin = std::make_shared<ov::snippets::op::LoopBegin>();
+        const auto loop_begin = std::make_shared<ov::snippets::op::LoopBegin>(false);
         auto loop_begin_expr = linear_ir_ref->insert_node(loop_begin, std::vector<PortConnectorPtr>{}, {}, false, max.first);
         const auto loop_end = std::make_shared<ov::snippets::op::LoopEnd>();
         std::vector<PortConnectorPtr> loop_end_inputs{(*loop_begin_expr)->get_output_port_connector(0)};

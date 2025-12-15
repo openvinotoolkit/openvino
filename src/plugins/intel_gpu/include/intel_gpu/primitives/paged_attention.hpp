@@ -34,22 +34,28 @@ struct paged_attention : public primitive_base<paged_attention> {
         XATTENTION_THRESHOLD = 17,
         XATTENTION_BLOCK_SIZE = 18,
         XATTENTION_STRIDE = 19,
+        SINKS = 20,
+        ADAPTIVE_RKV_START_SIZE = 21,
+        ADAPTIVE_RKV_EVICTABLE_SIZES = 22,
+        ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES = 23,
+        ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS = 24,
     };
 
     static constexpr size_t block_size = 16;
+    static constexpr size_t block_size_xattn = 256;
 
     paged_attention() : primitive_base("", {}) {}
 
     paged_attention(const primitive_id& id,
                     const std::vector<input_info>& inputs)
         : primitive_base(id, inputs) {
-        OPENVINO_ASSERT((inputs.size() == 20),
+        OPENVINO_ASSERT((inputs.size() == 25),
                         "[GPU] Unexpected inputs number for PagedAttention primitive: ",
                         inputs.size());
     }
 
     bool has_scores_output() const {
-        return num_outputs == 2;
+        return num_outputs >= 2;
     }
 
     bool operator==(const primitive& rhs) const override {
@@ -81,6 +87,8 @@ struct paged_attention : public primitive_base<paged_attention> {
         ob << sliding_window;
         ob << has_score_aggregation;
         ob << has_xattention;
+        ob << has_sink_input;
+        ob << has_adaptive_rkv;
 
         if (scale_val.has_value()) {
             ob << true;
@@ -103,6 +111,8 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> sliding_window;
         ib >> has_score_aggregation;
         ib >> has_xattention;
+        ib >> has_sink_input;
+        ib >> has_adaptive_rkv;
 
         bool has_scale;
         ib >> has_scale;
@@ -126,6 +136,8 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool has_rotated_blocks = false;
     bool has_score_aggregation = false;
     bool has_xattention = false;
+    bool has_sink_input = false;
+    bool has_adaptive_rkv = false;
     bool is_key_by_channel = false;
 };
 }  // namespace cldnn

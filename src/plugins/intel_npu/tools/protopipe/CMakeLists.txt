@@ -59,8 +59,7 @@ endif()
 
 set(PROTOPIPE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-ov_add_target(ADD_CPPLINT
-              TYPE EXECUTABLE
+ov_add_target(TYPE EXECUTABLE
               NAME ${TARGET_NAME}
               ROOT ${CMAKE_CURRENT_SOURCE_DIR}
               ADDITIONAL_SOURCE_DIRS ${PROTOPIPE_SOURCE_DIR}
@@ -70,6 +69,10 @@ ov_add_target(ADD_CPPLINT
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
                           CXX_STANDARD 17)
+
+if (WIN32)
+    target_link_options(${TARGET_NAME} PRIVATE "/MANIFESTINPUT:${CMAKE_SOURCE_DIR}/protopipe.exe.manifest")
+endif()
 
 #
 # Install

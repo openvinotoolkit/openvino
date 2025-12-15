@@ -19,7 +19,7 @@ public:
     std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>> m_plugin;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<batch_device_config_params> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<batch_device_config_params>& obj) {
         const auto& [batch_device_config, device_name, batch_size, throw_exception] = obj.param;
         std::string res = batch_device_config;
         if (throw_exception)

@@ -28,7 +28,7 @@ using RollGPUTestParams = typename std::tuple<
 class RollLayerGPUTest : public testing::WithParamInterface<RollGPUTestParams>,
                          virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RollGPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<RollGPUTestParams>& obj) {
         const auto& [inputShape, inputPrecision, shift, axes, targetDevice] = obj.param;
 
         std::ostringstream result;
@@ -122,6 +122,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_3D, RollLayerGPUTest,
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(std::vector<int64_t>{160, 150}), // Shift
                             ::testing::Values(std::vector<int64_t>{1, 2}),     // Axes
+                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        RollLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_3DNegativeShiftAxes, RollLayerGPUTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(data3DShapes),
+                            ::testing::ValuesIn(inputPrecisions),
+                            ::testing::Values(std::vector<int64_t>{-1, -2,  5,  2, 4}),    // Shift
+                            ::testing::Values(std::vector<int64_t>{-1, -2, -1, -3, 2}),    // Axes
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         RollLayerGPUTest::getTestCaseName);
 

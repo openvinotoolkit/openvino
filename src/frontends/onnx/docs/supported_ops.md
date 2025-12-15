@@ -33,7 +33,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |CastLike                                                |15                      |21, 19, 15                      |                                |
 |                        |Ceil                                                    |1                       |13, 6, 1                        |                                |
 |                        |Celu                                                    |12                      |12                              |                                |
-|                        |CenterCropPad                                           |                        |18                              |                                |
+|                        |CenterCropPad                                           |18                      |18                              |                                |
 |                        |Clip                                                    |11, 1                   |13, 12, 11, 6, 1                |                                |
 |                        |Col2Im                                                  |                        |18                              |                                |
 |                        |Compress                                                |9                       |11, 9                           |                                |
@@ -122,7 +122,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |NonMaxSuppression                                       |10                      |11, 10                          |                                |
 |                        |NonZero                                                 |9                       |13, 9                           |                                |
 |                        |Not                                                     |1                       |1                               |                                |
-|                        |OneHot                                                  |9                       |11, 9                           |                                |
+|                        |OneHot                                                  |11, 9                   |11, 9                           |                                |
 |                        |Optional                                                |                        |15                              |                                |
 |                        |OptionalGetElement                                      |                        |18, 15                          |                                |
 |                        |OptionalHasElement                                      |                        |18, 15                          |                                |
@@ -163,7 +163,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |ScatterElements                                         |11                      |18, 16, 13, 11                  |                                |
 |                        |ScatterND                                               |11                      |18, 16, 13, 11                  |                                |
 |                        |Selu                                                    |1                       |22, 6, 1                        |                                |
-|                        |SequenceAt                                              |                        |11                              |                                |
+|                        |SequenceAt                                              |11                      |11                              |                                |
 |                        |SequenceConstruct                                       |                        |11                              |                                |
 |                        |SequenceEmpty                                           |                        |11                              |                                |
 |                        |SequenceErase                                           |                        |11                              |                                |
@@ -185,7 +185,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Softsign                                                |1                       |22, 1                           |                                |
 |                        |SpaceToDepth                                            |1                       |13, 1                           |                                |
 |                        |Split                                                   |18, 13, 1               |18, 13, 11, 2, 1                |                                |
-|                        |SplitToSequence                                         |                        |11                              |                                |
+|                        |SplitToSequence                                         |11                      |11                              |                                |
 |                        |Sqrt                                                    |1                       |13, 6, 1                        |                                |
 |                        |Squeeze                                                 |13, 1                   |21, 13, 11, 1                   |                                |
 |                        |StringConcat                                            |                        |20                              |                                |
