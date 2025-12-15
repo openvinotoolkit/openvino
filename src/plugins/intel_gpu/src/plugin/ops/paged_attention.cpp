@@ -21,7 +21,7 @@ using PagedAttentionExtension = ov::op::PagedAttentionExtension;
 namespace ov::intel_gpu {
 
 static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::PagedAttentionExtension>& op) {
-    validate_inputs_count(op, {21});
+    validate_inputs_count(op, {25});
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
 
@@ -99,6 +99,18 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     auto rotated_block_indices_input = ov::as_type_ptr<ov::op::v0::Parameter>(op->get_input_node_shared_ptr(rotated_block_indices_idx));
     if (rotated_block_indices_input && rotated_block_indices_input->get_output_partial_shape(0).is_dynamic()) {
         prim.has_rotated_blocks = true;
+    }
+
+    const size_t xattention_threshold_idx = cldnn::paged_attention::PagedAttentionInputIdx::XATTENTION_THRESHOLD;
+    auto xattention_threshold_input = ov::as_type_ptr<ov::op::v0::Parameter>(op->get_input_node_shared_ptr(xattention_threshold_idx));
+    if (xattention_threshold_input && xattention_threshold_input->get_output_partial_shape(0).is_dynamic()) {
+        prim.has_xattention = true;
+    }
+
+    const size_t adaptive_rkv_evictable_sizes_idx = cldnn::paged_attention::PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES;
+    auto adaptive_rkv_evictable_sizes_input = ov::as_type_ptr<ov::op::v0::Parameter>(op->get_input_node_shared_ptr(adaptive_rkv_evictable_sizes_idx));
+    if (adaptive_rkv_evictable_sizes_input && adaptive_rkv_evictable_sizes_input->get_output_partial_shape(0).is_dynamic()) {
+        prim.has_adaptive_rkv = true;
     }
 
     const size_t sinks_idx = cldnn::paged_attention::PagedAttentionInputIdx::SINKS;
