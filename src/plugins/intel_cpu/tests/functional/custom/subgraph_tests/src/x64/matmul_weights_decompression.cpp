@@ -423,6 +423,25 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_non_multiples_groups,
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
 
+// 3D weights
+const std::vector<MatMulDecompressionShapeParams> input_shapes_with_3d_weight = {
+    {{{}, {{32, 10, 32}}}, {32, 32, 128}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_3D_Weights,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_with_3d_weight),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(false),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_basic()),
+                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::Values(false)),
+                         MatmulWeightsDecompression::getTestCaseName);
 }  // namespace
 }  // namespace test
 }  // namespace ov

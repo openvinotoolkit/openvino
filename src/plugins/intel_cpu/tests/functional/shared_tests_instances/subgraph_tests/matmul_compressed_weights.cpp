@@ -21,13 +21,13 @@ std::vector<ov::Shape> input_shapes = {{32, 10, 32}, {1, 5, 32}, {5, 32}};
 
 std::vector<ov::Shape> weights_shapes = {{32, 128, 32}, {32, 64, 32}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_MatmulCompressedWeights,
-                         MatmulCompressedTest,
-                         ::testing::Combine(::testing::ValuesIn(input_precision),
-                                            ::testing::ValuesIn(weights_precision),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::ValuesIn(configs),
-                                            ::testing::ValuesIn(input_shapes),
-                                            ::testing::ValuesIn(weights_shapes)),
-                         MatmulCompressedTest::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(smoke_MatmulCompressedWeights,
+//                          MatmulCompressedTest,
+//                          ::testing::Combine(::testing::ValuesIn(input_precision),
+//                                             ::testing::ValuesIn(weights_precision),
+//                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
+//                                             ::testing::ValuesIn(configs),
+//                                             ::testing::ValuesIn(input_shapes),
+//                                             ::testing::ValuesIn(weights_shapes)),
+//                          MatmulCompressedTest::getTestCaseName);
 }  // namespace
