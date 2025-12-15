@@ -13,9 +13,13 @@
 #include "logging.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
@@ -30,15 +34,25 @@ namespace function {
 
 // Helper struct to hold validation results for MoE expert model
 struct MoEValidationResult {
-    size_t num_experts = 0;                                 // Total number of experts
-    size_t expert_hidden_dim = 0;                           // Hidden dimension of single expert
-    size_t input_batch_size = 0;                            // Input batch size
-    std::shared_ptr<ov::op::v0::Tile> tile_node = nullptr;  // The Tile operation node
-    std::shared_ptr<ov::Node> input_node = nullptr;         // Input to Tile operation
+    size_t num_experts = 0;        // Total number of experts
+    size_t expert_hidden_dim = 0;  // Hidden dimension of single expert
+    size_t input_batch_size = 0;   // Input batch size
+
+    // Captured nodes for transformation
+    std::shared_ptr<ov::op::v0::Tile> tile_node = nullptr;               // The Tile operation node
+    std::shared_ptr<ov::Node> input_node = nullptr;                      // Input to Tile operation
+    std::shared_ptr<ov::op::v0::MatMul> matmul_node = nullptr;           // MatMul consumer of Tile
+    ov::Output<ov::Node> node_before_matmul;                             // Tile output or Reshape output before MatMul
+    std::shared_ptr<ov::op::v1::Reshape> output_reshape_node = nullptr;  // Output Reshape node
+    std::shared_ptr<ov::op::v1::ReduceSum> reduce_sum_node = nullptr;    // ReduceSum node to replace
+
+    // Captured parameter indices
+    std::optional<size_t> router_param_idx;     // Parameter index for router input to output Multiply
+    std::optional<size_t> attention_param_idx;  // Parameter index for attention output (MatMul input[0])
 
     // Validation helper
     bool is_valid() const {
-        return num_experts > 0 && expert_hidden_dim > 0 && tile_node != nullptr && input_node != nullptr;
+        return num_experts > 0 && expert_hidden_dim > 0 && tile_node != nullptr && matmul_node != nullptr;
     }
 };
 
@@ -47,7 +61,7 @@ std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shar
 
 // Helper function to transform MoE expert model from batched to single expert
 std::shared_ptr<ov::Model> transform_to_single_expert(const std::shared_ptr<ov::Model>& original_model,
-                                                      const MoEValidationResult& validation_result);
+                                                      MoEValidationResult& validation_result);
 
 // Structure to hold MoE expert information at partition-time
 struct MoEExperts {
@@ -75,6 +89,9 @@ struct MoEExperts {
     };
     std::vector<ExpertIO> _inputs;
     std::vector<ExpertIO> _outputs;
+
+    // Router parameter index (input to output Multiply from Router)
+    std::optional<size_t> _router_param_idx;
 
     // Validation helpers
     bool is_valid() const {
@@ -107,11 +124,13 @@ struct MoEExperts {
         std::cout << "  Single expert shape: " << _single_expert_shape << std::endl;
         std::cout << "  Inputs: " << _inputs.size() << std::endl;
         for (const auto& input : _inputs) {
-            std::cout << "    - " << input.name << " [" << input.element_type << ", " << input.shape << "]" << std::endl;
+            std::cout << "    - " << input.name << " [" << input.element_type << ", " << input.shape << "]"
+                      << std::endl;
         }
         std::cout << "  Outputs: " << _outputs.size() << std::endl;
         for (const auto& output : _outputs) {
-            std::cout << "    - " << output.name << " [" << output.element_type << ", " << output.shape << "]" << std::endl;
+            std::cout << "    - " << output.name << " [" << output.element_type << ", " << output.shape << "]"
+                      << std::endl;
         }
     }
 
@@ -127,6 +146,9 @@ namespace compiled {
 struct MoEExperts {
     size_t num_experts = 0;
     size_t expert_hidden_dim = 0;
+
+    // Router parameter index
+    std::optional<size_t> router_param_idx;
 
     // Compiled single expert model
     ov::SoPtr<ov::ICompiledModel> _compiled_model;
