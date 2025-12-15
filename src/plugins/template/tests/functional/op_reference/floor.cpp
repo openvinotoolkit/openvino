@@ -125,8 +125,8 @@ std::vector<FloorParams> generateParamsForFloorInt() {
 
 std::vector<FloorParams> generateCombinedParamsForFloor() {
     const std::vector<std::vector<FloorParams>> allTypeParams{generateParamsForFloorFloat<element::Type_t::f32>(),
-                                                              generateParamsForFloorFloat<element::Type_t::f16>(),
-                                                              generateParamsForFloorF16NearOne<element::Type_t::f16>(),  
+                                                              generateParamsForFloorF16NearOne<element::Type_t::f16>(), 
+                                                              generateParamsForFloorFloat<element::Type_t::f16>(), 
                                                               generateParamsForFloorInt64<element::Type_t::i64>(),
                                                               generateParamsForFloorInt32<element::Type_t::i32>(),
                                                               generateParamsForFloorInt<element::Type_t::i16>(),
