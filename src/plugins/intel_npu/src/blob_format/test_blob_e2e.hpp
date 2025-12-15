@@ -18,6 +18,7 @@
 #include "sections/ws.hpp"
 
 #include "parser.hpp"
+#include "test_utils.hpp"
 
 void test_blob_with_header_but_no_sections()
 {

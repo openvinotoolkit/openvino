@@ -1,6 +1,12 @@
 #ifndef _TEST_SINGLE_SECTIONS_
  #define _TEST_SINGLE_SECTIONS_
 
+#include <iostream>
+#include <ostream>
+#include <istream>
+#include <sstream>
+#include <vector>
+
 #include "isection.hpp"
 
 #include "sections/batch_size.hpp"
@@ -12,14 +18,7 @@
 
 #include "parser.hpp"
 
-inline void test_assert(bool condition, const char* msg = "")
-{
-    if (!condition)
-        {
-            std::cout << "Condition failed with msg: " << msg << std::endl;
-            throw std::runtime_error(msg);
-        }
-}
+#include "test_utils.hpp"
 
 
 void test_simple_cre_section() {
