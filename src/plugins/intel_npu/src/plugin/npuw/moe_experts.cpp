@@ -144,8 +144,8 @@ std::shared_ptr<ov::Model> transform_to_single_expert(const std::shared_ptr<ov::
         ov::Shape single_expert_shape = matmul_input_shape;
         single_expert_shape[0] = 1;
 
-        std::cout << "Original MatMul input shape: " << matmul_input_shape << std::endl;
-        std::cout << "Single expert shape: " << single_expert_shape << std::endl;
+        LOG_DEBUG("Original MatMul input shape: " << matmul_input_shape);
+        LOG_DEBUG("Single expert shape: " << single_expert_shape);
 
         auto target_shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                                          ov::Shape{single_expert_shape.size()},
@@ -157,28 +157,49 @@ std::shared_ptr<ov::Model> transform_to_single_expert(const std::shared_ptr<ov::
         node_before_matmul.replace(new_reshape->output(0));
     };
 
-    // Lambda: Fix output Reshape nodes (skip Convert if present)
+    // Lambda: Fix output Reshape nodes
+    // Output path: Reshape -> Multiply -> Convert(optional) -> Result
     auto fix_output_reshapes = [&]() {
         LOG_DEBUG("Fixing output Reshape nodes...");
         for (const auto& result : model->get_results()) {
             auto result_input = result->input_value(0);
             auto result_input_node = result_input.get_node_shared_ptr();
 
-            // Skip Convert node if present
+            // Skip Convert node if present (Result <- Convert)
             if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(result_input_node)) {
                 LOG_DEBUG("  Skipping Convert node before Result");
                 result_input = convert_node->input_value(0);
                 result_input_node = result_input.get_node_shared_ptr();
             }
 
-            if (auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(result_input_node)) {
+            // Check for Multiply node (Result <- [Convert] <- Multiply)
+            std::shared_ptr<ov::Node> reshape_node_ptr;
+            if (auto multiply_node = std::dynamic_pointer_cast<ov::op::v1::Multiply>(result_input_node)) {
+                LOG_DEBUG("  Found Multiply node before Result");
+                // Multiply has two inputs, one should be from Reshape
+                auto multiply_input0 = multiply_node->input_value(0).get_node_shared_ptr();
+                auto multiply_input1 = multiply_node->input_value(1).get_node_shared_ptr();
+
+                if (auto reshape0 = std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input0)) {
+                    reshape_node_ptr = reshape0;
+                } else if (auto reshape1 = std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input1)) {
+                    reshape_node_ptr = reshape1;
+                }
+            } else if (auto reshape_direct = std::dynamic_pointer_cast<ov::op::v1::Reshape>(result_input_node)) {
+                // Direct Reshape -> Result (fallback case)
+                reshape_node_ptr = reshape_direct;
+            }
+
+            if (reshape_node_ptr) {
+                auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(reshape_node_ptr);
                 auto shape_input = reshape_node->input_value(1);
                 if (auto shape_const =
                         std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_input.get_node_shared_ptr())) {
                     auto shape_data = shape_const->cast_vector<int64_t>();
 
                     if (!shape_data.empty() && shape_data[0] == static_cast<int64_t>(num_experts)) {
-                        LOG_DEBUG("  Found output Reshape with shape[0]=" << shape_data[0] << ", changing to 1");
+                        LOG_DEBUG("  Found output Reshape '" << reshape_node->get_friendly_name() << "' with shape[0]="
+                                                             << shape_data[0] << ", changing to 1");
                         shape_data[0] = 1;
 
                         auto new_shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
@@ -219,30 +240,37 @@ std::shared_ptr<ov::Model> transform_to_single_expert(const std::shared_ptr<ov::
         }
     };
 
-    // Lambda: Reshape model parameters
-    auto reshape_model_parameters = [&]() {
-        LOG_DEBUG("Reshaping model from batch_size=" << num_experts << " to batch_size=1");
+    // Lambda: Fix parameters with num_experts in their shape (manually, without model->reshape())
+    auto fix_parameters_with_num_experts = [&]() {
+        LOG_DEBUG("Fixing Parameter nodes with num_experts in shape...");
 
-        std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
         for (const auto& param : model->get_parameters()) {
             auto param_shape = param->get_partial_shape();
             if (param_shape.rank().is_static() && param_shape.rank().get_length() > 0) {
                 auto shape = param_shape.to_shape();
-                if (shape[0] == num_experts) {
-                    LOG_DEBUG("  Will reshape parameter: " << param->get_friendly_name()
-                                                           << " from shape[0]=" << shape[0] << " to shape[0]=1");
-                    shape[0] = 1;
-                    new_shapes[param->output(0)] = ov::PartialShape(shape);
-                    std::cout << "  Will reshape parameter " << param->get_friendly_name() << " to batch_size=1"
-                              << std::endl;
+                bool needs_fix = false;
+                size_t fix_dim = 0;
+
+                for (size_t i = 0; i < shape.size(); ++i) {
+                    if (shape[i] == num_experts) {
+                        needs_fix = true;
+                        fix_dim = i;
+                        break;
+                    }
+                }
+
+                if (needs_fix) {
+                    LOG_DEBUG("  Found Parameter '" << param->get_friendly_name() << "' with shape[" << fix_dim
+                                                    << "]=" << num_experts);
+
+                    shape[fix_dim] = 1;
+
+                    // Directly set the new shape on the parameter
+                    param->set_partial_shape(ov::PartialShape(shape));
+                    param->validate_and_infer_types();
+                    LOG_DEBUG("    Successfully updated parameter shape");
                 }
             }
-        }
-
-        if (!new_shapes.empty()) {
-            LOG_DEBUG("Calling model->reshape() to propagate shape changes");
-            model->reshape(new_shapes);
-            std::cout << "Model reshape completed" << std::endl;
         }
     };
 
@@ -276,8 +304,8 @@ std::shared_ptr<ov::Model> transform_to_single_expert(const std::shared_ptr<ov::
 
     replace_tile_with_reshape(tile_input, node_before_matmul, tile_op->get_friendly_name());
     fix_output_reshapes();
+    fix_parameters_with_num_experts();
     ensure_tensor_names();
-    reshape_model_parameters();
 
     model->validate_nodes_and_infer_types();
     LOG_DEBUG("Successfully transformed to single expert model");

@@ -80,8 +80,9 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto matmul2 = opp::wrap_type<ov::op::v0::MatMul>({multiply1, weights_convert2});
     auto add3 = opp::wrap_type<ov::op::v1::Add>({matmul2, opp::any_input()});
 
-    // Output reshape
+    // Output reshape - Multiply
     auto reshape2 = opp::wrap_type<ov::op::v1::Reshape>({add3, opp::any_input()});
+    auto output_multiply = opp::wrap_type<ov::op::v1::Multiply>({reshape2, opp::any_input()});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
@@ -108,6 +109,7 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_matmul2 = node_to_output.at(matmul2).get_node_shared_ptr();
         auto matched_add3 = node_to_output.at(add3).get_node_shared_ptr();
         auto matched_reshape2 = node_to_output.at(reshape2).get_node_shared_ptr();
+        auto matched_output_multiply = node_to_output.at(output_multiply).get_node_shared_ptr();
 
         // Isolate all matched nodes
         node_to_gptr->at(matched_tile)->isolate(isol_tag);
@@ -128,11 +130,12 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         node_to_gptr->at(matched_matmul2)->isolate(isol_tag);
         node_to_gptr->at(matched_add3)->isolate(isol_tag);
         node_to_gptr->at(matched_reshape2)->isolate(isol_tag);
+        node_to_gptr->at(matched_output_multiply)->isolate(isol_tag);
 
         return false;
     };
 
-    register_matcher(std::make_shared<opp::Matcher>(reshape2, "TagGPTOSSExpert"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(output_multiply, "TagGPTOSSExpert"), std::move(callback));
 }
 
 /*
