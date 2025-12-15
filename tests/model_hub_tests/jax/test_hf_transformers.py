@@ -5,6 +5,7 @@ import openvino as ov
 import os
 import pytest
 import requests
+from huggingface_hub import snapshot_download
 from PIL import Image
 from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
 from models_hub_common.utils import cleanup_dir, get_models_list, retry
@@ -22,17 +23,18 @@ from jax_utils import TestJaxConvertModel
 class TestTransformersModel(TestJaxConvertModel):
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, model_name, _):
-        model = FlaxAutoModel.from_pretrained(model_name)
+        model_cached = snapshot_download(model_name)  # required to avoid HF rate limits
+        model = FlaxAutoModel.from_pretrained(model_cached)
         if model_name in ['google/vit-base-patch16-224-in21k']:
             url = "http://images.cocodataset.org/val2017/000000039769.jpg"
             image = Image.open(requests.get(url, stream=True).raw)
-            image_processor = AutoImageProcessor.from_pretrained(model_name)
+            image_processor = AutoImageProcessor.from_pretrained(model_cached)
             self.example = image_processor(images=image, return_tensors="np")
         elif model_name in ['albert/albert-base-v2', 'facebook/bart-base', 'ksmcg/Mistral-tiny']:
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            tokenizer = AutoTokenizer.from_pretrained(model_cached)
             self.example = tokenizer("Hello, my dog is cute", return_tensors="np")
         elif model_name in ['openai/clip-vit-base-patch32']:
-            processor = AutoProcessor.from_pretrained(model_name)
+            processor = AutoProcessor.from_pretrained(model_cached)
             url = "http://images.cocodataset.org/val2017/000000039769.jpg"
             image = Image.open(requests.get(url, stream=True).raw)
             self.example = processor(text=["a photo of a cat", "a photo of a dog"],

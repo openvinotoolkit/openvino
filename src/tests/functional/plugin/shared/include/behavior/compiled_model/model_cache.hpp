@@ -9,7 +9,8 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-typedef std::tuple<bool, bool, ov::element::Type, ov::element::Type, const char*> WeightlessCacheAccuracyTestParams;
+typedef std::tuple<bool, bool, ov::element::Type, ov::element::Type, ov::AnyMap, const char*>
+    WeightlessCacheAccuracyTestParams;
 
 class WeightlessCacheAccuracy : public ::testing::Test, public ::testing::WithParamInterface<WeightlessCacheAccuracyTestParams> {
 public:

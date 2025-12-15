@@ -71,7 +71,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"DIV", translate_binary_op_with_activation<opset10::Divide>},
         // DYNAMIC_UPDATE_SLICE
         {"ELU", DEQUANTIZE_INPUTS(translate_elu_op)},
-        // EMBEDDING_LOOKUP
+        {"EMBEDDING_LOOKUP", DEQUANTIZE_INPUTS(embedding_lookup)},
         // EMBEDDING_LOOKUP_SPARSE
         {"EQUAL", translate_binary<opset10::Equal>},
         {"EXP", translate_unary<opset10::Exp>},

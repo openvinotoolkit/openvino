@@ -330,6 +330,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // - dump the subgraphs, if necessary
     std::map<std::string, std::size_t> compiledFunctions;
     m_compiled_submodels.resize(orderedSubgraphs.size());
+
     const std::size_t end_sub_idx = orderedSubgraphs.size();
 
     const std::string dump_sub_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS>();
@@ -376,22 +377,31 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     m_compiled_submodels[id].attention =
                         compiled::Attention(fcn_template._attention.value(), fcn_template._model);
                 }
+
+                if (fcn_template._pyramid_attention) {
+                    LOG_INFO("Creating compiled::PyramidAttention for Subgraph[" << id << "] (function "
+                                                                                 << subgraph._funcall << ")");
+                    m_compiled_submodels[id].pyramid_attention =
+                        compiled::PyramidAttention(fcn_template._pyramid_attention.value());
+                }
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
                 // ...and refer to it in other calls
                 m_compiled_submodels[id].replaced_by = compiled_fcn_iter->second;
                 LOG_INFO("Subgraph[" << id << "] is a function call to [" << compiled_fcn_iter->second << "]");
             }
+            auto& closure_desc = m_compiled_submodels[id].closure.get();
+
             m_compiled_submodels[id].host_gather = subgraph._host_gather;
             m_compiled_submodels[id].quant_unpack_gather = subgraph._quant_unpack_gather;
             m_compiled_submodels[id].param_base = fcn_template._param_offset;
-            m_compiled_submodels[id].closure = subgraph._closure;
+            closure_desc.closure = subgraph._closure;
             m_compiled_submodels[id].lazy_closure = subgraph._lazy_closure;
-            m_compiled_submodels[id].closure_uid.resize(m_compiled_submodels[id].closure.size(), -1);
+            closure_desc.closure_uid.resize(subgraph._closure.size(), -1);
             m_compiled_submodels[id].scales = subgraph._scales;
             m_compiled_submodels[id].zerops = subgraph._zerops;
             m_compiled_submodels[id].forced_to_fcall = subgraph._forced_to_fcall;
-            m_compiled_submodels[id].is_remote.resize(m_compiled_submodels[id].closure.size(), false);
+            closure_desc.is_remote.resize(subgraph._closure.size(), false);
         }  // if(!funcall)
 
         if (!m_compiled_submodels[id].model && !m_compiled_submodels[id].replaced_by) {
@@ -402,8 +412,20 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // FIXME: a hotfix for a crash where we have too many names in submodel's output
         // Do it just once if that's a function
         if (real_id == id) {
-            remove_long_output_names(m_compiled_submodels[real_id].model);
-            fill_empty_tensor_names(m_compiled_submodels[real_id].model);
+            auto fix_tensor_names = [&](const std::shared_ptr<ov::Model>& model) {
+                remove_long_output_names(model);
+                fill_empty_tensor_names(model);
+            };
+
+            fix_tensor_names(m_compiled_submodels[real_id].model);
+
+            // Ensure all submodels (including pyramid attention) have consistent and valid tensor names
+            // to avoid issues in downstream inference and model serialization.
+            if (const auto& pyramid_attn = m_compiled_submodels[real_id].pyramid_attention) {
+                for (const auto& model : pyramid_attn.value()._models_to_compile) {
+                    fix_tensor_names(model);
+                }
+            }
         }
 
         if (ov::npuw::util::is_set(id, dump_sub_opt, real_id, end_sub_idx)) {
@@ -418,9 +440,23 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                           (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall) + ".xml";
             ov::save_model(model_to_dump, model_dump_path);
             LOG_INFO("Wrote " << model_dump_path);
-            // Note: keep here naming as it would be the subgraph
+
+            // Dump pyramid attention models if present
+            if (m_compiled_submodels[id].pyramid_attention) {
+                LOG_INFO("NOTE: Subgraph[" << id << "] has a pyramid attention mechanism.");
+                const auto& pyramid_attention_models =
+                    m_compiled_submodels[id].pyramid_attention.value()._models_to_compile;
+                for (std::size_t idx = 0; idx < pyramid_attention_models.size(); ++idx) {
+                    std::string pyramid_attention_model_dump_path =
+                        m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
+                        (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall) + "_pyramid_" +
+                        ov::npuw::util::fmt(idx, pyramid_attention_models.size()) + ".xml";
+                    ov::save_model(pyramid_attention_models[idx], pyramid_attention_model_dump_path);
+                    LOG_INFO("Wrote " << pyramid_attention_model_dump_path);
+                }
+            }
         }  // if(dump)
-    }  // for(orderedSubgraphs)
+    }  // for(orderedSubGraphs)
 
     std::map<std::size_t, std::string> forced_sub_devices{};
     std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
@@ -649,22 +685,38 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, spatial);
     write(stream, attention);
 
-    write(stream, is_remote);
-    write(stream, closure_uid);
+    // Serialize compiled submodels for pyramid attention, except the last one
+    write(stream, pyramid_attention);
+    if (pyramid_attention.has_value()) {
+        size_t num_models = pyramid_attention.value()._compiled_models.size();
+        write(stream, num_models);
+
+        for (size_t i = 0; i < num_models - 1; ++i) {
+            std::stringstream ss;
+            auto compiled_model = pyramid_attention.value()._compiled_models[i];
+            compiled_model->export_model(ss);
+            write(stream, ss.str());
+        }
+    }
+
+    auto& closure_desc = closure.get();
+
+    write(stream, closure_desc.is_remote);
+    write(stream, closure_desc.closure_uid);
 
     if (ctx.is_weightless) {
         write_weightless(stream, scales, ctx);
         write_weightless(stream, zerops, ctx);
 
-        write(stream, closure.size());
+        write(stream, closure_desc.closure.size());
         std::vector<ov::Tensor> cpu_closures;
         std::vector<std::size_t> cpu_closure_ids;
         std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors;
         std::vector<std::size_t> non_cpu_tensors_ids;
-        for (std::size_t cidx = 0; cidx < closure.size(); ++cidx) {
-            if (closure_uid[cidx] == -1) {  // CPU closure
+        for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
+            if (closure_desc.closure_uid[cidx] == -1) {  // CPU closure
                 cpu_closure_ids.push_back(cidx);
-                cpu_closures.push_back(closure[cidx]);
+                cpu_closures.push_back(closure_desc.closure[cidx]);
             } else {
                 non_cpu_tensors_ids.push_back(cidx);
                 non_cpu_tensors.push_back(lazy_closure[cidx]);  // must be there
@@ -679,13 +731,13 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
         write(stream, scales);
         write(stream, zerops);
 
-        write(stream, closure.size());
+        write(stream, closure_desc.closure.size());
         std::vector<ov::Tensor> cpu_closures;
         std::vector<std::size_t> cpu_closure_ids;
-        for (std::size_t cidx = 0; cidx < closure.size(); ++cidx) {
-            if (closure_uid[cidx] == -1) {  // CPU closure, not in the bank
+        for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
+            if (closure_desc.closure_uid[cidx] == -1) {  // CPU closure, not in the bank
                 cpu_closure_ids.push_back(cidx);
-                cpu_closures.push_back(closure[cidx]);
+                cpu_closures.push_back(closure_desc.closure[cidx]);
             }
         }
 
@@ -700,7 +752,8 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
 }
 
 void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& stream,
-                                                             const ov::npuw::s11n::WeightsContext& ctx) {
+                                                             const ov::npuw::s11n::WeightsContext& ctx,
+                                                             const ov::npuw::s11n::PyramidCtx& pyramid_ctx) {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Deserializing CompiledModelDesc...");
@@ -724,8 +777,34 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     read(stream, spatial);
     read(stream, attention);
 
-    read(stream, is_remote);
-    read(stream, closure_uid);
+    read(stream, pyramid_attention);
+    if (pyramid_attention.has_value()) {
+        size_t num_models = 0;
+        read(stream, num_models);
+        pyramid_attention.value()._compiled_models.resize(num_models);
+
+        if (num_models > 0) {
+            // Import all pyramid models except the last one
+            for (size_t i = 0; i < num_models - 1; ++i) {
+                std::string model_str;
+                read(stream, model_str);
+                std::stringstream ss(model_str);
+                pyramid_attention->_compiled_models[i] =
+                    pyramid_ctx.plugin->get_core()->import_model(ss, pyramid_ctx.device);
+            }
+
+            // Reuse the already compiled model for the last pyramid attention model
+            if (pyramid_ctx.compiled_model) {
+                pyramid_attention->_compiled_models[num_models - 1] = pyramid_ctx.compiled_model;
+                LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
+            }
+        }
+    }
+
+    auto& closure_desc = closure.get();
+
+    read(stream, closure_desc.is_remote);
+    read(stream, closure_desc.closure_uid);
 
     if (ctx.weights || !ctx.consts_cache.empty()) {
         read_weightless(stream, scales, ctx);
@@ -733,7 +812,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
 
         std::size_t closure_size = 0;
         read(stream, closure_size);
-        closure.resize(closure_size);
+        closure_desc.closure.resize(closure_size);
         lazy_closure.resize(closure_size);
 
         std::vector<std::size_t> cpu_closure_ids;
@@ -743,7 +822,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
         read_weightless(stream, cpu_closures, ctx);
         std::size_t tidx = 0;
         for (const auto& idx : cpu_closure_ids) {
-            closure[idx] = std::move(cpu_closures[tidx++]);
+            closure_desc.closure[idx] = std::move(cpu_closures[tidx++]);
         }
 
         std::vector<std::size_t> non_cpu_tensors_ids;
@@ -757,8 +836,9 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
         }
 
         // Also read weights into LazyTensors
-        for (std::size_t cidx = 0; cidx < closure.size(); ++cidx) {
-            if (closure_uid[cidx] != -1 && lazy_closure[cidx]) {  // previously registered before serialization
+        for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
+            if (closure_desc.closure_uid[cidx] != -1 &&
+                lazy_closure[cidx]) {  // previously registered before serialization
                 lazy_closure[cidx].read_weight(ctx);
             }
         }
@@ -770,13 +850,19 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
         read(stream, closure_size);
         std::vector<std::size_t> cpu_closure_ids;
         read(stream, cpu_closure_ids);
-        closure.resize(closure_size);
+        closure_desc.closure.resize(closure_size);
         for (const auto& cidx : cpu_closure_ids) {
-            read(stream, closure[cidx]);
+            read(stream, closure_desc.closure[cidx]);
         }
     }
 
     LOG_DEBUG("DONE.");
+}
+
+ov::npuw::CompiledModel::~CompiledModel() {
+    if (m_eval_future.valid()) {
+        m_eval_future.wait();
+    }
 }
 
 void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
@@ -794,8 +880,12 @@ void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
 
     // Identify either full flow or weightless
     bool is_weightless = true;
-    if (auto it = m_non_npuw_props.find(ov::cache_mode.name());
-        it != m_non_npuw_props.end() && it->second.as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+    if (auto it = m_non_npuw_props.find(ov::enable_weightless.name()); it != m_non_npuw_props.end()) {
+        if (!it->second.as<bool>()) {
+            is_weightless = false;
+        }
+    } else if (auto it = m_non_npuw_props.find(ov::cache_mode.name());
+               it != m_non_npuw_props.end() && it->second.as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
         LOG_INFO("Serialization will be done via flow with weights.");
         is_weightless = false;
     }
@@ -912,7 +1002,6 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
         if (is_weightless) {
             compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
             compiled->finalize_weights_bank();
-            compiled->m_import_weights_ctx.reset();
         } else {
             compiled->m_weights_bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
@@ -999,8 +1088,12 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
 
         // Write flow identifier
         bool is_weightless = true;
-        if (m_non_npuw_props.count(ov::cache_mode.name()) &&
-            m_non_npuw_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+        if (auto it = m_non_npuw_props.find(ov::enable_weightless.name()); it != m_non_npuw_props.end()) {
+            if (!it->second.as<bool>()) {
+                is_weightless = false;
+            }
+        } else if (m_non_npuw_props.count(ov::cache_mode.name()) &&
+                   m_non_npuw_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
             is_weightless = false;
         }
         write(model_stream, is_weightless);
@@ -1013,10 +1106,13 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
 
         // Serialize compiled submodels
         write(model_stream, m_compiled_submodels.size());
-        for (const auto& subm : m_compiled_submodels) {
+        for (std::size_t i = 0; i < m_compiled_submodels.size(); ++i) {
+            auto& subm = m_compiled_submodels[i];
+            auto real_idx = subm.replaced_by.value_or(i);
             // Write device idx
-            std::size_t device_idx = subm.device_it - m_dev_list.begin();
-            write(model_stream, device_idx);
+            // FIXME: if there is no compiled submodel, device_it is not set.
+            std::size_t device_idx = m_compiled_submodels[real_idx].device_it - m_dev_list.begin();
+            write(model_stream, real_idx == i ? device_idx : 0);
             // Write ICompiledModel if it's there
             if (subm.compiled_model) {
                 write(model_stream, true);
@@ -1189,7 +1285,11 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                     plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx]);
             }
             compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
-            compiled->m_compiled_submodels[i].deserialize(stream, compiled->m_import_weights_ctx);
+
+            ov::npuw::s11n::PyramidCtx pyramid_ctx(plugin,
+                                                   compiled->m_dev_list[device_idx],
+                                                   compiled->m_compiled_submodels[i].compiled_model);
+            compiled->m_compiled_submodels[i].deserialize(stream, compiled->m_import_weights_ctx, pyramid_ctx);
         }
 
         compiled->implement_properties();
@@ -1224,49 +1324,79 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
+        auto& desc_closure = comp_model_desc.closure.get();
 
-        for (std::size_t cidx = 0; cidx < comp_model_desc.closure.size(); ++cidx) {
-            if (comp_model_desc.closure[cidx]) {
+        for (std::size_t cidx = 0; cidx < desc_closure.closure.size(); ++cidx) {
+            if (desc_closure.closure[cidx]) {
                 // host-side closure - already set, do nothing
-                NPUW_ASSERT(!comp_model_desc.is_remote[cidx]);
+                NPUW_ASSERT(!desc_closure.is_remote[cidx]);
                 continue;
             }
-            NPUW_ASSERT(comp_model_desc.closure_uid[cidx] != -1);
-            comp_model_desc.closure[cidx] =
-                m_weights_bank->get(comp_model_desc.closure_uid[cidx], *func_desc.device_it);
+            NPUW_ASSERT(desc_closure.closure_uid[cidx] != -1);
+            desc_closure.closure[cidx] = m_weights_bank->get(desc_closure.closure_uid[cidx], *func_desc.device_it);
         }
     }
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Finalizing weights bank...");
-    // Register lazy tensors
-    for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
-        auto& comp_model_desc = m_compiled_submodels[idx];
+    std::shared_future<void> weights_bank_evaluation = std::async(std::launch::async, [&]() {
+        // Register lazy tensors
+        for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+            auto& comp_model_desc = m_compiled_submodels[idx];
 
-        // Skip optimized out and non-functions
-        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
-            continue;
-        }
-
-        const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-        auto& func_desc = m_compiled_submodels[real_idx];
-
-        for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
-            if (comp_model_desc.closure[tidx]) {
-                continue;  // host-side closure
+            // Skip optimized out and non-functions
+            if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+                continue;
             }
-            comp_model_desc.closure_uid[tidx] =
-                m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
-        }
-    }
 
-    // Evaluate and allocate all LazyTensors inside the bank
-    m_profile["weights bank"].record([&]() {
+            const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+            auto& func_desc = m_compiled_submodels[real_idx];
+
+            for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
+                if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
+                    continue;  // host-side closure
+                }
+                comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
+                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
+            }
+        }
+
+        // Evaluate and allocate all LazyTensors inside the bank
         m_weights_bank->evaluate_and_allocate();
+
+        // Set evaluated and allocated ov::Tensors to closures
+        for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+            auto& comp_model_desc = m_compiled_submodels[idx];
+
+            // Skip optimized out and non-functions
+            if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+                continue;
+            }
+
+            const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+            auto& func_desc = m_compiled_submodels[real_idx];
+            auto& desc_closure = comp_model_desc.closure.unsafe_get();
+
+            for (std::size_t tidx = 0; tidx < desc_closure.closure.size(); ++tidx) {
+                if (desc_closure.closure[tidx]) {
+                    // host-side closure - already set, do nothing
+                    desc_closure.is_remote[tidx] = false;
+                    continue;
+                }
+                const auto& uid = desc_closure.closure_uid[tidx];
+                NPUW_ASSERT(uid != -1);  // All tensors should be registered at this point
+                desc_closure.closure[tidx] = m_weights_bank->get(uid, *func_desc.device_it);
+                // FIXME: find a more reliable way to do so
+                desc_closure.is_remote[tidx] = m_weights_bank->is_remote(uid);
+            }
+        }
+
+        m_import_weights_ctx.reset();
     });
 
-    // Set evaluated and allocated ov::Tensors to closures
+    m_eval_future = weights_bank_evaluation;
+
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
 
@@ -1275,21 +1405,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             continue;
         }
 
-        const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-        auto& func_desc = m_compiled_submodels[real_idx];
-
-        for (std::size_t tidx = 0; tidx < comp_model_desc.closure.size(); ++tidx) {
-            if (comp_model_desc.closure[tidx]) {
-                // host-side closure - already set, do nothing
-                comp_model_desc.is_remote[tidx] = false;
-                continue;
-            }
-            const auto& uid = comp_model_desc.closure_uid[tidx];
-            NPUW_ASSERT(uid != -1);  // All tensors should be registered at this point
-            comp_model_desc.closure[tidx] = m_weights_bank->get(uid, *func_desc.device_it);
-            // FIXME: find a more reliable way to do so
-            comp_model_desc.is_remote[tidx] = m_weights_bank->is_remote(uid);
-        }
+        comp_model_desc.closure.set_future(weights_bank_evaluation);
     }
 
     LOG_INFO("Done.");
@@ -1331,6 +1447,10 @@ void ov::npuw::CompiledModel::detach_memory() {
             LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
             proto_comp_model_desc.model.reset();
         }
+
+        // No need to clear pyramid attention data - it's self-contained!
+        // The _models_to_compile is already cleared in set_compiled_models()
+        // and compiled::PyramidAttention only stores _compiled_models (not original models)
     }
     LOG_INFO("Done");
 }
@@ -1499,6 +1619,9 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
         m_profile["compile/" + device_to_try].record([&]() {
             m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
         });
+
+        // Compile pyramid attention models if present
+        compile_pyramid_attention_models(id, device_to_try);
     } catch (const std::exception& ex) {
         LOG_ERROR("Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what());
         dump_on_fail(id, device_to_try, ex.what());
@@ -1511,6 +1634,74 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     // Reached this point - all ok, stop the search
     LOG_INFO("Done (" << device_to_try << ")");
     return true;
+}
+
+void ov::npuw::CompiledModel::compile_pyramid_attention_models(std::size_t id, const std::string& device) {
+    // Check if we have pyramid attention to compile
+    if (!m_compiled_submodels[id].pyramid_attention.has_value()) {
+        return;
+    }
+
+    LOG_INFO("Compiling pyramid attention submodels for Subgraph[" << id << "]...");
+    LOG_BLOCK();
+
+    auto& pyramid_attn = m_compiled_submodels[id].pyramid_attention.value();
+    const auto& pyramid_attn_models = pyramid_attn._models_to_compile;
+    const size_t total_models = pyramid_attn_models.size();
+
+    LOG_INFO("Total pyramid models to compile: " << total_models);
+
+    // Pre-allocate the compiled models vector
+    std::vector<ov::SoPtr<ov::ICompiledModel>> compiled_models(total_models);
+
+    // Compile all pyramid models except the last one in parallel
+    // The last model will reuse the already compiled original model
+    const size_t models_to_compile = total_models > 0 ? total_models - 1 : 0;
+
+    if (models_to_compile > 0) {
+        LOG_INFO("Compiling " << models_to_compile << " pyramid models in parallel...");
+
+        auto compile_one_model = [&](size_t model_id) {
+            try {
+                const auto& model = pyramid_attn_models[model_id];
+                LOG_DEBUG("Compiling pyramid attention submodel[" << model_id << "]: " << model->get_friendly_name());
+
+                auto compiled = compile_submodel(model, device);
+                OPENVINO_ASSERT(compiled, "Failed to compile pyramid attention submodel");
+
+                compiled_models[model_id] = compiled;
+
+                LOG_INFO("Compiled pyramid attention submodel[" << model_id << "]");
+            } catch (const std::exception& ex) {
+                OPENVINO_THROW("Pyramid attention submodel[", model_id, "] compilation failed: ", ex.what());
+            } catch (...) {
+                OPENVINO_THROW("Pyramid attention submodel[", model_id, "] compilation failed with unknown error");
+            }
+        };
+
+        const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
+        if (par_opt) {
+            ov::parallel_for(models_to_compile, compile_one_model);
+        } else {
+            for (std::size_t model_id = 0u; model_id < models_to_compile; model_id++) {
+                compile_one_model(model_id);
+            }
+        }
+    }
+
+    // Handle the last model: reuse the already compiled original model
+    if (total_models > 0) {
+        LOG_INFO("Reusing already compiled original model for pyramid attention submodel[" << (total_models - 1)
+                                                                                           << "] (optimization)");
+        OPENVINO_ASSERT(m_compiled_submodels[id].compiled_model, "Original compiled model should exist");
+        compiled_models[total_models - 1] = m_compiled_submodels[id].compiled_model;
+    }
+
+    // Set compiled models - this also clears _models_to_compile internally
+    LOG_INFO("Setting compiled models into compiled::PyramidAttention...");
+    pyramid_attn.set_compiled_models(std::move(compiled_models));
+
+    LOG_INFO("Pyramid attention compilation complete for Subgraph[" << id << "]");
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const std::shared_ptr<ov::Model>& submodel,
@@ -1654,7 +1845,7 @@ std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) cons
 
 bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx) const {
     auto& comp_model_desc = m_compiled_submodels.at(idx);
-    for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
+    for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.get().closure.size(); cidx++) {
         if (unpack_required(idx, cidx)) {
             return true;
         }
@@ -1671,7 +1862,7 @@ bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx, const std::
     const auto real_idx = comp_model_desc.replaced_by.value();
     auto& func_desc = m_compiled_submodels.at(real_idx);
 
-    auto& closure = comp_model_desc.closure.at(cidx);
+    auto& closure = comp_model_desc.closure.get().closure.at(cidx);
     const auto closure_param_id = comp_model_desc.param_base + cidx;
 
     auto& iport = func_desc.compiled_model->inputs()[closure_param_id];

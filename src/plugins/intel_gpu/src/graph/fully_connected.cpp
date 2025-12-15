@@ -200,7 +200,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
         OPENVINO_ASSERT(fused_prims.size() == 1);
         OPENVINO_ASSERT(fused_prims[0].typed_desc<swiglu>()->glu_type == ov::op::internal::GLU::GluType::Swish);
         swiglu_op.set_axis(fused_prims[0].typed_desc<swiglu>()->axis);
-        swiglu_op.set_split_lengths(fused_prims[0].typed_desc<swiglu>()->split_lengths);
+        swiglu_op.set_split_lengths(fused_prims[0].typed_desc<swiglu>()->glu_stride);
         swiglu_op.set_glu_type(fused_prims[0].typed_desc<swiglu>()->glu_type);
         std::vector<ShapeType> input_shapes = { output_shapes[0] };
         output_shapes = shape_infer(&swiglu_op, input_shapes);

@@ -233,7 +233,8 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
                 continue;
             GPU_DEBUG_TRACE_DETAIL << node->id() << " : fuse swiglu to " << fc_node.id() << std::endl;
             GPU_DEBUG_TRACE_DETAIL << " - split axis : " << swiglu_prim->axis << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << " - split length : " << swiglu_prim->split_lengths << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << " - glu stride : " << swiglu_prim->glu_stride << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << " - gate idx : " << swiglu_prim->gate_idx << std::endl;
             p.fuse_nodes(fc_node, *node, &fusing_history);
         }
     }
