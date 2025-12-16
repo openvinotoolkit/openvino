@@ -405,7 +405,7 @@ public:
             int per_oc = PER_OC << shift_size;
             int grouped = 0;
             if (weight_rank == 3) {
-                grouped = PER_TENSOR << (shift_size - 1);
+                grouped = PER_TENSOR << (shift_size > 0 ? shift_size - 1 : 0);
             } else {
                 grouped = GROUPED << shift_size;
             }
