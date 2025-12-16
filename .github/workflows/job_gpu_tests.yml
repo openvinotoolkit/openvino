@@ -149,3 +149,5 @@ jobs:
           name: test-results-${{ inputs.test_type }}-${{ inputs.device }}
           path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_tests.outputs.test_results_dir }}
           if-no-files-found: 'error'
+        env:
+          NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
