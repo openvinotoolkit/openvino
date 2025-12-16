@@ -586,23 +586,23 @@ jobs:
       options: "--group-add 109 --group-add 44 --device /dev/dri:/dev/dri --privileged"
     # if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
 
-  dGPU:
-    name: dGPU Tests
-    needs: [ Build, Smart_CI ]
-    uses: ./.github/workflows/job_gpu_tests.yml
-    strategy:
-      max-parallel: 2
-      fail-fast: false
-      matrix:
-        TEST_TYPE: ['unit', 'func']
-    with:
-      device: 'dgpu'
-      test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'self-hosted', 'dgpu' ]"
-      image: ubuntu:22.04
-      options: "--group-add 109 --group-add 44 --device /dev/dri/card0:/dev/dri/card0 --device /dev/dri/renderD128:/dev/dri/renderD128"
-    # if: ${{ github.event_name == 'schedule' }}
-    if: ${{ 'false' }} # Ticket: 143677
+  # dGPU:
+  #   name: dGPU Tests
+  #   needs: [ Build, Smart_CI ]
+  #   uses: ./.github/workflows/job_gpu_tests.yml
+  #   strategy:
+  #     max-parallel: 2
+  #     fail-fast: false
+  #     matrix:
+  #       TEST_TYPE: ['unit', 'func']
+  #   with:
+  #     device: 'dgpu'
+  #     test_type: ${{ matrix.TEST_TYPE }}
+  #     runner: "[ 'self-hosted', 'dgpu' ]"
+  #     image: ubuntu:22.04
+  #     options: "--group-add 109 --group-add 44 --device /dev/dri/card0:/dev/dri/card0 --device /dev/dri/renderD128:/dev/dri/renderD128"
+  #   # if: ${{ github.event_name == 'schedule' }}
+  #   if: ${{ 'false' }} # Ticket: 143677
 
   Overall_Status:
     name: ci/gha_overall_status
