@@ -44,7 +44,7 @@ jobs:
       PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
       GTEST_FILTER: ${{ inputs.scope == 'nightly' && '' || '--gtest_filter=*smoke*' }}
     steps:
-      - name: Fetch actions
+      - name: Fetch setup_python action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
@@ -52,9 +52,6 @@ jobs:
             .github/actions
           sparse-checkout-cone-mode: false
           submodules: 'false'
-
-      - name: System info
-        uses: ./.github/actions/system_info
 
       - name: Download OpenVINO artifacts (package)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
@@ -97,8 +94,6 @@ jobs:
       #       ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp
 
       - name: Intel CPU plugin func tests (parallel)
-        env:
-          LOG_LEVEL: "DEBUG"
         run: |
           # Needed as the Linux CC does not require setupvars to work
           if [[ -f "${INSTALL_DIR}/setupvars.sh" ]]; then
@@ -123,7 +118,12 @@ jobs:
         with:
           name: test-results-functional-cpu
           path: |
-            ${{ env.INSTALL_TEST_DIR }}/**/*.log
-            ${{ env.INSTALL_TEST_DIR }}/**/*.lst
-            ${{ env.INSTALL_TEST_DIR }}/**/*.csv
+            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
+            ${{ env.PARALLEL_TEST_CACHE }}
           if-no-files-found: 'error'
