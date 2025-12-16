@@ -42,7 +42,7 @@ jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(jit_eltwise_params jep,
                                                       std::vector<ov::intel_cpu::Type> ops_list,
                                                       dnnl::post_ops post_ops)
     : jit_uni_eltwise_kernel(std::move(jep)),
-      jit_generator(),
+      jit_generator_t(),
       eltwise_data_(std::move(eltwise_data)),
       ops_list_(std::move(ops_list)),
       post_ops_(std::move(post_ops)) {}
@@ -325,7 +325,7 @@ void load_vector(const T1& data_lane,
                  const Xbyak_aarch64::XReg& ptr_reg,
                  const int64_t offset,
                  const bool broadcast,
-                 jit_generator* h,
+                 jit_generator_t* h,
                  const size_t lane_count = 0) {
     if (broadcast) {
         if (offset == 0) {
@@ -373,9 +373,9 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
     case ov::element::f32:
     case ov::element::i32: {
         if (broadcast) {
-            jit_generator::uni_ld1rw(data.s, ptr_reg, ptr_offset);
+            jit_generator_t::uni_ld1rw(data.s, ptr_reg, ptr_offset);
         } else {
-            jit_generator::uni_ldr(data, ptr_reg, ptr_offset);
+            jit_generator_t::uni_ldr(data, ptr_reg, ptr_offset);
         }
         break;
     }
@@ -637,7 +637,7 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
 
 struct EltwiseEmitterContext {
     std::shared_ptr<jit_emitter> emitter;
-    dnnl::impl::cpu::aarch64::jit_generator* host;
+    dnnl::impl::cpu::aarch64::jit_generator_t* host;
     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa;
     const EltwiseData& opData;
     ov::element::Type exec_prc;
