@@ -70,7 +70,7 @@ jobs:
       build-type: 'Debug'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
       cmake-options: >-
-        -G 'Ninja Multi-Config'
+        -G 'Ninja'
         -DENABLE_PYTHON=OFF
         -DENABLE_TESTS=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
