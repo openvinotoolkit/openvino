@@ -21,7 +21,7 @@
 
 namespace ov::intel_cpu::aarch64 {
 
-using CompiledSnippetCPU = ov::intel_cpu::CompiledSnippetCPUCommon<dnnl::impl::cpu::aarch64::jit_generator>;
+using CompiledSnippetCPU = ov::intel_cpu::CompiledSnippetCPUCommon<dnnl::impl::cpu::aarch64::jit_generator_t>;
 
 class CPUTargetMachine : public snippets::TargetMachine {
 public:
@@ -38,7 +38,7 @@ public:
     [[nodiscard]] dnnl::impl::cpu::aarch64::cpu_isa_t get_isa() const;
 
 private:
-    std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator> h;
+    std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator_t> h;
     dnnl::impl::cpu::aarch64::cpu_isa_t isa;
     ov::intel_cpu::MultiCacheWeakPtr compiled_kernel_cache;
 };
