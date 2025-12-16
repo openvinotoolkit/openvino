@@ -347,8 +347,12 @@ def test_optional_with_input_and_predicate():
 
     pattern_add = ops.add(AnyInput(), AnyInput())
 
-    assert Matcher(Optional(["opset13.Relu"], pattern_add.output(0), lambda x: True), "TestInputPredicate").match(model_relu)
-    assert not Matcher(Optional(["opset13.Relu"], pattern_add.output(0), lambda x: False), "TestInputPredicate").match(model_relu)
+    assert Matcher(
+        Optional(["opset13.Relu"], pattern_add.output(0), lambda x: True), "TestInputPredicate"
+    ).match(model_relu)
+    assert not Matcher(
+        Optional(["opset13.Relu"], pattern_add.output(0), lambda x: False), "TestInputPredicate"
+    ).match(model_relu)
 
 
 def test_optional_with_input_node():
@@ -365,8 +369,12 @@ def test_optional_with_input_node_and_predicate():
     model_add = ops.add(model_input, model_input)
     model_relu = ops.relu(model_add.output(0))
 
-    assert Matcher(Optional(["opset13.Relu"], model_add, lambda x: True), "TestInputNodePredicate").match(model_relu)
-    assert not Matcher(Optional(["opset13.Relu"], model_add, lambda x: False), "TestInputNodePredicate").match(model_relu)
+    assert Matcher(
+        Optional(["opset13.Relu"], model_add, lambda x: True), "TestInputNodePredicate"
+    ).match(model_relu)
+    assert not Matcher(
+        Optional(["opset13.Relu"], model_add, lambda x: False), "TestInputNodePredicate"
+    ).match(model_relu)
     assert not Matcher(Optional(["opset13.Cos"], model_add, lambda x: True), "TestInputNodePredicate").match(model_relu)
 
 
@@ -381,8 +389,12 @@ def test_optional_with_multi_input_node():
     assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_input_1)
     assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_input_0)
 
-    assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1], lambda x: False), "MultiInNodePredicate").match(model_add)
-    assert Matcher(Optional(["opset13.Add"], [model_relu, model_input_1], lambda x: True), "MultiInNodePredicate").match(model_add)
+    assert not Matcher(
+        Optional(["opset13.Add"], [model_relu, model_input_1], lambda x: False), "MultiInNodePredicate"
+    ).match(model_add)
+    assert Matcher(
+        Optional(["opset13.Add"], [model_relu, model_input_1], lambda x: True), "MultiInNodePredicate"
+    ).match(model_add)
 
 
 def test_all_predicates():

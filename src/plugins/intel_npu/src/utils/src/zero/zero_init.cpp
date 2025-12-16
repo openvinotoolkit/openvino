@@ -7,9 +7,8 @@
 #include <ze_command_queue_npu_ext.h>
 #include <ze_mem_import_system_memory_ext.h>
 
+#include <mutex>
 #include <regex>
-
-#include "intel_npu/utils/zero/zero_utils.hpp"
 
 #ifdef _WIN32
 namespace {
@@ -304,11 +303,6 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
     log.debug("ZeroInitStructsHolder initialize complete");
 
-    // Obtain compiler-in-driver properties
-    compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-    auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &compiler_properties);
-    THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
-
     // Discover if standard allocation is supported
     ze_device_external_memory_properties_t external_memory_properties_desc = {};
     external_memory_properties_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
@@ -331,15 +325,44 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     }
 }
 
-const std::shared_ptr<ZeroInitStructsHolder>& ZeroInitStructsHolder::getInstance() {
-    static std::shared_ptr<ZeroInitStructsHolder> instance = std::make_shared<ZeroInitStructsHolder>();
+const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance() {
+    static std::mutex mutex;
+    static std::weak_ptr<ZeroInitStructsHolder> weak_instance;
+
+    std::lock_guard<std::mutex> lock(mutex);
+    auto instance = weak_instance.lock();
+    if (!instance) {
+        instance = std::make_shared<ZeroInitStructsHolder>();
+        weak_instance = instance;
+    }
     return instance;
+}
+
+ze_device_graph_properties_t ZeroInitStructsHolder::getCompilerProperties() {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (!compiler_properties) {
+        // Obtain compiler-in-driver properties
+        compiler_properties = std::make_unique<ze_device_graph_properties_t>();
+        compiler_properties->stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
+        auto result =
+            graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, compiler_properties.get());
+        THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
+    }
+    return *compiler_properties;
+}
+
+uint32_t ZeroInitStructsHolder::getCompilerVersion() {
+    if (!compiler_properties) {
+        (void)getCompilerProperties();
+    }
+    return ZE_MAKE_VERSION(compiler_properties->compilerVersion.major, compiler_properties->compilerVersion.minor);
 }
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {
     if (context) {
         log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
         auto result = zeContextDestroy(context);
+        context = nullptr;
         if (result != ZE_RESULT_SUCCESS) {
             if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
                 log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");

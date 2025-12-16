@@ -548,6 +548,9 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
 
 void gpu_usm::unlock(const stream& /* stream */) {
     std::lock_guard<std::mutex> locker(_mutex);
+    if (_lock_count == 0) {
+        OPENVINO_THROW("Trying to unlock an already unlocked buffer");
+    }
     _lock_count--;
     if (0 == _lock_count) {
         if (get_allocation_type() == allocation_type::usm_device) {
@@ -706,7 +709,7 @@ std::vector<cl_mem> ocl_surfaces_lock::get_handles(std::vector<memory::ptr> mem)
     std::vector<cl_mem> res;
     for (auto& m : mem) {
         auto mem_type = m->get_internal_params().mem_type;
-        if (mem_type == shared_mem_type::shared_mem_vasurface || mem_type == shared_mem_type::shared_mem_dxbuffer) {
+        if (is_lock_needed(mem_type)) {
             res.push_back(static_cast<cl_mem>(m->get_internal_params().mem));
         }
     }

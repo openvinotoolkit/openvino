@@ -173,7 +173,7 @@ ov::pass::PReluFusionAbsSubMulMulAdd::PReluFusionAbsSubMulMulAdd() {
     const auto equals_half = [](const Output<Node>& node) {
         float v;
         const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node.get_node_shared_ptr());
-        return constant && op::util::get_single_value(constant, v) && v == 0.5f;
+        return constant && ov::op::util::get_single_value(constant, v) && v == 0.5f;
     };
 
     const auto input = pass::pattern::any_input();
@@ -226,7 +226,7 @@ ov::pass::PReluFusionNegReluMulAdd::PReluFusionNegReluMulAdd() {
         const auto& pattern_to_output = m.get_pattern_value_map();
         const auto input_output = pattern_to_output.at(input);
         const auto add_node = pattern_to_output.at(add).get_node_shared_ptr();
-        const auto slope = op::util::make_try_fold<ov::op::v0::Negative>(pattern_to_output.at(mul_constant));
+        const auto slope = ov::op::util::make_try_fold<ov::op::v0::Negative>(pattern_to_output.at(mul_constant));
         const auto prelu = make_shared<ov::op::v0::PRelu>(input_output, slope);
         prelu->set_friendly_name(m.get_match_root()->get_friendly_name());
         NodeVector copy_from = {pattern_to_output.at(relu_pos).get_node_shared_ptr(),

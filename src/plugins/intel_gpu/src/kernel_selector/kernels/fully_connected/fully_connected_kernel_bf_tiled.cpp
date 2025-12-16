@@ -377,6 +377,7 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0) {
         if ((tparams.dispatch_bsv != 1) || batch_size == 1)
             return false;
+
         size_t tile = simd;
         while (batch_size % tile != 0)
             tile--;
@@ -651,8 +652,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     size_t quantize_grp_size = get_dynamic_quantize_group_size(params);
 
     if (is_swiglu_fused(params)) {
-        auto split_length = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_length;
-        auto split_to_glu_idx = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_to_glu_idx;
+        auto split_length = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->glu_stride;
+        auto split_to_glu_idx = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->gate_idx;
         jit.AddConstant(MakeJitConstant("SWIGLU_LENGTH", split_length));
         jit.AddConstant(MakeJitConstant("SWIGLU_SPLIT_TO_GLU_IDX", split_to_glu_idx));
     }
@@ -808,6 +809,12 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", tile_in_b_pitch));
         jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.outputs[0].Batch().pitch));
         jit.AddConstant(MakeJitConstant("BATCH_SIZE", "(OUTPUT_BATCH_NUM)"));
+    }
+    auto batch_size = get_input_bf_size(params).first;
+    if (batch_size % (dispatchData.tile_m * dispatchData.tile_ms) != 0) {
+        jit.AddConstant(MakeJitConstant("BATCH_LEFTOVER", 1));
+    } else {
+        jit.AddConstant(MakeJitConstant("BATCH_LEFTOVER", 0));
     }
 
     if (!params.fused_ops.empty() && !is_swiglu_fused(params)) {

@@ -18,7 +18,7 @@ struct KeyHash {
     std::size_t operator()(const BlobCacheKey& key) const {
         std::size_t hash = 0;
 
-        auto node = ov::as_type_ptr<op::v0::Constant>(key);
+        auto node = ov::as_type_ptr<ov::op::v0::Constant>(key);
 
         auto type = node->get_output_element_type(0);
         auto shape = node->get_shape();
@@ -42,8 +42,8 @@ struct KeyHash {
 
 struct KeyEqual {
     bool operator()(const BlobCacheKey& lhs, const BlobCacheKey& rhs) const {
-        auto lhs_node = ov::as_type_ptr<op::v0::Constant>(lhs);
-        auto rhs_node = ov::as_type_ptr<op::v0::Constant>(rhs);
+        auto lhs_node = ov::as_type_ptr<ov::op::v0::Constant>(lhs);
+        auto rhs_node = ov::as_type_ptr<ov::op::v0::Constant>(rhs);
 
         auto lhs_type = lhs_node->get_output_element_type(0);
         auto rhs_type = rhs_node->get_output_element_type(0);
@@ -87,7 +87,7 @@ bool ConstantsReduce::run_on_model(const std::shared_ptr<ov::Model>& m) {
         if (!ov::is_type<ov::op::v0::Constant>(op))
             continue;
 
-        auto const_node = ov::as_type_ptr<op::v0::Constant>(op);
+        auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
 
         // Limit size of node reading to avoid reading large tensors
         if (const_node->get_byte_size() > LARGE_TENSOR_BYTE_SIZE)
