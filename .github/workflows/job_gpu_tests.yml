@@ -60,7 +60,7 @@ jobs:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
         env:
-          NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/InelProxyRootCA-Base64.crt
+          NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
       
       - name: Download OpenVINO artifacts (tests)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
@@ -68,7 +68,7 @@ jobs:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
         env:
-          NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/InelProxyRootCA-Base64.crt
+          NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
 
       - name: Extract OpenVINO packages
         run: |
