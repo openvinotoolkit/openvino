@@ -297,8 +297,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         """Check if the node is a higher-order operation.
 
         All higher-order operations in PyTorch (while_loop, cond, map, scan, etc.)
-        are registered under torch.ops.higher_order namespace. This provides
-        automatic support for any new higher-order ops added in future PyTorch versions.
+        are registered under torch.ops.higher_order namespace or torch._higher_order_ops.
+        This provides automatic support for any new higher-order ops added in future
+        PyTorch versions.
 
         Higher-order operations pass tuple of tensors as carried inputs that need
         to be unpacked into separate inputs. Regular operations should keep
@@ -306,8 +307,16 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         """
         if node.op != "call_function":
             return False
+        # Check multiple ways to detect higher-order ops:
+        # 1. String representation starts with torch.ops.higher_order.
         target_str = str(node.target)
-        return target_str.startswith("torch.ops.higher_order.")
+        if target_str.startswith("torch.ops.higher_order."):
+            return True
+        # 2. Target type's module is torch._higher_order_ops (for WhileLoopOp, etc.)
+        target_type = type(node.target)
+        if hasattr(target_type, "__module__") and target_type.__module__.startswith("torch._higher_order_ops"):
+            return True
+        return False
 
     def _is_subgraph_arg(self, arg):
         """Check if argument is a subgraph reference (get_attr node pointing to GraphModule).
@@ -416,6 +425,12 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 continue  # skipping non-operational nodes
             if node.op == "call_function" and str(node.target) in ["aten._assert_async.msg"]:
                 continue
+            # Skip get_attr nodes that reference subgraph GraphModules
+            # These are handled by higher-order op translators (while_loop, cond, etc.)
+            if node.op == "get_attr":
+                is_subgraph, _ = self._is_subgraph_arg(node)
+                if is_subgraph:
+                    continue
             decoder = TorchFXPythonDecoder(
                 node, self.fx_gm, self._nodes, mark_node_callback=self.mark_node_callback)
             self.m_decoders.append(decoder)
@@ -441,7 +456,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         subgraph = subgraphs[index]
         decoder = TorchFXPythonDecoder(
             subgraph,
-            self.fx_gm,
+            subgraph,  # Use subgraph as fx_gm for proper constant resolution
             mark_node_callback=self.mark_node_callback
         )
         self.m_decoders.append(decoder)
