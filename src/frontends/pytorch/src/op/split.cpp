@@ -49,8 +49,8 @@ OutputVector translate_chunk(const NodeContext& context) {
 
     // 4. Create FrameworkNode with UNWRAPPED inputs (transformations will see clean graph)
     auto chunk_fw = std::make_shared<PtFrameworkNode>(context.get_decoder(),
-                                                       OutputVector{data, chunks, dim},
-                                                       1);  // 1 output (list)
+                                                      OutputVector{data, chunks, dim},
+                                                      1);  // 1 output (list)
     context.mark_node(chunk_fw);
     add_exception_to_fw_node(chunk_fw, "aten::chunk is handled by PrimListUnpackReplacer");
 

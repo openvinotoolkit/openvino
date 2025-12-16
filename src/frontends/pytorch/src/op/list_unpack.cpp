@@ -27,8 +27,8 @@ OutputVector translate_list_unpack(const NodeContext& context) {
     } else {
         // Create FrameworkNode with UNWRAPPED input (transformations will see clean graph)
         auto list_unpack_fw = std::make_shared<PtFrameworkNode>(context.get_decoder(),
-                                                                 OutputVector{input},  // unwrapped!
-                                                                 context.get_output_size());
+                                                                OutputVector{input},  // unwrapped!
+                                                                context.get_output_size());
         context.mark_node(list_unpack_fw);
         add_exception_to_fw_node(list_unpack_fw,
                                  "Lists are not supported yet and can be resolved only in specific cases.");
