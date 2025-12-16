@@ -133,5 +133,35 @@ public:
                        const element::TypeVector& indices_precisions);
 };
 
+/**
+ * Marks subgraphs where FakeQuantize has unstripped dequantization on
+ * data FakeQuantize: Convert->Convert->Subtract->Multiply
+ * check ZP and Scale const, if they are u16, they should be less than fp16 range (65504)
+ * any value between 65504 to 65535 cause overflow in fp16
+ * we disbale fp16 compression for such subgraphs/ZP/Scales to keep precision
+ *
+ * Pattern:
+ *
+ *        FakeQuantize
+ *          │
+ *          ▼
+ *       Convert
+ *          │
+ *      (Reshape/Unsqueeze)
+ *          │
+ *        Subtract
+ *      (Reshape/Unsqueeze)
+ *          │
+ *        Multiply
+ *          │
+ *
+ */
+class TRANSFORMATIONS_API KeepPrecisionOfUnstrippedFQPattern : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("KeepPrecisionOfUnstrippedFQPattern")
+        KeepPrecisionOfUnstrippedFQPattern(const element::TypeVector& precisions);
+};
+
+
 }  // namespace pass
 }  // namespace ov
