@@ -233,7 +233,7 @@ macro(ov_add_frontend)
                           PUBLIC openvino::runtime)
 
     if(NOT BUILD_SHARED_LIBS)
-        target_link_libraries(${TARGET_NAME} PRIVATE openvino_frontend_common_obj)
+        target_link_libraries(${TARGET_NAME} PRIVATE $<BUILD_INTERFACE:openvino_frontend_common_obj>)
     endif()
 
     ov_add_library_version(${TARGET_NAME})
