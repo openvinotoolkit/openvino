@@ -46,6 +46,9 @@ namespace op_util = ov::op::util;
 bool inline static need_slice_clamping(std::shared_ptr<v0::Parameter> param, ov::element::Type to) {
     auto param_consumers = param->output(0).get_target_inputs();
     auto output_type = param->get_output_element_type(0);
+    if (output_type.size() < to.size()) {
+        return false;
+    }
     return std::any_of(param_consumers.begin(), param_consumers.end(), [&](ov::Input<ov::Node> input) {
         return output_type.is_integral() && to.is_integral() && ov::as_type<v8::Slice>(input.get_node()) &&
                (input.get_index() == 1 || input.get_index() == 2);
