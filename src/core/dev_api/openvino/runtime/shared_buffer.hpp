@@ -38,7 +38,7 @@ public:
 
     const char* view(std::streamsize count) const noexcept {
         const auto real_count = std::min<std::streamsize>(m_size - m_offset, count);
-        if (real_count == count) // only return pointer when having enough size
+        if (real_count == count)  // only return pointer when having enough size
             return m_data + m_offset;
         return nullptr;
     }
