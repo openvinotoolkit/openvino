@@ -1,6 +1,9 @@
 #ifndef _LAYOUTS_HPP_
  #define _LAYOUTS_HPP_
 
+#include <vector>
+#include <string>
+
 #include "isection.hpp"
 
 // Faking an ov::Layout

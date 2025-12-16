@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <unordered_map>
+#include <memory>
 #include "isection.hpp"
 #include "sections/unknown.hpp"
 

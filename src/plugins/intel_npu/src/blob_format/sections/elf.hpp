@@ -1,5 +1,7 @@
 #ifndef _ELF_HPP_
  #define _ELF_HPP_
+#include <cstdint>
+#include <ostream>
 #include <vector>
 #include <span>
 

@@ -1,6 +1,9 @@
 #ifndef _ISECTION_HPP_
 #define _ISECTION_HPP_
 
+#include <cstdint>
+#include <cstring>
+#include <ostream>
 enum SectionType : uint16_t {
     // Reserved Ops
     AND             = 0xF001,

@@ -1,6 +1,8 @@
 #ifndef _BATCH_SIZE_HPP
  #define _BATCH_SIZE_HPP
 
+#include <cstdint>
+#include <ostream>
 #include "isection.hpp"
 #include "factory.hpp"
 

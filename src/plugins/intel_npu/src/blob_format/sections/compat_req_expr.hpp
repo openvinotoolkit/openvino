@@ -1,6 +1,8 @@
 #ifndef _COMPAT_REQ_EXPR_HPP_
  #define _COMPAT_REQ_EXPR_HPP_
 
+#include <cstdint>
+#include <ostream>
 #include <vector>
 #include <span>
 
