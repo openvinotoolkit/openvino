@@ -106,9 +106,6 @@ void MatmulWeightsDecompression::check_results() {
     const auto& test_param = GetParam();
     const ov::element::Type compressed_weights_precision = std::get<1>(test_param);
     const bool use_matmul_decompression_impl = std::get<10>(test_param);
-    if (!use_matmul_decompression_impl) {
-        return;
-    }
 
     const auto runtime_model = compiledModel.get_runtime_model();
     const auto result = runtime_model->get_result();
