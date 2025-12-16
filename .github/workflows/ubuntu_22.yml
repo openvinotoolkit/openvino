@@ -583,7 +583,7 @@ jobs:
       runner: "[ 'self-hosted' ]"
       runner-group: 'Intel-GPU'
       image: ubuntu:22.04
-      options: "--group-add 109 --group-add 44 --device /dev/dri:/dev/dri"
+      options: "--group-add 109 --group-add 44 --group-add 993 --group-add 107 --device /dev/dri:/dev/dri"
     # if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
 
   # dGPU:
