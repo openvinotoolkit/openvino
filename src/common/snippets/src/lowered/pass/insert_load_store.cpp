@@ -12,7 +12,6 @@
 
 #include "openvino/core/type.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
@@ -21,6 +20,7 @@
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/memory_access.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/utils/utils.hpp"
 
@@ -98,7 +98,7 @@ bool InsertLoadStore::run(LinearIR& linear_ir,
         const auto& node = expr->get_node();
         if (ov::is_type<ov::op::v0::Parameter>(node)) {
             modified |= insert_load(linear_ir, expr_it);
-        } else if (ov::is_type<ov::op::v0::Result>(node)) {
+        } else if (ov::is_type<snippets::op::Result>(node)) {
             modified |= insert_store(linear_ir, expr_it);
         } else if (ov::is_type<BufferExpression>(expr)) {
             modified |= insert_load(linear_ir, expr_it);

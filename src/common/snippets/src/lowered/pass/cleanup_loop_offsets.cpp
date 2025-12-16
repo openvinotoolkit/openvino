@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "openvino/core/type.hpp"
-#include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/port_connector.hpp"
@@ -37,7 +36,7 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& /*linear_ir*/,
             // Note: Finalization offsets before the Result can be safely disregarded
             // TODO: Need verify that Buffers on the inputs doesn't have other consumers (other Loops)
             //       and this Loop doesn't have Buffer on other outputs.
-            if (is_type<op::Result>(next_node) || is_type<ov::op::v0::Result>(next_node)) {
+            if (is_type<snippets::op::Result>(next_node)) {
                 const auto& fin_offsets = loop_end->get_finalization_offsets();
                 loop_end->set_finalization_offsets(std::vector<int64_t>(fin_offsets.size(), 0));
                 is_modified = true;
