@@ -289,6 +289,7 @@ OP_CONVERTER(translate_quantized_cat);
 OP_CONVERTER(translate_quantized_convnd);
 OP_CONVERTER(translate_quantized_convnd_relu);
 OP_CONVERTER(translate_quantized_linear);
+OP_CONVERTER(translate_quantized_linear_relu);
 OP_CONVERTER(translate_xor);
 // Torch FX Translations
 OP_CONVERTER(translate_adaptive_max_pool1d_fx);
@@ -804,10 +805,13 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"quantized::add", op::translate_quantized_add},
         {"quantized::add_relu", op::translate_quantized_add_relu},
         {"quantized::cat", op::translate_quantized_cat},
+        {"quantized::conv1d", op::translate_quantized_convnd},
+        {"quantized::conv1d_relu", op::translate_quantized_convnd_relu},
         {"quantized::conv2d", op::translate_quantized_convnd},
         {"quantized::conv2d_relu", op::translate_quantized_convnd_relu},
         {"quantized::hardswish", op::translate_quantized_hardswish},
         {"quantized::linear", op::translate_quantized_linear},
+        {"quantized::linear_relu", op::translate_quantized_linear_relu},
         {"quantized::mul", op::translate_quantized_mul},
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
