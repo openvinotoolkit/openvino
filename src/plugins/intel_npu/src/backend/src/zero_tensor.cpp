@@ -164,20 +164,7 @@ size_t ZeroTensor::get_bytes_capacity() const {
         return ov::util::get_memory_size(_element_type, original_shape_size);
     }
 
-    size_t capacity = 0;
-    const size_t rank = _shape.size();
-
-    for (size_t i = 0; i < rank; ++i) {
-        if (i == rank - 1) {
-            // Last dimension: use shape[i] * stride[i]
-            capacity += _shape[i] * _strides[i];
-        } else {
-            // Other dimensions: use (shape[i] - 1) * stride[i]
-            capacity += (_shape[i] - 1) * _strides[i];
-        }
-    }
-
-    return capacity;
+    return intel_npu::zeroUtils::get_capacity_size(_shape, _strides);
 }
 
 const ov::Strides& ZeroTensor::get_strides() const {

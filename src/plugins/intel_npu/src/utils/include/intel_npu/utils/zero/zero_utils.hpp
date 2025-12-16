@@ -229,5 +229,21 @@ std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<
     return ov::Any(itrHandle->second).as<Type>();
 }
 
+static inline size_t get_capacity_size(const ov::Shape& shape, const ov::Strides& strides) {
+    size_t capacity = 0;
+    const size_t rank = shape.size();
+    for (size_t i = 0; i < rank; ++i) {
+        if (i == rank - 1) {
+            // Last dimension: use shape[i] * stride[i]
+            capacity += shape[i] * strides[i];
+        } else {
+            // Other dimensions: use (shape[i] - 1) * stride[i]
+            capacity += (shape[i] - 1) * strides[i];
+        }
+    }
+
+    return capacity;
+}
+
 }  // namespace zeroUtils
 }  // namespace intel_npu

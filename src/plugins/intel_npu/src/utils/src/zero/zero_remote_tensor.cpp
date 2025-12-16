@@ -20,17 +20,19 @@ namespace {
  * @param owner_shape The shape of the owner tensor
  * @param offset The byte offset from the start of parent tensor
  * @param roi_shape The shape of the ROI
+ * @param owner_strides The strides of the owner tensor
  * @param element_size Size of one element in bytes
  * @return true if valid, throws otherwise
  */
-void validate_roi_bounds(const ov::Shape& owner_shape,
-                         size_t offset,
-                         const ov::Shape& roi_shape,
-                         const ov::element::Type& type) {
+void validate_src_roi_bounds(const ov::Shape& owner_shape,
+                             size_t offset,
+                             const ov::Shape& roi_shape,
+                             const ov::Strides& owner_strides,
+                             const ov::element::Type& type) {
     OPENVINO_ASSERT(owner_shape.size() == roi_shape.size(), "ROI rank must match parent tensor rank");
 
     size_t total_bytes = ov::util::get_memory_size(type, ov::shape_size(owner_shape));
-    size_t roi_bytes = ov::util::get_memory_size(type, ov::shape_size(roi_shape));
+    size_t roi_bytes = intel_npu::zeroUtils::get_capacity_size(roi_shape, owner_strides);
 
     OPENVINO_ASSERT(offset + roi_bytes <= total_bytes,
                     "ROI with offset ",
@@ -40,6 +42,30 @@ void validate_roi_bounds(const ov::Shape& owner_shape,
                     " bytes exceeds parent tensor size of ",
                     total_bytes,
                     " bytes");
+}
+
+/**
+ * @brief Validates that offset and ROI shape fit within the dst tensor
+ * @param dst_shape The shape of the dst tensor
+ * @param offset The byte offset from the start of parent tensor
+ * @param roi_shape The shape of the ROI
+ * @param dst_strides The strides of the dst tensor
+ * @return true if valid, throws otherwise
+ */
+void validate_dst_roi_bounds(const ov::Shape& dst_shape,
+                             size_t offset,
+                             const ov::Shape& roi_shape,
+                             const ov::Strides& dst_strides) {
+    OPENVINO_ASSERT(dst_shape.size() == roi_shape.size(), "ROI rank must match parent tensor rank");
+
+    size_t roi_offset = 0;
+    for (auto i = dst_strides.size() - 1; i > 0; --i) {
+        roi_offset = offset % dst_strides[i];
+        auto check_dim = roi_offset / dst_strides[i - 1];
+        if (check_dim + roi_shape[i - 1] > dst_shape[i - 1]) {
+            OPENVINO_THROW("ROI with offset ", offset, " exceeds destination tensor shape.");
+        }
+    }
 }
 
 ov::Strides default_byte_strides(const ov::Shape& shape, const ov::element::Type& et) {
@@ -428,8 +454,16 @@ void ZeroRemoteTensor::copy_to(const std::shared_ptr<ov::ITensor>& dst,
                     dst->get_element_type(),
                     ")");
 
+    OPENVINO_ASSERT(roi_shape.empty() || get_element_type().bitwidth() >= 8,
+                    "ROI copy is not supported for bitwidth < 8.");
+
     if (!roi_shape.empty()) {
-        validate_roi_bounds(get_shape(), src_offset, roi_shape, get_element_type());
+        validate_src_roi_bounds(get_shape(), src_offset, roi_shape, get_strides(), get_element_type());
+        validate_dst_roi_bounds(dst->get_shape(), dst_offset, roi_shape, dst->get_strides());
+    } else {
+        if (get_shape() != dst->get_shape()) {
+            dst->set_shape(get_shape());
+        }
     }
 
     const auto& src_shape = roi_shape.empty() ? get_shape() : roi_shape;
@@ -462,8 +496,16 @@ void ZeroRemoteTensor::copy_from(const std::shared_ptr<const ov::ITensor>& src,
                     src->get_element_type(),
                     ")");
 
+    OPENVINO_ASSERT(roi_shape.empty() || get_element_type().bitwidth() >= 8,
+                    "ROI copy is not supported for bitwidth < 8.");
+
     if (!roi_shape.empty()) {
-        validate_roi_bounds(get_shape(), dst_offset, roi_shape, get_element_type());
+        validate_src_roi_bounds(src->get_shape(), src_offset, roi_shape, src->get_strides(), get_element_type());
+        validate_dst_roi_bounds(get_shape(), dst_offset, roi_shape, get_strides());
+    } else {
+        if (src->get_shape() != get_shape()) {
+            set_shape(src->get_shape());
+        }
     }
 
     const auto& src_shape = src->get_shape();
