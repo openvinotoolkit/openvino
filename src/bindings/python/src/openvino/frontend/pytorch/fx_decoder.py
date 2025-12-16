@@ -8,6 +8,15 @@ import logging
 import inspect
 import torch
 
+# Import HigherOrderOperator for detecting higher-order operations (while_loop, cond, etc.)
+# This is the official PyTorch API used in torch.export, torch.compile backends, etc.
+try:
+    from torch._ops import HigherOrderOperator
+    _HAS_HIGHER_ORDER_OPERATOR = True
+except ImportError:
+    _HAS_HIGHER_ORDER_OPERATOR = False
+    HigherOrderOperator = None
+
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino import PartialShape, Type as OVType, OVAny, Shape
@@ -296,27 +305,22 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def _is_higher_order_op(self, node):
         """Check if the node is a higher-order operation.
 
-        All higher-order operations in PyTorch (while_loop, cond, map, scan, etc.)
-        are registered under torch.ops.higher_order namespace or torch._higher_order_ops.
-        This provides automatic support for any new higher-order ops added in future
-        PyTorch versions.
+        Uses the official PyTorch API (isinstance check with HigherOrderOperator).
+        This is the same approach used in torch.export, torch.compile backends,
+        and other PyTorch components (torch/_export/serde/serialize.py,
+        torch/_export/pass_base.py, torch/utils/flop_counter.py).
 
-        Higher-order operations pass tuple of tensors as carried inputs that need
-        to be unpacked into separate inputs. Regular operations should keep
-        tuples as-is (InlinedInput).
+        Higher-order operations (while_loop, cond, map, scan, etc.) pass tuple
+        of tensors as carried inputs that need to be unpacked into separate inputs.
+        Regular operations should keep tuples as-is (InlinedInput).
         """
         if node.op != "call_function":
             return False
-        # Check multiple ways to detect higher-order ops:
-        # 1. String representation starts with torch.ops.higher_order.
-        target_str = str(node.target)
-        if target_str.startswith("torch.ops.higher_order."):
-            return True
-        # 2. Target type's module is torch._higher_order_ops (for WhileLoopOp, etc.)
-        target_type = type(node.target)
-        if hasattr(target_type, "__module__") and target_type.__module__.startswith("torch._higher_order_ops"):
-            return True
-        return False
+
+        if not _HAS_HIGHER_ORDER_OPERATOR:
+            return False
+
+        return isinstance(node.target, HigherOrderOperator)
 
     def _is_subgraph_arg(self, arg):
         """Check if argument is a subgraph reference (get_attr node pointing to GraphModule).
