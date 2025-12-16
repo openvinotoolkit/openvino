@@ -38,6 +38,7 @@ TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
                                                                    score_threshold,
                                                                    op::v1::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                    true);
+        nms->set_friendly_name("nms");
 
         model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
@@ -65,6 +66,7 @@ TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
                                                                                    true,
                                                                                    element::i32);
         auto convert = std::make_shared<ov::op::v0::Convert>(nms->output(0), element::i64);
+        convert->set_friendly_name("nms:0");
 
         model_ref = std::make_shared<Model>(OutputVector{convert}, ParameterVector{boxes, scores});
     }
