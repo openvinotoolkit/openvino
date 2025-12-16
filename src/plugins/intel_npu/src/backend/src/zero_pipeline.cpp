@@ -287,22 +287,20 @@ void Pipeline::update_graph_arguments(uint32_t index, const std::shared_ptr<Zero
     }
 };
 
-void Pipeline::update_graph_arguments(uint32_t index,
-                                      const std::shared_ptr<ZeroTensor>& tensor,
-                                      size_t command_list_index) {
+void Pipeline::update_graph_arguments(uint32_t index, const std::shared_ptr<ZeroTensor>& tensor, size_t batch_index) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandListIndex");
     _logger.debug("Pipeline - updateCommandListIndex");
 
     const size_t number_of_command_lists = _command_lists.size();
 
-    OPENVINO_ASSERT(command_list_index < number_of_command_lists,
+    OPENVINO_ASSERT(batch_index < number_of_command_lists,
                     "Command list index is higher than the number of Command lists ",
-                    command_list_index);
+                    batch_index);
 
     if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-        _command_lists.at(command_list_index)->updateMutableCommandList(index, tensor->data());
+        _command_lists.at(batch_index)->updateMutableCommandList(index, tensor->data());
     } else {
-        _command_lists.at(command_list_index)
+        _command_lists.at(batch_index)
             ->updateMutableCommandListWithStrides(
                 index,
                 tensor->data(),
