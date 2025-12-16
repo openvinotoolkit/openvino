@@ -73,6 +73,10 @@ endif()
 if(RISCV64)
     # for std::atomic_bool
     target_link_libraries(${TARGET_NAME} PRIVATE atomic)
+    if(NOT BUILD_SHARED_LIBS)
+        target_link_options(${TARGET_NAME} INTERFACE
+            "LINKER:--whole-archive,$<TARGET_FILE:${TARGET_NAME}>,--no-whole-archive")
+    endif()
 endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
