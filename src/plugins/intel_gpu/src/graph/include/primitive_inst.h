@@ -513,7 +513,6 @@ protected:
 
 private:
     void update_paddings();
-    void do_runtime_kv_prepare();
     void do_runtime_skip_reorder();
     void do_runtime_skip_gather();
     void do_runtime_skip_permute();

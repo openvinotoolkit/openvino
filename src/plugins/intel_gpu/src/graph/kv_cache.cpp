@@ -16,7 +16,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(kv_cache)
 
 kv_cache_inst::typed_primitive_inst(network& network, const kv_cache_node& node) :
     parent{network, node, false},
-    memory_state::variable{node.get_primitive()->variable_info.variable_id} {
+    memory_state::releasable_variable{node.get_primitive()->variable_info.variable_id} {
     thread_local size_t kv_cache_counter = 0;
     kv_cache_id = kv_cache_counter++;
 }
@@ -149,30 +149,12 @@ void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
     }
 }
 
-void kv_cache_inst::recover_outputs() {
-    if (_shallow_outputs.size() != _outputs.size())
-        _shallow_outputs.resize(_outputs.size());
-    // if resources has been moved to shallow in previour execution, try recover it
-    for (size_t i = 0; i < _outputs.size(); ++i) {
-        auto& shallow_output = _shallow_outputs[i];
-        auto& output = _outputs[i];
-        if (!output && !shallow_output.expired()) {
-            output = shallow_output.lock();
-        }
-        shallow_output.reset();
-    }
-}
-
-void kv_cache_inst::cleanup_outputs() {
+void kv_cache_inst::release_variable() {
     // if there's variable state, it should hold a reference of tensor same as outputs
     if (!get_network().has_variable(variable_id()))
         return;
-    if (_shallow_outputs.size() != _outputs.size())
-        _shallow_outputs.resize(_outputs.size());
-    // move outputs to shallow, so it can be released when varaiblestate get reset
     for (size_t i = 0; i < _outputs.size(); ++i) {
         auto& output = _outputs[i];
-        _shallow_outputs[i] = output;
         output.reset();
     }
 }

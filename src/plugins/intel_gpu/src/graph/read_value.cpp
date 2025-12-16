@@ -15,7 +15,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(read_value)
 
 read_value_inst::typed_primitive_inst(network& network, const read_value_node& node) :
     parent(network, node, !node.can_be_optimized() && (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound())),
-    memory_state::variable{node.get_primitive()->variable_id, node.get_primitive()->user_specified_type} {
+    memory_state::releasable_variable{node.get_primitive()->variable_id, node.get_primitive()->user_specified_type} {
 }
 
 layout read_value_inst::calc_output_layout(const read_value_node& node, kernel_impl_params const& impl_param) {
@@ -38,7 +38,7 @@ void read_value_inst::on_execute() {
     update_output_memory();
 }
 
-void read_value_inst::cleanup_outputs() {
+void read_value_inst::release_variable() {
     // readvalue simply assign outputs from variablestate, 
     // does not need to keep reference in outputs after execution
     if (!can_be_optimized() || !get_network().has_variable(variable_id()))

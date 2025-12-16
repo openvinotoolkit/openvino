@@ -326,8 +326,6 @@ void SyncInferRequest::wait() {
 
         GPU_DEBUG_IF(true)
             sync_total_time = std::chrono::duration_cast<std::chrono::microseconds>(sync_end - sync_start).count();
-
-        network.cleanup_kv_outputs();
     }
 
     std::vector<cldnn::event::ptr> copy_events;

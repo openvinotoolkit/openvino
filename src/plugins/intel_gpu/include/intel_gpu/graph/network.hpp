@@ -186,7 +186,6 @@ public:
     memory& get_output_remote_memory(const primitive_id& id) const;
     bool has_output_remote_memory_ptr(const primitive_id& id) const;
     void reset_output_remote_memory_ptrs();
-    void cleanup_kv_outputs();
 
     memory_pool& get_memory_pool() const {
         return *_memory_pool;
@@ -241,7 +240,6 @@ private:
     ov::intel_gpu::VariablesMap _variables_states;
     ov::intel_gpu::VariablesInfoMap _variables_state_info;
     std::vector<std::shared_ptr<primitive_inst>> _read_values;
-    std::vector<std::shared_ptr<primitive_inst>> _kv_caches;
     std::unordered_map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>> _state_initializers;
 
     program::primitives_info _prims_info;
@@ -259,7 +257,12 @@ private:
     void add_default_output_chains();
     void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
-    void set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type, const primitive* p, bool transpose_required);
+    void set_variables_state_info(const std::string& variable_id,
+                                  const layout& variable_layout,
+                                  ov::element::Type user_specified_type,
+                                  const primitive* p,
+                                  const std::shared_ptr<memory_state::releasable_variable>& releasable_var,
+                                  bool transpose_required);
     void dump_memory_pool(std::string dump_path, int64_t curr_iter);
 
 #ifdef GPU_DEBUG_CONFIG

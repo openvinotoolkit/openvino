@@ -1386,13 +1386,6 @@ void primitive_inst::update_paddings() {
     }
 }
 
-void primitive_inst::do_runtime_kv_prepare() {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_kv_prepare: " + id()));
-    if (!get_node().is_type<kv_cache>())
-        return;
-    static_cast<kv_cache_inst*>(this)->recover_outputs();
-}
-
 void primitive_inst::do_runtime_skip_reorder() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_reorder: " + id()));
     GPU_DEBUG_IF(get_config().get_disable_runtime_skip_reorder()) {
@@ -1976,9 +1969,6 @@ void primitive_inst::prepare_primitive() {
     }
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
 
-    // for kv_cache node, recover output from shallow output first
-    do_runtime_kv_prepare();
-    
     // If it is optimized out or skipped for zero dimension at the previous iteration,
     // Set this flag true to reset output memory in realloc_if_needed.
     const bool prev_execution_skipped = can_be_optimized()

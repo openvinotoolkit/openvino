@@ -42,7 +42,7 @@ public:
 using kv_cache_node = typed_program_node<kv_cache>;
 
 template<>
-class typed_primitive_inst<kv_cache> : public typed_primitive_inst_base<kv_cache>, public memory_state::variable {
+class typed_primitive_inst<kv_cache> : public typed_primitive_inst_base<kv_cache>, public memory_state::releasable_variable {
     using parent = typed_primitive_inst_base<kv_cache>;
 
 public:
@@ -86,15 +86,13 @@ public:
         return max_pad;
     }
     void update_shape_info_tensor(const kernel_impl_params& params) override;
-    void recover_outputs();
-    void cleanup_outputs();
+    void release_variable() override;
 
     typed_primitive_inst(network& network, const kv_cache_node& desc);
-    typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}
+    typed_primitive_inst(network& network) : parent(network), memory_state::releasable_variable("") {}
 
 private:
     size_t kv_cache_id = 0;
-    std::vector<std::weak_ptr<memory>> _shallow_outputs;
 };
 
 using kv_cache_inst = typed_primitive_inst<kv_cache>;

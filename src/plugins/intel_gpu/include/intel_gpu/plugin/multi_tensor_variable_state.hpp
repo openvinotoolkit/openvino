@@ -41,6 +41,7 @@ public:
     ov::PartialShape get_beam_table_shape(const ov::PartialShape& kv_cache_shape);
 
 private:
+    std::vector<std::weak_ptr<cldnn::memory_state::releasable_variable>> m_owners;
     size_t m_beam_axis = 0;
     size_t m_concat_axis = 0;
 };

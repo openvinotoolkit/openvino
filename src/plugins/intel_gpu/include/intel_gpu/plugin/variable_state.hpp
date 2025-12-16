@@ -8,6 +8,7 @@
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/shape_predictor.hpp"
 #include "intel_gpu/runtime/memory.hpp"
+#include "graph/include/variable.hpp"
 #include <functional>
 #include <unordered_map>
 
@@ -29,6 +30,7 @@ struct VariableStateInfo {
     ov::element::Type m_user_specified_type;
     bool transpose_required;
     std::set<const cldnn::primitive*> m_primitives;
+    std::vector<std::weak_ptr<cldnn::memory_state::releasable_variable>> m_releasable_variables;
 };
 
 class VariableStateBase : public ov::IVariableState {

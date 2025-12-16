@@ -35,6 +35,7 @@ VariableStateIndirectKVCache::VariableStateIndirectKVCache(const VariableStateIn
                                                            size_t beam_axis,
                                                            size_t concat_axis)
     : MultiTensorState { {info}, context, shape_predictor}
+    , m_owners(info.m_releasable_variables)
     , m_beam_axis(beam_axis)
     , m_concat_axis(concat_axis) {
     cldnn::layout beam_table_layout(get_beam_table_shape(info.m_layout.get_partial_shape()), ov::element::i32, cldnn::format::bfyx);
@@ -46,6 +47,11 @@ VariableStateIndirectKVCache::VariableStateIndirectKVCache(const VariableStateIn
 void VariableStateIndirectKVCache::reset() {
     for (auto& state : m_hidden_states) {
         state->reset();
+    }
+    for (auto& owner : m_owners) {
+        if (const auto prim = owner.lock(); prim) {
+            prim->release_variable();
+        }
     }
     m_is_set = false;
 }

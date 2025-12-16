@@ -787,19 +787,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     }
 }
 
-void network::cleanup_kv_outputs() {
-    for (auto& inst : _read_values) {
-        if (auto rv_inst = std::dynamic_pointer_cast<read_value_inst>(inst)) {
-            rv_inst->cleanup();
-        }
-    }
-    for (auto& inst : _kv_caches) {
-        if (auto kv_inst = std::dynamic_pointer_cast<kv_cache_inst>(inst)) {
-            kv_inst->cleanup();
-        }
-    }
-}
-
 std::vector<primitive_id> network::get_input_ids() const {
     std::vector<primitive_id> ret;
     ret.reserve(_inputs.size());
@@ -966,9 +953,6 @@ void network::allocate_primitive_instance(program_node const& node) {
             is_lora_state = users.front()->is_type<lora>();
         }
     }
-    if (node.is_type<kv_cache>()) {
-        _kv_caches.push_back(inst);
-    }
 
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
         auto prim = inst->get_node().get_primitive();
@@ -983,7 +967,12 @@ void network::allocate_primitive_instance(program_node const& node) {
                 }
             }
         }
-        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type(), prim.get(), transpose_required);
+        set_variables_state_info(state_prim->variable_id(),
+                                 node.get_output_layout(0),
+                                 state_prim->get_user_specified_type(),
+                                 prim.get(),
+                                 std::dynamic_pointer_cast<memory_state::releasable_variable>(inst),
+                                 transpose_required);
     }
 
     if (node.is_constant()) {
@@ -1068,11 +1057,15 @@ void network::set_variables_state_info(const std::string& variable_id,
                                        const layout& variable_layout,
                                        ov::element::Type user_specified_type,
                                        const primitive* p,
+                                       const std::shared_ptr<memory_state::releasable_variable>& releasable_var,
                                        bool transpose_required) {
-    _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type});
+    auto& info = _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type}).first->second;
 
-    _variables_state_info.at(variable_id).m_primitives.insert(p);
-    _variables_state_info.at(variable_id).transpose_required = transpose_required;
+    [[maybe_unused]] const auto [_, inserted] = info.m_primitives.insert(p);
+    if (inserted && releasable_var) {
+        info.m_releasable_variables.emplace_back(releasable_var);
+    }
+    info.transpose_required = transpose_required;
 }
 
 void network::set_reuse_variable_mem(bool reuse) {
