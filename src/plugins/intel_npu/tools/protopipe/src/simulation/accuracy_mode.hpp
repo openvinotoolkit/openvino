@@ -27,7 +27,7 @@ public:
 
     std::shared_ptr<PipelinedCompiled> compilePipelined(DummySources&& sources,
                                                         cv::GCompileArgs&& compile_args) override;
-    std::shared_ptr<SyncCompiled> compileSync(DummySources&& sources,
+    std::shared_ptr<SyncCompiled> compileSync(DummySources&& ref_sources, DummySources&& tgt_sources,
                                               cv::GCompileArgs&& ref_compiler_args, cv::GCompileArgs&& tgt_compiler_args);
 
 private:

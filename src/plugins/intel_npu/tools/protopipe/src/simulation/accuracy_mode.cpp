@@ -89,6 +89,7 @@ struct InputDataVisitor {
 };
 
 void InputDataVisitor::operator()(std::monostate) {
+    // NB: No path provided - generate input random data using initializers.
     const auto input_names = extractLayerNames(infer.input_layers);
     const auto& initializers = opts.initializers_map.at(infer.tag);
 
@@ -118,35 +119,13 @@ void InputDataVisitor::operator()(const std::string& path_str) {
         model_required_iterations = cv::util::make_optional(layers_data.begin()->second.size());
         providers = createConstantProviders(std::move(layers_data), input_names);
     } else {
-        // NB: Provided path doesn't exist - generate data and dump.
+        // NB: Provided path doesn't exist - fall back to random data generation.
         LOG_INFO() << "Input data path: " << path << " for model: " << infer.tag
-                   << " doesn't exist - input data will be generated and dumped" << std::endl;
-        std::vector<std::filesystem::path> dump_path_vec;
-        if (isDirectory(path)) {
-            // NB: When the directory is provided, the number of input iterations to be generated aren't
-            // bounded so the "random" providers will generate input data on every iteration that will
-            // be dumped on the disk afterwards.
-            dump_path_vec = createDirectoryLayout(path, input_names);
-        } else {
-            // NB: When the single file is provided, the execution must be limited to perform
-            // only 1 iteration.
-            model_required_iterations = cv::util::optional<uint64_t>(1ul);
-            if (infer.input_layers.size() > 1) {
-                THROW_ERROR("Model: " << infer.tag
-                                      << " must have exactly one input layer in order to dump input data to file: "
-                                      << path);
-            }
-            // NB: In case directories in that path don't exist.
-            std::filesystem::create_directories(path.parent_path());
-            dump_path_vec = {path};
-        }
+                   << " doesn't exist - using random data" << std::endl;
         auto default_initialzer =
                 opts.global_initializer ? opts.global_initializer : std::make_shared<UniformGenerator>(0.0, 255.0);
         auto layer_initializers = unpackWithDefault(initializers, input_names, default_initialzer);
         providers = createRandomProviders(infer.input_layers, std::move(layer_initializers));
-        for (uint32_t i = 0; i < infer.input_layers.size(); ++i) {
-            metas[i].set(Dump{dump_path_vec[i]});
-        }
     }
 }
 
@@ -165,6 +144,7 @@ struct OutputDataVisitor {
 };
 
 void OutputDataVisitor::operator()(std::monostate) {
+    // NB: No path provided - outputs are stored in memory for validation only.
     for (uint32_t i = 0; i < infer.output_layers.size(); ++i) {
         metas[i].set(InferOutput{});
     }
@@ -176,6 +156,8 @@ void OutputDataVisitor::operator()(const LayerVariantAttr<std::string>&) {
 }
 
 void OutputDataVisitor::operator()(std::string path_str) {
+    // NB: Single path provided - creates _REFERENCE and _TARGET dump paths for dual-device comparison.
+
     // NB: Strip trailing path separators before appending suffixes.
     while (path_str.back() == '\\' || path_str.back() == '/') {
         path_str.pop_back();
@@ -264,8 +246,8 @@ enum class DeviceType {
 class SyncSimulation : public SyncCompiled {
 public:
     SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt_compiled,
-                   std::vector<DummySource::Ptr>&& sources,
-                   std::vector<Meta>&& ref_out_meta, std::vector<Meta>&& tgt_out_meta,
+                   std::vector<DummySource::Ptr>&& ref_sources, std::vector<DummySource::Ptr>&& tgt_sources,
+                   std::vector<Meta>&& out_meta,
                    cv::util::optional<uint64_t> required_num_iterations,
                    const AccuracySimulation::Options& opts,
                    const InferDesc& infer);
@@ -279,14 +261,10 @@ private:
     SyncExecutor m_tgt_exec;
     std::vector<DummySource::Ptr> m_ref_sources;
     std::vector<DummySource::Ptr> m_tgt_sources;
-    std::vector<Meta> m_ref_out_meta;
-    std::vector<Meta> m_tgt_out_meta;
+    std::vector<Meta> m_out_meta;
     cv::optional<uint64_t> m_required_num_iterations;
     const AccuracySimulation::Options m_opts;
     const InferDesc m_infer;
-
-    std::vector<cv::Mat> m_ref_out_mats;
-    std::vector<cv::Mat> m_tgt_out_mats;
 
     std::vector<std::vector<cv::Mat>> m_ref_out_iter;
     std::vector<std::vector<cv::Mat>> m_tgt_out_iter;
@@ -314,65 +292,44 @@ private:
 };
 
 //////////////////////////////// SyncSimulation ////////////////////////////////
-SyncSimulation::SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt_compiled, std::vector<DummySource::Ptr>&& sources, 
-                               std::vector<Meta>&& ref_out_meta, std::vector<Meta>&& tgt_out_meta, 
+SyncSimulation::SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt_compiled, std::vector<DummySource::Ptr>&& ref_sources,
+                               std::vector<DummySource::Ptr>&& tgt_sources, std::vector<Meta>&& out_meta,
                                cv::util::optional<uint64_t> required_num_iterations, const AccuracySimulation::Options& opts,
                                const InferDesc& infer)
         : m_ref_exec(std::move(ref_compiled)),
           m_tgt_exec(std::move(tgt_compiled)),
-          m_ref_sources(sources),
-          m_tgt_sources(std::move(sources)),
+          m_ref_sources(std::move(ref_sources)),
+          m_tgt_sources(std::move(tgt_sources)),
           m_infer(std::move(infer)),
-          m_ref_out_meta(std::move(ref_out_meta)),
-          m_tgt_out_meta(std::move(tgt_out_meta)),
-          m_ref_out_mats(m_ref_out_meta.size()),
-          m_tgt_out_mats(m_tgt_out_meta.size()),
+          m_out_meta(std::move(out_meta)),
           m_opts(std::move(opts)),
           m_ref_iter_idx(0u),
           m_tgt_iter_idx(0u),
           m_required_num_iterations(required_num_iterations) {
-
-        // std::cout << "SYNC CONSTRUCTOR OUT META " << m_ref_out_meta.size() << " " << m_tgt_out_meta.size() << "\n";
 }
 
 Result SyncSimulation::run(ITermCriterion::Ptr criterion) {
-    // std::cout << "Ref out mats size " << m_ref_out_mats.size() << "\n";
-    // std::cout << "Tgt out mats size " << m_tgt_out_mats.size() << "\n";
-    auto ref_criterion = criterion;
-    auto tgt_criterion = criterion;
+    updateCriterion(&criterion, m_required_num_iterations);
+    auto tgt_criterion = criterion->clone();
 
-    updateCriterion(&ref_criterion, m_required_num_iterations);
-    updateCriterion(&tgt_criterion, m_required_num_iterations);
+    for (auto& src : m_ref_sources) src->reset();
+    for (auto& src : m_tgt_sources) src->reset();
 
-    for (auto src : m_ref_sources) {
-        src->reset();
-    }
-    for (auto src : m_tgt_sources) {
-        src->reset();
-    }
-
-    auto ref_process = [this](cv::GCompiled& pipeline) -> bool {
-        return this->process(pipeline, DeviceType::Reference);
-    };
-
-    auto tgt_process = [this](cv::GCompiled& pipeline) -> bool {
-        return this->process(pipeline, DeviceType::Target);
-    };
-
-    auto ref_future = std::async(std::launch::async, [this, ref_process, ref_criterion]() {
-        m_ref_exec.runLoop(ref_process, ref_criterion);
+    // NB: Run REF and TGT pipelines in parallel, then validate outputs.
+    auto ref_future = std::async(std::launch::async, [this, criterion]() {
+        m_ref_exec.runLoop([this](cv::GCompiled& pipeline) {
+            return this->process(pipeline, DeviceType::Reference);
+        }, criterion);
     });
 
-    auto tgt_future = std::async(std::launch::async, [this, tgt_process, tgt_criterion]() {
-        m_tgt_exec.runLoop(tgt_process, tgt_criterion);
+    auto tgt_future = std::async(std::launch::async, [this, tgt_criterion]() {
+        m_tgt_exec.runLoop([this](cv::GCompiled& pipeline) {
+            return this->process(pipeline, DeviceType::Target);
+        }, tgt_criterion);
     });
 
     ref_future.get();
     tgt_future.get();
-
-    // std::cout << "Reference stuff: size: " << m_ref_out_iter.size() << " iter_idx: " << m_ref_iter_idx << "\n";
-    // std::cout << "Reference stuff[0]: size: " << m_ref_out_iter[0].size() << "\n";
-    // std::cout << "Target stuff: size: " << m_tgt_out_iter.size() << " iter_idx: " << m_tgt_iter_idx << "\n";
 
     auto validation_result = performValidation(
         m_ref_out_iter,
@@ -393,12 +350,10 @@ Result SyncSimulation::run(ITermCriterion::Ptr criterion) {
 
 bool SyncSimulation::process(cv::GCompiled& pipeline, DeviceType device_type) {
     auto& sources  = (device_type == DeviceType::Reference) ? m_ref_sources  : m_tgt_sources;
-    auto& out_mats = (device_type == DeviceType::Reference) ? m_ref_out_mats : m_tgt_out_mats;
-    auto& out_meta = (device_type == DeviceType::Reference) ? m_ref_out_meta : m_tgt_out_meta;
     auto& iter_idx = (device_type == DeviceType::Reference) ? m_ref_iter_idx : m_tgt_iter_idx;
     auto& out_iter = (device_type == DeviceType::Reference) ? m_ref_out_iter : m_tgt_out_iter;
 
-    // std::cout << "For " << ((device_type == DeviceType::Reference) ? "ref" : "tgt") << " the size is " << out_mats.size() << "\n";
+    std::vector<cv::Mat> out_mats(m_out_meta.size());
 
     auto pipeline_outputs = cv::gout();
     for (auto& out_mat : out_mats) {
@@ -415,17 +370,15 @@ bool SyncSimulation::process(cv::GCompiled& pipeline, DeviceType device_type) {
 
     pipeline(std::move(pipeline_inputs), std::move(pipeline_outputs));
 
-    // std::cout << "\nOUT MATS SIZE: " << out_mats.size() << "\n";
-
-    out_iter.push_back(out_mats);
-
     for (size_t i = 0; i < out_mats.size(); ++i) {
-        if (out_meta[i].has<DualDeviceDump>()) {
-            const auto& dump = out_meta[i].get<DualDeviceDump>();
+        if (m_out_meta[i].has<DualDeviceDump>()) {
+            const auto& dump = m_out_meta[i].get<DualDeviceDump>();
             auto dump_path = (device_type == DeviceType::Reference) ? dump.reference_path : dump.target_path;
             dumpIterOutput(out_mats[i], Dump{dump_path}, iter_idx);
         }
     }
+
+    out_iter.push_back(std::move(out_mats));
 
     ++iter_idx;
     return true;
@@ -505,20 +458,15 @@ std::shared_ptr<PipelinedCompiled> AccuracySimulation::compilePipelined(DummySou
                                                  m_strategy->required_num_iterations);
 }
 
-std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& sources, cv::GCompileArgs&& ref_compile_args, cv::GCompileArgs&& tgt_compile_args) {
-    // TODO: make them compile in separate threads
-    auto ref_compiled = m_comp.compile(descr_of(sources), std::move(ref_compile_args));
-    auto ref_out_meta = m_comp.getOutMeta();
+std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& ref_sources, DummySources&& tgt_sources,
+                                                            cv::GCompileArgs&& ref_compile_args, cv::GCompileArgs&& tgt_compile_args) {
+    auto ref_compiled = m_comp.compile(descr_of(ref_sources), std::move(ref_compile_args));
+    auto tgt_compiled = m_comp.compile(descr_of(tgt_sources), std::move(tgt_compile_args));
 
-    for (auto src : sources) {
-        src->reset();
-    }
+    auto out_meta = m_comp.getOutMeta();
 
-    auto tgt_compiled = m_comp.compile(descr_of(sources), std::move(tgt_compile_args));
-    auto tgt_out_meta = m_comp.getOutMeta();
-
-    return std::make_shared<SyncSimulation>(std::move(ref_compiled), std::move(tgt_compiled), std::move(sources), 
-                                            std::move(ref_out_meta), std::move(tgt_out_meta), m_strategy->required_num_iterations, std::move(m_opts), m_strategy->current_infer);
+    return std::make_shared<SyncSimulation>(std::move(ref_compiled), std::move(tgt_compiled), std::move(ref_sources), std::move(tgt_sources),
+                                            std::move(out_meta), m_strategy->required_num_iterations, std::move(m_opts), m_strategy->current_infer);
 }
 
 std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(const bool drop_frames) {
@@ -526,5 +474,11 @@ std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(const bool drop_fr
     auto tgt_compile_args = cv::compile_args(getNetworksPackage());
     changeDeviceParam(m_cfg.params, m_opts.ref_device);
     auto ref_compile_args = cv::compile_args(getNetworksPackage());
-    return compileSync(createSources(drop_frames), std::move(ref_compile_args), std::move(tgt_compile_args));
+
+    // NB: Create separate sources for REF and TGT to avoid shared state issues.
+    auto ref_sources = createSources(drop_frames);
+    auto tgt_sources = createSources(drop_frames);
+
+    return compileSync(std::move(ref_sources), std::move(tgt_sources),
+                       std::move(ref_compile_args), std::move(tgt_compile_args));
 }
