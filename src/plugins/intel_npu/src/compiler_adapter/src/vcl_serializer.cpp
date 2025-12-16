@@ -161,18 +161,11 @@ void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
             continue;
         }
 
-<<<<<<< HEAD
-        auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
-        ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
-        runtimeInfoMap[intel_npu::WeightsPointerAttribute::get_type_info_static()] =
-            intel_npu::WeightsPointerAttribute(constantNode->get_data_ptr(), constantNode->get_byte_size());
-=======
         if (auto constantNode = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
             ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
             runtimeInfoMap[intel_npu::WeightsPointerAttribute::get_type_info_static()] =
                 intel_npu::WeightsPointerAttribute(constantNode->get_data_ptr(), constantNode->get_byte_size());
         }
->>>>>>> upstream/master
     }
 }
 
@@ -223,17 +216,14 @@ protected:
             manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
             _logger.info("Downgrade op for opset smaller than 11");
         }
-<<<<<<< HEAD
         // Step 2: store the WeightlessCacheAttribute if requested
         // Step 3: serialize
         // Step 4: compute the hash if requested
-=======
 
         if ((_compilerVersion.major < 7) || (_compilerVersion.major == 7 && _compilerVersion.minor <= 26)) {
             manager.register_pass<ov::pass::EliminateIdentity>();
         }
 
->>>>>>> upstream/master
         register_serialization_pass(manager);
 
         // Depending on the driver version, the compiler attached to it may request this information as an indicator
@@ -471,17 +461,12 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
         const std::shared_ptr<ov::Model> nonConstantModel = std::const_pointer_cast<ov::Model>(model);
         storeWeightsPointerAttribute(nonConstantModel);
 
-<<<<<<< HEAD
         SerializedIR serializedIR = VCLSerializerWithoutWeightsCopy(model,
                                                                     compilerVersion,
                                                                     supportedOpsetVersion,
                                                                     computeModelHash,
                                                                     storeWeightlessCacheAttribute)
                                         .serialize();
-=======
-        SerializedIR serializedIR =
-            VCLSerializerWithoutWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
->>>>>>> upstream/master
         return serializedIR;
     }
     return VCLSerializerWithWeightsCopy(model,

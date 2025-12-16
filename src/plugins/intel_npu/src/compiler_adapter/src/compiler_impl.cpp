@@ -386,8 +386,8 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
-    vcl_executable_desc_t exeDesc = {serializedIR.second.get(),
-                                     serializedIR.first,
+    vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
+                                     serializedIR.size,
                                      buildFlags.c_str(),
                                      buildFlags.size()};
 
@@ -451,8 +451,8 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
-    vcl_executable_desc_t exeDesc = {serializedIR.second.get(),
-                                     serializedIR.first,
+    vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
+                                     serializedIR.size,
                                      buildFlags.c_str(),
                                      buildFlags.size()};
     _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
@@ -576,7 +576,7 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     vcl_query_handle_t queryHandle;
-    vcl_query_desc_t queryDesc = {serializedIR.second.get(), serializedIR.first, buildFlags.c_str(), buildFlags.size()};
+    vcl_query_desc_t queryDesc = {serializedIR.buffer.get(), serializedIR.size, buildFlags.c_str(), buildFlags.size()};
     THROW_ON_FAIL_FOR_VCL("vclQueryNetworkCreate",
                           vclQueryNetworkCreate(_compilerHandle, queryDesc, &queryHandle),
                           _logHandle);

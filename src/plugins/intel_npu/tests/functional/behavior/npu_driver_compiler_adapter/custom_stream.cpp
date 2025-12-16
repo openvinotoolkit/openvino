@@ -91,7 +91,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelWeightsCopy) {
     EXPECT_NO_THROW(serializedModel =
                         ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, true));
     // If the size changes significantly, then investigation may be required
-    ASSERT_TRUE(serializedModel.first > SERIALIZED_MODEL_THRESHOLD_ALL_WEIGHTS_COPY);
+    ASSERT_TRUE(serializedModel.size > SERIALIZED_MODEL_THRESHOLD_ALL_WEIGHTS_COPY);
 }
 
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelNoWeightsCopy) {
@@ -102,10 +102,10 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelNoWeightsCopy) {
     EXPECT_NO_THROW(serializedModel =
                         ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false));
     // If the size changes significantly, then investigation may be required
-    ASSERT_TRUE(serializedModel.first < SERIALIZED_MODEL_THRESHOLD_NO_WEIGHTS_COPY);
+    ASSERT_TRUE(serializedModel.size < SERIALIZED_MODEL_THRESHOLD_NO_WEIGHTS_COPY);
 
     ov::pass::StreamSerialize::DataHeader dataHeader;
-    memcpy(&dataHeader, serializedModel.second.get(), sizeof(dataHeader));
+    memcpy(&dataHeader, serializedModel.buffer.get(), sizeof(dataHeader));
     ASSERT_TRUE(dataHeader.consts_size == 0);
 }
 

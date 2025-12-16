@@ -17,8 +17,8 @@
 namespace intel_npu {
 
 struct SerializedIR {
-    std::shared_ptr<uint8_t> buffer;
-    size_t size;
+    std::shared_ptr<uint8_t> buffer = nullptr;
+    size_t size = 0;
     std::optional<uint64_t> hash = std::nullopt;
 };
 
