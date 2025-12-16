@@ -125,7 +125,7 @@ void Roll::prepareParams() {
     const VectorDims& axesDims = axesMemPtr->getStaticDims();
     const VectorDims& dstDims = dstMemPtr->getStaticDims();
 
-    execPtr = std::make_shared<RollExecutor>(dataDims, shiftDims, axesDims, dstDims);
+    execPtr = std::make_shared<RollExecutor>(dataDims, shiftDims, axesDims, dstDims, context->getCpuParallel());
 }
 
 void Roll::executeDynamicImpl(const dnnl::stream& strm) {
@@ -167,11 +167,13 @@ void Roll::execute([[maybe_unused]] const dnnl::stream& strm) {
 Roll::RollExecutor::RollExecutor(const VectorDims& dataDims,
                                  const VectorDims& shiftDims,
                                  const VectorDims& axesDims,
-                                 const VectorDims& dstDims)
+                                 const VectorDims& dstDims,
+                                 const std::shared_ptr<CpuParallel> cpuParallel)
     : numOfDims{dataDims.size()},
       blockSize{dataDims.back()},
       numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1UL, std::multiplies<>()) / blockSize},
-      axesLength{axesDims[0]} {
+      axesLength{axesDims[0]},
+      cpuParallel(cpuParallel) {
     for (size_t i = 0; i < dataDims.size(); ++i) {
         OPENVINO_ASSERT(dataDims[i] == dstDims[i], "Input/output tensors dimensions mismatch");
     }
@@ -211,7 +213,7 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
         return dataOffset + shift * segmentSize;
     };
 
-    parallel_for(numOfIterations, [&, this](size_t iter) {
+    cpuParallel->parallel_for(numOfIterations, [&, this](size_t iter) {
         size_t start = iter * blockSize;
         size_t leftBlockStartOffset = start;
         size_t rightBlockStartOffset = start + leftBlockSize;

@@ -105,9 +105,10 @@ void transpose_out4d(const uint8_t* in,
                      uint8_t* out,
                      const VectorDims& in_shape,
                      const VectorDims& out_shape,
-                     size_t elem_size) {
+                     size_t elem_size,
+                     const std::shared_ptr<CpuParallel> cpu_parallel) {
     const std::vector<size_t> axes_order{0, 2, 1, 3};
-    parallel_for3d(out_shape[0],
+    cpu_parallel->parallel_for3d(out_shape[0],
                    out_shape[1],
                    out_shape[2],
                    [in, out, axes_order, &in_shape, &out_shape, elem_size](size_t i, size_t j, size_t k) {
@@ -132,7 +133,8 @@ void istft_impl(const float* in_data,
                 const int64_t length,
                 const bool center,
                 const bool normalized,
-                std::shared_ptr<RDFTExecutor> rdft_executor) {
+                std::shared_ptr<RDFTExecutor> rdft_executor,
+                const std::shared_ptr<CpuParallel> cpu_parallel) {
     const auto is_data_3D = data_shape.size() == 3;
     const size_t frames_axis = 1 + (is_data_3D ? 0 : 1);
     const size_t batch_size = is_data_3D ? 1 : data_shape[0];
@@ -174,7 +176,8 @@ void istft_impl(const float* in_data,
                     reinterpret_cast<uint8_t*>(data_t.data()),
                     ov::Shape{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]},
                     stft_transp_out_shape,
-                    sizeof(float));
+                    sizeof(float),
+                    cpu_parallel);
 
     // Setting function for the result postprocessing
     const auto norm_window_div = [sqrt_frame_size](float a, float b) {
@@ -205,7 +208,7 @@ void istft_impl(const float* in_data,
     std::vector<float> window_sum(batch_size * signal_length);
     auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(frame_size)}, {frame_size_dim}, {0});
 
-    parallel_for(batch_size, [&](size_t batch) {
+    cpu_parallel->parallel_for(batch_size, [&](size_t batch) {
         for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
             size_t batch_in_start = batch * in_batch_single_step;
             size_t batch_out_start = batch * signal_length;
@@ -258,7 +261,8 @@ void ISTFT::execute([[maybe_unused]] const dnnl::stream& strm) {
                signal_length,
                m_center,
                m_normalized,
-               rdft_executor);
+               rdft_executor,
+               context->getCpuParallel());
 }
 
 void ISTFT::executeDynamicImpl(const dnnl::stream& strm) {
@@ -273,8 +277,9 @@ bool ISTFT::needShapeInfer() const {
 void ISTFT::createPrimitive() {
     RDFTKey key{};
     key.isInverse = true;
+    key.cpuParallel = context->getCpuParallel();
     auto buildExecutor = [&](const RDFTKey& key) -> std::shared_ptr<RDFTExecutor> {
-        return RDFTExecutor::build(key.isInverse, getSelectedPrimitiveDescriptor());
+        return RDFTExecutor::build(key.isInverse, key.cpuParallel, getSelectedPrimitiveDescriptor());
     };
 
     auto cache = context->getParamsCache();

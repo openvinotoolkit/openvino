@@ -105,7 +105,8 @@ private:
                                        const VectorDims& strides,
                                        const VectorDims& rates,
                                        const ExtImgPatcherPadType& padType,
-                                       size_t prcSize);
+                                       size_t prcSize,
+                                       const std::shared_ptr<CpuParallel> parallel);
         void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) override;
         void executeOptimizedGeneric(void* src,
                                      void* dst,
@@ -114,6 +115,7 @@ private:
 
     private:
         std::unique_ptr<jit_uni_extract_image_patches_kernel> pKernel;
+        std::shared_ptr<CpuParallel> cpuParallel = nullptr;
     };
 
     struct ExtractImagePatchesRefExecutor : public ExtractImagePatchesExecutor {
@@ -123,12 +125,14 @@ private:
                                        const VectorDims& strides,
                                        const VectorDims& rates,
                                        const ExtImgPatcherPadType& padType,
-                                       size_t prcSize);
+                                       size_t prcSize,
+                                       const std::shared_ptr<CpuParallel> parallel);
         void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) override;
         void executeReference(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const;
 
     private:
         jit_extract_image_patches_params jpp;
+        std::shared_ptr<CpuParallel> cpuParallel = nullptr;
     };
 };
 

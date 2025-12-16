@@ -5,6 +5,8 @@
 #include <array>
 #include <cstddef>
 #include <vector>
+#include <memory>
+#include "cpu_parallel.hpp"
 
 namespace ov::Extensions::Cpu {
 
@@ -43,7 +45,8 @@ void proposal_exec(const float* input0,
                    int* roi_indices,
                    float* output0,
                    float* output1,
-                   proposal_conf& conf);
+                   proposal_conf& conf,
+                   const std::shared_ptr<ov::intel_cpu::CpuParallel> cpu_parallel);
 
 }  // namespace XARCH
 }  // namespace ov::Extensions::Cpu

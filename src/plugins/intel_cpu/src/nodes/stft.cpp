@@ -97,9 +97,10 @@ void transpose_out4d(const uint8_t* in,
                      uint8_t* out,
                      const VectorDims& in_shape,
                      const VectorDims& out_shape,
-                     size_t elem_size) {
+                     size_t elem_size,
+                     const std::shared_ptr<CpuParallel> cpu_parallel) {
     const std::vector<size_t> axes_order{0, 2, 1, 3};
-    parallel_for3d(out_shape[0],
+    cpu_parallel->parallel_for3d(out_shape[0],
                    out_shape[1],
                    out_shape[2],
                    [in, out, axes_order, &in_shape, &out_shape, elem_size](size_t i, size_t j, size_t k) {
@@ -180,7 +181,8 @@ void STFT::execute([[maybe_unused]] const dnnl::stream& strm) {
                         reinterpret_cast<uint8_t*>(rdft_result),
                         stft_shape,
                         stft_transp_out_shape,
-                        sizeof(float));
+                        sizeof(float),
+                        cpu_parallel);
     }
 }
 
@@ -196,8 +198,9 @@ bool STFT::needShapeInfer() const {
 void STFT::createPrimitive() {
     RDFTKey key{};
     key.isInverse = false;
+    key.cpuParallel = context->getCpuParallel();
     auto buildExecutor = [&](const RDFTKey& key) -> std::shared_ptr<RDFTExecutor> {
-        return RDFTExecutor::build(key.isInverse, getSelectedPrimitiveDescriptor());
+        return RDFTExecutor::build(key.isInverse, key.cpuParallel, getSelectedPrimitiveDescriptor());
     };
 
     auto cache = context->getParamsCache();

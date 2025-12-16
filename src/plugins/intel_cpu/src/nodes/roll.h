@@ -37,7 +37,8 @@ private:
         RollExecutor(const VectorDims& dataDims,
                      const VectorDims& shiftDims,
                      const VectorDims& axesDims,
-                     const VectorDims& dstDims);
+                     const VectorDims& dstDims,
+                     const std::shared_ptr<CpuParallel> cpuParallel);
         ~RollExecutor() = default;
 
         template <typename T>
@@ -51,6 +52,7 @@ private:
         const size_t blockSize;
         const size_t numOfIterations;
         const size_t axesLength;
+        std::shared_ptr<CpuParallel> cpuParallel;
     };
 
     using ExecutorPtr = std::shared_ptr<RollExecutor>;

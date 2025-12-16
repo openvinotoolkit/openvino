@@ -453,7 +453,12 @@ bool RDFTExecutor::canUseFFT(size_t dim) {
     return isPowerOfTwo(dim) && dim > 1;
 }
 
-static void fftCopyInverseInputData(float* dst, float* src, size_t inputSize, size_t signalSize, bool parallelize) {
+static void fftCopyInverseInputData(float* dst,
+                                    float* src,
+                                    size_t inputSize,
+                                    size_t signalSize,
+                                    bool parallelize,
+                                    const std::shared_ptr<CpuParallel> cpuParallel) {
     if (!parallelize) {
         cpu_memcpy(dst, src, inputSize * complex_type_size<float>());
         src = src + 2 * inputSize - 4;
@@ -462,7 +467,7 @@ static void fftCopyInverseInputData(float* dst, float* src, size_t inputSize, si
             dst[2 * i + 1] = -src[1];
         }
     } else {
-        parallel_for(signalSize, [&](size_t i) {
+        cpuParallel->parallel_for(signalSize, [&](size_t i) {
             if (i < inputSize) {
                 dst[2 * i] = src[2 * i];
                 dst[2 * i + 1] = src[2 * i + 1];
@@ -475,27 +480,35 @@ static void fftCopyInverseInputData(float* dst, float* src, size_t inputSize, si
     }
 }
 
-static void fftCopyRealInputData(float* dst, const float* src, size_t inputSize, bool parallelize) {
+static void fftCopyRealInputData(float* dst,
+                                 const float* src,
+                                 size_t inputSize,
+                                 bool parallelize,
+                                 const std::shared_ptr<CpuParallel> cpuParallel) {
     if (!parallelize) {
         for (size_t i = 0; i < inputSize; i++) {
             dst[2 * i] = src[i];
             dst[2 * i + 1] = 0;
         }
     } else {
-        parallel_for(inputSize, [&](size_t i) {
+        cpuParallel->parallel_for(inputSize, [&](size_t i) {
             dst[2 * i] = src[i];
             dst[2 * i + 1] = 0;
         });
     }
 }
 
-static void fftCopyInverseRealOutput(float* dst, const float* src, size_t signalSize, bool parallelize) {
+static void fftCopyInverseRealOutput(float* dst,
+                                     const float* src,
+                                     size_t signalSize,
+                                     bool parallelize,
+                                     const std::shared_ptr<CpuParallel> cpuParallel) {
     if (!parallelize) {
         for (size_t i = 0; i < signalSize; i++) {
             dst[i] = src[2 * i];
         }
     } else {
-        parallel_for(signalSize, [&](size_t i) {
+        cpuParallel->parallel_for(signalSize, [&](size_t i) {
             dst[i] = src[2 * i];
         });
     }
@@ -516,9 +529,9 @@ void RDFTExecutor::fft(float* input,
 
     if (inputSize < signalSize || type == real_to_complex) {
         if (isInverse) {
-            fftCopyInverseInputData(scratchSpace.data(), input, inputSize, signalSize, parallelize);
+            fftCopyInverseInputData(scratchSpace.data(), input, inputSize, signalSize, parallelize, cpuParallel);
         } else if (type == real_to_complex) {
-            fftCopyRealInputData(scratchSpace.data(), input, inputSize, parallelize);
+            fftCopyRealInputData(scratchSpace.data(), input, inputSize, parallelize, cpuParallel);
         }
         inputPtr = scratchSpace.data();
     }
@@ -558,7 +571,7 @@ void RDFTExecutor::fft(float* input,
             outputPtr = output;
         }
         if (parallelize) {
-            parallel_for(numBlocks, blockIteration);
+            cpuParallel->parallel_for(numBlocks, blockIteration);
         } else {
             for (size_t block = 0; block < numBlocks; block++) {
                 blockIteration(block);
@@ -572,7 +585,7 @@ void RDFTExecutor::fft(float* input,
     }
 
     if (type == complex_to_real) {
-        fftCopyInverseRealOutput(output, inputPtr, signalSize, parallelize);
+        fftCopyInverseRealOutput(output, inputPtr, signalSize, parallelize, cpuParallel);
     } else if (outputSize != signalSize) {
         cpu_memcpy(output, inputPtr, outputSize * complex_type_size<float>());
     }
@@ -652,7 +665,7 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
     bool parallelizeOuterAxes = totalWorkSize > signalSize;
 
     if (parallelizeOuterAxes) {
-        parallel_for(totalWorkSize, [&](size_t i) {
+        cpuParallel->parallel_for(totalWorkSize, [&](size_t i) {
             std::vector<size_t> coords(iterationRange.size(), 0);
             std::vector<float> gatherScatterBuffer(gatherSize + scatterSize);
             float* gatherBuffer = gatherScatterBuffer.data();
@@ -844,7 +857,8 @@ std::vector<std::vector<float>> RDFTExecutor::generateTwiddles(const std::vector
 }
 #if defined(OPENVINO_ARCH_X86_64)
 struct RDFTJitExecutor : public RDFTExecutor {
-    RDFTJitExecutor(bool inverse, NodeDesc* primDesc) : RDFTExecutor(inverse) {
+    RDFTJitExecutor(bool inverse, NodeDesc* primDesc, const std::shared_ptr<CpuParallel> cpuParallel)
+        : RDFTExecutor(inverse, cpuParallel) {
         enum dft_type rdftType = isInverse ? complex_to_real : real_to_complex;
         if (mayiuse(cpu::x64::avx512_core)) {
             rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx512_core>>(isInverse, rdftType);
@@ -886,7 +900,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
             simdSize /= 2;  // there are two floats per one complex element in the output
         }
 
-        parallel_for2d(outputSize / simdSize, inputSize, [&](size_t K, size_t n) {
+        cpuParallel->parallel_for2d(outputSize / simdSize, inputSize, [&](size_t K, size_t n) {
             if (type == real_to_complex) {
                 for (int k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
@@ -907,7 +921,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
         });
         if ((outputSize % simdSize) != 0) {
             size_t start = (outputSize / simdSize) * simdSize;
-            parallel_for2d(outputSize - start, inputSize, [&](size_t k, size_t n) {
+            cpuParallel->parallel_for2d(outputSize - start, inputSize, [&](size_t k, size_t n) {
                 k += start;
                 double angle = 2 * PI * k * n / inputSize;
                 twiddles[2 * (k * inputSize + n)] = static_cast<float>(std::cos(angle));
@@ -957,7 +971,8 @@ struct RDFTJitExecutor : public RDFTExecutor {
 #endif
 
 struct RDFTRefExecutor : public RDFTExecutor {
-    explicit RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
+    explicit RDFTRefExecutor(bool inverse, const std::shared_ptr<CpuParallel> cpuParallel)
+        : RDFTExecutor(inverse, cpuParallel) {}
 
 private:
     std::vector<float> generateTwiddlesDFT(size_t inputSize,
@@ -975,12 +990,12 @@ private:
         return twiddles;
     }
 
-    static void dftRealToComplex(const float* inputPtr,
-                                 const float* twiddlesPtr,
-                                 float* outputPtr,
-                                 size_t inputSize,
-                                 size_t outputSize,
-                                 bool parallelize) {
+    void dftRealToComplex(const float* inputPtr,
+                          const float* twiddlesPtr,
+                          float* outputPtr,
+                          size_t inputSize,
+                          size_t outputSize,
+                          bool parallelize) {
         auto dftIteration = [&](size_t k) {
             float real = 0;
             float imag = 0;
@@ -994,7 +1009,7 @@ private:
             outputPtr[2 * k + 1] = imag;
         };
         if (parallelize) {
-            parallel_for(outputSize, dftIteration);
+            cpuParallel->parallel_for(outputSize, dftIteration);
         } else {
             for (size_t k = 0; k < outputSize; k++) {
                 dftIteration(k);
@@ -1037,7 +1052,7 @@ private:
             outputPtr[2 * k + 1] = imag;
         };
         if (parallelize) {
-            parallel_for(outputSize, dftIteration);
+            cpuParallel->parallel_for(outputSize, dftIteration);
         } else {
             for (size_t k = 0; k < outputSize; k++) {
                 dftIteration(k);
@@ -1075,7 +1090,7 @@ private:
             outputPtr[k] = real;
         };
         if (parallelize) {
-            parallel_for(outputSize, dftIteration);
+            cpuParallel->parallel_for(outputSize, dftIteration);
         } else {
             for (size_t k = 0; k < outputSize; k++) {
                 dftIteration(k);
@@ -1104,17 +1119,18 @@ private:
 void RDFT::createPrimitive() {
     RDFTKey key{};
     key.isInverse = inverse;
+    key.cpuParallel = context->getCpuParallel();
 
     auto buildExecutor = [&](const RDFTKey& key) -> std::shared_ptr<RDFTExecutor> {
         std::shared_ptr<RDFTExecutor> executor;
         NodeDesc* primDesc = getSelectedPrimitiveDescriptor();
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::sse41)) {
-            executor = std::make_shared<RDFTJitExecutor>(key.isInverse, primDesc);
+            executor = std::make_shared<RDFTJitExecutor>(key.isInverse, primDesc, key.cpuParallel);
             return executor;
         }
 #endif
-        executor = std::make_shared<RDFTRefExecutor>(key.isInverse);
+        executor = std::make_shared<RDFTRefExecutor>(key.isInverse, key.cpuParallel);
         primDesc->setImplementationType(ref_any);
         return executor;
     };
@@ -1126,17 +1142,19 @@ void RDFT::createPrimitive() {
     Node::createPrimitive();
 }
 
-std::shared_ptr<RDFTExecutor> RDFTExecutor::build(bool inverse, NodeDesc* primDesc) {
+std::shared_ptr<RDFTExecutor> RDFTExecutor::build(bool inverse,
+                                                  const std::shared_ptr<CpuParallel> cpuParallel,
+                                                  NodeDesc* primDesc) {
     std::shared_ptr<RDFTExecutor> executor;
 #if defined(OPENVINO_ARCH_X86_64)
     using namespace dnnl::impl;
     using namespace dnnl::impl::cpu::x64;
     if (mayiuse(cpu::x64::sse41)) {
-        executor = std::make_shared<RDFTJitExecutor>(inverse, primDesc);
+        executor = std::make_shared<RDFTJitExecutor>(inverse, primDesc, cpuParallel);
         return executor;
     }
 #endif
-    executor = std::make_shared<RDFTRefExecutor>(inverse);
+    executor = std::make_shared<RDFTRefExecutor>(inverse, cpuParallel);
     primDesc->setImplementationType(ref_any);
     return executor;
 }

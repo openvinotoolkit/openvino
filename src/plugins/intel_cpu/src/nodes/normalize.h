@@ -133,8 +133,8 @@ private:
 
         static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(const NormalizeL2Attrs& attrs,
                                                                            const dnnl::primitive_attr& kernel_attr,
-                                                                           const VectorDims& dims);
-
+                                                                           const VectorDims& dims,
+                                                                           const std::shared_ptr<CpuParallel> parallel);
     protected:
         [[nodiscard]] static float epsApply(const float& modulo, const NormEpsMode mode, const float eps) {
             return mode == NormEpsMode::ADD ? modulo + eps : std::max(modulo, eps);
@@ -144,13 +144,15 @@ private:
         template <typename in_data_t, typename out_data_t>
         static std::shared_ptr<NormalizeL2Executor> makeExecutor(const NormalizeL2Attrs& attrs,
                                                                  const dnnl::primitive_attr& kernel_attrs,
-                                                                 const VectorDims& dims);
+                                                                 const VectorDims& dims,
+                                                                 const std::shared_ptr<CpuParallel> parallel);
 
         struct NormalizeContext {
             std::shared_ptr<NormalizeL2Executor> executor;
             NormalizeL2Attrs attrs;
             dnnl::primitive_attr kernel_attrs;
             VectorDims dims;
+            std::shared_ptr<CpuParallel> cpu_parallel;
         };
 
         template <typename T>
@@ -159,7 +161,7 @@ private:
             using dst_t = typename std::tuple_element<1, T>::type;
 
             void operator()(NormalizeContext& ctx) {
-                ctx.executor = NormalizeL2Executor::makeExecutor<src_t, dst_t>(ctx.attrs, ctx.kernel_attrs, ctx.dims);
+                ctx.executor = NormalizeL2Executor::makeExecutor<src_t, dst_t>(ctx.attrs, ctx.kernel_attrs, ctx.dims, ctx.cpu_parallel);
             }
         };
     };

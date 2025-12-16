@@ -91,8 +91,13 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker,
 }
 
 struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
-    RMSNormExecutor(ov::element::Type precision, size_t data_size, size_t scale_size, float eps)
-        : m_precision(precision) {
+    RMSNormExecutor(ov::element::Type precision,
+                    size_t data_size,
+                    size_t scale_size,
+                    float eps,
+                    const std::shared_ptr<CpuParallel> parallel)
+        : m_precision(precision),
+          cpu_parallel(parallel) {
         kernel::jit_rms_compile_params jcp;
         jcp.src_prc = precision;
         jcp.dst_prc = precision;
@@ -112,7 +117,7 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
         const auto src_stride = src_strides[src_strides.size() - 2] * m_precision.size();
         const auto dst_stride = dst_strides[dst_strides.size() - 2] * m_precision.size();
         auto n = shape_size(shape) / shape[shape.size() - 1];
-        parallel_for(n, [&](size_t i) {
+        cpu_parallel->parallel_for(n, [&](size_t i) {
             execJitKernel(m_kernel, src + i * src_stride, dst + i * dst_stride, scale);
         });
     }
@@ -120,6 +125,7 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
 private:
     ov::element::Type m_precision;
     std::shared_ptr<kernel::JitKernelBase> m_kernel;
+    std::shared_ptr<CpuParallel> cpu_parallel;
 };
 #endif  // OPENVINO_ARCH_X86_64
 
@@ -167,7 +173,7 @@ void RMSNorm::createPrimitive() {
 
     auto builder = [&]([[maybe_unused]] const RMSNormKey& key) -> std::shared_ptr<Executor> {
 #ifdef OPENVINO_ARCH_X86_64
-        return std::make_shared<RMSNormExecutor>(precision, data_size, scale_size, m_eps);
+        return std::make_shared<RMSNormExecutor>(precision, data_size, scale_size, m_eps, context->getCpuParallel());
 #else
         return nullptr;
 #endif

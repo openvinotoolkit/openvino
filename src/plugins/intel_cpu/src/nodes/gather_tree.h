@@ -38,7 +38,8 @@ private:
         GatherTreeExecutor(const VectorDims& stepIdxDims,
                            const VectorDims& parentIdxDims,
                            const VectorDims& maxSeqLenDims,
-                           const VectorDims& dstDims);
+                           const VectorDims& dstDims,
+                           const std::shared_ptr<CpuParallel> parallel);
         ~GatherTreeExecutor() = default;
 
         template <typename DATA_T>
@@ -54,6 +55,7 @@ private:
         const size_t beamWidth;
         const size_t bbSize;
         const size_t parentIdxSize;
+        std::shared_ptr<CpuParallel> cpuParallel;
     };
 
     using executorPtr = std::shared_ptr<GatherTreeExecutor>;

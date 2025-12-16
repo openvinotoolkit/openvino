@@ -84,6 +84,7 @@ struct NormalizeKey {
     NormalizeL2::NormalizeL2Attrs attrs;
     dnnl::primitive_attr kernel_attrs;
     VectorDims dims;
+    const std::shared_ptr<CpuParallel> cpu_parallel;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const NormalizeKey& rhs) const;
@@ -1006,10 +1007,10 @@ void NormalizeL2::prepareParams() {
 
     setPostOps(kernel_attrs, dims, true);
 
-    NormalizeKey key = {attrs, kernel_attrs, dims};
+    NormalizeKey key = {attrs, kernel_attrs, dims, context->getCpuParallel()};
 
     auto builder = [](const NormalizeKey& key) -> std::shared_ptr<NormalizeL2::NormalizeL2Executor> {
-        return NormalizeL2Executor::getNormalizeL2Executor(key.attrs, key.kernel_attrs, key.dims);
+        return NormalizeL2Executor::getNormalizeL2Executor(key.attrs, key.kernel_attrs, key.dims, key.cpu_parallel);
     };
 
     auto cache = context->getParamsCache();
@@ -1037,8 +1038,9 @@ void NormalizeL2::execute([[maybe_unused]] const dnnl::stream& strm) {
 template <typename in_data_t, typename out_data_t>
 class NormalizeL2::NormalizeL2CornerCaseExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
-    explicit NormalizeL2CornerCaseExecutor(const VectorDims& dims)
-        : workAmount(std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>())) {}
+    explicit NormalizeL2CornerCaseExecutor(const VectorDims& dims, const std::shared_ptr<CpuParallel> parallel)
+        : workAmount(std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>())),
+          cpu_parallel(parallel) {}
 
     void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, [[maybe_unused]] const void** post_ops_data) override {
         normalize(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
@@ -1046,12 +1048,13 @@ public:
 
 private:
     void normalize(const in_data_t* src_data, out_data_t* dst_data) {
-        parallel_for(workAmount, [&](size_t i) {
+        cpu_parallel->parallel_for(workAmount, [&](size_t i) {
             dst_data[i] = src_data[i] == 0 ? 0 : 1;
         });
     }
 
     size_t workAmount = 0LU;
+    std::shared_ptr<CpuParallel> cpu_parallel;
 };
 
 // *=================* *======* *=================*
@@ -1063,8 +1066,10 @@ class NormalizeL2::NormalizeL2JitExecutor : public NormalizeL2::NormalizeL2Execu
 public:
     NormalizeL2JitExecutor(const NormalizeL2Attrs& attrs_,
                            const dnnl::primitive_attr& kernel_attrs,
-                           const VectorDims& dims)
-        : attrs(attrs_) {
+                           const VectorDims& dims,
+                           const std::shared_ptr<CpuParallel> parallel)
+        : attrs(attrs_),
+          cpu_parallel(parallel) {
         OPENVINO_ASSERT(
             any_of(attrs.layout, LayoutType::ncsp, LayoutType::nspc, LayoutType::nCsp8c, LayoutType::nCsp16c),
             "Normalaize2L executor has selected layout which is not supported");
@@ -1138,7 +1143,7 @@ private:
                 // modulo
                 float addition_identity = 0.0F;
                 float modulo = 0.0F;
-                modulo = parallel_sum(jcp.c, addition_identity, [&](int ic) -> float {
+                modulo = cpu_parallel->parallel_sum(jcp.c, addition_identity, [&](int ic) -> float {
                     const in_data_t* src_data_bc = src_data_b + ic * spatial_dims;
                     float modulo_kernel = 0.0F;
                     float modulo_tail = 0.0F;
@@ -1163,7 +1168,7 @@ private:
                 float modulo_inv = 1.0F / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
-                parallel_for(jcp.c, [&](size_t ic) {
+                cpu_parallel->parallel_for(jcp.c, [&](size_t ic) {
                     const in_data_t* src_data_bc = src_data_b + ic * spatial_dims;
                     out_data_t* dst_data_bc = dst_data_b + ic * spatial_dims;
                     auto arg = jit_normalize_call_args();
@@ -1179,7 +1184,7 @@ private:
                 // moduloM
                 std::vector<float> moduloM(spatial_dims, 0.F);
                 size_t blocks_num = div_up(spatial_dims, blk_size);
-                parallel_for(blocks_num, [&](size_t ib) {
+                cpu_parallel->parallel_for(blocks_num, [&](size_t ib) {
                     const in_data_t* src_data_b_ib = src_data_b + ib * blk_size;
                     size_t min_cb = (std::min)(blk_size, spatial_dims - (ib * blk_size));
                     if (min_cb == blk_size) {
@@ -1204,7 +1209,7 @@ private:
                 }
 
                 // normalize
-                parallel_for(jcp.c, [&](size_t ic) {
+                cpu_parallel->parallel_for(jcp.c, [&](size_t ic) {
                     const in_data_t* src_data_bc = src_data_b + ic * spatial_dims;
                     out_data_t* dst_data_bc = dst_data_b + ic * spatial_dims;
                     auto arg = jit_normalize_call_args();
@@ -1230,7 +1235,7 @@ private:
                 // modulo
                 float addition_identity = 0;
                 float modulo = 0.0F;
-                modulo = parallel_sum(jcp.h, addition_identity, [&](int ih) -> float {
+                modulo = cpu_parallel->parallel_sum(jcp.h, addition_identity, [&](int ih) -> float {
                     size_t tail_start = 0;
                     const in_data_t* src_data_bh = src_data_b + ih * c_w_dims;
                     float modulo_kernel = 0.F;
@@ -1255,7 +1260,7 @@ private:
                 float modulo_inv = 1.0F / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
-                parallel_for2d(jcp.h, jcp.w, [&](int ih, int iw) {
+                cpu_parallel->parallel_for2d(jcp.h, jcp.w, [&](int ih, int iw) {
                     const in_data_t* src_data_bhw = src_data_b + ih * c_w_dims + iw * jcp.c;
                     out_data_t* dst_data_bhw = dst_data_b + ih * c_w_dims + iw * jcp.c;
                     auto arg = jit_normalize_call_args();
@@ -1268,7 +1273,7 @@ private:
                     (*normalize_kernel)(&arg);
                 });
             } else {  // for across_spatial=false
-                parallel_for2d(jcp.h, jcp.w, [&](int ih, int iw) {
+                cpu_parallel->parallel_for2d(jcp.h, jcp.w, [&](int ih, int iw) {
                     // modulo
                     float modulo = 0.F;
                     const in_data_t* src_data_bhw = src_data_b + ih * c_w_dims + iw * jcp.c;
@@ -1312,7 +1317,7 @@ private:
                 // modulo
                 float modulo = 0.0F;
                 float addition_identity = 0.0F;
-                modulo = parallel_sum2d(CB, jcp.h, addition_identity, [&](size_t cb, size_t h) -> float {
+                modulo = cpu_parallel->parallel_sum2d(CB, jcp.h, addition_identity, [&](size_t cb, size_t h) -> float {
                     // handle W * blk_size data
                     const in_data_t* src_data_b_cb_h = src_data_b + cb * spatial_dims * blk_size + h * w_blk_dims;
                     size_t min_cb = (std::min)(blk_size, jcp.c - cb * blk_size);
@@ -1338,7 +1343,7 @@ private:
                 float modulo_inv = 1.0F / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
-                parallel_for2d(CB, jcp.h, [&](size_t cb, size_t h) {
+                cpu_parallel->parallel_for2d(CB, jcp.h, [&](size_t cb, size_t h) {
                     const in_data_t* src_data_b_cb_h = src_data_b + cb * spatial_dims * blk_size + h * w_blk_dims;
                     out_data_t* dst_data_b_cb_h = dst_data_b + cb * spatial_dims * blk_size + h * w_blk_dims;
                     auto arg = jit_normalize_call_args();
@@ -1351,7 +1356,7 @@ private:
                     (*normalize_kernel)(&arg);
                 });
             } else {  // across_spatial: false
-                parallel_for2d(jcp.h, jcp.w, [&](size_t ih, size_t iw) {
+                cpu_parallel->parallel_for2d(jcp.h, jcp.w, [&](size_t ih, size_t iw) {
                     // modulo
                     float modulo = 0.0F;
                     const in_data_t* src_data_bhw = src_data_b + ih * w_blk_dims + iw * blk_size;
@@ -1392,6 +1397,7 @@ private:
 
     std::shared_ptr<jit_uni_normalize_modulo_kernel> normalize_modulo_kernel;
     std::shared_ptr<jit_uni_normalize_kernel> normalize_kernel;
+    std::shared_ptr<CpuParallel> cpu_parallel;
 };
 #endif
 // *=================* *======* *=================*
@@ -1403,10 +1409,12 @@ class NormalizeL2::NormalizeL2ReferenceExecutor : public NormalizeL2::NormalizeL
 public:
     NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs,
                                  const dnnl::primitive_attr& kernel_attrs,
-                                 VectorDims dims)
+                                 VectorDims dims,
+                                 const std::shared_ptr<CpuParallel> parallel)
         : dims(std::move(dims)),
           kernel_attrs(kernel_attrs),
-          attrs(attrs) {
+          attrs(attrs),
+          cpu_parallel(parallel) {
         OPENVINO_ASSERT(attrs.layout == LayoutType::ncsp,
                         "Reference Executor of 'NormalizeL2' supports only ncsp layout!");
 
@@ -1446,7 +1454,7 @@ private:
                 // modulo
                 float addition_identity = 0.0F;
                 float modulo = 0.0F;
-                modulo = parallel_sum(C, addition_identity, [&](int ic) -> float {
+                modulo = cpu_parallel->parallel_sum(C, addition_identity, [&](int ic) -> float {
                     const in_data_t* src_data_bc = src_data_b + ic * spatial_dims;
                     float modulo_c = 0.0F;
                     for (size_t m = 0; m < spatial_dims; m++) {
@@ -1458,7 +1466,7 @@ private:
                 float modulo_inv = 1.0F / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
-                parallel_for(C, [&](size_t ic) {
+                cpu_parallel->parallel_for(C, [&](size_t ic) {
                     const in_data_t* src_data_bc = src_data_b + ic * spatial_dims;
                     out_data_t* dst_data_bc = dst_data_b + ic * spatial_dims;
                     for (size_t m = 0; m < spatial_dims; m++) {
@@ -1474,7 +1482,7 @@ private:
             } else {  // across_spatial: false
                 // moduloM
                 std::vector<float> moduloM(spatial_dims, 0.F);
-                parallel_for(H, [&](size_t ih) {
+                cpu_parallel->parallel_for(H, [&](size_t ih) {
                     size_t offset_h = ih * W;
                     const in_data_t* src_data_b_ih = src_data_b + offset_h;
                     for (size_t c = 0; c < C; c++) {
@@ -1490,7 +1498,7 @@ private:
                 }
 
                 // normalize
-                parallel_for(C, [&](size_t ic) {
+                cpu_parallel->parallel_for(C, [&](size_t ic) {
                     const in_data_t* src_data_bc = src_data_b + ic * spatial_dims;
                     out_data_t* dst_data_bc = dst_data_b + ic * spatial_dims;
                     for (size_t m = 0; m < spatial_dims; m++) {
@@ -1573,6 +1581,7 @@ private:
 
     std::vector<std::shared_ptr<dnnl::impl::cpu::ref_eltwise_scalar_fwd_t>> eltwise_injectors_ref;
     std::vector<std::shared_ptr<dnnl::impl::cpu::ref_depthwise_scalar_fwd_t>> depthwise_injectors_ref;
+    std::shared_ptr<CpuParallel> cpu_parallel;
 };
 
 // *=================* *======* *=================*
@@ -1580,8 +1589,9 @@ private:
 std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Executor::getNormalizeL2Executor(
     const NormalizeL2Attrs& attrs,
     const dnnl::primitive_attr& kernel_attrs,
-    const VectorDims& dims) {
-    NormalizeContext ctx = {nullptr, attrs, kernel_attrs, dims};
+    const VectorDims& dims,
+    const std::shared_ptr<CpuParallel> parallel) {
+    NormalizeContext ctx = {nullptr, attrs, kernel_attrs, dims, parallel};
 
     OV_SWITCH(intel_cpu,
               NormalizeExecutorCreation,
@@ -1606,17 +1616,18 @@ template <typename in_data_t, typename out_data_t>
 std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Executor::makeExecutor(
     const NormalizeL2Attrs& attrs,
     const dnnl::primitive_attr& kernel_attrs,
-    const VectorDims& dims) {
+    const VectorDims& dims,
+    const std::shared_ptr<CpuParallel> parallel) {
     if (attrs.cornerCase) {
-        return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims);
+        return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims, parallel);
 #if defined(OPENVINO_ARCH_X86_64)
     }
     if (mayiuse(cpu::x64::sse41)) {
-        return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
+        return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims, parallel);
 #endif
     }
     if (attrs.layout == LayoutType::ncsp) {
-        return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
+        return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims, parallel);
     }
     OPENVINO_THROW("'NormalizeL2' cannot create Executor");
 }

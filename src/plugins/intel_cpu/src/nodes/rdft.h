@@ -20,7 +20,9 @@ namespace ov::intel_cpu::node {
 
 struct RDFTExecutor {
 public:
-    explicit RDFTExecutor(bool inverse) : isInverse(inverse) {}
+    explicit RDFTExecutor(bool inverse, const std::shared_ptr<CpuParallel> cpu_parallel)
+        : isInverse(inverse),
+          cpuParallel(cpu_parallel) {}
     virtual ~RDFTExecutor() = default;
     void execute(float* inputPtr,
                  float* outputPtr,
@@ -37,10 +39,13 @@ public:
                                                      const std::vector<size_t>& outputShape,
                                                      const std::vector<int>& axes);
 
-    static std::shared_ptr<RDFTExecutor> build(bool inverse, NodeDesc* primDesc = nullptr);
+    static std::shared_ptr<RDFTExecutor> build(bool inverse,
+                                               const std::shared_ptr<CpuParallel> cpuParallel,
+                                               NodeDesc* primDesc = nullptr);
 
 protected:
     bool isInverse;
+    std::shared_ptr<CpuParallel> cpuParallel;
 
 private:
     virtual bool canUseFFT(size_t dim);
@@ -135,6 +140,7 @@ private:
 
 struct RDFTKey {
     bool isInverse;
+    std::shared_ptr<CpuParallel> cpuParallel;
 
     [[nodiscard]] size_t hash() const {
         size_t seed = 0;

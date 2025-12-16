@@ -104,8 +104,12 @@ template <typename T>
 struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
     const op::internal::RoPE::Config& m_config;
     std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
+    std::shared_ptr<CpuParallel> m_cpuParallel;
 
-    explicit RoPEExecutorRotateHalf(const op::internal::RoPE::Config& config) : m_config(config) {
+    explicit RoPEExecutorRotateHalf(const op::internal::RoPE::Config& config,
+                                    const std::shared_ptr<CpuParallel> cpuParallel)
+        : m_config(config),
+          m_cpuParallel(cpuParallel) {
         jit_rotary_compile_params jcp;
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
@@ -158,7 +162,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         auto seq_len = t_src.size(2);
         auto feature_size = t_src.size(3);
 
-        parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
+        m_cpuParallel->parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
             auto cos_pos = p;
             if (gather) {
                 if (gather.m_rank == 4) {
@@ -195,8 +199,12 @@ template <typename T>
 struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
     const op::internal::RoPE::Config& m_config;
     std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
+    std::shared_ptr<CpuParallel> m_cpuParallel;
 
-    explicit RoPEExecutorInterleaved(const op::internal::RoPE::Config& config) : m_config(config) {
+    explicit RoPEExecutorInterleaved(const op::internal::RoPE::Config& config,
+                                     const std::shared_ptr<CpuParallel> cpuParallel)
+        : m_config(config),
+          m_cpuParallel(cpuParallel) {
         jit_rotary_compile_params jcp;
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
@@ -221,7 +229,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         auto rotary_dims = m_config.rotary_ndims;
         auto half_rotary_dims = rotary_dims / 2;
 
-        parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
+        m_cpuParallel->parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
             auto* x = t_src.ptr<T>(b, p, h);
             float* sin = &t_sin_cos.at<float>({b, p, 0}, true);
             float* cos = &t_sin_cos.at<float>({b, p, half_rotary_dims}, true);
@@ -245,8 +253,12 @@ template <typename T>
 struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
     const op::internal::RoPE::Config& m_config;
     std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
+    std::shared_ptr<CpuParallel> m_cpuParallel;
 
-    explicit RoPEExecutorChatGLM(const op::internal::RoPE::Config& config) : m_config(config) {
+    explicit RoPEExecutorChatGLM(const op::internal::RoPE::Config& config,
+                                 const std::shared_ptr<CpuParallel> cpuParallel)
+        : m_config(config),
+          m_cpuParallel(cpuParallel) {
         jit_rotary_compile_params jcp;
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
@@ -277,7 +289,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
 
             auto rotary_dims = m_config.rotary_ndims;
 
-            parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
+            m_cpuParallel->parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
                 // src [batch, length, H x S]
                 auto* src = t_src.ptr<T>(b, p, h * head_size);
                 // [batch_size, length, ndims//2, 2]
@@ -307,7 +319,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
 
             auto rotary_dims = m_config.rotary_ndims;
 
-            parallel_for3d(seq_len, batch_size, head_cnt, [&](size_t p, size_t b, size_t h) {
+            m_cpuParallel->parallel_for3d(seq_len, batch_size, head_cnt, [&](size_t p, size_t b, size_t h) {
                 auto* src = t_src.ptr<T>(p, b, h * head_size);
                 // [length, batch_size, ndims//2, 2]
                 auto* cos_sin = &t_cos_sin.at<float>({p, b, 0, 0}, true);
@@ -335,8 +347,11 @@ template <typename T>
 struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
     const op::internal::RoPE::Config& m_config;
     std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
+    std::shared_ptr<CpuParallel> m_cpuParallel;
 
-    explicit RoPEExecutorQwen(const op::internal::RoPE::Config& config) : m_config(config) {
+    explicit RoPEExecutorQwen(const op::internal::RoPE::Config& config, const std::shared_ptr<CpuParallel> cpuParallel)
+        : m_config(config),
+          m_cpuParallel(cpuParallel) {
         jit_rotary_compile_params jcp;
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
@@ -369,7 +384,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
         auto head_size = m_config.head_size;
         auto present_kv_len = t_cos.size(1);
 
-        parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
+        m_cpuParallel->parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
             size_t sincos_pos = 0;
             if (gather) {
                 if (gather.m_rank == 4) {
@@ -409,6 +424,7 @@ void RoPE::initSupportedPrimitiveDescriptors() {
         return;
     }
     auto srcPrecision = getOriginalInputPrecisionAtPort(0);
+    auto cpuParallel = context->getCpuParallel();
 
     auto rtPrecision = srcPrecision;
     auto CosSinPrecision = ov::element::f32;
@@ -416,20 +432,20 @@ void RoPE::initSupportedPrimitiveDescriptors() {
 
     if (m_config.is_qwen) {
         if (rtPrecision == ov::element::f16) {
-            m_executor = std::make_shared<RoPEExecutorQwen<ov::float16>>(m_config);
+            m_executor = std::make_shared<RoPEExecutorQwen<ov::float16>>(m_config, cpuParallel);
         } else if (rtPrecision == ov::element::bf16) {
-            m_executor = std::make_shared<RoPEExecutorQwen<ov::bfloat16>>(m_config);
+            m_executor = std::make_shared<RoPEExecutorQwen<ov::bfloat16>>(m_config, cpuParallel);
         } else {
-            m_executor = std::make_shared<RoPEExecutorQwen<float>>(m_config);
+            m_executor = std::make_shared<RoPEExecutorQwen<float>>(m_config, cpuParallel);
             rtPrecision = ov::element::f32;
         }
     } else if (m_config.is_chatglm) {
         if (rtPrecision == ov::element::f16) {
-            m_executor = std::make_shared<RoPEExecutorChatGLM<ov::float16>>(m_config);
+            m_executor = std::make_shared<RoPEExecutorChatGLM<ov::float16>>(m_config, cpuParallel);
         } else if (rtPrecision == ov::element::bf16) {
-            m_executor = std::make_shared<RoPEExecutorChatGLM<ov::bfloat16>>(m_config);
+            m_executor = std::make_shared<RoPEExecutorChatGLM<ov::bfloat16>>(m_config, cpuParallel);
         } else {
-            m_executor = std::make_shared<RoPEExecutorChatGLM<float>>(m_config);
+            m_executor = std::make_shared<RoPEExecutorChatGLM<float>>(m_config, cpuParallel);
             rtPrecision = ov::element::f32;
         }
     } else if (m_config.is_interleaved) {
@@ -437,21 +453,21 @@ void RoPE::initSupportedPrimitiveDescriptors() {
         CPU_NODE_ASSERT(m_config.slice_stop == 0, "slice_stop must be 0 for interleaved mode");
         CPU_NODE_ASSERT(m_config.gather_position_arg_id == 0, "gather_position_arg_id must be 0 for interleaved mode");
         if (rtPrecision == ov::element::f16) {
-            m_executor = std::make_shared<RoPEExecutorInterleaved<ov::float16>>(m_config);
+            m_executor = std::make_shared<RoPEExecutorInterleaved<ov::float16>>(m_config, cpuParallel);
         } else if (rtPrecision == ov::element::bf16) {
-            m_executor = std::make_shared<RoPEExecutorInterleaved<ov::bfloat16>>(m_config);
+            m_executor = std::make_shared<RoPEExecutorInterleaved<ov::bfloat16>>(m_config, cpuParallel);
         } else {
-            m_executor = std::make_shared<RoPEExecutorInterleaved<float>>(m_config);
+            m_executor = std::make_shared<RoPEExecutorInterleaved<float>>(m_config, cpuParallel);
             rtPrecision = ov::element::f32;
         }
     } else {
         can_inplace = true;
         if (rtPrecision == ov::element::f16) {
-            m_executor = std::make_shared<RoPEExecutorRotateHalf<ov::float16>>(m_config);
+            m_executor = std::make_shared<RoPEExecutorRotateHalf<ov::float16>>(m_config, cpuParallel);
         } else if (rtPrecision == ov::element::bf16) {
-            m_executor = std::make_shared<RoPEExecutorRotateHalf<ov::bfloat16>>(m_config);
+            m_executor = std::make_shared<RoPEExecutorRotateHalf<ov::bfloat16>>(m_config, cpuParallel);
         } else {
-            m_executor = std::make_shared<RoPEExecutorRotateHalf<float>>(m_config);
+            m_executor = std::make_shared<RoPEExecutorRotateHalf<float>>(m_config, cpuParallel);
             rtPrecision = ov::element::f32;
         }
         if (m_config.slice_stop - m_config.slice_start > 0 || m_config.input_trans0213) {
