@@ -10,15 +10,14 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
-namespace intel_npu {
+namespace {
 
-const ze_driver_uuid_t ZeroInitStructsMock::uuid = ze_intel_npu_driver_uuid;
+constexpr ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
 
-static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
-    const char* extName,
-    uint32_t extCurrentVersion,
-    std::vector<ze_driver_extension_properties_t>& extProps,
-    uint32_t count) {
+std::tuple<uint32_t, std::string> queryDriverExtensionVersion(const char* extName,
+                                                              uint32_t extCurrentVersion,
+                                                              std::vector<ze_driver_extension_properties_t>& extProps,
+                                                              uint32_t count) {
     const char* functionExtName = nullptr;
     uint32_t targetVersion = 0;
 
@@ -46,6 +45,10 @@ static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
 
     return std::make_tuple(targetVersion, functionExtName ? functionExtName : "");
 }
+
+}  // namespace
+
+namespace intel_npu {
 
 void ZeroInitStructsMock::initNpuDriver() {
     auto setNpuDriver = [&](uint32_t drivers_count, std::vector<ze_driver_handle_t> all_drivers) {
