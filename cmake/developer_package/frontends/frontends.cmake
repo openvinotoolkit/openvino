@@ -231,6 +231,11 @@ macro(ov_add_frontend)
 
     target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} openvino::frontend::common_translators
                           PUBLIC openvino::runtime)
+
+    if(NOT BUILD_SHARED_LIBS)
+        target_link_libraries(${TARGET_NAME} PRIVATE openvino_frontend_common_obj)
+    endif()
+
     ov_add_library_version(${TARGET_NAME})
 
     if(OV_FRONTEND_PROTOBUF_REQUIRED)
