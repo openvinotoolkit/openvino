@@ -229,15 +229,15 @@ const ExpressionPtr& LinearIR::get_expr_by_node(const std::shared_ptr<Node>& n) 
 
 void LinearIR::register_expression(const ExpressionPtr& expr, bool io_allowed, double exec_num) {
     const auto& node = expr->get_node();
-    OPENVINO_ASSERT(io_allowed || (!is_type_any_of<ov::op::v0::Result, ov::op::v0::Parameter>(node)),
-                    "LinearIR::insert can't be used to add Parameters or Results to IR");
+    OPENVINO_ASSERT(io_allowed || !is_type<ov::op::v0::Parameter>(node),
+                    "LinearIR::insert can't be used to add Parameters to IR");
     const auto& res = m_node2expression_map.insert({node, expr});
     OPENVINO_ASSERT(res.second, "Duplicate node is detected in linear IR: ", node);
 
     if (ov::is_type<ov::op::v0::Parameter>(node)) {
         m_parameter_expressions.push_back(expr);
     }
-    if (ov::is_type<ov::op::v0::Result>(node) || ov::is_type<op::Result>(node)) {
+    if (ov::is_type<snippets::op::Result>(node)) {
         m_result_expressions.push_back(expr);
     }
     if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
@@ -262,7 +262,7 @@ void LinearIR::unregister_expression(const ExpressionPtr& expr) {
                         "BufferExpression has not been found in the list of LinearIR Buffers!");
         m_buffer_expressions.erase(it);
     }
-    if (ov::is_type_any_of<ov::op::v0::Result, snippets::op::Result>(node)) {
+    if (ov::is_type<snippets::op::Result>(node)) {
         auto match = [&node](const ExpressionPtr& expr) {
             return expr->get_node() == node;
         };
