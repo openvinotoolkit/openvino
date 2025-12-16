@@ -88,6 +88,178 @@ std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shar
     return result;
 }
 
+std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shared_ptr<ov::Model>& model,
+                                                                 size_t active_experts_num) {
+    LOG_DEBUG("Detecting MoE downstream pattern...");
+    LOG_BLOCK();
+
+    MoEDownstream result;
+    result.active_experts_num = active_experts_num;
+
+    // Pattern to match: Parameter -> Convert -> ReduceSum
+    // Looking for a parameter with shape [N, 1, H, W] where N is total_experts_num
+
+    for (const auto& param : model->get_parameters()) {
+        auto param_shape = param->get_partial_shape();
+        if (!param_shape.rank().is_static() || param_shape.rank().get_length() != 4) {
+            continue;
+        }
+
+        auto shape = param_shape.to_shape();
+        // Check if shape matches [N, 1, H, W] pattern
+        if (shape[1] != 1 || shape[0] <= 1) {
+            continue;
+        }
+
+        size_t potential_total_experts = shape[0];
+
+        // Check if this parameter feeds into Convert -> ReduceSum
+        bool found_pattern = false;
+        for (const auto& param_output : param->outputs()) {
+            for (const auto& target_input : param_output.get_target_inputs()) {
+                auto consumer = target_input.get_node()->shared_from_this();
+
+                // Check for Convert node
+                if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(consumer)) {
+                    LOG_DEBUG("  Found Convert after Parameter: " << param->get_friendly_name());
+
+                    // Check if Convert feeds into ReduceSum
+                    for (const auto& convert_output : convert_node->outputs()) {
+                        for (const auto& convert_target : convert_output.get_target_inputs()) {
+                            if (auto reduce_sum = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(
+                                    convert_target.get_node()->shared_from_this())) {
+                                LOG_DEBUG("  Found ReduceSum after Convert");
+                                LOG_DEBUG("  Pattern matched: Parameter -> Convert -> ReduceSum");
+
+                                found_pattern = true;
+                                result.total_experts_num = potential_total_experts;
+                                result.param_index = 0;  // Find actual index
+
+                                // Get parameter index
+                                const auto& params = model->get_parameters();
+                                for (size_t i = 0; i < params.size(); ++i) {
+                                    if (params[i] == param) {
+                                        result.param_index = i;
+                                        break;
+                                    }
+                                }
+
+                                LOG_DEBUG("  Total experts num: " << result.total_experts_num);
+                                LOG_DEBUG("  Active experts num: " << result.active_experts_num);
+                                LOG_DEBUG("  Parameter index: " << result.param_index);
+                                break;
+                            }
+                        }
+                        if (found_pattern)
+                            break;
+                    }
+                }
+                if (found_pattern)
+                    break;
+            }
+            if (found_pattern)
+                break;
+        }
+
+        if (found_pattern) {
+            // Validate that active_experts_num <= total_experts_num
+            if (result.active_experts_num > result.total_experts_num) {
+                LOG_WARN("Active experts (" << result.active_experts_num << ") > total experts ("
+                                            << result.total_experts_num << "), invalid configuration");
+                continue;
+            }
+
+            // Clone the model and modify the parameter shape
+            auto modified_model = model->clone();
+
+            // Find the corresponding parameter in the cloned model
+            auto& cloned_params = modified_model->get_parameters();
+            if (result.param_index < cloned_params.size()) {
+                auto& target_param = cloned_params[result.param_index];
+                auto new_shape = shape;
+                new_shape[0] = result.active_experts_num;  // Change from total to active
+
+                LOG_DEBUG("  Modifying parameter shape from " << shape << " to " << new_shape);
+                LOG_DEBUG("  Parameter name: " << target_param->get_friendly_name());
+                std::cout << "  Before modification - parameter: " << target_param->get_friendly_name() << " shape: ["
+                          << target_param->get_shape()[0] << ", " << target_param->get_shape()[1] << ", "
+                          << target_param->get_shape()[2] << ", " << target_param->get_shape()[3] << "]" << std::endl;
+                std::cout << "  Modifying parameter shape from [" << shape[0] << ", " << shape[1] << ", " << shape[2]
+                          << ", " << shape[3] << "] to [" << new_shape[0] << ", " << new_shape[1] << ", "
+                          << new_shape[2] << ", " << new_shape[3] << "]" << std::endl;
+
+                target_param->set_partial_shape(ov::PartialShape(new_shape));
+                target_param->validate_and_infer_types();
+
+                std::cout << "  After set_partial_shape - parameter: " << target_param->get_friendly_name()
+                          << " shape: [" << target_param->get_shape()[0] << ", " << target_param->get_shape()[1] << ", "
+                          << target_param->get_shape()[2] << ", " << target_param->get_shape()[3] << "]" << std::endl;
+
+                // Validate the entire model after parameter shape change
+                modified_model->validate_nodes_and_infer_types();
+
+                // Verify the shape is still correct after model validation
+                std::cout << "  After validate_nodes_and_infer_types - parameter: " << target_param->get_friendly_name()
+                          << " shape: [" << target_param->get_shape()[0] << ", " << target_param->get_shape()[1] << ", "
+                          << target_param->get_shape()[2] << ", " << target_param->get_shape()[3] << "]" << std::endl;
+
+                // Store the modified model in result
+                result.modified_model = modified_model;
+
+                // Save debug model to verify shape modification
+                try {
+                    std::string debug_path = "moe_downstream_model.xml";
+                    ov::serialize(modified_model, debug_path);
+                    LOG_INFO("Saved downstream model to: " << debug_path);
+                    std::cout << "Saved modified downstream model to: " << debug_path << std::endl;
+                } catch (const std::exception& e) {
+                    LOG_WARN("Failed to save downstream model: " << e.what());
+                    std::cout << "Failed to save downstream model: " << e.what() << std::endl;
+                }
+
+                LOG_INFO("Successfully detected and transformed MoE downstream pattern");
+                LOG_INFO("  Parameter: " << param->get_friendly_name());
+                LOG_INFO("  Shape changed: [" << result.total_experts_num << ", 1, " << shape[2] << ", " << shape[3]
+                                              << "] -> [" << result.active_experts_num << ", 1, " << shape[2] << ", "
+                                              << shape[3] << "]");
+
+                return result;
+            }
+        }
+    }
+
+    LOG_DEBUG("MoE downstream pattern not found");
+    return std::nullopt;
+}
+
+std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Model>& model, size_t active_experts_num) {
+    LOG_DEBUG("Creating MoEDownstream from model: " << model->get_friendly_name());
+    LOG_BLOCK();
+    std::cout << "Creating MoEDownstream from model: " << model->get_friendly_name() << std::endl;
+
+    if (active_experts_num == 0) {
+        LOG_WARN("active_experts_num not provided for downstream pattern detection");
+        return std::nullopt;
+    }
+
+    auto downstream_info = detect_and_transform_moe_downstream(model, active_experts_num);
+    if (downstream_info && downstream_info->is_valid()) {
+        LOG_INFO("Successfully created MoEDownstream:");
+        LOG_INFO("  - Total experts: " << downstream_info->total_experts_num);
+        LOG_INFO("  - Active experts: " << downstream_info->active_experts_num);
+        LOG_INFO("  - Parameter index: " << downstream_info->param_index);
+        LOG_INFO("  - Modified model: " << downstream_info->modified_model->get_friendly_name());
+
+        std::cout << "Successfully created MoEDownstream with " << downstream_info->total_experts_num
+                  << " total experts and " << downstream_info->active_experts_num << " active experts." << std::endl;
+
+        return downstream_info;
+    }
+
+    LOG_WARN("Failed to create MoEDownstream - downstream pattern not found");
+    return std::nullopt;
+}
+
 std::shared_ptr<ov::Model> transform_to_single_expert(const std::shared_ptr<ov::Model>& original_model,
                                                       const MoEValidationResult& validation_result) {
     LOG_DEBUG("Transforming model to single expert...");
@@ -315,7 +487,7 @@ std::shared_ptr<ov::Model> transform_to_single_expert(const std::shared_ptr<ov::
     return model;
 }
 
-std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& model) {
+std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& model, size_t active_experts_num) {
     LOG_DEBUG("Creating MoEExperts from model: " << model->get_friendly_name());
     LOG_BLOCK();
     std::cout << "Creating MoEExperts from model: " << model->get_friendly_name() << std::endl;
@@ -344,6 +516,7 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     moe_experts._tile_op = validation_result->tile_node;
     moe_experts._original_tile_output_shape = validation_result->tile_node->output(0).get_shape();
     moe_experts._single_expert_shape = ov::Shape{validation_result->expert_hidden_dim};
+    // moe_experts._router_param_idx = validation_result->router_param_idx;
 
     // Step 4: Extract input/output information
     LOG_DEBUG("Extracting I/O information...");
@@ -398,6 +571,23 @@ void MoEExperts::set_compiled_model(ov::SoPtr<ov::ICompiledModel>&& compiled_mod
     _model_to_compile.reset();  // Free memory after compilation
 
     LOG_DEBUG("Set compiled model for MoE experts");
+}
+
+MoEDownstream::MoEDownstream(const function::MoEDownstream& func_downstream) {
+    total_experts_num = func_downstream.total_experts_num;
+    active_experts_num = func_downstream.active_experts_num;
+    param_index = func_downstream.param_index;
+    _model_to_compile = func_downstream.modified_model;
+
+    LOG_DEBUG("Created compiled::MoEDownstream with " << total_experts_num << " total experts and "
+                                                      << active_experts_num << " active experts");
+}
+
+void MoEDownstream::set_compiled_model(ov::SoPtr<ov::ICompiledModel>&& compiled_model) {
+    _compiled_model = std::move(compiled_model);
+    _model_to_compile.reset();  // Free memory after compilation
+
+    LOG_DEBUG("Set compiled model for MoE downstream");
 }
 
 }  // namespace compiled

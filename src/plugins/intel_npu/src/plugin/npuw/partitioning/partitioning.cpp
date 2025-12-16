@@ -1921,24 +1921,30 @@ void Partitioner::attention(const std::string& func_name) {
 void Partitioner::moe(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
 
-    // Support only expert tag at the time
-    if (f._tag != "expert") {
-        LOG_VERB("No MoE handling be done to  " << func_name << " in model " << model->get_friendly_name() << "...");
-        return;
+    // Handle expert tag
+    if (f._tag == "expert") {
+        LOG_INFO("Transform " << func_name << " into single expert block in model " << model->get_friendly_name()
+                              << "...");
+        // Use the factory method to create MoEExperts from the function model
+        f._moe_experts = ov::npuw::function::MoEExperts::from(f._model);
+
+        if (f._moe_experts) {
+            LOG_INFO("Successfully created MoE expert model");
+            f._moe_experts->log_info();
+            LOG_VERB("MoE transformation completed");
+        } else {
+            LOG_WARN("Failed to create MoE expert model from " << func_name);
+        }
     }
 
-    LOG_INFO("Transform " << func_name << " into single expert block in model " << model->get_friendly_name() << "...");
-    LOG_BLOCK();
-
-    // Use the factory method to create MoEExperts from the function model
-    f._moe_experts = ov::npuw::function::MoEExperts::from(f._model);
-
-    if (f._moe_experts) {
-        LOG_INFO("Successfully created MoE expert model");
-        f._moe_experts->log_info();
-        LOG_VERB("MoE transformation completed");
+    // Try downstream pattern for non-expert functions
+    f._moe_experts_downstream =
+        ov::npuw::function::create_moe_downstream(f._model, 4);  // Fix the hardcoding of top_k to 4 for now
+    if (f._moe_experts_downstream) {
+        LOG_INFO("Successfully created MoE downstream model");
+        LOG_VERB("MoE downstream transformation completed");
     } else {
-        LOG_WARN("Failed to create MoE expert model from " << func_name);
+        LOG_WARN("Failed to create MoE downstream model from " << func_name);
     }
 }
 

@@ -102,6 +102,7 @@ struct Function {
     std::optional<ov::npuw::function::PyramidAttention> _pyramid_attention;
     // MoE expert information - single expert model
     std::optional<ov::npuw::function::MoEExperts> _moe_experts;
+    std::optional<ov::npuw::function::MoEDownstream> _moe_experts_downstream;
     // FIXME: They should exclude each other (introduce a hierarchy, finally?)
     // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
     std::set<std::size_t> _idx_lazy_unpack;

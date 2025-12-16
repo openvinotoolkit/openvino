@@ -38,7 +38,20 @@ struct MoEValidationResult {
 
     // Validation helper
     bool is_valid() const {
-        return num_experts > 0 && expert_hidden_dim > 0 && tile_node != nullptr && input_node != nullptr;
+        return num_experts > 0 && expert_hidden_dim > 0 && tile_node != nullptr;
+    }
+};
+
+// Structure to hold MoE downstream processing information (ReduceSum + QKV + attention postproc + downstream layers)
+struct MoEDownstream {
+    size_t total_experts_num = 0;                         // Total number of experts
+    size_t active_experts_num = 0;                        // Number of active experts (K in top-K)
+    size_t param_index = 0;                               // Index of the parameter with expert outputs
+    std::shared_ptr<ov::Model> modified_model = nullptr;  // Model with modified input shape
+
+    bool is_valid() const {
+        return total_experts_num > 0 && active_experts_num > 0 && active_experts_num <= total_experts_num &&
+               modified_model != nullptr;
     }
 };
 
@@ -48,6 +61,12 @@ std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shar
 // Helper function to transform MoE expert model from batched to single expert
 std::shared_ptr<ov::Model> transform_to_single_expert(const std::shared_ptr<ov::Model>& original_model,
                                                       const MoEValidationResult& validation_result);
+
+// Helper function to detect and transform MoE downstream pattern
+// Looks for: Parameter -> Convert -> ReduceSum pattern
+// If found, modifies input shape from [total_experts, 1, H, W] to [active_experts, 1, H, W]
+std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shared_ptr<ov::Model>& model,
+                                                                 size_t active_experts_num);
 
 // Structure to hold MoE expert information at partition-time
 struct MoEExperts {
@@ -64,8 +83,9 @@ struct MoEExperts {
 
     // Tile operation information
     std::shared_ptr<ov::op::v0::Tile> _tile_op = nullptr;
-    ov::Shape _original_tile_output_shape;  // Shape before transformation
-    ov::Shape _single_expert_shape;         // Shape after transformation
+    ov::Shape _original_tile_output_shape;    // Shape before transformation
+    ov::Shape _single_expert_shape;           // Shape after transformation
+    std::optional<size_t> _router_param_idx;  // Parameter index for router output
 
     // Input/output information for the expert subgraph
     struct ExpertIO {
@@ -97,6 +117,10 @@ struct MoEExperts {
         return _original_model;
     }
 
+    std::optional<size_t> router_param_idx() const {
+        return _router_param_idx;
+    }
+
     // Log MoE expert information for debugging
     void log_info() const {
         std::cout << "MoE Expert Information:" << std::endl;
@@ -107,17 +131,22 @@ struct MoEExperts {
         std::cout << "  Single expert shape: " << _single_expert_shape << std::endl;
         std::cout << "  Inputs: " << _inputs.size() << std::endl;
         for (const auto& input : _inputs) {
-            std::cout << "    - " << input.name << " [" << input.element_type << ", " << input.shape << "]" << std::endl;
+            std::cout << "    - " << input.name << " [" << input.element_type << ", " << input.shape << "]"
+                      << std::endl;
         }
         std::cout << "  Outputs: " << _outputs.size() << std::endl;
         for (const auto& output : _outputs) {
-            std::cout << "    - " << output.name << " [" << output.element_type << ", " << output.shape << "]" << std::endl;
+            std::cout << "    - " << output.name << " [" << output.element_type << ", " << output.shape << "]"
+                      << std::endl;
         }
     }
 
-    // Factory method to create MoEExperts from a model
-    static std::optional<MoEExperts> from(const std::shared_ptr<ov::Model>& model);
+    // Factory method to create MoEExperts from a model (for expert pattern only)
+    static std::optional<MoEExperts> from(const std::shared_ptr<ov::Model>& model, size_t active_experts_num = 0);
 };
+
+// Factory method to create MoEDownstream from a model (for downstream pattern)
+std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Model>& model, size_t active_experts_num);
 
 }  // namespace function
 
@@ -145,6 +174,33 @@ struct MoEExperts {
     // Validation
     bool is_valid() const {
         return num_experts > 0 && expert_hidden_dim > 0 && _compiled_model != nullptr;
+    }
+};
+
+// Compiled MoE Downstream structure
+struct MoEDownstream {
+    size_t total_experts_num = 0;
+    size_t active_experts_num = 0;
+    size_t param_index = 0;
+
+    // Compiled modified downstream model
+    ov::SoPtr<ov::ICompiledModel> _compiled_model;
+
+    // Store model temporarily for compilation
+    std::shared_ptr<ov::Model> _model_to_compile;
+
+    MoEDownstream() = default;
+
+    // Constructor that extracts metadata and stores model for compilation
+    explicit MoEDownstream(const function::MoEDownstream& func_downstream);
+
+    // Set compiled model after compilation completes
+    void set_compiled_model(ov::SoPtr<ov::ICompiledModel>&& compiled_model);
+
+    // Validation
+    bool is_valid() const {
+        return total_experts_num > 0 && active_experts_num > 0 && active_experts_num <= total_experts_num &&
+               _compiled_model != nullptr;
     }
 };
 

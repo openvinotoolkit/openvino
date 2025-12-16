@@ -11,6 +11,7 @@
 #include "common.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "moe_experts.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
@@ -180,6 +181,8 @@ private:
         std::optional<ov::npuw::compiled::Spatial> spatial;
         std::optional<ov::npuw::compiled::Attention> attention;
         std::optional<ov::npuw::compiled::PyramidAttention> pyramid_attention;
+        std::optional<ov::npuw::compiled::MoEExperts> moe_experts;
+        std::optional<ov::npuw::compiled::MoEDownstream> moe_experts_downstream;
 
         // Infer requests for pyramid attention models (if pyramid_attention is present)
         std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_infer_requests;
