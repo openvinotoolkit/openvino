@@ -41,6 +41,7 @@ jobs:
     container:
       image: ${{ inputs.image }}
       volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro # Needed to access CA certificates
         - /dev/dri:/dev/dri
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
       options: ${{ inputs.options }}
@@ -58,12 +59,16 @@ jobs:
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
+        env:
+          NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/InelProxyROOTCA-Base64.crt
       
       - name: Download OpenVINO artifacts (tests)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
+        env:
+          NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/InelProxyROOTCA-Base64.crt
 
       - name: Extract OpenVINO packages
         run: |
