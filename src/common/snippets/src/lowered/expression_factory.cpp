@@ -108,9 +108,10 @@ ExpressionPtr ExpressionFactory::create(const std::shared_ptr<ov::op::v0::Parame
 ExpressionPtr ExpressionFactory::create(const std::shared_ptr<ov::op::v0::Result>& res,
                                         const std::vector<PortConnectorPtr>& inputs,
                                         const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
+    const auto snippets_result = std::make_shared<snippets::op::Result>(res->input_values());
     // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly
     // make_shared<Expression>(args)
-    auto expr = std::shared_ptr<Expression>(new Expression(res, shape_infer_factory));
+    auto expr = std::shared_ptr<Expression>(new Expression(snippets_result, shape_infer_factory));
     init_expression_inputs(expr, inputs);
     // The Result node don't need output port (because of sense of the node). But each node in openvino must have one
     // output at least. The port descriptors are automatically created in constructor. We manually clean output ports.

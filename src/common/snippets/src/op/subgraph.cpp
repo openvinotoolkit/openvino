@@ -48,7 +48,6 @@
 #include "snippets/lowered/pass/allocate_buffers.hpp"
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
-#include "snippets/lowered/pass/convert_result_to_snippets_result.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
 #include "snippets/lowered/pass/fuse_loops.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
@@ -576,8 +575,6 @@ void Subgraph::control_flow_transformations(
     //       (this might happen if tail loop and main loop have different increments)
     //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
-
-    gen_pipeline.register_pass<lowered::pass::ConvertResultToSnippetsResult>();
     gen_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
     gen_pipeline.register_pass<lowered::pass::InitRegisters>(get_generator(), lowered_pass_config);
     gen_pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();

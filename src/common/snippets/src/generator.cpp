@@ -14,7 +14,6 @@
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/prelu.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "snippets/emitter.hpp"
@@ -34,6 +33,7 @@
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/reorder.hpp"
 #include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/op/vector_buffer.hpp"
@@ -113,7 +113,7 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
     }
     const auto op = out.get_node_shared_ptr();
     if (is_type_any_of<ov::op::v0::Parameter,
-                       ov::op::v0::Result,
+                       snippets::op::Result,
                        op::LoopBegin,
                        op::LoopEnd,
                        op::Brgemm,
