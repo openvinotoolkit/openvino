@@ -103,8 +103,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
                                                          const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
 
-    storeWeightlessCacheAttribute(model);
-
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
     if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 3)) {
         OPENVINO_THROW("Minimum compiler version required for weights separation: 6.3. Found: ",
@@ -123,8 +121,12 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     }
 
     _logger.debug("serialize IR");
-    auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
+    auto serializedIR = driver_compiler_utils::serializeIR(model,
+                                                           compilerVersion,
+                                                           maxOpsetVersion,
+                                                           useBaseModelSerializer(config),
+                                                           true,
+                                                           true);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));

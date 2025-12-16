@@ -14,9 +14,12 @@
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/weights_pointer_attribute.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/hash.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 #include "xml_serializer.hpp"
 
@@ -169,6 +172,38 @@ void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
     }
 }
 
+/**
+ * @brief Stores the information within the "WeightlessCacheAttribute" as runtime fields that persist upon
+ * serialization.
+ * @details Constant nodes (weights) may contain as mesdatadata the "WeightlessCacheAttribute", that is information
+ * regarding the offset of the weights within the binary file, as well as the original size and precision. This
+ * information is required within the "weights separation" flow, therefore this function is here to store it.
+ * @note Not calling this function in the weights separation flow would lead to this information being lost upon
+ * serialization. The "WeightlessCacheAttribute" information that is populated upon de-serialization would represent
+ * metadata corresponding to the serialized stream, not the original weights file. Therefore the compiler would be
+ * misinformed and lookups of weights offsets could fail.
+ *
+ * @param model Both source and target.
+ */
+void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
+    size_t constantId = 0;
+    for (auto&& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v0::Constant>(node)) {
+            ov::RTMap& runtimeInfoMap = node->get_rt_info();
+            const auto& weightlessCacheAttrIt =
+                runtimeInfoMap.find(ov::WeightlessCacheAttribute::get_type_info_static());
+
+            const std::string constantIdString = std::to_string(constantId++);
+            if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
+                auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
+                model->set_rt_info(weightlessCacheAttr.bin_offset, "ws_bin_offset_" + constantIdString);
+                model->set_rt_info(weightlessCacheAttr.original_size, "ws_original_size_" + constantIdString);
+                model->set_rt_info(weightlessCacheAttr.original_dtype, "ws_original_dtype_" + constantIdString);
+            }
+        }
+    }
+}
+
 }  // namespace
 
 namespace intel_npu::driver_compiler_utils {
@@ -180,74 +215,81 @@ namespace intel_npu::driver_compiler_utils {
  */
 class VCLSerializerBase {
 public:
-    VCLSerializerBase(const std::shared_ptr<const ov::Model>& origModel,
-                      const ze_graph_compiler_version_info_t compilerVersion,
-                      const uint32_t supportedOpset = 11,
-                      const bool computeModelHash = false,
-                      const bool storeWeightlessCacheAttribute = false)
+    VCLSerializerBase(const ze_graph_compiler_version_info_t compilerVersion, const uint32_t supportedOpset)
         : _logger("VCLSerializerBase", Logger::global().level()),
           _compilerVersion(compilerVersion),
-          _supportedOpset(supportedOpset),
-          _computeModelHash(computeModelHash),
-          _storeWeightlessCacheAttribute(storeWeightlessCacheAttribute) {
-        _model = std::const_pointer_cast<ov::Model>(origModel);
-    }
+          _supportedOpset(supportedOpset) {}
 
-    virtual SerializedIR serialize() = 0;
+    virtual SerializedIR serialize(const std::shared_ptr<ov::Model>& model,
+                                   const bool computeModelHash,
+                                   const bool storeWeightlessCacheAttributeFlag) = 0;
 
     virtual ~VCLSerializerBase() = default;
 
 protected:
+    void run_common_pipeline(const std::shared_ptr<ov::Model>& model, const bool storeWeightlessCacheAttributeFlag) {
+        // Step 1: run compiler compatibility passes.
+        // It is possible some of these passes will modify WeightlessCacheAttributes. Therefore, we should run them
+        // before storing the attributes.
+        ov::pass::Manager manager(std::make_shared<ov::pass::PassConfig>(), "NPU:compiler_compatibility_passes");
+        if (_supportedOpset < 11) {
+            // Downgrade to opset10
+            manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
+            _logger.info("Downgrade op for opset smaller than 11");
+        }
+        if ((_compilerVersion.major < 7) || (_compilerVersion.major == 7 && _compilerVersion.minor <= 26)) {
+            manager.register_pass<ov::pass::EliminateIdentity>();
+        }
+        manager.run_passes(model);
+
+        // Step 2: store the WeightlessCacheAttributes if requested
+        // Note: since these attributes contain information w.r.t. the binary file, this information is deterministic.
+        // TODO confirm hash not change
+        if (storeWeightlessCacheAttributeFlag) {
+            storeWeightlessCacheAttribute(model);
+        }
+
+        // Step 3: store any other runtime information the VCL needs to know about.
+        // Warning: if the UMD does the model hashing, do not store anything that is not deterministic. If the driver
+        // uses the hash computed by the OV pass, then non-deterministic fields should be safe. Unless the field
+        // inherits "ov::RuntimeAttribute", in which case we should make sure the deterministic attribute is set
+        // correspondingly.
+
+        // Depending on the driver version, the compiler attached to it may request this information as an indicator
+        // of the precision/layout preprocessing requirement. We are setting this value to "true" since the OV API v1
+        // has been removed.
+        model->set_rt_info(true, "is_new_api");
+        // Flag used to indicate an NPU plugin version that switched the I/O identification convention from
+        // names to indices. The flag is needed to inform the driver-compiler adapter to expect indices
+        // when attempting to deserialize the I/O metadata.
+        model->set_rt_info(true, "use_indices_for_io_metadata");
+    }
+
     /**
      * @brief Prepares the model for serialization and calls the provided function to serialize it.
      *
      * @param register_serialization_pass A function that receives the pass manager. This function is supposed to
      * register the serialization pass using the provided manager.
      */
-    void serialize_model_to_stream(const std::function<void(ov::pass::Manager&)>& register_serialization_pass) {
+    void serialize_model_to_stream(const std::shared_ptr<ov::Model>& model,
+                                   const std::function<void(ov::pass::Manager&)>& register_serialization_pass,
+                                   std::optional<uint64_t>& hash) {
         _logger.debug("serialize_model_to_stream");
-        const auto passConfig = std::make_shared<ov::pass::PassConfig>();
 
-        // Step 1: run compatibility passes
-        ov::pass::Manager manager(std::move(passConfig), "NPU:serialize_model_to_stream");
-
-        if (_supportedOpset < 11) {
-            // Downgrade to opset10
-            manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-            _logger.info("Downgrade op for opset smaller than 11");
-        }
-        // Step 2: store the WeightlessCacheAttribute if requested
-        // Step 3: serialize
-        // Step 4: compute the hash if requested
-
-        if ((_compilerVersion.major < 7) || (_compilerVersion.major == 7 && _compilerVersion.minor <= 26)) {
-            manager.register_pass<ov::pass::EliminateIdentity>();
-        }
-
+        ov::pass::Manager manager(std::make_shared<ov::pass::PassConfig>(), "NPU:serialize_model_to_stream");
         register_serialization_pass(manager);
 
-        // Depending on the driver version, the compiler attached to it may request this information as an indicator
-        // of the precision/layout preprocessing requirement. We are setting this value to "true" since the API
-        // version is no longer a cause for altering the metadata. This is due to the preprocessing performed in the
-        // OpenVINO framework's implementaion, the "ov::Model" object is preprocessed before reaching the NPU
-        // plugin.
-        _model->set_rt_info(true, "is_new_api");
-        // Flag used for indicating an NPU plugin version which switched the I/O identification convention from
-        // names to indices. The flag is required in order to inform the driver-compiler adapter to expect indices
-        // when attempting to deserialize the I/O metadata.
-        _model->set_rt_info(true, "use_indices_for_io_metadata");
-
-        manager.run_passes(_model);
+        if (hash.has_value()) {
+            manager.register_pass<ov::pass::Hash>(hash.value());
+        }
+        manager.run_passes(model);
 
         _logger.debug("serialize_model_to_stream end");
     }
 
     Logger _logger;
-    std::shared_ptr<ov::Model> _model = nullptr;
     ze_graph_compiler_version_info_t _compilerVersion;
-    uint32_t _supportedOpset = 11;
-    bool _computeModelHash;
-    bool _storeWeightlessCacheAttribute;
+    uint32_t _supportedOpset;
 };
 
 /**
@@ -255,21 +297,16 @@ protected:
  */
 class VCLSerializerWithWeightsCopy : public VCLSerializerBase {
 public:
-    VCLSerializerWithWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
-                                 const ze_graph_compiler_version_info_t compilerVersion,
-                                 const uint32_t supportedOpset = 11,
-                                 const bool computeModelHash = false,
-                                 const bool storeWeightlessCacheAttribute = false)
-        : VCLSerializerBase(origModel,
-                            compilerVersion,
-                            supportedOpset,
-                            computeModelHash,
-                            storeWeightlessCacheAttribute) {
+    VCLSerializerWithWeightsCopy(const ze_graph_compiler_version_info_t compilerVersion, const uint32_t supportedOpset)
+        : VCLSerializerBase(compilerVersion, supportedOpset) {
         _logger.setName("VCLSerializerWithWeightsCopy");
     };
 
-    SerializedIR serialize() override {
-        count_model_size();
+    SerializedIR serialize(const std::shared_ptr<ov::Model>& model,
+                           const bool computeModelHash,
+                           const bool storeWeightlessCacheAttributeFlag) override {
+        run_common_pipeline(model, storeWeightlessCacheAttributeFlag);
+        const auto [xmlSize, weightsSize] = count_model_size(model);
 
         // Contract between adapter and compiler in driver
         const uint32_t maxNumberOfElements = 10;
@@ -277,8 +314,6 @@ public:
         const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
 
         const uint32_t numberOfInputData = 2;
-        const uint64_t xmlSize = static_cast<uint64_t>(_xmlSize);
-        const uint64_t weightsSize = static_cast<uint64_t>(_weightsSize);
 
         OPENVINO_ASSERT(numberOfInputData < maxNumberOfElements);
         if (xmlSize >= maxSizeOfXML) {
@@ -318,18 +353,22 @@ public:
         uint64_t weightsOffset = offset;
         offset += weightsSize;
 
-        serialize_model_to_buffer(serializedIR + xmlOffset, serializedIR + weightsOffset);
+        std::optional<uint64_t> hash = computeModelHash ? std::make_optional<uint64_t>(0) : std::nullopt;
+        serialize_model_to_buffer(model, serializedIR + xmlOffset, serializedIR + weightsOffset, hash);
 
         OPENVINO_ASSERT(offset == sizeOfSerializedIR);
 
-        return {buffer, sizeOfSerializedIR};
+        return {buffer, sizeOfSerializedIR, hash};
     }
 
 private:
     /**
      * @brief Serialize OpenVINO model to target buffer
      */
-    void serialize_model_to_buffer(uint8_t* xml, uint8_t* weights) {
+    void serialize_model_to_buffer(const std::shared_ptr<ov::Model>& model,
+                                   uint8_t* xml,
+                                   uint8_t* weights,
+                                   std::optional<uint64_t>& hash) {
         _logger.debug("serialize_model_to_buffer");
 
         writer_streambuf xmlStreamBuf(xml);
@@ -337,7 +376,7 @@ private:
         std::ostream xmlStream(&xmlStreamBuf);
         std::ostream weightsStream(&weightsStreamBuf);
 
-        serialize_model_to_stream(xmlStream, weightsStream);
+        serialize_model_to_stream(model, xmlStream, weightsStream, hash);
 
         _logger.debug("serialize_model_to_buffer end");
     }
@@ -345,17 +384,20 @@ private:
     /**
      * @brief Serialize OpenVINO model to target stream
      */
-    void serialize_model_to_stream(std::ostream& xml, std::ostream& weights) {
+    void serialize_model_to_stream(const std::shared_ptr<ov::Model>& model,
+                                   std::ostream& xml,
+                                   std::ostream& weights,
+                                   std::optional<uint64_t>& hash) {
         const std::function<void(ov::pass::Manager&)>& register_serialization_pass = [&](ov::pass::Manager& manager) {
             manager.register_pass<ov::pass::Serialize>(xml, weights);
         };
-        VCLSerializerBase::serialize_model_to_stream(register_serialization_pass);
+        VCLSerializerBase::serialize_model_to_stream(model, register_serialization_pass, hash);
     }
 
     /**
      * @brief Get size of xml and weights from model
      */
-    void count_model_size() {
+    std::pair<uint64_t, uint64_t> count_model_size(const std::shared_ptr<ov::Model>& model) {
         _logger.debug("count_model_size");
 
         counter_streambuf xmlStreamBuf;
@@ -363,16 +405,14 @@ private:
         std::ostream xmlStream(&xmlStreamBuf);
         std::ostream weightsStream(&weightsStreamBuf);
 
-        serialize_model_to_stream(xmlStream, weightsStream);
+        std::optional<uint64_t> hash = std::nullopt;
+        serialize_model_to_stream(model, xmlStream, weightsStream, hash);
 
-        _xmlSize = xmlStreamBuf.size();
-        _weightsSize = weightsStreamBuf.size();
-
-        _logger.debug("count_model_size completed, xml size: %d, weights size: %d", _xmlSize, _weightsSize);
+        _logger.debug("count_model_size completed, xml size: %d, weights size: %d",
+                      xmlStreamBuf.size(),
+                      weightsStreamBuf.size());
+        return std::make_pair<uint64_t, uint64_t>(xmlStreamBuf.size(), weightsStreamBuf.size());
     }
-
-    size_t _xmlSize = 0;
-    size_t _weightsSize = 0;
 };
 
 /**
@@ -381,72 +421,66 @@ private:
  */
 class VCLSerializerWithoutWeightsCopy : public VCLSerializerBase {
 public:
-    VCLSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
-                                    const ze_graph_compiler_version_info_t compilerVersion,
-                                    const uint32_t supportedOpset = 11,
-                                    const bool computeModelHash = false,
-                                    const bool storeWeightlessCacheAttribute = false)
-        : VCLSerializerBase(origModel,
-                            compilerVersion,
-                            supportedOpset,
-                            computeModelHash,
-                            storeWeightlessCacheAttribute) {
+    VCLSerializerWithoutWeightsCopy(const ze_graph_compiler_version_info_t compilerVersion,
+                                    const uint32_t supportedOpset)
+        : VCLSerializerBase(compilerVersion, supportedOpset) {
         _logger.setName("VCLSerializerWithoutWeightsCopy");
     };
 
-    SerializedIR serialize() override {
-        count_model_size();
+    SerializedIR serialize(const std::shared_ptr<ov::Model>& model,
+                           const bool computeModelHash,
+                           const bool storeWeightlessCacheAttributeFlag) override {
+        run_common_pipeline(model, storeWeightlessCacheAttributeFlag);
+        storeWeightsPointerAttribute(model);
 
-        if (_serializedModelSize >= std::numeric_limits<uint64_t>::max()) {
-            OPENVINO_THROW("The serialized model is too big to process. Size: ",
-                           _serializedModelSize,
-                           " >= ",
-                           std::numeric_limits<uint64_t>::max());
-        }
+        uint64_t serializedModelSize = count_model_size(model);
 
         // use array to avoid vector's memory zero-ing overhead
-        std::shared_ptr<uint8_t> buffer(new uint8_t[_serializedModelSize], std::default_delete<uint8_t[]>());
-        serialize_model_to_buffer(buffer.get());
+        std::shared_ptr<uint8_t> buffer(new uint8_t[serializedModelSize], std::default_delete<uint8_t[]>());
+        std::optional<uint64_t> hash = computeModelHash ? std::make_optional<uint64_t>(0) : std::nullopt;
+        serialize_model_to_buffer(model, buffer.get(), hash);
 
-        return {buffer, _serializedModelSize};
+        return {buffer, serializedModelSize, hash};
     }
 
 private:
-    void serialize_model_to_buffer(uint8_t* buffer) {
+    void serialize_model_to_buffer(const std::shared_ptr<ov::Model>& model,
+                                   uint8_t* buffer,
+                                   std::optional<uint64_t>& hash) {
         _logger.debug("serialize_model_to_buffer");
 
         writer_streambuf streamBuf(buffer);
         std::ostream stream(&streamBuf);
 
-        serialize_model_to_stream(stream);
+        serialize_model_to_stream(model, stream, hash);
 
         _logger.debug("serialize_model_to_buffer end");
     }
 
-    void serialize_model_to_stream(std::ostream& stream) {
+    void serialize_model_to_stream(const std::shared_ptr<ov::Model>& model,
+                                   std::ostream& stream,
+                                   std::optional<uint64_t>& hash) {
         const std::function<void(std::ostream&)>& compiler_version_serializer = [&](std::ostream& stream) {
             stream.write(reinterpret_cast<const char*>(&_compilerVersion), sizeof(_compilerVersion));
         };
         const std::function<void(ov::pass::Manager&)>& register_serialization_pass = [&](ov::pass::Manager& manager) {
             manager.register_pass<StreamSerialize>(stream, compiler_version_serializer);
         };
-        VCLSerializerBase::serialize_model_to_stream(register_serialization_pass);
+        VCLSerializerBase::serialize_model_to_stream(model, register_serialization_pass, hash);
     }
 
-    void count_model_size() {
+    uint64_t count_model_size(const std::shared_ptr<ov::Model>& model) {
         _logger.debug("count_model_size");
 
         counter_streambuf streamBuf;
         std::ostream stream(&streamBuf);
 
-        serialize_model_to_stream(stream);
+        std::optional<uint64_t> hash = std::nullopt;
+        serialize_model_to_stream(model, stream, hash);
 
-        _serializedModelSize = streamBuf.size();
-
-        _logger.debug("count_model_size completed, serialized model size: %d", _serializedModelSize);
+        _logger.debug("count_model_size completed, serialized model size: %d", streamBuf.size());
+        return streamBuf.size();
     }
-
-    uint64_t _serializedModelSize = 0;
 };
 
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
@@ -454,27 +488,15 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          const uint32_t supportedOpsetVersion,
                          const bool useBaseModelSerializer,
                          const bool computeModelHash,
-                         const bool storeWeightlessCacheAttribute) {
+                         const bool storeWeightlessCacheAttributeFlag) {
+    // The current instance is already a clone (or should be one), we are not modifying the original model
+    const std::shared_ptr<ov::Model> nonConstantModel = std::const_pointer_cast<ov::Model>(model);
     if (!useBaseModelSerializer) {
-        // Non-constness required for adding & removing weights pointer attributes. The current instance is already a
-        // clone (or should be one), we are not modifying the original model.
-        const std::shared_ptr<ov::Model> nonConstantModel = std::const_pointer_cast<ov::Model>(model);
-        storeWeightsPointerAttribute(nonConstantModel);
-
-        SerializedIR serializedIR = VCLSerializerWithoutWeightsCopy(model,
-                                                                    compilerVersion,
-                                                                    supportedOpsetVersion,
-                                                                    computeModelHash,
-                                                                    storeWeightlessCacheAttribute)
-                                        .serialize();
-        return serializedIR;
+        return VCLSerializerWithoutWeightsCopy(compilerVersion, supportedOpsetVersion)
+            .serialize(nonConstantModel, computeModelHash, storeWeightlessCacheAttributeFlag);
     }
-    return VCLSerializerWithWeightsCopy(model,
-                                        compilerVersion,
-                                        supportedOpsetVersion,
-                                        computeModelHash,
-                                        storeWeightlessCacheAttribute)
-        .serialize();
+    return VCLSerializerWithWeightsCopy(compilerVersion, supportedOpsetVersion)
+        .serialize(nonConstantModel, computeModelHash, storeWeightlessCacheAttributeFlag);
 }
 
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) {
@@ -623,9 +645,9 @@ std::string serializeConfig(const Config& config,
         }
     }
 
-    // As a consequence of complying to the conventions established in the 2.0 OV API, the set of values corresponding
-    // to the "model priority" key has been modified cpu_pinning property is not supported in compilers < v5.2 - need to
-    // remove it
+    // As a consequence of complying to the conventions established in the 2.0 OV API, the set of values
+    // corresponding to the "model priority" key has been modified cpu_pinning property is not supported in
+    // compilers < v5.2 - need to remove it
     if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 2)) {
         const auto& getTargetRegex = [](const ov::hint::Priority& priorityValue) -> std::regex {
             std::ostringstream result;
@@ -653,9 +675,9 @@ std::string serializeConfig(const Config& config,
     }
 
     // Special case for compiler Turbo
-    // NPU_TURBO is a special option in the sense that by default it is a driver-setting, but certain compilers support
-    // and make use of it too If we have turbo in the config string, we check if compiler supports it. If it doesn't
-    // support it, we remove it
+    // NPU_TURBO is a special option in the sense that by default it is a driver-setting, but certain compilers
+    // support and make use of it too If we have turbo in the config string, we check if compiler supports it. If it
+    // doesn't support it, we remove it
     if (std::regex_search(content, std::regex("NPU_TURBO"))) {
         if (!turboSupported) {
             std::ostringstream turbostr;

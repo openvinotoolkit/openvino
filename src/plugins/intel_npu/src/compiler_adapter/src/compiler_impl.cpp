@@ -422,7 +422,6 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     const std::shared_ptr<ov::Model>& model,
     const Config& config) const {
     _logger.debug("compileWsOneShot start");
-    storeWeightlessCacheAttribute(model);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -441,8 +440,12 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     useBaseModelSerializer = isUseBaseModelSerializer({7, 5}, updatedConfig);
     _logger.debug("serialize IR method is %s",
                   useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
+    auto serializedIR = driver_compiler_utils::serializeIR(model,
+                                                           compilerVersion,
+                                                           maxOpsetVersion,
+                                                           useBaseModelSerializer,
+                                                           false,
+                                                           true);
 
     std::string buildFlags;
     _logger.debug("create build flags");
@@ -481,7 +484,8 @@ NetworkDescription VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov:
                                                        const Config& config,
                                                        size_t callNumber) const {
     _logger.debug("compileWsIterative start");
-    storeWeightlessCacheAttribute(model);
+    // TODO handle this and the redundant serializations
+    // storeWeightlessCacheAttribute(model);
     const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
     if (filteredConfig == nullptr) {
         OPENVINO_THROW("config is not FilteredConfig");

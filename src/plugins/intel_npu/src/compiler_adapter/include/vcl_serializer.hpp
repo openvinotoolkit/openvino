@@ -38,7 +38,7 @@ namespace driver_compiler_utils {
  */
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          ze_graph_compiler_version_info_t compilerVersion,
-                         const uint32_t supportedOpsetVersion,
+                         const uint32_t supportedOpsetVersion = 11,
                          const bool useBaseModelSerializer = true,
                          const bool computeModelHash = false,
                          const bool storeWeightlessCacheAttribute = false);
