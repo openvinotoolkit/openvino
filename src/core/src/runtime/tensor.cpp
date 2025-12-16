@@ -201,6 +201,17 @@ void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, si
                     "bytes from ",
                     file_name);
 }
+
+ov::Tensor wrap_obj_to_viewtensor(const std::shared_ptr<void>& shared_obj,
+                                  const void* data_ptr,
+                                  const element::Type& element_type,
+                                  const Shape& shape) {
+    auto view_tensor = Tensor(element_type, shape, data_ptr);
+    auto impl = get_tensor_impl(view_tensor);
+    impl._so = shared_obj;
+    view_tensor = make_tensor(impl);
+    return view_tensor;
+}
 }  // namespace
 
 Tensor read_tensor_data(const std::filesystem::path& file_name,
@@ -210,26 +221,17 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
                         bool mmap) {
     OPENVINO_ASSERT(element_type != ov::element::string);
     auto static_shape = calc_static_shape_for_file(file_name, element_type, partial_shape, offset_in_bytes);
-    const void* data_ptr;
-    std::shared_ptr<void> shared_obj;
     if (mmap) {
         auto mapped_memory = ov::load_mmap_object(file_name);
         auto shared_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
             mapped_memory->data() + offset_in_bytes,
             mapped_memory->size() - offset_in_bytes,
             mapped_memory);
-        data_ptr = shared_buffer->get_ptr();
-        shared_obj = shared_buffer;
+        return wrap_obj_to_viewtensor(shared_buffer, shared_buffer->get_ptr(), element_type, static_shape);
     } else {
         auto tensor = std::make_shared<ov::Tensor>(element_type, static_shape);
         read_tensor_data(file_name, *tensor.get(), offset_in_bytes);
-        data_ptr = tensor->data();
-        shared_obj = tensor;
+        return wrap_obj_to_viewtensor(tensor, tensor->data(), element_type, static_shape);
     }
-    auto view_tensor = Tensor(element_type, static_shape, data_ptr);
-    auto impl = get_tensor_impl(view_tensor);
-    impl._so = shared_obj;
-    view_tensor = make_tensor(impl);
-    return view_tensor;
 }
 }  // namespace ov
