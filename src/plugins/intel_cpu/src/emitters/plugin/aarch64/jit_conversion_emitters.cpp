@@ -205,7 +205,7 @@ void jit_convert_emitter::jit_convert_process(const TReg& src,
     }
 }
 
-jit_convert_emitter::jit_convert_emitter(jit_generator* host,
+jit_convert_emitter::jit_convert_emitter(jit_generator_t* host,
                                          cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node,
                                          ov::element::Type exec_prc)
@@ -232,7 +232,7 @@ void jit_convert_emitter::emit_data() const {
     jit_emitter::emit_data();
 }
 
-jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator* host,
+jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator_t* host,
                                                                cpu_isa_t host_isa,
                                                                const std::shared_ptr<ov::Node>& node,
                                                                ov::element::Type exec_prc)
@@ -257,7 +257,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_idxs
     jit_convert_process<TReg>(src, dst, input_type, output_type, false);
 }
 
-jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator* host,
+jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator_t* host,
                                                                cpu_isa_t host_isa,
                                                                const std::shared_ptr<ov::Node>& node,
                                                                ov::element::Type exec_prc)
