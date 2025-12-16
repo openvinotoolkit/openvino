@@ -270,6 +270,13 @@ struct PagedAttentionManager {
                             const size_t off = base + static_cast<size_t>(token_idx) * head_size;
                             set_values(test_stream, memory, src_ptr, head_size, off);
                         } else {
+							// Compressed Key cache layout:
+                            // logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
+                            // Per (block, head) region starts at block_base_i8, byte-packed as:
+                            //   data:  block_base_i8 + t*head_size                 (u8 semantics), size=head_size bytes
+                            //   scale: scale_base_i8 + t*sizeof(fp16)              (fp16), indexed as (scale_base_i8/2 + t)
+                            //   zp:    zp_base_i8 + t*sizeof(fp16)                 (fp16), indexed as (zp_base_i8/2 + t)
+                            // xattention quant: q∈[0..255], dequant x ≈ (q - zp) * scale, where scale=(max-min)/255, zp=(-min)*255/(max-min).
                             auto [qdata, scale, zp] = quantize_data(src_ptr, head_size, false, true);
                             int8_t* qptr = reinterpret_cast<int8_t*>(qdata.data());
 
@@ -432,6 +439,11 @@ struct PagedAttentionManager {
                             const size_t off = base + static_cast<size_t>(token_idx) * static_cast<size_t>(head_size);
                             set_values(test_stream, memory, src_ptr, head_size, off);
                         } else {
+							// Compressed Value cache layout:
+							// logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
+							// Per (block, head): data at block_base_i8 + t*head_size; scale/zp are fp16 arrays at scale_base_i8/zp_base_i8
+							// (fp16 element offsets: scale_base_i8/2 + t, zp_base_i8/2 + t).
+							// has_xattention uses unsigned [0..255] quant; dequant x ≈ (q - zp) * scale, scale=(max-min)/255, zp=(-min)*255/(max-min).
                             auto [qdata, scale, zp] = quantize_data(src_ptr, head_size, false, has_xattention);
                             int8_t* qptr = reinterpret_cast<int8_t*>(qdata.data());
 
