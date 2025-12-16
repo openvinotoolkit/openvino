@@ -5,7 +5,6 @@
 #include "openvino/core/shape.hpp"
 
 #include "openvino/core/shape_util.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/util/common_util.hpp"
 
 std::ostream& ov::operator<<(std::ostream& s, const Shape& shape) {
@@ -71,20 +70,12 @@ std::string ov::Shape::to_string() const {
 
 namespace ov {
 
-typename Shape::reference Shape::operator[](std::ptrdiff_t i) {
-    return std::vector<size_t>::operator[](util::normalize(i, size()));
+typename Shape::reference Shape::at(std::ptrdiff_t pos) {
+    return std::vector<size_t>::at(normalize(pos));
 }
 
-typename Shape::const_reference Shape::operator[](std::ptrdiff_t i) const {
-    return std::vector<size_t>::operator[](util::normalize(i, size()));
-}
-
-typename Shape::reference Shape::at(std::ptrdiff_t i) {
-    return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
-}
-
-typename Shape::const_reference Shape::at(std::ptrdiff_t i) const {
-    return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
+typename Shape::const_reference Shape::at(std::ptrdiff_t pos) const {
+    return std::vector<size_t>::at(normalize(pos));
 }
 
 AttributeAdapter<ov::Shape>::~AttributeAdapter() = default;

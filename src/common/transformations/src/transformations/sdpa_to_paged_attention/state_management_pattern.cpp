@@ -460,19 +460,19 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                                                          : sdpa_with_6_inputs)
                              .get_node();
 
-        auto k_head_size_dim = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];  // E from SDPA spec.
-        auto v_head_size_dim = sdpa_node->get_input_tensor(2)
-                                   .get_partial_shape()[-1];  // Ev from SDPA spec. (in common case may not match E)
+        const auto& k_head_size_dim = sdpa_node->get_input_tensor(1).get_partial_shape()(-1);  // E from SDPA spec.
+        const auto& v_head_size_dim = sdpa_node->get_input_tensor(2).get_partial_shape()(
+            -1);  // Ev from SDPA spec. (in common case may not match E)
         OPENVINO_ASSERT((k_head_size_dim.is_static() && v_head_size_dim.is_static()),
                         "k/v_head_size dimensions have to be static.");
         auto k_head_size = k_head_size_dim.get_length();
         auto v_head_size = v_head_size_dim.get_length();
 
         auto num_k_heads_dim = extract_num_kv_heads(k_heads_unsqueeze,
-                                                    sdpa_node->get_input_tensor(1).get_partial_shape()[-3],
+                                                    sdpa_node->get_input_tensor(1).get_partial_shape()(-3),
                                                     pattern_map);
         auto num_v_heads_dim = extract_num_kv_heads(v_heads_unsqueeze,
-                                                    sdpa_node->get_input_tensor(2).get_partial_shape()[-3],
+                                                    sdpa_node->get_input_tensor(2).get_partial_shape()(-3),
                                                     pattern_map);
         OPENVINO_ASSERT((num_k_heads_dim.is_static() && num_v_heads_dim.is_static()),
                         "num_k/v_head dimensions have to be static.");
@@ -692,7 +692,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         // as there's going to be num_q_heads at -3.
         if (pattern_map.count(sinks)) {
             const auto& sinks_val = pattern_map.at(sinks);
-            if (sinks_val.get_partial_shape()[-3] == real_q.get_partial_shape()[-3]) {
+            if (sinks_val.get_partial_shape()(-3) == real_q.get_partial_shape()(-3)) {
                 pa_arguments.insert(pa_arguments.begin() + 20, sinks_val.get_node_shared_ptr());
             } else {
                 pa_arguments.insert(pa_arguments.begin() + 20,

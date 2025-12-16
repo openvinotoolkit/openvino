@@ -44,38 +44,51 @@ public:
     /**
      * @brief Gets dimension at index.
      *
-     * @param i  Index to shape dimension [-rank, rank).
+     * @param pos  Position [-rank, rank) of the dimension to return.
+     * If position is negative, it is counted from the end of the shape.
      *
      * @return A reference to i-th dimension of this shape.
      */
-    OPENVINO_API typename Shape::reference operator[](std::ptrdiff_t i);
+    typename Shape::reference operator()(std::ptrdiff_t pos) {
+        return std::vector<size_t>::operator[](normalize(pos));
+    }
 
     /**
      * @brief Gets dimension at index.
      *
-     * @param i  Index to shape dimension [-rank, rank).
+     * @param pos  Position [-rank, rank) of the dimension to return.
+     * If position is negative, it is counted from the end of the shape.
      *
      * @return A const reference to i-th dimension of this shape.
      */
-    OPENVINO_API typename Shape::const_reference operator[](std::ptrdiff_t i) const;
+    typename Shape::const_reference operator()(std::ptrdiff_t pos) const {
+        return std::vector<size_t>::operator[](normalize(pos));
+    }
 
     /**
      * @brief Gets dimension at index, with bounds checking.
      *
-     * @param i  Index to shape dimension [-rank, rank).
+     * @param pos  Position [-rank, rank) of the dimension to return.
+     * If position is negative, it is counted from the end of the shape.
      *
      * @return A reference to i-th dimension of this shape.
      */
-    OPENVINO_API typename Shape::reference at(std::ptrdiff_t i);
+    OPENVINO_API typename Shape::reference at(std::ptrdiff_t pos);
 
     /**
      * @brief Gets dimension at index, with bounds checking.
      *
-     * @param i  Index to shape dimension [-rank, rank).
+     * @param pos  Position [-rank, rank) of the dimension to return.
+     * If position is negative, it is counted from the end of the shape.
      *
      * @return A const reference to i-th dimension of this shape.
      */
-    OPENVINO_API typename Shape::const_reference at(std::ptrdiff_t i) const;
+    OPENVINO_API typename Shape::const_reference at(std::ptrdiff_t pos) const;
+
+private:
+    typename Shape::size_type normalize(std::ptrdiff_t pos) const {
+        return pos < 0 ? pos + size() : pos;
+    }
 };
 
 /**

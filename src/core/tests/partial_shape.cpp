@@ -765,10 +765,10 @@ TEST(partial_shape, const_subscribe_operator) {
     EXPECT_EQ(shape[1], ov::Dimension(2, 10));
     EXPECT_EQ(shape[4], ov::Dimension(7));
 
-    EXPECT_EQ(shape[-3], ov::Dimension(5));
-    EXPECT_EQ(shape[-5], ov::Dimension::dynamic());
-    EXPECT_EQ(shape[-4], ov::Dimension(2, 10));
-    EXPECT_EQ(shape[-1], ov::Dimension(7));
+    EXPECT_EQ(shape(-3), ov::Dimension(5));
+    EXPECT_EQ(shape(-5), ov::Dimension::dynamic());
+    EXPECT_EQ(shape(-4), ov::Dimension(2, 10));
+    EXPECT_EQ(shape(-1), ov::Dimension(7));
 }
 
 TEST(partial_shape, subscribe_operator) {
@@ -778,27 +778,42 @@ TEST(partial_shape, subscribe_operator) {
     EXPECT_EQ(shape[0], ov::Dimension::dynamic());
     EXPECT_EQ(shape[1], ov::Dimension(2, 10));
     EXPECT_EQ(shape[4], ov::Dimension(7));
-
-    EXPECT_EQ(shape[-3], ov::Dimension(5));
-    EXPECT_EQ(shape[-5], ov::Dimension::dynamic());
-    EXPECT_EQ(shape[-4], ov::Dimension(2, 10));
-    EXPECT_EQ(shape[-1], ov::Dimension(7));
 }
 
-TEST(partial_shape, const_subscribe_operator_throw_out_of_range) {
+TEST(partial_shape, subscribe_operator_signed_indexing) {
+    auto shape = ov::PartialShape{-1, {2, 10}, 5, 6, 7};
+
+    EXPECT_EQ(shape(2), ov::Dimension(5));
+    EXPECT_EQ(shape(0), ov::Dimension::dynamic());
+    EXPECT_EQ(shape(1), ov::Dimension(2, 10));
+    EXPECT_EQ(shape(4), ov::Dimension(7));
+    EXPECT_EQ(shape(-3), ov::Dimension(5));
+    EXPECT_EQ(shape(-5), ov::Dimension::dynamic());
+    EXPECT_EQ(shape(-4), ov::Dimension(2, 10));
+    EXPECT_EQ(shape(-1), ov::Dimension(7));
+}
+
+TEST(partial_shape, const_at_throws_out_of_range) {
     const auto shape = ov::PartialShape::dynamic(7);
 
-    EXPECT_THROW(shape[7], ov::Exception);
-    EXPECT_THROW(shape[1000], ov::Exception);
-    EXPECT_THROW(shape[-8], ov::Exception);
-    EXPECT_THROW(shape[-80000], ov::Exception);
+    EXPECT_THROW(shape.at(7), std::exception);
+    EXPECT_THROW(shape.at(1000), std::exception);
+    EXPECT_THROW(shape.at(-8), std::exception);
+    EXPECT_THROW(shape.at(-80000), std::exception);
 }
 
-TEST(partial_shape, subscribe_operator_throw_out_of_range) {
-    auto shape = ov::PartialShape::dynamic(7);
+TEST(partial_shape, dynamic_rank_const_at_throws_out_of_range) {
+    const auto shape = ov::PartialShape::dynamic();
 
-    EXPECT_THROW(shape[7], ov::Exception);
-    EXPECT_THROW(shape[1000], ov::Exception);
-    EXPECT_THROW(shape[-8], ov::Exception);
-    EXPECT_THROW(shape[-80000], ov::Exception);
+    EXPECT_THROW(shape.at(0), std::exception);
+    EXPECT_THROW(shape.at(1), std::exception);
+    EXPECT_THROW(shape.at(-1), std::exception);
+}
+
+TEST(partial_shape, dynamic_rank_at_throw_out_of_range) {
+    auto shape = ov::PartialShape::dynamic();
+
+    EXPECT_THROW(shape.at(0), std::exception);
+    EXPECT_THROW(shape.at(1), std::exception);
+    EXPECT_THROW(shape.at(-1), std::exception);
 }
