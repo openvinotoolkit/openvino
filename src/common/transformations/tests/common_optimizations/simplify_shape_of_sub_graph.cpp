@@ -13,6 +13,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/abs.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -23,6 +24,7 @@
 #include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -470,3 +472,47 @@ INSTANTIATE_TEST_SUITE_P(AbsSinkingConstantTests,
                          [](const ::testing::TestParamInfo<AbsSinkingConstantTestParams>& info) {
                              return info.param.test_name;
                          });
+
+// Test for CVS-175062: AbsSinking with SymbolicOptimizations and Broadcast pattern
+// This test reproduces the exact pattern that causes the assertion failure:
+// Broadcast(bias, Abs(Concat(ShapeOf[0], -1, -1)))
+// When SymbolicOptimizations runs:
+// 1. SymbolicPropagation sets SkipInvalidation on all output tensors
+// 2. AbsSinking transforms Concat inputs: replaces -1 with Abs(-1)=1
+// 3. BUT Concat output bounds are NOT invalidated due to SkipInvalidation
+// 4. Broadcast shape inference gets stale bounds with -1, causing assertion failure
+TEST(AbsSinkingSymbolicOptimizations, CVS175062_BroadcastPattern) {
+    // Create model: Broadcast(const, Abs(Concat(gather(ShapeOf(param), 0), -1, -1)))
+    PartialShape shape = PartialShape::dynamic(4);
+
+    auto data = std::make_shared<opset7::Parameter>(element::f32, shape);
+    auto shape_op = std::make_shared<opset7::ShapeOf>(data);
+
+    // Gather first dimension
+    auto indices = opset7::Constant::create(element::i64, {1}, {0});
+    auto axis = opset7::Constant::create(element::i64, {}, {0});
+    auto gather = std::make_shared<opset8::Gather>(shape_op, indices, axis);
+
+    // Create Concat with negative constants (simulating dynamic dimensions)
+    auto minus_one_1 = opset7::Constant::create(element::i64, {1}, {-1});
+    auto minus_one_2 = opset7::Constant::create(element::i64, {1}, {-1});
+    auto concat = std::make_shared<opset7::Concat>(OutputVector{gather, minus_one_1, minus_one_2}, 0);
+
+    // Abs wrapping the concat
+    auto abs = std::make_shared<opset7::Abs>(concat);
+
+    // Broadcast uses abs output as target shape
+    // This is the pattern that triggers bounds evaluation and fails with stale -1 values
+    auto broadcast_input = opset7::Constant::create(element::f32, {1}, {1.0f});
+    auto broadcast = std::make_shared<op::v3::Broadcast>(broadcast_input, abs);
+
+    auto model = std::make_shared<Model>(OutputVector{broadcast}, ParameterVector{data});
+
+    // Run SymbolicOptimizations with full_run=true (which enables AbsSinking)
+    // This should NOT throw an assertion error about negative bounds
+    pass::Manager manager;
+    manager.register_pass<pass::SymbolicOptimizations>();
+
+    // The test passes if no exception is thrown
+    EXPECT_NO_THROW(manager.run_passes(model));
+}
