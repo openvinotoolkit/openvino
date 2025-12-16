@@ -58,9 +58,9 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAn
         tensor = ov::make_tensor(impl);
         sstream.seekg(headerView.size(), std::ios::beg);
 
-        configuration.emplace(ov::intel_npu::import_raw_blob(true));
+        configuration.emplace(ov::intel_npu::disable_version_check(true));
         OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration));
-        configuration.erase(ov::intel_npu::import_raw_blob.name());
+        configuration.erase(ov::intel_npu::disable_version_check.name());
         OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(tensor, target_device, configuration));
         OV_EXPECT_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration),
                         ov::Exception,

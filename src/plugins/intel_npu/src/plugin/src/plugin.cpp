@@ -316,7 +316,6 @@ void Plugin::init_options() {
     REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
     REGISTER_OPTION(EXPORT_RAW_BLOB);
-    REGISTER_OPTION(IMPORT_RAW_BLOB);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
     REGISTER_OPTION(WEIGHTLESS_BLOB);
@@ -894,21 +893,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     }
 
     try {
-        const bool importRawBlob =
-            (npu_plugin_properties.find(IMPORT_RAW_BLOB::key().data()) != npu_plugin_properties.end())
-                ? npu_plugin_properties[IMPORT_RAW_BLOB::key().data()].as<bool>()
-                : _globalConfig.get<IMPORT_RAW_BLOB>();
+        const bool skipCompatibility =
+            (npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end())
+                ? npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
+                : _globalConfig.get<DISABLE_VERSION_CHECK>();
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = MetadataBase::getFileSize(stream);
-        if (!importRawBlob) {
-            const bool skipCompatibility =
-                (npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end())
-                    ? npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
-                    : _globalConfig.get<DISABLE_VERSION_CHECK>();
+        if (!skipCompatibility) {
             // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
             // passes compatibility checks.
             metadata = read_metadata_from(stream);
-            if (!skipCompatibility && !metadata->is_compatible()) {
+            if (!metadata->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
             blobSize = metadata->get_blob_size();
@@ -954,19 +949,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     }
 
     try {
-        const bool importRawBlob =
-            (npu_plugin_properties.find(IMPORT_RAW_BLOB::key().data()) != npu_plugin_properties.end())
-                ? npu_plugin_properties[IMPORT_RAW_BLOB::key().data()].as<bool>()
-                : _globalConfig.get<IMPORT_RAW_BLOB>();
+        const bool skipCompatibility =
+            (npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end())
+                ? npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
+                : _globalConfig.get<DISABLE_VERSION_CHECK>();
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = compiled_blob.get_byte_size();
-        if (!importRawBlob) {
-            const bool skipCompatibility =
-                (npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end())
-                    ? npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
-                    : _globalConfig.get<DISABLE_VERSION_CHECK>();
+        if (!skipCompatibility) {
             metadata = read_metadata_from(compiled_blob);
-            if (!skipCompatibility && !metadata->is_compatible()) {
+            if (!metadata->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
             blobSize = metadata->get_blob_size();

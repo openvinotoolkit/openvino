@@ -92,7 +92,7 @@ using OVBlobCompatibilityNPU_PV_Driver_No_Throw = OVBlobCompatibilityNPU;
     ASSERT_TYPE(compiledModel = core.compile_model(nullModel,                                                \
                                                    target_device,                                            \
                                                    {ov::hint::compiled_blob(ov::read_tensor_data(blobPath)), \
-                                                    ov::intel_npu::import_raw_blob(true)}));           \
+                                                    ov::intel_npu::disable_version_check(true)}));           \
     std::ostringstream outBlobStream;                                                                        \
     ASSERT_TYPE(compiledModel.export_model(outBlobStream));                                                  \
     EXPECT_TRUE(outBlobStream.tellp() > 0);
@@ -103,7 +103,7 @@ using OVBlobCompatibilityNPU_PV_Driver_No_Throw = OVBlobCompatibilityNPU;
 #define DEFAULT_TEST_BODY(ASSERT_TYPE, ...)                                                                    \
     const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + blobName; \
     std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);                                       \
-    ASSERT_TYPE(core.import_model(blobStream, target_device, {ov::intel_npu::import_raw_blob(true)}),    \
+    ASSERT_TYPE(core.import_model(blobStream, target_device, {ov::intel_npu::disable_version_check(true)}),    \
                 ##__VA_ARGS__);                                                                                \
     APPEND_EXPORT_HELPER(ASSERT_TYPE, ##__VA_ARGS__)
 
