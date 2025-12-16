@@ -330,7 +330,7 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
  * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
  * MetadataBase object; otherwise, returns 'nullptr'.
  *
- * @note The version check can be disabled if the "OV_NPU_DISABLE_VERSION_CHECK" environment variable is set to
+ * @note The read of metadata can be disabled if the "OV_NPU_IMPORT_RAW_BLOB" environment variable is set to
  * 'YES'.
  */
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream);

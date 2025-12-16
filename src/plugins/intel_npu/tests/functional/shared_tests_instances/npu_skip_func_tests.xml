@@ -793,12 +793,12 @@ Example:
 
     <!-- C#165445 -->
     <skip_config>
-        <message>OVBlobCompatibilityNPU tests designed for NPU3720</message>
+        <message>PV driver blob tests designed for NPU3720</message>
         <enable_rules>
             <device>!3720</device>
         </enable_rules>
         <filters>
-            <filter>.*OVBlobCompatibilityNPU.*</filter>
+            <filter>.*compatibility_OVBlobCompatibilityNPU_PV_Driver_No_Throw.*</filter>
         </filters>
     </skip_config>
 
