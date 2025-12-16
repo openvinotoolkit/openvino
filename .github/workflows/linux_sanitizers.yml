@@ -19,6 +19,11 @@ on:
         type: string
         required: false
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
     paths:
     - '.github/workflows/linux_sanitizers.yml'
 
@@ -43,6 +48,7 @@ env:
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
@@ -309,11 +315,13 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_inference_functional_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceFunc.xml
 
+      # gtest_filter Ticket: 176780
       - name: OpenVINO Inference Unit Tests
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_inference_unit_tests --gtest_print_time=1 \
+                ${{ matrix.SANITIZER != '' && '--gtest_filter=-PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' || '' }} \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceUnit.xml
 
       - name: Low Precision Transformations Tests
@@ -337,11 +345,13 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-IRFrontend.xml
 
+      # gtest_filter Ticket: 176780
       - name: PaddlePaddle frontend tests
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
+                ${{ matrix.SANITIZER != '' && '--gtest_filter=-PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' || '' }} \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
@@ -374,12 +384,15 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowLiteFrontend.xml
 
+      # gtest_filter Ticket: 176780
       - name: Transformations func tests
-        if: ${{ 'false' }} # Ticket: 143900
+        if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
 
           ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 \
+                ${{ matrix.SANITIZER == 'Thread' && '--gtest_filter=-TransformationTestsF.TSGeneralTestBinaryGeneral:TransformationTestsF.TSGeneralTestConcatGeneral:PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' || '' }} \
+                ${{ matrix.SANITIZER != '' && matrix.SANITIZER != 'Thread' && '--gtest_filter=-PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' || '' }} \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
 
       - name: Common test utils tests

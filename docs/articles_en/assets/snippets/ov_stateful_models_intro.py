@@ -5,10 +5,10 @@ import logging as log
 import numpy as np
 
 import openvino  as ov
-from openvino.runtime import opset13 as ops
-from openvino.runtime.op.util import VariableInfo, Variable
-from openvino.runtime.passes import LowLatency2, MakeStateful, Manager
-from openvino.runtime.utils import replace_node
+from openvino import opset13 as ops
+from openvino.op.util import VariableInfo, Variable
+from openvino.passes import LowLatency2, MakeStateful, Manager
+from openvino.utils import replace_node
 
 
 def state_model_example():
