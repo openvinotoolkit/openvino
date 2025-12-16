@@ -403,7 +403,13 @@ public:
             OPENVINO_ASSERT(weight_rank <= 3, "Currently only weights with equal to or less than 3D is supported");
             auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
             int per_oc = PER_OC << shift_size;
-            int grouped = GROUPED | (1 << (prim->input_size - 1));
+            int grouped = 0;
+            if (weight_rank == 3) {
+                grouped = PER_TENSOR << (shift_size - 1);
+            } else {
+                grouped = GROUPED << shift_size;
+            }
+
 
             if (prim->decompression_scale.is_valid()) {
                 auto decompression_scale_idx = ++idx;
