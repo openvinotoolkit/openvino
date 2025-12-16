@@ -582,6 +582,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
 
         const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
         const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
+        LOG_INFO("############pre_kv_dim and gen_kv_dim" << pre_kv_dim << " " << gen_kv_dim << ";");
         if (use_chunk_prefill) {
             // The chunk prefilled KV results are divided into two parts:
             // Part 1: The KV results from loops 1 to n-1 have been copied into the 'past' KV input tensor
@@ -609,7 +610,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                                                                    0u,
                                                                    static_cast<uint32_t>(tokens_in_past_chunks));
 
-                        uu::move_tensor_inplace_by_dim(prefill_past_kv_chunks,
+                        uu::copy_tensor_inplace_by_dim(prefill_past_kv_chunks,
                                                        kvcache_past_kv_chunks,
                                                        pre_kv_dim,
                                                        gen_kv_dim);
