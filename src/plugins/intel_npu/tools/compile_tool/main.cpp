@@ -34,7 +34,7 @@ static constexpr char targetDeviceMessage[] =
 static constexpr char output_message[] = "Optional. Path to the output file. Default value: \"<model_xml_file>.blob\".";
 
 static constexpr char raw_blob_message[] =
-    "Optional. Specifies if the output blob should NOT contain NPU plugin metadata placed at the beginning of it.";
+    "Optional. Instructs NPU plugin to skip adding metadata to the blob obtained from compiler.";
 
 static constexpr char log_level_message[] = "Optional. Log level for OpenVINO library.";
 
