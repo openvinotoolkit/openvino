@@ -26,7 +26,7 @@ FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling(float scale_factor)
     auto fc_compressed_w_zp_m = wrap_type<op::FullyConnectedCompressed>({data_m, weights_m, bias_m, any_input(), any_input()}, consumers_count(1));
     auto fc_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fc_compressed_wo_zp_m, fc_compressed_w_zp_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](Matcher& m) {
         if (scale_factor == 0.f || scale_factor == 1.f)
             return false;
         auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());

@@ -19,7 +19,6 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
 #include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
@@ -40,7 +39,7 @@ ov::intel_cpu::ConvertBatchGatherMatmulToBatchGatherMatmulCompressed::
     auto bias = any_input();
     auto batch_gather_matmul = wrap_type<BatchGatherMatmul>({activation, weights_block, indices, bias});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto bgm = ov::as_type_ptr<BatchGatherMatmul>(pattern_map.at(batch_gather_matmul).get_node_shared_ptr());
         if (!bgm || transformation_callback(bgm)) {

@@ -68,7 +68,7 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
     auto output_sin = opp::wrap_type<ov::op::v0::Sin>({concat_2});
     auto output_cos = opp::wrap_type<ov::op::v0::Cos>({concat_2});
 
-    init_cb = [=](const auto& matches) {
+    init_cb = [=, this](const auto& matches) {
         const auto& map_sin = matches.at(output_sin)[0];
         const auto& map_cos = matches.at(output_cos)[0];
 

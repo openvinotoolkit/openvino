@@ -29,7 +29,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -141,7 +140,7 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     auto post_sdpa =
         wrap_type<v1::Reshape, v0::Unsqueeze>({opt_sdpa_reshape, any_input()}, shape_matches("Batches..., S_q, D"));
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
 
         const auto& q_node = pm.at(q);
@@ -425,7 +424,7 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
     auto qkv =
         wrap_type<v0::MatMul>({softmax_opt_reshaped, v}, qkv_shape, {{"transpose_a", false}, {"transpose_b", false}});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;
@@ -516,7 +515,7 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
                        wrap_type<v8::Slice>({softmax, any_input(), any_input(), any_input(), any_input()});
     auto qkv = wrap_type<v0::MatMul>({sinks_slice, v});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root()))
             return false;

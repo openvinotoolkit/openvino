@@ -30,7 +30,7 @@ add_library(${TARGET_NAME}
 add_library(openvino::runtime ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
 
-target_compile_features(${TARGET_NAME} PUBLIC cxx_std_17)
+target_compile_features(${TARGET_NAME} PUBLIC cxx_std_20)
 
 ov_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "OpenVINO runtime library")
 
@@ -73,6 +73,10 @@ endif()
 if(RISCV64)
     # for std::atomic_bool
     target_link_libraries(${TARGET_NAME} PRIVATE atomic)
+    if(NOT BUILD_SHARED_LIBS)
+        target_link_options(${TARGET_NAME} INTERFACE
+            "LINKER:--whole-archive,$<TARGET_FILE:${TARGET_NAME}>,--no-whole-archive")
+    endif()
 endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})

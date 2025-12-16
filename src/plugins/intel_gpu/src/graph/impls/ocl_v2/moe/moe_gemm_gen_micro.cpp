@@ -149,7 +149,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, 
     if (moe_cfg.is_weight_quantized) {
         problem_moe.Ta = micro::Type::f16;
         problem_moe.Ta_ext = convert_type(params.get_input_layout(moe_gemm::MoEGemmInputIdx::WEIGHT).data_type);
-        problem_moe.A.setAlignment(micro::alignment_for_ld(k * problem_moe.Ta_ext));
+        problem_moe.A.setAlignment(micro::alignment_for_ld(static_cast<int>(k * problem_moe.Ta_ext)));
 
         problem_moe.Ta_scale = convert_type(params.get_input_layout(moe_cfg.weight_scale_idx).data_type);  // zp dt
         problem_moe.A_scale.setAlignment(2);
@@ -174,7 +174,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, 
         }
     } else {
         problem_moe.Ta = problem_moe.Ta_ext = convert_type(params.get_input_layout(moe_gemm::MoEGemmInputIdx::WEIGHT).data_type);
-        problem_moe.A.setAlignment(micro::alignment_for_ld(k * problem_moe.Ta));
+        problem_moe.A.setAlignment(micro::alignment_for_ld(static_cast<int>(k * problem_moe.Ta)));
     }
 
     problem_moe.Tb = problem_moe.Tb_ext = micro::Type::f16;
@@ -184,7 +184,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, 
     problem_moe.A.layout = micro::MatrixLayout::T;
     problem_moe.B.layout = micro::MatrixLayout::N;
     problem_moe.C.layout = micro::MatrixLayout::N;
-    problem_moe.B.setAlignment(micro::alignment_for_ld(k * problem_moe.Tb));
+    problem_moe.B.setAlignment(micro::alignment_for_ld(static_cast<int>(k * problem_moe.Tb)));
     problem_moe.C.setAlignment(static_cast<int32_t>(problem_moe.Tc.size()));
 
     /* Set up problem_moe size information */

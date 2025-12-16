@@ -65,7 +65,7 @@ KVCacheConcat::KVCacheConcat(const std::shared_ptr<Model>& model) {
 
     auto kv_assign = wrap_type<v6::Assign>({up_mul});
 
-    graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    graph_rewrite_callback callback = [=, this](pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }

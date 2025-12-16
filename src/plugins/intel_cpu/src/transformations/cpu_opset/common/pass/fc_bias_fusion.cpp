@@ -25,7 +25,6 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -40,7 +39,7 @@ ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     auto m_bias = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_fc, m_bias});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
 
         auto add = pattern_to_output[m_add].get_node_shared_ptr();

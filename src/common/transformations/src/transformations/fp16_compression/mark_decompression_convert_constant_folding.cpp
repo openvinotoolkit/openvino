@@ -56,7 +56,7 @@ pass::KeepConstAndDecompression::KeepConstAndDecompression() {
 
     auto node_pattern = pattern::wrap_type<ov::op::v0::Convert>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](pattern::Matcher& m) {
         auto node = m.get_match_root();
         if (!is_decompression(node) || !is_type<ov::op::v0::Convert>(node) ||
             ov::is_shape_subgraph(node->shared_from_this()))
@@ -82,7 +82,7 @@ pass::KeepConstantsPrecisionAndAddConverts::KeepConstantsPrecisionAndAddConverts
     MATCHER_SCOPE(KeepConstantsPrecisionAndAddConverts);
     auto const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](pattern::Matcher& m) {
         auto const_node = m.get_match_root();
 
         if (transformation_callback(const_node)) {

@@ -41,7 +41,6 @@
 #include "openvino/pass/pattern/op/op.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
@@ -174,7 +173,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
     auto index_Gather =
         pattern::wrap_type<v8::Gather>({slice1 | strided_slice1, cache_positions, 2}, {{"batch_dims", 0}});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         ov::intel_cpu::CausalMaskPreprocessNode::Config config;

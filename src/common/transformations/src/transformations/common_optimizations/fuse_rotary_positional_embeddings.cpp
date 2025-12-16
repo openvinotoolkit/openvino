@@ -120,7 +120,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
 
     auto result = pattern::wrap_type<opset1::Add>({y1, y2}, {{"auto_broadcast", "numpy"}});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -199,7 +199,7 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
 
     auto result = pattern::wrap_type<v1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -301,7 +301,7 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     auto x = pattern::any_input(pattern::rank_equals(4));
     auto rope = pattern::wrap_type<ov::op::internal::RoPE>({x, cos_tab, sin_tab});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         auto rope_node = as_type_ptr<ov::op::internal::RoPE>(pattern_map.at(rope).get_node_shared_ptr());
@@ -351,7 +351,7 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
                      {x | varsplit->output(0), pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto result = pattern::wrap_type<ov::op::v0::Concat>({x_emb, y | varsplit->output(1)}, {{"axis", -1}});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -403,7 +403,7 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
                   pattern::wrap_type<ov::op::internal::RoPE>(
                       {x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         auto rope_node = as_type_ptr<ov::op::internal::RoPE>(root);
@@ -1053,7 +1053,7 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
     // Unsqueeze result pattern (cos or sin)
     auto result = pattern::wrap_type<ov::op::v0::Unsqueeze>({cos | sin, {1}});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -1153,7 +1153,7 @@ ov::pass::RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
 
     auto result = concat_result;
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         const auto& x_val = pattern_map.at(x);

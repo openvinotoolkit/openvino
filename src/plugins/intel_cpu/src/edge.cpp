@@ -24,7 +24,6 @@
 #include "nodes/node_config.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/util/pp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "weights_cache.hpp"
@@ -310,7 +309,7 @@ void Edge::allocateCommon(const std::function<MemoryPtr(const MemoryDesc&)>& all
 }
 
 void Edge::allocate(const void* mem_ptr) {
-    auto allocateFunc = [OV_CAPTURE_CPY_AND_THIS](const MemoryDesc& inputDesc) -> MemoryPtr {
+    auto allocateFunc = [=, this](const MemoryDesc& inputDesc) -> MemoryPtr {
         auto parentPtr = getParent();
         return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, mem_ptr, false);  // no pads zeroing
     };

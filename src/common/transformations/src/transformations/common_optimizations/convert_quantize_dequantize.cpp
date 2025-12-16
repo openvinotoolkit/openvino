@@ -95,7 +95,7 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize(
     auto scale_pattern = any_input();
     auto mul_pattern = wrap_type<v1::Multiply>({sub_pattern, scale_pattern});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {

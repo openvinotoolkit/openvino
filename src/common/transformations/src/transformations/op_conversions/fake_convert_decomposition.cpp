@@ -25,7 +25,7 @@ ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
     MATCHER_SCOPE(FakeConvertDecomposition);
     auto fake_convert_m = ov::pass::pattern::wrap_type<ov::op::v13::FakeConvert>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         const auto fake_convert =
             ov::as_type_ptr<ov::op::v13::FakeConvert>(pattern_to_output.at(fake_convert_m).get_node_shared_ptr());

@@ -80,7 +80,7 @@ public:
     GroupQueryAttentionDecomposition(bool is_prefill_model) {
         auto pattern_node = ov::pass::pattern::wrap_type<ov::op::internal::GroupQueryAttention>();
 
-        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
             auto node = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(
                 pattern_to_output.at(pattern_node).get_node_shared_ptr());

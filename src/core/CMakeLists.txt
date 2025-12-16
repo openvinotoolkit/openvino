@@ -4,6 +4,7 @@
 
 # enable LTO globally for all libraries below
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+set(CMAKE_CXX_STANDARD 20)
 
 add_definitions(-DIN_OV_CORE_LIBRARY)
 

@@ -31,7 +31,7 @@ ov::pass::ClampFusion::ClampFusion() {
                                                                           pattern::consumers_count(1));
     auto root = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{min_pattern1, max_pattern2});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map.at(data_pattern);
         auto min_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(min_const_pattern).get_node_shared_ptr());

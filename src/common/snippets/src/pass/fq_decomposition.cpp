@@ -42,7 +42,6 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/reference/autobroadcast_binop.hpp"
 #include "openvino/reference/broadcast.hpp"
-#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/utils/utils.hpp"
@@ -57,7 +56,7 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
                      ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
                      ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::FakeQuantizeDecomposition")
         auto& pattern_to_output = m.get_pattern_value_map();
         const auto fake_quantize_node =
