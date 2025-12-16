@@ -216,8 +216,6 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
             zeDriverGetExtensionFunctionAddress(_driver_handle,
                                                 driver_ext_name.c_str(),
                                                 reinterpret_cast<void**>(&driver_npu_dditable_ext)));
-
-        ze_driver_properties_npu_ext_t driver_npu_properties = {};
     }
 
     _driver_npu_dditable_ext_decorator =
