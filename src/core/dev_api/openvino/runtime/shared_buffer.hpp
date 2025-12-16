@@ -42,6 +42,7 @@ public:
             return m_data + m_offset;
         return nullptr;
     }
+
 protected:
     // override std::streambuf methods
     std::streamsize xsgetn(char* s, std::streamsize count) override {
