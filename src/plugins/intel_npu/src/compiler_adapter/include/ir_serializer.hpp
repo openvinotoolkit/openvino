@@ -35,7 +35,9 @@ public:
     /**
      * @brief Serialize OpenVINO model to target buffer
      */
-    void serializeModelToBuffer(uint8_t* xml, uint8_t* weights);
+    void serializeModelToBuffer(uint8_t* xml,
+                                uint8_t* weights,
+                                std::optional<ze_graph_compiler_version_info_t> compilerVersionOpt = std::nullopt);
 
     /**
      * @brief Serialize input / output information to string format.
@@ -65,7 +67,9 @@ private:
     /**
      * @brief Serialize OpenVINO model to target stream
      */
-    void serializeModelToStream(std::ostream& xml, std::ostream& weights);
+    void serializeModelToStream(std::ostream& xml,
+                                std::ostream& weights,
+                                std::optional<ze_graph_compiler_version_info_t> compilerVersionOpt = std::nullopt);
 
     /**
      * @brief Get size of xml and weights from model

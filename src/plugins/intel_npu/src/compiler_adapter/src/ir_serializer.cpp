@@ -13,6 +13,7 @@
 #include "intel_npu/config/options.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 
 namespace {
@@ -156,7 +157,9 @@ IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel, co
     countModelSize();
 }
 
-void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weights) {
+void IRSerializer::serializeModelToStream(std::ostream& xml,
+                                          std::ostream& weights,
+                                          std::optional<ze_graph_compiler_version_info_t> compilerVersionOpt) {
     _logger.debug("serializeModelToStream");
     const auto passConfig = std::make_shared<ov::pass::PassConfig>();
     ov::pass::Manager manager(std::move(passConfig), "NPU:serializeModelToStream");
@@ -167,6 +170,11 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
         _logger.info("Downgrade op for opset smaller than 11");
     }
 
+    if (compilerVersionOpt.has_value() &&
+        (compilerVersionOpt.value().major < 7 ||
+         (compilerVersionOpt.value().major == 7 && compilerVersionOpt.value().minor <= 26))) {
+        manager.register_pass<ov::pass::EliminateIdentity>();
+    }
     manager.register_pass<ov::pass::Serialize>(xml, weights);
 
     // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
@@ -214,7 +222,9 @@ void IRSerializer::countModelSize() {
     _logger.debug("countModelSize completed, xml size: %d, weights size: %d", _xmlSize, _weightsSize);
 }
 
-void IRSerializer::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {
+void IRSerializer::serializeModelToBuffer(uint8_t* xml,
+                                          uint8_t* weights,
+                                          std::optional<ze_graph_compiler_version_info_t> compilerVersionOpt) {
     _logger.debug("serializeModelToBuffer");
 
     writer_streambuf xmlStreamBuf(xml);
@@ -222,7 +232,7 @@ void IRSerializer::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {
     std::ostream xmlStream(&xmlStreamBuf);
     std::ostream weightsStream(&weightsStreamBuf);
 
-    serializeModelToStream(xmlStream, weightsStream);
+    serializeModelToStream(xmlStream, weightsStream, std::move(compilerVersionOpt));
 
     _logger.debug("serializeModelToBuffer end");
 }
@@ -274,7 +284,7 @@ SerializedIR IRSerializer::serializeIR(const std::shared_ptr<const ov::Model>& m
     uint64_t weightsOffset = offset;
     offset += weightsSize;
 
-    serializeModelToBuffer(serializedIR + xmlOffset, serializedIR + weightsOffset);
+    serializeModelToBuffer(serializedIR + xmlOffset, serializedIR + weightsOffset, compilerVersion);
 
     OPENVINO_ASSERT(offset == sizeOfSerializedIR);
 
