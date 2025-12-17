@@ -80,7 +80,7 @@ TEST_F(U2_IR_Serialization, RoundTrip) {
 
     // === BINARY SIZE VALIDATION  ===
     size_t theoretical_payload = (num_weights * 2 + 7) / 8;  
-    size_t scale_size = N * sizeof(float);  /
+    size_t scale_size = N * sizeof(float);
     size_t expected_compressed_payload = theoretical_payload + scale_size;
     size_t actual_size = std::filesystem::file_size(bin_path);
     size_t failure_threshold = theoretical_payload * 3;
