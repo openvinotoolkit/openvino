@@ -1028,12 +1028,30 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
         node.set_preferred_input_fmt(0, get_fsv16_format(rank));
         node.set_preferred_output_fmt(0, get_fsv16_format(rank));
 
-        // Override with default format for small channels (≤ 4)
-        if (input_channels > 0 && input_channels <= 4) {
+        // Override input for small channels (≤ 16)
+        // fsv16 format uses 16-element blocks. channels ≤ 16 waste block padding
+        // e.g. 8ch uses only 8/16 elements per block (50% waste), planar format is more efficient
+        if (input_channels > 0 && input_channels <= 16) {
             node.set_preferred_input_fmt(0, format::get_default_format(rank));
         }
 
-        if (output_channels > 0 && output_channels <= 4) {
+        // Override output for small channels (≤ 16)
+        // same as input - avoid fsv16 block padding overhead for small channel counts
+        if (output_channels > 0 && output_channels <= 16) {
+            node.set_preferred_output_fmt(0, format::get_default_format(rank));
+        }
+
+        // Override output for channel expansion operations (small input → large output)
+        // when expanding from small input channels (≤16) to large output channels (≥32),
+        // planar output format enables OneDNN to select optimized JIT kernel instead of reference kernel
+        // Thresholds explained:
+        //   - input ≤ 16: matches fsv16 block size, input side uses planar format (set above)
+        //   - output ≥ 32: 2 or more fsv16 blocks (32/16=2), where blocked write overhead exceeds
+        //                  sequential write benefits. planar format provides better cache locality
+        //                  and memory access patterns for large channel generation
+        // e.g. 3ch → 1024ch would create 64 fsv16 blocks with scattered writes,
+        //      but planar format allows efficient sequential writes
+        if (input_channels > 0 && input_channels <= 16 && output_channels >= 32) {
             node.set_preferred_output_fmt(0, format::get_default_format(rank));
         }
     }
