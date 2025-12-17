@@ -1061,6 +1061,61 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorUpdateCommandListAndRunI
     }
 }
 
+TEST_P(RoiTensorsTestsRun, CheckRemoteCopyToWithRoiRemoteTensors) {
+    auto zero_context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+    auto input_remote_tensor = zero_context.create_l0_host_tensor(ov::element::f32, Shape{3, 10, 10, 10});
+    auto output_remote_tensor = zero_context.create_l0_host_tensor(ov::element::f32, Shape{3, 15, 12, 9});
+
+    auto data = static_cast<float*>(input_remote_tensor.get());
+    for (size_t i = 0; i < input_remote_tensor.get_size(); ++i) {
+        data[i] = 50.0f;
+    }
+
+    data = static_cast<float*>(output_remote_tensor.get());
+    for (size_t i = 0; i < output_remote_tensor.get_size(); ++i) {
+        data[i] = 10.0f;
+    }
+
+    auto input_roi_tensor = ov::RemoteTensor(input_remote_tensor, {0, 4, 4, 4}, {2, 6, 6, 6});
+    auto output_roi_tensor = ov::RemoteTensor(output_remote_tensor, {1, 5, 6, 6}, {3, 7, 8, 8});
+
+    input_roi_tensor.copy_to(output_roi_tensor);
+
+    auto check_out_roi_tensor = ov::Tensor(ov::element::f32, Shape{2, 2, 2, 2});
+    output_roi_tensor.copy_to(check_out_roi_tensor);
+    auto* check_data = check_out_roi_tensor.data<float>();
+    for (size_t i = 0; i < check_out_roi_tensor.get_size(); ++i) {
+        EXPECT_EQ(check_data[i], 50.0f);
+    }
+}
+
+TEST_P(RoiTensorsTestsRun, CheckRemoteCopyFromWithRoiRemoteTensors) {
+    auto zero_context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+    auto input_remote_tensor = zero_context.create_l0_host_tensor(ov::element::f32, Shape{3, 10, 10, 10});
+    auto output_remote_tensor = zero_context.create_l0_host_tensor(ov::element::f32, Shape{3, 15, 12, 9});
+
+    auto data = static_cast<float*>(input_remote_tensor.get());
+    for (size_t i = 0; i < input_remote_tensor.get_size(); ++i) {
+        data[i] = 50.0f;
+    }
+
+    data = static_cast<float*>(output_remote_tensor.get());
+    for (size_t i = 0; i < output_remote_tensor.get_size(); ++i) {
+        data[i] = 10.0f;
+    }
+
+    auto input_roi_tensor = ov::RemoteTensor(input_remote_tensor, {0, 4, 4, 4}, {2, 6, 6, 6});
+    auto output_roi_tensor = ov::RemoteTensor(output_remote_tensor, {1, 5, 6, 6}, {3, 7, 8, 8});
+    output_roi_tensor.copy_from(input_roi_tensor);
+
+    auto check_out_roi_tensor = ov::Tensor(ov::element::f32, Shape{2, 2, 2, 2});
+    output_roi_tensor.copy_to(check_out_roi_tensor);
+    auto* check_data = check_out_roi_tensor.data<float>();
+    for (size_t i = 0; i < check_out_roi_tensor.get_size(); ++i) {
+        EXPECT_EQ(check_data[i], 50.0f);
+    }
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
