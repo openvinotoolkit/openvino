@@ -109,11 +109,11 @@ void gpu_buffer::unlock(const stream& stream) {
     }
 }
 
-event::ptr gpu_buffer::fill(stream& stream, bool blocking) {
-    return fill(stream, 0, blocking);
+event::ptr gpu_buffer::fill(stream& stream, const std::vector<event::ptr>& dep_events, bool blocking) {
+    return fill(stream, 0, dep_events, blocking);
 }
 
-event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern, bool blocking) {
+event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events, bool blocking) {
     if (_bytes_count == 0) {
         GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
         return nullptr;

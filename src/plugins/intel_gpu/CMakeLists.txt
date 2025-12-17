@@ -9,7 +9,7 @@ endif()
 set (TARGET_NAME "openvino_intel_gpu_plugin")
 
 # convert white-space separated string to list
-string(REPLACE " " ";" SYCL_EXTRA_FLAGS ${SYCL_EXTRA_FLAGS})
+string(REPLACE " " ";" SYCL_EXTRA_FLAGS "${SYCL_EXTRA_FLAGS}")
 
 if(OV_COMPILER_IS_INTEL_LLVM)
     # For windows we need to disable warning as error option to make FindSYCL.cmake work

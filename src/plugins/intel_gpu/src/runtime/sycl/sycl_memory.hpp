@@ -34,8 +34,8 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
-    event::ptr fill(stream& stream, unsigned char pattern, bool blocking = true) override;
-    event::ptr fill(stream& stream, bool blocking = true) override;
+    event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
+    event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
     shared_mem_params get_internal_params() const override;
     ::sycl::buffer<std::byte, 1>& get_buffer() {
         assert(0 == _lock_count);

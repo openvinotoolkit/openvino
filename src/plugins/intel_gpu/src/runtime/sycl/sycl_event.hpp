@@ -13,6 +13,9 @@
 
 namespace cldnn {
 namespace sycl {
+namespace utils {
+std::vector<::sycl::event> get_sycl_events(const std::vector<event::ptr>& events);
+}  // namespace utils
 
 struct sycl_event : public sycl_base_event {
 public:

@@ -304,7 +304,8 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
     using namespace dnnl::impl::gpu::intel::jit;
     ngen::HW hw = ngen::HW::Unknown;
     ngen::Product product = {ngen::ProductFamily::Unknown, 0};
-    generator_t<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get(), hw, product);
+    generator_t<ngen::HW::Unknown>::detectHWInfo(::sycl::get_native<::sycl::backend::opencl>(context),
+                                                 ::sycl::get_native<::sycl::backend::opencl>(device));
     info.arch = convert_ngen_arch(hw);
     // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
     // This is required to guarantee some level of forward compatibility for the new HW generations
@@ -346,7 +347,8 @@ sycl_device::sycl_device(const ::sycl::device dev, const ::sycl::context& ctx, c
 , _device(dev)
 , _platform(platform)
 , _info(init_device_info(dev, ctx))
-, _mem_caps(init_memory_caps(dev, _info)) {
+, _mem_caps(init_memory_caps(dev, _info))
+, _is_initialized(true){
 // , _usm_helper(new cl::UsmHelper(_context, _device, use_unified_shared_memory()))
 }
 
@@ -358,8 +360,13 @@ bool sycl_device::is_same(const device::ptr other) {
     return _device == casted->get_device() && _platform == casted->get_platform();
 }
 
-void sycl_device::set_mem_caps(memory_capabilities memory_capabilities) {
+void sycl_device::set_mem_caps(const memory_capabilities& memory_capabilities) {
     _mem_caps = memory_capabilities;
+}
+
+void sycl_device::initialize() {
+    if (_is_initialized)
+        return;
 }
 
 }  // namespace sycl

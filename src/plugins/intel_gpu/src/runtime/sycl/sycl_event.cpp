@@ -40,6 +40,19 @@ const std::pair<uint64_t, uint64_t> get_profiling_period_value(const ::sycl::eve
 
 }  // namespace
 
+namespace cldnn::sycl::utils {
+std::vector<::sycl::event> get_sycl_events(const std::vector<event::ptr>& events) {
+    std::vector<::sycl::event> sycl_events;
+    for (const auto& ev : events) {
+        if (auto sycl_base_ev = dynamic_cast<sycl_base_event*>(ev.get())) {
+            sycl_events.push_back(sycl_base_ev->get());
+        }
+    }
+
+    return sycl_events;
+}
+}  // namespace cldnn::sycl::utils
+
 void sycl_event::set_sycl_callback() {
     if (_callback_set)
         return;
