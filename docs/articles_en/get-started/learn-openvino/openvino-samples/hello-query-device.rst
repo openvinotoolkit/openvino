@@ -126,6 +126,40 @@ For example:
          [ INFO ]                PERFORMANCE_HINT_NUM_REQUESTS : 0
          [ INFO ]                PERF_COUNT : NO
 
+Using Query Device with AUTO Device Plugin
+####################
+The Query Device API is especially useful when working with the AUTO device
+plugin. AUTO selects the most appropriate device at runtime based on device
+availability and supported capabilities.
+
+Before running inference with AUTO, querying devices helps you understand:
+
+* Which devices are available on the system (for example, CPU, GPU)
+* What optimization capabilities each device supports (FP32, FP16, INT8)
+* Default configuration values that may influence AUTO device selection
+
+For example, a Python application may compile a model using AUTO as follows:
+
+.. code-block:: python
+
+   import openvino as ov
+
+   core = ov.Core()
+   model = core.read_model("model.xml")
+
+   compiled_model = core.compile_model(
+       model=model,
+       device_name="AUTO:CPU,GPU"
+   )
+
+By reviewing the output of the Hello Query Device sample beforehand, you can
+verify that the listed devices support the required precision and features for
+your model. If a device does not support certain operations, AUTO will
+automatically fall back to another available device.
+
+This approach helps avoid unexpected runtime behavior and makes device
+selection transparent when deploying applications across heterogeneous
+hardware environments.
 
 Additional Resources
 ####################
