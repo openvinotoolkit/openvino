@@ -227,10 +227,18 @@ public:
     virtual ~VCLSerializerBase() = default;
 
 protected:
+    /**
+     * @brief Model preprocessing steps common to all serializers.
+     * @details These steps should include operator conversions and the storage of additional runtime information that
+     * the driver-compiler adapter may use.
+     *
+     * @param storeWeightlessCacheAttributeFlag If true, the WeightlessCacheAttributes will also be stored as runtime
+     * information using a custom format. This is necessary if the "weights separation" flow is used.
+     */
     void run_common_pipeline(const std::shared_ptr<ov::Model>& model, const bool storeWeightlessCacheAttributeFlag) {
         // Step 1: run compiler compatibility passes.
         // It is possible some of these passes will modify WeightlessCacheAttributes. Therefore, we should run them
-        // before storing the attributes.
+        // before storing these attributes.
         ov::pass::Manager manager(std::make_shared<ov::pass::PassConfig>(), "NPU:compiler_compatibility_passes");
         if (_supportedOpset < 11) {
             // Downgrade to opset10
@@ -244,7 +252,6 @@ protected:
 
         // Step 2: store the WeightlessCacheAttributes if requested
         // Note: since these attributes contain information w.r.t. the binary file, this information is deterministic.
-        // TODO confirm hash not change
         if (storeWeightlessCacheAttributeFlag) {
             storeWeightlessCacheAttribute(model);
         }

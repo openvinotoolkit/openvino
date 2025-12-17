@@ -35,6 +35,12 @@ namespace driver_compiler_utils {
  * @param supportedOpsetVersion The last operators set version supported by the compiler.
  * @param useBaseModelSerializer "true" means the legacy serializer will be used (weights will be copied), "false" means
  * the optimized one is used instead (weights pointers are stored instead).
+ * @param computeModelHash If true, a hash of the model will also be returned.
+ * @param storeWeightlessCacheAttribute If true, the returned serialized model will also contain within its runtime
+ * information the WeightlessCacheAttributes stored using a custom format. This format can be interpreted by the
+ * driver-compiler adapter in order to properly handle the "weights separation" feature.
+ *
+ * @returns The serialized model, along with its size and hash
  */
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          ze_graph_compiler_version_info_t compilerVersion,

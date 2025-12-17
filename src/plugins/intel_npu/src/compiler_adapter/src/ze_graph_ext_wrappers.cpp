@@ -357,7 +357,7 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
                               ZE_GRAPH_FORMAT_NGRAPH_LITE,
                               serializedIR.size,
                               serializedIR.buffer.get(),
-                              "",
+                              buildFlags.c_str(),
                               flags};
 
     _logger.debug("getGraphDescriptor - perform pfnCreate2");
