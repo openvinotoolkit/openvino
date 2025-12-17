@@ -151,6 +151,40 @@ jobs:
                   --prefix "$SRC_DIR" \
                   --synthesize-missing
 
+      - name: Coverage summary
+        run: |
+          echo "## Code coverage (lcov)" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f coverage.info ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            lcov --summary coverage.info >> "$GITHUB_STEP_SUMMARY" || true
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "coverage.info not found (coverage generation likely failed earlier)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Package coverage report
+        run: |
+          set -euo pipefail
+          if [ -d "${{ github.workspace }}/coverage-report" ] && [ -f coverage.info ]; then
+            tar -czf coverage-report.tgz coverage-report coverage.info
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Artifact: \`coverage-report.tgz\` (download from Actions → Artifacts, then extract and open \`coverage-report/index.html\`)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "coverage-report/ or coverage.info missing → skipping artifact packaging." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-report-${{ matrix.config.os }}
+          path: coverage-report.tgz
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 0
+
       - name: Collect coverage
         uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         with:
