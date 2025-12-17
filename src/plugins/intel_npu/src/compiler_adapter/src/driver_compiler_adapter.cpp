@@ -66,8 +66,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("serialize IR");
 
-    auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
+    auto serializedIR = driver_compiler_utils::serializeIR(model,
+                                                           compilerVersion,
+                                                           maxOpsetVersion,
+                                                           useBaseModelSerializer(config),
+                                                           true);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
