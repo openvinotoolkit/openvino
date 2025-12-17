@@ -526,8 +526,19 @@ AccuracySimulation::AccuracySimulation(Simulation::Config&& cfg, AccuracySimulat
 
 std::shared_ptr<PipelinedCompiled> AccuracySimulation::compilePipelined(DummySources&& ref_sources, DummySources&& tgt_sources,
                                                                         cv::GCompileArgs&& ref_compile_args, cv::GCompileArgs&& tgt_compile_args) {
-    auto ref_compiled = m_comp.compileStreaming(descr_of(ref_sources), std::move(ref_compile_args));
-    auto tgt_compiled = m_comp.compileStreaming(descr_of(tgt_sources), std::move(tgt_compile_args));
+    auto ref_descr = descr_of(ref_sources);
+    auto tgt_descr = descr_of(tgt_sources);
+
+    auto ref_future = std::async(std::launch::async, [this, ref_descr = std::move(ref_descr), ref_compile_args = std::move(ref_compile_args)]() mutable {
+        return m_comp.compileStreaming(std::move(ref_descr), std::move(ref_compile_args));
+    });
+
+    auto tgt_future = std::async(std::launch::async, [this, tgt_descr = std::move(tgt_descr), tgt_compile_args = std::move(tgt_compile_args)]() mutable {
+        return m_comp.compileStreaming(std::move(tgt_descr), std::move(tgt_compile_args));
+    });
+
+    auto ref_compiled = ref_future.get();
+    auto tgt_compiled = tgt_future.get();
 
     auto out_meta = m_comp.getOutMeta();
 
@@ -553,13 +564,26 @@ std::shared_ptr<PipelinedCompiled> AccuracySimulation::compilePipelined(const bo
 
 std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& ref_sources, DummySources&& tgt_sources,
                                                             cv::GCompileArgs&& ref_compile_args, cv::GCompileArgs&& tgt_compile_args) {
-    auto ref_compiled = m_comp.compile(descr_of(ref_sources), std::move(ref_compile_args));
-    auto tgt_compiled = m_comp.compile(descr_of(tgt_sources), std::move(tgt_compile_args));
+    auto ref_descr = descr_of(ref_sources);
+    auto tgt_descr = descr_of(tgt_sources);
+
+    auto ref_future = std::async(std::launch::async, [this, ref_descr = std::move(ref_descr), ref_compile_args = std::move(ref_compile_args)]() mutable {
+        return m_comp.compile(std::move(ref_descr), std::move(ref_compile_args));
+    });
+
+    auto tgt_future = std::async(std::launch::async, [this, tgt_descr = std::move(tgt_descr), tgt_compile_args = std::move(tgt_compile_args)]() mutable {
+        return m_comp.compile(std::move(tgt_descr), std::move(tgt_compile_args));
+    });
+
+    auto ref_compiled = ref_future.get();
+    auto tgt_compiled = tgt_future.get();
 
     auto out_meta = m_comp.getOutMeta();
 
-    return std::make_shared<SyncSimulation>(std::move(ref_compiled), std::move(tgt_compiled), std::move(ref_sources), std::move(tgt_sources),
-                                            std::move(out_meta), m_strategy->required_num_iterations, std::move(m_opts), m_strategy->current_infer);
+    return std::make_shared<SyncSimulation>(std::move(ref_compiled), std::move(tgt_compiled),
+                                            std::move(ref_sources), std::move(tgt_sources),
+                                            std::move(out_meta), m_strategy->required_num_iterations,
+                                            std::move(m_opts), m_strategy->current_infer);
 }
 
 std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(const bool drop_frames) {
