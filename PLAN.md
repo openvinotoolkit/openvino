@@ -38,6 +38,7 @@
 ### Phase 8: Real-World Integration (In Progress)
 - [x] **Task**: Convert Embedding Gemma to OpenVINO IR.
 - [x] **Task**: Inject Composite TSSN layers into Gemma.
+- [ ] **Task**: Fix Precision Mismatch (FP16/FP32) in Evolution Script.
 - [ ] **Task**: Evaluate Gemma performance (Perplexity/Accuracy) with TSSN.
 - [ ] **Task**: Fine-tune TSSN weights for language tasks.
 
