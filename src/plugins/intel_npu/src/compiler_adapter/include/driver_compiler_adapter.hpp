@@ -26,9 +26,9 @@ public:
                                       const FilteredConfig& config) const override;
 
     std::shared_ptr<IGraph> parse(
-        ov::Tensor mainBlob,
+        const ov::Tensor& mainBlob,
         const FilteredConfig& config,
-        std::optional<std::vector<ov::Tensor>> initBlobs = std::nullopt,
+        const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
         const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt) const override;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
