@@ -77,7 +77,7 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
 
     function(ov_build_compute_library)
         # Configure ComputeLibrary build
-        set(BUILD_SHARED_LIBS OFF)
+        set(ARM_COMPUTE_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
         set(ARM_COMPUTE_GRAPH_ENABLED OFF CACHE BOOL "" FORCE)
         set(OPENMP OFF CACHE BOOL "" FORCE)
         set(CPPTHREADS OFF CACHE BOOL "" FORCE)
