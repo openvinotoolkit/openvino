@@ -464,20 +464,21 @@ public:
                 auto& src_scale_shape = impl_params.input_layouts[src_scale_idx].get_partial_shape();
                 int src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
                 int src_group_size = innermost_len / src_scale_ngroups;
+                int act_grouped = GROUPED | (1 << (prim->input_size - 1));
 
                 auto act_scale_data_type = convert_data_type(impl_params.input_layouts[src_scale_idx].data_type);
-                attr->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
+                attr->set_scales(DNNL_ARG_SRC, act_grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
 
                 if (prim->activation_zero_point.is_valid()) {
                     idx++;
-                    attr->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
+                    attr->set_zero_points(DNNL_ARG_SRC, act_grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
                 }
 
                 if (prim->dynamic_quantized_precomputed_reduction) {
                     OPENVINO_ASSERT(!prim->activation_zero_point.is_valid(), "Activation zero-point is not supported for precomputed_reduction case");
                     auto activation_precomputed_reduction_idx = ++idx;
                     auto act_precomputed_reduction_data_type = convert_data_type(impl_params.input_layouts[activation_precomputed_reduction_idx].data_type);
-                    attr->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
+                    attr->set_precomputed_reductions(DNNL_ARG_SRC, act_grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
                 }
             }
 
