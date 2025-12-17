@@ -9,6 +9,7 @@
 
 #include "isection.hpp"
 
+#include "logical_operations.hpp"
 #include "sections/batch_size.hpp"
 #include "sections/compat_req_expr.hpp"
 #include "sections/elf.hpp"

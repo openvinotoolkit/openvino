@@ -6,6 +6,13 @@ project("blob_format")
 
 set(TARGET_NAME "blob_format")
 
+add_compile_options(
+    -g
+    -O0
+    -fverbose-asm
+    -fno-inline
+)
+
 add_executable(${TARGET_NAME} main.cpp)
 target_compile_features(${TARGET_NAME}  PRIVATE cxx_std_20)
 
@@ -13,5 +20,3 @@ target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" 
 
 # target_link_libraries(${TARGET_NAME}
 #     PRIVATE openvino::runtime)
-
-add_compile_options( -g -O0)

@@ -3,6 +3,7 @@
 //
 #include "test_single_sections.hpp"
 #include "test_blob_e2e.hpp"
+#include "test_expressions_e2e.hpp"
 
 int main() {
 
@@ -31,6 +32,8 @@ int main() {
 
     test_blob_cre_unknown_ws_bs_layouts();
     test_blob_cre_unknown_ws_bs_layouts_non_owning();
+
+    run_expression_tests();
 
     return 0;
 }
