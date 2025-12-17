@@ -125,13 +125,13 @@ jobs:
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
       - name: Upload sphinx.log
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: sphinx_build_log_${{ env.PR_NUMBER }}.log
           path: ${{ env.BUILD_DIR }}/docs/sphinx.log
 
       - name: Upload docs html
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_docs_html_${{ env.PR_NUMBER }}
           path: ${{ env.BUILD_DIR }}/docs/_build
@@ -148,7 +148,7 @@ jobs:
 
       - name: Upload test results
         if: failure()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_docs_pytest
           path: ${{ env.BUILD_DIR }}/docs/_artifacts/
