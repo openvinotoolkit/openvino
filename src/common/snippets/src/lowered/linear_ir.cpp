@@ -587,7 +587,10 @@ void LinearIR::sort_results() {
     auto cmp = [](ExpressionPtr& a, ExpressionPtr& b) {
         return a->get_exec_num() < b->get_exec_num();
     };
-    std::sort(m_result_expressions.begin(), m_result_expressions.end(), cmp);
+    auto is_sorted = std::is_sorted(m_result_expressions.begin(), m_result_expressions.end(), cmp);
+    if (!is_sorted) {
+        std::sort(m_result_expressions.begin(), m_result_expressions.end(), cmp);
+    }
 }
 
 double LinearIR::get_inserted_expr_exec_num(constExprIt insertion_pos) const {
