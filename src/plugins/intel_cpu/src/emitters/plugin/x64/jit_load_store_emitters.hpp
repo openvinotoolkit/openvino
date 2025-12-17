@@ -86,10 +86,14 @@ public:
     void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const override;
 
     size_t get_inputs_num() const override;
+    size_t aux_vecs_count() const override;
 
 private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const Xbyak::Reg64& reg_src, int out_vec_idx, int offset) const;
+
+    template <typename Vmm>
+    void emit_t2_load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, int offset) const;
 
     template <typename Vmm>
     void load_bytes(const Vmm& vmm, const Xbyak::Reg64& reg, int offset, int load_size) const;
@@ -160,6 +164,9 @@ public:
 private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(int in_vec_idx, const Xbyak::Reg64& reg_dst, int offset) const;
+
+    template <typename Vmm>
+    void emit_t2_store(const Vmm& vmm_src, const Xbyak::Reg64& reg_dst, int offset) const;
 
     template <typename Vmm>
     void store_bytes(const Xbyak::Reg64& reg, int offset, int store_size) const;

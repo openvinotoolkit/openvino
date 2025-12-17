@@ -1,0 +1,225 @@
+{
+  "baseline_mse": 2.0339980125427246,
+  "iterations": [
+    {
+      "iteration": 1,
+      "layer": "__module.model.layers.14.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 79,
+      "mse": 2.033360481262207,
+      "mse_delta": -0.0006375312805175781,
+      "best_mse": 2.0339980125427246,
+      "kept": true,
+      "eval_time": 68.87839221954346,
+      "total_time": 71.23739576339722
+    },
+    {
+      "iteration": 2,
+      "layer": "__module.model.layers.20.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 84,
+      "mse": 2.0336053371429443,
+      "mse_delta": 0.0002448558807373047,
+      "best_mse": 2.033360481262207,
+      "kept": false,
+      "eval_time": 77.19471263885498,
+      "total_time": 77.20459961891174
+    },
+    {
+      "iteration": 3,
+      "layer": "__module.model.layers.6.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 72,
+      "mse": 2.0313496589660645,
+      "mse_delta": -0.002010822296142578,
+      "best_mse": 2.033360481262207,
+      "kept": true,
+      "eval_time": 71.83238363265991,
+      "total_time": 73.91023826599121
+    },
+    {
+      "iteration": 4,
+      "layer": "__module.model.layers.9.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 80,
+      "mse": 2.0311777591705322,
+      "mse_delta": -0.00017189979553222656,
+      "best_mse": 2.0313496589660645,
+      "kept": true,
+      "eval_time": 77.1359281539917,
+      "total_time": 79.33824396133423
+    },
+    {
+      "iteration": 5,
+      "layer": "__module.model.layers.4.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 71,
+      "mse": 2.0302274227142334,
+      "mse_delta": -0.0009503364562988281,
+      "best_mse": 2.0311777591705322,
+      "kept": true,
+      "eval_time": 68.43070912361145,
+      "total_time": 70.87135672569275
+    },
+    {
+      "iteration": 6,
+      "layer": "__module.model.layers.14.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 89,
+      "mse": 2.0307323932647705,
+      "mse_delta": 0.0005049705505371094,
+      "best_mse": 2.0302274227142334,
+      "kept": false,
+      "eval_time": 70.26955461502075,
+      "total_time": 70.27997493743896
+    },
+    {
+      "iteration": 7,
+      "layer": "__module.model.layers.9.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 75,
+      "mse": 2.0299296379089355,
+      "mse_delta": -0.00029778480529785156,
+      "best_mse": 2.0302274227142334,
+      "kept": true,
+      "eval_time": 70.21586656570435,
+      "total_time": 72.29438376426697
+    },
+    {
+      "iteration": 8,
+      "layer": "__module.model.layers.3.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 61,
+      "mse": 2.0323405265808105,
+      "mse_delta": 0.002410888671875,
+      "best_mse": 2.0299296379089355,
+      "kept": false,
+      "eval_time": 66.30300092697144,
+      "total_time": 66.31624007225037
+    },
+    {
+      "iteration": 9,
+      "layer": "__module.model.layers.18.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 87,
+      "mse": 2.0302395820617676,
+      "mse_delta": 0.00030994415283203125,
+      "best_mse": 2.0299296379089355,
+      "kept": false,
+      "eval_time": 70.4493956565857,
+      "total_time": 70.46161937713623
+    },
+    {
+      "iteration": 10,
+      "layer": "__module.model.layers.5.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 69,
+      "mse": 2.0325846672058105,
+      "mse_delta": 0.002655029296875,
+      "best_mse": 2.0299296379089355,
+      "kept": false,
+      "eval_time": 71.89859437942505,
+      "total_time": 71.91233444213867
+    },
+    {
+      "iteration": 11,
+      "layer": "__module.model.layers.7.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 64,
+      "mse": 2.0297129154205322,
+      "mse_delta": -0.0002167224884033203,
+      "best_mse": 2.0299296379089355,
+      "kept": true,
+      "eval_time": 70.79501152038574,
+      "total_time": 72.90212917327881
+    },
+    {
+      "iteration": 12,
+      "layer": "__module.model.layers.13.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 75,
+      "mse": 2.0350756645202637,
+      "mse_delta": 0.005362749099731445,
+      "best_mse": 2.0297129154205322,
+      "kept": false,
+      "eval_time": 80.9233226776123,
+      "total_time": 80.94002556800842
+    },
+    {
+      "iteration": 13,
+      "layer": "__module.model.layers.20.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 71,
+      "mse": 2.0293147563934326,
+      "mse_delta": -0.0003981590270996094,
+      "best_mse": 2.0297129154205322,
+      "kept": true,
+      "eval_time": 81.71453881263733,
+      "total_time": 84.16434216499329
+    },
+    {
+      "iteration": 14,
+      "layer": "__module.model.layers.3.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 80,
+      "mse": 2.041517496109009,
+      "mse_delta": 0.012202739715576172,
+      "best_mse": 2.0293147563934326,
+      "kept": false,
+      "eval_time": 81.11005306243896,
+      "total_time": 81.13077807426453
+    },
+    {
+      "iteration": 15,
+      "layer": "__module.model.layers.4.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 73,
+      "mse": 2.0289766788482666,
+      "mse_delta": -0.0003380775451660156,
+      "best_mse": 2.0293147563934326,
+      "kept": true,
+      "eval_time": 84.99767518043518,
+      "total_time": 87.27109885215759
+    },
+    {
+      "iteration": 16,
+      "layer": "__module.model.layers.20.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 95,
+      "mse": 2.029005289077759,
+      "mse_delta": 2.86102294921875e-05,
+      "best_mse": 2.0289766788482666,
+      "kept": false,
+      "eval_time": 88.53202271461487,
+      "total_time": 88.55739736557007
+    },
+    {
+      "iteration": 17,
+      "layer": "__module.model.layers.17.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 97,
+      "mse": 2.029256582260132,
+      "mse_delta": 0.0002799034118652344,
+      "best_mse": 2.0289766788482666,
+      "kept": false,
+      "eval_time": 94.6934142112732,
+      "total_time": 94.71593523025513
+    },
+    {
+      "iteration": 18,
+      "layer": "__module.model.layers.12.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 79,
+      "mse": 2.0270864963531494,
+      "mse_delta": -0.0018901824951171875,
+      "best_mse": 2.0289766788482666,
+      "kept": true,
+      "eval_time": 95.98699140548706,
+      "total_time": 98.82947063446045
+    },
+    {
+      "iteration": 19,
+      "layer": "__module.model.layers.21.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 77,
+      "mse": 2.0270869731903076,
+      "mse_delta": 4.76837158203125e-07,
+      "best_mse": 2.0270864963531494,
+      "kept": false,
+      "eval_time": 77.20857667922974,
+      "total_time": 77.23321914672852
+    },
+    {
+      "iteration": 20,
+      "layer": "__module.model.layers.0.mlp.down_proj/aten::linear/MatMul_tssn",
+      "mutations": 69,
+      "mse": 1.9904232025146484,
+      "mse_delta": -0.03666329383850098,
+      "best_mse": 2.0270864963531494,
+      "kept": true,
+      "eval_time": 71.67666578292847,
+      "total_time": 73.75158524513245
+    }
+  ]
+}

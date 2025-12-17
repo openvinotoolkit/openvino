@@ -32,7 +32,7 @@ namespace element {
  * @return True if element type is bit type otherwise false.
  */
 constexpr bool is_bit_type(Type_t et) {
-    return et == u1 || et == u2;
+    return et == u1 || et == u2 || et == t2;
 }
 
 /**
@@ -94,6 +94,11 @@ constexpr size_t bit_width<Type_t::u1>() {
 
 template <>
 constexpr size_t bit_width<Type_t::u2>() {
+    return 2;
+}
+
+template <>
+constexpr size_t bit_width<Type_t::t2>() {
     return 2;
 }
 

@@ -1217,6 +1217,8 @@ std::string get_ir_precision_name(const element::Type& precision) {
         return "BF16";
     case ov::element::f64:
         return "FP64";
+    case ov::element::t2:
+        return "T2";
     default:
         return ov::util::to_upper(precision.get_type_name());
     }

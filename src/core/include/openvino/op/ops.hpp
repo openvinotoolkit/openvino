@@ -34,6 +34,7 @@
 #include "openvino/op/col2im.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/cyberspore_tssn.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/convert_promote_types.hpp"

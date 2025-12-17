@@ -73,6 +73,13 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
         CASE_CONVERT(ov::element::f8e5m2)
         CASE_CONVERT(ov::element::f8e8m0)
         CASE_CONVERT(ov::element::f4e2m1)
+    case ov::element::t2:
+        fill_tensor_random_t2(tensor,
+                              static_cast<double>(inGenData.range),
+                              inGenData.start_from,
+                              inGenData.resolution,
+                              inGenData.seed);
+        break;
     case ov::element::boolean:
         fill_data_boolean(static_cast<fundamental_type_for<ov::element::boolean>*>(tensor.data()),
                           size,
@@ -135,6 +142,9 @@ ov::Tensor create_and_fill_tensor_act_dft(const ov::element::Type element_type,
         CASE(ov::element::Type_t::f16)
         CASE(ov::element::Type_t::f32)
         CASE(ov::element::Type_t::f64)
+    case ov::element::Type_t::t2:
+        fill_tensor_random_t2(tensor, static_cast<double>(range), start_from, resolution, seed);
+        break;
     case ov::element::Type_t::u1:
     case ov::element::Type_t::i4:
     case ov::element::Type_t::u4:

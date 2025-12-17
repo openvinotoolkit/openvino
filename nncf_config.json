@@ -1,0 +1,34 @@
+{
+    "model": "embeddinggemma-300m",
+    "input_info": [
+        {
+            "sample_size": [1, 128],
+            "type": "long",
+            "keyword": "input_ids"
+        },
+        {
+            "sample_size": [1, 128],
+            "type": "long",
+            "keyword": "attention_mask"
+        },
+        {
+            "sample_size": [1, 128],
+            "type": "long",
+            "keyword": "position_ids"
+        }
+    ],
+    "compression": {
+        "algorithm": "magnitude_sparsity",
+        "params": {
+            "schedule": "multistep",
+            "multistep_steps": [1],
+            "multistep_sparsity_levels": [0.1],
+            "sparsity_target": 0.1,
+            "sparsity_target_epoch": 1
+        },
+        "ignored_scopes": [],
+        "target_scopes": [
+            "{re}.*mlp\\.down_proj.*"
+        ]
+    }
+}

@@ -31,6 +31,7 @@ openvino_to_numpy_types_map = [
     (Type.i16, np.int16),
     (Type.i32, np.int32),
     (Type.i64, np.int64),
+    (Type.t2, np.int8),
     (Type.u8, np.uint8),
     (Type.u16, np.uint16),
     (Type.u32, np.uint32),

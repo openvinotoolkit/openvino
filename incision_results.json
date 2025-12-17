@@ -1,0 +1,13 @@
+{
+    "phase": "incision_damage_assessment",
+    "timestamp": "2025-11-26T02:15:00",
+    "sparsity_target": 0.10,
+    "targeted_layers": "mlp.down_proj",
+    "weights_pruned": 2123376,
+    "metrics": {
+        "baseline_mteb_sts12": 0.534491,
+        "pruned_mteb_sts12": 0.534491,
+        "fidelity_drop": 0.0
+    },
+    "conclusion": "No measurable damage at 10% sparsity. MatFormer hypothesis supported."
+}

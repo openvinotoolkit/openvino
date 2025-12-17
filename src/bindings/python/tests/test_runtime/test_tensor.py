@@ -37,6 +37,7 @@ from tests.utils.helpers import generate_image, generate_relu_compiled_model
         (ov.Type.u1, np.uint8),
         (ov.Type.u4, np.uint8),
         (ov.Type.i4, np.int8),
+        (ov.Type.t2, np.int8),
     ],
 )
 def test_init_with_ov_type(ov_type, numpy_dtype):
@@ -374,6 +375,7 @@ def test_can_set_shape_other_dims():
         (ov.Type.u1),
         (ov.Type.u4),
         (ov.Type.i4),
+        (ov.Type.t2),
     ],
 )
 def test_cannot_create_roi_from_packed_tensor(ov_type):
@@ -389,6 +391,7 @@ def test_cannot_create_roi_from_packed_tensor(ov_type):
         (ov.Type.u1),
         (ov.Type.u4),
         (ov.Type.i4),
+        (ov.Type.t2),
     ],
 )
 def test_cannot_get_strides_for_packed_tensor(ov_type):
@@ -414,6 +417,7 @@ def test_cannot_get_strides_for_packed_tensor(ov_type):
         (ov.Type.u1),
         (ov.Type.u4),
         (ov.Type.i4),
+        (ov.Type.t2),
     ],
 )
 def test_init_with_packed_buffer(dtype, ov_type):
@@ -440,16 +444,27 @@ def test_init_with_packed_buffer(dtype, ov_type):
         (0, 2, ov.Type.u1, np.uint8),
         (0, 16, ov.Type.u4, np.uint8),
         (-8, 7, ov.Type.i4, np.int8),
+        (-1, 2, ov.Type.t2, np.int8),
         (0, 16, ov.Type.nf4, np.uint8),
     ],
 )
 def test_packing(shape, low, high, ov_type, dtype):
     ov_tensor = ov.Tensor(ov_type, shape)
-    data = np.random.uniform(low, high, shape).astype(dtype)
+    if ov_type == ov.Type.t2:
+        data = np.random.choice([-1, 0, 1], size=shape).astype(dtype)
+    else:
+        data = np.random.uniform(low, high, shape).astype(dtype)
     packed_data = pack_data(data, ov_tensor.element_type)
     ov_tensor.data[:] = packed_data
     unpacked = unpack_data(ov_tensor.data, ov_tensor.element_type, ov_tensor.shape)
     assert np.array_equal(unpacked, data)
+
+
+def test_packing_t2_invalid_values():
+    ov_tensor = ov.Tensor(ov.Type.t2, [1, 1, 8])
+    data = np.full(ov_tensor.shape, 2, dtype=np.int8)
+    with pytest.raises(RuntimeError, match="Type.t2 supports only -1, 0 or 1 values"):
+        pack_data(data, ov_tensor.element_type)
 
 
 @pytest.mark.parametrize(
@@ -649,11 +664,15 @@ def test_copy_and_deepcopy(copy_func, should_share_data):
 
 
 # supported dtypes by Pillow
-@pytest.mark.parametrize(("numpy_dtype", "shape"), [
-                         (np.float32, (224, 224)),
-                         (np.int32, (224, 224)),
-                         (np.uint8, (224, 224, 3)),
-                         (np.uint16, (224, 224)),],)
+@pytest.mark.parametrize(
+    ("numpy_dtype", "shape"),
+    [
+        (np.float32, (224, 224)),
+        (np.int32, (224, 224)),
+        (np.uint8, (224, 224, 3)),
+        (np.uint16, (224, 224)),
+    ],
+)
 def test_tensor_from_pillow(numpy_dtype, shape):
     from PIL import Image
 

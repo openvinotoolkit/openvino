@@ -1,0 +1,18 @@
+{
+    "phase": "pre_infection_baseline",
+    "timestamp": "2025-11-26T02:05:00",
+    "metrics": {
+        "throughput_fps": 4.26,
+        "latency_ms": 925.0,
+        "mteb_score_sts12": 0.534,
+        "power_consumption_watts": 14.94,
+        "fever_signal": 0.152
+    },
+    "config": {
+        "model": "embeddinggemma-300m",
+        "precision": "FP32",
+        "device": "CPU",
+        "batch_size": 1,
+        "sequence_length": 128
+    }
+}

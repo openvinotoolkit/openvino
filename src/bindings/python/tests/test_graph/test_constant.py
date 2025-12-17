@@ -251,6 +251,7 @@ def test_init_bf16_direct(ov_type, numpy_dtype, shared_flag):
         (Type.u1, np.uint8),
         (Type.u4, np.uint8),
         (Type.i4, np.int8),
+        (Type.t2, np.int8),
         (Type.nf4, np.uint8),
     ],
 )
@@ -285,6 +286,12 @@ def test_constant_direct_packing(ov_type, src_dtype, shared_flag, data_getter):
 
     assert np.array_equal(unpacked, data)
     assert not np.shares_memory(unpacked, data)
+
+
+def test_constant_t2_invalid_values():
+    data = np.array([[2, 0, -1, 1]], dtype=np.int8)
+    with pytest.raises(RuntimeError, match="assigned value out of range for t2"):
+        ops.constant(data, dtype=Type.t2)
 
 
 @pytest.mark.parametrize(

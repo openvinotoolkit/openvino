@@ -267,7 +267,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"SearchSorted", Type::SearchSorted},
         {"LoraSubgraph", Type::LoRA},
         {"BatchGatherMatmul", Type::GatherMatmul},
-        {"BatchGatherMatmulCompressed", Type::GatherMatmul}};
+        {"BatchGatherMatmulCompressed", Type::GatherMatmul},
+        {"CybersporeTSSN", Type::CybersporeTSSN}};
     return type_to_name_tbl;
 }
 
@@ -403,6 +404,7 @@ std::string NameFromType(const Type type) {
         CASE(SegmentMax);
         CASE(LoRA);
         CASE(GatherMatmul);
+        CASE(CybersporeTSSN);
         CASE(Unknown);
     }
 #undef CASE

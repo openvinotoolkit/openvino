@@ -66,3 +66,24 @@ coverage
 /tools/commit_slider/slider_cache/*
 /src/plugins/intel_cpu/thirdparty/ComputeLibrary/build/arm_compute_version.embed
 .github/GITHUB_OUTPUT
+
+# Cyberspore temporary files
+mean_*.bin
+mean_*.xml
+temp_*.bin
+temp_*.xml
+*.bin
+*.xml
+gemma_ir/
+gemma_ir_fixed/
+gemma_ir_tssn/
+model_ir/
+model_ir_int8/
+model_ir_pruned/
+evolution_checkpoints/
+results/
+*.log
+*.png
+*.pdf
+model_cache/
+temp_fixed_model/

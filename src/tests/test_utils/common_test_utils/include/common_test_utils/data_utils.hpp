@@ -344,6 +344,12 @@ void fill_tensor_random(ov::Tensor& tensor,
                         const int32_t k = 1,
                         const int seed = 1);
 
+void fill_tensor_random_t2(ov::Tensor& tensor,
+                           double range,
+                           double start_from,
+                           int32_t resolution,
+                           int seed);
+
 template <typename T>
 void inline fill_data_ptr_consistently(T* data,
                                        size_t size,

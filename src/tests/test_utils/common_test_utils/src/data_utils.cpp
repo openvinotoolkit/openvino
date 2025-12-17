@@ -4,6 +4,10 @@
 
 #include "common_test_utils/data_utils.hpp"
 
+#include <algorithm>
+#include <array>
+
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -60,6 +64,47 @@ static int randInt(int low, int high) {
     return dis(gen);
 }
 }  // namespace
+
+namespace {
+double get_step(int32_t resolution) {
+    return resolution > 0 ? 1.0 / static_cast<double>(resolution) : 1.0;
+}
+
+std::vector<int8_t> build_ternary_bucket(double start_from, double range, int32_t resolution) {
+    constexpr std::array<int8_t, 3> kValues{-1, 0, 1};
+    const double step = get_step(resolution);
+    const double max_value = range > 0 ? start_from + range - step : start_from;
+
+    std::vector<int8_t> allowed;
+    allowed.reserve(kValues.size());
+    for (auto value : kValues) {
+        if (value >= start_from && value <= max_value) {
+            allowed.push_back(value);
+        }
+    }
+
+    if (allowed.empty()) {
+        const auto clamped = std::clamp(std::lrint(start_from), static_cast<long>(kValues.front()), static_cast<long>(kValues.back()));
+        allowed.push_back(static_cast<int8_t>(clamped));
+    }
+    return allowed;
+}
+}  // namespace
+
+void fill_tensor_random_t2(ov::Tensor& tensor,
+                           double range,
+                           double start_from,
+                           int32_t resolution,
+                           int seed) {
+    OPENVINO_ASSERT(tensor.get_element_type() == ov::element::t2);
+    const auto allowed = build_ternary_bucket(start_from, range, resolution);
+    std::mt19937 gen(seed);
+    std::uniform_int_distribution<size_t> pick(0, allowed.size() - 1);
+    auto it = ov::element::iterator<ov::element::t2>(tensor.data());
+    for (size_t i = 0; i < tensor.get_size(); ++i, ++it) {
+        *it = allowed[pick(gen)];
+    }
+}
 
 template <ov::element::Type_t type>
 void fill_psroi_impl(ov::Tensor& tensor,
@@ -465,6 +510,9 @@ void fill_tensor_random(ov::Tensor& tensor,
         CASE(ov::element::i32)
         CASE(ov::element::i64)
         CASE(ov::element::boolean)
+    case ov::element::t2:
+        fill_tensor_random_t2(tensor, range, start_from, k, seed);
+        break;
     default:
         OPENVINO_THROW("Wrong precision specified: ", element_type);
     }

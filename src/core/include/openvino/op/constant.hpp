@@ -161,6 +161,9 @@ public:
         case Type_t::f8e8m0:
             fill_data<Type_t::f8e8m0>(value);
             break;
+        case Type_t::t2:
+            fill_lp_data<Type_t::t2>(value);
+            break;
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
         }
@@ -400,6 +403,9 @@ public:
             break;
         case Type_t::f8e8m0:
             cast_vector<Type_t::f8e8m0>(rc, num_elements_to_cast);
+            break;
+        case Type_t::t2:
+            cast_lp_vector<Type_t::t2>(rc, num_elements_to_cast);
             break;
         default:
             OPENVINO_THROW("unsupported type");
@@ -760,6 +766,9 @@ private:
         case Type_t::f8e8m0:
             write_buffer<Type_t::f8e8m0>(source);
             break;
+        case Type_t::t2:
+            write_lp_buffer<Type_t::t2>(source);
+            break;
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
         }
@@ -825,6 +834,8 @@ template <>
 OPENVINO_API Constant::LPBuffer<element::nf4>::LPBuffer(void* ptr);
 template <>
 OPENVINO_API Constant::LPBuffer<element::f4e2m1>::LPBuffer(void* ptr);
+template <>
+OPENVINO_API Constant::LPBuffer<element::t2>::LPBuffer(void* ptr);
 
 template <>
 OPENVINO_API void Constant::LPBuffer<element::u1>::write(const float value);
@@ -842,6 +853,8 @@ template <>
 OPENVINO_API void Constant::LPBuffer<element::nf4>::write(const float value);
 template <>
 OPENVINO_API void Constant::LPBuffer<element::f4e2m1>::write(const float value);
+template <>
+OPENVINO_API void Constant::LPBuffer<element::t2>::write(const float value);
 
 template <>
 OPENVINO_API ov::fundamental_type_for<element::u1> Constant::LPBuffer<element::u1>::read() const;
@@ -859,6 +872,8 @@ template <>
 OPENVINO_API ov::fundamental_type_for<element::nf4> Constant::LPBuffer<element::nf4>::read() const;
 template <>
 OPENVINO_API ov::fundamental_type_for<element::f4e2m1> Constant::LPBuffer<element::f4e2m1>::read() const;
+template <>
+OPENVINO_API ov::fundamental_type_for<element::t2> Constant::LPBuffer<element::t2>::read() const;
 
 template <>
 OPENVINO_API Constant::LPBuffer<element::u1>& Constant::LPBuffer<element::u1>::operator++();
@@ -876,6 +891,8 @@ template <>
 OPENVINO_API Constant::LPBuffer<element::nf4>& Constant::LPBuffer<element::nf4>::operator++();
 template <>
 OPENVINO_API Constant::LPBuffer<element::f4e2m1>& Constant::LPBuffer<element::f4e2m1>::operator++();
+template <>
+OPENVINO_API Constant::LPBuffer<element::t2>& Constant::LPBuffer<element::t2>::operator++();
 
 #define CONSTANT_FILL_DATA_SPECIALIZATION(ET, SRC_TYPE) \
     template <>                                         \
@@ -1040,6 +1057,26 @@ CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, float16)
 CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, bfloat16)
 CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, float)
 CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, double)
+
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, bool)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, char)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, signed char)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, unsigned char)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, short)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, unsigned short)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, int)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, unsigned int)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, long)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, unsigned long)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, long long)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, unsigned long long)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, float8_e4m3)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, float8_e5m2)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, float8_e8m0)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, float16)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, bfloat16)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, float)
+CONSTANT_FILL_DATA_SPECIALIZATION(t2, double)
 
 #undef CONSTANT_FILL_DATA_SPECIALIZATION
 
@@ -1206,6 +1243,26 @@ CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, float16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, bfloat16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, float)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, double)
+
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, bool)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, char)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, signed char)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, unsigned char)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, short)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, unsigned short)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, int)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, unsigned int)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, long)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, unsigned long)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, long long)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, unsigned long long)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, float8_e4m3)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, float8_e5m2)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, float8_e8m0)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, float16)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, bfloat16)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, float)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(t2, double)
 
 #undef CONSTANT_WRITE_BUFFER_SPECIALIZATION
 

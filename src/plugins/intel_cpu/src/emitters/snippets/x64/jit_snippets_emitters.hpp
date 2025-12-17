@@ -8,10 +8,12 @@
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <set>
 #include <vector>
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "openvino/op/cyberspore_tssn.hpp"
 
 namespace ov::intel_cpu {
 
@@ -88,6 +90,34 @@ private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
+};
+
+class jit_cyberspore_tssn_emitter : public jit_emitter {
+public:
+    jit_cyberspore_tssn_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
+                                dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                const ov::snippets::lowered::ExpressionPtr& expr);
+
+    size_t get_inputs_num() const override {
+        return 3;
+    }
+
+    size_t aux_vecs_count() const override;
+
+    static std::set<std::vector<ov::element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node);
+
+private:
+    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
+
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
+
+    void register_table_entries() override;
+
+    float m_setpoint = 0.f;
+    float m_decay_rate = 0.f;
+    int32_t m_decay_gate = 0;
 };
 
 }  // namespace ov::intel_cpu

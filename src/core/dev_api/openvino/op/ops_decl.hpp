@@ -15,6 +15,7 @@ class Ceiling;
 class Clamp;
 class Concat;
 class Constant;
+class CybersporeTSSN;
 class Convert;
 class Cos;
 class Cosh;

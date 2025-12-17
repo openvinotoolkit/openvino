@@ -6,6 +6,7 @@
 
 #include <xbyak/xbyak.h>
 
+#include <algorithm>
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
@@ -22,6 +23,7 @@
 #include "emitters/utils.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
+#include "utils/ternary.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -135,6 +137,15 @@ size_t jit_load_emitter::get_inputs_num() const {
     return 1;
 }
 
+size_t jit_load_emitter::aux_vecs_count() const {
+    size_t count = 0;
+    const bool needs_extra_chunk = src_prc_ == ov::element::t2 && host_isa_ != cpu::x64::sse41 && load_num_ > 16;
+    if (needs_extra_chunk) {
+        count = 1;
+    }
+    return count;
+}
+
 size_t jit_load_emitter::aux_gprs_count() const {
     // 0 for temp reg for mask load in avx512 if needed
     const auto is_pure_load = (src_prc_ == dst_prc_) || (any_of(src_prc_, ov::element::f32, ov::element::i32) &&
@@ -149,6 +160,10 @@ size_t jit_load_emitter::aux_gprs_count() const {
     // 1 for table address
     if (is_fill_) {
         count++;
+    }
+
+    if (src_prc_ == ov::element::t2) {
+        count = std::max(count, 2);
     }
 
     return count;
@@ -170,6 +185,14 @@ void jit_load_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std::
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_load_emitter::emit_isa(const Xbyak::Reg64& reg_src, const int out_vec_idx, const int offset) const {
+    const bool is_t2_load = (src_prc_ == ov::element::t2) && (dst_prc_ == ov::element::t2);
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+
+    if (is_t2_load) {
+        emit_t2_load<Vmm>(Vmm(out_vec_idx), reg_src, offset);
+        return;
+    }
+
     bool matched_prc = (dst_prc_ == src_prc_) || (dst_prc_ == ov::element::f32) || (dst_prc_ == ov::element::i32);
     if (!matched_prc) {
         OV_CPU_JIT_EMITTER_THROW("only support output precision of FP32 or I32 or the same precision as input.");
@@ -177,8 +200,6 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64& reg_src, const int out_vec_i
     if (load_num_ > static_cast<int>((get_vec_length() / dst_prc_.size()))) {
         OV_CPU_JIT_EMITTER_THROW("have unexpected number of elements to load.");
     }
-
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
 
     // pure load
     if (src_prc_ == dst_prc_) {
@@ -228,6 +249,77 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64& reg_src, const int out_vec_i
     if (is_fill_) {
         int dword_num_loaded = (src_prc_ != dst_prc_) ? load_num_ : (load_size_ / sizeof(float));
         fill_with_default(Vmm(out_vec_idx), fill_value_, dword_num_loaded);
+    }
+}
+
+template <typename Vmm>
+void jit_load_emitter::emit_t2_load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, int offset) const {
+    constexpr int bits_per_value = ov::intel_cpu::ternary::bits_per_value;
+    constexpr int values_per_byte = 8 / bits_per_value;
+    const int lanes_per_chunk = 16;
+
+    if (load_num_ == 0) {
+        return;
+    }
+    if (aux_gpr_idxs.size() < 2) {
+        OV_CPU_JIT_EMITTER_THROW("t2 load emitter requires at least two auxiliary gprs");
+    }
+
+    auto lane_value_reg = Xbyak::Reg32(aux_gpr_idxs[0]);
+    auto tmp_reg = Xbyak::Reg32(aux_gpr_idxs[1]);
+    auto lane_value_reg8 = Xbyak::Reg8(lane_value_reg.getIdx());
+
+    const int total_chunks = (load_num_ + lanes_per_chunk - 1) / lanes_per_chunk;
+    h->uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
+
+    auto insert_byte = [&](const Xbyak::Xmm& chunk, int lane) {
+        if (host_isa_ == cpu::x64::sse41) {
+            h->pinsrb(chunk, lane_value_reg8, lane);
+        } else {
+            h->vpinsrb(chunk, chunk, lane_value_reg8, lane);
+        }
+    };
+
+    for (int chunk_idx = 0; chunk_idx < total_chunks; ++chunk_idx) {
+        const int start_lane = chunk_idx * lanes_per_chunk;
+        const int lanes_in_chunk = std::min(lanes_per_chunk, load_num_ - start_lane);
+        Xbyak::Xmm chunk_reg = Xbyak::Xmm(vmm_dst.getIdx());
+        if (chunk_idx > 0) {
+            if (aux_vec_idxs.empty()) {
+                OV_CPU_JIT_EMITTER_THROW("No auxiliary vector registers available for t2 load");
+            }
+            chunk_reg = Xbyak::Xmm(aux_vec_idxs[0]);
+            h->uni_vpxor(chunk_reg, chunk_reg, chunk_reg);
+        }
+
+        for (int lane = 0; lane < lanes_in_chunk; ++lane) {
+            const int absolute_idx = offset + start_lane + lane;
+            const int byte_offset = absolute_idx / values_per_byte;
+            const int shift = (absolute_idx % values_per_byte) * bits_per_value;
+
+            h->movzx(lane_value_reg, ptr[reg_src + byte_offset]);
+            if (shift != 0) {
+                h->shr(lane_value_reg, shift);
+            }
+            h->and_(lane_value_reg, static_cast<int>(ov::intel_cpu::ternary::raw_mask));
+
+            h->mov(tmp_reg, lane_value_reg);
+            h->and_(tmp_reg, 0x2);
+            h->shl(tmp_reg, 1);
+            h->sub(lane_value_reg, tmp_reg);
+
+            insert_byte(chunk_reg, lane);
+        }
+
+        if (chunk_idx > 0) {
+            if (host_isa_ == cpu::x64::avx2) {
+                h->vinserti128(Xbyak::Ymm(vmm_dst.getIdx()), Xbyak::Ymm(vmm_dst.getIdx()), chunk_reg, chunk_idx);
+            } else if (host_isa_ == cpu::x64::avx512_core) {
+                h->vinserti32x4(Xbyak::Zmm(vmm_dst.getIdx()), Xbyak::Zmm(vmm_dst.getIdx()), chunk_reg, chunk_idx);
+            } else {
+                OV_CPU_JIT_EMITTER_THROW("Unexpected ISA for t2 chunk insertion");
+            }
+        }
     }
 }
 
@@ -750,6 +842,10 @@ size_t jit_store_emitter::aux_gprs_count() const {
         count++;
     }
 
+    if (dst_prc_ == ov::element::t2) {
+        count = std::max(count, 3);
+    }
+
     return count;
 }
 
@@ -771,6 +867,10 @@ size_t jit_store_emitter::aux_vecs_count() const {
     // restore status)
     if (mayiuse(cpu::x64::avx512_core) && any_of(dst_prc_, ov::element::u8, ov::element::u16)) {
         count++;
+    }
+
+    if (dst_prc_ == ov::element::t2 && host_isa_ != cpu::x64::sse41 && store_num_ > 16) {
+        count = std::max(count, 1);
     }
 
     return count;
@@ -820,6 +920,12 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64& reg_d
     if (!aux_vec_idxs.empty()) {
         aux_src_idx = aux_vec_idxs.back();  // to avoid src pollution
     }
+
+    if (src_prc_ == ov::element::t2 && dst_prc_ == ov::element::t2) {
+        emit_t2_store<Vmm>(Vmm(data_idx), reg_dst, offset);
+        return;
+    }
+
     if (src_prc_ != dst_prc_) {
         switch (src_prc_) {
         case ov::element::f32:
@@ -1039,6 +1145,93 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int sto
             store_byte_base();
         }
         break;
+    }
+}
+
+template <typename Vmm>
+void jit_store_emitter::emit_t2_store(const Vmm& vmm_src, const Xbyak::Reg64& reg_dst, int offset) const {
+    constexpr int bits_per_value = ov::intel_cpu::ternary::bits_per_value;
+    constexpr int values_per_byte = 8 / bits_per_value;
+    const int lanes_per_chunk = 16;
+
+    if (store_num_ == 0) {
+        return;
+    }
+    if (aux_gpr_idxs.size() < 3) {
+        OV_CPU_JIT_EMITTER_THROW("t2 store emitter requires at least three auxiliary gprs");
+    }
+
+    auto lane_value_reg = Xbyak::Reg32(aux_gpr_idxs[0]);
+    auto tmp_reg = Xbyak::Reg32(aux_gpr_idxs[1]);
+    auto byte_reg = Xbyak::Reg32(aux_gpr_idxs[2]);
+
+    const int total_chunks = (store_num_ + lanes_per_chunk - 1) / lanes_per_chunk;
+
+    auto extract_byte = [&](const Xbyak::Xmm& chunk, int lane) {
+        if (host_isa_ == cpu::x64::sse41) {
+            h->pextrb(lane_value_reg, chunk, lane);
+        } else {
+            h->vpextrb(lane_value_reg, chunk, lane);
+        }
+    };
+
+    auto store_packed_byte = [&](int byte_offset) {
+        bool ext8bit = false;
+        if (any_of(byte_reg.getIdx(), Operand::RSP, Operand::RBP, Operand::RSI, Operand::RDI)) {
+            ext8bit = true;
+        }
+        h->mov(ptr[reg_dst + byte_offset], Xbyak::Reg8(byte_reg.getIdx(), ext8bit));
+    };
+
+    for (int chunk_idx = 0; chunk_idx < total_chunks; ++chunk_idx) {
+        const int start_lane = chunk_idx * lanes_per_chunk;
+        const int lanes_in_chunk = std::min(lanes_per_chunk, store_num_ - start_lane);
+        Xbyak::Xmm chunk_reg = Xbyak::Xmm(vmm_src.getIdx());
+
+        if (chunk_idx > 0) {
+            if (aux_vec_idxs.empty()) {
+                OV_CPU_JIT_EMITTER_THROW("No auxiliary vector registers available for t2 store");
+            }
+            chunk_reg = Xbyak::Xmm(aux_vec_idxs[0]);
+            if (host_isa_ == cpu::x64::avx2) {
+                h->vextracti128(chunk_reg, Xbyak::Ymm(vmm_src.getIdx()), chunk_idx);
+            } else if (host_isa_ == cpu::x64::avx512_core) {
+                h->vextracti32x4(chunk_reg, Xbyak::Zmm(vmm_src.getIdx()), chunk_idx);
+            } else {
+                OV_CPU_JIT_EMITTER_THROW("Unexpected ISA for t2 chunk extraction");
+            }
+        }
+
+        for (int lane = 0; lane < lanes_in_chunk; ++lane) {
+            const int absolute_idx = offset + start_lane + lane;
+            const int byte_offset = absolute_idx / values_per_byte;
+            const int shift = (absolute_idx % values_per_byte) * bits_per_value;
+
+            extract_byte(chunk_reg, lane);
+
+            h->mov(tmp_reg, lane_value_reg);
+            h->and_(lane_value_reg, 0x1);
+            h->sar(tmp_reg, 7);
+            h->and_(tmp_reg, 0x2);
+            h->or_(lane_value_reg, tmp_reg);
+
+            h->movzx(byte_reg, ptr[reg_dst + byte_offset]);
+
+            h->mov(tmp_reg, 0x3);
+            if (shift != 0) {
+                h->shl(tmp_reg, shift);
+            }
+            h->not(tmp_reg);
+            h->and_(byte_reg, tmp_reg);
+
+            h->mov(tmp_reg, lane_value_reg);
+            if (shift != 0) {
+                h->shl(tmp_reg, shift);
+            }
+            h->or_(byte_reg, tmp_reg);
+
+            store_packed_byte(byte_offset);
+        }
     }
 }
 

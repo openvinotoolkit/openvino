@@ -20,6 +20,7 @@
 #include "nodes/ctc_greedy_decoder_seq_len.h"
 #include "nodes/ctc_loss.h"
 #include "nodes/cum_sum.h"
+#include "nodes/cyberspore_tssn.hpp"
 #include "nodes/deconv.h"
 #include "nodes/def_conv.h"
 #include "nodes/depth_to_space.h"
@@ -223,6 +224,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(RandomUniform, Type::RandomUniform);
     INTEL_CPU_NODE(Reduce, Type::Reduce);
     INTEL_CPU_NODE(Gather, Type::Gather);
+    INTEL_CPU_NODE(CybersporeTSSN, Type::CybersporeTSSN);
     INTEL_CPU_NODE(NonMaxSuppression, Type::NonMaxSuppression);
     INTEL_CPU_NODE(ROIPooling, Type::ROIPooling);
     INTEL_CPU_NODE(ROIAlign, Type::ROIAlign);

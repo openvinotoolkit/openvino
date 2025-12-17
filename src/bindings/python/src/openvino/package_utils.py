@@ -36,7 +36,12 @@ def _add_openvino_libs_to_search_path() -> None:
                 sys.exit("Error: Please set the OPENVINO_LIB_PATHS environment variable. "
                          "If you use an install package, please, run setupvars.bat")
         for lib in openvino_libs:
-            lib_path = os.path.join(os.path.dirname(__file__), lib)
+            # Check if lib is absolute path first
+            if os.path.isabs(lib):
+                lib_path = lib
+            else:
+                lib_path = os.path.join(os.path.dirname(__file__), lib)
+            
             if os.path.isdir(lib_path):
                 # On Windows, with Python >= 3.8, DLLs are no longer imported from the PATH.
                 os.add_dll_directory(os.path.abspath(lib_path))

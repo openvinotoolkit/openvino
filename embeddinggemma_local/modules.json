@@ -1,0 +1,32 @@
+[
+  {
+    "idx": 0,
+    "name": "0",
+    "path": "",
+    "type": "sentence_transformers.models.Transformer"
+  },
+  {
+    "idx": 1,
+    "name": "1",
+    "path": "1_Pooling",
+    "type": "sentence_transformers.models.Pooling"
+  },
+  {
+    "idx": 2,
+    "name": "2",
+    "path": "2_Dense",
+    "type": "sentence_transformers.models.Dense"
+  },
+  {
+    "idx": 3,
+    "name": "3",
+    "path": "3_Dense",
+    "type": "sentence_transformers.models.Dense"
+  },
+  {
+    "idx": 4,
+    "name": "4",
+    "path": "4_Normalize",
+    "type": "sentence_transformers.models.Normalize"
+  }
+]

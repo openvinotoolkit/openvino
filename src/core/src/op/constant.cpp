@@ -29,7 +29,7 @@ namespace op {
 
 #define SUPPORTED_ET                                                                                                 \
     boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, f8e5m2, \
-        f4e2m1, f8e8m0
+        f4e2m1, f8e8m0, t2
 
 template <class TContainer>
 TContainer convert_values_to(std::vector<int64_t>&& values, const Shape& shape) {
@@ -177,6 +177,15 @@ fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
     using T = fundamental_type_for<ET>;
     return static_cast<T>(value);
 }
+
+template <element::Type_t ET, class U, typename std::enable_if<ET == element::t2>::type* = nullptr>
+fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
+    using T = fundamental_type_for<ET>;
+    auto result = static_cast<T>(value);
+    OPENVINO_ASSERT(result >= -1 && result <= 1, "assigned value out of range for t2 (must be -1, 0, or 1)");
+    return result;
+}
+
 
 template <element::Type_t ET, class T>
 void fill_buffer(void* buffer, const Shape& shape, const T& value) {
@@ -499,7 +508,8 @@ std::vector<std::string> Constant::get_value_strings() const {
              nf4,
              string,
              f4e2m1,
-             f8e8m0>::apply<ValuesToString>(get_element_type(), get_data_ptr(), shape_size(m_shape), out);
+             f8e8m0,
+             t2>::apply<ValuesToString>(get_element_type(), get_data_ptr(), shape_size(m_shape), out);
     return out;
 }
 
@@ -733,6 +743,10 @@ Constant::LPBuffer<element::f4e2m1>::LPBuffer(void* ptr)
     : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::f4e2m1>*>(ptr))} {}
 
 template <>
+Constant::LPBuffer<element::t2>::LPBuffer(void* ptr)
+    : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::t2>*>(ptr))} {}
+
+template <>
 void Constant::LPBuffer<element::u1>::write(const float value) {
     iter->operator*() = convert_if_in_element_range<element::u1>(value);
 }
@@ -773,6 +787,11 @@ void Constant::LPBuffer<element::f4e2m1>::write(const float value) {
 }
 
 template <>
+void Constant::LPBuffer<element::t2>::write(const float value) {
+    iter->operator*() = convert_if_in_element_range<element::t2>(value);
+}
+
+template <>
 ov::fundamental_type_for<element::u1> Constant::LPBuffer<element::u1>::read() const {
     return iter->operator*();
 }
@@ -809,6 +828,11 @@ ov::fundamental_type_for<element::nf4> Constant::LPBuffer<element::nf4>::read() 
 
 template <>
 ov::fundamental_type_for<element::f4e2m1> Constant::LPBuffer<element::f4e2m1>::read() const {
+    return iter->operator*();
+}
+
+template <>
+ov::fundamental_type_for<element::t2> Constant::LPBuffer<element::t2>::read() const {
     return iter->operator*();
 }
 
@@ -856,6 +880,12 @@ Constant::LPBuffer<element::nf4>& Constant::LPBuffer<element::nf4>::operator++()
 
 template <>
 Constant::LPBuffer<element::f4e2m1>& Constant::LPBuffer<element::f4e2m1>::operator++() {
+    iter->operator++();
+    return *this;
+}
+
+template <>
+Constant::LPBuffer<element::t2>& Constant::LPBuffer<element::t2>::operator++() {
     iter->operator++();
     return *this;
 }
@@ -1026,6 +1056,26 @@ CONSTANT_FILL_DATA(f4e2m1, bfloat16)
 CONSTANT_FILL_DATA(f4e2m1, float)
 CONSTANT_FILL_DATA(f4e2m1, double)
 
+CONSTANT_FILL_DATA(t2, bool)
+CONSTANT_FILL_DATA(t2, char)
+CONSTANT_FILL_DATA(t2, signed char)
+CONSTANT_FILL_DATA(t2, unsigned char)
+CONSTANT_FILL_DATA(t2, short)
+CONSTANT_FILL_DATA(t2, unsigned short)
+CONSTANT_FILL_DATA(t2, int)
+CONSTANT_FILL_DATA(t2, unsigned int)
+CONSTANT_FILL_DATA(t2, long)
+CONSTANT_FILL_DATA(t2, unsigned long)
+CONSTANT_FILL_DATA(t2, long long)
+CONSTANT_FILL_DATA(t2, unsigned long long)
+CONSTANT_FILL_DATA(t2, float8_e4m3)
+CONSTANT_FILL_DATA(t2, float8_e5m2)
+CONSTANT_FILL_DATA(t2, float8_e8m0)
+CONSTANT_FILL_DATA(t2, float16)
+CONSTANT_FILL_DATA(t2, bfloat16)
+CONSTANT_FILL_DATA(t2, float)
+CONSTANT_FILL_DATA(t2, double)
+
 #undef CONSTANT_FILL_DATA
 
 #define CONSTANT_WRITE_BUFFER(ET, SRC_TYPE)                                                    \
@@ -1193,6 +1243,26 @@ CONSTANT_WRITE_BUFFER(f4e2m1, float16)
 CONSTANT_WRITE_BUFFER(f4e2m1, bfloat16)
 CONSTANT_WRITE_BUFFER(f4e2m1, float)
 CONSTANT_WRITE_BUFFER(f4e2m1, double)
+
+CONSTANT_WRITE_BUFFER(t2, bool)
+CONSTANT_WRITE_BUFFER(t2, char)
+CONSTANT_WRITE_BUFFER(t2, signed char)
+CONSTANT_WRITE_BUFFER(t2, unsigned char)
+CONSTANT_WRITE_BUFFER(t2, short)
+CONSTANT_WRITE_BUFFER(t2, unsigned short)
+CONSTANT_WRITE_BUFFER(t2, int)
+CONSTANT_WRITE_BUFFER(t2, unsigned int)
+CONSTANT_WRITE_BUFFER(t2, long)
+CONSTANT_WRITE_BUFFER(t2, unsigned long)
+CONSTANT_WRITE_BUFFER(t2, long long)
+CONSTANT_WRITE_BUFFER(t2, unsigned long long)
+CONSTANT_WRITE_BUFFER(t2, float8_e4m3)
+CONSTANT_WRITE_BUFFER(t2, float8_e5m2)
+CONSTANT_WRITE_BUFFER(t2, float8_e8m0)
+CONSTANT_WRITE_BUFFER(t2, float16)
+CONSTANT_WRITE_BUFFER(t2, bfloat16)
+CONSTANT_WRITE_BUFFER(t2, float)
+CONSTANT_WRITE_BUFFER(t2, double)
 
 #undef CONSTANT_WRITE_BUFFER
 
