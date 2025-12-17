@@ -138,7 +138,7 @@ public:
  * data FakeQuantize: Convert->Convert->Subtract->Multiply
  * check ZP and Scale const, if they are u16, they should be less than fp16 range (65504)
  * any value between 65504 to 65535 cause overflow in fp16
- * we disbale fp16 compression for such subgraphs/ZP/Scales to keep precision
+ * we disable fp16 compression for such subgraphs/ZP/Scales to keep precision
  *
  * Pattern:
  *
@@ -147,13 +147,11 @@ public:
  *          ▼
  *       Convert
  *          │
- *      (Reshape/Unsqueeze)
+ *       Convert
  *          │
  *        Subtract
- *      (Reshape/Unsqueeze)
  *          │
  *        Multiply
- *          │
  *
  */
 class TRANSFORMATIONS_API KeepPrecisionOfUnstrippedFQPattern : public ov::pass::MatcherPass {
