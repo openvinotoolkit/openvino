@@ -3,9 +3,9 @@
 //
 
 #include <algorithm>
+#include <intel_npu/ops/flash_attention_tile.hpp>
 #include <limits>
 #include <openvino/core/type/element_type.hpp>
-#include <openvino/runtime/intel_npu/ops/flash_attention_tile.hpp>
 #include <vector>
 
 #include "itt.hpp"
