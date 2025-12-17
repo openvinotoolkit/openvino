@@ -3,6 +3,7 @@
 //
 
 #include "weightless_utils.hpp"
+
 namespace intel_npu {
 
 bool isInitMetadata(const NetworkMetadata& networkMetadata) {

@@ -5,7 +5,6 @@
 #pragma once
 
 #include "intel_npu/network_metadata.hpp"
-#include "openvino/core/model.hpp"
 
 namespace intel_npu {
 

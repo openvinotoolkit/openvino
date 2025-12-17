@@ -353,6 +353,12 @@ struct vcl_allocator_malloc {
 };
 
 NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
+    return compile(model, config, false);
+}
+
+NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
+                                            const Config& config,
+                                            const bool storeWeightlessCacheAttributeFlag) const {
     _logger.debug("compile start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -376,8 +382,12 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, updatedConfig);
     _logger.debug("serialize IR method is %s",
                   useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
+    auto serializedIR = driver_compiler_utils::serializeIR(model,
+                                                           compilerVersion,
+                                                           maxOpsetVersion,
+                                                           useBaseModelSerializer,
+                                                           false,
+                                                           storeWeightlessCacheAttributeFlag);
 
     std::string buildFlags;
     _logger.debug("create build flags");
@@ -484,15 +494,13 @@ NetworkDescription VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov:
                                                        const Config& config,
                                                        size_t callNumber) const {
     _logger.debug("compileWsIterative start");
-    // TODO handle this and the redundant serializations
-    // storeWeightlessCacheAttribute(model);
     const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
     if (filteredConfig == nullptr) {
         OPENVINO_THROW("config is not FilteredConfig");
     }
     FilteredConfig updatedConfig = *filteredConfig;
     updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
-    return compile(model, updatedConfig);
+    return compile(model, updatedConfig, true);
 }
 
 intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network, const Config& config) const {
