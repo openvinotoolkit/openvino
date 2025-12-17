@@ -204,9 +204,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
-    ov::Tensor mainBlob,
+    const ov::Tensor& mainBlob,
     const FilteredConfig& config,
-    std::optional<std::vector<ov::Tensor>> initBlobs,
+    const std::optional<std::vector<ov::Tensor>>& initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
@@ -228,7 +228,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
                                        _zeroInitStruct,
                                        mainGraphDesc,
                                        std::move(networkMeta),
-                                       std::move(mainBlob),
+                                       mainBlob,
                                        config,
                                        blobIsPersistent);
     }
@@ -249,10 +249,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
                                              _zeroInitStruct,
                                              mainGraphDesc,
                                              std::move(networkMeta),
-                                             std::move(mainBlob),
+                                             mainBlob,
                                              initGraphDescriptors,
                                              std::move(initMetadata),
-                                             std::move(initBlobs),
+                                             initBlobs,
                                              model.value(),
                                              config,
                                              blobIsPersistent);

@@ -184,6 +184,7 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
             break;
         }
 
+        // read-only tensor for mmaped file. So .data() should be called from a const context only.
         _mmap_tensor = ov::read_tensor_data(_file_descriptor.value()._file_path,
                                             _element_type,
                                             _shape,
@@ -194,7 +195,7 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
             size_t aligned_size = utils::align_size_to_standard_page_size(bytes);
             _host_memory = ZeroMemPool::get_instance().import_standard_allocation_memory(
                 _init_structs,
-                _mmap_tensor.data(),
+                std::as_const(_mmap_tensor).data(),
                 aligned_size,
                 _tensor_type == TensorType::INPUT ? true : false);
             _data = _host_memory->data();
