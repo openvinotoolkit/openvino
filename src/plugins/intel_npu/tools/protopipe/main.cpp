@@ -26,9 +26,9 @@ static constexpr char device_message[] =
         "Optional. Device name. If specified overwrites device specified in config file.";
 static constexpr char pipeline_message[] = "Optional. Enable pipelined execution.";
 static constexpr char drop_message[] = "Optional. Drop frames if they come earlier than pipeline is completed.";
-static constexpr char mode_message[] = "Optional. Simulation mode: performance (default), reference, validation.";
-static constexpr char reference_device_msg[] = "TODO: Reference device description.";
-static constexpr char target_device_msg[] = "TODO: Target device description.";
+static constexpr char mode_message[] = "Optional. Simulation mode: performance (default), reference, validation, accuracy.";
+static constexpr char reference_device_msg[] = "Optional. Reference device for accuracy mode (default: CPU).";
+static constexpr char target_device_msg[] = "Optional. Target device for accuracy mode (default: NPU).";
 static constexpr char niter_message[] = "Optional. Number of iterations. If specified overwrites termination criterion"
                                         " for all scenarios in configuration file.";
 static constexpr char exec_time_message[] = "Optional. Time in seconds. If specified overwrites termination criterion"
