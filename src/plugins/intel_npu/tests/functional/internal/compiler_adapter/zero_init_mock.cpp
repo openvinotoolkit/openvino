@@ -88,13 +88,13 @@ void ZeroInitStructsMock::initNpuDriver() {
         auto result = zelGetLoaderVersion(&version);
         if (result == ZE_RESULT_SUCCESS) {
             loader_version = version.component_lib_version;
-            get_loade_version_success = true;
+            get_loader_version= true;
         }
     } catch (...) {
         // Ignore exceptions - fallback to zeInit
     }
 
-    if (!get_loade_version_success) {
+    if (!get_loader_version) {
         log.debug("ZeroInitStructsHolder::initNpuDriver - performing zeInit on NPU only");
         THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
         size_t num_components;
