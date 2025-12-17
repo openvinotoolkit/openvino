@@ -95,7 +95,7 @@ jobs:
         with:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino'
-          free-threaded-python: ${{ contains(inputs.python-version, 't') || (runner.os == 'Windows' && inputs.python-version == '3.14') }} # Windows have a single wheel for 3.14 and 3.14t
+          free-threaded-python: ${{ contains(inputs.python-version, 't') }}
 
       - name: Install Python API tests dependencies
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
