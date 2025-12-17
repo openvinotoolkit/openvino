@@ -83,17 +83,20 @@ void ov::op::util::BroadcastBase::validate_target_shape_numpy(const PartialShape
                           " than arg shape ",
                           arg_rank_length);
     for (auto i = start_axis; i < target_rank_length; i++) {
-        std::stringstream ss;
-        ss << " or " << target_shape[i];
-        NODE_VALIDATION_CHECK(this,
-                              arg_shape[i - start_axis].is_dynamic() || target_shape[i].is_dynamic() ||
-                                  arg_shape[i - start_axis] == 1 || arg_shape[i - start_axis] == target_shape[i],
-                              "Input shape dimension equal ",
-                              arg_shape[i - start_axis],
-                              " cannot be broadcasted (numpy mode) to ",
-                              target_shape[i],
-                              ". Allowed input dimension value would be 1",
-                              target_shape[i] != 1 ? ss.str() : "");
+        if (!(arg_shape[i - start_axis].is_dynamic() || target_shape[i].is_dynamic() ||
+              arg_shape[i - start_axis] == 1 || arg_shape[i - start_axis] == target_shape[i])) {
+            
+            std::stringstream error_msg;
+            error_msg << "NumPy broadcasting error: Input dimension " << arg_shape[i - start_axis] 
+                      << " at axis " << (i - start_axis) << " cannot be broadcast to target dimension " 
+                      << target_shape[i] << " at axis " << i << ".\n"
+                      << "NumPy broadcasting rules require dimensions to be either equal or one of them must be 1.\n"
+                      << "Current shapes: input=" << arg_shape << ", target=" << target_shape << "\n"
+                      << "Incompatible at axis " << (i - start_axis) << ": " << arg_shape[i - start_axis] 
+                      << " ≠ " << target_shape[i] << " and neither is 1.";
+            
+            NODE_VALIDATION_CHECK(this, false, error_msg.str());
+        }
     }
 }
 

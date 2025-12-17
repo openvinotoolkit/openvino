@@ -68,8 +68,18 @@ def broadcast(
                            that are being broadcast.
     :param broadcast_spec: The type of broadcasting that specifies mapping of input tensor axes
                            to output shape axes. Range of values: NUMPY, EXPLICIT, BIDIRECTIONAL.
+                           
+                           NUMPY mode follows NumPy broadcasting rules:
+                           - Dimensions are aligned from the rightmost (trailing) dimensions
+                           - Each dimension must be either equal or one of them must be 1
+                           - Missing dimensions are treated as 1
+                           
+                           Example: [3, 1, 5] can broadcast to [2, 3, 4, 5] but not to [2, 4, 1, 5]
+                           because 3 ≠ 4 and neither is 1.
+                           
     :param name: Optional new name for output node.
     :return: New node with broadcast shape.
+    :raises RuntimeError: If broadcast_spec is NUMPY and shapes are incompatible with NumPy broadcasting rules.
     """
     inputs = as_nodes(data, target_shape, name=name)
     if broadcast_spec.upper() == "EXPLICIT":
