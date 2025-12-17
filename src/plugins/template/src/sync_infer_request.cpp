@@ -31,13 +31,13 @@ namespace {
 void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor,
                           const ov::element::Type& element_type,
                           const ov::Shape& shape) {
-    if (!tensor || tensor->get_element_type() != element_type) {
+    if (!tensor || tensor->get_element_type() != element_type ||
+        shape_size(shape) * element_type.size() > tensor->get_byte_size()) {
         tensor = ov::make_tensor(element_type, shape);
     } else {
         tensor->set_shape(shape);
     }
 }
-
 }  // namespace
 
 void collect_variables(const std::shared_ptr<ov::Model>& ov_model,

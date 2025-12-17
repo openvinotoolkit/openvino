@@ -399,6 +399,9 @@ void convolution(const T* in,
         }
     };
 
+    // Sequential execution
+    // ker_callback(1, 0, in, f, out, input_shape, filters_shape, out_shape, params);
+
     for (size_t ithr = 0; ithr < ncores; ithr++) {
         futures[ithr] =
             std::async(ker_callback, ncores, ithr, in, f, out, input_shape, filters_shape, out_shape, params);
