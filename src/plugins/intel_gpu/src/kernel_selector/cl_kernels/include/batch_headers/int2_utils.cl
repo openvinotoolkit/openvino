@@ -62,16 +62,15 @@ inline char8 unpack_to_char(uint2x8_t v) __attribute__((overloadable)) {
     return (char8)(v0.s0, v0.s1, v0.s2, v0.s3, v1.s0, v1.s1, v1.s2, v1.s3);
 }
 
-// 2bit x 16 -> 16 values.
 inline uchar16 unpack_to_uchar(uint2x16_t v) __attribute__((overloadable)) {
-    uchar8 v0 = unpack_to_uchar((uint2x8_t){v.s0, v.s1});
-    uchar8 v1 = unpack_to_uchar((uint2x8_t){v.s2, v.s3}); // Check struct init syntax or use intermediate
-    // Using named members is safer if cast doesn't work directly
+    uint2x8_t tmp0 = (uint2x8_t){v.s0, v.s1};
+    uint2x8_t tmp1 = (uint2x8_t){v.s2, v.s3};
+    uchar8 v0 = unpack_to_uchar(tmp0);
+    uchar8 v1 = unpack_to_uchar(tmp1);
     return (uchar16)(v0.s0, v0.s1, v0.s2, v0.s3, v0.s4, v0.s5, v0.s6, v0.s7,
                      v1.s0, v1.s1, v1.s2, v1.s3, v1.s4, v1.s5, v1.s6, v1.s7);
 }
 
-// For float
 inline float4 unpack_to_float(uint2x4_t v) __attribute__((overloadable)) {
     return convert_float4(cvt_uint2x4_to_uint8x4(v));
 }

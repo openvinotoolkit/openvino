@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@ inline uint32_t BytesPerElement(Datatype dt) {
         case Datatype::F16:
         case Datatype::INT16:
         case Datatype::UINT16:
+        case Datatype::BF16:
             return 2;
         case Datatype::F32:
         case Datatype::INT32:
@@ -31,6 +32,11 @@ inline uint32_t BytesPerElement(Datatype dt) {
             return 4;
         case Datatype::INT64:
             return 8;
+        case Datatype::INT4:
+        case Datatype::UINT4:
+        case Datatype::INT2:
+        case Datatype::UINT2:
+            throw std::runtime_error("[GPU] BytesPerElement doesn't support sub-byte precision (INT4/UINT4/INT2/UINT2)");
         default:
             throw std::runtime_error("[GPU] BytesPerElement doesn't support given precision");
     }
@@ -42,10 +48,16 @@ inline uint32_t BytesPerElement(WeightsType wt) {
         case WeightsType::UINT8:
             return 1;
         case WeightsType::F16:
+        case WeightsType::BF16:
             return 2;
         case WeightsType::F32:
         case WeightsType::INT32:
             return 4;
+        case WeightsType::INT4:
+        case WeightsType::UINT4:
+        case WeightsType::INT2:
+        case WeightsType::UINT2:
+            throw std::runtime_error("[GPU] BytesPerElement doesn't support sub-byte precision (INT4/UINT4/INT2/UINT2)");
         default:
             throw std::runtime_error("[GPU] BytesPerElement doesn't support given precision");
     }
