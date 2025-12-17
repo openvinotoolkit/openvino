@@ -357,18 +357,19 @@ public:
             auto& src_scale_shape = impl_params->input_layouts[src_scale_idx].get_partial_shape();
             int src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
             int src_group_size = innermost_len / src_scale_ngroups;
+            int act_grouped = GROUPED | (1 << (prim->input_size - 1));
 
             auto act_scale_data_type = convert_data_type(impl_params->get_input_layout(src_scale_idx).data_type);
-            _attrs->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
+            _attrs->set_scales(DNNL_ARG_SRC, act_grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
             if (dynamic_quantized_activation_zp) {
                 idx++;
-                _attrs->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
+                _attrs->set_zero_points(DNNL_ARG_SRC, act_grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
             }
 
             if (dynamic_quantized_precomputed_reduction) {
                 auto activation_precomputed_reduction_idx = ++idx;
                 auto act_precomputed_reduction_data_type = convert_data_type(impl_params->get_input_layout(activation_precomputed_reduction_idx).data_type);
-                _attrs->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
+                _attrs->set_precomputed_reductions(DNNL_ARG_SRC, act_grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
                 // FIXME: implementation for serialization
             }
         }
