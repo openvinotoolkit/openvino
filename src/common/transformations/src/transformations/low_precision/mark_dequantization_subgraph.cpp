@@ -463,8 +463,6 @@ ov::pass::KeepPrecisionOfUnstrippedFQPattern::KeepPrecisionOfUnstrippedFQPattern
                               zp_convert_pattern,
                               zp_const_pattern,
                               scale_const_pattern };
-
-
         // we can check if zp const values are between 65504 to 65535, disable fp16 compression
         bool max_reach = false;
         constexpr uint16_t FP16_MAX = 65504;
@@ -480,16 +478,13 @@ ov::pass::KeepPrecisionOfUnstrippedFQPattern::KeepPrecisionOfUnstrippedFQPattern
                 }
             }
         }
-
         if (max_reach)
             for (const auto& node_to_mark : nodes_to_mark) {
                 if (pm.count(node_to_mark)) {
                     auto node_ptr = pattern_map.at(node_to_mark).get_node_shared_ptr();
                     disable_fp16_compression(node_ptr);
-
                 }
             }
-
         return true;
         };
 
