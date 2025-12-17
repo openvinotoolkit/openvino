@@ -142,6 +142,8 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckWeightlessCacheAttributePr
     EXPECT_NO_THROW(
         serializedModel =
             ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, false, true));
+    // Follows the contract established with the driver-compiler adapter. Predefined prefix + a topological ID of the
+    // Constant node
     ASSERT_TRUE(model->has_rt_info("ws_bin_offset_1"));
 }
 
