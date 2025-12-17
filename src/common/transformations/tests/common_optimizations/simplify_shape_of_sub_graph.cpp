@@ -507,15 +507,15 @@ TEST(ForceInvalidateValues, IgnoresSkipInvalidationFlag) {
     EXPECT_TRUE(tensor.get_rt_info().count(ov::SkipInvalidation::get_type_info_static()));
 }
 
-// Test for CVS-175062: AbsSinking with SymbolicOptimizations and Broadcast pattern
-// This test reproduces the exact pattern that causes the assertion failure:
+// Test for AbsSinking with SymbolicOptimizations and Broadcast pattern
+// This test reproduces a pattern that causes assertion failure without force_invalidate_values():
 // Broadcast(bias, Abs(Concat(ShapeOf[0], -1, -1)))
 // When SymbolicOptimizations runs:
 // 1. SymbolicPropagation sets SkipInvalidation on all output tensors
 // 2. AbsSinking transforms Concat inputs: replaces -1 with Abs(-1)=1
-// 3. BUT Concat output bounds are NOT invalidated due to SkipInvalidation
+// 3. Without force_invalidate_values(), Concat output bounds are NOT invalidated due to SkipInvalidation
 // 4. Broadcast shape inference gets stale bounds with -1, causing assertion failure
-TEST(AbsSinkingSymbolicOptimizations, CVS175062_BroadcastPattern) {
+TEST(AbsSinkingSymbolicOptimizations, BroadcastPatternWithSkipInvalidation) {
     // Create model: Broadcast(const, Abs(Concat(gather(ShapeOf(param), 0), -1, -1)))
     PartialShape shape = PartialShape::dynamic(4);
 
