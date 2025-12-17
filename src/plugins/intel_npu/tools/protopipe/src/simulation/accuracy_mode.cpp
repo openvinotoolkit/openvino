@@ -1,4 +1,7 @@
-// TODO: Copyright tag
+//
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #include "accuracy_mode.hpp"
 
@@ -275,26 +278,40 @@ private:
 
 class PipelinedSimulation : public PipelinedCompiled {
 public:
-    PipelinedSimulation(cv::GStreamingCompiled&& compiled, std::vector<DummySource::Ptr>&& sources,
-                        std::vector<Meta>&& out_meta, cv::util::optional<uint64_t> required_num_iterations);
+    PipelinedSimulation(cv::GStreamingCompiled&& ref_compiled, cv::GStreamingCompiled&& tgt_compiled,
+                        std::vector<DummySource::Ptr>&& ref_sources, std::vector<DummySource::Ptr>&& tgt_sources,
+                        std::vector<Meta>&& out_meta,
+                        cv::util::optional<uint64_t> required_num_iterations,
+                        const AccuracySimulation::Options& opts,
+                        const InferDesc& infer);
 
     Result run(ITermCriterion::Ptr criterion) override;
 
 private:
-    bool process(cv::GStreamingCompiled& pipeline);
+    bool process(cv::GStreamingCompiled& pipeline, DeviceType device_type);
 
-    PipelinedExecutor m_exec;
-    std::vector<DummySource::Ptr> m_sources;
+    PipelinedExecutor m_ref_exec;
+    PipelinedExecutor m_tgt_exec;
+    std::vector<DummySource::Ptr> m_ref_sources;
+    std::vector<DummySource::Ptr> m_tgt_sources;
     std::vector<Meta> m_out_meta;
-    std::vector<cv::optional<cv::Mat>> m_opt_mats;
-    size_t m_iter_idx;
     cv::optional<uint64_t> m_required_num_iterations;
+    const AccuracySimulation::Options m_opts;
+    const InferDesc m_infer;
+
+    std::vector<std::vector<cv::Mat>> m_ref_out_iter;
+    std::vector<std::vector<cv::Mat>> m_tgt_out_iter;
+
+    size_t m_ref_iter_idx;
+    size_t m_tgt_iter_idx;
 };
 
 //////////////////////////////// SyncSimulation ////////////////////////////////
-SyncSimulation::SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt_compiled, std::vector<DummySource::Ptr>&& ref_sources,
-                               std::vector<DummySource::Ptr>&& tgt_sources, std::vector<Meta>&& out_meta,
-                               cv::util::optional<uint64_t> required_num_iterations, const AccuracySimulation::Options& opts,
+SyncSimulation::SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt_compiled,
+                               std::vector<DummySource::Ptr>&& ref_sources, std::vector<DummySource::Ptr>&& tgt_sources,
+                               std::vector<Meta>&& out_meta,
+                               cv::util::optional<uint64_t> required_num_iterations,
+                               const AccuracySimulation::Options& opts,
                                const InferDesc& infer)
         : m_ref_exec(std::move(ref_compiled)),
           m_tgt_exec(std::move(tgt_compiled)),
@@ -384,46 +401,103 @@ bool SyncSimulation::process(cv::GCompiled& pipeline, DeviceType device_type) {
     return true;
 }
 
-//////////////////////////////// PipelinedSimulation ///////////////////////////////
-PipelinedSimulation::PipelinedSimulation(cv::GStreamingCompiled&& compiled, std::vector<DummySource::Ptr>&& sources,
+//////////////////////////////// PipelinedSimulation ////////////////////////////////
+PipelinedSimulation::PipelinedSimulation(cv::GStreamingCompiled&& ref_compiled, cv::GStreamingCompiled&& tgt_compiled,
+                                         std::vector<DummySource::Ptr>&& ref_sources, std::vector<DummySource::Ptr>&& tgt_sources,
                                          std::vector<Meta>&& out_meta,
-                                         cv::util::optional<uint64_t> required_num_iterations)
-        : m_exec(std::move(compiled)),
-          m_sources(std::move(sources)),
+                                         cv::util::optional<uint64_t> required_num_iterations,
+                                         const AccuracySimulation::Options& opts,
+                                         const InferDesc& infer)
+        : m_ref_exec(std::move(ref_compiled)),
+          m_tgt_exec(std::move(tgt_compiled)),
+          m_ref_sources(std::move(ref_sources)),
+          m_tgt_sources(std::move(tgt_sources)),
           m_out_meta(std::move(out_meta)),
-          m_opt_mats(m_out_meta.size()),
-          m_iter_idx(0u),
-          m_required_num_iterations(required_num_iterations) {
+          m_required_num_iterations(required_num_iterations),
+          m_opts(std::move(opts)),
+          m_infer(std::move(infer)),
+          m_ref_iter_idx(0u),
+          m_tgt_iter_idx(0u) {
 }
 
 Result PipelinedSimulation::run(ITermCriterion::Ptr criterion) {
-    auto pipeline_inputs = cv::gin();
-    for (auto source : m_sources) {
-        pipeline_inputs += cv::gin(static_cast<cv::gapi::wip::IStreamSource::Ptr>(source));
-    }
-    using namespace std::placeholders;
-    auto cb = std::bind(&PipelinedSimulation::process, this, _1);
     updateCriterion(&criterion, m_required_num_iterations);
-    m_exec.runLoop(std::move(pipeline_inputs), cb, criterion);
+    auto tgt_criterion = criterion->clone();
+
+    // NB: Run REF and TGT streaming pipelines in parallel, then validate outputs.
+    auto ref_future = std::async(std::launch::async, [this, criterion]() {
+        auto ref_pipeline_inputs = cv::gin();
+        for (auto source : m_ref_sources) {
+            ref_pipeline_inputs += cv::gin(static_cast<cv::gapi::wip::IStreamSource::Ptr>(source));
+        }
+        m_ref_exec.runLoop(std::move(ref_pipeline_inputs), [this](cv::GStreamingCompiled& pipeline) {
+            return this->process(pipeline, DeviceType::Reference);
+        }, criterion);
+    });
+
+    auto tgt_future = std::async(std::launch::async, [this, tgt_criterion]() {
+        auto tgt_pipeline_inputs = cv::gin();
+        for (auto source : m_tgt_sources) {
+            tgt_pipeline_inputs += cv::gin(static_cast<cv::gapi::wip::IStreamSource::Ptr>(source));
+        }
+        m_tgt_exec.runLoop(std::move(tgt_pipeline_inputs), [this](cv::GStreamingCompiled& pipeline) {
+            return this->process(pipeline, DeviceType::Target);
+        }, tgt_criterion);
+    });
+
+    ref_future.get();
+    tgt_future.get();
+
+    auto validation_result = performValidation(
+        m_ref_out_iter,
+        m_tgt_out_iter,
+        m_infer,
+        m_opts
+    );
+
+    if (!validation_result) {
+        return validation_result;
+    }
+
     std::stringstream ss;
-    ss << "Reference data has been generated for " << m_iter_idx << " iteration(s)";
+    ss << "Accuracy validation passed - Ref: " << m_ref_iter_idx
+       << " iterations, Tgt: " << m_tgt_iter_idx << " iterations";
     return Success{ss.str()};
 }
 
-bool PipelinedSimulation::process(cv::GStreamingCompiled& pipeline) {
+bool PipelinedSimulation::process(cv::GStreamingCompiled& pipeline, DeviceType device_type) {
+    auto& iter_idx = (device_type == DeviceType::Reference) ? m_ref_iter_idx : m_tgt_iter_idx;
+    auto& out_iter = (device_type == DeviceType::Reference) ? m_ref_out_iter : m_tgt_out_iter;
+
+    std::vector<cv::optional<cv::Mat>> opt_mats(m_out_meta.size());
+
     cv::GOptRunArgsP pipeline_outputs;
-    for (auto& opt_mat : m_opt_mats) {
+    for (auto& opt_mat : opt_mats) {
         pipeline_outputs.emplace_back(cv::gout(opt_mat)[0]);
     }
+
     const bool has_data = pipeline.pull(std::move(pipeline_outputs));
-    for (size_t i = 0; i < m_out_meta.size(); ++i) {
-        if (m_out_meta[i].has<Dump>()) {
-            const auto& dump = m_out_meta[i].get<Dump>();
-            ASSERT(m_opt_mats[i].has_value());
-            dumpIterOutput(m_opt_mats[i].value(), dump, m_iter_idx);
+
+    if (has_data) {
+        std::vector<cv::Mat> out_mats;
+        out_mats.reserve(opt_mats.size());
+
+        for (size_t i = 0; i < m_out_meta.size(); ++i) {
+            ASSERT(opt_mats[i].has_value());
+
+            if (m_out_meta[i].has<DualDeviceDump>()) {
+                const auto& dump = m_out_meta[i].get<DualDeviceDump>();
+                auto dump_path = (device_type == DeviceType::Reference) ? dump.reference_path : dump.target_path;
+                dumpIterOutput(opt_mats[i].value(), Dump{dump_path}, iter_idx);
+            }
+
+            out_mats.push_back(std::move(opt_mats[i].value()));
         }
+
+        out_iter.push_back(std::move(out_mats));
+        ++iter_idx;
     }
-    ++m_iter_idx;
+
     return has_data;
 }
 
@@ -450,12 +524,31 @@ AccuracySimulation::AccuracySimulation(Simulation::Config&& cfg, AccuracySimulat
           m_comp(ComputationBuilder{m_strategy}.build(m_cfg.graph, m_cfg.params, {false /* add performance meta */})) {
 }
 
-std::shared_ptr<PipelinedCompiled> AccuracySimulation::compilePipelined(DummySources&& sources,
-                                                                       cv::GCompileArgs&& compile_args) {
-    auto compiled = m_comp.compileStreaming(descr_of(sources), std::move(compile_args));
+std::shared_ptr<PipelinedCompiled> AccuracySimulation::compilePipelined(DummySources&& ref_sources, DummySources&& tgt_sources,
+                                                                        cv::GCompileArgs&& ref_compile_args, cv::GCompileArgs&& tgt_compile_args) {
+    auto ref_compiled = m_comp.compileStreaming(descr_of(ref_sources), std::move(ref_compile_args));
+    auto tgt_compiled = m_comp.compileStreaming(descr_of(tgt_sources), std::move(tgt_compile_args));
+
     auto out_meta = m_comp.getOutMeta();
-    return std::make_shared<PipelinedSimulation>(std::move(compiled), std::move(sources), std::move(out_meta),
-                                                 m_strategy->required_num_iterations);
+
+    return std::make_shared<PipelinedSimulation>(std::move(ref_compiled), std::move(tgt_compiled),
+                                                 std::move(ref_sources), std::move(tgt_sources),
+                                                 std::move(out_meta), m_strategy->required_num_iterations,
+                                                 std::move(m_opts), m_strategy->current_infer);
+}
+
+std::shared_ptr<PipelinedCompiled> AccuracySimulation::compilePipelined(const bool drop_frames) {
+    changeDeviceParam(m_cfg.params, m_opts.tgt_device);
+    auto tgt_compile_args = cv::compile_args(getNetworksPackage());
+    changeDeviceParam(m_cfg.params, m_opts.ref_device);
+    auto ref_compile_args = cv::compile_args(getNetworksPackage());
+
+    // NB: Create separate sources for REF and TGT to avoid shared state issues.
+    auto ref_sources = createSources(drop_frames);
+    auto tgt_sources = createSources(drop_frames);
+
+    return compilePipelined(std::move(ref_sources), std::move(tgt_sources),
+                            std::move(ref_compile_args), std::move(tgt_compile_args));
 }
 
 std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& ref_sources, DummySources&& tgt_sources,

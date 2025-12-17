@@ -1,3 +1,8 @@
+//
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include <memory>
@@ -5,7 +10,6 @@
 #include "simulation/computation.hpp"
 #include "simulation/simulation.hpp"
 #include "scenario/inference.hpp"
-
 
 class AccuracyStrategy;
 class AccuracySimulation : public Simulation {
@@ -24,11 +28,12 @@ public:
     explicit AccuracySimulation(Simulation::Config&& cfg, Options&& opts);
 
     std::shared_ptr<SyncCompiled> compileSync(const bool drop_frames) override;
+    std::shared_ptr<PipelinedCompiled> compilePipelined(const bool drop_frames) override;
 
-    std::shared_ptr<PipelinedCompiled> compilePipelined(DummySources&& sources,
-                                                        cv::GCompileArgs&& compile_args) override;
     std::shared_ptr<SyncCompiled> compileSync(DummySources&& ref_sources, DummySources&& tgt_sources,
                                               cv::GCompileArgs&& ref_compiler_args, cv::GCompileArgs&& tgt_compiler_args);
+    std::shared_ptr<PipelinedCompiled> compilePipelined(DummySources&& ref_sources, DummySources&& tgt_sources,
+                                                        cv::GCompileArgs&& ref_compile_args, cv::GCompileArgs&& tgt_compile_args);
 
 private:
     Options m_opts;
