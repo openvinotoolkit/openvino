@@ -5,6 +5,9 @@
 
 #include "simulation/layer_validator.hpp"
 
+#include "result.hpp"
+#include <sstream>
+
 LayerValidator::LayerValidator(const std::string& tag, const std::string& layer_name, IAccuracyMetric::Ptr metric)
         : m_tag(tag), m_layer_name(layer_name), m_metric(metric) {
 }

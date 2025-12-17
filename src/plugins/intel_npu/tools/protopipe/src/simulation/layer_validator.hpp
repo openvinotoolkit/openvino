@@ -6,7 +6,6 @@
 #pragma once
 
 #include <string>
-#include <memory>
 
 #include <opencv2/core/mat.hpp>
 
