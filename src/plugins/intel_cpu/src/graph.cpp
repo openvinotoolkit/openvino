@@ -392,7 +392,7 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
 void Graph::Activate() {
     // @todo It is possible that execution graph is already created in scope of
     // the allocation context collection from the outer graph so the state for inner graph is "Ready"
-    // We probably want to avoid such uncertacy
+    // We probably want to avoid such uncertainty
     // OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status: ", static_cast<int>(status));
     Allocate();
 
