@@ -46,7 +46,7 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAn
         OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(tensor, target_device, configuration));
     }
 
-    // suffix tests, application correctly manages ov::Tensor offsets or disables metadata checking
+    // suffix tests, application correctly manages offsets
     {
         sstream.write(suffixView.data(), suffixView.size());
         auto strSO = std::make_shared<std::string>(sstream.str());
@@ -58,44 +58,38 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAn
         tensor = ov::make_tensor(impl);
         sstream.seekg(headerView.size(), std::ios::beg);
 
-        configuration.emplace(ov::intel_npu::disable_version_check(true));
         OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration));
-        configuration.erase(ov::intel_npu::disable_version_check.name());
         OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(tensor, target_device, configuration));
-        OV_EXPECT_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration),
-                        ov::Exception,
-                        testing::HasSubstr("metadata"));  // OVNPU suffix cannot be parsed from metadata
     }
 }
 
-TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfExportedModelIfMultipleOfPageSize) {
+TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfExportedModelIsMultipleOfPageSize) {
     ov::Core core;
     std::stringstream sstream;
 
     auto model = ov::test::utils::make_conv_pool_relu();
     core.compile_model(model, target_device, configuration).export_model(sstream);
 
-    std::size_t size = sstream.str().size();
+    sstream.seekg(0, std::ios::end);
+    size_t sizeBlobWithMetadata = sstream.tellg();
 
-    ASSERT_TRUE(size != 0) << "Size of the exported model shall be different from 0";
-    ASSERT_TRUE(size % 4096 == 0) << "Size of the exported model shall be multiple of 4096";
-}
+    ASSERT_TRUE(sizeBlobWithMetadata != 0) << "Size of the exported model shall be different from 0";
+    ASSERT_TRUE(sizeBlobWithMetadata % 4096 == 0) << "Size of the exported model shall be multiple of 4096";
 
-TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfBlobIfMultipleOfPageSize) {
-    ov::Core core;
-    std::stringstream sstream;
+    // same expectations for raw blob (no metadata)
+    sstream = std::stringstream();
 
-    auto model = ov::test::utils::make_conv_pool_relu();
+    configuration.emplace(ov::intel_npu::export_raw_blob(true));
     core.compile_model(model, target_device, configuration).export_model(sstream);
+    configuration.erase(ov::intel_npu::export_raw_blob.name());
 
-    uint64_t size_of_blob;
-    std::size_t size = sstream.str().size();
+    sstream.seekg(0, std::ios::end);
+    size_t sizeRawBlob = sstream.tellg();
 
-    sstream.seekg(size - std::streampos(5) /*MAGIC_BYTES*/ - sizeof(size_of_blob), std::ios::cur);
-    sstream.read(reinterpret_cast<char*>(&size_of_blob), sizeof(size_of_blob));
+    ASSERT_TRUE(sizeRawBlob != 0) << "Size of the blob shall be different from 0";
+    ASSERT_TRUE(sizeRawBlob % 4096 == 0) << "Size of the blob shall be multiple of 4096";
 
-    ASSERT_TRUE(size_of_blob != 0) << "Size of the blob shall be different from 0";
-    ASSERT_TRUE(size_of_blob % 4096 == 0) << "Size of the blob shall be multiple of 4096";
+    ASSERT_LE(sizeRawBlob, sizeBlobWithMetadata) << "Size of raw blob should be lesser than the one with metadata";
 }
 
 }  // namespace behavior

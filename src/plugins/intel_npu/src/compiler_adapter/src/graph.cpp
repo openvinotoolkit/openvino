@@ -4,8 +4,6 @@
 
 #include "graph.hpp"
 
-#include <iterator>
-
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -82,7 +80,7 @@ ze_graph_handle_t Graph::get_handle() const {
     return _graphDesc._handle;
 }
 
-std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std::ostream& stream) const {
+std::pair<AddrSizePair, std::optional<std::vector<AddrSizePair>>> Graph::export_blob() const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize;
     std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
@@ -102,12 +100,6 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
     if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
         OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
     }
-    stream.write(reinterpret_cast<const char*>(blobPtr), static_cast<std::streamsize>(blobSize));
-
-    if (!stream) {
-        _logger.error("Write blob to stream failed. Blob is broken!");
-        return std::make_pair(0, std::nullopt);
-    }
 
     if (_logger.level() >= ov::log::Level::INFO) {
         std::uint32_t result = 1171117u;
@@ -120,21 +112,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
         _logger.info(str.str().c_str());
     }
 
-    size_t size = utils::align_size_to_standard_page_size(blobSize);
-    size_t paddingSize = size - blobSize;
-    if (paddingSize > 0) {
-        std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
-
-        if (!stream) {
-            _logger.error("Write padding to stream failed. Blob is broken!");
-            return std::make_pair(0, std::nullopt);
-        }
-
-        _logger.info("Blob size with padding: %ld", size);
-    }
-
-    _logger.info("Write blob to stream successfully.");
-    return std::make_pair(size, std::nullopt);
+    return std::make_pair(std::make_pair(blobPtr, blobSize), std::nullopt);
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData,

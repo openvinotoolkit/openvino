@@ -493,5 +493,12 @@ static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKE
  */
 static constexpr ov::Property<bool> disable_version_check{"NPU_DISABLE_VERSION_CHECK"};
 
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows to skip writing plugin metadata to compiled model when exporting it
+ */
+static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
+
 }  // namespace intel_npu
 }  // namespace ov
