@@ -8,6 +8,7 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "intel_npu/config/options.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
@@ -24,12 +25,17 @@ namespace {
 constexpr size_t SERIALIZED_MODEL_THRESHOLD_ALL_WEIGHTS_COPY = 300000;
 constexpr size_t SERIALIZED_MODEL_THRESHOLD_NO_WEIGHTS_COPY = 200000;
 
-std::shared_ptr<ov::Model> createModelWithLargeWeights() {
+std::shared_ptr<ov::Model> createModelWithLargeWeights(const bool placeOneWeightlessCacheAttribute = false) {
     auto data = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{100000});
     auto mul_constant = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1}, {1.5});
     auto mul = std::make_shared<ov::opset11::Multiply>(data, mul_constant);
     auto add_constant = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1}, {0.5});
     auto add = std::make_shared<ov::opset11::Add>(mul, add_constant);
+
+    if (placeOneWeightlessCacheAttribute) {
+        add_constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+            ov::WeightlessCacheAttribute(add_constant->get_byte_size(), 0, add_constant->get_element_type());
+    }
 
     // Just a sample model here, large iteration to make the model large
     for (int i = 0; i < 100; i++) {
@@ -107,6 +113,36 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelNoWeightsCopy) {
     ov::pass::StreamSerialize::DataHeader dataHeader;
     memcpy(&dataHeader, serializedModel.buffer.get(), sizeof(dataHeader));
     ASSERT_TRUE(dataHeader.consts_size == 0);
+}
+
+TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckHashPresence) {
+    auto model = createModelWithLargeWeights();
+    const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
+
+    ::intel_npu::SerializedIR serializedModel;
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false));
+    ASSERT_FALSE(serializedModel.hash.has_value());
+
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, true));
+    ASSERT_TRUE(serializedModel.hash.has_value());
+}
+
+TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckWeightlessCacheAttributePresence) {
+    auto model = createModelWithLargeWeights(true);
+    const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
+
+    ::intel_npu::SerializedIR serializedModel;
+    EXPECT_NO_THROW(
+        serializedModel =
+            ::intel_npu::driver_compiler_utils::serializeIR(model->clone(), dummyCompilerVersion, 11, false));
+    ASSERT_FALSE(model->has_rt_info("ws_bin_offset_1"));
+
+    EXPECT_NO_THROW(
+        serializedModel =
+            ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, false, true));
+    ASSERT_TRUE(model->has_rt_info("ws_bin_offset_1"));
 }
 
 const std::vector<ov::AnyMap> configs = {
