@@ -440,6 +440,9 @@ LinearIR::exprIt LinearIR::replace_with_node(const std::vector<ExpressionPtr>& o
                                              const std::vector<size_t>& loop_ids,
                                              const constExprIt& place) {
     OPENVINO_ASSERT(!old_exprs.empty(), "Failed to replace node: there are no old expressions for replacing");
+    OPENVINO_ASSERT(
+        new_node->get_output_size() == old_exprs.back()->get_output_count(),
+        "Failed to replace node: node output port count is not equal to output count of last old expression");
     std::vector<PortConnectorPtr> new_inputs(new_node->get_input_size());
     for (size_t i = 0; i < new_node->get_input_size(); ++i) {
         const auto& source = new_node->get_input_source_output(i);
@@ -447,7 +450,7 @@ LinearIR::exprIt LinearIR::replace_with_node(const std::vector<ExpressionPtr>& o
     }
 
     const auto& last_old_expr = old_exprs.back();
-    for (size_t i = 0; i < old_exprs.back()->get_output_count(); ++i) {
+    for (size_t i = 0; i < new_node->get_output_size(); ++i) {
         snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
             new_node->output(i),
             last_old_expr->get_output_port_descriptor(i)->clone());
