@@ -165,6 +165,7 @@ static constexpr Property<size_t, ov::PropertyMutability::RW> disable_post_ops_f
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_horizontal_fc_fusion{"GPU_DISABLE_HORIZONTAL_FC_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fc_swiglu_fusion{"GPU_DISABLE_FC_SWIGLU_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignment{"GPU_DISABLE_FAKE_ALIGNMENT"};
+static constexpr Property<bool, ov::PropertyMutability::RW> disable_moe_opt{"GPU_DISABLE_MOE_OPT"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_runtime_skip_reorder{"GPU_DISABLE_RUNTIME_SKIP_REORDER"};
 static constexpr Property<bool, ov::PropertyMutability::RW> asym_dynamic_quantization{"GPU_ASYM_DYNAMIC_QUANTIZATION"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> dynamic_quantization_threshold{"GPU_DYNAMIC_QUANTIZATION_THRESHOLD"};
@@ -180,6 +181,8 @@ static constexpr Property<bool, ov::PropertyMutability::RW> validate_output_buff
 static constexpr Property<float, ov::PropertyMutability::RW> mem_pool_util_threshold{"GPU_MEM_POOL_UTIL_THRESHOLD"};
 static constexpr Property<bool, ov::PropertyMutability::RW> dump_src_after_exec{"GPU_DUMP_SRC_TENSORS_AFTER_EXEC"};
 static constexpr Property<bool, ov::PropertyMutability::RW> allow_bypass_xattn{"GPU_ALLOW_BYPASS_XATTN_EXEC"};
+static constexpr Property<bool, ov::PropertyMutability::RW> list_layers{"GPU_LIST_LAYERS"};
+static constexpr Property<bool, ov::PropertyMutability::RW> print_input_data_shapes{"GPU_PRINT_INPUT_DATA_SHAPES"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {

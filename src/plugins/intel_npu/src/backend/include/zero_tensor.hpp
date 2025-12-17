@@ -52,6 +52,9 @@ public:
     void* data() override;
     void* data(const ov::element::Type& type) override;
 
+    void* data_rw() override;
+    void* data_rw(const ov::element::Type& type) override;
+
     const void* data() const override;
     const void* data(const ov::element::Type& type) const override;
 
@@ -69,7 +72,7 @@ public:
     void prevent_reuse();
     bool can_be_reused();
 
-    ~ZeroTensor() override = default;
+    ~ZeroTensor() override;
 
 private:
     void update_strides() const;

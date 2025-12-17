@@ -64,6 +64,14 @@ void FilteredConfig::enableAll() {
     });
 }
 
+void FilteredConfig::enableRuntimeOptions() {
+    _desc->walk([&](const details::OptionConcept& opt) {
+        if (opt.mode() == OptionMode::RunTime) {
+            enable(opt.key().data(), true);
+        }
+    });
+}
+
 void FilteredConfig::walkEnables(std::function<void(const std::string&)> cb) const {
     for (const auto& itr : _enabled) {
         cb(itr.first);
@@ -125,6 +133,14 @@ std::string FilteredConfig::toStringForCompiler() const {
     }
 
     return resultStream.str();
+}
+
+void FilteredConfig::markAsInitialized() {
+    _initialized = true;
+}
+
+bool FilteredConfig::wasInitialized() const {
+    return _initialized;
 }
 
 }  // namespace intel_npu

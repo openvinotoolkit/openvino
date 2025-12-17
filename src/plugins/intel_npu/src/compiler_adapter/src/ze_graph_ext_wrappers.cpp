@@ -36,7 +36,8 @@ using namespace intel_npu;
  * the referenced attribute.
  * @returns A descriptor object containing the metadata converted in OpenVINO specific structures.
  */
-static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
+static IODescriptor getIODescriptor(const uint32_t indexUsedByDriver,
+                                    const ze_graph_argument_properties_3_t& arg,
                                     const std::optional<ze_graph_argument_metadata_t>& metadata) {
     auto logger = Logger::global().clone("getIODescriptor");
     ov::element::Type_t precision = zeroUtils::toOVElementType(arg.devicePrecision);
@@ -113,7 +114,8 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
             std::nullopt,
             arg.debug_friendly_name,
             std::move(outputTensorNames),
-            metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt};
+            metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt,
+            indexUsedByDriver};
 }
 }  // namespace
 
@@ -250,7 +252,7 @@ void ZeGraphExtWrappers::initializeGraphThroughCommandList(ze_graph_handle_t gra
 }
 
 // Parse the result string of query from format <name_0><name_1><name_2> to unordered_set of string
-static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data) {
+std::unordered_set<std::string> parseQueryResult(std::vector<char>& data) {
     std::string dataString(data.begin(), data.end());
     std::unordered_set<std::string> result;
     size_t i = 0, start = 0;
@@ -312,7 +314,7 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(SerializedIR seri
     return parseQueryResult(supportedLayers);
 }
 
-bool ZeGraphExtWrappers::canCpuVaBeImported(void* data, size_t size) const {
+bool ZeGraphExtWrappers::canCpuVaBeImported(const void* data, size_t size) const {
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 13) ||
         !utils::memory_and_size_aligned_to_standard_page_size(data, size)) {
         return false;
@@ -362,7 +364,7 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
     return GraphDescriptor{graphHandle};
 }
 
-GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(void* blobData, size_t blobSize) const {
+GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(const void* blobData, size_t blobSize) const {
     ze_graph_handle_t graphHandle = nullptr;
 
     if (blobSize == 0) {
@@ -414,21 +416,23 @@ bool ZeGraphExtWrappers::isBlobDataImported(const GraphDescriptor& graphDescript
 }
 
 void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
-                                     uint32_t index,
+                                     uint32_t indexUsedByDriver,
                                      std::vector<IODescriptor>& inputs,
                                      std::vector<IODescriptor>& outputs) const {
     if (NotSupportArgumentMetadata(_graphExtVersion)) {
         ze_graph_argument_properties_3_t arg = {};
+        arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, index, &arg);
+        auto result =
+            _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, indexUsedByDriver, &arg);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
         switch (arg.type) {
         case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-            inputs.push_back(getIODescriptor(arg, std::nullopt));
+            inputs.push_back(getIODescriptor(indexUsedByDriver, arg, std::nullopt));
         } break;
         case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-            outputs.push_back(getIODescriptor(arg, std::nullopt));
+            outputs.push_back(getIODescriptor(indexUsedByDriver, arg, std::nullopt));
         } break;
         default: {
             OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ",
@@ -437,8 +441,10 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
         }
     } else {
         ze_graph_argument_properties_3_t arg = {};
+        arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, index, &arg);
+        auto result =
+            _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, indexUsedByDriver, &arg);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
         std::optional<ze_graph_argument_metadata_t> optionalMetadata = std::nullopt;
@@ -448,7 +454,10 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
             !isMainInputWeightsName(arg.name)) {
             _logger.debug("getMetadata - perform pfnGetArgumentMetadata");
             ze_graph_argument_metadata_t metadata = {};
-            result = _zeroInitStruct->getGraphDdiTable().pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
+            metadata.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_METADATA;
+            result = _zeroInitStruct->getGraphDdiTable().pfnGraphGetArgumentMetadata(graphHandle,
+                                                                                     indexUsedByDriver,
+                                                                                     &metadata);
             THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGraphGetArgumentMetadata", result, _zeroInitStruct->getGraphDdiTable());
 
             optionalMetadata = std::optional(metadata);
@@ -456,10 +465,10 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 
         switch (arg.type) {
         case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-            inputs.push_back(getIODescriptor(arg, optionalMetadata));
+            inputs.push_back(getIODescriptor(indexUsedByDriver, arg, optionalMetadata));
         } break;
         case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-            outputs.push_back(getIODescriptor(arg, optionalMetadata));
+            outputs.push_back(getIODescriptor(indexUsedByDriver, arg, optionalMetadata));
         } break;
         default: {
             OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ",
@@ -477,8 +486,8 @@ NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescrip
     auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties(graphDescriptor._handle, &graphProperties);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _zeroInitStruct->getGraphDdiTable());
     NetworkMetadata meta;
-    for (uint32_t index = 0; index < graphProperties.numGraphArgs; ++index) {
-        getMetadata(graphDescriptor._handle, index, meta.inputs, meta.outputs);
+    for (uint32_t indexUsedByDriver = 0; indexUsedByDriver < graphProperties.numGraphArgs; ++indexUsedByDriver) {
+        getMetadata(graphDescriptor._handle, indexUsedByDriver, meta.inputs, meta.outputs);
     }
     // TODO: support this information in CiD [track: E#33479]
     meta.numStreams = 1;
@@ -545,7 +554,7 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
     return {};
 }
 
-bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
+bool ZeGraphExtWrappers::isOptionSupported(std::string optName, std::optional<std::string> optValue) const {
     // Early exit if api is not supported
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
         return false;
@@ -561,11 +570,12 @@ bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
     }
 #endif
 
-    const char* optname_ch = optname.c_str();
+    const char* optname_ch = optName.c_str();
+    const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
     auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
                                                                                    ZE_NPU_COMPILER_OPTIONS,
                                                                                    optname_ch,
-                                                                                   nullptr);
+                                                                                   optvalue_ch);
     if (result == ZE_RESULT_SUCCESS) {
         return true;
     } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_DEPENDENCY_UNAVAILABLE) ||

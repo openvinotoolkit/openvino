@@ -738,7 +738,7 @@ KERNEL(gemm_tiled_opt)(
         #else
         const uint x_pitch = output_x_pitch;
         #endif
-        OUTPUT_TYPE* d_ptr_tmp = d_ptr + sglid * x_pitch;
+        __global OUTPUT_TYPE* d_ptr_tmp = d_ptr + sglid * x_pitch;
 
         #ifdef BIAS_TERM
         ACCUMULATOR_TYPE_VEC dequantized = (ACCUMULATOR_TYPE_VEC)(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_ptr[sglid];

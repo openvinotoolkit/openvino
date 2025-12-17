@@ -119,7 +119,9 @@ def embedding_bag_offsets(
     if per_sample_weights is not None:
         inputs.append(per_sample_weights)
 
-    return _get_node_factory_opset15().create("EmbeddingBagOffsets", as_nodes(*inputs, name=name), {"reduction": reduction})
+    return _get_node_factory_opset15().create(
+        "EmbeddingBagOffsets", as_nodes(*inputs, name=name), {"reduction": reduction}
+    )
 
 
 @nameable_op
@@ -143,7 +145,9 @@ def embedding_bag_packed(
     if per_sample_weights is not None:
         inputs.append(per_sample_weights)
 
-    return _get_node_factory_opset15().create("EmbeddingBagPacked", as_nodes(*inputs, name=name), {"reduction": reduction})
+    return _get_node_factory_opset15().create(
+        "EmbeddingBagPacked", as_nodes(*inputs, name=name), {"reduction": reduction}
+    )
 
 
 @nameable_op

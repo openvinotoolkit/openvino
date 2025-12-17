@@ -20,8 +20,7 @@ namespace ov {
 using CreateExtensionFunc = void(std::vector<::ov::Extension::Ptr>&);
 using CreatePluginEngineFunc = void(std::shared_ptr<::ov::IPlugin>&);
 
-const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
-
+static const std::string default_device_name = "DEFAULT_DEVICE";
 class CoreConfig final {
 public:
     CoreConfig() = default;
@@ -29,47 +28,42 @@ public:
     CoreConfig& operator=(const CoreConfig&) = delete;
 
     struct CacheConfig {
-        std::string _cacheDir;
-        std::shared_ptr<ov::ICacheManager> _cacheManager;
+        std::filesystem::path m_cache_dir;
+        std::shared_ptr<ov::ICacheManager> m_cache_manager;
 
-        static CacheConfig create(const std::string& dir);
+        static CacheConfig create(const std::filesystem::path& dir);
     };
 
-    void set(const ov::AnyMap& config);
+    void set(const ov::AnyMap& config, const std::string& device_name);
 
     /**
      * @brief Removes core-level properties from config and triggers new state for core config
-     * @param config - config to be updated
+     * @param config      config to be updated
+     * @param device_name device name for which config is applied (empty is for core-level)
      */
-    void set_and_update(ov::AnyMap& config);
+    void set_and_update(ov::AnyMap& config, const std::string& device_name);
 
-    OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
-    void set_cache_dir_for_device(const std::string& dir, const std::string& name);
-
-    std::string get_cache_dir() const;
+    std::filesystem::path get_cache_dir() const;
 
     bool get_enable_mmap() const;
-
-    CacheConfig get_cache_config_for_device(const ov::Plugin& plugin, ov::AnyMap& parsedConfig) const;
 
     // Creating thread-safe copy of global config including shared_ptr to ICacheManager
     CacheConfig get_cache_config_for_device(const ov::Plugin& plugin) const;
 
     // remove core properties
     static void remove_core(ov::AnyMap& config);
-    static void remove_core_skip_cache_dir(ov::AnyMap& config);
 
 private:
-    mutable std::mutex _cacheConfigMutex;
-    CacheConfig _cacheConfig;
-    std::map<std::string, CacheConfig> _cacheConfigPerDevice;
-    bool _flag_enable_mmap = true;
+    mutable std::mutex m_cache_config_mutex{};
+    CacheConfig m_cache_config{};
+    std::map<std::string, CacheConfig> m_devices_cache_config{};
+    bool m_flag_enable_mmap{true};
 };
 
 struct Parsed {
-    std::string _deviceName;
-    AnyMap _config;
-    CoreConfig _core_config;
+    std::string m_device_name;
+    AnyMap m_config;
+    CoreConfig m_core_config;
 };
 
 /**
@@ -79,7 +73,7 @@ struct Parsed {
  * The core properties are removed from user configuration for HW devices only.
  * @note The `CACHE_DIR` is not removed from compiled configuration.
  *
- * @param deviceName                Device name to be parsed
+ * @param device_name                Device name to be parsed
  * @param config                    User configuration to be parsed.
  * @param keep_auto_batch_property  If set keep auto batch properties in compile properties.
  * @return Parsed:
@@ -87,9 +81,9 @@ struct Parsed {
  * - compile properties
  * - core configuration
  */
-Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
-                                 const AnyMap& config = {},
-                                 const bool keep_auto_batch_property = false);
+Parsed parse_device_name_into_config(const std::string& device_name,
+                                     const AnyMap& config = {},
+                                     const bool keep_auto_batch_property = false);
 
 /**
  * @brief Provides Parsed device name and configuration.
@@ -98,8 +92,8 @@ Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
  * The core properties are removed from user configuration for HW devices only.
  * @note The `CACHE_DIR` is not removed from compiled configuration.
  *
- * @param deviceName                Device name to be parsed
- * @param coreConfig                Core configuration used as base for parsed output.
+ * @param device_name               Device name to be parsed
+ * @param core_config               Core configuration used as base for parsed output.
  * @param config                    User configuration to be parsed.
  * @param keep_auto_batch_property  If set keep auto batch properties in compile properties.
  * @return Parsed:
@@ -107,10 +101,10 @@ Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
  * - compile properties
  * - core configuration
  */
-Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
-                                 const CoreConfig& coreConfig,
-                                 const AnyMap& config = {},
-                                 const bool keep_auto_batch_property = false);
+Parsed parse_device_name_into_config(const std::string& device_name,
+                                     const CoreConfig& core_config,
+                                     const AnyMap& config = {},
+                                     const bool keep_auto_batch_property = false);
 
 /**
  * @brief Checks whether config is applicable for device with 'device_name'
@@ -138,12 +132,12 @@ bool is_virtual_device(const std::string& device_name);
 
 class CoreImpl : public ov::ICore, public std::enable_shared_from_this<ov::ICore> {
 private:
-    mutable std::map<std::string, ov::Plugin> plugins;
+    mutable std::map<std::string, ov::Plugin> m_plugins;
     // Mutex is needed to prevent changes of dev mutexes map from different threads
-    mutable std::mutex global_mutex;
-    // Global mutex "" locks parallel access to pluginRegistry and plugins
+    mutable std::mutex m_global_mutex;
+    // Global mutex "" locks parallel access to m_plugin_registry and plugins
     // Plugin mutexes "plugin_name" lock access to code which changes configuration of particular plugin
-    mutable std::unordered_map<std::string, std::mutex> dev_mutexes;
+    mutable std::unordered_map<std::string, std::mutex> m_dev_mutexes;
 
     std::mutex& get_mutex(const std::string& dev_name = "") const;
     void add_mutex(const std::string& dev_name);
@@ -154,96 +148,84 @@ private:
     struct CacheContent {
         explicit CacheContent(const std::shared_ptr<ov::ICacheManager>& cache_manager,
                               bool mmap_enabled = false,
-                              const std::string model_path = {})
-            : cacheManager(cache_manager),
-              modelPath(model_path),
-              mmap_enabled{mmap_enabled} {}
-        std::shared_ptr<ov::ICacheManager> cacheManager;
-        std::string blobId = {};
-        std::string modelPath = {};
+                              const std::filesystem::path model_path = {})
+            : m_cache_manager(cache_manager),
+              m_model_path(model_path),
+              m_mmap_enabled{mmap_enabled} {}
+        std::shared_ptr<ov::ICacheManager> m_cache_manager{};
+        std::string m_blob_id{};
+        std::filesystem::path m_model_path{};
         std::shared_ptr<const ov::Model> model{};
-        bool mmap_enabled = false;
+        bool m_mmap_enabled{};
     };
 
     // Core settings (cache config, etc)
-    CoreConfig coreConfig;
+    CoreConfig m_core_config;
 
     Any get_property_for_core(const std::string& name) const;
 
-    mutable ov::CacheGuard cacheGuard;
+    mutable ov::CacheGuard m_cache_guard;
 
     struct PluginDescriptor {
-        ov::util::Path libraryLocation;
-        ov::AnyMap defaultConfig;
-        std::vector<ov::util::FilePath> listOfExtentions;
-        CreatePluginEngineFunc* pluginCreateFunc = nullptr;
-        CreateExtensionFunc* extensionCreateFunc = nullptr;
+        std::filesystem::path m_lib_location{};
+        ov::AnyMap m_default_config{};
+        std::vector<ov::util::FilePath> m_list_of_extensions{};
+        CreatePluginEngineFunc* m_plugin_create_func = nullptr;
+        CreateExtensionFunc* m_extension_create_func = nullptr;
+        mutable std::vector<Extension::Ptr> m_extensions{};  // mutable because of lazy init
 
         PluginDescriptor() = default;
 
-        PluginDescriptor(const ov::util::FilePath& libraryLocation,
-                         const ov::AnyMap& defaultConfig = {},
-                         const std::vector<ov::util::FilePath>& listOfExtentions = {}) {
-            this->libraryLocation = libraryLocation;
-            this->defaultConfig = defaultConfig;
-            this->listOfExtentions = listOfExtentions;
-        }
+        PluginDescriptor(const ov::util::FilePath& lib_location,
+                         const ov::AnyMap& default_config = {},
+                         const std::vector<ov::util::FilePath>& list_of_extentions = {})
+            : m_lib_location(lib_location),
+              m_default_config(default_config),
+              m_list_of_extensions(list_of_extentions) {}
 
-        PluginDescriptor(CreatePluginEngineFunc* pluginCreateFunc,
-                         const ov::AnyMap& defaultConfig = {},
-                         CreateExtensionFunc* extensionCreateFunc = nullptr) {
-            this->pluginCreateFunc = pluginCreateFunc;
-            this->defaultConfig = defaultConfig;
-            this->extensionCreateFunc = extensionCreateFunc;
-        }
+        PluginDescriptor(CreatePluginEngineFunc* plugin_create_func,
+                         const ov::AnyMap& default_config = {},
+                         CreateExtensionFunc* extension_create_func = nullptr)
+            : m_lib_location(),
+              m_default_config(default_config),
+              m_list_of_extensions(),
+              m_plugin_create_func(plugin_create_func),
+              m_extension_create_func(extension_create_func) {}
     };
 
     std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;
-    mutable std::unordered_set<std::string> opsetNames;
-    mutable std::vector<std::pair<ov::Extension::Ptr, std::string>> extensions;
-
-    std::map<std::string, PluginDescriptor> pluginRegistry;
+    mutable std::unordered_set<std::string> m_opset_names;
+    mutable std::vector<Extension::Ptr> m_extensions;
+    std::map<std::string, PluginDescriptor> m_plugin_registry;
 
     ov::SoPtr<ov::ICompiledModel> compile_model_and_cache(ov::Plugin& plugin,
                                                           const std::shared_ptr<const ov::Model>& model,
-                                                          const ov::AnyMap& parsedConfig,
+                                                          const ov::AnyMap& parsed_config,
                                                           const ov::SoPtr<ov::IRemoteContext>& context,
-                                                          const CacheContent& cacheContent) const;
+                                                          const CacheContent& cache_content) const;
 
     ov::SoPtr<ov::ICompiledModel> load_model_from_cache(
-        const CacheContent& cacheContent,
+        const CacheContent& cache_content,
         ov::Plugin& plugin,
         const ov::AnyMap& config,
         const ov::SoPtr<ov::IRemoteContext>& context,
         std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda) const;
 
-    bool device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& origConfig = {}) const;
+    bool device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& orig_config = {}) const;
 
     bool device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
     bool device_supports_internal_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
 
-    OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
-    bool device_supports_cache_dir(const ov::Plugin& plugin) const;
-
-    ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& origConfig) const;
-    ov::AnyMap create_compile_config(const std::string& device_name, const ov::AnyMap& origConfig) const override {
-        return create_compile_config(get_plugin(device_name), origConfig);
+    ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& orig_config) const;
+    ov::AnyMap create_compile_config(const std::string& device_name, const ov::AnyMap& orig_config) const override {
+        return create_compile_config(get_plugin(device_name), orig_config);
     }
 
     bool is_hidden_device(const std::string& device_name) const;
     void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
 
-    void try_to_register_plugin_extensions(const ov::util::Path& path, const std::string& device_name) const {
-        try {
-            auto plugin_extensions = ov::detail::load_extensions(path.native());
-            add_extensions_unsafe(plugin_extensions, device_name);
-        } catch (const std::runtime_error&) {
-            // in case of shared library is not opened
-        }
-    }
-    void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions, const std::string& device_name) const;
 
-    void remove_extensions_for_device_unsafe(const std::string& device_name) const;
+    void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
 
     std::vector<ov::Extension::Ptr> get_extensions_copy() const;
 
@@ -261,7 +243,7 @@ public:
     void register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path = false);
 
     std::shared_ptr<const ov::Model> apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
-                                                         std::string& deviceName,
+                                                         std::string& device_name,
                                                          ov::AnyMap& config) const;
 
     /*
@@ -273,16 +255,16 @@ public:
 
     /**
      * @brief Returns reference to CPP plugin wrapper by a device name
-     * @param pluginName A name of device
+     * @param plugin_name A name of device
      * @return Reference to a CPP plugin wrapper
      */
-    ov::Plugin get_plugin(const std::string& pluginName) const;
+    ov::Plugin get_plugin(const std::string& plugin_name) const;
 
     /**
      * @brief Unload plugin for specified device, but plugin meta-data is still in plugin registry
-     * @param deviceName A name of device
+     * @param device_name A name of device
      */
-    void unload_plugin(const std::string& deviceName);
+    void unload_plugin(const std::string& device_name);
 
     /**
      * @brief Registers plugin meta-data in registry for specified device
@@ -301,14 +283,14 @@ public:
 
     /**
      * @brief Sets config values for a plugin or set of plugins
-     * @param deviceName A device name to set config to
+     * @param device_name A device name to set config to
      *        If empty, config is set for all the plugins / plugin's meta-data
-     * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
+     * @note  `device_name` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
      *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
      */
-    void set_property_for_device(const ov::AnyMap& configMap, const std::string& deviceName);
+    void set_property_for_device(const ov::AnyMap& config, const std::string& device_name);
 
-    void add_extension(const std::vector<ov::Extension::Ptr>& extensions, const std::string& device_name = "");
+    void add_extension(const std::vector<ov::Extension::Ptr>& extensions);
 
     bool device_supports_model_caching(const std::string& device_name) const override;
 
@@ -371,7 +353,7 @@ public:
 
     ov::SoPtr<ov::IRemoteContext> get_default_context(const std::string& device_name) const override;
 
-    std::map<std::string, ov::Version> get_versions(const std::string& deviceName) const;
+    std::map<std::string, ov::Version> get_versions(const std::string& device_name) const;
 
     /**
      * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.
