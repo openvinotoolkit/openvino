@@ -463,41 +463,28 @@ ov::pass::KeepPrecisionOfUnstrippedFQPattern::KeepPrecisionOfUnstrippedFQPattern
                               zp_convert_pattern,
                               zp_const_pattern,
                               scale_const_pattern };
-
-
         // we can check if zp const values are between 65504 to 65535, disable fp16 compression
         bool max_reach = false;
-        auto zp_const_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(zp_const_pattern).get_node_shared_ptr());
-        auto zp_values = zp_const_node->cast_vector<uint16_t>();
         constexpr uint16_t FP16_MAX = 65504;
-        for (auto v : zp_values) {
-            if (v > FP16_MAX) {
-                auto node_ptr = pattern_map.at(zp_const_pattern).get_node_shared_ptr();
-                disable_fp16_compression(node_ptr);
-                max_reach = true;
+        for (auto pattern : { zp_const_pattern, scale_const_pattern }) {
+            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(pattern).get_node_shared_ptr());
+            if (!const_node)
+                continue;
+            auto values = const_node->cast_vector<uint16_t>();
+            for (auto v : values) {
+                if (v > FP16_MAX) {
+                    max_reach = true;
+                    break; // If you only need to mark once per node
+                }
             }
         }
-
-        auto scale_const_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(scale_const_pattern).get_node_shared_ptr());
-        auto scale_values = scale_const_node->cast_vector<uint16_t>();
-        for (auto v : scale_values) {
-            if (v > FP16_MAX) {
-                auto node_ptr = pattern_map.at(scale_const_node).get_node_shared_ptr();
-                disable_fp16_compression(node_ptr);
-                max_reach = true;
-            }
-        }
-
         if (max_reach)
             for (const auto& node_to_mark : nodes_to_mark) {
                 if (pm.count(node_to_mark)) {
                     auto node_ptr = pattern_map.at(node_to_mark).get_node_shared_ptr();
                     disable_fp16_compression(node_ptr);
-
                 }
             }
-
-
         return true;
         };
 
