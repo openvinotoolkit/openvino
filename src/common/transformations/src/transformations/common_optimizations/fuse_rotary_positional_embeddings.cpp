@@ -109,8 +109,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux(bool num_heads_transposed) {
     // y2 = x3 * t_sin
     // y = y1 + y2
     std::string num_heads_pattern = num_heads_transposed ? "?, num_heads, ?" : "?, ?, num_heads";
-    auto x = any_input(rank_equals(4) &&
-                       ov::pass::pattern::shape_matches("[" + num_heads_pattern + ", head_size]"));
+    auto x = any_input(rank_equals(4) && ov::pass::pattern::shape_matches("[" + num_heads_pattern + ", head_size]"));
     auto t_cos = any_input(rank_equals(4));
     auto t_sin = any_input(rank_equals(4));
 
