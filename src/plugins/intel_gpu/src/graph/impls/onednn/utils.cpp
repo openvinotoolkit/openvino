@@ -523,6 +523,8 @@ dnnl::memory::desc layout_to_memory_desc_strides(const cldnn::layout& l, dnnl::m
 }
 
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, bool use_default_format, bool is_output_blocked) {
+    OPENVINO_ASSERT(!(use_default_format && is_output_blocked), "[GPU] use_default_format and is_output_blocked are mutually exclusive.");
+
     if (use_default_format) {
         return MemoryDescriptorBuilder(l, get_default_data_format(l)).build();
     }
