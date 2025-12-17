@@ -247,6 +247,22 @@ std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node
     return result;
 }
 
+void release_model_constants_weights(const std::shared_ptr<ov::Model>& model) {
+    if (!model) {
+        return;
+    }
+
+    model->map_unordered_ops([](ov::Node* node) {
+        if (auto* constant = dynamic_cast<ov::op::v0::Constant*>(node)) {
+            if (constant->get_byte_size() == 0) {
+                return;
+            }
+
+            constant->release_data();
+        }
+    });
+}
+
 bool compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<Node>& n2) {
     if (!(op::util::is_constant(n1) && op::util::is_constant(n2))) {
         return false;
