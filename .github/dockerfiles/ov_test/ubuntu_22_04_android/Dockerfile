@@ -68,7 +68,8 @@ RUN yes | sdkmanager --sdk_root=${ANDROID_HOME} --licenses && \
         "platform-tools" \
         "platforms;android-${ANDROID_API_LEVEL}" \
         "system-images;android-${ANDROID_API_LEVEL};${ANDROID_TARGET};${ANDROID_ARCH}" \
-        "emulator"
+        "emulator" && \
+        ${ANDROID_HOME}/cmdline-tools/16.0/bin/sdkmanager tools
 
 # Install additional tools for emulator
 RUN apt update && \
