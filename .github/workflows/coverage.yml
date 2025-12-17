@@ -1,7 +1,5 @@
 name: Code coverage
-on: 
-  workflow_dispatch:
-  pull_request:
+on: workflow_dispatch
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "Ubuntu gcc", os: ubuntu-slim, cc: "gcc", cxx: "g++" }
+          - { name: "Ubuntu gcc", os: ubuntu-latest-16-cores, cc: "gcc", cxx: "g++" }
 
     steps:
       - name: Setup python
