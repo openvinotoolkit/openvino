@@ -48,14 +48,10 @@ std::shared_ptr<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
             }
             if (changed) {
                 auto new_zp = ov::op::v0::Constant::create(ov::element::u16, zero_point.get_shape(), zp_values);
-                auto zp_values2 =
-                    ov::as_type_ptr<ov::op::v0::Constant>(new_zp)->cast_vector<uint16_t>();
-
                 ov::copy_runtime_info(zero_point.get_node_shared_ptr(), new_zp);
                 if (zero_point.get_element_type() != scale.get_element_type())
                     return std::make_shared<v0::Convert>(new_zp, scale.get_element_type());
             }
-
         }
 
         if (zero_point.get_element_type() != scale.get_element_type()) {
