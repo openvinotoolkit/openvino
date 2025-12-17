@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME openvino_intel_npu_ops)
-set(TARGET_ALIAS openvino::intel_npu::ops)
-set(TARGET_EXPORT_NAME intel_npu::ops)
+set(TARGET_NAME openvino_npu_ops)
+set(TARGET_ALIAS openvino::npu_ops)
+set(TARGET_EXPORT_NAME npu_ops)
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
