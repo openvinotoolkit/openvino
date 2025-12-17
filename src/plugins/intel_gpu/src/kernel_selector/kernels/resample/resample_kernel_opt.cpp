@@ -162,13 +162,6 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     if (input.Dimentions() == 5 && params.resampleType != ResampleType::NEAREST_NEIGHBOR)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
-    if (!params.fused_ops.empty()) {
-        for (auto& fused_op : params.fused_ops) {
-            if (SimpleLayout(fused_op.tensors[0].GetLayout()))
-                DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
-    }
-
     return true;
 }
 

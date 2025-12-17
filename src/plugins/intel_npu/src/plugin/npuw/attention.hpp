@@ -50,6 +50,13 @@ struct Attention {
     static std::optional<Attention> from(const std::shared_ptr<ov::Model>& model);
 };
 
+// Helper function to patch broadcast constants (set to 1 for dynamic handling)
+void patch_broadcast_constants(const std::shared_ptr<ov::Model>& model, size_t target_length);
+
+// Helper function to patch reshape constants (-1 substitution)
+void patch_reshape_constants(const std::shared_ptr<ov::Model>& model,
+                             const std::map<std::string, size_t>& past_value_sequence_dims);
+
 }  // namespace function
 
 namespace compiled {

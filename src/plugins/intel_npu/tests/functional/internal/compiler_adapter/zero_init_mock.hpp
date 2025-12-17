@@ -10,6 +10,7 @@
 #include <ze_intel_npu_uuid.h>
 
 #include <memory>
+#include <mutex>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -43,10 +44,12 @@ struct ZeroInitStructsMock {
 
     ze_api_version_t ze_drv_api_version = {};
 
-    ze_device_graph_properties_t compiler_properties = {};
+    std::unique_ptr<ze_device_graph_properties_t> compiler_properties = nullptr;
 
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
+
+    std::mutex _mutex;
 };
 
 }  // namespace intel_npu

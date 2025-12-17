@@ -17,11 +17,24 @@ protected:
     void insert_converts_after_if_needed(const std::shared_ptr<ov::Node>& node, const ov::element::Type original_et, size_t& output_idx);
 };
 
+class IncreasePositionIdsPrecisionForQwen25VL : public IncreasePositionIdsPrecisionForRoPE {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForQwen25VL");
+    IncreasePositionIdsPrecisionForQwen25VL();
+};
+
 class IncreasePositionIdsPrecisionForLtxVideo : public IncreasePositionIdsPrecisionForRoPE {
 public:
     OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForLtxVideo");
     IncreasePositionIdsPrecisionForLtxVideo();
 };
+
+class IncreasePositionIdsPrecisionForGPTOSS : public IncreasePositionIdsPrecisionForRoPE {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForGPTOSS");
+    IncreasePositionIdsPrecisionForGPTOSS();
+};
+
 
 /**
  * @brief This pass adds additional convert nodes on the position_ids input branch (around MatMul or Multiply operation),
@@ -36,4 +49,9 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
+class DisableFP16ComForGPTOSSROPEPattern: public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("DisableFP16ComForROPEPattern");
+    DisableFP16ComForGPTOSSROPEPattern();
+};
 }   // namespace ov::intel_gpu

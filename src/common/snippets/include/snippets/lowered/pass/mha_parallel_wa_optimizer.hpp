@@ -53,7 +53,7 @@ private:
 
     std::vector<lowered::ExpandedLoopInfoPtr> m_loops_to_split;
     std::unordered_set<size_t> m_unsqueezed_params;
-    std::vector<VectorDims> m_optimized_layouts;
+    std::vector<std::vector<size_t>> m_optimized_layouts;
     std::vector<size_t> m_dim_M_idces;
     size_t m_concurrency = 0;
 

@@ -12,6 +12,7 @@ namespace test {
 using rope_params = std::tuple<ov::element::Type, std::string>;
 using rope_params_2 = std::tuple<bool, ov::element::Type, std::string>;
 using rope_params_qwenvit = std::tuple<ov::element::Type, std::string, std::string>;
+using rope_params_chatglm = std::tuple<ov::element::Type, std::string, bool>;
 
 class RoPETestFlux : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
 private:
@@ -183,12 +184,27 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
 };
 
-class RoPETestChatGLMHF : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
+class RoPETestChatGLMHF : public SubgraphBaseTest, public testing::WithParamInterface<rope_params_chatglm> {
 private:
     std::shared_ptr<ov::Model> buildROPE_ChatGLMHF(int seq_length,
                                                    int num_heads,
                                                    int rotary_ndims,
-                                                   ov::element::Type element_type);
+                                                   ov::element::Type element_type,
+                                                   bool use_split);
+
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void SetUp() override;
+
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<rope_params_chatglm>& obj);
+};
+
+class RoPETestGPTOSS : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
+private:
+    std::shared_ptr<ov::Model> buildROPE_GPTOSS(int num_head,
+                                              int rotary_dims,
+                                              ov::element::Type element_type);
 
 protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
