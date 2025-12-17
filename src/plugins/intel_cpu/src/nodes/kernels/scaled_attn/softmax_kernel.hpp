@@ -567,26 +567,19 @@ inline void scale_add2_reduce_max(ov::float16* a,
     svbool_t pg_f16 = svptrue_b16();
     svbool_t pg_u8 = svptrue_b8();
     svbool_t pg_u16 = svptrue_b16();
-    size_t inc = vec_len_f16_sve();
 
-    while (i < size) {
-        if (size - i < vec_len_f16_sve()) {
-            inc = size - i;
-            pg_f16 = svwhilelt_b16(0, static_cast<int>(inc));
-            pg_u8 = svwhilelt_b8(0, static_cast<int>(inc));
-            pg_u16 = svwhilelt_b16(0, static_cast<int>(inc));
-        }
+    for (; i + vec_len_f16_sve() < size; i += vec_len_f16_sve()) {
         v_a = svld1_f16(pg_f16, reinterpret_cast<const float16_t*>(a + i));
-        v_a = svmul_f16_z(pg_f16, v_a, v_scale);
+        v_a = svmul_f16_x(pg_f16, v_a, v_scale);
 
         if (has_alibi) {
             svfloat16_t v_lookup = svld1_f16(pg_f16, reinterpret_cast<const float16_t*>(alibi_lookup + i));
-            v_a = svmla_f16_z(pg_f16, v_a, v_lookup, v_alibi_slope);
+            v_a = svmla_f16_x(pg_f16, v_a, v_lookup, v_alibi_slope);
         }
 
         if (has_attn_mask) {
             svfloat16_t v_mask = svld1_f16(pg_f16, reinterpret_cast<const float16_t*>(attn_mask + i));
-            v_a = svadd_f16_z(pg_f16, v_a, v_mask);
+            v_a = svadd_f16_x(pg_f16, v_a, v_mask);
         }
 
         if (has_causal_mask) {
@@ -597,9 +590,8 @@ inline void scale_add2_reduce_max(ov::float16* a,
             v_a = svsel_f16(kmask, v_nfltmax, v_a);
         }
 
-        v_max = svmax_f16_z(pg_f16, v_max, v_a);
+        v_max = svmax_f16_x(pg_f16, v_max, v_a);
         svst1_f16(pg_f16, reinterpret_cast<float16_t*>(a + i), v_a);
-        i += inc;
     }
     max = svmaxv_f16(pg_f16, v_max);
 #    elif defined(HAVE_NEON_FP16)
@@ -1411,8 +1403,14 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
     }
 
     ov::float16 sum = 0.0f;
+    if (sink != nullptr) {
+        max = max > static_cast<const ov::float16>(*sink) ? max : static_cast<const ov::float16>(*sink);
+    }
     if (dst_precision == ov::element::f32) {
         exp_reduce_sum_f32(a, max, len, sum);
+        if (sink != nullptr) {
+            sum += std::exp(*sink - max);
+        }
         ov::float16 scalar = 1.0f / sum;
         multiply_scalar(a, static_cast<float*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
@@ -1420,6 +1418,9 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
             memset(static_cast<float*>(a_dst) + len, 0, sizeof(float) * (total_size - len));
     } else {
         exp_reduce_sum_f32(a, max, len, sum);
+        if (sink != nullptr) {
+            sum += std::exp(*sink - max);
+        }
         ov::float16 scalar = 1.0f / sum;
         multiply_scalar_f32(a, static_cast<ov::float16*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
