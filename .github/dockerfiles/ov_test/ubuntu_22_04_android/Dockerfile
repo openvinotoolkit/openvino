@@ -57,15 +57,14 @@ RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
     cd /tmp && \
     wget -q https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip && \
     unzip -q commandlinetools-linux-12266719_latest.zip && \
-    # place as a bootstrap toolset; then we install "cmdline-tools;latest" via sdkmanager
-    mv cmdline-tools ${ANDROID_HOME}/cmdline-tools/bootstrap && \
+    mv cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest && \
     rm -f commandlinetools-linux-12266719_latest.zip && \
     mkdir -p /root/.android && touch /root/.android/repositories.cfg
 
 # Accept Android licenses and install SDK components
 RUN yes | sdkmanager --sdk_root=${ANDROID_HOME} --licenses && \
     sdkmanager --sdk_root=${ANDROID_HOME} \
-        "cmdline-tools;latest" \
+        "cmdline-tools;16.0" \
         "platform-tools" \
         "platforms;android-${ANDROID_API_LEVEL}" \
         "system-images;android-${ANDROID_API_LEVEL};${ANDROID_TARGET};${ANDROID_ARCH}" \
