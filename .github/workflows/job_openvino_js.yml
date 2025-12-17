@@ -63,17 +63,23 @@ jobs:
         working-directory: ${{ env.OPENVINO_JS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ env.OPENVINO_JS_DIR }}/package-lock.json
 
       - name: Configure OpenVINO JS API
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm i
 
+      - name: Check lint
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
+        run: npm run lint
+
       - name: Test OpenVINO JS API
         working-directory: ${{ env.OPENVINO_JS_DIR }}
-        run: npm run test
+        run: npm run test --loglevel=silly
 
       - name: Install electron deps and run Xvfb
         if: runner.os == 'Linux'
@@ -81,4 +87,4 @@ jobs:
 
       - name: E2E of openvino-node package
         working-directory: ${{ env.OPENVINO_JS_DIR }}
-        run: npm run test:e2e
+        run: npm run test:e2e --loglevel=silly

@@ -34,7 +34,7 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_COMPILED_MODEL_INDICATOR =
 const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR =
     {char{0x4c}, char{0x4c}, char{0x4d}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.9";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.15";
 
 // Forward declaration
 namespace intel_npu {
@@ -47,10 +47,14 @@ namespace ov {
 class Any;
 class Node;
 class Tensor;
+class IPlugin;
+class ICompiledModel;
 template <class>
 class Output;
 template <class>
 class SharedBuffer;
+template <class>
+struct SoPtr;
 class MappedMemory;
 class Model;
 enum class CacheMode;
@@ -73,6 +77,8 @@ namespace npuw {
 // Forward declaration
 namespace compiled {
 struct Spatial;
+struct Attention;
+struct PyramidAttention;
 }  // namespace compiled
 namespace weights {
 class LazyTensor;
@@ -142,6 +148,19 @@ struct WeightsContext {
     BF16Cache bf16_consts;
 };
 
+struct PyramidCtx {
+    PyramidCtx(const std::shared_ptr<const ov::IPlugin>& _plugin,
+               const std::string& _device,
+               const ov::SoPtr<ov::ICompiledModel>& _compiled_model)
+        : plugin(_plugin),
+          device(_device),
+          compiled_model(_compiled_model) {}
+
+    std::shared_ptr<const ov::IPlugin> plugin;
+    std::string device;
+    const ov::SoPtr<ov::ICompiledModel>& compiled_model;
+};
+
 BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model);
 
 // Specific type overloads
@@ -150,6 +169,8 @@ void write(std::ostream& stream, const std::string& var);
 void write(std::ostream& stream, const bool& var);
 void write(std::ostream& stream, const float& var);
 void write(std::ostream& stream, const ov::npuw::compiled::Spatial& var);
+void write(std::ostream& stream, const ov::npuw::compiled::Attention& var);
+void write(std::ostream& stream, const ov::npuw::compiled::PyramidAttention& var);
 void write(std::ostream& stream, const ov::Tensor& var);
 void write(std::ostream& stream, const ::intel_npu::Config& var);
 void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
@@ -165,6 +186,8 @@ void read(std::istream& stream, std::string& var);
 void read(std::istream& stream, bool& var);
 void read(std::istream& stream, float& var);
 void read(std::istream& stream, ov::npuw::compiled::Spatial& var);
+void read(std::istream& stream, ov::npuw::compiled::Attention& var);
+void read(std::istream& stream, ov::npuw::compiled::PyramidAttention& var);
 void read(std::istream& stream, ov::Tensor& var);
 void read(std::istream& stream, ::intel_npu::Config& var);
 void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);

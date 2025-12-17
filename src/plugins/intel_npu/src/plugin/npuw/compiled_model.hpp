@@ -6,6 +6,8 @@
 
 #include <optional>
 
+#include "attention.hpp"
+#include "base_sync_infer_request.hpp"
 #include "common.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
@@ -15,6 +17,8 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "partitioning/partitioning.hpp"
+#include "perf.hpp"
+#include "pyramid_attention.hpp"
 #include "serialization.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"
@@ -58,6 +62,9 @@ public:
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
+    // Custom destructor to wait for Delayed
+    ~CompiledModel();
+
 private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
@@ -72,6 +79,7 @@ private:
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
+    void compile_pyramid_attention_models(std::size_t id, const std::string& device);
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
 
@@ -91,6 +99,11 @@ private:
 
     std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
+
+    // API for easily create and manage NPUW infer-requests
+    std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const;
+    std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
+        std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) const;
 
     std::string submodel_device(const std::size_t idx) const;
     bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const;
@@ -146,6 +159,14 @@ private:
         std::size_t ops{};
     };
 
+    // Shouldn't this be counter instead? There's nothing much to
+    // average across compilation processes per model (it's a single
+    // process).
+    using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
+    ov::npuw::perf::Profile<MS> m_profile;
+
+    void init_profiling();
+
     struct CompiledModelDesc {
         DevList::const_iterator device_it;
         std::set<std::string> devices_to_avoid;
@@ -157,19 +178,39 @@ private:
         Subgraph::Gather host_gather;
         Subgraph::QuantUnpackGather quant_unpack_gather;
         std::optional<ov::npuw::compiled::Spatial> spatial;
+        std::optional<ov::npuw::compiled::Attention> attention;
+        std::optional<ov::npuw::compiled::PyramidAttention> pyramid_attention;
+
+        // Infer requests for pyramid attention models (if pyramid_attention is present)
+        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_infer_requests;
+
+        // Pipeline infer requests for pyramid attention models (if pyramid_attention is present and pipelining is
+        // enabled)
+        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_pipeline_requests;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
         std::size_t param_base = 0;
+
+        struct Closure {
+            std::vector<ov::Tensor> closure;
+            std::vector<int64_t> closure_uid;  // Note: value -1 is considered uninitialized
+            std::vector<bool> is_remote;
+        };
+
+        // Need to wrap closure, since finalize_weights_bank() will
+        // asynchronously evaluate weights and put them in closure.
+        // Other functions of CompiledModel as well as InferRequest and
+        // other entities need to wait for the closure to be populated first
+        // (meaning to wait for async weights processing to end).
+        ov::npuw::util::Delayed<Closure> closure;
+
         // NB: closure and lazy_closure are of the same size - to preserve proper indexing.
         //     closure is responsible for host-side tensors (DCOFF, Gather, etc) while
         //     lazy_closure is used for weights sharing and allocating device memory.
-        std::vector<ov::Tensor> closure;
         std::vector<weights::LazyTensor> lazy_closure;
-        std::vector<int64_t> closure_uid;  // Note: value -1 is considered uninitialized
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
-        std::vector<bool> is_remote;
 
         bool forced_to_fcall = false;
 
@@ -181,7 +222,9 @@ private:
         execution_stats stat;
 
         void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
-        void deserialize(std::istream& stream, const ov::npuw::s11n::WeightsContext& ctx);
+        void deserialize(std::istream& stream,
+                         const ov::npuw::s11n::WeightsContext& ctx,
+                         const ov::npuw::s11n::PyramidCtx& pyramid_ctx);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 
@@ -195,6 +238,8 @@ private:
     std::unordered_map<const void*, std::size_t> m_const_to_offset;
     ov::npuw::s11n::BF16Cache m_bf16_consts;
     ov::npuw::s11n::WeightsContext m_import_weights_ctx;
+
+    std::shared_future<void> m_eval_future;
 };
 }  // namespace npuw
 }  // namespace ov

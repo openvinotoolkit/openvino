@@ -44,7 +44,7 @@ ov::pass::SubtractFusion::SubtractFusion() {
         if (pattern_to_output.count(p_mul_const)) {
             auto minus_one_const =
                 ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(p_mul_const).get_node_shared_ptr());
-            if (!op::util::has_constant_value<float>(minus_one_const, -1.)) {
+            if (!ov::op::util::has_constant_value<float>(minus_one_const, -1.)) {
                 return false;
             }
             nodes_to_replace.emplace_back(pattern_to_output.at(p_mul).get_node_shared_ptr());

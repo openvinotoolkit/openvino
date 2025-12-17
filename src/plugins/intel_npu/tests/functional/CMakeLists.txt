@@ -22,8 +22,8 @@ list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include"
 )
 
-list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_driver_compiler_adapter
-      openvino_npu_level_zero_backend openvino_npu_zero_utils)
+list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_common openvino_npu_driver_compiler_adapter
+      openvino_npu_level_zero_backend openvino_npu_zero_utils openvino_npu_logger_utils)
 
 ov_add_test_target(
   NAME
@@ -33,6 +33,9 @@ ov_add_test_target(
   EXCLUDED_SOURCE_PATHS
   ${EXCLUDED_FUNC_TESTS_DIR}
   INCLUDES
+  # OpenVINO headers need to be added before the NPU headers
+  # Otherwise, the compiler may mistake OpenVINO headers for the NPU headers
+  "${OpenVINO_SOURCE_DIR}/src/tests/functional/base_func_tests/include"
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${OPTIONAL_FUNC_TESTS_INCLUDES}
   "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances"
@@ -47,7 +50,6 @@ ov_add_test_target(
   openvino::format_reader
   openvino::reference
   openvino::runtime
-  openvino::npu_common
   openvino::npu_al)
 
 if(WIN32)

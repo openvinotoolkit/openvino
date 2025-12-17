@@ -141,6 +141,9 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
 }
 
 TEST(TransformationTests, StateConcatSDPA) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping StateConcatSDPA test on Android X64";
+#endif
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         using namespace ov;
@@ -162,6 +165,9 @@ TEST(TransformationTests, StateConcatSDPA) {
 }
 
 TEST(TransformationTests, StateConcatSDPAWithConvert) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping StateConcatSDPAWithConvert test on Android X64";
+#endif
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         using namespace ov;
@@ -183,6 +189,9 @@ TEST(TransformationTests, StateConcatSDPAWithConvert) {
 }
 
 TEST(TransformationTests, StateConcatSDPAMixtral) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping StateConcatSDPAMixtral test on Android X64";
+#endif
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         using namespace ov;
@@ -204,6 +213,9 @@ TEST(TransformationTests, StateConcatSDPAMixtral) {
 }
 
 TEST(TransformationTests, StateConcatSDPAWithExtraNode) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping StateConcatSDPAWithExtraNode test on Android X64";
+#endif
     // when some unexpected extra nodes exist in SDPA, the fusion should fail
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {

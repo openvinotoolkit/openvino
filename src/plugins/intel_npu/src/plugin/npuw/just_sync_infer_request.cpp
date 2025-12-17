@@ -12,11 +12,13 @@
 #include <utility>
 
 #include "compiled_model.hpp"
+#include "infer_request_utils.hpp"  // to utilize copy_tensor_by_dim
 #include "logging.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "plugin.hpp"
+#include "pyramid_attention.hpp"
 #include "util.hpp"
 #include "weights_bank.hpp"
 
@@ -167,6 +169,8 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
             oshape[proto_comp_model_desc.spatial->out_dim] = proto_comp_model_desc.spatial->range;
         }
         const auto& device = m_model->funcall_mem_device(real_idx);
+        // FIXME: handle the lazy way (see BaseSyncInferRequest::get_tensor())
+        // and share between submodels to reduce memory consumption
         TensorPtr new_tensor = m_alloc(oport.get_element_type(), oshape, device);
         NPUW_ASSERT(new_tensor);
 
@@ -196,11 +200,16 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     }
 
     m_spatial_io.resize(m_num_submodels);
+    m_attention_io.resize(m_num_submodels);
 
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
     bool failover_happened = false;
     bool has_spatial = false;
+    bool has_dynamic = false;
+    bool has_pyramid = false;
+    std::size_t dynamic_sub_idx = -1;
+    std::size_t pyramid_sub_idx = -1;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -247,6 +256,27 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 }
             }  // if(spatial)
 
+            // Initialize the dynamic IO placeholders, if required
+            if (proto_comp_model_desc.attention) {
+                // Sanity check first
+                if (has_dynamic && dynamic_sub_idx != real_idx) {
+                    OPENVINO_THROW("Only single attention type is permitted for model");
+                }
+                has_dynamic = true;
+                dynamic_sub_idx = real_idx;
+                m_attention_io[i].inputs.resize(proto_comp_model_desc.param_base);
+            }  // if(dynamic)
+
+            if (proto_comp_model_desc.pyramid_attention) {
+                // Sanity check first
+                if (has_pyramid && pyramid_sub_idx != real_idx) {
+                    OPENVINO_THROW("Only single pyramid attention type is permitted for model");
+                }
+                has_pyramid = true;
+                pyramid_sub_idx = real_idx;
+                m_attention_io[i].inputs.resize(proto_comp_model_desc.param_base);
+            }  // if(pyramid)
+
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto from = LinkFrom{i, out_idx};
                 m_funcall_result[from] = m_func_mem_mgr.get_tensor(from);
@@ -268,6 +298,17 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         m_subrequest_devices[i] = *comp_model_desc.device_it;
         if (is_piped) {
             m_funcall_pipeline[i].subrequest = rqs.at(1);
+        }
+
+        // Create pyramid attention infer requests if this function has pyramid attention
+        // IMPORTANT: Must be created AFTER main infer requests to enable direct reuse:
+        // The last pyramid infer request directly reuses the main infer request object
+        if (comp_model_desc.replaced_by) {
+            const auto real_idx = comp_model_desc.replaced_by.value();
+            auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+            if (proto_comp_model_desc.pyramid_attention) {
+                setup_pyramid_infer_requests(real_idx, is_piped, false);
+            }
         }
 
         LOG_INFO("DONE");
@@ -310,7 +351,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }
     }  // if(function_pipelining)
 
-    alloc_io();
+    alloc_quant_gather();
     connect_subrequests();
     init_gio();
 
@@ -351,15 +392,47 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }
         LOG_VERB("Done");
     }
+
+    // Handle dynamic submission
+    if (has_dynamic) {
+        if (!m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_DYN>()) {
+            // Even if the attention is detected and ready to go dynamic,
+            // force it on the full range
+            LOG_WARN("Dynamic capability is enabled, but won't be used due to user preference");
+            m_attention_selector.reset(new runtime::attention::All());
+        } else {
+            const auto& dyn = m_npuw_model->m_compiled_submodels.at(dynamic_sub_idx).attention.value();
+            m_attention_selector = runtime::attention::PositionIDs::find(dyn, *this);
+            if (!m_attention_selector) {
+                LOG_WARN("Dynamic capability is enabled, but no run-time features were found.");
+                m_attention_selector.reset(new runtime::attention::All());
+            }
+        }
+        LOG_VERB("Done");
+    }
+
+    // Handle pyramid attention
+    if (has_pyramid) {
+        const auto& pyramid_dyn = m_npuw_model->m_compiled_submodels.at(pyramid_sub_idx).pyramid_attention.value();
+        const auto pyramid_count = pyramid_dyn._compiled_models.size();
+        if (!m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_DYN>()) {
+            // Even if the attention is detected and ready to go pyramid,
+            // force it on the full range
+            m_pyramid_selector.reset(new runtime::pyramid_attention::All(pyramid_count));
+        } else {
+            m_pyramid_selector = runtime::pyramid_attention::PositionIDs::find(pyramid_dyn, *this);
+            if (!m_pyramid_selector) {
+                LOG_WARN("Pyramid dynamic capability is enabled, but no run-time features were found.");
+                // Create All selector with the number of pyramid models
+                m_pyramid_selector.reset(new runtime::pyramid_attention::All(pyramid_count));
+            }
+        }
+    }
 }
 
 void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                             const ov::SoPtr<ov::ITensor>& tensor) {
-    // Check that it's I/O
-    NPUW_ASSERT(m_port_to_tensor.at(port).persistent);
-
-    // Assigning via .at() to ensure it is a known port
-    m_port_to_tensor.at(port).tensor = tensor;
+    m_port_to_tensor[port] = TensorStorage{tensor, true};
 
     // Check if setting output tensor
     for (std::size_t i = 0; i < m_npuw_model->outputs().size(); ++i) {
@@ -382,7 +455,7 @@ void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& po
     handle_set_remote_input(port, tensor);
 }
 
-ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out_idx) {
+ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out_idx) const {
     const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(out_idx);
     auto funcall_result_iter = m_funcall_result.find(from_submodel);
     if (funcall_result_iter != m_funcall_result.end()) {
@@ -460,6 +533,23 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Preparing to infer...");
     LOG_BLOCK();
 
+    if (m_pyramid_selector) {
+        m_pyramid_selector->prepare(get_history_size());
+
+        // Get the pyramid model ID based on current sequence length (updated in prepare())
+        auto pyramid_id = m_pyramid_selector->pyramid_id();
+
+        for (auto&& id : m_funcall_heads) {
+            auto& comp_model_desc = m_npuw_model->m_compiled_submodels[id];
+            if (comp_model_desc.pyramid_attention.has_value()) {
+                m_subrequests[id] = comp_model_desc.pyramid_infer_requests[pyramid_id];
+                if (is_pipelined(id)) {
+                    m_funcall_pipeline[id].subrequest = comp_model_desc.pyramid_pipeline_requests[pyramid_id];
+                }
+            }
+        }
+    }
+
     // Submit global parameters (if needed) for the first subgraph
     bind_global_parameters(next(0));
 
@@ -474,6 +564,15 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     if (m_spatial_selector) {
         m_spatial_selector->prepare();
     }
+
+    // So do the dynamic range
+    if (m_attention_selector) {
+        m_attention_selector->prepare(get_history_size());
+    }
+
+    // FIXME: attention-specific, needs to be moved out after refactoring
+    m_cached_attention_mask = {};
+
     LOG_DEBUG("Done");
 }
 
@@ -536,6 +635,17 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
     const bool is_spatial = func_desc.spatial.has_value();
+    const bool is_dynamic = func_desc.attention.has_value();
+    const bool is_pyramid = func_desc.pyramid_attention.has_value();
+
+    // Generalized: check if input is neither param nor mask
+    auto is_non_param_mask = [](const auto& info, std::size_t in_idx) {
+        const bool not_param = std::none_of(info.params.begin(), info.params.end(), [&](auto&& p) {
+            return p.idx == in_idx;
+        });
+        const bool not_mask = in_idx != info.mask_idx;
+        return not_param && not_mask;
+    };
 
     // Function call prologue:
     // 1. Walk through function dependencies and set the respective tensors
@@ -551,31 +661,57 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             std::size_t prod_port;
             std::tie(prod_idx, prod_port) = link_iter->second;
 
-            if (!m_npuw_model->m_compiled_submodels[prod_idx].replaced_by) {
-                // Producer is a normal model -> take its tensor directly
-                const auto& oport = m_npuw_model->m_compiled_submodels[prod_idx].compiled_model->outputs()[prod_port];
-                auto i_tensor = m_subrequests[prod_idx]->get_tensor(oport);
-                if (!is_spatial) {
-                    // Non-spatial case - set immediately
+            const auto& i_tensor = [&]() {
+                if (!m_npuw_model->m_compiled_submodels[prod_idx].replaced_by) {
+                    // Producer is a normal model -> take its tensor directly
+                    const auto& oport =
+                        m_npuw_model->m_compiled_submodels[prod_idx].compiled_model->outputs()[prod_port];
+                    return m_subrequests[prod_idx]->get_tensor(oport);
+                } else {
+                    // Producer is a function - maybe the same as we're calling now.
+                    // Take its tensor from the storage
+                    return m_funcall_result.at({prod_idx, prod_port});
+                }
+            }();
+
+            if (is_spatial) {
+                // Spatial case - defer
+                m_spatial_io[real_idx].inputs.at(i) = i_tensor;
+            } else if (is_dynamic) {
+                // Set tensor only if it is non-dynamic (dynamic are managed by the infer_dynamic)
+                if (is_non_param_mask(*func_desc.attention, i)) {
                     m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                 } else {
-                    // Spatial case - defer
-                    m_spatial_io[real_idx].inputs.at(i) = i_tensor;
+                    m_attention_io[idx].inputs.at(i) = i_tensor;
+                }
+            } else if (is_pyramid) {
+                // Pyramid attention
+                auto pyramid_id = m_pyramid_selector->pyramid_id();
+                const auto& info = func_desc.pyramid_attention.value()._attention_infos[pyramid_id];
+                if (is_non_param_mask(info, i)) {
+                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                } else {
+                    m_attention_io[idx].inputs.at(i) = i_tensor;
                 }
             } else {
-                // Producer is a function - maybe the same as we're calling now.
-                // Take its tensor from the storage
-                const auto& i_tensor = m_funcall_result.at({prod_idx, prod_port});
-                if (!is_spatial) {
-                    // Non-spatial case - again, set immediately
-                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
-                } else {
-                    // Spatial case - defer
-                    m_spatial_io[real_idx].inputs.at(i) = i_tensor;
-                }
+                // Default case
+                m_subrequests[real_idx]->set_tensor(iport, i_tensor);
             }
-        }
+        }  // if (link_iter)
     }  // for(param_base)
+
+    // 1.5: Do attention prologue if needed
+    if (is_dynamic) {
+        m_profile["attn(act)"] += ov::npuw::perf::ms_to_run([&]() {
+            function_prologue_attn(real_idx, idx);
+        });
+    }
+
+    if (is_pyramid) {
+        m_profile["attn(act)"] += ov::npuw::perf::ms_to_run([&]() {
+            function_prologue_pyramid_attn(real_idx, idx);
+        });
+    }
 
     // 2. Unpack the function closure -- right here, if pipelining if not enabled.
     // If it is enabled, the flow is a little bit different - see run_subrequest_for_success()
@@ -606,6 +742,172 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     LOG_DEBUG("Done");
 }
 
+void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, std::size_t idx) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    NPUW_ASSERT(comp_model_desc.attention.has_value());
+
+    auto& r = m_subrequests[real_idx];
+
+    const auto& dynamic = comp_model_desc.attention.value();
+    auto mask_iport = comp_model_desc.compiled_model->inputs()[dynamic.mask_idx];
+
+    const auto& graph_mask = m_attention_io[idx].inputs.at(dynamic.mask_idx);
+    const auto this_case = m_attention_selector->this_case();
+    auto pos_id = m_attention_selector->length();
+
+    if (pos_id == -1) {
+        // Dynamic range couldn't be identified - fallback to the default
+        // (worst case) behavior
+        r->set_tensor(mask_iport, graph_mask);
+    } else {
+        const auto past_len = m_attention_selector->past_length();
+        const auto present_len = dynamic.query_size;
+        // FIXME: get the right dim
+        const uint32_t kv_dim = 3;
+
+        auto set_or_copy = [&](const auto& view) {
+            if (!needs_copy(idx)) {
+                r->set_tensor(mask_iport, view);
+            } else {
+                const auto& dst = r->get_tensor(mask_iport);
+                dst->set_shape(view->get_shape());
+                view->copy_to(dst._ptr);
+            }
+        };
+
+        // Now set the mask. Here comes very strong chunking & SDPA knowledge again
+        using namespace ov::npuw::runtime;
+        if (this_case == attention::Selector::Case::GENERATE) {
+            // Take a view from our "attend_all" mask
+            const auto& view = ov::npuw::util::view(ov::get_tensor_impl(dynamic.attend_all), kv_dim, 0, past_len + 1);
+            set_or_copy(view);
+        } else if (this_case == attention::Selector::Case::PREFILL) {
+            // Use our in-graph synthesized mask
+            if (m_cached_attention_mask) {
+                // All sub models are sharing the same attention mask, we can use the cached attention
+                // mask directly to avoid redundant tensor copy
+                m_subrequests[real_idx]->set_tensor(mask_iport, m_cached_attention_mask);
+                return;
+            }
+
+            // Handle attention mask concatenation for SDPA:
+            // The attention mask is composed with 2 parts:
+            // The 1st part is for the "present", which is at the tail: starting from past_len to context_len
+            // The 2nd part is for the "past", which is at the beginning: starting from 0 to past_len
+            auto full_mask_shape = graph_mask->get_shape();
+            auto actual_mask_shape = full_mask_shape;
+            actual_mask_shape[kv_dim] = present_len + past_len;
+
+            // Reshape the input to the proper shape
+            const auto& dst = r->get_tensor(mask_iport);
+            dst->set_shape(actual_mask_shape);
+
+            // Copy "present" attention mask
+            const auto& present_dst_view = ov::npuw::util::view(dst, kv_dim, past_len, present_len);
+            const auto& present_src_view =
+                ov::npuw::util::view(graph_mask, kv_dim, full_mask_shape[kv_dim] - present_len, present_len);
+            present_src_view->copy_to(present_dst_view._ptr);
+
+            // Copy "past" attention mask
+            if (past_len > 0) {
+                const auto& past_dst_view = ov::npuw::util::view(dst, kv_dim, 0, past_len);
+                const auto& past_src_view = ov::npuw::util::view(graph_mask, kv_dim, 0, past_len);
+                past_src_view->copy_to(past_dst_view._ptr);
+            }
+            m_cached_attention_mask = dst;
+        } else {
+            NPUW_ASSERT(false && "Reached the unreachable code");
+        }
+    }
+}
+
+void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real_idx, std::size_t idx) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    NPUW_ASSERT(comp_model_desc.pyramid_attention.has_value());
+
+    auto& r = m_subrequests[real_idx];
+    auto pyramid_id = m_pyramid_selector->pyramid_id();
+
+    const auto& dynamic = comp_model_desc.pyramid_attention.value()._attention_infos[pyramid_id];
+    auto mask_iport =
+        comp_model_desc.pyramid_attention.value()._compiled_models[pyramid_id]->inputs()[dynamic.mask_idx];
+
+    const auto& graph_mask = m_attention_io[idx].inputs.at(dynamic.mask_idx);
+    const auto this_case = m_pyramid_selector->this_case();
+    const auto present_len = dynamic.query_size;
+
+    // FIXME: get the right dim
+    const uint32_t kv_dim = 3;
+
+    // Get destination tensor once for all code paths
+    const auto& dst = r->get_tensor(mask_iport);
+
+    // Lambda: copy attention mask segment from source to destination
+    auto copy_mask_segment = [&](std::size_t dst_offset, std::size_t src_offset, std::size_t length) {
+        if (length == 0) {
+            return;
+        }
+        const auto& dst_view = ov::npuw::util::view(dst, kv_dim, dst_offset, length);
+        const auto& src_view = ov::npuw::util::view(graph_mask, kv_dim, src_offset, length);
+        ov::npuw::util::copy_tensor_by_dim(src_view, dst_view, kv_dim, kv_dim);
+    };
+
+    auto pos_id = m_pyramid_selector->length();
+    if (pos_id == -1) {
+        // Pyramid dynamic range couldn't be identified - fallback to default behavior
+        r->set_tensor(mask_iport, graph_mask);
+        return;
+    }
+
+    // Pyramid dynamic range identified
+    const auto past_len = m_pyramid_selector->past_length();
+
+    // Early return: reuse cached attention mask if available
+    if (m_cached_attention_mask) {
+        // All sub models are sharing the same attention mask, we can use the cached attention
+        // mask directly to avoid redundant tensor copy
+        m_subrequests[real_idx]->set_tensor(mask_iport, m_cached_attention_mask);
+        return;
+    }
+
+    // Now set the mask. Here comes very strong chunking & SDPA knowledge again
+    using namespace ov::npuw::runtime;
+    const auto full_mask_shape = graph_mask->get_shape();
+
+    if (this_case == pyramid_attention::Selector::Case::GENERATE) {
+        const auto dst_shape = dst->get_shape();
+
+        // Optimization: if shapes match, use the full mask directly
+        if (dst_shape == full_mask_shape) {
+            r->set_tensor(mask_iport, graph_mask);
+            m_cached_attention_mask = graph_mask;
+            return;
+        }
+
+        // FIXME: No need to copy whole attention mask, just mark the new tokens to valid
+
+        std::size_t dst_present_offset = dst_shape[kv_dim] - present_len;
+
+        // Copy present mask: tail of source -> tail of destination
+        copy_mask_segment(dst_present_offset, full_mask_shape[kv_dim] - present_len, present_len);
+
+        // Copy past mask: head of source [0, dst_present_offset) -> head of destination
+        copy_mask_segment(0, 0, dst_present_offset);
+
+        m_cached_attention_mask = dst;
+    } else if (this_case == pyramid_attention::Selector::Case::PREFILL) {
+        // Copy present mask: tail of source -> [past_len, past_len + present_len)
+        copy_mask_segment(past_len, full_mask_shape[kv_dim] - present_len, present_len);
+
+        // Copy past mask: head of source -> [0, past_len)
+        copy_mask_segment(0, 0, past_len);
+
+        m_cached_attention_mask = dst;
+    } else {
+        NPUW_ASSERT(false && "Unsupported pyramid attention case");
+    }
+}
+
 void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     auto real_idx = comp_model_desc.replaced_by.value_or(idx);
@@ -622,6 +924,15 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     if (is_piped) {
         m_funcall_pipeline[real_idx].subrequest = new_rqs.at(1);
     }
+
+    // Recreate pyramid infer requests if this function has pyramid attention
+    if (comp_model_desc.replaced_by) {
+        auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+        if (proto_comp_model_desc.pyramid_attention) {
+            setup_pyramid_infer_requests(real_idx, is_piped, true);
+        }
+    }
+
     // After an infer request is recreated, the internal cross-request
     // connections should be re-established (in/out tensors reset properly)
     // Note: these two proceduers do the full I/O reset procedure what's
@@ -629,6 +940,91 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     // but it is a more complex thing and can be implemented separately
     connect_subrequests();
     m_subrequest_devices[idx] = *comp_model_desc.device_it;
+}
+
+void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {
+    auto& submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    if (!submodel_desc.pyramid_attention.has_value()) {
+        return;
+    }
+
+    LOG_INFO((is_recreate ? "Recreating" : "Creating") << " pyramid infer requests...");
+    LOG_BLOCK();
+
+    const auto& pyramid_models = submodel_desc.pyramid_attention.value()._compiled_models;
+    const size_t num_pyramid_models = pyramid_models.size();
+
+    // Clear existing requests if recreating
+    if (is_recreate) {
+        submodel_desc.pyramid_infer_requests.clear();
+        submodel_desc.pyramid_pipeline_requests.clear();
+    }
+
+    // Allocate storage for infer requests
+    submodel_desc.pyramid_infer_requests.resize(num_pyramid_models);
+    if (is_piped) {
+        submodel_desc.pyramid_pipeline_requests.resize(num_pyramid_models);
+    }
+
+    // Create infer requests for all but the last pyramid model
+    for (size_t model_idx = 0; model_idx + 1 < num_pyramid_models; ++model_idx) {
+        try {
+            // Create main infer request
+            submodel_desc.pyramid_infer_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
+            // Create pipeline infer request if pipelined
+            if (is_piped) {
+                submodel_desc.pyramid_pipeline_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
+            }
+        } catch (const std::exception& ex) {
+            LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for pyramid model["
+                                   << model_idx << "]: " << ex.what());
+            NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed");
+        } catch (...) {
+            LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for pyramid model["
+                                   << model_idx << "]: Unknown error");
+            NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed with unknown error");
+        }
+
+        // Share input tensors between pyramid and main infer requests
+        const size_t num_inputs = pyramid_models[model_idx]->inputs().size();
+        NPUW_ASSERT(num_inputs == submodel_desc.compiled_model->inputs().size());
+        for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
+            auto pyramid_input = pyramid_models[model_idx]->inputs()[input_idx];
+            auto main_input = submodel_desc.compiled_model->inputs()[input_idx];
+
+            // Get tensor from main infer request and share its memory with the pyramid infer request
+            auto main_tensor_ptr = m_subrequests[real_idx]->get_tensor(main_input)->data();
+            auto pyramid_tensor = submodel_desc.pyramid_infer_requests[model_idx]->get_tensor(pyramid_input);
+            auto shared_tensor = ov::get_tensor_impl(
+                ov::Tensor(pyramid_tensor->get_element_type(), pyramid_tensor->get_shape(), main_tensor_ptr));
+            submodel_desc.pyramid_infer_requests[model_idx]->set_tensor(pyramid_input, shared_tensor);
+
+            // Repeat for pipeline infer request if pipelined
+            if (is_piped) {
+                auto pipeline_tensor = submodel_desc.pyramid_pipeline_requests[model_idx]->get_tensor(pyramid_input);
+                auto pipeline_tensor_ptr = m_funcall_pipeline[real_idx].subrequest->get_tensor(main_input)->data();
+                auto shared_pipeline_tensor = ov::get_tensor_impl(
+                    ov::Tensor(pipeline_tensor->get_element_type(), pipeline_tensor->get_shape(), pipeline_tensor_ptr));
+                submodel_desc.pyramid_pipeline_requests[model_idx]->set_tensor(pyramid_input, shared_pipeline_tensor);
+            }
+        }
+    }
+
+    // For the last pyramid model, reuse the original model's infer requests
+    if (num_pyramid_models > 0) {
+        const size_t last_model_idx = num_pyramid_models - 1;
+        LOG_INFO("Reusing " << (is_recreate ? "recreated " : "") << "original infer requests for last pyramid model["
+                            << last_model_idx << "]");
+        submodel_desc.pyramid_infer_requests[last_model_idx] = m_subrequests[real_idx];
+        if (is_piped) {
+            submodel_desc.pyramid_pipeline_requests[last_model_idx] = m_funcall_pipeline[real_idx].subrequest;
+        }
+    }
+
+    if (!is_recreate && num_pyramid_models > 0) {
+        LOG_INFO("Successfully created " << (num_pyramid_models - 1)
+                                         << " new pyramid infer requests and reused 1 original request");
+    }
 }
 
 void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, bool& failover) {
@@ -665,6 +1061,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
             dump_input_tensors(idx);
         }
 
+        std::string error_text;
         try {
             LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
             LOG_BLOCK();
@@ -672,20 +1069,28 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
             job_done = true;
             LOG_DEBUG("Done: " << idx << "(exec subrequest)");
         } catch (const std::exception& ex) {
-            LOG_ERROR("Subgraph [" << idx << "] - FAILED to run infer request:" << std::endl << ex.what());
+            error_text = ex.what();
+            LOG_ERROR("Subgraph [" << idx << "] - FAILED to run infer request:" << std::endl
+                                   << error_text << std::endl);
             should_recreate = true;
         } catch (...) {
             LOG_ERROR("Subgraph [" << idx << "] - FAILED to run infer request: REASON UNKNOWN");
             should_recreate = true;
         }
         if (should_recreate) {
-            failover = true;
-            LOG_INFO("- Trying next device...");
-
             // Altering iterators here!! Contracts should be changed!
             comp_model_desc.device_it++;
+
+            // Check if failover is actually possible
+            if ((m_npuw_model->m_dev_list.cend() == comp_model_desc.device_it) ||
+                !m_npuw_model->m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>()) {
+                OPENVINO_THROW("Execution error: \"", error_text, "\" - no fallback possible");
+            }
+
+            failover = true;
+            LOG_INFO("- Trying next device...");
             if (!m_npuw_model->compile_for_success(real_idx)) {
-                OPENVINO_THROW("Failed to compile. No more devices are left!");
+                OPENVINO_THROW("Execution error: \"", error_text, "\" - failed to recompile the model in runtime");
             }
             recreate_subrequests(idx);
         }
@@ -701,129 +1106,135 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     }
 }
 
-void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, const std::function<void()>& f) {
+void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t idx, const std::function<void()>& f) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     if (!comp_model_desc.spatial) {
-        // Non-spatial execution: trigger request asynchronously, run `f` in this context
+        // Normal: trigger request asynchronously, run `f` in this context
+        // FIXME: dynamic could hit here too, but it has special logic
+        // around execution which makes it harder to run than a plain start_async()
         auto& r = m_subrequests[real_idx];
         r->start_async();
         f();  // expect noexcept
         r->wait();
     } else {
-        // Spatial execution... Do the opposite - run f asynchronously, and meanwhile run the
-        // spatial inference
+        // Spatial... Do the opposite - run f
+        // asynchronously, and meanwhile run the spatial inference
         auto future = std::async(std::launch::async, f);
-        unsafe_infer(real_idx);
+        unsafe_infer(real_idx, idx);
         future.wait();
     }
 }
 
-void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
+void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std::size_t) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    NPUW_ASSERT(comp_model_desc.spatial.has_value());
+
+    auto& r = m_subrequests[real_idx];
+
+    // Run over the specified range... Note: the full inputs/outputs
+    // must be prepared in the m_spatial_io at this point
+    const auto& spatial = comp_model_desc.spatial.value();
+    const auto num_outputs = comp_model_desc.compiled_model->outputs().size();
+    NPUW_ASSERT(m_spatial_selector);
+
+    // Create a sparse vector with full input sizes.
+    // For the access simplicity, its size is aligned with function's
+    // number of input parameters (activations) so some slots may be
+    // not used here.
+    // FIXME: All these preparations could be done statically (just once)
+    std::vector<ov::Shape> full_in_shapes(comp_model_desc.param_base);
+    for (auto&& param : spatial.params) {
+        full_in_shapes[param.idx] = m_spatial_io[real_idx].inputs.at(param.idx)->get_shape();
+    }
+
+    // Now handle the range, even if it is not a multiply of nway (slice):
+    //
+    // |<- - - - full range  - - - ->|
+    // +------+------+------+------+-+
+    // | nway | nway | nway | nway | |
+    // +------+------+------+------+-+
+    //                              ^tail
+    // The block is always compiled to produce nway. If we need a smaller tensor
+    // on the last iteration, the sub-nway will be copied from the input range to
+    // a temporary tensor, and then the sub-nwway range will be copied from the
+    // request's output range.
+
+    std::size_t offset = 0u;
+    for (std::size_t i = 0u; i < spatial.nway_iters; i++, offset += spatial.nway) {
+        if (!m_spatial_selector->need_submit(offset, spatial.nway)) {
+            continue;
+        }
+
+        // Collect spatial inputs for this offset
+        for (auto&& param : spatial.params) {
+            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+            const auto& iview =
+                ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx), param.dim, offset, spatial.nway);
+            r->set_tensor(iport, iview);
+        }  // for(params)
+
+        // Now set the spatial outputs
+        for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
+            const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
+            r->set_tensor(oport,
+                          ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
+                                               spatial.out_dim,
+                                               offset,
+                                               spatial.nway));
+        }  // for(outputs)
+
+        // Now run the part
+        r->infer();
+    }  // for(full_nway_times)
+
+    // Now process the tail, if required
+    if (spatial.tail_size && m_spatial_selector->need_submit(offset, spatial.tail_size)) {
+        // Copy the sub-ranges to spatial inputs
+        // NOTE: tails buffers are read from/written to at 0th offset!
+        for (auto&& param : spatial.params) {
+            auto in_view =
+                ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx), param.dim, offset, spatial.tail_size);
+
+            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+            auto out_view =
+                ov::npuw::util::view(m_spatial_io[real_idx].input_tails.at(param.idx), param.dim, 0, spatial.tail_size);
+
+            in_view->copy_to(out_view._ptr);
+            r->set_tensor(iport, m_spatial_io[real_idx].input_tails.at(param.idx));
+        }  // for(params)
+
+        // Now set the tail tensors
+        for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
+            const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
+            r->set_tensor(oport, m_spatial_io[real_idx].output_tails.at(out_idx));
+        }  // for(outputs)
+
+        // Now run the tail infer
+        r->infer();
+
+        // Now copy the views from the output full-nway tensor to the output tensors
+        for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
+            auto in_view = ov::npuw::util::view(m_spatial_io[real_idx].output_tails.at(out_idx),
+                                                spatial.out_dim,
+                                                0,
+                                                spatial.tail_size);
+
+            auto out_view = ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
+                                                 spatial.out_dim,
+                                                 offset,
+                                                 spatial.tail_size);
+            in_view->copy_to(out_view._ptr);
+        }  // for(outputs)
+    }
+}
+
+void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     auto& r = m_subrequests[real_idx];
-    if (!comp_model_desc.spatial) {
-        // Run normally
-        r->infer();
+    if (comp_model_desc.spatial) {
+        unsafe_infer_spatial(real_idx, idx);
     } else {
-        // Run over the specified range... Note: the full inputs/outputs
-        // must be prepared in the m_spatial_io at this point
-        const auto& spatial = comp_model_desc.spatial.value();
-        const auto num_outputs = comp_model_desc.compiled_model->outputs().size();
-        NPUW_ASSERT(m_spatial_selector);
-
-        // Create a sparse vector with full input sizes.
-        // For the access simplicity, its size is aligned with function's
-        // number of input parameters (activations) so some slots may be
-        // not used here.
-        // FIXME: All these preparations could be done statically (just once)
-        std::vector<ov::Shape> full_in_shapes(comp_model_desc.param_base);
-        for (auto&& param : spatial.params) {
-            full_in_shapes[param.idx] = m_spatial_io[real_idx].inputs.at(param.idx)->get_shape();
-        }
-
-        // Now handle the range, even if it is not a multiply of nway (slice):
-        //
-        // |<- - - - full range  - - - ->|
-        // +------+------+------+------+-+
-        // | nway | nway | nway | nway | |
-        // +------+------+------+------+-+
-        //                              ^tail
-        // The block is always compiled to produce nway. If we need a smaller tensor
-        // on the last iteration, the sub-nway will be copied from the input range to
-        // a temporary tensor, and then the sub-nwway range will be copied from the
-        // request's output range.
-
-        std::size_t offset = 0u;
-        for (std::size_t i = 0u; i < spatial.nway_iters; i++, offset += spatial.nway) {
-            if (!m_spatial_selector->need_submit(offset, spatial.nway)) {
-                continue;
-            }
-
-            // Collect spatial inputs for this offset
-            for (auto&& param : spatial.params) {
-                const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
-                const auto& iview =
-                    ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx), param.dim, offset, spatial.nway);
-                r->set_tensor(iport, iview);
-            }  // for(params)
-
-            // Now set the spatial outputs
-            for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
-                const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
-                r->set_tensor(oport,
-                              ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
-                                                   spatial.out_dim,
-                                                   offset,
-                                                   spatial.nway));
-            }  // for(outputs)
-
-            // Now run the part
-            r->infer();
-        }  // for(full_nway_times)
-
-        // Now process the tail, if required
-        if (spatial.tail_size && m_spatial_selector->need_submit(offset, spatial.tail_size)) {
-            // Copy the sub-ranges to spatial inputs
-            // NOTE: tails buffers are read from/written to at 0th offset!
-            for (auto&& param : spatial.params) {
-                auto in_view = ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx),
-                                                    param.dim,
-                                                    offset,
-                                                    spatial.tail_size);
-
-                const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
-                auto out_view = ov::npuw::util::view(m_spatial_io[real_idx].input_tails.at(param.idx),
-                                                     param.dim,
-                                                     0,
-                                                     spatial.tail_size);
-
-                in_view->copy_to(out_view._ptr);
-                r->set_tensor(iport, m_spatial_io[real_idx].input_tails.at(param.idx));
-            }  // for(params)
-
-            // Now set the tail tensors
-            for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
-                const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
-                r->set_tensor(oport, m_spatial_io[real_idx].output_tails.at(out_idx));
-            }  // for(outputs)
-
-            // Now run the tail infer
-            r->infer();
-
-            // Now copy the views from the output full-nway tensor to the output tensors
-            for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
-                auto in_view = ov::npuw::util::view(m_spatial_io[real_idx].output_tails.at(out_idx),
-                                                    spatial.out_dim,
-                                                    0,
-                                                    spatial.tail_size);
-
-                auto out_view = ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
-                                                     spatial.out_dim,
-                                                     offset,
-                                                     spatial.tail_size);
-                in_view->copy_to(out_view._ptr);
-            }  // for(outputs)
-        }
+        r->infer();  // Run normally
     }
 }
 
@@ -841,7 +1252,7 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             if (is_pipelined(real_idx)) {
                 // function pipelining is here! and the next rq is ours.
                 NPUW_ASSERT(m_funcall_pipeline[idx].next.value() == next_idx);
-                unsafe_during(real_idx, [&]() {
+                unsafe_during(real_idx, idx, [&]() {
                     LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << next_idx << "]...");
                     LOG_BLOCK();
                     // Note: do it here unconditionally - if this request fails,
@@ -852,7 +1263,7 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             } else {
                 // Function pipelining is not used. THIS infer request
                 // is also the NEXT one. Nothing much to do here
-                unsafe_infer(real_idx);
+                unsafe_infer(real_idx, idx);
                 bind_global_parameters(next_idx);
             }
         } else {
@@ -862,9 +1273,9 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             if (next_idx == 0) {
                 // Note: even if m_function_pipelining is ON,
                 // SWAP won't happen here - see the below check for .next
-                unsafe_infer(real_idx);
+                unsafe_infer(real_idx, idx);
             } else {
-                unsafe_during(real_idx, [&]() {
+                unsafe_during(real_idx, idx, [&]() {
                     if (!next_prepared) {
                         bind_global_parameters(next_idx);
                         next_prepared = true;
@@ -882,9 +1293,9 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
         // This is a regular subgraph. Start it async to prepare the next
         // parameters
         if (next_idx == 0) {
-            unsafe_infer(real_idx);
+            unsafe_infer(real_idx, idx);
         } else {
-            unsafe_during(real_idx, [&]() {
+            unsafe_during(real_idx, idx, [&]() {
                 if (!next_prepared) {
                     bind_global_parameters(next_idx);
                     next_prepared = true;

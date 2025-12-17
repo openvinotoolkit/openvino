@@ -117,5 +117,4 @@ void get_num_streams(int streams, const std::shared_ptr<ov::Model>& model, Confi
  * @param[in]  proc_type_table summary table of number of processors per type
  */
 void sort_table_by_numa_node_id(int current_numa_node, std::vector<std::vector<int>>& proc_type_table);
-
 }  // namespace ov::intel_cpu

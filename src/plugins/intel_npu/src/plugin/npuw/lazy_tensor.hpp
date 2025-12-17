@@ -109,6 +109,10 @@ private:
     ov::Tensor m_read_from_bin;
     std::string m_weights_path;
     mutable ov::npuw::s11n::WeightsPtr m_mmaped_weights = nullptr;
+    // FIXME: special case when a new Constant was added into the model,
+    // then made into LazyTensor during folding. We need to keep a copy of it,
+    // so during weightless deserialization we can access it.
+    mutable ov::Tensor m_copied_if_not_in_model;
 };
 
 class Concat {

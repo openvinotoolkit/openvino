@@ -24,15 +24,13 @@ namespace ov::snippets::pass {
  */
 class CommonOptimizations::SubgraphPass {
 public:
-    SubgraphPass() = default;
+    SubgraphPass() = delete;
+    explicit SubgraphPass(std::string name) : m_name(std::move(name)) {}
     virtual ~SubgraphPass() = default;
 
     virtual bool run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) = 0;
 
-    void set_name(const std::string& name) {
-        m_name = name;
-    }
-    [[nodiscard]] std::string get_name() const {
+    [[nodiscard]] const std::string& get_name() const {
         return m_name;
     }
 

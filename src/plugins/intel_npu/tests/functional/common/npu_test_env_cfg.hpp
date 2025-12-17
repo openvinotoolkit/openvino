@@ -59,7 +59,7 @@ std::string getDeviceNameID(const std::string& str);
 
 namespace InferRequestParamsAnyMapTestName {
 
-std::string getTestCaseName(testing::TestParamInfo<ov::test::behavior::InferRequestParams> obj);
+std::string getTestCaseName(const testing::TestParamInfo<ov::test::behavior::InferRequestParams>& obj);
 
 }  // namespace InferRequestParamsAnyMapTestName
 
@@ -69,6 +69,6 @@ typedef std::tuple<std::string,                        // Device name
                    std::map<std::string, std::string>  // Config
                    >
     InferRequestParams;
-std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj);
+std::string getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj);
 
 }  // namespace InferRequestParamsMapTestName

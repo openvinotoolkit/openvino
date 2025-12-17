@@ -161,7 +161,7 @@ std::string to_code(std::shared_ptr<ov::op::v0::Constant> constop, bool force_br
     auto ele_size = shape_size(constop->get_shape());
     if (ele_size < 9) {
         const char* sep = "";
-        for (auto v : constop->get_value_strings()) {
+        for (const auto& v : constop->get_value_strings()) {
             ss << sep << v;
             sep = ", ";
         }
@@ -250,19 +250,19 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
     std::string tag = "";
     std::string sep = "";
     os << prefix;
-    for (auto op : f.get_results()) {
+    for (const auto& op : f.get_results()) {
         os << sep << op->get_name();
         sep = ",";
     }
     os << " " << f.get_friendly_name() << "(\n" << prefix;
-    for (auto op : f.get_parameters()) {
+    for (const auto& op : f.get_parameters()) {
         os << "    " << tag << op->get_friendly_name() << ",\n" << prefix;
     }
     os << ") {\n";
 
     // collect all scalar & short 1D vectors for literal-style display
     std::map<std::shared_ptr<ov::Node>, std::string> literal_consts;
-    for (auto op : f.get_ordered_ops()) {
+    for (const auto& op : f.get_ordered_ops()) {
         if (auto constop = ov::as_type_ptr<op::v0::Constant>(op)) {
             // only i32/f32 type const literal can be parsed by C++ compiler
             if (constop->get_output_element_type(0) != ov::element::i32 &&
@@ -278,7 +278,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
         }
     }
 
-    auto get_output_values_info = [](std::shared_ptr<ov::Node>& op) {
+    auto get_output_values_info = [](const std::shared_ptr<ov::Node>& op) {
         std::stringstream ss;
         const char* sep = "";
         for (size_t i = 0; i < op->get_output_size(); i++) {
@@ -291,7 +291,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
     // change name convension
     std::map<ov::Node*, std::string> opname;
     std::map<std::string, int> opname_count;
-    for (auto op : f.get_ordered_ops()) {
+    for (const auto& op : f.get_ordered_ops()) {
         auto name = op->get_friendly_name();
         std::replace(name.begin(), name.end(), '\\', '_');
         std::replace(name.begin(), name.end(), '/', '_');
@@ -315,7 +315,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
         opname[op.get()] = name;
     }
 
-    for (auto op : f.get_ordered_ops()) {
+    for (const auto& op : f.get_ordered_ops()) {
         if (literal_consts.count(op))
             continue;
 
@@ -328,7 +328,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
                 type = std::string("ov::op::TypeRelaxed<") + type + ">";
             }
         }
-        auto name = opname[op.get()];
+        const auto& name = opname[op.get()];
         os << prefix << "    ";
 
         if (auto constop = ov::as_type_ptr<op::v0::Constant>(op)) {

@@ -83,7 +83,7 @@ protected:
     bool supports_async_pipeline() const override;
     void update_subrequest_links(std::size_t idx) override;
 
-    TensorPtr alloc_global_out(std::size_t out_idx) override;
+    TensorPtr alloc_global_out(std::size_t out_idx) const override;
 
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
@@ -98,13 +98,19 @@ protected:
     using IBaseInferRequest::bind_global_results;
 
     void function_prologue(std::size_t idx);
+    void function_prologue_attn(std::size_t real_idx, std::size_t idx);
+    void function_prologue_pyramid_attn(std::size_t real_idx, std::size_t idx);
 
-    void unsafe_during(std::size_t real_idx, const std::function<void()>& f);
-    void unsafe_infer(std::size_t real_idx);
+    void unsafe_during(std::size_t real_idx, std::size_t idx, const std::function<void()>& f);
+    void unsafe_infer(std::size_t real_idx, std::size_t idx);
+    void unsafe_infer_spatial(std::size_t real_idx, std::size_t idx);
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
+
+    // Helper function to setup pyramid attention infer requests
+    void setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate);
 
     FuncMemMgr m_func_mem_mgr;                       // Owns memory
     std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
@@ -129,6 +135,9 @@ protected:
 
     // Cached check if we do FOLDing and need to update closures in the repeating blocks
     bool m_closure_update_required = false;
+
+    // Cached attention mask for SDPA operations to avoid recomputing
+    ov::SoPtr<ov::ITensor> m_cached_attention_mask;
 };
 
 }  // namespace npuw

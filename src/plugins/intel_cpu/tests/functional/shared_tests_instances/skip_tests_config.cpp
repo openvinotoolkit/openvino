@@ -17,26 +17,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
-        // TODO: Issue 31841
-        R"(.*(QuantGroupConvBackpropData3D).*)",
-        // TODO: Issue 31843
-        R"(.*(QuantConvBackpropData3D).*)",
-        R"(.*(QuantConvBackpropData2D).*(QG=Perchannel).*)",
-        R"(.*(QuantGroupConvBackpropData2D).*(QG=Perchannel).*)",
-        // TODO: Issue 33886
-        R"(.*(QuantGroupConv2D).*)",
-        R"(.*(QuantGroupConv3D).*)",
-        R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*ET=f16.*)",
-        R"(.*(RangeNumpyAddSubgraphTest).*ET=f16.*)",
-        // TODO: Issue: 43793
-        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
-        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
-        // TODO: Issue: 63469
-        R"(.*ConversionLayerTest.*ConvertLike.*)",
-        // TODO: Issue: 34055
-        R"(.*ReluShapeOfSubgraphTest.*)",
-        // TODO: Issue: 43314
-        R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
         // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
         R"(.*(BF|bf)16.*(jit_avx(?!5)|jit_sse).*)",
         // TODO: Incorrect blob sizes for node BinaryConvolution_X
@@ -64,10 +44,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*NormalizeL2_.*axes=\(2.1.*_eps=100.*)",
         R"(.*NormalizeL2_.*axes=\(3.1.2.*_eps=100.*)",
 
-        // Unsupported operation of type: NormalizeL2 name : Doesn't support reduction axes: (2.2)
-        R"(.*BF16NetworkRestore1.*)",
-        R"(.*MobileNet_ssd_with_branching.*)",
-
         // Not expected behavior
         R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
         // Issue: 72021 Unreasonable abs_threshold for comparing bf16 results
@@ -84,32 +60,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVClassQueryModelTest.*QueryModelWithDeviceID.*)",
         // Issue 67214
         R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
-        // TODO: 67255
-        R"(smoke_If.*SimpleIf2OutTest.*)",
         // Issue: 69086
         // need to add support convert BIN -> FP32
         // if we set output precision as BIN, when we create output blob precision looks like UNSPECIFIED
         R"(.*smoke_FakeQuantizeLayerCPUTest.*bin.*)",
-        // Issue: 69222
-        R"(.*smoke_PriorBoxClustered.*PriorBoxClusteredLayerCPUTest.*_netPRC=f16_.*)",
-        // Issue: 72005
-        // there are some inconsistency between cpu plugin and ng ref
-        // for ctcMergeRepeated is true when legal randomized inputs value.
-        // Failure happened on win and macos for current seeds.
-        R"(.*CTCLossLayerTest.*CMR=1.*)",
-        R"(.*CTCLossLayerCPUTest.*ctcMergeRepeated=1.*)",
         // Issue: 71756
         R"(.*GroupDeconv_2D_DW_BF16/GroupDeconvolutionLayerCPUTest.CompareWithRefs.*PRC=f32.*inFmts=nChw16c_outFmts=nChw16c_primitive=jit_avx512_dw_Fused=Multiply\(PerChannel\).Add\(PerChannel\)_PluginConf_INFERENCE_PRECISION_HINT=bf16*)",
         R"(.*smoke_GroupDeconv_(2|3)D_Blocked_BF16.*S=(\(2\.2\)|\(2\.2\.2\))_PB=(\(0\.0\)|\(0\.0\.0\))_PE=(\(0\.0\)|\(0\.0\.0\))_D=(\(1\.1\)|\(1\.1\.1\))_.*_O=64_G=4.*)",
-        // Issue: 59594
-        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*BOOL.*)",
-        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*MIXED.*)",
-        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*Q78.*)",
-        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*U4.*)",
-        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*I4.*)",
-        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*BIN.*)",
-        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*CUSTOM.*)",
-        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*UNSPECIFIED.*)",
         // Issue:
         // New API tensor tests
         R"(.*OVInferRequestCheckTensorPrecision.*type=u1.*)",
@@ -296,6 +253,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*FC_3D_BF16.*MatMulLayerCPUTest.*)",
         // Issue: 163242
         R"(.*bf16.*RNNSequenceCPUTest.*)",
+        R"(.*WeightlessCacheAccuracy.TiWithLstmCell.*model_dtype=bf16.*)",
         // Issue: 163250
         R"(.*OnnxModelWithExtensionFromDSO.*)",
         // Issue: 163273
@@ -307,6 +265,17 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
         // This transformation is disabled on CPU
         R"(.*smoke_LPT.*MultiplyToGroupConvolutionTransformation.*)",
+        // Disabled due to sporadic failures in CI, Issue: 157267
+        R"(.*smoke_CompareWithRefs_4D_Blocked_Blocked_Fusing\/EltwiseLayerCPUTest.CompareWithRefs\/IS=\(\[\]_\)_TS.*2.4.4.1.*eltwise_op_type=(Sum|Mod|SqDiff|Prod)_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=dynamic_OutType=dynamic_trgDev=CPU_config_item=INFERENCE_PRECISION_HINT=f32_inFmts=nChw16c.nChw16c_outFmts=nChw16c_Fused=FakeQuantize\(PerChannel\).*)",
+        R"(.*smoke_CachingSupportCase_CPU\/CompileModelCacheTestBase.CompareWithRefImpl\/SplitConvConcatNestedInBranchNestedOut_i16_batch1_CPU.*)",
+        R"(.*smoke_CompareWithRefs_5D_MemOrder_Blocked_Blocked\/EltwiseLayerCPUTest.CompareWithRefs\/IS=\(\[\]_\[\]_\)_TS=.*2.17.6.5.1.*_.*1.17.1.1.4.*_\)_eltwise_op_type=Sub_secondary_input_type=CONSTANT_opType=VECTOR_model_type=bf16_InType=dynamic_OutType=dynamic_trgDev=CPU_config_item=INFERENCE_PRECISION_HINT=f32_inFmts=nCdhw16c.nCdhw16c_outFmts=nCdhw16c_enforceSnippets=0.*)",
+        R"(.*.*smoke_CompareWithRefs_4D_Fusing_Blocked_Blocked\/EltwiseLayerCPUTest.CompareWithRefs\/IS=\(\[\]_\)_TS=\(\(2.4.4.1\)_\)_eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=dynamic_OutType=dynamic_trgDev=CPU_config_item=INFERENCE_PRECISION_HINT=f32_inFmts=nChw16c.nChw16c_outFmts=nChw16c_Fused=FakeQuantize\(PerChannel\).Sigmoid.FakeQuantize\(PerTensor\)_enforceSnippets=0.*)",
+        R"(.*smoke_Conv_1D_GEMM_FP32\/ConvolutionLayerCPUTest.CompareWithRefs\/IS=\[\]_TS=\(\(2.12.7\)_\)_K\(3\)_S\(2\)_PB\(1\)_PE\(0\)_D=\(1\)_O=6_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=ncw_outFmts=ncw_primitive=jit_gemm_Fused=Relu.*)",
+
+        // Disabled due to dependency on tests execution order, issue: 178036
+#if !(defined(__APPLE__) && defined(__MACH__)) && (defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM))
+        R"(.*smoke_ScaledAttn_CPU\/ScaledAttnLayerCPUTest.CompareWithRefs\/netPRC=f32_IS=\[\?.8.\?.64]_\[\?.8.\?.64]_\[\?.1.\?.\?\]_TS=\(1.8.100.64\)_\(1.8.1.64\)_\(2.8.10.64\)_\(2.8.10.64\)_\(1.8.100.64\)_\(1.8.1.64\)_\(2.8.10.64\)_\(2.8.10.64\)_\(1.1.1.100\)_\(1.1.1.1\)_\(2.1.1.10\)_\(2.1.10.10\)_is_causal=0_has_attn=0_has_scale=0_trgDev=CPU_primitive=ref_any.*)",
+#endif
     };
 
     // fp32 floor for bf16 models: conversion issue
@@ -348,6 +317,8 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_AvgPoolV14_CPU_4D/AvgPoolingV14LayerCPUTest.CompareWithRefs.*)");
         // Ticket: 168931
         retVector.emplace_back(R"(.*smoke_Reduce_OneAxis_dynamic_CPU/ReduceCPULayerTest.CompareWithRefs.*)");
+        // Ticket: 178089
+        retVector.emplace_back(R"(.*smoke_ARM_StatefulSdpaBoolMask/StatefulSdpaBoolMaskTest.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
@@ -368,6 +339,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_ConcatSDPTransposeByChannelTest.*)");
     // Issue: 168490
     retVector.emplace_back(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)");
+    retVector.emplace_back(R"(.*WeightlessCacheAccuracy.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
@@ -502,8 +474,8 @@ std::vector<std::string> disabledTestPatterns() {
     // Issue: 170863
     retVector.emplace_back(R"(smoke_Model_Distribution_MatMul_NoTranspose.*)");
 #endif
-#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_X86_64)
-    // smoke_Snippets test cases are on platforms except x64 and aarch64/arm64
+#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_RISCV64)
+    // smoke_Snippets test cases are on platforms except x64, ARM64 and RISCV64
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
 #if defined(OPENVINO_ARCH_ARM64)
@@ -511,6 +483,11 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)");
     retVector.emplace_back(R"(smoke_Snippets_GroupNormalization.*)");
     retVector.emplace_back(R"(smoke_Snippets_PrecisionPropagation_Convertion.*)");
+#endif
+#if defined(OPENVINO_ARCH_RISCV64)
+    retVector.emplace_back(R"(smoke_Snippets.*\[.*\?.*\].*)");
+    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise/Add\.).*)");
+    retVector.emplace_back(R"(.*_enforceSnippets=1.*)");
 #endif
 #if defined(_WIN32)
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)");

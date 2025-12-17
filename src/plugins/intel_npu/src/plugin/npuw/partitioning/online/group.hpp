@@ -84,6 +84,8 @@ public:
     void addWeightsPrecision(const std::vector<ov::element::Type>& prec);
     const std::vector<ov::element::Type>& getConstsPrecision() const;
 
+    void dump() const;
+
 private:
     void includeExtraLayers(detail::OVNodeSet& input_layers,
                             detail::OVNodeSet& output_layers,

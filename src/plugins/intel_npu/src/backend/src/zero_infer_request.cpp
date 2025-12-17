@@ -4,8 +4,6 @@
 
 #include "zero_infer_request.hpp"
 
-#include <ze_mem_import_system_memory_ext.h>
-
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -23,64 +21,22 @@ constexpr std::size_t SINGLE_TENSOR = 0;
 constexpr bool INPUT = true;
 constexpr bool OUTPUT = false;
 
-/**
- * @brief Checks that the metadata of the provided descriptor corresponds to the values registered in the Level Zero
- * structure.
- * @param ioDescriptor The OpenVINO API specific I/O descriptor which shall be compared.
- * @param zeDescriptor The Level Zero specific structure used for comparison.
- */
-void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const ArgumentDescriptor& zeDescriptor) {
-    std::string zeDescriptorName = zeDescriptor.info.name;
-
-    if (isStateInputName(zeDescriptorName)) {
-        zeDescriptorName = zeDescriptorName.substr(READVALUE_PREFIX.length());
-    } else if (isStateOutputName(zeDescriptorName)) {
-        zeDescriptorName = zeDescriptorName.substr(ASSIGN_PREFIX.length());
-    } else if (isShapeTensorName(zeDescriptorName)) {
-        zeDescriptorName = zeDescriptorName.substr(SHAPE_TENSOR_PREFIX.length());
-    } else if (isInitInputWeightsName(zeDescriptorName)) {
-        zeDescriptorName = zeDescriptorName.substr(INIT_INPUT_WEIGHTS_PREFIX.length());
-    } else if (isInitOutputWeightsName(zeDescriptorName)) {
-        zeDescriptorName = zeDescriptorName.substr(INIT_OUTPUT_WEIGHTS_PREFIX.length());
-    } else if (isMainInputWeightsName(zeDescriptorName)) {
-        zeDescriptorName = zeDescriptorName.substr(MAIN_INPUT_WEIGHTS_PREFIX.length());
-    }
-
-    OPENVINO_ASSERT(ioDescriptor.nameFromCompiler == zeDescriptorName,
-                    "Name mismatch between the I/O structure used internally and its Level Zero correspondent: ",
-                    ioDescriptor.nameFromCompiler,
-                    " vs. ",
-                    zeDescriptorName,
-                    ". The I/O order may have been altered, which could lead to an erroneous behavior.");
-    OPENVINO_ASSERT(ioDescriptor.precision == zeroUtils::toOVElementType(zeDescriptor.info.devicePrecision),
-                    "Precision mismatch for input/output named " + ioDescriptor.nameFromCompiler);
-
-    const std::vector<size_t>& ovDimensions = ioDescriptor.shapeFromCompiler.get_max_shape();
-    OPENVINO_ASSERT(ovDimensions.size() <= ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE,
-                    "Maximum number of dimensions supported: " + std::to_string(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) +
-                        '\n' + "Given: " + std::to_string(ovDimensions.size()));
-
-    for (size_t index = 0; index < ovDimensions.size(); ++index) {
-        OPENVINO_ASSERT(ovDimensions[index] == zeDescriptor.info.dims[index],
-                        "Shape mismatch for input/output named \"" + ioDescriptor.nameFromCompiler +
-                            "\" by dimension index: " + std::to_string(index) +
-                            ". L0 has: " + std::to_string(zeDescriptor.info.dims[index]) +
-                            " but meta has: " + std::to_string(ovDimensions[index]));
-    }
-    for (size_t index = ovDimensions.size(); index < ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE; ++index) {
-        OPENVINO_ASSERT(zeDescriptor.info.dims[index] == 0 || zeDescriptor.info.dims[index] == 1,
-                        "Shape mismatch for input/output named " + ioDescriptor.nameFromCompiler);
-    }
-}
-
 std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
+                                                   const ov::PartialShape& ioShape,
                                                    const std::shared_ptr<ov::ITensor>& tensor,
                                                    const std::optional<size_t> batchSize) {
     if (tensor == nullptr && !batchSize.has_value()) {
         return std::nullopt;
     }
 
-    if (!desc.shapeFromIRModel.has_value() || !desc.shapeFromIRModel.value().is_dynamic()) {
+    if (!ioShape.size()) {
+        return std::nullopt;
+    }
+
+    auto batchFromModel = ioShape[intel_npu::utils::BATCH_AXIS];
+    auto batchModelFromIR =
+        desc.shapeFromIRModel.has_value() && desc.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS].is_dynamic();
+    if (!batchFromModel.is_dynamic() && !batchModelFromIR) {
         return std::nullopt;
     }
 
@@ -92,11 +48,7 @@ std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
         return std::nullopt;
     }
 
-    if ((*desc.shapeFromIRModel)[intel_npu::utils::BATCH_AXIS].is_dynamic()) {
-        return tensor->get_shape()[intel_npu::utils::BATCH_AXIS];
-    }
-
-    return std::nullopt;
+    return tensor->get_shape()[intel_npu::utils::BATCH_AXIS];
 }
 
 }  // namespace
@@ -110,16 +62,12 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _graph(compiledModel->get_graph()),
       _config(config),
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
-      _graphInputDescriptors(_graph->get_input_descriptors()),
-      _graphOutputDescriptors(_graph->get_output_descriptors()),
       _levelZeroInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ZeroTensor>>(1, nullptr)),
       _levelZeroOutputTensors(_metadata.outputs.size(), nullptr) {
     _logger.debug("ZeroInferRequest::ZeroInferRequest - checking level zero attributes and allocating tensors");
 
     size_t ioIndex = 0;
     for (const IODescriptor& inputDescriptor : _metadata.inputs) {
-        check_level_zero_attributes_match(inputDescriptor, _graphInputDescriptors.at(ioIndex));
-
         // Tensors for regular inputs will be allocated later, only for ports that were not set by the user.
         // Allocating only tensors for shapes and states.
         if (!(inputDescriptor.isStateInput || inputDescriptor.isShapeTensor)) {
@@ -138,8 +86,6 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     ioIndex = 0;
     for (const IODescriptor& outputDescriptor : _metadata.outputs) {
-        check_level_zero_attributes_match(outputDescriptor, _graphOutputDescriptors.at(ioIndex));
-
         // Tensors for regular outputs will be allocated later, only for ports that were not set by the user.
         // Allocating only tensors for shapes and states.
         if (!(outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor)) {
@@ -312,8 +258,9 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             return;
         }
 
+        auto ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
         auto batchSizeCandidate =
-            determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), tensor._ptr, std::nullopt);
+            determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
 
         if (batchSizeCandidate.has_value()) {
             if (!_dynamicBatchValueChanged) {
@@ -353,8 +300,9 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             return;
         }
 
+        auto ioShape = _compiledModel->outputs()[foundPort.idx].get_partial_shape();
         auto batchSizeCandidate =
-            determine_dynamic_batch_size(_metadata.outputs.at(foundPort.idx), tensor._ptr, std::nullopt);
+            determine_dynamic_batch_size(_metadata.outputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
 
         if (batchSizeCandidate.has_value()) {
             if (!_dynamicBatchValueChanged) {
@@ -389,9 +337,13 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "create zero tensor");
             // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
             // context.
-            levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, tensor, _config);
+            levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, _config, tensor);
             updateCommandListArg = true;
-        } catch (const ZeroTensorException&) {
+        } catch (const ZeroMemException& exception) {
+            _logger.debug("ZeroInferRequest::set_tensor - exception caught while trying to create a Level Zero tensor "
+                          "from the user tensor: %s",
+                          exception.what());
+
             // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
             // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
             if (_dynamicBatchValueChanged || levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused()) {
@@ -414,8 +366,8 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "update_graph_arguments");
             _pipeline->update_graph_arguments(foundPort.is_input()
-                                                  ? _graph->get_input_descriptors().at(foundPort.idx).idx
-                                                  : _graph->get_output_descriptors().at(foundPort.idx).idx,
+                                                  ? _metadata.inputs.at(foundPort.idx).indexUsedByDriver
+                                                  : _metadata.outputs.at(foundPort.idx).indexUsedByDriver,
                                               levelZeroTensor->data(),
                                               levelZeroTensor->get_byte_size());
         }
@@ -441,7 +393,9 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
     _logger.debug("ZeroInferRequest::set_tensors: %zu", tensors.size());
 
-    auto batchSizeCandidate = determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), nullptr, tensors.size());
+    auto ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
+    auto batchSizeCandidate =
+        determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, nullptr, tensors.size());
 
     // Check if batch has been changed
     if (batchSizeCandidate.has_value()) {
@@ -474,13 +428,16 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
             try {
                 _logger.debug("ZeroInferRequest::set_tensors - create zero tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "create zero tensor");
-
                 get_level_zero_input(foundPort.idx, i) =
-                    std::make_shared<ZeroTensor>(_initStructs, tensors.at(i), _config);
-            } catch (const ZeroTensorException&) {
+                    std::make_shared<ZeroTensor>(_initStructs, _config, tensors.at(i));
+            } catch (const ZeroMemException& exception) {
+                _logger.debug(
+                    "ZeroInferRequest::set_tensors - exception caught while trying to create a Level Zero tensor "
+                    "from the user tensor: %s",
+                    exception.what());
+
                 _logger.debug("ZeroInferRequest::set_tensors - allocate locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "allocate tensor");
-
                 get_level_zero_input(foundPort.idx, i) = allocate_tensor(foundPort.idx, INPUT, batchSizeCandidate);
             }
 
@@ -488,7 +445,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                 OPENVINO_ASSERT(get_level_zero_input(foundPort.idx, i)->data(), "Empty buffer");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "updateCommandList");
 
-                _pipeline->update_graph_arguments_batching(_graph->get_input_descriptors().at(foundPort.idx).idx,
+                _pipeline->update_graph_arguments_batching(_metadata.inputs.at(foundPort.idx).indexUsedByDriver,
                                                            get_level_zero_input(foundPort.idx, i)->data(),
                                                            i);
             }
@@ -611,7 +568,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
             _logger.debug("Update input graph descriptor with the new tensor");
             OPENVINO_ASSERT(levelZeroTensor.at(SINGLE_TENSOR)->data(), "Empty buffer");
 
-            _pipeline->update_graph_arguments(_graph->get_input_descriptors().at(ioIndex).idx,
+            _pipeline->update_graph_arguments(_metadata.inputs.at(ioIndex).indexUsedByDriver,
                                               levelZeroTensor.at(SINGLE_TENSOR)->data(),
                                               levelZeroTensor.at(SINGLE_TENSOR)->get_byte_size());
 
@@ -643,7 +600,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
             _logger.debug("Update output graph descriptor with the new tensor");
             OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
 
-            _pipeline->update_graph_arguments(_graph->get_output_descriptors().at(ioIndex).idx,
+            _pipeline->update_graph_arguments(_metadata.outputs.at(ioIndex).indexUsedByDriver,
                                               levelZeroTensor->data(),
                                               levelZeroTensor->get_byte_size());
 
@@ -674,12 +631,12 @@ void ZeroInferRequest::update_states_if_memory_changed() {
                 _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_zero_state();
                 zeroState->clear_zero_state_update_pending();
 
-                _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
+                _pipeline->update_graph_arguments(_metadata.inputs.at(zeroState->get_tensor_index()).indexUsedByDriver,
                                                   get_level_zero_input(zeroState->get_tensor_index())->data(),
                                                   get_level_zero_input(zeroState->get_tensor_index())->get_byte_size());
 
                 _pipeline->update_graph_arguments(
-                    _graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
+                    _metadata.outputs.at(zeroState->get_related_tensor_index()).indexUsedByDriver,
                     _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->data(),
                     _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->get_byte_size());
             }

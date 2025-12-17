@@ -159,6 +159,7 @@ class memory_pool {
     std::map<layout, std::list<memory_record>, padded_pool_comparer> _padded_pool;
     engine* _engine;
     const ExecutionConfig& _config;
+    float _mem_pool_util_threshold = 0.5f;
 
 public:
     explicit memory_pool(engine& engine, const ExecutionConfig& config);

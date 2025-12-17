@@ -96,7 +96,7 @@ void ConvertCPULayerTest::SetUp() {
     if (primitive.empty())
         primitive = getPrimitiveType();
 #if defined(OPENVINO_ARCH_ARM64)
-    if (inPrc == ov::element::u4 || inPrc == ov::element::i4 ||
+    if (inPrc == ov::element::u2 || inPrc == ov::element::u4 || inPrc == ov::element::i4 ||
         inPrc == ov::element::f4e2m1 || inPrc == ov::element::f8e8m0 ||
         inPrc == ov::element::f8e4m3 || inPrc == ov::element::f8e5m2 ||
         outPrc == ov::element::f8e4m3 || outPrc == ov::element::f8e5m2 ||
