@@ -1484,10 +1484,6 @@ struct ENABLE_STRIDES_FOR final : OptionBase<ENABLE_STRIDES_FOR, std::string> {
         return {};
     }
 
-    static bool isPublic() {
-        return true;
-    }
-
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }

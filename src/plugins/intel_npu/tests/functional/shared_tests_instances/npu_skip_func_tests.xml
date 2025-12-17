@@ -844,4 +844,11 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>Strides are not supported with the current driver</message>
+        <filters>
+            <filter>.*RoiTensorsTestsRun.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>

@@ -207,7 +207,6 @@ The following properties are supported (may differ based on current system confi
 | `ov::intel_npu::bypass_umd_caching`/</br>`NPU_BYPASS_UMD_CACHING` | RW | Bypass the caching of compiled models in UMD. | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::defer_weights_load`/</br>`NPU_DEFER_WEIGHTS_LOAD` | RW | Delay loading the weights until inference is created. | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::run_inferences_sequentially`/</br>`NPU_RUN_INFERENCES_SEQUENTIALLY` | RW | Run inferences in async mode sequentially in the order in which they are started to optimize host scheduling. | `YES`/ `NO`| `NO` |
-| `ov::intel_npu::enable_strides_for`/</br>`NPU_ENABLE_STRIDES_FOR` | RW |  List of input/output tensor names that should support custom strides. | Tensor names, e.g., `"input,output"` | `N/A` |
 <br>
 
 ### Compiled_model properties VS Plugin properties

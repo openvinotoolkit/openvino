@@ -66,7 +66,8 @@ public:
         std::tie(target_device, configuration) = this->GetParam();
         OVPluginTestBase::SetUp();
 
-        isStridedEnabled();
+        // TODO: Enable property check when enable_strides_for becomes part of public properties
+        // isStridedEnabled();
     }
 
     void TearDown() override {
