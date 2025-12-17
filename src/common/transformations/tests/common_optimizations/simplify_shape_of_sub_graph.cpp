@@ -15,13 +15,13 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/opsets/opset7_decl.hpp"
 #include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
@@ -491,17 +491,17 @@ TEST(ForceInvalidateValues, IgnoresSkipInvalidationFlag) {
 
     // Force evaluate bounds first (they should be set)
     auto bounds = ov::util::evaluate_both_bounds(const_input->output(0));
-    EXPECT_TRUE(bounds.first);  // lower bound exists
-    EXPECT_TRUE(bounds.second); // upper bound exists
+    EXPECT_TRUE(bounds.first);   // lower bound exists
+    EXPECT_TRUE(bounds.second);  // upper bound exists
 
     // Regular invalidate_values should NOT clear bounds because SkipInvalidation is set
     const_input->invalidate_values();
-    EXPECT_TRUE(tensor.get_lower_value()); // Should still be set
+    EXPECT_TRUE(tensor.get_lower_value());  // Should still be set
 
     // force_invalidate_values() SHOULD clear bounds even with SkipInvalidation
     const_input->force_invalidate_values();
-    EXPECT_FALSE(tensor.get_lower_value()); // Should be cleared now
-    EXPECT_FALSE(tensor.get_upper_value()); // Should be cleared now
+    EXPECT_FALSE(tensor.get_lower_value());  // Should be cleared now
+    EXPECT_FALSE(tensor.get_upper_value());  // Should be cleared now
 
     // SkipInvalidation flag should still be present (we don't remove it)
     EXPECT_TRUE(tensor.get_rt_info().count(ov::SkipInvalidation::get_type_info_static()));
