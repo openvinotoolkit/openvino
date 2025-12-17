@@ -490,8 +490,18 @@ static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKE
  * @brief [Only for NPU Plugin]
  * Type: boolean, default is false.
  * This option allows to skip the blob version check
+ * Will be dropped when blob compatibility with OV 25.4 will no longer be required
+ * Usage will exclusively be covered by NPU_IMPORT_RAW_BLOB property
  */
 static constexpr ov::Property<bool> disable_version_check{"NPU_DISABLE_VERSION_CHECK"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows to skip reading plugin metadata from the imported compiled model
+ * Mirrors usage of NPU_DISABLE_VERSION_CHECK
+ */
+static constexpr ov::Property<bool> import_raw_blob{"NPU_IMPORT_RAW_BLOB"};
 
 /**
  * @brief [Only for NPU Plugin]
