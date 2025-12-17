@@ -81,7 +81,7 @@ void ZeroInitStructsMock::initNpuDriver() {
     };
 
     zel_version_t loader_version = {};
-    bool get_loade_version_success = false;
+    bool get_loader_version = false;
     try {
         log.debug("ZeroInitStructsHolder::initNpuDriver - performing zelGetLoaderVersion");
         zel_component_version_t version;
