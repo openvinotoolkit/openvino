@@ -70,7 +70,15 @@ public:
     void set_value_symbol(const TensorSymbol& value_symbol);
 
     /// \brief unsets bound value descriptions
+    /// \note This method respects SkipInvalidation runtime info flag.
+    ///       If SkipInvalidation is set, values will NOT be invalidated.
+    ///       Use force_invalidate_values() to ignore SkipInvalidation.
     void invalidate_values();
+
+    /// \brief Unconditionally unsets bound value descriptions, ignoring SkipInvalidation flag.
+    /// \note Use this method when graph structure changes (e.g., after replace_source_output)
+    ///       to ensure bounds are properly recalculated even when SkipInvalidation is set.
+    void force_invalidate_values();
 
     /// \brief Gets element type.
     const element::Type& get_element_type() const;
