@@ -157,6 +157,14 @@ void Tensor::invalidate_values() {
     m_value_symbol.clear();
 }
 
+void Tensor::force_invalidate_values() {
+    // Unconditionally invalidate, ignoring SkipInvalidation flag.
+    // Use this when graph structure changes (e.g., after replace_source_output).
+    m_upper_value = {};
+    m_lower_value = {};
+    m_value_symbol.clear();
+}
+
 void Tensor::set_lower_value(const ov::Tensor& value) {
     OPENVINO_ASSERT(static_cast<bool>(value));
     OPENVINO_ASSERT(get_partial_shape().same_scheme(value.get_shape()));

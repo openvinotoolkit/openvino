@@ -11,9 +11,11 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -472,6 +474,38 @@ INSTANTIATE_TEST_SUITE_P(AbsSinkingConstantTests,
                          [](const ::testing::TestParamInfo<AbsSinkingConstantTestParams>& info) {
                              return info.param.test_name;
                          });
+
+// Test for force_invalidate_values() method behavior
+// Verifies that force_invalidate_values() clears bounds even when SkipInvalidation is set
+TEST(ForceInvalidateValues, IgnoresSkipInvalidationFlag) {
+    // Create a simple node with bounds
+    auto data = std::make_shared<opset7::Parameter>(element::i64, PartialShape{3});
+    auto const_input = opset7::Constant::create(element::i64, {3}, {1, 2, 3});
+
+    // Set SkipInvalidation flag on the tensor
+    ov::skip_invalidation(const_input->output(0));
+
+    // Verify SkipInvalidation is set
+    auto& tensor = const_input->get_output_tensor(0);
+    EXPECT_TRUE(tensor.get_rt_info().count(ov::SkipInvalidation::get_type_info_static()));
+
+    // Force evaluate bounds first (they should be set)
+    auto bounds = ov::util::evaluate_both_bounds(const_input->output(0));
+    EXPECT_TRUE(bounds.first);  // lower bound exists
+    EXPECT_TRUE(bounds.second); // upper bound exists
+
+    // Regular invalidate_values should NOT clear bounds because SkipInvalidation is set
+    const_input->invalidate_values();
+    EXPECT_TRUE(tensor.get_lower_value()); // Should still be set
+
+    // force_invalidate_values() SHOULD clear bounds even with SkipInvalidation
+    const_input->force_invalidate_values();
+    EXPECT_FALSE(tensor.get_lower_value()); // Should be cleared now
+    EXPECT_FALSE(tensor.get_upper_value()); // Should be cleared now
+
+    // SkipInvalidation flag should still be present (we don't remove it)
+    EXPECT_TRUE(tensor.get_rt_info().count(ov::SkipInvalidation::get_type_info_static()));
+}
 
 // Test for CVS-175062: AbsSinking with SymbolicOptimizations and Broadcast pattern
 // This test reproduces the exact pattern that causes the assertion failure:

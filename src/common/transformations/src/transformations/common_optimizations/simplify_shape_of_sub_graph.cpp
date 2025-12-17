@@ -22,7 +22,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
@@ -162,13 +161,10 @@ pass::AbsSinking::AbsSinking() {
                 ov::copy_runtime_info(abs_ops[0], new_abs);
             }
 
-            // CVS-175062: The tensor may have SkipInvalidation flag set (e.g., by SymbolicPropagation),
-            // which prevents invalidation via revalidate_and_infer_types().
             // Since we modified the Concat inputs, bounds must be recalculated.
-            // Remove SkipInvalidation flag and invalidate values to ensure bounds are properly recalculated.
-            auto& concat_tensor = concat->get_output_tensor(0);
-            concat_tensor.get_rt_info().erase(ov::SkipInvalidation::get_type_info_static());
-            concat->invalidate_values();
+            // Use force_invalidate_values() to ignore SkipInvalidation flag that may be set
+            // by SymbolicPropagation, ensuring bounds are properly recalculated.
+            concat->force_invalidate_values();
 
             replace_output_update_name(abs_ops[0]->output(0), abs_ops[0]->input_value(0));
             abs_ops.erase(abs_ops.begin());
