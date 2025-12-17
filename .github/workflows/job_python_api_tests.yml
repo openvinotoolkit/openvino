@@ -126,7 +126,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Docs Python snippets
-        if: ${{ runner.os != 'macOS' && fromJSON(inputs.affected-components).docs_snippets.test && (inputs.python-version != '3.14' || inputs.python-version != '3.14t') }} # Ticket: 178163
+        if: ${{ runner.os != 'macOS' && fromJSON(inputs.affected-components).docs_snippets.test && inputs.python-version != '3.14' && inputs.python-version != '3.14t' }} # Ticket: 178163
         run: |
           # torch, onnx
           python3 -m pip install -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt -r ${INSTALL_TEST_DIR}/requirements_onnx
