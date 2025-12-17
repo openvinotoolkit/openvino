@@ -13,6 +13,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/runtime/buffer_registry.hpp"
 
 namespace {
 ov::element::Type to_legacy_type(const ov::element::Type& legacy_type, bool input) {
@@ -175,10 +176,11 @@ std::shared_ptr<ov::Model> read_model(const std::string& model,
 
     ov::AnyVector params{&modelStream};
     if (weights) {
-        std::shared_ptr<ov::AlignedBuffer> weights_buffer =
-            std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(const_cast<void*>(weights.data())),
-                                                           weights.get_byte_size(),
-                                                           weights);
+        std::shared_ptr<ov::AlignedBuffer> weights_buffer = ov::create_shared_buffer_and_register(
+            reinterpret_cast<char*>(const_cast<void*>(weights.data())),
+            weights.get_byte_size(),
+            weights
+        );
         params.emplace_back(weights_buffer);
     }
 

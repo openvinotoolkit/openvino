@@ -15,10 +15,8 @@ namespace ov {
 /// byte
 /// on 64 byte alignment will allocate 65 bytes.
 
-namespace util {
-class BufferDescriptor;
+class InternalBufferDescriptor;
 class BufferRegistry;
-}  // namespace util
 
 class OPENVINO_API AlignedBuffer {
 public:
@@ -67,8 +65,8 @@ protected:
     char* m_aligned_buffer;
     size_t m_byte_size;
 
-    friend ov::util::BufferDescriptor;
-    friend ov::util::BufferRegistry;
+    friend InternalBufferDescriptor;
+    friend BufferRegistry;
     size_t m_buffer_id;
 };
 

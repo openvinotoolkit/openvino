@@ -19,6 +19,7 @@
 #include "transformations/resolve_names_collisions.hpp"
 #include "utils.hpp"
 #include "openvino/core/model_util.hpp"
+#include "openvino/runtime/buffer_registry.hpp"
 
 namespace ov {
 namespace frontend {
@@ -258,10 +259,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     if (!weights_path.empty()) {
         if (enable_mmap) {
             auto mapped_memory = ov::load_mmap_object(weights_path);
-            weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
-                                                                                        mapped_memory->size(),
-                                                                                        mapped_memory);
-            ov::util::BufferRegistry::get().register_buffer(weights, true);
+            weights = ov::create_shared_buffer_and_register(mapped_memory->data(), mapped_memory->size(), mapped_memory);
         } else {
             std::ifstream bin_stream;
             bin_stream.open(weights_path.c_str(), std::ios::binary);
@@ -280,11 +278,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             bin_stream.read(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
             bin_stream.close();
 
-            weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
-                aligned_weights_buffer->get_ptr<char>(),
-                aligned_weights_buffer->size(),
-                aligned_weights_buffer);
-            ov::util::BufferRegistry::get().register_buffer(weights, false);            
+            weights = ov::create_shared_buffer_and_register(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size(), aligned_weights_buffer);
         }
     }
 

@@ -18,6 +18,7 @@
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/runtime/buffer_registry.hpp"
 
 namespace ov {
 
@@ -212,7 +213,7 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
     auto static_shape = calc_static_shape_for_file(file_name, element_type, partial_shape, offset_in_bytes);
     if (mmap) {
         auto mapped_memory = ov::load_mmap_object(file_name);
-        auto shared_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
+        auto shared_buffer = ov::create_shared_buffer_and_register(
             mapped_memory->data() + offset_in_bytes,
             mapped_memory->size() - offset_in_bytes,
             mapped_memory);

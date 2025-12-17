@@ -25,6 +25,7 @@
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/core/model_util.hpp"
 #include "openvino/op/util/node_util.hpp"
+#include "openvino/runtime/buffer_registry.hpp"
 
 namespace ov {
 namespace op {
@@ -210,7 +211,7 @@ namespace v0 {
 using ov::op::util::ConstantDescriptor;
 std::shared_ptr<ConstantDescriptor> Constant::get_desc() const {
     try {
-        auto buffer_desc = ov::util::BufferRegistry::get().get_desc(m_data);
+        auto buffer_desc = ov::BufferRegistry::get().get_desc(m_data);
         if (!m_descriptor || m_descriptor->m_buffer_id != buffer_desc.get_id()) {
             m_descriptor = std::make_shared<ConstantDescriptor>();
             m_descriptor->m_buffer_id = buffer_desc.get_id();

@@ -28,6 +28,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/rt_info/attributes.hpp"
+#include "openvino/runtime/buffer_registry.hpp"
 
 namespace ov::util {
 
@@ -926,8 +927,8 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
                            ov::util::get_memory_size(el_type, ov::shape_size(shape)));
         }
 
-        auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
-        ov::util::BufferRegistry::get().register_subbuffer(buffer, m_weights);
+        auto buffer = ov::create_roi_buffer_and_register(m_weights, offset, size);
+        ov::BufferRegistry::get().register_subbuffer(buffer, m_weights);
         adapter.set(buffer);
     }
 }

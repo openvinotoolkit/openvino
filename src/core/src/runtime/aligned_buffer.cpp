@@ -9,6 +9,7 @@
 
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/model_util.hpp"
+#include "openvino/runtime/buffer_registry.hpp"
 
 namespace ov {
 AlignedBuffer::AlignedBuffer() : m_allocated_buffer(nullptr), m_aligned_buffer(nullptr), m_byte_size(0), m_buffer_id(0) {}
@@ -33,10 +34,10 @@ AlignedBuffer::AlignedBuffer(AlignedBuffer&& other)
 }
 
 AlignedBuffer::~AlignedBuffer() {
+    ov::BufferRegistry::get().unregister_buffer(m_buffer_id);
     if (m_allocated_buffer != nullptr) {
         delete[] m_allocated_buffer;
     }
-    ov::util::BufferRegistry::get().unregister_buffer(m_buffer_id);
 }
 
 AlignedBuffer& AlignedBuffer::operator=(AlignedBuffer&& other) {

@@ -30,6 +30,7 @@
 #include "openvino/op/util/node_util.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/runtime/buffer_registry.hpp"
 
 namespace ov::intel_gpu {
 
@@ -94,7 +95,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
 
     auto const_desc = op->get_desc();
     if (const_desc) {
-        auto buffer_desc = ov::util::BufferRegistry::get().get_desc(const_desc->m_buffer_id);
+        auto buffer_desc = ov::BufferRegistry::get().get_desc(const_desc->m_buffer_id);
         is_mmaped = buffer_desc.is_mmaped();
     }
 
