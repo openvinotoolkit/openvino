@@ -230,6 +230,7 @@ jobs:
       - name: Build additional Python wheels
         if: ${{ inputs.build-additional-python-wheels }}
         run: |
+          # Windows has a single wheel for python 3.14 and 3.14t
           $pyVersions = '3.10', '3.11', '3.12', '3.13', '3.14'
           foreach ($pyVersion in $pyVersions) {
             $pyBuildDir = "${{ github.workspace }}/py$pyVersion"
@@ -252,43 +253,6 @@ jobs:
               Write-Host "Failed to build Python wheels for Python $pyVersion"
               exit 1
             }
-          }
-        env:
-          CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
-
-      # Setup additional Python versions for wheels building
-      - name: Setup Python 3.14t
-        if: ${{ inputs.build-additional-python-wheels }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: '3.14t'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
-          allow-prerelases: 'true'
-
-      - name: Build free-threading Python wheel for 3.14t
-        if: ${{ inputs.build-additional-python-wheels }}
-        run: |
-          $pyBuildDir = "${{ github.workspace }}/py3.14t"
-          New-Item -ItemType Directory -Path "$pyBuildDir" -Force
-
-          $pythonCommand = "py -3.14t -c `"import sys; print(f'{sys.executable}')`""
-          $pythonExecutablePath = & cmd /c $pythonCommand
-
-          $pipVersion = & $pythonExecutablePath -c "import pip; print(pip.__version__)"
-          Write-Host "Using pip version: $pipVersion for 3.14t"
-          $env:PIP_CACHE_DIR="${{ env.PIP_CACHE_PATH }}/$pipVersion"
-
-          & $pythonExecutablePath -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-
-          cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir" &&
-          cmake --build "$pyBuildDir" --parallel $ENV:NUMBER_OF_PROCESSORS --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} &&
-          cmake --install "$pyBuildDir" --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels &&
-          cmake --install "$pyBuildDir" --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pyopenvino_python3.14t
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Failed to build Python wheels for Python 3.14t"
-            exit 1
           }
         env:
           CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
