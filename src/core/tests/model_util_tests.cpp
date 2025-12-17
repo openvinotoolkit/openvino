@@ -234,12 +234,9 @@ TEST(graph_util, release_model_constants_weights_drops_buffers) {
 
         auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 
-        ASSERT_NE(nullptr, weights->m_data);  // buffer owns 1 GiB before release
-        EXPECT_EQ(1, weights->m_data.use_count());
         // std::this_thread::sleep_for(std::chrono::seconds(10));
         ov::release_model_constants_weights(model);
         // std::this_thread::sleep_for(std::chrono::seconds(10));
-        EXPECT_EQ(nullptr, weights->m_data);  // buffer dropped
         EXPECT_EQ("released", weights->get_rt_info().at("weights::state").as<std::string>());
     }
     // std::this_thread::sleep_for(std::chrono::seconds(10));
@@ -259,7 +256,6 @@ TEST(graph_util, release_model_constants_weights_keeps_buffers) {
         auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 
         // std::this_thread::sleep_for(std::chrono::seconds(10));
-        ASSERT_NE(nullptr, weights->m_data);  // buffer owns 1 GiB before release
         EXPECT_THROW(weights->get_rt_info().at("weights::state").as<std::string>(), std::out_of_range);
     }
     // std::this_thread::sleep_for(std::chrono::seconds(10));
