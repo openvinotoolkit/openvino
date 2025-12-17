@@ -4905,10 +4905,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_slice_2d_implicit_copy_dimension_fully) {
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(std::vector<float>{1.0f, 2.0, 3.0f, 4.0f});
-    test_case.add_input<int64_t>(std::vector<int64_t>{0});
-    test_case.add_input<int64_t>(std::vector<int64_t>{std::numeric_limits<int64_t>::max()});
-    test_case.add_input<int64_t>(std::vector<int64_t>{1});
-    test_case.add_input<int64_t>(std::vector<int64_t>{1});
+    test_case.add_input<int64_t>(std::vector<int64_t>{0, 0});
+    test_case.add_input<int64_t>(
+        std::vector<int64_t>{std::numeric_limits<int64_t>::max(), std::numeric_limits<int64_t>::max()});
+    test_case.add_input<int64_t>(std::vector<int64_t>{0, 1});
+    test_case.add_input<int64_t>(std::vector<int64_t>{1, 1});
     test_case.add_expected_output<float>(Shape{2, 2}, {1.0f, 2.0, 3.0f, 4.0f});
     test_case.run();
 }
