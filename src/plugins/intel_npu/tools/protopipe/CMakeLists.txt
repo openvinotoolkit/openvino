@@ -29,13 +29,24 @@ if (NOT DEFINED PROJECT_NAME)
 endif()
 
 #
-# Dependencies
+# Use OpenCV gapi from Intel fork if it was fetched by parent CMakeLists.txt
 #
+set(OPENCV_FOUND_FROM_FORK FALSE)
 
-find_package(OpenCV QUIET COMPONENTS gapi)
-if(OpenCV_VERSION VERSION_LESS 4.9)
-    message(STATUS "NPU ${TARGET_NAME} tool is disabled due to missing dependencies: gapi from OpenCV >= 4.9.")
-    return()
+if(NPU_OPENCV_GAPI_FROM_FORK)
+    message(STATUS "${TARGET_NAME}: Using OpenCV gapi from Intel fork (already fetched)")
+    set(OPENCV_FOUND_FROM_FORK TRUE)
+    set(OPENCV_FORK_INCLUDE_DIRS ${NPU_OPENCV_FORK_INCLUDE_DIRS})
+endif()
+
+# Fall back to system OpenCV if fork fetch failed or was disabled
+if(NOT OPENCV_FOUND_FROM_FORK)
+    message(STATUS "${TARGET_NAME}: Looking for system OpenCV with gapi...")
+    find_package(OpenCV QUIET COMPONENTS gapi)
+    if(OpenCV_VERSION VERSION_LESS 4.9)
+        message(STATUS "NPU ${TARGET_NAME} tool is disabled due to missing dependencies: gapi from OpenCV >= 4.9.")
+        return()
+    endif()
 endif()
 
 set(DEPENDENCIES
@@ -69,6 +80,14 @@ ov_add_target(TYPE EXECUTABLE
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
                           CXX_STANDARD 17)
+
+# Use Intel fork's headers when building with FetchContent (must come before system OpenCV)
+if(OPENCV_FOUND_FROM_FORK)
+    target_include_directories(${TARGET_NAME} BEFORE PRIVATE ${OPENCV_FORK_INCLUDE_DIRS})
+    if(NOT WIN32)
+        target_link_options(${TARGET_NAME} PRIVATE -Wl,--no-as-needed)
+    endif()
+endif()
 
 if (WIN32)
     target_link_options(${TARGET_NAME} PRIVATE "/MANIFESTINPUT:${CMAKE_SOURCE_DIR}/protopipe.exe.manifest")
