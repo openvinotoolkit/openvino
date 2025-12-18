@@ -23,7 +23,7 @@ dependencies = [
 
 [build-system]
 requires = [
-    "setuptools>=70,<=80.9.0", 
+    "setuptools>=77,<=80.9.0", 
     "wheel<=0.45.1",
     "cmake<=4.1.2", 
     "patchelf<=0.17.2.2; sys_platform == 'linux' and platform_machine == 'x86_64'"
