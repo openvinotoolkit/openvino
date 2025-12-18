@@ -442,7 +442,6 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
     } else {
         ze_graph_argument_properties_3_t arg = {};
         arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES_3;
-        
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
         auto result =
             _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, indexUsedByDriver, &arg);
