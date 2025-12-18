@@ -1495,39 +1495,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_INFO("Eagle3 speculative decoding mode enabled");
     }
 
-    LOG_DEBUG("Creating kvcache model as clone of passed one.");
-    auto kvcache_model = model->clone();
-    LOG_DEBUG("Transform kvcache model from stateful to stateless.");
-    ov::pass::StatefulToStateless().run_on_model(kvcache_model);
-    convert_stateful_lora_to_stateless(kvcache_model);
-    LOG_DEBUG("   ...also convert BF16 to FP16");
-    // Note: we need to identify original bf16 constants for potential weightless deserialization later
-    // And only then do bf16 to f16 transformation
-    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
-    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
-
-    bool shared_head_enabled = m_cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>();
-    std::shared_ptr<ov::Model> lm_head_model = nullptr;
-    if (shared_head_enabled) {
-        LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
-        lm_head_model = cut_lm_head(kvcache_model);
-        if (lm_head_model) {
-            LOG_INFO("Three-model pipeline will be created: LM head will be shared between prefill and generate.");
-        } else {
-            LOG_WARN("Three-model pipeline is requested, but LM head cutting is failed,"
-                     " two-model pipeline will be created!");
-        }
-    } else {
-        LOG_INFO("Two-model pipeline will be created.");
-    }
-
-    LOG_DEBUG("Try patch Phi-3 sliding window mask, if it exists.");
-    patch_phi3_sliding_mask(kvcache_model);
-
-    LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
-    auto prefill_model = kvcache_model->clone();
-    prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
-
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
     // the generate model they're not mutually exclusive
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
@@ -1751,9 +1718,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
             prefill_model = redirect_new_kv_to_output(prefill_model);
         }
-    }
 
-    if (!m_is_text_embed) {
         LOG_DEBUG("Optimize generate model to output key/values for new token.");
         for (size_t i = 0; i < generate_model_variants.size(); ++i) {
             generate_model_variants[i] = redirect_new_kv_to_output(generate_model_variants[i]);

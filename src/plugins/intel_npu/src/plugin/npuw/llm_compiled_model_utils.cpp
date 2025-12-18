@@ -13,6 +13,7 @@
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -309,7 +310,7 @@ public:
     explicit AddKVCacheNodes(std::shared_ptr<ov::Model> model, uint32_t seq_len_dim) {
         const auto unsqueeze_axes = opp::wrap_type<ov::op::v0::Constant>();
         const auto transpose_order = opp::wrap_type<ov::op::v0::Constant>();
-        const std::regex layer_id_convention = std::regex(R"(layers\.(\d+)\.self_attn)");
+        const std::regex layer_id_convertion = std::regex(R"(layers\.(\d+)\.self_attn)");
 
         auto shape_concat = opp::wrap_type<ov::op::v0::Concat>(
             {opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
@@ -339,7 +340,7 @@ public:
             auto v_broadcast_node = pattern_to_output.at(v_broadcast).get_node_shared_ptr();
 
             std::smatch match;
-            if (!std::regex_search(sdpa_node->get_friendly_name(), match, layer_id_convention)) {
+            if (!std::regex_search(sdpa_node->get_friendly_name(), match, layer_id_convertion)) {
                 return false;
             }
 
