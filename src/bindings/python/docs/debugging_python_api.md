@@ -33,7 +33,7 @@ pip install -r src/bindings/python/requirements_test.txt
 The OpenVINO Python API is a thin wrapper around C++ implementation. When you call a Python method like `tensor.get_size()`, the execution flow is:
 
 1. Python code calls the method
-2. pybind11 marshals the call to C++
+2. pybind11 directs the call to C++
 3. C++ implementation in `ov::Tensor::get_size()` executes
 4. Result is marshaled back to Python
 
