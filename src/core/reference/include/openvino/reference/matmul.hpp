@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include <algorithm>
 #include <cmath>
-#include <execution>
 #include <numeric>
 #include <utility>
 #include <vector>
@@ -23,8 +21,7 @@ void dot(const T* arg0,
          T* out,
          const Shape& arg0_shape,
          const Shape& arg1_shape,
-         const Shape& out_shape,
-         bool parallel = false) {
+         const Shape& out_shape) {
     std::fill(out, out + shape_size(out_shape), T{0});
     const size_t arg0_rank = arg0_shape.size();
     const size_t arg1_rank = arg1_shape.size();
@@ -36,33 +33,18 @@ void dot(const T* arg0,
     const size_t J_dim = arg1_rank == 1 ? 1 : arg1_shape[arg1_rank - 1];
     const size_t K_dim = arg1_rank == 1 ? arg1_shape[arg1_rank - 1] : arg1_shape[arg1_rank - 2];
 
-    if (parallel) {
-        std::vector<size_t> indices(I_dim);
-        std::iota(indices.begin(), indices.end(), 0);
-        std::for_each(std::execution::par, indices.begin(), indices.end(), [&](size_t i) {
-            for (size_t k = 0; k < K_dim; ++k) {
-                const size_t a_idx = i * K_dim + k;
-                for (size_t j = 0; j < J_dim; ++j) {
-                    const size_t b_idx = k * J_dim + j;
-                    const size_t out_idx = i * J_dim + j;
-                    out[out_idx] += arg0[a_idx] * arg1[b_idx];
-                }
-            }
-        });
-    } else {
-        // Direct inlined loops for maximum sequential performance
-        for (size_t i = 0; i < I_dim; ++i) {
-            for (size_t k = 0; k < K_dim; ++k) {
-                const size_t a_idx = i * K_dim + k;
-                for (size_t j = 0; j < J_dim; ++j) {
-                    const size_t b_idx = k * J_dim + j;
-                    const size_t out_idx = i * J_dim + j;
-                    out[out_idx] += arg0[a_idx] * arg1[b_idx];
-                }
+    for (size_t i = 0; i < I_dim; ++i) {
+        for (size_t k = 0; k < K_dim; ++k) {
+            const size_t a_idx = i * K_dim + k;
+            for (size_t j = 0; j < J_dim; ++j) {
+                const size_t b_idx = k * J_dim + j;
+                const size_t out_idx = i * J_dim + j;
+                out[out_idx] += arg0[a_idx] * arg1[b_idx];
             }
         }
     }
 }
+
 std::vector<size_t> get_transpose_order(const Shape& input_shape);
 }  // namespace details
 /// \brief Reference kernel for matmul computation.
@@ -87,8 +69,7 @@ void matmul(const T* arg0,
             const Shape& arg1_shape,
             const Shape& out_shape,
             bool transpose_arg0,
-            bool transpose_arg1,
-            bool parallel = true) {
+            bool transpose_arg1) {
     // Steps to compute matmul:
     // 1) Check inputs and perform transpose on arg if applicable
     // 2) If ranks of both args are 2D and below (no batch dim),
@@ -145,7 +126,7 @@ void matmul(const T* arg0,
 
     // Inputs are 2D and below, perform dot directly
     if (arg0_rank <= 2 && arg1_rank <= 2) {
-        details::dot(arg0_data, arg1_data, out, arg0_shape_tmp, arg1_shape_tmp, out_shape, parallel);
+        details::dot(arg0_data, arg1_data, out, arg0_shape_tmp, arg1_shape_tmp, out_shape);
         return;
     }
 
@@ -225,30 +206,13 @@ void matmul(const T* arg0,
     const size_t arg0_offset = (arg0_rank > 2) ? shape_size(dot_arg0_shape) : 0;
     const size_t arg1_offset = (arg1_rank > 2) ? shape_size(dot_arg1_shape) : 0;
     const size_t output_offset = shape_size(dot_output_shape);
-
-    if (parallel) {
-        // Parallelize the outer loop over batch dimensions using the indices vector
-        std::vector<size_t> indices(output_batch_size);
-        std::iota(indices.begin(), indices.end(), 0);
-        std::for_each(std::execution::par, indices.begin(), indices.end(), [&](size_t i) {
-            details::dot(arg0_data + i * arg0_offset,
-                         arg1_data + i * arg1_offset,
-                         out + i * output_offset,
-                         dot_arg0_shape,
-                         dot_arg1_shape,
-                         dot_output_shape,
-                         false);  // Disable parallelization of inner dot
-        });
-    } else {
-        for (size_t i = 0; i < output_batch_size; i++) {
-            details::dot(arg0_data + i * arg0_offset,
-                         arg1_data + i * arg1_offset,
-                         out + i * output_offset,
-                         dot_arg0_shape,
-                         dot_arg1_shape,
-                         dot_output_shape,
-                         false);
-        }
+    for (size_t i = 0; i < output_batch_size; i++) {
+        details::dot(arg0_data + i * arg0_offset,
+                     arg1_data + i * arg1_offset,
+                     out + i * output_offset,
+                     dot_arg0_shape,
+                     dot_arg1_shape,
+                     dot_output_shape);
     }
 }
 }  // namespace reference

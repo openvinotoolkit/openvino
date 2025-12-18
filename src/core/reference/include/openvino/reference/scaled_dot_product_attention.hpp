@@ -106,7 +106,7 @@ void scaled_dot_product_attention(const T* query,
     qk_shape[qk_shape.size() - 1] = key_shape[key_shape.size() - 2];
 
     std::vector<T> qk_data(shape_size(qk_shape), 0);
-    ov::reference::matmul<T>(query, key, qk_data.data(), query_shape, key_shape, qk_shape, false, true, true);
+    ov::reference::matmul<T>(query, key, qk_data.data(), query_shape, key_shape, qk_shape, false, true);
 
     ov::reference::multiply<T>(qk_data.data(),
                                scale_val,
@@ -156,23 +156,10 @@ void scaled_dot_product_attention(const T* query,
         qk_data = qk_data_with_sink;
     }
     std::vector<T> qk_data_softmax(qk_data.size(), 0);
-    // Generic softmax
-    // ov::reference::softmax<T>(qk_data.data(),
-    //                           qk_data_softmax.data(),
-    //                           gk_softmax_shape,
-    //                           ov::AxisSet{gk_softmax_shape.size() - 1});
-
-    // Last dimension softmax optimized version
-    // ov::reference::softmax_lastdim<T>(qk_data.data(),
-    //                                   qk_data_softmax.data(),
-    //                                   qk_shape,
-    //                                   ov::AxisSet{qk_shape.size() - 1});
-
-    // Last dimension softmax optimized version with parallelism
-    ov::reference::softmax_lastdim_par<T>(qk_data.data(),
-                                          qk_data_softmax.data(),
-                                          qk_shape,
-                                          ov::AxisSet{qk_shape.size() - 1});
+    ov::reference::softmax<T>(qk_data.data(),
+                              qk_data_softmax.data(),
+                              gk_softmax_shape,
+                              ov::AxisSet{gk_softmax_shape.size() - 1});
 
     if (sink) {
         std::vector<T> qk_data_sliced(qk_data.size(), 0);
@@ -182,15 +169,7 @@ void scaled_dot_product_attention(const T* query,
                                                      sizeof(T));
         qk_data_softmax = qk_data_sliced;
     }
-    ov::reference::matmul<T>(qk_data_softmax.data(),
-                             value,
-                             output,
-                             qk_shape,
-                             value_shape,
-                             output_shape,
-                             false,
-                             false,
-                             true);
+    ov::reference::matmul<T>(qk_data_softmax.data(), value, output, qk_shape, value_shape, output_shape, false, false);
 }
 }  // namespace reference
 }  // namespace ov
