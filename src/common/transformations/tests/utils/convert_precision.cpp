@@ -2492,10 +2492,7 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {
         auto param_3 = make_shared<opset10::Parameter>(element::f64, Shape{3});
         auto convert_3 = make_shared<opset10::Convert>(param_3, element::f32);
         auto param_4 = make_shared<opset10::Parameter>(element::i64, Shape{3});
-        auto clamp_4 = make_shared<opset10::Clamp>(param_4,
-                                                   static_cast<double>(std::numeric_limits<int32_t>::min()),
-                                                   static_cast<double>(std::numeric_limits<int32_t>::max()));
-        auto convert_4 = make_shared<opset10::Convert>(clamp_4, element::i32);
+        auto convert_4 = make_shared<opset10::Convert>(param_4, element::i32);
 
         auto add = make_shared<opset10::Add>(convert_2, convert_4);
         auto converted_add = make_shared<opset10::Convert>(add, element::i64);
@@ -3018,8 +3015,15 @@ TEST_F(TransformationTestsF, ConvertPrecision_Slice_Clamp) {
                                                               std::numeric_limits<int32_t>::max());
         auto ends_convert = std::make_shared<ov::op::v0::Convert>(ends_clamp, element::i32);
 
-        auto steps_convert = std::make_shared<ov::op::v0::Convert>(steps_param, element::i32);
-        auto axes_convert = std::make_shared<ov::op::v0::Convert>(axes_param, element::i32);
+        auto steps_clamp = std::make_shared<ov::op::v0::Clamp>(steps_param,
+                                                               std::numeric_limits<int32_t>::lowest(),
+                                                               std::numeric_limits<int32_t>::max());
+        auto steps_convert = std::make_shared<ov::op::v0::Convert>(steps_clamp, element::i32);
+
+        auto axes_clamp = std::make_shared<ov::op::v0::Clamp>(axes_param,
+                                                              std::numeric_limits<int32_t>::lowest(),
+                                                              std::numeric_limits<int32_t>::max());
+        auto axes_convert = std::make_shared<ov::op::v0::Convert>(axes_clamp, element::i32);
 
         auto slice =
             std::make_shared<ov::op::v8::Slice>(data_param, starts_convert, ends_convert, steps_convert, axes_convert);
