@@ -4,6 +4,7 @@
 #include "test_single_sections.hpp"
 #include "test_blob_e2e.hpp"
 #include "test_expressions_e2e.hpp"
+#include "test_expressions.hpp"
 
 int main() {
 

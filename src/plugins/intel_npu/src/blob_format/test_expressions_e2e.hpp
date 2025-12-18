@@ -21,8 +21,8 @@
 // TODO: gotta make some functions which take care of creating the blob so as the test bodies are shorter and do not contain duplicate code
 // TODO 2: add registries
 
-void expr_elf_good() {
-    std::cout << std::endl << "RUN: expr_elf_good" << std::endl;
+void expr_e2e_elf_good() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_good" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, CLOSE};
@@ -47,11 +47,11 @@ void expr_elf_good() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == true, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_good" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_good" << std::endl;
 }
 
-void expr_elf_bad() {
-    std::cout << std::endl << "RUN: expr_elf_bad" << std::endl;
+void expr_e2e_elf_bad() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bad" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, CLOSE};
@@ -76,11 +76,11 @@ void expr_elf_bad() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == false, "expression bad");
 
-    std::cout << "PASSED: expr_elf_bad" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bad" << std::endl;
 }
 
-void expr_elf_bs_good() {
-    std::cout << std::endl << "RUN: expr_elf_bs_good" << std::endl;
+void expr_e2e_elf_bs_good() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_good" << std::endl;
     Header header;
     
     // to test later: order of serialization vs order of expression
@@ -112,11 +112,11 @@ void expr_elf_bs_good() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == true, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_good" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_good" << std::endl;
 }
 
-void expr_elf_bs_bad() {
-    std::cout << std::endl << "RUN: expr_elf_bs_bad" << std::endl;
+void expr_e2e_elf_bs_bad() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_bad" << std::endl;
     Header header;
     
     // to test later: order of serialization vs order of expression
@@ -148,11 +148,11 @@ void expr_elf_bs_bad() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == false, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_bad" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_bad" << std::endl;
 }
 
-void expr_elf_bs_bad_2() {
-    std::cout << std::endl << "RUN: expr_elf_bs_bad_2" << std::endl;
+void expr_e2e_elf_bs_bad_2() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_bad_2" << std::endl;
     Header header;
     
     // to test later: order of serialization vs order of expression
@@ -184,11 +184,11 @@ void expr_elf_bs_bad_2() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == false, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_bad_2" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_bad_2" << std::endl;
 }
 
-void expr_elf_bs_layouts_good() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_good" << std::endl;
+void expr_e2e_elf_bs_layouts_good() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_good" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, BS, IO_LAYOUTS, CLOSE};
@@ -227,11 +227,11 @@ void expr_elf_bs_layouts_good() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == true, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_good" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_good" << std::endl;
 }
 
-void expr_elf_bs_layouts_bad() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_bad" << std::endl;
+void expr_e2e_elf_bs_layouts_bad() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_bad" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, BS, IO_LAYOUTS, CLOSE};
@@ -270,11 +270,11 @@ void expr_elf_bs_layouts_bad() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == false, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_bad" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_bad" << std::endl;
 }
 
-void expr_elf_bs_layouts_bad_2() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_bad_2" << std::endl;
+void expr_e2e_elf_bs_layouts_bad_2() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_bad_2" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, BS, IO_LAYOUTS, CLOSE};
@@ -313,11 +313,11 @@ void expr_elf_bs_layouts_bad_2() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == false, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_bad_2" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_bad_2" << std::endl;
 }
 
-void expr_elf_bs_layouts_good_2() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_good_2" << std::endl;
+void expr_e2e_elf_bs_layouts_good_2() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_good_2" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, OR, BS, IO_LAYOUTS, CLOSE};
@@ -356,11 +356,11 @@ void expr_elf_bs_layouts_good_2() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == true, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_good_2" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_good_2" << std::endl;
 }
 
-void expr_elf_bs_layouts_good_2_() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_good_2" << std::endl;
+void expr_e2e_elf_bs_layouts_good_2_() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_good_2" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, OR, BS, IO_LAYOUTS, CLOSE};
@@ -399,11 +399,11 @@ void expr_elf_bs_layouts_good_2_() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == true, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_good_2" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_good_2" << std::endl;
 }
 
-void expr_elf_bs_layouts_bad_2_() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_bad_2_" << std::endl;
+void expr_e2e_elf_bs_layouts_bad_2_() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_bad_2_" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, OR, BS, IO_LAYOUTS, CLOSE};
@@ -442,11 +442,11 @@ void expr_elf_bs_layouts_bad_2_() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == false, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_bad_2_" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_bad_2_" << std::endl;
 }
 
-void expr_elf_bs_layouts_bad_2_2() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_bad_2_2" << std::endl;
+void expr_e2e_elf_bs_layouts_bad_2_2() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_bad_2_2" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, OR, BS, IO_LAYOUTS, CLOSE};
@@ -485,11 +485,11 @@ void expr_elf_bs_layouts_bad_2_2() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == false, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_bad_2_2" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_bad_2_2" << std::endl;
 }
 
-void expr_elf_bs_layouts_good_3() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_good_3" << std::endl;
+void expr_e2e_elf_bs_layouts_good_3() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_good_3" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, OR, ELF, AND, BS, IO_LAYOUTS, CLOSE};
@@ -528,11 +528,11 @@ void expr_elf_bs_layouts_good_3() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == true, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_good_3" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_good_3" << std::endl;
 }
 
-void expr_elf_bs_layouts_bad_3() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_bad_3" << std::endl;
+void expr_e2e_elf_bs_layouts_bad_3() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_bad_3" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, OR, ELF, AND, BS, IO_LAYOUTS, CLOSE};
@@ -571,11 +571,11 @@ void expr_elf_bs_layouts_bad_3() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == false, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_bad_3" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_bad_3" << std::endl;
 }
 
-void expr_elf_bs_layouts_good_3_2() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_good_3_2" << std::endl;
+void expr_e2e_elf_bs_layouts_good_3_2() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_good_3_2" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, OR, ELF, AND, BS, IO_LAYOUTS, CLOSE};
@@ -614,11 +614,11 @@ void expr_elf_bs_layouts_good_3_2() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == true, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_good_3_2" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_good_3_2" << std::endl;
 }
 
-void expr_elf_bs_layouts_ws_good() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_ws_good" << std::endl;
+void expr_e2e_elf_bs_layouts_ws_good() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_ws_good" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, OR, WS, OPEN, AND, BS, IO_LAYOUTS, OR, ELF, WS, CLOSE, CLOSE};
@@ -668,11 +668,11 @@ void expr_elf_bs_layouts_ws_good() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == true, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_ws_good" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_ws_good" << std::endl;
 }
 
-void expr_elf_bs_layouts_ws_bad() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_ws_bad" << std::endl;
+void expr_e2e_elf_bs_layouts_ws_bad() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_ws_bad" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, OR, WS, OPEN, AND, BS, IO_LAYOUTS, OR, ELF, WS, CLOSE, CLOSE};
@@ -722,11 +722,11 @@ void expr_elf_bs_layouts_ws_bad() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == false, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_ws_bad" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_ws_bad" << std::endl;
 }
 
-void expr_elf_bs_layouts_ws_bad_2() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_ws_bad_2" << std::endl;
+void expr_e2e_elf_bs_layouts_ws_bad_2() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_ws_bad_2" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, OR, WS, OPEN, AND, BS, IO_LAYOUTS, OR, ELF, WS, CLOSE, CLOSE};
@@ -776,11 +776,11 @@ void expr_elf_bs_layouts_ws_bad_2() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == false, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_ws_bad_2" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_ws_bad_2" << std::endl;
 }
 
-void expr_elf_bs_layouts_ws_good_2() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_ws_good_2" << std::endl;
+void expr_e2e_elf_bs_layouts_ws_good_2() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_ws_good_2" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, OPEN, OR, BS, IO_LAYOUTS, OR, WS, BS, CLOSE, CLOSE};
@@ -830,11 +830,11 @@ void expr_elf_bs_layouts_ws_good_2() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == true, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_ws_good_2" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_ws_good_2" << std::endl;
 }
 
-void expr_elf_bs_layouts_ws_good_2_() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_ws_good_2_" << std::endl;
+void expr_e2e_elf_bs_layouts_ws_good_2_() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_ws_good_2_" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, OPEN, OR, BS, IO_LAYOUTS, OR, WS, BS, CLOSE, CLOSE};
@@ -884,11 +884,11 @@ void expr_elf_bs_layouts_ws_good_2_() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == true, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_ws_good_2_" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_ws_good_2_" << std::endl;
 }
 
-void expr_elf_bs_layouts_ws_good_2_2() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_ws_good_2_2" << std::endl;
+void expr_e2e_elf_bs_layouts_ws_good_2_2() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_ws_good_2_2" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, OPEN, OR, BS, IO_LAYOUTS, OR, WS, BS, CLOSE, CLOSE};
@@ -938,11 +938,11 @@ void expr_elf_bs_layouts_ws_good_2_2() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == true, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_ws_good_2_2" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_ws_good_2_2" << std::endl;
 }
 
-void expr_elf_bs_layouts_ws_bad_2_() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_ws_bad_2_" << std::endl;
+void expr_e2e_elf_bs_layouts_ws_bad_2_() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_ws_bad_2_" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, OPEN, OR, BS, IO_LAYOUTS, OR, WS, BS, CLOSE, CLOSE};
@@ -992,12 +992,12 @@ void expr_elf_bs_layouts_ws_bad_2_() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == false, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_ws_bad_2_" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_ws_bad_2_" << std::endl;
 }
 
 // TODO: fix expression
-void expr_elf_bs_layouts_ws_bad_2_2() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_ws_bad_2_2" << std::endl;
+void expr_e2e_elf_bs_layouts_ws_bad_2_2() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_ws_bad_2_2" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, OPEN, OR, BS, IO_LAYOUTS, CLOSE, OPEN, WS, BS, CLOSE, CLOSE};
@@ -1047,11 +1047,11 @@ void expr_elf_bs_layouts_ws_bad_2_2() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == false, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_ws_bad_2_2" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_ws_bad_2_2" << std::endl;
 }
 
-void expr_elf_bs_layouts_ws_bad_2_3() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_ws_bad_2_3" << std::endl;
+void expr_e2e_elf_bs_layouts_ws_bad_2_3() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_ws_bad_2_3" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, OPEN, OR, BS, IO_LAYOUTS, OR, WS, BS, CLOSE, CLOSE};
@@ -1101,11 +1101,11 @@ void expr_elf_bs_layouts_ws_bad_2_3() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == false, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_ws_bad_2_3" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_ws_bad_2_3" << std::endl;
 }
 
-void expr_elf_bs_layouts_ws_good_3() {
-    std::cout << std::endl << "RUN: expr_elf_bs_layouts_ws_good_3" << std::endl;
+void expr_e2e_elf_bs_layouts_ws_good_3() {
+    std::cout << std::endl << "RUN: expr_e2e_elf_bs_layouts_ws_good_3" << std::endl;
     Header header;
     
     std::vector<uint16_t> expression = {OPEN, AND, ELF, OPEN, AND, BS, OPEN, AND, OPEN, AND, IO_LAYOUTS, CLOSE, CLOSE, WS, CLOSE, CLOSE};
@@ -1155,29 +1155,29 @@ void expr_elf_bs_layouts_ws_good_3() {
     auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
     test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == true, "expression returns false");
 
-    std::cout << "PASSED: expr_elf_bs_layouts_ws_good_3" << std::endl;
+    std::cout << "PASSED: expr_e2e_elf_bs_layouts_ws_good_3" << std::endl;
 }
 
-void run_expression_tests() {
-    expr_elf_good();
-    expr_elf_bs_good();
-    expr_elf_bs_layouts_good();
-    expr_elf_bs_layouts_good_2();
-    expr_elf_bs_layouts_good_2_();
-    expr_elf_bs_layouts_bad_2_();
-    expr_elf_bs_layouts_bad_2_2();
-    expr_elf_bs_layouts_good_3();
-    expr_elf_bs_layouts_bad_3();
-    expr_elf_bs_layouts_good_3_2();
-    expr_elf_bs_layouts_ws_good();
-    expr_elf_bs_layouts_ws_bad();
-    expr_elf_bs_layouts_ws_bad_2();
-    expr_elf_bs_layouts_ws_good_2();
-    expr_elf_bs_layouts_ws_good_2_();
-    expr_elf_bs_layouts_ws_good_2_2();
-    expr_elf_bs_layouts_ws_bad_2_();
-    expr_elf_bs_layouts_ws_bad_2_2();
-    expr_elf_bs_layouts_ws_bad_2_3();
-    expr_elf_bs_layouts_ws_good_3();
+void run_expression_tests_e2e() {
+    expr_e2e_elf_good();
+    expr_e2e_elf_bs_good();
+    expr_e2e_elf_bs_layouts_good();
+    expr_e2e_elf_bs_layouts_good_2();
+    expr_e2e_elf_bs_layouts_good_2_();
+    expr_e2e_elf_bs_layouts_bad_2_();
+    expr_e2e_elf_bs_layouts_bad_2_2();
+    expr_e2e_elf_bs_layouts_good_3();
+    expr_e2e_elf_bs_layouts_bad_3();
+    expr_e2e_elf_bs_layouts_good_3_2();
+    expr_e2e_elf_bs_layouts_ws_good();
+    expr_e2e_elf_bs_layouts_ws_bad();
+    expr_e2e_elf_bs_layouts_ws_bad_2();
+    expr_e2e_elf_bs_layouts_ws_good_2();
+    expr_e2e_elf_bs_layouts_ws_good_2_();
+    expr_e2e_elf_bs_layouts_ws_good_2_2();
+    expr_e2e_elf_bs_layouts_ws_bad_2_();
+    expr_e2e_elf_bs_layouts_ws_bad_2_2();
+    expr_e2e_elf_bs_layouts_ws_bad_2_3();
+    expr_e2e_elf_bs_layouts_ws_good_3();
 
 }
