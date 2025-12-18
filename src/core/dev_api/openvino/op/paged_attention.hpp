@@ -130,7 +130,7 @@ public:
         const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> cache_manager);
 
 protected:
-    std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic};
+    std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic, ov::element::dynamic};
     std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> m_cache_manager = nullptr;
 };
 

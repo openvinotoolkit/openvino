@@ -159,8 +159,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 21,
-                          "PagedAttensionExtension expects 21 inputs, but it has ",
+                          get_input_size() == 25,
+                          "PagedAttensionExtension expects 25 inputs, but it has ",
                           get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
@@ -185,12 +185,27 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 18, "xattention_block_size", {0}, {element::i32});
     input_check(this, 19, "xattention_stride", {0}, {element::i32});
     input_check(this, 20, "sinks", {1, 4}, {});
+    input_check(this, 21, "adaptive_rkv_start_size", {0}, {element::i32});
+    input_check(this, 22, "adaptive_rkv_evictable_sizes", {1}, {element::i32});
+    input_check(this, 23, "adaptive_rkv_diversity_block_set_indices", {1}, {element::i32});
+    input_check(this, 24, "adaptive_rkv_diversity_block_set_indices_begins", {1}, {element::i32});
 
-    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
-    const auto output_shapes = shape_infer(this, input_shapes);
-
-    set_output_type(0, get_input_element_type(0), output_shapes[0]);
-    set_output_type(1, get_input_element_type(0), output_shapes[1]);
+    // Temporarily deactivated to match CPU behavior
+    // const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
+    // const auto output_shapes = shape_infer(this, input_shapes);
+    // set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    // set_output_type(1, get_input_element_type(0), output_shapes[1]);
+ 
+    if (m_output_type[1].is_dynamic()) {
+        set_output_type(1, get_input_element_type(0), {Dimension::dynamic()});
+    } else {
+        set_output_type(1, m_output_type[1], {Dimension::dynamic()});
+    }
+    if (m_output_type[2].is_dynamic()) {
+        set_output_type(2, get_input_element_type(0), {Dimension::dynamic()});
+    } else {
+        set_output_type(2, m_output_type[2], {Dimension::dynamic()});
+    }
 }
 
 std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {
