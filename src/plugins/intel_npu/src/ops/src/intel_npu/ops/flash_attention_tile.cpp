@@ -74,7 +74,7 @@ void flash_attention_evaluate(const float* query,
                     auto k_row = k_ptr + s * E;
 
                     auto score = 0.f;
-                    for (size_t e = 0; e < E; ++e) {
+                    for (int32_t e = 0; e < E; ++e) {
                         score += q_row[e] * k_row[e];
                     }
 
@@ -331,7 +331,7 @@ void FlashAttentionTile::validate_and_infer_types() {
     const auto attention_mask_idx = 6;
 
     auto query_element_type = get_input_element_type(0);
-    const auto& input_size = get_input_size();
+    const auto input_size = static_cast<int32_t>(get_input_size());
 
     if (input_size >= 7) {
         const auto& attention_type = get_input_element_type(attention_mask_idx);
@@ -342,7 +342,7 @@ void FlashAttentionTile::validate_and_infer_types() {
     }
 
     // Support only f32 reference
-    for (size_t i = 1; i < input_size; i++) {
+    for (int32_t i = 1; i < input_size; i++) {
         const auto& element_type = get_input_element_type(i);
 
         if (i == attention_mask_idx && (element_type == element::boolean)) {
@@ -415,19 +415,19 @@ bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
                                    const ov::TensorVector& inputs,
                                    const FlashAttentionTile::Config& config) {
     const auto& query_shape = inputs[QUERY].get_shape();
-    const auto B = (query_shape.size() == 4) ? *(query_shape.end() - 4) : 1;
-    const auto H = *(query_shape.end() - 3);
-    const auto L = *(query_shape.end() - 2);
-    const auto E = *(query_shape.end() - 1);
+    const auto B = static_cast<int32_t>((query_shape.size() == 4) ? *(query_shape.end() - 4) : 1);
+    const auto H = static_cast<int32_t>(*(query_shape.end() - 3));
+    const auto L = static_cast<int32_t>(*(query_shape.end() - 2));
+    const auto E = static_cast<int32_t>(*(query_shape.end() - 1));
 
     const auto& key_shape = inputs[KEY].get_shape();
-    const auto S = *(key_shape.end() - 2);
+    const auto S = static_cast<int32_t>(*(key_shape.end() - 2));
 
     const auto& value_shape = inputs[VALUE].get_shape();
-    const auto Ev = *(value_shape.end() - 1);
+    const auto Ev = static_cast<int32_t>(*(value_shape.end() - 1));
 
-    const size_t out_elems = B * H * L * Ev;
-    const size_t state_elems = B * H * L;
+    const auto out_elems = B * H * L * Ev;
+    const auto state_elems = B * H * L;
 
     const auto* query = inputs[QUERY].data<const float>();
     const auto* key = inputs[KEY].data<const float>();
