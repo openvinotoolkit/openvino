@@ -92,43 +92,23 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         ov::copy_runtime_info(past_node, new_read_value_node);
         ov::replace_node(past_node, new_read_value_node);
 
-        if (pattern_map.count(gather_past) > 0) {
-            if(pattern_map.count(trim_past) > 0) {
-                OPENVINO_ASSERT(pattern_map.count(reorder_past));
-                kv_cache_node = std::make_shared<op::KVCache>(pattern_map.at(gather_past).get_node_shared_ptr(),
-                                                          concat_node->input(1).get_source_output(),
-                                                          pattern_map.at(past_seq_len).get_node_shared_ptr(),
-                                                          pattern_map.at(dst_idx).get_node_shared_ptr(),
-                                                          pattern_map.at(gather_update).get_node_shared_ptr(),
-                                                          variable,
-                                                          concat_axis,
-                                                          new_read_value_node->get_output_element_type(0));
-            } else {
-                kv_cache_node = std::make_shared<op::KVCache>(pattern_map.at(gather_past).get_node_shared_ptr(),
-                                                          concat_node->input(1).get_source_output(),
-                                                          variable,
-                                                          concat_axis,
-                                                          new_read_value_node->get_output_element_type(0));
-            }
-           
+        const auto input0 = pattern_map.count(gather_past) > 0 ? pattern_map.at(gather_past).get_node_shared_ptr() : new_read_value_node;
+        if(pattern_map.count(trim_past) > 0) {
+            OPENVINO_ASSERT(pattern_map.count(reorder_past));
+            kv_cache_node = std::make_shared<op::KVCache>(input0,
+                                                        concat_node->input(1).get_source_output(),
+                                                        pattern_map.at(past_seq_len).get_node_shared_ptr(),
+                                                        pattern_map.at(dst_idx).get_node_shared_ptr(),
+                                                        pattern_map.at(gather_update).get_node_shared_ptr(),
+                                                        variable,
+                                                        concat_axis,
+                                                        new_read_value_node->get_output_element_type(0));
         } else {
-            if(pattern_map.count(trim_past) > 0) {
-                OPENVINO_ASSERT(pattern_map.count(reorder_past));
-                kv_cache_node = std::make_shared<op::KVCache>(new_read_value_node,
-                                                          concat_node->input(1).get_source_output(),
-                                                          pattern_map.at(past_seq_len).get_node_shared_ptr(),
-                                                          pattern_map.at(dst_idx).get_node_shared_ptr(),
-                                                          pattern_map.at(gather_update).get_node_shared_ptr(),
-                                                          variable,
-                                                          concat_axis,
-                                                          new_read_value_node->get_output_element_type(0));
-            } else {
-                kv_cache_node = std::make_shared<op::KVCache>(new_read_value_node,
-                                                          concat_node->input(1).get_source_output(),
-                                                          variable,
-                                                          concat_axis,
-                                                          new_read_value_node->get_output_element_type(0));
-            }
+            kv_cache_node = std::make_shared<op::KVCache>(input0,
+                                                        concat_node->input(1).get_source_output(),
+                                                        variable,
+                                                        concat_axis,
+                                                        new_read_value_node->get_output_element_type(0));
         }
         kv_cache_node->set_friendly_name(concat_node->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), kv_cache_node);

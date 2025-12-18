@@ -32,17 +32,6 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
 
     std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>(),
                                            impl_param.get_input_layout(1).get<ShapeType>()};
-                                     
-    std::unordered_map<size_t, ov::Tensor> const_data;
-    if (desc->update_kv) {
-        if(impl_param.memory_deps.count(2) > 0)
-        {
-            auto past_seq_len_mem = impl_param.memory_deps.at(2);
-            cldnn::mem_lock<uint8_t, mem_lock_type::read> past_seq_len_mem_lock(past_seq_len_mem, impl_param.get_stream());
-            const_data.emplace(1, make_tensor(past_seq_len_mem->get_layout(), past_seq_len_mem_lock.data()));   
-        }
-    }
-    
     if (desc->indirect) {
         input_shapes.push_back(impl_param.get_input_layout(2).get<ShapeType>());
     }
@@ -56,6 +45,27 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
     }
 
     std::vector<ShapeType> output_shapes;
+    std::optional<int64_t> kv_cache_trim_length;
+    if (desc->update_kv) {
+        if(impl_param.memory_deps.count(2) > 0) {
+            auto past_seq_len_mem = impl_param.memory_deps.at(2);
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> past_seq_len_mem_lock(past_seq_len_mem, impl_param.get_stream());
+            auto t = make_tensor(past_seq_len_mem->get_layout(), past_seq_len_mem_lock.data());   
+            const auto past_dim_updated = ov::get_tensor_data_as<int64_t>(t);
+            if (!past_dim_updated.empty()) {
+                const auto past_dim_stored = input_shapes[0][desc->concat_axis];
+                if (past_dim_stored.is_static()) {
+                    auto trim_length = past_dim_stored.get_length() - past_dim_updated[0];
+                    if (trim_length > 0) {
+                        kv_cache_trim_length = trim_length;
+                    } else {
+                        kv_cache_trim_length = 0;
+                    }
+                    impl_param.kv_cache_trim_length = *kv_cache_trim_length;
+                }
+            }
+        }
+    }
     if (desc->compressed) {
         ov::intel_gpu::op::KVCacheCompressed op;
         op.set_output_size(desc->num_outputs);
@@ -63,20 +73,8 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
         op.set_gather_axis(desc->gather_axis);
         op.set_quantization_attrs(desc->quantization_attributes);
         op.set_update_kv(desc->update_kv);
-        if (desc->update_kv) {
-            if (auto past_dim_updated = ov::op::get_input_const_data_as<ov::PartialShape, int64_t>(&op, 1, ov::make_tensor_accessor(const_data))) {
-                auto past_dim_stored = input_shapes[0][desc->concat_axis];
-                if (past_dim_stored.is_static()) {
-                    auto trim_length = past_dim_stored.get_length() - (*past_dim_updated)[0];
-                    if (trim_length > 0) {
-                        op.set_trim_length(static_cast<uint64_t>(trim_length));
-                        impl_param.kv_cache_trim_length = trim_length;
-                    } else {
-                        op.set_trim_length(static_cast<uint64_t>(0));
-                        impl_param.kv_cache_trim_length = 0;
-                    }
-                }
-            }
+        if (kv_cache_trim_length) {
+            op.set_trim_length(static_cast<uint64_t>(*kv_cache_trim_length));
         }
         output_shapes = shape_infer(&op, input_shapes);
     } else {
@@ -85,20 +83,8 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
         op.set_concat_axis(desc->concat_axis);
         op.set_gather_axis(desc->gather_axis);
         op.set_update_kv(desc->update_kv);
-       if (desc->update_kv) {
-            if (auto past_dim_updated = ov::op::get_input_const_data_as<ov::PartialShape, int64_t>(&op, 1, ov::make_tensor_accessor(const_data))) {
-                auto past_dim_stored = input_shapes[0][desc->concat_axis];
-                if (past_dim_stored.is_static()) {
-                    auto trim_length = past_dim_stored.get_length() - (*past_dim_updated)[0];
-                    if (trim_length > 0) {
-                        op.set_trim_length(static_cast<uint64_t>(trim_length));
-                        impl_param.kv_cache_trim_length = trim_length;
-                    } else {
-                        op.set_trim_length(static_cast<uint64_t>(0));
-                        impl_param.kv_cache_trim_length = 0;
-                    }
-                }
-            }
+        if (kv_cache_trim_length) {
+            op.set_trim_length(static_cast<uint64_t>(*kv_cache_trim_length));
         }
         output_shapes = shape_infer(&op, input_shapes);
     }

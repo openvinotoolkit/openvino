@@ -341,7 +341,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     }
 
     static scatter_kernel_params_t get_scatter_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
-        const auto& primitive = impl_param.typed_desc<kv_cache>();
+        const auto primitive = impl_param.typed_desc<kv_cache>();
         auto params = get_default_params<kernel_selector::scatter_elements_update_params>(impl_param, is_shape_agnostic);
 
         auto inputs_count = 3;
@@ -532,8 +532,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     static std::unique_ptr<primitive_impl> create(const typed_program_node<kv_cache>& arg, const kernel_impl_params& impl_param) {
         std::vector<kernel_selector::kernel_data> kernels_data;
         const auto desc = impl_param.typed_desc<kv_cache>();
-        const bool update_kv = desc->update_kv;
-        if (update_kv) {
+        if (desc->update_kv) {
             auto scatter_kernel_params = get_scatter_kernel_params(impl_param, impl_param.is_dynamic());
             auto& scatter_kernel_selector = scatter_kernel_selector_t::Instance();
             auto scatter_kernels = scatter_kernel_selector.GetBestKernels(scatter_kernel_params);

@@ -235,9 +235,7 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch,
                                                      bool fuse_cache_reorder,
                                                      bool build_state_initializer,
                                                      size_t num_groups,
-                                                     int past_seq_len,
-                                                     std::vector<int> src_idx,
-                                                     std::vector<int> dst_idx) {
+                                                     const kv_cache_reorder_params* reorder_params) {
     ov::PartialShape kv_cache_size = {batch, n_heads / num_groups, -1, n_features};
     ov::PartialShape new_token_size = {batch, -1, n_heads / num_groups, n_features};
     ov::PartialShape matmul_in_size = {batch, n_heads, -1, -1};
@@ -257,24 +255,20 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch,
         params.push_back(in_beam_idx);
         concat_input = make_kv_rearrange(in_kv_prev, in_beam_idx);
     }
-    if (past_seq_len > 0) {
-        OPENVINO_ASSERT(dst_idx.size() > 0 && src_idx.size() == dst_idx.size());
+    if (reorder_params) {
+        OPENVINO_ASSERT(reorder_params->trim_seq > 0 && reorder_params->dst_idx.size() > 0 &&
+                        reorder_params->src_idx.size() == reorder_params->dst_idx.size());
+        OPENVINO_ASSERT(n_heads.is_static() && n_features.is_static());
         ov::PartialShape unit_shape = {1};
         auto seq_len = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, unit_shape);
         seq_len->set_friendly_name("seq_len");
         params.push_back(seq_len);
-        ov::PartialShape src_shape = {(unsigned)src_idx.size()};
+        ov::PartialShape src_shape = {static_cast<int64_t>(reorder_params->src_idx.size())};
         auto in_src_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, src_shape);
         in_src_idx->set_friendly_name("src_idx");
         params.push_back(in_src_idx);
-        int batch_size = 1;  // batch.get_interval().get_min_val();
-        int heads_size = n_heads.get_interval().get_min_val();
-        int features_size = n_features.get_interval().get_min_val();
         // dst_idx has to be param, not const!
-        ov::PartialShape dst_shape = {(unsigned)batch_size,
-                                      (unsigned)heads_size,
-                                      (unsigned)dst_idx.size(),
-                                      (unsigned)features_size};
+        ov::PartialShape dst_shape = {1, n_heads, reorder_params->dst_idx.size(), n_features};
         auto in_dst_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, dst_shape);
         in_dst_idx->set_friendly_name("dst_idx");
         params.push_back(in_dst_idx);
@@ -285,8 +279,6 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch,
         auto zero_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {0});
         auto one_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
         concat_input = std::make_shared<ov::op::v8::Slice>(concat_input, zero_const, seq_len, one_const, axis_const);
-    } else {
-        OPENVINO_ASSERT(dst_idx.size() == 0 && src_idx.size() == 0);
     }
 
     auto transpose_const = ov::op::v0::Constant::create(ov::element::i32, {new_token_size.size()}, {0, 2, 1, 3});
