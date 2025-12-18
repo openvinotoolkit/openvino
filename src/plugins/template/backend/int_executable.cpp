@@ -6,55 +6,16 @@
 
 #include <cstring>
 #include <limits>
-#include <optional>
 
 #include "evaluates_map.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape_util.hpp"
-#include "openvino/core/validation_util.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "perf_counter.hpp"
-#include "tensor_data_accessor.hpp"
-
-namespace ov::runtime::interpreter {
-std::optional<std::vector<ov::Shape>> shape_infer(const ov::Node* op, const ov::TensorVector& inputs) {
-    const auto input_shapes = ov::util::get_tensors_partial_shapes(inputs);
-    const auto tensor_accessor = make_tensor_accessor(inputs);
-
-    std::shared_ptr<ov::Node> local_op;
-    ov::OutputVector new_inputs;
-    for (size_t i = 0; i < op->get_input_size(); ++i) {
-        if (auto t = tensor_accessor(i)) {
-            new_inputs.emplace_back(std::make_shared<ov::op::v0::Constant>(t));
-        } else if (const auto* c = ov::as_type<const ov::op::v0::Constant>(op->get_input_node_ptr(i))) {
-            new_inputs.emplace_back(c->clone_with_new_inputs(ov::OutputVector{}));
-        } else {
-            new_inputs.emplace_back(
-                std::make_shared<ov::op::v0::Parameter>(op->get_input_element_type(i), input_shapes[i]));
-        }
-    }
-    local_op = op->clone_with_new_inputs(new_inputs);
-    local_op->validate_and_infer_types();
-
-    std::vector<ov::Shape> output_shapes(local_op->get_output_size());
-    for (size_t i = 0; i < output_shapes.size(); ++i) {
-        const auto& partial_shape = local_op->get_output_partial_shape(i);
-
-        if (partial_shape.is_dynamic()) {
-            return {};
-        }
-
-        output_shapes[i] = partial_shape.to_shape();
-    }
-
-    return {std::move(output_shapes)};
-}
-}  // namespace ov::runtime::interpreter
 
 class TemporaryOverrideOutputs {
     std::shared_ptr<ov::Model> model;
@@ -183,14 +144,6 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
 
         {
             PERF(op, collect_performance);
-            // Call shape infer and set shapes for dynamic shape outputs
-            if (op->get_output_partial_shape(0).is_dynamic()) {
-                if (auto output_shapes = ov::runtime::interpreter::shape_infer(op.get(), op_inputs)) {
-                    for (size_t i = 0; i < (*output_shapes).size(); ++i) {
-                        op_outputs[i].set_shape((*output_shapes)[i]);
-                    }
-                };
-            }
             // Call evaluate for cloned_node with static shapes
             if (!op->evaluate(op_outputs, op_inputs, context)) {
                 // TODO: extend evaluate map for the context
