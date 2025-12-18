@@ -193,18 +193,18 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string&
     std::vector<char> suffix(32);
     for (int32_t shard = 0; shard < m_total_shards; ++shard) {
         std::snprintf(suffix.data(), suffix.size(), "data-%05d-of-%05d", shard, m_total_shards);
-        std::string fullPath;
+        std::filesystem::path fullPath;
         if (is_saved_model) {
-            fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()}).string();
+            fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()});
         } else {
-            fullPath = path + "." + suffix.data();
+            fullPath = ov::util::make_path(path + "." + suffix.data());
         }
         if (m_mmap_enabled) {
             m_data_files[shard].mmap = load_mmap_object(fullPath);
             FRONT_END_GENERAL_CHECK(m_data_files[shard].mmap->data(), "Variable index data cannot be mapped");
         } else {
-            m_data_files[shard].stream = std::shared_ptr<std::ifstream>(
-                new std::ifstream(fullPath.c_str(), std::ifstream::in | std::ifstream::binary));
+            m_data_files[shard].stream =
+                std::shared_ptr<std::ifstream>(new std::ifstream(fullPath, std::ifstream::in | std::ifstream::binary));
             FRONT_END_GENERAL_CHECK(m_data_files[shard].stream->is_open(), "Variable index data file does not exist");
         }
     }
@@ -222,7 +222,7 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring
     std::vector<wchar_t> suffix(20);
     for (int32_t shard = 0; shard < m_total_shards; ++shard) {
         swprintf_s(suffix.data(), suffix.size(), L"data-%05d-of-%05d", shard, m_total_shards);
-        std::wstring fullPath;
+        std::filesystem::path fullPath;
         if (is_saved_model) {
             fullPath = ov::util::path_join_w({path, L"variables", std::wstring(L"variables.") + suffix.data()});
         } else {
@@ -232,8 +232,8 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring
             m_data_files[shard].mmap = load_mmap_object(fullPath);
             FRONT_END_GENERAL_CHECK(m_data_files[shard].mmap->data(), "Variable index data cannot be mapped");
         } else {
-            m_data_files[shard].stream = std::shared_ptr<std::ifstream>(
-                new std::ifstream(fullPath.c_str(), std::ifstream::in | std::ifstream::binary));
+            m_data_files[shard].stream =
+                std::shared_ptr<std::ifstream>(new std::ifstream(fullPath, std::ifstream::in | std::ifstream::binary));
             FRONT_END_GENERAL_CHECK(m_data_files[shard].stream->is_open(), "Variable index data file does not exist");
         }
     }

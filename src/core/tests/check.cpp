@@ -68,7 +68,7 @@ TEST(check, error_message_with_fs_path_and_unicode) {
     const auto path = ov::test::utils::to_fs_path("这是.folder") / ov::test::utils::to_fs_path(L"这.txt");
     auto description = std::string("Error detail");
     const auto exp_error_str = std::string("Test read file: \"这是.folder") +
-                               ov::util::FileTraits<char>::file_separator +
+                               ov::test::utils::FileTraits<char>::file_separator +
                                std::string("这.txt\", because: Error detail");
 
     std::stringstream error;

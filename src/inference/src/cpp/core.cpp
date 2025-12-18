@@ -16,37 +16,34 @@ namespace ov {
 
 namespace {
 
-std::string find_plugins_xml(const std::string& xml_file) {
-    std::string xml_file_name = xml_file;
-    if (xml_file_name.empty()) {
-        // Default plugin xml file name, will search in OV folder.
-        xml_file_name = "plugins.xml";
-    } else {
+std::filesystem::path find_plugins_xml(const std::filesystem::path& xml_file) {
+    if (xml_file.has_parent_path()) {
         // If file path contains file separator, return file path;
         // Otherwise search it in OV folder with no restriction on file name and extension.
-        if (xml_file_name.find(util::FileTraits<char>().file_separator) != xml_file_name.npos) {
-            return xml_file_name;
-        }
+        return xml_file;
     }
+
+    // Default plugin xml file name, will search in OV folder.
+    const auto& xml_file_name = xml_file.empty() ? std::filesystem::path("plugins.xml") : xml_file;
     const auto ov_library_path = ov::util::get_ov_lib_path();
 
     // plugins xml can be found in either:
     // 1. openvino-X.Y.Z relative to libopenvino.so folder
-    std::ostringstream str;
-    str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
-    const auto sub_folder = str.str();
-
-    // register plugins from default openvino-<openvino version>/plugins.xml config
-    auto xmlConfigFileDefault = ov::util::path_join({ov_library_path, sub_folder, xml_file_name}).string();
-    if (ov::util::file_exists(xmlConfigFileDefault))
-        return xmlConfigFileDefault;
-
     // 2. in folder with libopenvino.so
-    xmlConfigFileDefault = ov::util::path_join({std::move(ov_library_path), std::move(xml_file_name)}).string();
-    if (ov::util::file_exists(xmlConfigFileDefault))
-        return xmlConfigFileDefault;
+    const auto ov_version_folder = [] {
+        std::ostringstream str;
+        str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
+        return std::filesystem::path(str.str());
+    }();
 
-    return xml_file;
+    if (auto xml_path = ov_library_path / ov_version_folder / xml_file_name; ov::util::file_exists(xml_path)) {
+        // register plugins from default openvino-<openvino version>/plugins.xml config
+        return xml_path;
+    } else if (xml_path = ov_library_path / xml_file_name; ov::util::file_exists(xml_path)) {
+        return xml_path;
+    } else {
+        return xml_file;
+    }
 }
 
 }  // namespace
@@ -65,19 +62,16 @@ public:
     Impl() : ov::CoreImpl() {}
 };
 
-Core::Core(const std::string& xml_config_file) {
-    _impl = std::make_shared<Impl>();
+Core::Core(const std::string& xml_config_file) : Core(ov::util::make_path(xml_config_file)) {}
 
-    std::string xmlConfigFile = find_plugins_xml(xml_config_file);
-    if (!xmlConfigFile.empty())
-        OV_CORE_CALL_STATEMENT(
-            // If XML is default, load default plugins by absolute paths
-            _impl->register_plugins_in_registry(xmlConfigFile, xml_config_file.empty());)
+Core::Core(const std::filesystem::path& xml_config_file) : _impl(std::make_shared<Impl>()) {
+    if (const auto xml_path = find_plugins_xml(xml_config_file); !xml_path.empty()) {
+        // If XML is default, load default plugins by absolute paths
+        OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(xml_path, xml_config_file.empty());)
+    }
     // Load plugins from the pre-compiled list
     OV_CORE_CALL_STATEMENT(_impl->register_compile_time_plugins();)
 }
-
-Core::Core(const std::filesystem::path& xml_config_file) : Core(ov::util::path_to_string(xml_config_file)) {}
 
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
     OV_CORE_CALL_STATEMENT({ return _impl->get_versions(device_name); })}
@@ -277,11 +271,11 @@ void Core::unload_plugin(const std::string& device_name) {
 }
 
 void Core::register_plugins(const std::string& xml_config_file) {
-    OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(xml_config_file););
+    register_plugins(ov::util::make_path(xml_config_file));
 }
 
 void Core::register_plugins(const std::filesystem::path& xml_config_file) {
-    register_plugins(ov::util::path_to_string(xml_config_file));
+    OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(xml_config_file););
 }
 
 RemoteContext Core::create_context(const std::string& device_name, const AnyMap& params) {

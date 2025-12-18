@@ -22,13 +22,12 @@ get_filelist_recursive(const std::vector<std::string>& dir_paths,
             throw std::runtime_error(msg);
         }
         ov::util::iterate_files(
-            dir_path,
-            [&result, &patterns](const std::string& file_path, bool is_dir) {
-                auto file = ov::util::get_file_name(file_path);
-                if (ov::util::file_exists(file_path)) {
+             ov::util::make_path(dir_path),
+            [&result, &patterns](const std::filesystem::path& file_path) {
+                if (const auto& file = file_path.filename(); ov::util::file_exists(file_path)) {
                     for (const auto& pattern : patterns) {
-                        if (std::regex_match(file_path, pattern)) {
-                            result.push_back(file_path);
+                        if (auto file_path_str = ov::util::path_to_string(file);std::regex_match(file_path_str, pattern)) {
+                            result.push_back(std::move(file_path_str));
                             break;
                         }
                     }

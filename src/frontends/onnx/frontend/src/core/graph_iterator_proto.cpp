@@ -92,7 +92,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         }
     }
     const auto full_path =
-        ov::util::get_absolute_file_path(ov::util::path_join({graph_iterator->get_model_dir(), ext_location}).string());
+        ov::util::get_absolute_file_path(ov::util::path_join({graph_iterator->get_model_dir(), ext_location}));
     const int64_t file_size = ov::util::file_size(full_path);
     if ((file_size <= 0 && ext_data_length > 0) ||
         ext_data_offset + ext_data_length > static_cast<uint64_t>(file_size)) {
@@ -111,13 +111,13 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         return true;
     } else if (memory_mode == External_MMAP) {
         auto cache = graph_iterator->get_mmap_cache();
-        auto cached_mapped_memory = cache->find(full_path);
+        auto cached_mapped_memory = cache->find(ov::util::make_path(full_path));
         std::shared_ptr<ov::MappedMemory> mapped_memory;
         if (cached_mapped_memory != cache->end()) {
             mapped_memory = cached_mapped_memory->second;
         } else {
             mapped_memory = ov::load_mmap_object(full_path);
-            (*cache)[full_path] = mapped_memory;
+            (*cache)[ov::util::make_path(full_path)] = mapped_memory;
         }
         tensor_meta_info.m_is_raw = true;
         tensor_meta_info.m_tensor_data =

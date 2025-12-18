@@ -51,7 +51,7 @@ ModelDeserializer::ModelDeserializer(std::shared_ptr<ov::AlignedBuffer>& model_b
       m_core(core),
       m_decript_from_string(decript_from_string) {
     if (!origin_weights_path.empty() && std::filesystem::exists(origin_weights_path)) {
-        auto mmap = ov::load_mmap_object(origin_weights_path);
+        auto mmap = ov::load_mmap_object(ov::util::make_path(origin_weights_path));
         m_origin_weights_buf =
             std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
     }
@@ -72,7 +72,7 @@ ModelDeserializer::ModelDeserializer(std::istream& model_stream,
       m_core(core),
       m_decript_from_string(decript_from_string) {
     if (!origin_weights_path.empty() && std::filesystem::exists(origin_weights_path)) {
-        auto mmap = ov::load_mmap_object(origin_weights_path);
+        auto mmap = ov::load_mmap_object(ov::util::make_path(origin_weights_path));
         m_origin_weights_buf =
             std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
     }
