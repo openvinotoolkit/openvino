@@ -53,6 +53,25 @@ std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
     return tensor->get_shape()[intel_npu::utils::BATCH_AXIS];
 }
 
+void* get_tensor_data_ptr(const std::shared_ptr<ov::ITensor>& tensor) {
+    if (auto userRemoteTensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)) {
+        if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
+            return userZeroRemoteTensor->get_original_memory();
+        } else {
+            std::optional<void*> memHandleObject =
+                zeroUtils::extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
+            OPENVINO_ASSERT(memHandleObject.has_value(),
+                            "Remote tensor does not have parameter with key ",
+                            ov::intel_npu::mem_handle.name());
+            return static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_data_offset(*userRemoteTensor);
+        }
+    } else {
+        return tensor->data();
+    }
+
+    return nullptr;
+}
+
 }  // namespace
 
 //------------------------------------------------------------------------------
@@ -695,27 +714,7 @@ void ZeroInferRequest::infer_async() {
         if (is_batched_input(inputIndex)) {
             if (batch_size.has_value()) {
                 for (size_t i = 0; i < userTensor.size(); i++) {
-                    void* userBuffer;
-                    if (auto userRemoteTensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(userTensor.at(i)._ptr)) {
-                        if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
-                            userBuffer = userZeroRemoteTensor->get_original_memory();
-                        } else {
-                            std::optional<void*> memHandleObject =
-                                zeroUtils::extract_object(userRemoteTensor->get_properties(),
-                                                          ov::intel_npu::mem_handle);
-                            OPENVINO_ASSERT(memHandleObject.has_value(),
-                                            "Remote tensor does not have parameter with key",
-                                            ov::intel_npu::mem_handle.name(),
-                                            " for batched index: ",
-                                            i,
-                                            ", input index ",
-                                            inputIndex);
-                            userBuffer = static_cast<uint8_t*>(memHandleObject.value()) +
-                                         ov::get_tensor_data_offset(*userRemoteTensor);
-                        }
-                    } else {
-                        userBuffer = userTensor.at(i)->data();
-                    }
+                    void* userBuffer = get_tensor_data_ptr(userTensor.at(i)._ptr);
                     void* levelZeroBuffer = get_level_zero_input(inputIndex, i)->data();
 
                     if (userBuffer != levelZeroBuffer) {
@@ -763,24 +762,7 @@ void ZeroInferRequest::infer_async() {
             continue;
         }
 
-        void* userBuffer;
-        if (auto userRemoteTensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(userTensor.at(SINGLE_TENSOR)._ptr)) {
-            if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
-                userBuffer = userZeroRemoteTensor->get_original_memory();
-            } else {
-                std::optional<void*> memHandleObject =
-                    zeroUtils::extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
-                OPENVINO_ASSERT(memHandleObject.has_value(),
-                                "Remote tensor does not have parameter with key",
-                                ov::intel_npu::mem_handle.name(),
-                                " for input index: ",
-                                inputIndex);
-                userBuffer =
-                    static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_data_offset(*userRemoteTensor);
-            }
-        } else {
-            userBuffer = userTensor.at(SINGLE_TENSOR)->data();
-        }
+        void* userBuffer = get_tensor_data_ptr(userTensor.at(SINGLE_TENSOR)._ptr);
         void* levelZeroBuffer = get_level_zero_input(inputIndex)->data();
 
         if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
@@ -824,24 +806,7 @@ void ZeroInferRequest::get_result() {
             tensorToBeReshaped->set_shape(actualDims);
         }
 
-        void* userBuffer;
-        if (auto userRemoteTensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(userTensor._ptr)) {
-            if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
-                userBuffer = userZeroRemoteTensor->get_original_memory();
-            } else {
-                std::optional<void*> memHandleObject =
-                    zeroUtils::extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
-                OPENVINO_ASSERT(memHandleObject.has_value(),
-                                "Remote tensor does nothave parameter with key",
-                                ov::intel_npu::mem_handle.name(),
-                                " for output index: ",
-                                outputIndex);
-                userBuffer =
-                    static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_data_offset(*userRemoteTensor);
-            }
-        } else {
-            userBuffer = userTensor->data();
-        }
+        void* userBuffer = get_tensor_data_ptr(userTensor._ptr);
         void* levelZeroBuffer = _levelZeroOutputTensors.at(outputIndex)->data();
 
         if (userBuffer == nullptr || levelZeroBuffer == nullptr) {

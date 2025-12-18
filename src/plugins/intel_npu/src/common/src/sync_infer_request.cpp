@@ -318,7 +318,7 @@ void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& p
                 "The tensor has a non-contiguous memory layout (custom strides), which is not supported by the "
                 "current driver/compiler version. To use strided tensors, either:\n"
                 "  1. Upgrade to a driver version that supports strides, or\n"
-                "  2. Enable stride support using the 'enable_strides_for' configuration property if this is "
+                "  2. Enable stride support using the 'NPU_ENABLE_STRIDES_FOR' configuration property if this is "
                 "supported.");
         }
     }

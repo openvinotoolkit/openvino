@@ -90,12 +90,12 @@ ov::Strides default_byte_strides(const ov::Shape& shape, const ov::element::Type
  * @param src_data Pointer to source data (with offset applied)
  * @param dst_data Pointer to destination data (with offset applied)
  */
-void perform_copy_operation(const std::shared_ptr<const ov::ITensor>& src,
-                            const std::shared_ptr<ov::ITensor>& dst,
-                            const ov::Shape& roi_shape,
-                            const ov::Shape& shape,
-                            const uint8_t* src_data,
-                            uint8_t* dst_data) {
+void copy_data(const std::shared_ptr<const ov::ITensor>& src,
+               const std::shared_ptr<ov::ITensor>& dst,
+               const ov::Shape& roi_shape,
+               const ov::Shape& shape,
+               const uint8_t* src_data,
+               uint8_t* dst_data) {
     const auto& is_scalar = [](const ov::Shape& shape) {
         return shape.empty() || (shape.size() == 1 && shape[0] == 1);
     };
@@ -481,7 +481,7 @@ void ZeroRemoteTensor::copy_to(const std::shared_ptr<ov::ITensor>& dst,
                          ? static_cast<uint8_t*>(dst->data()) + dst_offset
                          : static_cast<uint8_t*>(dst_zero_remote_tensor->get_original_memory()) + dst_offset;
 
-    perform_copy_operation(shared_from_this(), dst, src_shape, dst_shape, src_data, dst_data);
+    copy_data(shared_from_this(), dst, src_shape, dst_shape, src_data, dst_data);
 }
 
 void ZeroRemoteTensor::copy_from(const std::shared_ptr<const ov::ITensor>& src,
@@ -523,7 +523,7 @@ void ZeroRemoteTensor::copy_from(const std::shared_ptr<const ov::ITensor>& src,
                          : static_cast<const uint8_t*>(src_zero_remote_tensor->get_original_memory()) + src_offset;
     auto* dst_data = static_cast<uint8_t*>(get_original_memory()) + dst_offset;
 
-    perform_copy_operation(src, shared_from_this(), dst_shape, src_shape, src_data, dst_data);
+    copy_data(src, shared_from_this(), dst_shape, src_shape, src_data, dst_data);
 }
 
 ZeroRemoteTensor::~ZeroRemoteTensor() {
