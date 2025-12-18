@@ -164,7 +164,7 @@ The `-s` flag disables output capturing, making debugging easier.
 ### 4. Start Debugging
 
 1. Open the C++ file where you want to set a breakpoint
-2. Click in the gutter next to the line number to set a breakpoint
+2. Click in the <> next to the line number to set a breakpoint
 3. Press `F5` or click "Run → Start Debugging"
 4. Select "Python API Debug" configuration
 5. The debugger will start Python, load the bindings, and stop at your C++ breakpoint
@@ -173,7 +173,7 @@ The `-s` flag disables output capturing, making debugging easier.
 
 Once stopped at the breakpoint, you can:
 
-- **Step through code**: F10 (step over), F11 (step into)
+- **Step through code**
 - **Inspect variables**: Hover over variables or use the Variables pane
 - **Evaluate expressions**: Use the Debug Console
 - **View call stack**: See both Python and C++ frames in the Call Stack pane
@@ -202,16 +202,19 @@ You can also debug a standalone Python script:
 
 ### Attaching to Running Python Process
 
-Alternatively, you can attach GDB to an already running Python process:
+**This method does not use or require `launch.json`.** It uses GDB directly from the command line as an alternative to the VS Code debugging setup.
+
+You can attach GDB to an already running Python process:
 
 1. Start your Python script with a pause:
    ```python
+   import os
    import time
    print(f"PID: {os.getpid()}")
    time.sleep(30)  # Time to attach debugger
    ```
 
-2. In another terminal:
+2. In another terminal, attach GDB using the process ID:
    ```bash
    gdb -p <PID>
    ```
