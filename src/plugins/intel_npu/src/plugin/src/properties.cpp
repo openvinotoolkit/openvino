@@ -379,6 +379,8 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::qdq_optimization_aggressive, QDQ_OPTIMIZATION_AGGRESSIVE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::disable_version_check, DISABLE_VERSION_CHECK);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::export_raw_blob, EXPORT_RAW_BLOB);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::import_raw_blob, IMPORT_RAW_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_compiler_mode_settings, BATCH_COMPILER_MODE_SETTINGS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::workload_type, WORKLOAD_TYPE);
@@ -619,6 +621,8 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::qdq_optimization_aggressive, QDQ_OPTIMIZATION_AGGRESSIVE);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::disable_version_check, DISABLE_VERSION_CHECK);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::export_raw_blob, EXPORT_RAW_BLOB);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::import_raw_blob, IMPORT_RAW_BLOB);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::batch_compiler_mode_settings,
                                               BATCH_COMPILER_MODE_SETTINGS);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY);
