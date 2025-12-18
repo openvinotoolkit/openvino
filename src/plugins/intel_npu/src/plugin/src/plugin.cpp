@@ -382,6 +382,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE);
     REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS);
     REGISTER_OPTION(NPUW_WHISPER);
+    REGISTER_OPTION(NPUW_EAGLE);
     REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
     REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_PREFILL_CONFIG);
@@ -1101,9 +1102,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         _logger.info("Blob compatibility check skipped.");
     }
 
-    ov::Tensor tensorMain(tensorBig,
-                          ov::Coordinate{0},
-                          ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
+    const ov::Tensor tensorMain(tensorBig,
+                                ov::Coordinate{0},
+                                ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
 
     std::vector<ov::Tensor> tensorsInits;
     const bool weightsSeparationEnabled = initSizes.has_value();
@@ -1112,7 +1113,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         // Read the init compiled models as well
         size_t cursorPosition = mainSize;
         for (uint64_t initSize : initSizes.value()) {
-            ov::Tensor tensorInit(tensorBig, ov::Coordinate{cursorPosition}, ov::Coordinate{cursorPosition + initSize});
+            const ov::Tensor tensorInit(tensorBig,
+                                        ov::Coordinate{cursorPosition},
+                                        ov::Coordinate{cursorPosition + initSize});
             tensorsInits.push_back(tensorInit);
             cursorPosition += initSize;
         }
@@ -1149,9 +1152,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         check_weightless_cache_attribute_occurrence(originalModel);
     }
 
-    auto graph = compiler->parse(std::move(tensorMain),
+    const std::optional<std::vector<ov::Tensor>> initBlobs =
+        weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt;
+
+    auto graph = compiler->parse(tensorMain,
                                  localConfig,
-                                 weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt,
+                                 initBlobs,
                                  weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
