@@ -89,6 +89,11 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
             set(ARM_COMPUTE_ENABLE_SVEF32MM OFF CACHE BOOL "" FORCE)
         endif()
 
+        # Multi-ISA support with SME
+        if(NOT ARM AND OV_CPU_AARCH64_USE_MULTI_ISA)
+            add_compile_definitions(ENABLE_SME ARM_COMPUTE_ENABLE_SME ARM_COMPUTE_ENABLE_SME2)
+        endif()
+
         add_subdirectory(${ARM_COMPUTE_SOURCE_DIR} ${ARM_COMPUTE_BINARY_DIR} EXCLUDE_FROM_ALL)
 
         if(NOT TARGET arm_compute::arm_compute)
