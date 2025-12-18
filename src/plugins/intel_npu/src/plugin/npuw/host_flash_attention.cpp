@@ -1050,8 +1050,8 @@ Selector::Ptr PositionIDs::find(std::size_t query_size, const ov::ISyncInferRequ
 }
 
 void PositionIDs::prepare(int64_t past_len) {
-    const auto& iport = _rq.get_compiled_model()->inputs()[_position_ids_idx];
-    const auto in_tensor = _rq.get_tensor(iport);
+    const auto& iport = _rq.get().get_compiled_model()->inputs()[_position_ids_idx];
+    const auto in_tensor = _rq.get().get_tensor(iport);
     const auto in_dims = in_tensor->get_shape();
 
     // Same logic as regular attention PositionIDs

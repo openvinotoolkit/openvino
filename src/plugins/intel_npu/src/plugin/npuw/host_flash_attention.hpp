@@ -483,7 +483,7 @@ class PositionIDs final : public Selector {
     int64_t _past_length = 0;
     std::size_t _query_size = 0u;
 
-    const ov::ISyncInferRequest& _rq;
+    std::reference_wrapper<const ov::ISyncInferRequest> _rq;
 
     PositionIDs(std::size_t param_idx, std::size_t query_size, const ov::ISyncInferRequest& rq);
     void prepare(int64_t past_len) override;
