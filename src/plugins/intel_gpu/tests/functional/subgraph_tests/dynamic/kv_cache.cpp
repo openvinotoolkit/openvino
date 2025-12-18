@@ -12,6 +12,7 @@
 #include "openvino/op/result.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
+#include <optional>
 
 namespace {
 using ov::test::InputShape;
@@ -246,6 +247,20 @@ class KVCacheTests: public ::testing::Test {
         }
     }
 
+    /**
+     * @brief Additional LLM KV cache reordering parameter
+     */
+    struct kv_cache_reorder_params {
+        /// \param Length of sequence that starts trimming
+        int32_t trigger_len = 0;
+        /// \param Length of sequence after trimmed
+        int32_t trim_seq = 0;
+        /// \param Source indices for reorder
+        std::vector<int32_t> src_idx;
+        /// \param Destination indices for reorder
+        std::vector<int32_t> dst_idx;
+    };
+
     void test_smoke_multipleIterations_stateful(bool is_caching_test,
                                                 bool fuse_cache_reorder,
                                                 bool build_state_initializer,
@@ -256,7 +271,7 @@ class KVCacheTests: public ::testing::Test {
                                                 size_t num_groups = 1,
                                                 bool set_state_on_each_iter = false,
                                                 int32_t initial_batch = -1,
-                                                const ov::test::utils::kv_cache_reorder_params* reorder_params = nullptr) {
+                                                const kv_cache_reorder_params* reorder_params = nullptr) {
     #if defined(ANDROID)
         GTEST_SKIP();
     #endif
@@ -287,6 +302,20 @@ class KVCacheTests: public ::testing::Test {
 
         const bool stateful = true;
 
+        if (reorder_params) {
+            OPENVINO_ASSERT(reorder_params->trim_seq > 0 && reorder_params->trigger_len >= reorder_params->trim_seq);
+            OPENVINO_ASSERT(reorder_params->src_idx.size() == reorder_params->dst_idx.size());
+            // make sure src/dst idx within range
+            const auto src_idx_fit = std::all_of(reorder_params->src_idx.begin(), reorder_params->src_idx.end(), [&](const auto& idx) {
+                return idx >= 0 && idx < reorder_params->trigger_len;
+            });
+            OPENVINO_ASSERT(src_idx_fit);
+            const auto dst_idx_fit = std::all_of(reorder_params->dst_idx.begin(), reorder_params->dst_idx.end(), [&](const auto& idx) {
+                return idx >= 0 && idx < reorder_params->trim_seq;
+            });
+            OPENVINO_ASSERT(dst_idx_fit);
+        }
+
         auto model = ov::test::utils::make_llm_kv_cache_pattern(build_state_initializer ? ov::Dimension::dynamic() : batch,
                                                                 n_heads,
                                                                 n_features,
@@ -311,51 +340,83 @@ class KVCacheTests: public ::testing::Test {
             core->compile_model(model, ov::test::utils::DEVICE_GPU, properties);
         }
         ov::Shape unit_shape = {1};
-        std::vector<int32_t> seq_len_memory;
-        std::vector<int32_t> src_idx_memory;
-        std::vector<int32_t> dst_idx_memory;
-        if (reorder_params) {
-            seq_len_memory.push_back(reorder_params->trim_seq);
-            src_idx_memory = reorder_params->src_idx;
-            dst_idx_memory.reserve(batch * n_heads * reorder_params->dst_idx.size() * n_features);
-            for (size_t b = 0; b < batch; ++b) {
-                for (size_t h = 0; h < n_heads; ++h) {
-                    for (const auto slice : reorder_params->dst_idx) {
-                        for (size_t f = 0; f < n_features; ++f) {
-                            dst_idx_memory.push_back(slice);
+
+        struct kv_cache_reorder_state {
+            const kv_cache_reorder_params& params;
+            ov::Tensor seq_len;
+            ov::Tensor src_idx;
+            ov::Tensor dst_idx;
+            ov::Tensor src_idx_data;
+            ov::Tensor dst_idx_data;
+            ov::Shape seq_len_shape;
+            ov::Shape src_shape;
+            ov::Shape dst_shape;
+            kv_cache_reorder_state(const kv_cache_reorder_params& reorder_params, size_t batch, size_t n_heads, size_t n_features)
+                : params(reorder_params),
+                  seq_len_shape{1},
+                  src_shape{params.src_idx.size()},
+                  dst_shape{batch, n_heads, params.dst_idx.size(), n_features} {
+                src_idx_data = ov::Tensor(ov::element::i32, src_shape, params.src_idx.data());
+                dst_idx_data = ov::Tensor(ov::element::i32, dst_shape);
+                auto dst_ptr = dst_idx_data.data<int32_t>();
+                for (size_t b = 0; b < batch; ++b) {
+                    for (size_t h = 0; h < n_heads; ++h) {
+                        for (const auto slice : params.dst_idx) {
+                            dst_ptr = std::fill_n(dst_ptr, n_features, slice);
                         }
                     }
                 }
             }
+            size_t update(const size_t past_seq_len) {
+                if (past_seq_len >= params.trigger_len) {
+                    seq_len.data<int32_t>()[0] = params.trim_seq;
+                    src_shape = {params.src_idx.size()};
+                    dst_shape[2] = params.dst_idx.size();
+                    src_idx.set_shape(src_shape);
+                    dst_idx.set_shape(dst_shape);
+                    src_idx_data.copy_to(src_idx);
+                    dst_idx_data.copy_to(dst_idx);
+                    return params.trim_seq;
+                } else {
+                    seq_len.data<int32_t>()[0] = past_seq_len;
+                    src_shape = {0};
+                    dst_shape[2] = 0;
+                    src_idx.set_shape(src_shape);
+                    dst_idx.set_shape(dst_shape);
+                    return past_seq_len;
+                }
+            }
+        };
+        std::optional<kv_cache_reorder_state> reorder_state;
+        if (reorder_params) {
+            reorder_state.emplace(*reorder_params, batch, n_heads, n_features);
         }
-        ov::Tensor seq_len_tensor(ov::element::i32, unit_shape, seq_len_memory.data());
-        ov::Shape src_shape = {reorder_params ? reorder_params->src_idx.size() : 0};
-        ov::Tensor src_idx_tensor(ov::element::i32, src_shape, src_idx_memory.data());
-        ov::Shape dst_shape = {batch, n_heads, reorder_params ? reorder_params->dst_idx.size() : 0, n_features };
-        ov::Tensor dst_idx_tensor(ov::element::i32, dst_shape, dst_idx_memory.data());
+
         auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, properties);
 
         auto input0 = model->get_parameters().at(0);
         auto input1 = model->get_parameters().at(1);
         auto input2 = fuse_cache_reorder ? model->get_parameters().at(2) : nullptr;
-        auto input3 = reorder_params ? model->get_parameters().at(3) : nullptr;
-        auto input4 = reorder_params ? model->get_parameters().at(4) : nullptr;
-        auto input5 = reorder_params ? model->get_parameters().at(5) : nullptr;
+        auto input3 = reorder_state ? model->get_parameters().at(3) : nullptr;
+        auto input4 = reorder_state ? model->get_parameters().at(4) : nullptr;
+        auto input5 = reorder_state ? model->get_parameters().at(5) : nullptr;
         auto output0 = model->get_results().at(0);
 
         auto beam_idx_shape = ov::Shape{batch};
 
-        auto get_ref_results = [&ref_model, fuse_cache_reorder, reorder_params, unit_shape, seq_len_tensor, src_idx_tensor, src_shape, dst_idx_tensor, dst_shape]
-                                (const ov::Tensor& kv_cache, const ov::Tensor& new_token_data,
-                                 const ov::Tensor& matmul_data, const ov::Tensor& beam_idx_data,
-                                 const ov::Shape& beam_idx_shape) {
+        auto get_ref_results = [&ref_model, fuse_cache_reorder](const ov::Tensor& kv_cache,
+                                                                const ov::Tensor& new_token_data,
+                                                                const ov::Tensor& matmul_data,
+                                                                const ov::Tensor& beam_idx_data,
+                                                                const ov::Shape& beam_idx_shape,
+                                                                const std::optional<kv_cache_reorder_state>& reorder_state) {
             auto input0 = ref_model->get_parameters().at(0);
             auto input1 = ref_model->get_parameters().at(1);
             auto input2 = ref_model->get_parameters().at(2);
             auto input3 = fuse_cache_reorder ? ref_model->get_parameters().at(3) : nullptr;
-            auto input4 = reorder_params ? ref_model->get_parameters().at(4) : nullptr;
-            auto input5 = reorder_params ? ref_model->get_parameters().at(5) : nullptr;
-            auto input6 = reorder_params ? ref_model->get_parameters().at(6) : nullptr;
+            auto input4 = reorder_state ? ref_model->get_parameters().at(4) : nullptr;
+            auto input5 = reorder_state ? ref_model->get_parameters().at(5) : nullptr;
+            auto input6 = reorder_state ? ref_model->get_parameters().at(6) : nullptr;
             std::map<ov::Output<ov::Node>, ov::PartialShape> input_shapes = {
                 {input0, kv_cache.get_shape()},
                 {input1, new_token_data.get_shape()},
@@ -370,13 +431,13 @@ class KVCacheTests: public ::testing::Test {
                 input_shapes[input3] = beam_idx_shape;
                 inputs.emplace(input3, beam_idx_data);
             }
-            if (reorder_params) {
-                input_shapes[input4] = unit_shape;
-                inputs.emplace(input4, seq_len_tensor);
-                input_shapes[input5] = src_shape;
-                inputs.emplace(input5, src_idx_tensor);
-                input_shapes[input6] = dst_shape;
-                inputs.emplace(input6, dst_idx_tensor);
+            if (reorder_state) {
+                input_shapes[input4] = reorder_state->seq_len_shape;
+                inputs.emplace(input4, reorder_state->seq_len);
+                input_shapes[input5] = reorder_state->src_shape;
+                inputs.emplace(input5, reorder_state->src_idx);
+                input_shapes[input6] = reorder_state->dst_shape;
+                inputs.emplace(input6, reorder_state->dst_idx);
             }
             ref_model->reshape(input_shapes);
             return ov::test::utils::infer_on_template(ref_model, inputs);
@@ -403,14 +464,17 @@ class KVCacheTests: public ::testing::Test {
         auto matmul_out = infer_request.get_tensor(output0);
         auto new_token_input = infer_request.get_tensor(input0);
         auto matmul_input = infer_request.get_tensor(input1);
+        if (reorder_state) {
+            reorder_state->seq_len = infer_request.get_tensor(input3);
+            reorder_state->src_idx = infer_request.get_tensor(input4);
+            reorder_state->dst_idx = infer_request.get_tensor(input5);
+            infer_request.set_tensor(input3, reorder_state->seq_len);
+            infer_request.set_tensor(input4, reorder_state->src_idx);
+            infer_request.set_tensor(input5, reorder_state->dst_idx);
+        }
 
         infer_request.set_tensor(input0, new_token_input);
         infer_request.set_tensor(input1, matmul_input);
-        if (reorder_params) {
-            infer_request.set_tensor(input3, seq_len_tensor);
-            infer_request.set_tensor(input4, src_idx_tensor);
-            infer_request.set_tensor(input5, dst_idx_tensor);
-        }
 
         for (size_t num_repeats = 0; num_repeats < 2; num_repeats++) {
             ov::Tensor ref_kv_cache;
@@ -441,9 +505,13 @@ class KVCacheTests: public ::testing::Test {
                     infer_request.set_tensor(input2, init_beam_idx_data_0);
                 }
 
+                if (reorder_state) {
+                    cache_size = reorder_state->update(cache_size);
+                }
+
                 ref_kv_cache = ov::Tensor(element_type, kv_cache_size_initial);
 
-                auto ref_results = get_ref_results(ref_kv_cache, new_token_data, matmul_data, init_beam_idx_data_0, init_beam_idx_shape);
+                auto ref_results = get_ref_results(ref_kv_cache, new_token_data, matmul_data, init_beam_idx_data_0, init_beam_idx_shape, reorder_state);
                 ref_kv_cache = ref_results[0];
 
                 infer_request.infer();
@@ -471,16 +539,20 @@ class KVCacheTests: public ::testing::Test {
 
             const size_t input_tokens = 1;
             const ov::Shape new_token_size = {batch, input_tokens, n_heads / num_groups, n_features};
-            size_t context_length = cache_size + input_tokens;
-            for (size_t i = 0; i < num_iter; i++, context_length += input_tokens) {
-                ov::Shape matmul_in_size_loop = {batch, n_heads, input_tokens, reorder_params ? reorder_params->trim_seq + input_tokens : context_length};
+            for (size_t i = 0; i < num_iter; i++) {
+                if (reorder_state) {
+                    cache_size = reorder_state->update(cache_size);
+                }
+                size_t context_length = cache_size + input_tokens;
+                ov::Shape matmul_in_size_loop = {batch, n_heads, input_tokens, context_length};
                 auto new_token_data = ov::test::utils::create_and_fill_tensor(element_type, new_token_size);
                 auto matmul_data = ov::test::utils::create_and_fill_tensor(element_type, matmul_in_size_loop);
                 size_t beam_idx_array_idx = i == 0 ? 2 : i % 2;
                 if (fuse_cache_reorder) {
                     infer_request.set_tensor(input2, beam_idx_data_array[beam_idx_array_idx]);
                 }
-                auto ref_results = get_ref_results(ref_kv_cache, new_token_data, matmul_data, beam_idx_data_array[beam_idx_array_idx], beam_idx_shape);
+                auto ref_results =
+                    get_ref_results(ref_kv_cache, new_token_data, matmul_data, beam_idx_data_array[beam_idx_array_idx], beam_idx_shape, reorder_state);
                 ref_kv_cache = ref_results[0];
 
                 new_token_input.set_shape(new_token_data.get_shape());
@@ -499,6 +571,8 @@ class KVCacheTests: public ::testing::Test {
                     auto state_1 = infer_request.query_state()[0].get_state();
                     compare_tensors({ ref_kv_cache }, {state_1});
                 }
+
+                cache_size = context_length;
             }
 
             auto state = infer_request.query_state()[0].get_state();
@@ -570,8 +644,9 @@ TEST_F(KVCacheTests, smoke_multipleIterations_stateful_with_set_state) {
 }
 
 TEST_F(KVCacheTests, smoke_multipleIterations_stateful_trim_reorder) {
-    ov::test::utils::kv_cache_reorder_params params;
-    params.trim_seq = 15;
+    kv_cache_reorder_params params;
+    params.trigger_len = 15;
+    params.trim_seq = 14;
     params.src_idx = {12, 13, 14};
     params.dst_idx = {10, 11, 12};
     this->test_smoke_multipleIterations_stateful(false, true, true, 1, 2, ov::element::f16, 1, 1, true, 1, &params);

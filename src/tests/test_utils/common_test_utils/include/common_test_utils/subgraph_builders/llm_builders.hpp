@@ -117,18 +117,6 @@ ov::ParameterVector form_sdpa_params(ov::Dimension batch,
                                      size_t num_groups);
 
 /**
- * @brief Additional LLM KV cache reordering parameter
- */
-struct kv_cache_reorder_params {
-    /// \param Length to where the sequence is trimmed
-    int32_t trim_seq = 0;
-    /// \param Source indices for reorder
-    std::vector<int32_t> src_idx;
-    /// \param Destination indices for reorder
-    std::vector<int32_t> dst_idx;
-};
-
-/**
  * @brief Creates an LLM KV cache pattern model
  * @param batch Batch dimension
  * @param n_heads Number of heads dimension
@@ -139,7 +127,7 @@ struct kv_cache_reorder_params {
  * @param fuse_cache_reorder Whether to fuse cache reorder
  * @param build_state_initializer Whether to build state initializer
  * @param num_groups Number of groups for GQA
- * @param reorder_params AParams for additional LLM KV cache reordering
+ * @param kv_cache_reorder Whether to do additional LLM KV cache reordering
  * @return Shared pointer to the created model
  */
 std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch = ov::Dimension::dynamic(),
@@ -151,7 +139,7 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch = ov::D
                                                      bool fuse_cache_reorder = false,
                                                      bool build_state_initializer = false,
                                                      size_t num_groups = 1,
-                                                     const kv_cache_reorder_params* reorder_params = nullptr);
+                                                     bool kv_cache_reorder = false);
 
 /**
  * @brief Creates an LLM KV cache pattern with Scaled Dot Product Attention (SDPA)
