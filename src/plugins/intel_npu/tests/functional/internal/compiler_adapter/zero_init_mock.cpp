@@ -12,6 +12,11 @@
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace {
+    
+constexpr uint32_t TARGET_ZE_DRIVER_NPU_EXT_VERSION = ZE_DRIVER_NPU_EXT_VERSION_1_0;
+constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION = ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_1;
+constexpr uint32_t TARGET_ZE_PROFILING_NPU_EXT_VERSION = ZE_PROFILING_DATA_EXT_VERSION_1_0;
+constexpr uint32_t TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION = ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1;
 
 constexpr uint32_t TARGET_ZE_DRIVER_NPU_EXT_VERSION = ZE_DRIVER_NPU_EXT_VERSION_1_0;
 constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION = ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_1;
@@ -62,6 +67,7 @@ void ZeroInitStructsMock::initNpuDriver() {
         _log.debug("ZeroInitStructsHolder::initNpuDriver - get NPU driver");
         for (uint32_t i = 0; i < drivers_count; ++i) {
             zeDriverGetProperties(all_drivers[i], &_driver_properties);
+
             if (memcmp(&_driver_properties.uuid, &uuid, sizeof(uuid)) == 0) {
                 _driver_handle = all_drivers[i];
                 break;
@@ -261,7 +267,7 @@ ZeroInitStructsMock::ZeroInitStructsMock(int extVersion)
                ZE_MAJOR_VERSION(command_queue_ext_version),
                ZE_MINOR_VERSION(command_queue_ext_version));
 
-    // Load our command queue extension
+    // Load npu command queue extension
     ze_command_queue_npu_dditable_ext_t* _command_queue_npu_dditable_ext = nullptr;
     if (command_queue_ext_version) {
         getExtensionFunctionAddress(command_queue_ext_name,
@@ -297,7 +303,7 @@ ZeroInitStructsMock::ZeroInitStructsMock(int extVersion)
                                 profiling_ext_version,
                                 reinterpret_cast<void**>(&_graph_profiling_ddi_table_ext));
 
-    graph_profiling_npu_dditable_ext_decorator =
+    _graph_profiling_npu_dditable_ext_decorator =
         std::make_unique<ze_graph_profiling_dditable_ext_decorator>(_graph_profiling_ddi_table_ext);
 
     uint32_t device_count = 1;
