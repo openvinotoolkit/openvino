@@ -81,7 +81,7 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
   * **Required**: *yes*
   * **Supported values**:
    
-     * ``GEMM2_BIAS_SWIGLU_CLAMP``: Two GEMMs with bias, SwiGLU activation, and clamp.
+    * ``GEMM2_BIAS_SWIGLU_CLAMP``: Two GEMMs with bias, SwiGLU activation, and clamp.
     * ``GEMM3_SWIGLU``: Three GEMMs with SwiGLU activation.
 
 * *expert_alpha*
