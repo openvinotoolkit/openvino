@@ -164,7 +164,7 @@ The `-s` flag disables output capturing, making debugging easier.
 ### 4. Start Debugging
 
 1. Open the C++ file where you want to set a breakpoint
-2. Click in the <> next to the line number to set a breakpoint
+2. Click in the left margin next to the line number to set a breakpoint
 3. Press `F5` or click "Run → Start Debugging"
 4. Select "Python API Debug" configuration
 5. The debugger will start Python, load the bindings, and stop at your C++ breakpoint
