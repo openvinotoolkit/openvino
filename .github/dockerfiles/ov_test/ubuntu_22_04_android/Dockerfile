@@ -49,27 +49,27 @@ ENV ANDROID_SDK_ROOT="$ANDROID_HOME"
 ENV PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/cmdline-tools/bootstrap/bin:$ANDROID_HOME/platform-tools:$PATH"
 
 # Android configuration
-ENV ANDROID_API_LEVEL=29
+ENV ANDROID_API_LEVEL=30
 ENV ANDROID_TARGET="google_apis"
 ENV ANDROID_ARCH="x86_64"
 
 RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
     cd /tmp && \
-    wget -q https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
-    unzip -q commandlinetools-linux-7583922_latest.zip && \
-    # place as a bootstrap toolset; then we install "cmdline-tools;latest" via sdkmanager
-    mv cmdline-tools ${ANDROID_HOME}/cmdline-tools/bootstrap && \
-    rm -f commandlinetools-linux-7583922_latest.zip && \
+    wget -q https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip && \
+    unzip -q commandlinetools-linux-12266719_latest.zip && \
+    mv cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest && \
+    rm -f commandlinetools-linux-12266719_latest.zip && \
     mkdir -p /root/.android && touch /root/.android/repositories.cfg
 
 # Accept Android licenses and install SDK components
 RUN yes | sdkmanager --sdk_root=${ANDROID_HOME} --licenses && \
     sdkmanager --sdk_root=${ANDROID_HOME} \
-        "cmdline-tools;latest" \
+        "cmdline-tools;16.0" \
         "platform-tools" \
         "platforms;android-${ANDROID_API_LEVEL}" \
         "system-images;android-${ANDROID_API_LEVEL};${ANDROID_TARGET};${ANDROID_ARCH}" \
-        "emulator"
+        "emulator" && \
+        ${ANDROID_HOME}/cmdline-tools/16.0/bin/sdkmanager tools
 
 # Install additional tools for emulator
 RUN apt update && \
@@ -95,3 +95,11 @@ udevadm control --reload-rules\n\
 udevadm trigger --name-match=kvm\n\
 ' > /usr/local/bin/setup-kvm.sh && \
     chmod +x /usr/local/bin/setup-kvm.sh
+
+# Populate Hosted Tools cache with JDK version requested in the workflow
+ENV RUNNER_TOOL_CACHE=/opt/hostedtoolcache
+RUN mkdir -p $RUNNER_TOOL_CACHE/Java_Temurin-Hotspot_jdk/17.0.17-10/x64 && \
+    cd $RUNNER_TOOL_CACHE/Java_Temurin-Hotspot_jdk/17.0.17-10/x64 && \
+    wget -q https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.17%2B10/OpenJDK17U-jdk_x64_linux_hotspot_17.0.17_10.tar.gz && \
+    tar -xzf OpenJDK17U-jdk_x64_linux_hotspot_17.0.17_10.tar.gz --strip-components=1 && \
+    rm OpenJDK17U-jdk_x64_linux_hotspot_17.0.17_10.tar.gz
