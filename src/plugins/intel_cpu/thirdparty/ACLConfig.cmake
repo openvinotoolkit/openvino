@@ -79,13 +79,14 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
         # Configure ComputeLibrary build
         set(ARM_COMPUTE_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
         set(ARM_COMPUTE_GRAPH_ENABLED OFF CACHE BOOL "" FORCE)
-        set(OPENMP OFF CACHE BOOL "" FORCE)
-        set(CPPTHREADS OFF CACHE BOOL "" FORCE)
+        set(ARM_COMPUTE_ENABLE_OPENMP OFF CACHE BOOL "" FORCE)
+        set(ARM_COMPUTE_ENABLE_CPPTHREADS OFF CACHE BOOL "" FORCE)
 
         # SVE is not supported on Darwin
-        if(CMAKE_HOST_APPLE)
+        if(APPLE)
             set(ENABLE_SVE OFF CACHE BOOL "" FORCE)
             set(ARM_COMPUTE_ENABLE_SVE OFF CACHE BOOL "" FORCE)
+            set(ARM_COMPUTE_ENABLE_SVE2 OFF CACHE BOOL "" FORCE)
             set(ARM_COMPUTE_ENABLE_SVEF32MM OFF CACHE BOOL "" FORCE)
         endif()
 
