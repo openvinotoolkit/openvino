@@ -3020,10 +3020,7 @@ TEST_F(TransformationTestsF, ConvertPrecision_Slice_Clamp) {
                                                                std::numeric_limits<int32_t>::max());
         auto steps_convert = std::make_shared<ov::op::v0::Convert>(steps_clamp, element::i32);
 
-        auto axes_clamp = std::make_shared<ov::op::v0::Clamp>(axes_param,
-                                                              std::numeric_limits<int32_t>::lowest(),
-                                                              std::numeric_limits<int32_t>::max());
-        auto axes_convert = std::make_shared<ov::op::v0::Convert>(axes_clamp, element::i32);
+        auto axes_convert = std::make_shared<ov::op::v0::Convert>(axes_param, element::i32);
 
         auto slice =
             std::make_shared<ov::op::v8::Slice>(data_param, starts_convert, ends_convert, steps_convert, axes_convert);
