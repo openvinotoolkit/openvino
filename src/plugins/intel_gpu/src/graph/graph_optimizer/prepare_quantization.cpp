@@ -322,8 +322,21 @@ void prepare_quantization::handle_quantize_node(program& p, quantize_node& quant
         return;
 
     auto l = quantize_node.get_primitive()->levels;
-    if (l > 2 && l <= 65536 && !quantize_node.get_scale_shift_opt()) {
+    if (l > 2 && l <= 256 && !quantize_node.get_scale_shift_opt()) {
         prepare_scale_shift_opt(p, quantize_node);
+    }
+    else if (256 < l  && l <= 65536) {
+        auto& input_node = quantize_node.get_dependency(0);
+        auto input_layout = input_node.get_output_layout();
+        auto input_element_type = input_layout.data_type;
+        // Example: check if input is u8 or i8
+        bool input_8bit = false;
+        if (input_element_type == data_types::u8 || input_element_type == data_types::i8) {
+            input_8bit = true;
+        }
+        if (l > 2 && l <= 65536 && !quantize_node.get_scale_shift_opt() && input_8bit) {
+            prepare_scale_shift_opt(p, quantize_node);
+        }
     }
 }
 
