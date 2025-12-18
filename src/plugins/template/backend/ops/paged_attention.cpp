@@ -5,6 +5,7 @@
 #include "openvino/reference/paged_attention.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/reference/utils/paged_cache_manager.hpp"
 

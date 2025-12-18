@@ -13,25 +13,25 @@
 
 #include "openvino/reference/convert.hpp"
 
-inline void* ov::reference::paged_attention_cache::PagedCacheManager::get_key_base() const noexcept {
+void* ov::reference::paged_attention_cache::PagedCacheManager::get_key_base() const noexcept {
     return get_cache_blocks().key_base;
 }
-inline void* ov::reference::paged_attention_cache::PagedCacheManager::get_value_base() const noexcept {
+void* ov::reference::paged_attention_cache::PagedCacheManager::get_value_base() const noexcept {
     return get_cache_blocks().value_base;
 }
-inline std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_total_bytes() const noexcept {
+std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_total_bytes() const noexcept {
     return m_total_bytes;
 }
-inline ov::element::Typeov::reference::paged_attention_cache::PagedCacheManager::get_element_type() const noexcept {
+ov::element::Type ov::reference::paged_attention_cache::PagedCacheManager::get_element_type() const noexcept {
     return m_elem_type;
 }
-inline std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_num_blocks() noexcept {
+std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_num_blocks() noexcept {
     return m_num_blocks;
 }
-inline std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_block_size() noexcept {
+std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_block_size() noexcept {
     return m_block_size;
 }
-inline std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_block_bytes() noexcept {
+std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_block_bytes() noexcept {
     return m_block_bytes;
 }
 

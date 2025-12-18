@@ -215,12 +215,12 @@ std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const o
 }
 
 const ov::element::Type PagedAttentionExtension::get_out_type(int index) const {
-    OPENVINO_ASSERT(index < 2, "Output index should be 0 or 1, but got " + std::to_string(index));
+    OPENVINO_ASSERT(index < 3, "Output index should be 0, 1 or 2, but got " + std::to_string(index));
     return m_output_type[index];
 }
 
 void PagedAttentionExtension::set_out_type(int index, const ov::element::Type& output_type) {
-    OPENVINO_ASSERT(index < 2, "Output index should be 0 or 1, but got " + std::to_string(index));
+    OPENVINO_ASSERT(index < 3, "Output index should be 0, 1 or 2, but got " + std::to_string(index));
     m_output_type[index] = output_type;
 }
 

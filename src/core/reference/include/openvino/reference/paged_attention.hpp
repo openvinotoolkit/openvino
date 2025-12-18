@@ -186,7 +186,7 @@ struct cache_manager_adapter {
 
     inferred_layout infer_layout_from_shapes(const ov::Shape& q, const ov::Shape& k, const ov::Shape& v) const {
         inferred_layout L{};
-        const size_t qf = static_cast<size_t>(q[1], ) kf = static_cast<size_t>(k[1], ) vf = static_cast<size_t>(v[1]);
+        const size_t qf = static_cast<size_t>(q[1]), kf = static_cast<size_t>(k[1]), vf = static_cast<size_t>(v[1]);
         size_t g = gcd_size_t(qf, gcd_size_t(kf, vf));
         size_t best_h = 1;
         for (size_t h = 1; h <= g; ++h)
@@ -423,7 +423,7 @@ void paged_attention(const size_t node_id,
 
             const int32_t keep_from = (ctx.sliding_window > 0) ? std::max<int32_t>(0, total - ctx.sliding_window) : 0;
 
-            std::vector<T> scores(static_cast<size_t>(total, ) T(0));
+            std::vector<T> scores(static_cast<size_t>(total), T(0));
 
             for (int32_t k = 0; k < total; ++k) {
                 if (ctx.sliding_window > 0 && k < keep_from) {

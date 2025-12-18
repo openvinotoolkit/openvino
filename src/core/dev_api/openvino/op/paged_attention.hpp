@@ -7,12 +7,12 @@
 #include "openvino/op/op.hpp"
 
 namespace ov {
-namespace op {
 
 namespace reference::paged_attention_cache {
 class PagedCacheManager;
 }  // namespace reference::paged_attention_cache
 
+namespace op {
 /// \brief PagedAttentionExtension operation implements paged attention for memory-efficient sequence processing.
 ///
 /// \ingroup ov_ops_cpp_api
@@ -95,7 +95,7 @@ public:
     /// \param rotated_block_indices (Optional) Rotated block indices.
     /// \param rotation_deltas       (Optional) Rotation deltas.
     /// \param rotation_trig_lut     (Optional) Rotation trig lookup table.
-    PagedAttentionExtension(const Output<Node>& query,
+    PagedAttentionExtension(const ov::Output<Node>& query,
                             const Output<Node>& key,
                             const Output<Node>& value,
                             const Output<Node>& key_cache,
