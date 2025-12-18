@@ -62,8 +62,18 @@ int main(int argc, char** argv, char** envp) {
     auto blobPaths = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH;
     if (blobPaths.empty()) {
         auto path = std::string_view(argv[0]);
-        size_t pos =
-            path.find_last_of('\\') != std::string_view::npos ? path.find_last_of('\\') : path.find_last_of('/');
+        const char slashDelimiter = '/';
+        const char backSlashDelimiter = '\\';
+        size_t pos = std::string::npos;
+        size_t lastSlashDelim = path.find_last_of(slashDelimiter);
+        size_t lastBackSlashDelim = path.find_last_of(backSlashDelimiter);
+        if (lastSlashDelim != std::string::npos && lastBackSlashDelim != std::string::npos) {
+            pos = std::max(lastSlashDelim, lastBackSlashDelim);
+        } else {
+            pos = path.find_last_of(backSlashDelimiter) != std::string_view::npos
+                      ? path.find_last_of(backSlashDelimiter)
+                      : path.find_last_of(slashDelimiter);
+        }
         ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH =
             pos != std::string_view::npos ? path.substr(0, pos + 1) : "";
         ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH += "intel_npu_blobs/";

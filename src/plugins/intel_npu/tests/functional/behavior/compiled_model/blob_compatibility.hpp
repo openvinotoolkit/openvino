@@ -118,13 +118,20 @@ TEST_P(OVBlobCompatibilityNPU, CanImportAllPrecompiledBlobsForAllOVVersionsAndDr
 }
 
 TEST_P(compatibility_OVBlobCompatibilityNPU_PV_Driver_No_Throw, CanImportExpectedModelsForPVDriverAndAllOVVersions) {
+    size_t mtlPlatformPos = std::string::npos;
     const char slashDelimiter = '/';
     const char backSlashDelimiter = '\\';
-    auto mtlPlatformPos = blobPath.find(slashDelimiter) != std::string::npos
-                              ? blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL), blobPath.rfind(slashDelimiter))
-                          : blobPath.find(backSlashDelimiter) != std::string::npos
-                              ? blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL), blobPath.rfind(backSlashDelimiter))
-                              : blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL));
+    size_t lastSlashDelim = blobPath.find_last_of(slashDelimiter);
+    size_t lastBackSlashDelim = blobPath.find_last_of(backSlashDelimiter);
+    if (lastSlashDelim != std::string::npos && lastBackSlashDelim != std::string::npos) {
+        mtlPlatformPos = blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL), std::max(lastSlashDelim, lastBackSlashDelim));
+    } else {
+        mtlPlatformPos = blobPath.find(slashDelimiter) != std::string::npos
+                             ? blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL), blobPath.rfind(slashDelimiter))
+                         : blobPath.find(backSlashDelimiter) != std::string::npos
+                             ? blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL), blobPath.rfind(backSlashDelimiter))
+                             : blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL));
+    }
     if (mtlPlatformPos == std::string::npos) {
         GTEST_SKIP() << "PV driver blob tests designed for NPU3720";
     }
