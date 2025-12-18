@@ -274,13 +274,14 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(SerializedIR seri
                                                                const std::string& buildFlags) const {
     ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
 
-    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_2,
-                              nullptr,
-                              ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                              serializedIR.first,
-                              serializedIR.second.get(),
-                              buildFlags.c_str(),
-                              ZE_GRAPH_FLAG_NONE};
+    ze_graph_desc_2_t desc = {
+        _graphExtVersion < ZE_MAKE_VERSION(1, 16) ? ZE_STRUCTURE_TYPE_GRAPH_DESC : ZE_STRUCTURE_TYPE_GRAPH_DESC_2,
+        nullptr,
+        ZE_GRAPH_FORMAT_NGRAPH_LITE,
+        serializedIR.first,
+        serializedIR.second.get(),
+        buildFlags.c_str(),
+        ZE_GRAPH_FLAG_NONE};
 
     _logger.debug("queryGraph - perform pfnQueryNetworkCreate2");
     auto result = _zeroInitStruct->getGraphDdiTable().pfnQueryNetworkCreate2(_zeroInitStruct->getContext(),
