@@ -226,9 +226,7 @@ std::ostream& operator<<(std::ostream& out, const Type& obj) {
 std::istream& operator>>(std::istream& in, Type& obj) {
     std::string str;
     in >> str;
-    if (const auto type_idx = type_idx_for(str); is_valid_type_idx(type_idx)) {
-        obj = {static_cast<Type_t>(type_idx)};
-    }
+    obj = Type(str);
     return in;
 }
 

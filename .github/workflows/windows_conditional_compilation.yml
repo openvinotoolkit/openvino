@@ -10,6 +10,11 @@ on:
     # run daily at 00:00
     - cron: '0 0 * * *'
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   merge_group:
   push:
     branches:
@@ -30,6 +35,7 @@ env:
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
@@ -114,20 +120,6 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
-      - name: Download and install ccache
-        run: |
-          Invoke-WebRequest -Uri 'https://github.com/ccache/ccache/releases/download/v4.9.1/ccache-4.9.1-windows-x86_64.zip' -OutFile 'ccache.zip'
-          Expand-Archive -Path 'ccache.zip' -DestinationPath 'C:\temp\ccache'
-          Move-Item -Path 'C:\temp\ccache\*' -Destination 'C:\ccache'
-          Add-Content -Path $env:GITHUB_PATH -Value "C:\ccache"
-
-      - name: Install build dependencies
-        run: |
-          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip -OutFile ninja-win.zip -MaximumRetryCount 10
-          Expand-Archive -Force ninja-win.zip
-          # Add it to the GitHub Path so it would be available in the subsequent steps
-          Add-Content -Path $env:GITHUB_PATH -Value "${{ github.workspace }}/ninja-win"
-
       - name: Install python dependencies
         run: |
           # For running ONNX frontend unit tests
@@ -169,29 +161,31 @@ jobs:
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
+      # If the build fails due to running out of RAM, lower the number of link jobs
       - name: CMake configure - CC COLLECT
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
             -DBUILD_SHARED_LIBS=OFF `
             -DCMAKE_CXX_STANDARD=20 `
             -DENABLE_TESTS=ON `
-            -DENABLE_CPPLINT=OFF `
             -DENABLE_NCC_STYLE=OFF `
             -DENABLE_PROFILING_ITT=FULL `
             -DSELECTIVE_BUILD=COLLECT `
             -DENABLE_UNITY_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+            -DCMAKE_JOB_POOLS:STRING=link_jobs=20 `
+            -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
+            -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
 
-      # If the build fails due to running out of RAM, please decrease the number of parallel jobs (--parallel n)
       - name: Cmake build - CC COLLECT
         run: |
-          cmake --build ${{ env.BUILD_DIR }} --parallel 16 --config ${{ env.CMAKE_BUILD_TYPE }} && `
-          cmake --build ${{ env.BUILD_DIR }} --parallel 16 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} && `
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
 
       - name: Show ccache stats
         run: '& ccache --show-stats'
@@ -323,7 +317,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-32-cores-128gb-build
+    runs-on: aks-win-16-cores-32gb-build
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_TOOLCHAIN_FILE: "${{ github.workspace }}\\openvino\\cmake\\toolchains\\onecoreuap.toolchain.cmake"
@@ -370,7 +364,6 @@ jobs:
         run: |
           cmake `
             -DBUILD_SHARED_LIBS=OFF `
-            -DENABLE_CPPLINT=OFF `
             -DSELECTIVE_BUILD=ON `
             -DENABLE_TEMPLATE=OFF `
             -DENABLE_INTEL_GPU=OFF `

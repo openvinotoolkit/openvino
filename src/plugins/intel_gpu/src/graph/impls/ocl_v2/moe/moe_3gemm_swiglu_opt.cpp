@@ -1121,7 +1121,7 @@ public:
                                 n_token,
                                 convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
                                 convert2dnnl(scratch.y, {static_cast<int>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.routing_weights, {n_token * max_topk}, dnnl::memory::format_tag::a));
+                                convert2dnnl(scratch.routing_weights, {static_cast<int>(n_token * max_topk)}, dnnl::memory::format_tag::a));
             // index_add
             result_event = execute_stage({result_event},
                                          instance,

@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "intel_npu/network_metadata.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
@@ -45,8 +44,6 @@ public:
 
     virtual void update_network_name(std::string_view name) = 0;
 
-    virtual const std::vector<ArgumentDescriptor>& get_input_descriptors() const = 0;
-    virtual const std::vector<ArgumentDescriptor>& get_output_descriptors() const = 0;
     virtual const std::shared_ptr<CommandQueue>& get_command_queue() const = 0;
     virtual uint32_t get_command_queue_group_ordinal() const = 0;
 
@@ -54,6 +51,10 @@ public:
 
     std::mutex& get_mutex() {
         return _mutex;
+    }
+
+    bool init_completed() {
+        return _init_completed;
     }
 
     virtual void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) = 0;
@@ -71,6 +72,7 @@ protected:
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
     // first inference starts running
     std::mutex _mutex;
+    bool _init_completed = false;
 };
 
 }  // namespace intel_npu

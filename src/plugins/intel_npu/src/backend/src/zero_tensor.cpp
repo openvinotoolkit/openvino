@@ -100,6 +100,14 @@ void* ZeroTensor::data(const ov::element::Type& type) {
     return data();
 }
 
+void* ZeroTensor::data_rw() {
+    return data();
+}
+
+void* ZeroTensor::data_rw(const ov::element::Type& type) {
+    return data(type);
+}
+
 const void* ZeroTensor::data() const {
     return _ptr;
 }
@@ -202,6 +210,10 @@ void ZeroTensor::prevent_reuse() {
 
 bool ZeroTensor::can_be_reused() {
     return _can_be_reused;
+}
+
+ZeroTensor::~ZeroTensor() {
+    _mem_ref = nullptr;  // Ensure that zero memory is destroyed before the user tensor is released
 }
 
 }  // namespace intel_npu

@@ -22,6 +22,8 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -96,8 +98,10 @@ bool pass::FuseBrgemmCPUPostops::run_on_model(const std::shared_ptr<ov::Model>& 
 }
 
 bool pass::FuseBrgemmCPUPostops::can_be_fused_as_postop(const std::shared_ptr<const ov::Node>& node) {
+    // Note: some ops should be checked separately since they will be converted/decomposed at the later pipeline stages
+    const bool is_special_case = ov::is_type_any_of<ov::op::v0::FakeQuantize, ov::op::v0::Convert>(node);
     return pass::FuseUnaryEltwise::can_be_fused(node) || pass::FuseScalarEltwise::can_be_fused(node) ||
-           pass::FuseBinaryEltwise::can_be_fused(node);
+           pass::FuseBinaryEltwise::can_be_fused(node) || is_special_case;
 }
 
 pass::FuseConvert::FuseConvert() {

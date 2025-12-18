@@ -6,7 +6,7 @@ import openvino as ov
 from ov_custom_op import Identity
 
 #! [py_frontend_extension_ThresholdedReLU_header]
-import openvino.runtime.opset14 as ops
+import openvino.opset14 as ops
 from openvino.frontend import ConversionExtension
 #! [py_frontend_extension_ThresholdedReLU_header]
 
