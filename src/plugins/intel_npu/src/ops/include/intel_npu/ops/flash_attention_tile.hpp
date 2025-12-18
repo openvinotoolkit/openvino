@@ -9,7 +9,7 @@
 namespace ov::intel_npu::op {
 
 /// \brief Operation for FlashAttention implementation of SDPA
-class OPENVINO_API FlashAttentionTile : public ::ov::op::Op {
+class FlashAttentionTile : public ::ov::op::Op {
 public:
     OPENVINO_OP("FlashAttentionTile", "intel_npu", Op);
 
