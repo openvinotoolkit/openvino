@@ -141,11 +141,6 @@ void ZeroInitStructsHolder::initNpuDriver() {
             return;
         }
 
-        ze_driver_properties_npu_ext_t driver_npu_properties = {};
-        driver_npu_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES_NPU_EXT;
-        driver_npu_properties.options = ZE_NPU_DRIVER_OPTION_INTEGRITY_CHECKS;
-        desc.pNext = &driver_npu_properties;
-
         std::vector<ze_driver_handle_t> all_drivers(drivers_count);
         result = zeInitDrivers(&drivers_count, all_drivers.data(), &desc);
         if (result != ZE_RESULT_SUCCESS) {
