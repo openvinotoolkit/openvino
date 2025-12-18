@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <cmath>
-#include <cmath>
-#include <vector>
 #include <algorithm>
+#include <cmath>
 #include <execution>
+#include <vector>
 
 #include "openvino/core/shape_util.hpp"
 #include "openvino/reference/reduce_max.hpp"
