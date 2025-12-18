@@ -35,7 +35,7 @@ The OpenVINO Python API is a thin wrapper around C++ implementation. When you ca
 1. Python code calls the method
 2. pybind11 directs the call to C++
 3. C++ implementation in `ov::Tensor::get_size()` executes
-4. Result is marshaled back to Python
+4. Result is directed back to Python
 
 To debug this, we need to:
 - Start Python as the main process
