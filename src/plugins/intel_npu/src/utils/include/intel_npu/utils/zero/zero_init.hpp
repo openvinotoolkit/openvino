@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <ze_api.h>
-#include <ze_command_queue_npu_ext.h>
-#include <ze_graph_ext.h>
 #include <ze_intel_npu_uuid.h>
 
 #include <memory>
@@ -16,7 +13,6 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace intel_npu {
 /**
