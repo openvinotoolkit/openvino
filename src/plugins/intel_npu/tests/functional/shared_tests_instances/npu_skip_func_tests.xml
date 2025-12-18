@@ -791,17 +791,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- C#165445 -->
-    <skip_config>
-        <message>PV driver blob tests designed for NPU3720</message>
-        <enable_rules>
-            <device>!3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*compatibility_OVBlobCompatibilityNPU_PV_Driver_No_Throw.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#170977 -->
     <skip_config>
         <message>Data type u1/u2 not supported by NPU3720.</message>

@@ -118,6 +118,16 @@ TEST_P(OVBlobCompatibilityNPU, CanImportAllPrecompiledBlobsForAllOVVersionsAndDr
 }
 
 TEST_P(compatibility_OVBlobCompatibilityNPU_PV_Driver_No_Throw, CanImportExpectedModelsForPVDriverAndAllOVVersions) {
+    const char slashDelimiter = '/';
+    const char backSlashDelimiter = '\\';
+    auto mtlPlatformPos = blobPath.find(slashDelimiter) != std::string::npos
+                              ? blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL), blobPath.rfind(slashDelimiter))
+                          : blobPath.find(backSlashDelimiter) != std::string::npos
+                              ? blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL), blobPath.rfind(backSlashDelimiter))
+                              : blobPath.find(PLATFORMS.at(E_PLATFORMS::MTL));
+    if (mtlPlatformPos == std::string::npos) {
+        GTEST_SKIP() << "PV driver blob tests designed for NPU3720";
+    }
     DEFAULT_TEST_BODY(OV_ASSERT_NO_THROW);
 }
 
