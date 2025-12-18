@@ -84,4 +84,17 @@ OPENVINO_RUNTIME_API ov::Tensor make_tensor(const ov::SoPtr<ITensor>& tensor);
  */
 OPENVINO_RUNTIME_API ov::SoPtr<ov::ITensor> get_tensor_impl(const ov::Tensor& tensor);
 
+/**
+ * @brief Returns the byte offset of the tensor's data pointer from the base memory allocation
+ *
+ * @details This function is useful for ROI (Region of Interest) tensors that share memory with a parent tensor
+ * but start at a different position within that memory.
+ *
+ * @param tensor Tensor implementation to get the offset from.
+ *
+ * @return The offset in bytes from the base memory pointer. Returns 0 if the tensor starts at the
+ *         beginning of its memory allocation or if no offset is applicable.
+ */
+OPENVINO_RUNTIME_API size_t get_tensor_data_offset(const ov::ITensor& tensor);
+
 }  // namespace ov

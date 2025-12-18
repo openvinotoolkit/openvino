@@ -555,7 +555,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         [](const_node_ptr& node) -> bool {
             const auto consumers = node->get_output_target_inputs(0);
             return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
-                return !ov::is_type<ov::op::v0::MatMul>(consumer.get_node());
+                // @todo cover RNN type of ops as well
+                return !is_type_any_of<ov::op::v0::MatMul,
+                                       ov::op::v1::Convolution,
+                                       ov::op::v1::GroupConvolution,
+                                       ov::op::v1::ConvolutionBackpropData,
+                                       ov::op::v1::GroupConvolutionBackpropData>(consumer.get_node());
             });
         },
         ov::pass::KeepConstAndDecompression);

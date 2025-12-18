@@ -103,8 +103,8 @@ public:
                                                const bool alternativeWeights = false) {
         constexpr auto precision = element::f32;
 
-        const float weightsValue = !alternativeWeights ? 1.0f : 2.0f;
-        auto weights = std::make_shared<op::v0::Constant>(element::f32, Shape{5}, std::vector<float>{weightsValue});
+        const uint8_t weightsValue = !alternativeWeights ? 1 : 2;
+        auto weights = std::make_shared<op::v0::Constant>(precision, Shape{50000}, std::vector<uint8_t>{weightsValue});
         auto input = std::make_shared<op::v0::Parameter>(precision, Shape{1});
         auto add = std::make_shared<op::v1::Add>(input, weights);
 
@@ -120,6 +120,29 @@ public:
         auto model = std::make_shared<Model>(OutputVector{add}, ParameterVector{input}, "Simple with weights");
         ov::util::set_tensors_names(AUTO, *model, {}, {{0, {"add"}}});
         return model;
+    }
+
+    /**
+     * @brief This model was fine-tuned in order to compile fast and yield a light init schedule.
+     */
+    std::shared_ptr<ov::Model> createTestModelLightInitSchedule() {
+        ov::ParameterVector parameter_vector;
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1});
+        parameter_vector.push_back(data);
+        auto add_constant = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{50}, {0.5});
+        auto add = std::make_shared<ov::op::v1::Add>(data, add_constant);
+
+        for (int i = 0; i < 10; i++) {
+            auto intermediate_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1});
+            parameter_vector.push_back(intermediate_input);
+            add_constant = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{10, 10, 20, 50}, {i});
+            add_constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                ov::WeightlessCacheAttribute(add_constant->get_byte_size(), i, add_constant->get_element_type());
+            add = std::make_shared<ov::op::v1::Add>(add, intermediate_input);
+            add = std::make_shared<ov::op::v1::Add>(add, add_constant);
+        }
+
+        return std::make_shared<ov::Model>(ov::OutputVector{add}, parameter_vector);
     }
 
     Tensor from_stream(std::istream& stream, const size_t size) {
@@ -170,21 +193,6 @@ TEST_P(WeightsSeparationTests, CheckForFailureNoWeightlessCacheAttribute) {
     configuration.insert(ov::intel_npu::weightless_blob(true));
     configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
     OV_EXPECT_THROW(compiled_model = core->compile_model(model, target_device, configuration), ov::Exception, _);
-}
-
-/**
- * @brief Compiles a basic model and checks if it produces correct results.
- */
-TEST_P(WeightsSeparationTests, CorrectInferenceResultNoImportIterative) {
-    model = createTestModel();
-    configuration.insert(ov::intel_npu::weightless_blob(true));
-    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
-
-    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
-    ASSERT_TRUE(compiled_model);
-    EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
-
-    create_infer_request_and_check_result();
 }
 
 /**
@@ -457,6 +465,29 @@ TEST_P(WeightsSeparationTests, WeightlessBlobHasPriorityOverCacheModeIfCachingIs
     create_infer_request_and_check_result();
 }
 
+/**
+ * @brief The weightless blob should have a smaller size compared to the standard one.
+ */
+TEST_P(WeightsSeparationTests, WeightlessBlobIsSmaller) {
+    model = createTestModelLightInitSchedule();
+    std::ostringstream weightfullBlobStream;
+    configuration.insert(ov::intel_npu::weightless_blob(false));
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+    OV_ASSERT_NO_THROW(compiled_model.export_model(weightfullBlobStream));
+
+    std::ostringstream weightlessBlobStream;
+    configuration.at(ov::intel_npu::weightless_blob.name()) = true;
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+    OV_ASSERT_NO_THROW(compiled_model.export_model(weightlessBlobStream));
+
+    // At the moment of creating this test, the sizes on platform 3720 are 2019328 vs. 331776
+    ASSERT_TRUE(weightfullBlobStream.str().size() > weightlessBlobStream.str().size());
+}
+
 using WeightsSeparationOneShotTests = WeightsSeparationTests;
 
 /**
@@ -466,6 +497,23 @@ TEST_P(WeightsSeparationOneShotTests, CorrectInferenceResultNoImportOneShot) {
     model = createTestModel();
     configuration.insert(ov::intel_npu::weightless_blob(true));
     configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ONE_SHOT));
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+    EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+
+    create_infer_request_and_check_result();
+}
+
+using WeightsSeparationIterativeTests = WeightsSeparationTests;
+
+/**
+ * @brief Compiles a basic model and checks if it produces correct results.
+ */
+TEST_P(WeightsSeparationIterativeTests, CorrectInferenceResultNoImportIterative) {
+    model = createTestModel();
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ASSERT_TRUE(compiled_model);

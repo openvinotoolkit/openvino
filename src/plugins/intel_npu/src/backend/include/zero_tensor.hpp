@@ -52,6 +52,9 @@ public:
     void* data() override;
     void* data(const ov::element::Type& type) override;
 
+    void* data_rw() override;
+    void* data_rw(const ov::element::Type& type) override;
+
     const void* data() const override;
     const void* data(const ov::element::Type& type) const override;
 
