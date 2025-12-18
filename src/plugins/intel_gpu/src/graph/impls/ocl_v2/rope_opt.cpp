@@ -5,9 +5,9 @@
 
 #include "common_utils/dispatch_utils.hpp"
 #include "common_utils/jitter.hpp"
-#include "utils/jitter.hpp"
 #include "intel_gpu/primitives/rope.hpp"
 #include "primitive_ocl_base.hpp"
+#include "utils/jitter.hpp"
 #include "utils/kernel_generator.hpp"
 
 namespace ov::intel_gpu::ocl {
@@ -147,7 +147,6 @@ protected:
                 std::vector<std::vector<ChannelName>> dims_by_gws = {{ChannelName::BATCH}, {ChannelName::FEATURE}, {ChannelName::Y, ChannelName::X}};
                 const auto& in_l = params.input_layouts[0];
                 const auto& out_l = params.output_layouts[0];
-                bool reversed_gws = false;
 
                 if (cfg.is_qwen) {
                     auto b = extract_channel(ChannelName::BATCH, in_l);
@@ -173,18 +172,23 @@ protected:
                     if (cfg.support_3d_rope) {
                         wgs.global = {b, f, cfg.rotary_ndims / 2ul / vec_size};
                     }
+                    // reverse gws when RotateHalf and vec_size is one
                     if (!desc->config.is_interleaved && vec_size == 1) {
-                        wgs.global = {y * cfg.rotary_ndims / 2ul, f, b};
-                        reversed_gws = true;
+                        size_t tmp = wgs.global[0];
+                        wgs.global[0] = wgs.global[2];
+                        wgs.global[2] = tmp;
                     }
                 }
 
                 // We need to set the 1st local workgroup size as large as possible for better performance.
-                if (reversed_gws) {
+                if (vec_size == 1) {
                     auto get_max_lws = [](size_t gws, size_t max_workgroup_size) -> size_t {
+                        size_t val = 1;
                         size_t lws = 1;
-                        while (((lws + 1) <= max_workgroup_size) && (gws >= (lws + 1))) {
-                            lws += 1;
+                        while (((val + 1) <= max_workgroup_size) && (gws >= (val + 1))) {
+                            val += 1;
+                            if (gws % val == 0)
+                                lws = val;
                         }
                         return lws;
                     };
