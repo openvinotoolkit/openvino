@@ -252,11 +252,6 @@ public:
     /// \brief Invalidate cached bound values on all outputs, respecting SkipInvalidation flag.
     void invalidate_values();
 
-    /// \brief Unconditionally invalidate cached bound values on all outputs.
-    /// \note Ignores SkipInvalidation flag. Use after structural graph changes
-    ///       (e.g., replace_source_output) to ensure bounds are recalculated.
-    void force_invalidate_values();
-
     virtual void revalidate_and_infer_types() {
         invalidate_values();
         validate_and_infer_types();

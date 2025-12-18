@@ -161,11 +161,6 @@ pass::AbsSinking::AbsSinking() {
                 ov::copy_runtime_info(abs_ops[0], new_abs);
             }
 
-            // Since we modified the Concat inputs, bounds must be recalculated.
-            // Use force_invalidate_values() to ignore SkipInvalidation flag that may be set
-            // by SymbolicPropagation, ensuring bounds are properly recalculated.
-            concat->force_invalidate_values();
-
             replace_output_update_name(abs_ops[0]->output(0), abs_ops[0]->input_value(0));
             abs_ops.erase(abs_ops.begin());
             graph_got_changed = true;

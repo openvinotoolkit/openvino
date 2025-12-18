@@ -257,11 +257,6 @@ void ov::Node::invalidate_values() {
         output.get_tensor().invalidate_values();
 }
 
-void ov::Node::force_invalidate_values() {
-    for (const auto& output : outputs())
-        output.get_tensor().force_invalidate_values();
-}
-
 void ov::Node::validate_and_infer_types() {}
 
 void ov::Node::set_input_is_relevant_to_shape(size_t i, bool relevant) {

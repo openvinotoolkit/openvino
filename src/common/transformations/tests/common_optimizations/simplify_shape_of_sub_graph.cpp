@@ -475,46 +475,15 @@ INSTANTIATE_TEST_SUITE_P(AbsSinkingConstantTests,
                              return info.param.test_name;
                          });
 
-// Test for force_invalidate_values() method behavior
-// Verifies that force_invalidate_values() clears bounds even when SkipInvalidation is set
-TEST(ForceInvalidateValues, IgnoresSkipInvalidationFlag) {
-    // Create a simple node with bounds
-    auto data = std::make_shared<opset7::Parameter>(element::i64, PartialShape{3});
-    auto const_input = opset7::Constant::create(element::i64, {3}, {1, 2, 3});
-
-    // Set SkipInvalidation flag on the tensor
-    ov::skip_invalidation(const_input->output(0));
-
-    // Verify SkipInvalidation is set
-    auto& tensor = const_input->get_output_tensor(0);
-    EXPECT_TRUE(tensor.get_rt_info().count(ov::SkipInvalidation::get_type_info_static()));
-
-    // Force evaluate bounds first (they should be set)
-    auto bounds = ov::util::evaluate_both_bounds(const_input->output(0));
-    EXPECT_TRUE(bounds.first);   // lower bound exists
-    EXPECT_TRUE(bounds.second);  // upper bound exists
-
-    // Regular invalidate_values should NOT clear bounds because SkipInvalidation is set
-    const_input->invalidate_values();
-    EXPECT_TRUE(tensor.get_lower_value());  // Should still be set
-
-    // force_invalidate_values() SHOULD clear bounds even with SkipInvalidation
-    const_input->force_invalidate_values();
-    EXPECT_FALSE(tensor.get_lower_value());  // Should be cleared now
-    EXPECT_FALSE(tensor.get_upper_value());  // Should be cleared now
-
-    // SkipInvalidation flag should still be present (we don't remove it)
-    EXPECT_TRUE(tensor.get_rt_info().count(ov::SkipInvalidation::get_type_info_static()));
-}
-
 // Test for AbsSinking with SymbolicOptimizations and Broadcast pattern
-// This test reproduces a pattern that causes assertion failure without force_invalidate_values():
+// This test reproduces a pattern that causes assertion failure when SkipInvalidation
+// is not removed before SimplifyShapeOfSubGraph runs:
 // Broadcast(bias, Abs(Concat(ShapeOf[0], -1, -1)))
 // When SymbolicOptimizations runs:
 // 1. SymbolicPropagation sets SkipInvalidation on all output tensors
-// 2. AbsSinking transforms Concat inputs: replaces -1 with Abs(-1)=1
-// 3. Without force_invalidate_values(), Concat output bounds are NOT invalidated due to SkipInvalidation
-// 4. Broadcast shape inference gets stale bounds with -1, causing assertion failure
+// 2. ClearSkipInvalidation pass removes SkipInvalidation and recalculates bounds
+// 3. AbsSinking transforms Concat inputs: replaces -1 with Abs(-1)=1
+// 4. Broadcast shape inference now gets correct bounds
 TEST(AbsSinkingSymbolicOptimizations, BroadcastPatternWithSkipInvalidation) {
     // Create model: Broadcast(const, Abs(Concat(gather(ShapeOf(param), 0), -1, -1)))
     PartialShape shape = PartialShape::dynamic(4);
