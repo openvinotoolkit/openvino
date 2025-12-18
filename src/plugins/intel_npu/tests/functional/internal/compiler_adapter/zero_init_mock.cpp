@@ -12,7 +12,7 @@
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace {
-    
+
 constexpr uint32_t TARGET_ZE_DRIVER_NPU_EXT_VERSION = ZE_DRIVER_NPU_EXT_VERSION_1_0;
 constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION = ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_1;
 constexpr uint32_t TARGET_ZE_PROFILING_NPU_EXT_VERSION = ZE_PROFILING_DATA_EXT_VERSION_1_0;
@@ -67,7 +67,6 @@ void ZeroInitStructsMock::initNpuDriver() {
         _log.debug("ZeroInitStructsHolder::initNpuDriver - get NPU driver");
         for (uint32_t i = 0; i < drivers_count; ++i) {
             zeDriverGetProperties(all_drivers[i], &_driver_properties);
-
             if (memcmp(&_driver_properties.uuid, &uuid, sizeof(uuid)) == 0) {
                 _driver_handle = all_drivers[i];
                 break;
