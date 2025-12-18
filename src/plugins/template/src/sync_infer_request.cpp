@@ -37,6 +37,7 @@ void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor,
         tensor->set_shape(shape);
     }
 }
+
 }  // namespace
 
 void collect_variables(const std::shared_ptr<ov::Model>& ov_model,
