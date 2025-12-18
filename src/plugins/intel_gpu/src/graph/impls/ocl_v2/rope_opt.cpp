@@ -5,6 +5,7 @@
 
 #include "common_utils/dispatch_utils.hpp"
 #include "common_utils/jitter.hpp"
+#include "utils/jitter.hpp"
 #include "intel_gpu/primitives/rope.hpp"
 #include "primitive_ocl_base.hpp"
 #include "utils/kernel_generator.hpp"
@@ -14,6 +15,7 @@ namespace {
 
 size_t get_vec_size(const RuntimeParams& params) {
     const auto& input = params.get_input_layout(0);
+    const auto& input1 = params.get_input_layout(1);
     auto desc = params.typed_desc<rope>();
     size_t vec_size = 1;
     switch (input.data_type) {
@@ -30,6 +32,11 @@ size_t get_vec_size(const RuntimeParams& params) {
     if (desc->config.rotary_ndims % (2 * vec_size) != 0) {
         vec_size = 1;
     }
+
+    // Some models use f32 precision for input1 (cos) and input2 (sin) for better accuracy.
+    // If input0 is not f32, we set vec_size as 1 for simple type conversion.
+    if (input1.data_type == ov::element::f32 && input.data_type != input1.data_type)
+        vec_size = 1;
 
     if (desc->config.is_qwen) {
         auto count = desc->config.head_cnt * std::max(desc->config.rotary_ndims / 2ul, desc->config.head_size - desc->config.rotary_ndims);
@@ -93,8 +100,16 @@ protected:
             jit.make("RotateInterleaved", true);
         } else {
             jit.make("RotateHalf", true);
+            if (get_vec_size(params) == 1) {
+                jit.make("REVERSED_GWS", true);
+            }
         }
         jit.make("VEC_SIZE", get_vec_size(params));
+        if (params.get_input_layout(0).data_type != params.get_input_layout(1).data_type) {
+            jit.add(make_type_jit_constants("ACCUMULATOR", params.get_input_layout(1).data_type));
+        } else {
+            jit.add(make_type_jit_constants("ACCUMULATOR", params.get_input_layout(0).data_type));
+        }
         return jit;
     }
 
@@ -132,6 +147,7 @@ protected:
                 std::vector<std::vector<ChannelName>> dims_by_gws = {{ChannelName::BATCH}, {ChannelName::FEATURE}, {ChannelName::Y, ChannelName::X}};
                 const auto& in_l = params.input_layouts[0];
                 const auto& out_l = params.output_layouts[0];
+                bool reversed_gws = false;
 
                 if (cfg.is_qwen) {
                     auto b = extract_channel(ChannelName::BATCH, in_l);
@@ -157,9 +173,33 @@ protected:
                     if (cfg.support_3d_rope) {
                         wgs.global = {b, f, cfg.rotary_ndims / 2ul / vec_size};
                     }
+                    if (!desc->config.is_interleaved && vec_size == 1) {
+                        wgs.global = {y * cfg.rotary_ndims / 2ul, f, b};
+                        reversed_gws = true;
+                    }
                 }
 
-                wgs.local = ov::intel_gpu::get_optimal_lws(wgs.global, params.get_device_info(), in_l.format, out_l.format, dims_by_gws);
+                // We need to set the 1st local workgroup size as large as possible for better performance.
+                if (reversed_gws) {
+                    auto get_max_lws = [](size_t gws, size_t max_workgroup_size) -> size_t {
+                        size_t lws = 1;
+                        while (((lws + 1) <= max_workgroup_size) && (gws >= (lws + 1))) {
+                            lws += 1;
+                        }
+                        return lws;
+                    };
+
+                    size_t max_workgroup_size = static_cast<size_t>(params.get_device_info().max_work_group_size);
+
+                    wgs.local = {1, 1, 1};
+                    wgs.local[0] = get_max_lws(wgs.global[0], max_workgroup_size);
+                    max_workgroup_size /= wgs.local[0];
+                    wgs.local[1] = get_max_lws(wgs.global[1], max_workgroup_size);
+                    max_workgroup_size /= wgs.local[1];
+                    wgs.local[2] = get_max_lws(wgs.global[2], max_workgroup_size);
+                } else {
+                    wgs.local = ov::intel_gpu::get_optimal_lws(wgs.global, params.get_device_info(), in_l.format, out_l.format, dims_by_gws);
+                }
             }
         }};
     }
