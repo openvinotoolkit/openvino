@@ -32,7 +32,6 @@ class TRANSFORMATIONS_API EliminateStridedSliceByShape;
 class TRANSFORMATIONS_API EliminateIdentity;
 class TRANSFORMATIONS_API NopElimination;
 class TRANSFORMATIONS_API PrepareShapeOpsForEliminationAroundBE;
-class TRANSFORMATIONS_API EliminateReshape;
 
 }  // namespace pass
 }  // namespace ov
@@ -45,16 +44,6 @@ class ov::pass::EliminateReduceReshape : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("EliminateReduceReshape");
     EliminateReduceReshape();
-};
-
-/**
- * @ingroup ov_transformation_common_api
- * @brief NopReshape eliminates Reshape, Squeeze, or Unsqueeze nodes that do nothing
- */
-class ov::pass::EliminateReshape : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("EliminateReshape");
-    EliminateReshape();
 };
 
 /**
