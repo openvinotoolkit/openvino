@@ -160,7 +160,6 @@ pass::AbsSinking::AbsSinking() {
                 input.replace_source_output(new_abs);
                 ov::copy_runtime_info(abs_ops[0], new_abs);
             }
-
             replace_output_update_name(abs_ops[0]->output(0), abs_ops[0]->input_value(0));
             abs_ops.erase(abs_ops.begin());
             graph_got_changed = true;
