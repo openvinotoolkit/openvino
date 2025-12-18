@@ -582,7 +582,6 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
 
         const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
         const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
-        LOG_INFO("############pre_kv_dim and gen_kv_dim" << pre_kv_dim << " " << gen_kv_dim << ";");
         if (use_chunk_prefill) {
             // The chunk prefilled KV results are divided into two parts:
             // Part 1: The KV results from loops 1 to n-1 have been copied into the 'past' KV input tensor
@@ -591,8 +590,6 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             // Copy part 1 KV results
             // tokens_in_past_chunks may be 0 in case short prompts are prefilled in single chunk
             auto tokens_in_past_chunks = kvcache_desc.num_stored_tokens - m_tokens_in_present_chunk;
-            // Start counting time.
-            auto t_start = std::chrono::high_resolution_clock::now();
             if (tokens_in_past_chunks > 0) {
                 // Create backup of past KV tensor when buffer sharing is enabled to prevent data corruption
                 // This is necessary because subsequent copy operations would overwrite the shared buffer
@@ -634,10 +631,6 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                     uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
                 }
             }
-            // End counting time.
-            auto t_end = std::chrono::high_resolution_clock::now();
-            auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
-            LOG_INFO("############tokens_in_past_chunks cost: " << duration_ms << " ms");
             // Copy part 2 KV results
             auto prefill_present_kv_chunk =
                 uu::make_tensor_slice(prefill_out_tensor,
@@ -666,111 +659,6 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
     });
     LOG_DEBUG("Done.");
 }
-
-/*
-void ov::npuw::LLMInferRequest::copy_kvcache() {
-    namespace uu = ov::npuw::util;
-    LOG_DEBUG("Copying kv-cache from prefill to generate model.");
-    LOG_BLOCK();
-    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
-    // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
-    ov::parallel_for(kvcache_compiled->outputs().size() - layer_ids::kStartOutputKVCacheLayers, [&](size_t out_idx) {
-        const std::size_t i = layer_ids::kStartOutputKVCacheLayers + out_idx;
-        const auto& output_name = kvcache_compiled->outputs()[i].get_any_name();
-        auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
-
-        const auto& input_name = std::regex_replace(output_name, std::regex("present"), layer_names::past_key_values);
-        if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
-            // FIXME: Totally wrong debug message. input_name is an invalid name of input layer.
-            LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
-            return;
-        }
-        const auto is_value_tensor = output_name.find("value") != std::string::npos;
-        const auto kv_dim = [&](bool v_trans) -> uint32_t {
-            return (is_value_tensor && v_trans) ? 3u : kvcache_desc.dim;
-        };
-
-        const auto& pre_kv_dim = kv_dim(kvcache_desc.v_tensors_transposed_pre);
-        const auto& gen_kv_dim = kv_dim(kvcache_desc.v_tensors_transposed_gen);
-        auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
-
-        const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
-        const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
-        if (use_chunk_prefill) {
-            // The chunk prefilled KV results are divided into two parts:
-            // Part 1: The KV results from loops 1 to n-1 have been copied into the 'past' KV input tensor
-            // Part 2: The kv results from the last loop remain in the 'present' KV output tensor
-            // The task is to copy both parts into the KV-cache input tensor for the decoding process
-            // Copy part 1 KV results
-            // tokens_in_past_chunks may be 0 in case short prompts are prefilled in single chunk
-            auto tokens_in_past_chunks = kvcache_desc.num_stored_tokens - m_tokens_in_present_chunk;
-            // Start counting time.
-            auto t_start = std::chrono::high_resolution_clock::now();
-            if (tokens_in_past_chunks > 0) {
-                // Create backup of past KV tensor when buffer sharing is enabled to prevent data corruption
-                // This is necessary because subsequent copy operations would overwrite the shared buffer
-                auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
-                ov::SoPtr<ov::ITensor> tmp_dense_kv_tensor;
-                ov::SoPtr<ov::ITensor> prefill_past_kv_chunks;
-                if (m_past_kv_bound) {
-                    tmp_dense_kv_tensor = ov::npuw::util::allocMem(prefill_past_kv->get_element_type(),
-                                                                   prefill_past_kv->get_shape(),
-                                                                   m_pre_alloc_device,
-                                                                   m_npuw_llm_compiled_model->get_plugin());
-                    prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
-                    prefill_past_kv_chunks = make_tensor_slice(tmp_dense_kv_tensor,
-                                                               pre_kv_dim,
-                                                               0u,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks));
-                } else {
-                    prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv,
-                                                               pre_kv_dim,
-                                                               0u,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks));
-                }
-
-                auto kvcache_past_kv_chunks = uu::make_tensor_slice(kvcache_in_tensor,
-                                                                    gen_kv_dim,
-                                                                    0u,
-                                                                    static_cast<uint32_t>(tokens_in_past_chunks));
-
-                uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
-            }
-            // End counting time.
-            auto t_end = std::chrono::high_resolution_clock::now();
-            auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
-            LOG_INFO("########################################tokens_in_past_chunks cost: " << duration_ms << " ms");
-
-            // Copy part 2 KV results
-            auto prefill_present_kv_chunk =
-                uu::make_tensor_slice(prefill_out_tensor,
-                                      pre_kv_dim,
-                                      static_cast<uint32_t>(prefill_chunk_size - m_tokens_in_present_chunk),
-                                      static_cast<uint32_t>(prefill_chunk_size));
-
-            auto kvcache_last_kv_chunk = uu::make_tensor_slice(kvcache_in_tensor,
-                                                               gen_kv_dim,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks),
-                                                               kvcache_desc.num_stored_tokens);
-
-            uu::copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, pre_kv_dim, gen_kv_dim);
-        } else {
-            auto prefill_out_slice =
-                uu::make_tensor_slice(prefill_out_tensor,
-                                      pre_kv_dim,
-                                      kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                      kvcache_desc.max_prompt_size);
-
-            auto kvcache_in_slice =
-                uu::make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, kvcache_desc.num_stored_tokens);
-
-            uu::copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, pre_kv_dim, gen_kv_dim);
-        }
-    });
-    LOG_DEBUG("Done.");
-}
-*/
 
 void ov::npuw::LLMInferRequest::update_kvcache_for(
     std::shared_ptr<ov::IAsyncInferRequest> request,
@@ -1077,7 +965,13 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     if (!m_generate_initialized) {
         LOG_DEBUG("Copy kv-cache from prefill to generate model.");
         if (kvcache_desc.num_stored_tokens > 0) {
+            // Start counting time.
+            auto t_start = std::chrono::high_resolution_clock::now();
             copy_kvcache();
+            // End counting time.
+            auto t_end = std::chrono::high_resolution_clock::now();
+            auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
+            LOG_INFO("cost of copy_kvcache(): " << duration_ms << " ms");
         }
 
         LOG_DEBUG("Prepare inputs.");
