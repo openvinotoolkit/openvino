@@ -320,6 +320,7 @@ public:
     bool mem_allocated() const { return _mem_allocated; }
     bool is_dynamic() const { return _is_dynamic; }
     bool can_share_buffer() const { return _can_share_buffer; }
+    bool can_share_internal_buffer() const { return _can_share_internal_buffer; }
     bool is_constant() const { return _is_constant; }
     bool needs_completion_event() const { return _needs_completion_event; }
     bool has_unfused_subgraph() const { return (_unfused_subgraph != nullptr); }
@@ -437,6 +438,7 @@ protected:
     size_t _fused_mem_offset = 0;
     bool _can_be_optimized = false;
     bool _can_share_buffer = true;
+    bool _can_share_internal_buffer = true;
     bool _is_constant = false;
     bool _needs_completion_event = false;
 
