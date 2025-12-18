@@ -201,6 +201,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     m_spatial_io.resize(m_num_submodels);
     m_attention_io.resize(m_num_submodels);
+    m_moe_io.resize(m_num_submodels);
 
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
@@ -208,8 +209,10 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     bool has_spatial = false;
     bool has_dynamic = false;
     bool has_pyramid = false;
+    bool has_moe = false;
     std::size_t dynamic_sub_idx = -1;
     std::size_t pyramid_sub_idx = -1;
+    std::size_t moe_sub_idx = -1;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -276,6 +279,33 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 pyramid_sub_idx = real_idx;
                 m_attention_io[i].inputs.resize(proto_comp_model_desc.param_base);
             }  // if(pyramid)
+
+            // Initialize the MoE IO placeholders, if required
+            if (proto_comp_model_desc.moe_experts) {
+                // Sanity check first
+                if (has_moe && moe_sub_idx != real_idx) {
+                    OPENVINO_THROW("Only single MoE type is permitted for model");
+                }
+                has_moe = true;
+                moe_sub_idx = real_idx;
+                m_moe_io[i].inputs.resize(proto_comp_model_desc.param_base);
+                m_moe_io[i].outputs.resize(num_outputs);
+
+                // Pre-allocate relayouted_output tensor with hardcoded shape
+                // Hardcoded: 4 active experts, 1024 tokens, 2880 embed_dim
+                // TODO: Get these values from model metadata or make configurable
+                const size_t active_experts = 4;
+                const size_t num_tokens = 1024;
+                const size_t embed_dim = 2880;
+                ov::Shape target_shape = {active_experts, 1, num_tokens, embed_dim};
+
+                // Use f16 as default, will be adjusted at runtime if needed
+                const auto& device = *proto_comp_model_desc.device_it;
+                m_moe_relayouted_output = allocMem(ov::element::f16, target_shape, device);
+
+                std::cout << "Pre-allocated MoE relayouted_output tensor: shape=" << target_shape
+                          << " device=" << device << std::endl;
+            }  // if(moe_experts)
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto from = LinkFrom{i, out_idx};
@@ -533,6 +563,8 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Preparing to infer...");
     LOG_BLOCK();
 
+    std::cout << "Preparing to infer..." << std::endl;
+
     if (m_pyramid_selector) {
         m_pyramid_selector->prepare(get_history_size());
 
@@ -551,12 +583,14 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     }
 
     // Submit global parameters (if needed) for the first subgraph
+    std::cout << "Binding global parameters for first subgraph..." << std::endl;
     bind_global_parameters(next(0));
 
     // If funcall pipelining is enabled, prefill the function "heads"
     // with constant arguments. The list of heads is empty otherwise.
     for (auto&& id : m_funcall_heads) {
         LOG_DEBUG("Pre-initializing weights for subgraph[" << id << "]");
+        std::cout << "Pre-initializing weights for subgraph[" << id << "]" << std::endl;
         unpack_closure(id, m_subrequests[id]);
     }
 
@@ -637,6 +671,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     const bool is_spatial = func_desc.spatial.has_value();
     const bool is_dynamic = func_desc.attention.has_value();
     const bool is_pyramid = func_desc.pyramid_attention.has_value();
+    const bool is_moe = func_desc.moe_experts.has_value() || func_desc.moe_experts_downstream.has_value();
 
     // Generalized: check if input is neither param nor mask
     auto is_non_param_mask = [](const auto& info, std::size_t in_idx) {
@@ -654,6 +689,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         LOG_DEBUG("Binding parameter[" << i << "]...");
         LOG_BLOCK();
         const auto& iport = func_desc.compiled_model->inputs()[i];
+        std::cout << "function_prologue parameter[" << i << "]... port: " << iport << std::endl;
 
         auto link_iter = m_npuw_model->m_submodels_input_to_prev_output.find({idx, i});
         if (link_iter != m_npuw_model->m_submodels_input_to_prev_output.end()) {
@@ -693,6 +729,39 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 } else {
                     m_attention_io[idx].inputs.at(i) = i_tensor;
                 }
+            } else if (is_moe) {
+                // MoE case - register input for later processing
+                std::cout << "function_prologue MoE param " << i << " -> " << idx << std::endl;
+
+                if (func_desc.moe_experts) {
+                    // Check if this is the router output parameter
+                    bool is_router_output = func_desc.moe_experts->_router_param_idx.has_value() &&
+                                            i == func_desc.moe_experts->_router_param_idx.value();
+                    if (is_router_output) {
+                        m_moe_io[idx].router_output = i_tensor;
+                        std::cout << "  -> Captured Router output tensor: " << i_tensor->get_shape() << std::endl;
+                    }
+                } else if (func_desc.moe_experts_downstream) {
+                    // MoE downstream: set the relayouted expert outputs as input
+                    // Verify this is the correct parameter that should receive expert outputs
+                    if (i == func_desc.moe_experts_downstream->expert_output_param_idx) {
+                        if (m_moe_relayouted_output) {
+                            std::cout << "  -> Setting MoE downstream expert output parameter (idx=" << i
+                                      << ") from relayouted output: " << m_moe_relayouted_output->get_shape()
+                                      << std::endl;
+                            m_subrequests[real_idx]->set_tensor(iport, m_moe_relayouted_output);
+                        } else {
+                            NPUW_ASSERT(
+                                false &&
+                                "MoE downstream expert output parameter requested but no relayouted output available");
+                        }
+                    } else {
+                        // Other MoE downstream parameters should use normal tensor binding
+                        std::cout << "  -> Setting MoE downstream non-expert parameter (idx=" << i << ")" << std::endl;
+                        m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                    }
+                }
+
             } else {
                 // Default case
                 m_subrequests[real_idx]->set_tensor(iport, i_tensor);
@@ -731,7 +800,12 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         LOG_DEBUG("Binding result[" << i << "]...");
         auto& oport = func_desc.compiled_model->outputs()[i];
         auto o_tensor = m_funcall_result.at({idx, i});
-        if (!is_spatial) {
+        if (func_desc.moe_experts) {
+            // Need it??
+            // MoE case - register output for later processing
+            std::cout << "function_prologue MoE output " << i << " -> " << idx << std::endl;
+            m_moe_io[idx].outputs.at(i) = o_tensor;
+        } else if (!is_spatial) {
             // Non-spatial case - set immediately
             m_subrequests[real_idx]->set_tensor(oport, o_tensor);
         } else {
@@ -1108,7 +1182,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
 
 void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t idx, const std::function<void()>& f) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    if (!comp_model_desc.spatial) {
+    if (!comp_model_desc.spatial && !comp_model_desc.moe_experts) {
         // Normal: trigger request asynchronously, run `f` in this context
         // FIXME: dynamic could hit here too, but it has special logic
         // around execution which makes it harder to run than a plain start_async()
@@ -1231,8 +1305,71 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
 void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     auto& r = m_subrequests[real_idx];
+
     if (comp_model_desc.spatial) {
         unsafe_infer_spatial(real_idx, idx);
+    } else if (comp_model_desc.moe_experts.has_value()) {
+        // MoE expert inference - loop over selected experts
+        std::cout << "Running MoE expert inference for Subgraph[" << idx << "]" << std::endl;
+
+        const auto num_experts = comp_model_desc.moe_experts->num_experts;
+
+        // Step 1: Parse router output to get selected experts
+        if (!m_moe_io[idx].router_output) {
+            LOG_ERROR("Router output not available for MoE expert execution");
+            OPENVINO_THROW("MoE: Router output is required but not available");
+        }
+
+        auto selected_experts = parse_selected_experts_from_router(m_moe_io[idx].router_output,
+                                                                   num_experts,
+                                                                   m_moe_io[idx].token_to_experts);
+
+        if (selected_experts.empty()) {
+            LOG_WARN("No experts selected by router, fallback to expert 0");
+            selected_experts.push_back(0);
+        }
+
+        std::cout << "Will execute " << selected_experts.size() << " experts" << std::endl;
+
+        // Pre-allocate target tensor for relayouted output
+        // Determine dimensions from router or first execution
+        const auto& oport = comp_model_desc.compiled_model->outputs()[0];  // Assume single output
+        if (!m_moe_relayouted_output) {
+            // Initial allocation - get shape from first expert or model metadata
+            // For now, we'll allocate after first expert execution
+        }
+
+        // Step 2: Loop over selected experts and execute each one with immediate relayout
+        for (size_t expert_id : selected_experts) {
+            std::cout << "  Executing MoE Expert " << expert_id << "/" << num_experts << std::endl;
+
+            // Step 2.1: Unpack closure for this specific expert
+            unpack_moe_expert_closure(idx, r, expert_id);
+
+            // Step 2.2: Execute the single expert inference
+            r->infer();
+
+            // Step 2.3: Get expert output
+            auto expert_output_tensor = r->get_tensor(oport);
+
+            // Step 2.4: Use pre-allocated target tensor (allocated in initialization)
+            auto shape = expert_output_tensor->get_shape();
+            size_t num_tokens = shape[2];  // [1, 1, num_tokens, embed_dim]
+            size_t embed_dim = shape[3];
+
+            // Step 2.5: Immediately relayout this expert's output to target tensor
+            // expert_slot is calculated internally based on each token's expert selection order
+            relayout_single_expert_output(expert_id,
+                                          expert_output_tensor,
+                                          m_moe_relayouted_output,
+                                          m_moe_io[idx].token_to_experts,
+                                          num_tokens,
+                                          embed_dim);
+
+            std::cout << "  Expert " << expert_id << " output relayouted" << std::endl;
+        }
+
+        std::cout << "MoE expert inference and relayout completed for Subgraph[" << idx << "]" << std::endl;
     } else {
         r->infer();  // Run normally
     }

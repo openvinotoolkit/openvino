@@ -35,6 +35,7 @@ struct MoEValidationResult {
     size_t input_batch_size = 0;                            // Input batch size
     std::shared_ptr<ov::op::v0::Tile> tile_node = nullptr;  // The Tile operation node
     std::shared_ptr<ov::Node> input_node = nullptr;         // Input to Tile operation
+    std::optional<size_t> router_param_idx;  // Parameter index for router output (from Multiply in output path)
 
     // Validation helper
     bool is_valid() const {
@@ -46,7 +47,7 @@ struct MoEValidationResult {
 struct MoEDownstream {
     size_t total_experts_num = 0;                         // Total number of experts
     size_t active_experts_num = 0;                        // Number of active experts (K in top-K)
-    size_t param_index = 0;                               // Index of the parameter with expert outputs
+    size_t expert_output_param_idx = 0;                   // Index of the parameter that receives expert outputs
     std::shared_ptr<ov::Model> modified_model = nullptr;  // Model with modified input shape
 
     bool is_valid() const {
@@ -98,7 +99,8 @@ struct MoEExperts {
 
     // Validation helpers
     bool is_valid() const {
-        return _num_experts > 0 && _expert_hidden_dim > 0 && _single_expert_model != nullptr;
+        return _num_experts > 0 && _expert_hidden_dim > 0 && _single_expert_model != nullptr &&
+               _router_param_idx.has_value();
     }
 
     size_t num_experts() const {
@@ -163,6 +165,9 @@ struct MoEExperts {
     // Store model temporarily for compilation
     std::shared_ptr<ov::Model> _model_to_compile;
 
+    // Router parameter index (from Multiply in output path)
+    std::optional<size_t> _router_param_idx;
+
     MoEExperts() = default;
 
     // Constructor that extracts metadata and stores model for compilation
@@ -181,7 +186,7 @@ struct MoEExperts {
 struct MoEDownstream {
     size_t total_experts_num = 0;
     size_t active_experts_num = 0;
-    size_t param_index = 0;
+    size_t expert_output_param_idx = 0;  // Index of the parameter that receives expert outputs
 
     // Compiled modified downstream model
     ov::SoPtr<ov::ICompiledModel> _compiled_model;

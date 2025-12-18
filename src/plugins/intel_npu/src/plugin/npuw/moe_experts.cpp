@@ -133,20 +133,20 @@ std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shar
 
                                 found_pattern = true;
                                 result.total_experts_num = potential_total_experts;
-                                result.param_index = 0;  // Find actual index
+                                result.expert_output_param_idx = 0;  // Find actual index
 
                                 // Get parameter index
                                 const auto& params = model->get_parameters();
                                 for (size_t i = 0; i < params.size(); ++i) {
                                     if (params[i] == param) {
-                                        result.param_index = i;
+                                        result.expert_output_param_idx = i;
                                         break;
                                     }
                                 }
 
                                 LOG_DEBUG("  Total experts num: " << result.total_experts_num);
                                 LOG_DEBUG("  Active experts num: " << result.active_experts_num);
-                                LOG_DEBUG("  Parameter index: " << result.param_index);
+                                LOG_DEBUG("  Expert output parameter index: " << result.expert_output_param_idx);
                                 break;
                             }
                         }
@@ -174,8 +174,8 @@ std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shar
 
             // Find the corresponding parameter in the cloned model
             auto& cloned_params = modified_model->get_parameters();
-            if (result.param_index < cloned_params.size()) {
-                auto& target_param = cloned_params[result.param_index];
+            if (result.expert_output_param_idx < cloned_params.size()) {
+                auto& target_param = cloned_params[result.expert_output_param_idx];
                 auto new_shape = shape;
                 new_shape[0] = result.active_experts_num;  // Change from total to active
 
@@ -218,7 +218,8 @@ std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shar
                 }
 
                 LOG_INFO("Successfully detected and transformed MoE downstream pattern");
-                LOG_INFO("  Parameter: " << param->get_friendly_name());
+                LOG_INFO("  Expert output parameter: " << param->get_friendly_name());
+                LOG_INFO("  Expert output parameter index: " << result.expert_output_param_idx);
                 LOG_INFO("  Shape changed: [" << result.total_experts_num << ", 1, " << shape[2] << ", " << shape[3]
                                               << "] -> [" << result.active_experts_num << ", 1, " << shape[2] << ", "
                                               << shape[3] << "]");
@@ -247,7 +248,7 @@ std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Mod
         LOG_INFO("Successfully created MoEDownstream:");
         LOG_INFO("  - Total experts: " << downstream_info->total_experts_num);
         LOG_INFO("  - Active experts: " << downstream_info->active_experts_num);
-        LOG_INFO("  - Parameter index: " << downstream_info->param_index);
+        LOG_INFO("  - Expert output parameter index: " << downstream_info->expert_output_param_idx);
         LOG_INFO("  - Modified model: " << downstream_info->modified_model->get_friendly_name());
 
         std::cout << "Successfully created MoEDownstream with " << downstream_info->total_experts_num
@@ -261,7 +262,7 @@ std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Mod
 }
 
 std::shared_ptr<ov::Model> transform_to_single_expert(const std::shared_ptr<ov::Model>& original_model,
-                                                      const MoEValidationResult& validation_result) {
+                                                      MoEValidationResult& validation_result) {
     LOG_DEBUG("Transforming model to single expert...");
     LOG_BLOCK();
 
@@ -329,9 +330,9 @@ std::shared_ptr<ov::Model> transform_to_single_expert(const std::shared_ptr<ov::
         node_before_matmul.replace(new_reshape->output(0));
     };
 
-    // Lambda: Fix output Reshape nodes
+    // Lambda: Fix output Reshape nodes and detect router parameter
     // Output path: Reshape -> Multiply -> Convert(optional) -> Result
-    auto fix_output_reshapes = [&]() {
+    auto fix_output_reshapes = [&](MoEValidationResult& validation_result) {
         LOG_DEBUG("Fixing output Reshape nodes...");
         for (const auto& result : model->get_results()) {
             auto result_input = result->input_value(0);
@@ -348,6 +349,48 @@ std::shared_ptr<ov::Model> transform_to_single_expert(const std::shared_ptr<ov::
             std::shared_ptr<ov::Node> reshape_node_ptr;
             if (auto multiply_node = std::dynamic_pointer_cast<ov::op::v1::Multiply>(result_input_node)) {
                 LOG_DEBUG("  Found Multiply node before Result");
+
+                // Detect router parameter from Multiply inputs
+                if (!validation_result.router_param_idx.has_value()) {
+                    for (size_t i = 0; i < 2; ++i) {
+                        auto multiply_input = multiply_node->input_value(i).get_node_shared_ptr();
+
+                        // Skip the Reshape input, look for the other one (router parameter)
+                        if (std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input)) {
+                            continue;
+                        }
+
+                        // Trace back to find Parameter
+                        std::shared_ptr<ov::Node> current_node = multiply_input;
+                        while (current_node) {
+                            if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(current_node)) {
+                                // Found the parameter, get its index in original model
+                                const auto& params = original_model->get_parameters();
+                                for (size_t idx = 0; idx < params.size(); ++idx) {
+                                    if (params[idx]->get_friendly_name() == param->get_friendly_name()) {
+                                        validation_result.router_param_idx = idx;
+                                        LOG_DEBUG("  Found router parameter at index " << idx << ": "
+                                                                                       << param->get_friendly_name());
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+
+                            // Move up the graph (single input ops like Convert, Reshape, etc.)
+                            if (current_node->get_input_size() == 1) {
+                                current_node = current_node->input_value(0).get_node_shared_ptr();
+                            } else {
+                                break;
+                            }
+                        }
+
+                        if (validation_result.router_param_idx.has_value()) {
+                            break;
+                        }
+                    }
+                }
+
                 // Multiply has two inputs, one should be from Reshape
                 auto multiply_input0 = multiply_node->input_value(0).get_node_shared_ptr();
                 auto multiply_input1 = multiply_node->input_value(1).get_node_shared_ptr();
@@ -475,7 +518,7 @@ std::shared_ptr<ov::Model> transform_to_single_expert(const std::shared_ptr<ov::
     }
 
     replace_tile_with_reshape(tile_input, node_before_matmul, tile_op->get_friendly_name());
-    fix_output_reshapes();
+    fix_output_reshapes(validation_result);
     fix_parameters_with_num_experts();
     ensure_tensor_names();
 
@@ -499,7 +542,7 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
         return std::nullopt;
     }
 
-    // Step 2: Transform the model to single expert
+    // Step 2: Transform the model to single expert (also detects router parameter)
     auto single_expert_model = transform_to_single_expert(model, *validation_result);
     if (!single_expert_model) {
         LOG_WARN("Failed to transform model to single expert");
@@ -516,7 +559,7 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     moe_experts._tile_op = validation_result->tile_node;
     moe_experts._original_tile_output_shape = validation_result->tile_node->output(0).get_shape();
     moe_experts._single_expert_shape = ov::Shape{validation_result->expert_hidden_dim};
-    // moe_experts._router_param_idx = validation_result->router_param_idx;
+    moe_experts._router_param_idx = validation_result->router_param_idx;
 
     // Step 4: Extract input/output information
     LOG_DEBUG("Extracting I/O information...");
@@ -550,6 +593,9 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     LOG_INFO("  - Single expert model: " << single_expert_model->get_friendly_name());
 
     std::cout << "Successfully created MoEExperts with " << moe_experts._num_experts << " experts." << std::endl;
+    if (moe_experts._router_param_idx.has_value()) {
+        std::cout << "  Router parameter index: " << moe_experts._router_param_idx.value() << std::endl;
+    }
 
     return moe_experts;
 }
@@ -562,8 +608,12 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     num_experts = func_moe._num_experts;
     expert_hidden_dim = func_moe._expert_hidden_dim;
     _model_to_compile = func_moe._single_expert_model;
+    _router_param_idx = func_moe._router_param_idx;
 
     LOG_DEBUG("Created compiled::MoEExperts with " << num_experts << " experts");
+    if (_router_param_idx.has_value()) {
+        LOG_DEBUG("  Router parameter index: " << _router_param_idx.value());
+    }
 }
 
 void MoEExperts::set_compiled_model(ov::SoPtr<ov::ICompiledModel>&& compiled_model) {
@@ -576,7 +626,7 @@ void MoEExperts::set_compiled_model(ov::SoPtr<ov::ICompiledModel>&& compiled_mod
 MoEDownstream::MoEDownstream(const function::MoEDownstream& func_downstream) {
     total_experts_num = func_downstream.total_experts_num;
     active_experts_num = func_downstream.active_experts_num;
-    param_index = func_downstream.param_index;
+    expert_output_param_idx = func_downstream.expert_output_param_idx;
     _model_to_compile = func_downstream.modified_model;
 
     LOG_DEBUG("Created compiled::MoEDownstream with " << total_experts_num << " total experts and "

@@ -1842,13 +1842,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         rewr2.run_on_model(prefill_model);
     }
 
-    // Compile multiple generate model variants with different sizes
-    compile_generate_model_variants(generate_model_variants, plugin, generate_config);
     std::cout << "Compiling prefill model..." << std::endl;
     m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
+
+    // Compile multiple generate model variants with different sizes
+    compile_generate_model_variants(generate_model_variants, plugin, generate_config);
+
     if (lm_head_model) {
         auto lm_head_config = get_default_lm_head_config(npudesc);
         merge_config_with(lm_head_config, other_props);

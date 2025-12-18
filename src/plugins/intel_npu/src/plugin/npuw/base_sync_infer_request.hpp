@@ -146,6 +146,26 @@ protected:
     };
     std::vector<AttentionIO> m_attention_io;
 
+    struct MoEIO {
+        std::vector<ov::SoPtr<ov::ITensor>> inputs;   // # of elements - # of graph-side inputs
+        std::vector<ov::SoPtr<ov::ITensor>> outputs;  // # of elements - # of subgraph outputs
+        ov::SoPtr<ov::ITensor> router_output;         // Router output tensor (weights for expert selection)
+
+        // Runtime state for MoE expert execution
+        std::vector<size_t> selected_experts;  // Indices of experts to execute (from router output)
+        size_t current_expert_idx = 0;         // Current expert being processed
+        std::map<size_t, ov::Tensor>
+            expert_weights_cache;  // Cache for sliced expert weights [closure_idx -> sliced_weight]
+
+        // MoE expert outputs collection
+        std::map<size_t, std::vector<size_t>> token_to_experts;  // Token to experts mapping
+    };
+    std::vector<MoEIO> m_moe_io;
+
+    // MoE relayouted output: Single pre-allocated tensor shared by all MoE operations in this infer request
+    // Shape: [active_experts, 1, num_tokens, embed_dim]
+    ov::SoPtr<ov::ITensor> m_moe_relayouted_output;
+
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
     // Represents spatial run-time info
@@ -183,6 +203,17 @@ protected:
 
     virtual void init_gio();
     void unpack_closure(std::size_t idx, RqPtr request);
+    void unpack_moe_expert_closure(std::size_t idx, RqPtr request, size_t expert_id);
+    ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_id, size_t num_experts);
+    std::vector<size_t> parse_selected_experts_from_router(const ov::SoPtr<ov::ITensor>& router_output,
+                                                           size_t num_experts,
+                                                           std::map<size_t, std::vector<size_t>>& token_to_experts);
+    void relayout_single_expert_output(size_t expert_id,
+                                       const ov::SoPtr<ov::ITensor>& expert_output,
+                                       const ov::SoPtr<ov::ITensor>& target_tensor,
+                                       const std::map<size_t, std::vector<size_t>>& token_to_experts,
+                                       size_t num_tokens,
+                                       size_t embed_dim);
     virtual void bind_global_params(std::size_t idx, RqPtr request);
     virtual void bind_global_results(std::size_t idx, RqPtr request);
     void alloc_quant_gather_tensors(std::size_t idx, RqPtr request);

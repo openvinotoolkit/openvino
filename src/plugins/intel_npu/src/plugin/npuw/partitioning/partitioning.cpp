@@ -1922,7 +1922,7 @@ void Partitioner::moe(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
 
     // Handle expert tag
-    if (f._tag == "expert") {
+    if (f.gettag() == "expert") {
         LOG_INFO("Transform " << func_name << " into single expert block in model " << model->get_friendly_name()
                               << "...");
         // Use the factory method to create MoEExperts from the function model
