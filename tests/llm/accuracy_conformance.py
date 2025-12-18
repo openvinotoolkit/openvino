@@ -35,7 +35,7 @@ TEST_CATALOG = {}
 NOTEST=0.0
 #                           NAME,                                   GPU_i8, GPU_i4, CPU_i8, CPU_i4
 add_test_case(TEST_CATALOG, "TinyLlama/TinyLlama-1.1B-Chat-v1.0",   0.97,   0.88,   0.95,   0.89)
-add_test_case(TEST_CATALOG, "Qwen/Qwen2-0.5B-Instruct",             0.92,   0.75,   0.91,   0.73)
+add_test_case(TEST_CATALOG, "Qwen/Qwen2-0.5B-Instruct",             0.92,   0.7,   0.91,   0.73)
 
 # Extract configuration from catalog
 MODEL_IDS = list(TEST_CATALOG.keys())

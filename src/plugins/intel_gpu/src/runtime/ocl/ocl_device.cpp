@@ -62,6 +62,10 @@ gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
         case ngen::HW::XeHPC: return gpu_arch::xe_hpc;
         case ngen::HW::Xe2: return gpu_arch::xe2;
         case ngen::HW::Xe3: return gpu_arch::xe3;
+        case ngen::HW::XE3P_35_10: return gpu_arch::xe3p_35_10;
+        case ngen::HW::XE3P_35_11: return gpu_arch::xe3p_35_11;
+        case ngen::HW::XE3P_UNKNOWN: return gpu_arch::xe3p_unknown;
+        case ngen::HW::Xe4: return gpu_arch::xe4;
         case ngen::HW::Gen10:
         case ngen::HW::Unknown: return gpu_arch::unknown;
     }

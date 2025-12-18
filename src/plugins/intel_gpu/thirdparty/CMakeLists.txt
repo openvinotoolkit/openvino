@@ -15,7 +15,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install" CACHE PATH "Installation path for oneDNN GPU library")
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root")
         set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;INNER_PRODUCT;MATMUL;REORDER;POOLING;REDUCTION;SDPA;RNN")
-        set(ONEDNN_ENABLED_ISA "XELP;XEHP;XEHPG;XEHPC;XE2;XE3")
+        set(ONEDNN_ENABLED_ISA "XELP;XEHP;XEHPG;XEHPC;XE2;XE3;XE3P;XE4")
         set(DNNL_GPU_LIBRARY_NAME "openvino_onednn_gpu" CACHE STRING "Name of oneDNN library for Intel GPU Plugin")
 
         if(X86_64)
@@ -115,6 +115,9 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_CPU_RUNTIME=NONE"
                 "-DDNNL_GPU_RUNTIME=OCL"
                 "-DDNNL_LIBRARY_NAME=${DNNL_GPU_LIBRARY_NAME}"
+                "-DNGEN_NO_OP_NAMES=1"
+                "-DXE3P=1"
+                "-DXE4=1"
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
                 "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
@@ -158,7 +161,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
 
         set(LIB_INCLUDE_DIRS "${ONEDNN_INSTALL_DIR}/include"
                              "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/jit/ngen"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/jit"
                              "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/jit/config"
                              "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/gemm/jit/include"
                              "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/third_party/ngen")
@@ -168,7 +171,10 @@ if(ENABLE_ONEDNN_FOR_GPU)
                             DNNL_ENABLE_CPU_ISA_HINTS
                             DNNL_ENABLE_MAX_CPU_ISA
                             DNNL_X64=1
-                            NGEN_CONFIG)
+                            NGEN_CONFIG
+                            NGEN_NO_OP_NAMES=1
+                            XE3P=1
+                            XE4=1)
         add_library(onednn_gpu_tgt INTERFACE)
         set_target_properties(onednn_gpu_tgt PROPERTIES
             INTERFACE_LINK_LIBRARIES $<BUILD_INTERFACE:${ONEDNN_GPU_LIB_PATH}>
