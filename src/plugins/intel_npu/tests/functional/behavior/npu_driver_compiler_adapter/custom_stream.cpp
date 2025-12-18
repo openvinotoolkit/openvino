@@ -9,6 +9,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "intel_npu/config/options.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
@@ -46,6 +47,32 @@ std::shared_ptr<ov::Model> createModelWithLargeWeights(const bool placeOneWeight
 
     return std::make_shared<ov::Model>(ov::ResultVector{std::move(res)}, ov::ParameterVector{std::move(data)});
 }
+
+class TestNonDeterministicAttribute : public ov::RuntimeAttribute {
+public:
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        int test_value = 0;
+        visitor.on_attribute("test123", test_value);
+        return true;
+    }
+
+    bool is_deterministic() const override {
+        return false;
+    }
+};
+
+class TestDeterministicAttribute : public ov::RuntimeAttribute {
+public:
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        int test_value = 0;
+        visitor.on_attribute("test234", test_value);
+        return true;
+    }
+
+    bool is_deterministic() const override {
+        return true;
+    }
+};
 
 }  // namespace
 
@@ -152,9 +179,31 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckWeightlessCacheAttributePr
 }
 
 /**
- * @brief The hash produced by the serialization function should ignore non-deterministic fields.
+ * @brief The custom format used by the plugin to store the WeightlessCacheAttribute changes the value of the hash.
  */
-TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckOVHashIgnoresNondeterministicField) {
+TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckWeightlessCacheAttributeChangesHash) {
+    auto model = createModelWithLargeWeights(false);
+    const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
+
+    ::intel_npu::SerializedIR serializedModel;
+    EXPECT_NO_THROW(
+        serializedModel =
+            ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, true, true));
+    ASSERT_TRUE(serializedModel.hash.has_value());
+    const uint64_t hashNoWCA = serializedModel.hash.value();
+
+    model = createModelWithLargeWeights(true);
+    EXPECT_NO_THROW(
+        serializedModel =
+            ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, true, true));
+
+    ASSERT_FALSE(hashNoWCA == serializedModel.hash.value());
+}
+
+/**
+ * @brief The hash produced by the serialization function should ignore only non-deterministic runtime attributes.
+ */
+TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckPluginHashIgnoresOnlyNondeterministicField) {
     auto model = createModelWithLargeWeights();
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
 
@@ -164,18 +213,26 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckOVHashIgnoresNondeterminis
                                                                                       11,
                                                                                       false,
                                                                                       true,
-                                                                                      true));
+                                                                                      false));
     ASSERT_TRUE(serializedModel.hash.has_value());
-    const uint64_t hashNoWCA = serializedModel.hash.value();
+    const uint64_t hashNoAttribute = serializedModel.hash.value();
 
-    // Runtime information fields of custom format (not inheriting "ov::RuntimeAttribute") are treated as
-    // non-deterministic by default.
-    model->set_rt_info(0, "dummy_field");
+    model->input().get_node()->get_rt_info()[TestNonDeterministicAttribute::get_type_info_static()] =
+        TestNonDeterministicAttribute();
+    EXPECT_NO_THROW(serializedModel = ::intel_npu::driver_compiler_utils::serializeIR(model->clone(),
+                                                                                      dummyCompilerVersion,
+                                                                                      11,
+                                                                                      false,
+                                                                                      true,
+                                                                                      false));
+    ASSERT_TRUE(hashNoAttribute == serializedModel.hash.value());
+
+    model->input().get_node()->get_rt_info()[TestDeterministicAttribute::get_type_info_static()] =
+        TestDeterministicAttribute();
     EXPECT_NO_THROW(
         serializedModel =
-            ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, true, true));
-
-    ASSERT_TRUE(hashNoWCA == serializedModel.hash.value());
+            ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, true, false));
+    ASSERT_FALSE(hashNoAttribute == serializedModel.hash.value());
 }
 
 const std::vector<ov::AnyMap> configs = {
@@ -187,4 +244,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          DriverCompilerAdapterCustomStreamTestNPU::getTestCaseName);
+
 }  // namespace ov::test::behavior

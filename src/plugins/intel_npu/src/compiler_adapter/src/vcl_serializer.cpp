@@ -257,10 +257,7 @@ protected:
         }
 
         // Step 3: store any other runtime information the VCL needs to know about.
-        // Warning: if the UMD does the model hashing, do not store anything that is not deterministic. If the driver
-        // uses the hash computed by the OV pass, then non-deterministic fields should be safe. Unless the field
-        // inherits "ov::RuntimeAttribute", in which case we should make sure the deterministic attribute is set
-        // correspondingly.
+        // Warning: do not store any non-deterministic field here.
 
         // Depending on the driver version, the compiler attached to it may request this information as an indicator
         // of the precision/layout preprocessing requirement. We are setting this value to "true" since the OV API v1
