@@ -42,7 +42,6 @@ jobs:
       image: ${{ inputs.image }}
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro # Needed to access CA certificates
-        - /dev/dri:/dev/dri
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
       options: ${{ inputs.options }}
     defaults:
@@ -106,8 +105,12 @@ jobs:
         run: |
           apt-get update && apt-get install -y \
             libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
-            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libigdgmm11 libxatracker2 mesa-va-drivers \
+            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libxatracker2 mesa-va-drivers \
             mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
+            wget -qO - https://repositories.intel.com/gpu/intel-graphics.key |  gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+            echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | tee /etc/apt/sources.list.d/intel-gpu-jammy.list
+            apt update
+            apt-get install -y libze-intel-gpu1 libze1 intel-opencl-icd clinfo libze-dev intel-ocloc intel-level-zero-gpu-raytracing
 
       - name: Verify devices
         run: clinfo
