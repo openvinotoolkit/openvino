@@ -6,10 +6,11 @@
 # download vcl prebuilt package info:
 #     vcl version: 7.5.0
 #     release: npu_ud_2025_48_rc1
-#     WINDOWS: w_vpux_compiler_l0_win_windows_2022-7_5_0-Release_dyntbb_postcommit_cid_a1ae54e94faea6f35566ef4ed03ee98156808306_251217_1336.zip
+#     storage localtion: https://storage.openvinotoolkit.org/dependencies/thirdparty
+#     WINDOWS: npu_compiler_vcl_windows_2022-7_5_0-a1ae54e9.zip
 #     LINUX: 
-#         ubuntu22.04: l_vpux_compiler_l0_linux_ubuntu_22_04-7_5_0-Release_dyntbb_postcommit_cid_a1ae54e94faea6f35566ef4ed03ee98156808306_251217_1334.tar.gz
-#         ubuntu24.04: l_vpux_compiler_l0_linux_ubuntu_24_04-7_5_0-Release_dyntbb_postcommit_cid_a1ae54e94faea6f35566ef4ed03ee98156808306_251217_1334.tar.gz
+#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_5_0-a1ae54e9.tar.gz
+#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_5_0-a1ae54e9.tar.gz
 function(download_and_extract url zip_file extracted_dir modify_proxy)
 
     # Check if the prebuilt Plugin compiler libraries not exist
@@ -112,9 +113,9 @@ if(ENABLE_INTEL_NPU_COMPILER)
     message(STATUS "The prebuilt compiler version is ${PLUGIN_COMPILER_VERSION_MAJOR}.${PLUGIN_COMPILER_VERSION_MINOR}.${PLUGIN_COMPILER_VERSION_PATCH}")
     if(WIN32)
         set(PLUGIN_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/plugin_compiler_lib/win")
-        set(PLUGIN_COMPILER_LIBS_URL "https://github.com/openvinotoolkit/npu_compiler/releases/download/npu_ud_2025_48_rc1/w_vpux_compiler_l0_win_windows_2022-7_5_0-Release_dyntbb_postcommit_cid_a1ae54e94faea6f35566ef4ed03ee98156808306_251217_1336.zip")
-        set(PLUGIN_COMPILER_LIBS_ZIP "${PLUGIN_COMPILER_LIBS_DIR}/w_vpux_compiler_l0_win_windows_2022-${PLUGIN_COMPILER_VERSION}-Release_dyntbb_postcommit_cid_a1ae54e94faea6f35566ef4ed03ee98156808306_251217_1336.zip")
-        set(PLUGIN_COMPILER_LIBS_DIR_UNZIPPED "${PLUGIN_COMPILER_LIBS_DIR}/cid_a1ae54e94faea6f35566ef4ed03ee98156808306_251217_1336")
+        set(PLUGIN_COMPILER_LIBS_URL "https://storage.openvinotoolkit.org/dependencies/thirdparty/windows/npu_compiler_vcl_windows_2022-7_5_0-a1ae54e9.zip")
+        set(PLUGIN_COMPILER_LIBS_ZIP "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_windows_2022-${PLUGIN_COMPILER_VERSION}-a1ae54e9.zip")
+        set(PLUGIN_COMPILER_LIBS_DIR_UNZIPPED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_windows_2022-${PLUGIN_COMPILER_VERSION}-a1ae54e9")
 
         download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_ZIP}" "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}" "MODIFY")
         set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}/cid/lib")
@@ -139,9 +140,9 @@ if(ENABLE_INTEL_NPU_COMPILER)
                 if(OS_VERSION STREQUAL "22.04")
                     # Ubuntu 22.04-specific settings or actions
                     set(PLUGIN_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/compiler_libs/ubuntu22.04")
-                    set(PLUGIN_COMPILER_LIBS_URL "https://github.com/openvinotoolkit/npu_compiler/releases/download/npu_ud_2025_48_rc1/l_vpux_compiler_l0_linux_ubuntu_22_04-7_5_0-Release_dyntbb_postcommit_cid_a1ae54e94faea6f35566ef4ed03ee98156808306_251217_1334.tar.gz")
-                    set(PLUGIN_COMPILER_LIBS_TAR "${PLUGIN_COMPILER_LIBS_DIR}/l_vpux_compiler_l0_linux_ubuntu_22_04-${PLUGIN_COMPILER_VERSION}-Release_dyntbb_postcommit_cid_a1ae54e94faea6f35566ef4ed03ee98156808306_251217_1334.tar.gz")
-                    set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/${PLUGIN_COMPILER_VERSION}-Release_dyntbb_postcommit_cid_a1ae54e94faea6f35566ef4ed03ee98156808306_251217_1334")
+                    set(PLUGIN_COMPILER_LIBS_URL "https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/npu_compiler_vcl_ubuntu_22_04-7_5_0-a1ae54e9.tar.gz")
+                    set(PLUGIN_COMPILER_LIBS_TAR "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_22_04-${PLUGIN_COMPILER_VERSION}-a1ae54e9.tar.gz")
+                    set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_22_04-${PLUGIN_COMPILER_VERSION}-a1ae54e9")
 
                     download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_TAR}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
                     set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/cid/lib/")
@@ -157,9 +158,9 @@ if(ENABLE_INTEL_NPU_COMPILER)
                 elseif(OS_VERSION STREQUAL "24.04")
                     message(STATUS "This is Ubuntu 24.04")
                     set(PLUGIN_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/compiler_libs/ubuntu24.04")
-                    set(PLUGIN_COMPILER_LIBS_URL "https://github.com/openvinotoolkit/npu_compiler/releases/download/npu_ud_2025_48_rc1/l_vpux_compiler_l0_linux_ubuntu_24_04-7_5_0-Release_dyntbb_postcommit_cid_a1ae54e94faea6f35566ef4ed03ee98156808306_251217_1334.tar.gz")
-                    set(PLUGIN_COMPILER_LIBS_TAR "${PLUGIN_COMPILER_LIBS_DIR}/l_vpux_compiler_l0_linux_ubuntu_24_04-${PLUGIN_COMPILER_VERSION}-Release_dyntbb_postcommit_cid_a1ae54e94faea6f35566ef4ed03ee98156808306_251217_1334.tar.gz")
-                    set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/${PLUGIN_COMPILER_VERSION}-Release_dyntbb_postcommit_cid_a1ae54e94faea6f35566ef4ed03ee98156808306_251217_1334")
+                    set(PLUGIN_COMPILER_LIBS_URL "https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/npu_compiler_vcl_ubuntu_24_04-7_5_0-a1ae54e9.tar.gz")
+                    set(PLUGIN_COMPILER_LIBS_TAR "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_24_04-${PLUGIN_COMPILER_VERSION}-a1ae54e9.tar.gz")
+                    set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_24_04-${PLUGIN_COMPILER_VERSION}-a1ae54e9")
 
                     download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_TAR}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
                     set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/cid/lib/")
