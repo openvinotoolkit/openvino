@@ -7,9 +7,8 @@
 #include <ze_command_queue_npu_ext.h>
 #include <ze_mem_import_system_memory_ext.h>
 
+#include <mutex>
 #include <regex>
-
-#include "intel_npu/utils/zero/zero_utils.hpp"
 
 #ifdef _WIN32
 namespace {
@@ -18,15 +17,14 @@ constexpr uint32_t WIN_DRIVER_NO_MCL_SUPPORT = 2688;
 
 #endif
 
-namespace intel_npu {
+namespace {
 
-const ze_driver_uuid_t ZeroInitStructsHolder::uuid = ze_intel_npu_driver_uuid;
+constexpr ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
 
-static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
-    const char* extName,
-    uint32_t extCurrentVersion,
-    std::vector<ze_driver_extension_properties_t>& extProps,
-    uint32_t count) {
+std::tuple<uint32_t, std::string> queryDriverExtensionVersion(const char* extName,
+                                                              uint32_t extCurrentVersion,
+                                                              std::vector<ze_driver_extension_properties_t>& extProps,
+                                                              uint32_t count) {
     const char* functionExtName = nullptr;
     uint32_t targetVersion = 0;
 
@@ -55,6 +53,10 @@ static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
     return std::make_tuple(targetVersion, functionExtName ? functionExtName : "");
 }
 
+}  // namespace
+
+namespace intel_npu {
+
 void ZeroInitStructsHolder::initNpuDriver() {
     auto setNpuDriver = [&](uint32_t drivers_count, std::vector<ze_driver_handle_t> all_drivers) {
         driver_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
@@ -73,7 +75,7 @@ void ZeroInitStructsHolder::initNpuDriver() {
     };
 
     auto fallbackToZeDriverGet = [&]() {
-        log.debug("ZeroInitStructsHolder - zeInitDrivers not supported, fallback to zeDriverGet");
+        log.debug("ZeroInitStructsHolder::initNpuDriver - zeInitDrivers not supported, fallback to zeDriverGet");
 
         uint32_t drivers_count = 0;
         THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGet", zeDriverGet(&drivers_count, nullptr));
@@ -86,27 +88,43 @@ void ZeroInitStructsHolder::initNpuDriver() {
     };
 
     zel_version_t loader_version = {};
-    size_t num_components;
-    auto result = zelLoaderGetVersions(&num_components, nullptr);
-    if (result == ZE_RESULT_SUCCESS) {
-        zel_component_version_t* versions = new zel_component_version_t[num_components];
-        result = zelLoaderGetVersions(&num_components, versions);
-
+    bool get_loader_version = false;
+    try {
+        log.debug("ZeroInitStructsHolder::initNpuDriver - performing zelGetLoaderVersion");
+        zel_component_version_t version;
+        auto result = zelGetLoaderVersion(&version);
         if (result == ZE_RESULT_SUCCESS) {
-            for (size_t i = 0; i < num_components; ++i) {
-                if (strncmp(versions[i].component_name, "loader", strlen("loader")) == 0) {
-                    loader_version = versions[i].component_lib_version;
+            loader_version = version.component_lib_version;
+            get_loader_version = true;
+        }
+    } catch (...) {
+        // Ignore exceptions - fallback to zeInit
+    }
 
-                    log.debug("ZeroInitStructsHolder - ze_loader.dll version: %d.%d.%d",
-                              loader_version.major,
-                              loader_version.minor,
-                              loader_version.patch);
+    if (!get_loader_version) {
+        log.debug("ZeroInitStructsHolder::initNpuDriver - performing zeInit on NPU only");
+        THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
+        size_t num_components;
+        auto result = zelLoaderGetVersions(&num_components, nullptr);
+        if (result == ZE_RESULT_SUCCESS) {
+            std::vector<zel_component_version_t> versions(num_components);
+            result = zelLoaderGetVersions(&num_components, versions.data());
+
+            if (result == ZE_RESULT_SUCCESS) {
+                for (size_t i = 0; i < num_components; ++i) {
+                    if (strncmp(versions[i].component_name, "loader", strlen("loader")) == 0) {
+                        loader_version = versions[i].component_lib_version;
+                        break;
+                    }
                 }
             }
         }
-
-        delete[] versions;
     }
+
+    log.debug("ZeroInitStructsHolder::initNpuDriver - ze_loader.dll version: %d.%d.%d",
+              loader_version.major,
+              loader_version.minor,
+              loader_version.patch);
 
     if (loader_version.major > 1 || (loader_version.major == 1 && loader_version.minor > 18) ||
         (loader_version.major == 1 && loader_version.minor == 18 && loader_version.patch >= 5)) {
@@ -129,7 +147,6 @@ void ZeroInitStructsHolder::initNpuDriver() {
 
         // Get our target driver
         setNpuDriver(drivers_count, std::move(all_drivers));
-
         return;
     }
 
@@ -139,9 +156,6 @@ void ZeroInitStructsHolder::initNpuDriver() {
 ZeroInitStructsHolder::ZeroInitStructsHolder()
     : zero_api(ZeroApi::getInstance()),
       log("NPUZeroInitStructsHolder", Logger::global().level()) {
-    log.debug("ZeroInitStructsHolder - performing zeInit on NPU only");
-    THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
-
     log.debug("ZeroInitStructsHolder - initialize NPU Driver");
     initNpuDriver();
 
@@ -304,11 +318,6 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
     log.debug("ZeroInitStructsHolder initialize complete");
 
-    // Obtain compiler-in-driver properties
-    compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-    auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &compiler_properties);
-    THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
-
     // Discover if standard allocation is supported
     ze_device_external_memory_properties_t external_memory_properties_desc = {};
     external_memory_properties_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
@@ -331,15 +340,44 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     }
 }
 
-const std::shared_ptr<ZeroInitStructsHolder>& ZeroInitStructsHolder::getInstance() {
-    static std::shared_ptr<ZeroInitStructsHolder> instance = std::make_shared<ZeroInitStructsHolder>();
+const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance() {
+    static std::mutex mutex;
+    static std::weak_ptr<ZeroInitStructsHolder> weak_instance;
+
+    std::lock_guard<std::mutex> lock(mutex);
+    auto instance = weak_instance.lock();
+    if (!instance) {
+        instance = std::make_shared<ZeroInitStructsHolder>();
+        weak_instance = instance;
+    }
     return instance;
+}
+
+ze_device_graph_properties_t ZeroInitStructsHolder::getCompilerProperties() {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (!compiler_properties) {
+        // Obtain compiler-in-driver properties
+        compiler_properties = std::make_unique<ze_device_graph_properties_t>();
+        compiler_properties->stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
+        auto result =
+            graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, compiler_properties.get());
+        THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
+    }
+    return *compiler_properties;
+}
+
+uint32_t ZeroInitStructsHolder::getCompilerVersion() {
+    if (!compiler_properties) {
+        (void)getCompilerProperties();
+    }
+    return ZE_MAKE_VERSION(compiler_properties->compilerVersion.major, compiler_properties->compilerVersion.minor);
 }
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {
     if (context) {
         log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
         auto result = zeContextDestroy(context);
+        context = nullptr;
         if (result != ZE_RESULT_SUCCESS) {
             if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
                 log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");

@@ -132,8 +132,13 @@ jobs:
           pwd
       - name: Generate raport
         run: |
-          lcov --capture --directory ${{ github.workspace }}/. --output-file coverage.info
-          genhtml coverage.info --output-directory coverage-report
+          lcov --capture --directory ${{ github.workspace }}/build \
+            --output-file coverage.info \
+            --ignore-errors mismatch,source
+          genhtml coverage.info \
+            --output-directory coverage-report \
+            --ignore-errors source \
+            --synthesize-missing
       - name: Collect coverage
         uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         with:

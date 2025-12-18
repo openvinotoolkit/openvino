@@ -117,6 +117,13 @@ def test_properties_rw_base():
             ),
         ),
         (
+            intel_cpu.TbbPartitioner,
+            (
+                (intel_cpu.TbbPartitioner.STATIC, "TbbPartitioner.STATIC", 1),
+                (intel_cpu.TbbPartitioner.AUTO, "TbbPartitioner.AUTO", 2),
+            ),
+        ),
+        (
             intel_auto.SchedulePolicy,
             (
                 (intel_auto.SchedulePolicy.ROUND_ROBIN, "SchedulePolicy.ROUND_ROBIN", 0),
@@ -366,6 +373,14 @@ def test_properties_ro(ov_property_ro, expected_value):
             ),
         ),
         (
+            intel_cpu.tbb_partitioner,
+            "TBB_PARTITIONER",
+            (
+                (intel_cpu.TbbPartitioner.STATIC, intel_cpu.TbbPartitioner.STATIC),
+                (intel_cpu.TbbPartitioner.AUTO, intel_cpu.TbbPartitioner.AUTO),
+            ),
+        ),
+        (
             intel_auto.device_bind_buffer,
             "DEVICE_BIND_BUFFER",
             (
@@ -602,7 +617,10 @@ def test_single_property_setting(device):
     assert isinstance(core.get_property(device, streams.num()), int)
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
+@pytest.mark.skipif(
+    os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test"
+)
 @pytest.mark.parametrize(
     "properties_to_set",
     [

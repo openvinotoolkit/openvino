@@ -17,10 +17,10 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/op/broadcastload.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/memory_access.hpp"
@@ -54,13 +54,13 @@ jit_memory_emitter::jit_memory_emitter(jit_generator_t* h,
         OV_CPU_JIT_EMITTER_ASSERT(memory_access->is_memory_access_input_port(0), "must be input port - memory access");
         count = memory_access->get_input_count();
         compiled_byte_offset = memory_access->get_input_offset();
-        buffer_cluster_id = get_parent_buffer_cluster_id(expr);
+        buffer_cluster_id = ov::intel_cpu::utils::get_parent_buffer_cluster_id(expr);
     } else if (in_out_type_ == emitter_in_out_map::vec_to_gpr) {
         OV_CPU_JIT_EMITTER_ASSERT(memory_access->is_memory_access_output_port(0),
                                   "must be output port - memory access");
         count = memory_access->get_output_count();
         compiled_byte_offset = memory_access->get_output_offset();
-        buffer_cluster_id = get_consumer_buffer_cluster_id(expr);
+        buffer_cluster_id = ov::intel_cpu::utils::get_consumer_buffer_cluster_id(expr);
     } else {
         OV_CPU_JIT_EMITTER_THROW("unsupported in_out_type");
     }
@@ -77,26 +77,6 @@ jit_memory_emitter::jit_memory_emitter(jit_generator_t* h,
 size_t jit_memory_emitter::aux_gprs_count() const {
     // for runtime arguments
     return is_offset_runtime ? 1 : 0;
-}
-
-size_t jit_memory_emitter::get_parent_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr) {
-    OV_CPU_JIT_EMITTER_ASSERT(expr->get_input_port_connectors().size() == 1, "MemoryAccess must have one parent");
-    const auto& parent_expr = expr->get_input_expr_ptr(0);
-    if (const auto buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(parent_expr)) {
-        return buffer->get_cluster_id();
-    }
-    return SIZE_MAX;
-}
-
-size_t jit_memory_emitter::get_consumer_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr) {
-    OV_CPU_JIT_EMITTER_ASSERT(expr->get_output_port_connectors().size() == 1, "MemoryAccess must have one consumer");
-    const auto& consumers = expr->get_output_port_connector(0)->get_consumers();
-    for (const auto& consumer : consumers) {
-        if (const auto buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(consumer.get_expr())) {
-            return buffer->get_cluster_id();
-        }
-    }
-    return SIZE_MAX;
 }
 
 std::vector<size_t> jit_memory_emitter::get_available_aux_gprs() const {

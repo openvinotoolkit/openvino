@@ -419,7 +419,7 @@ std::shared_ptr<ov::SharedBuffer<py::array>> get_shared_memory(py::array& array)
             array.ndim() == 0 ? array.itemsize() : array.nbytes(),
             array);
         std::shared_ptr<ov::SharedBuffer<py::array>> memory(buffer, [](ov::SharedBuffer<py::array>* buffer) {
-            ConditionalGILScopedAcquire acquire;
+            py::gil_scoped_acquire acquire;
             delete buffer;
         });
         return memory;
@@ -637,7 +637,7 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
 py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings) {
     py::dict res;
     for (const auto& out : request.m_outputs) {
-        auto t = request.m_request->get_tensor(out);
+        auto t = request.m_request.get_tensor(out);
         if (t.get_element_type() == ov::element::string) {
             if (share_outputs) {
                 PyErr_WarnEx(PyExc_RuntimeWarning, "Result of a string type will be copied to OVDict!", 1);

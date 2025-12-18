@@ -5,8 +5,8 @@
 
 #include "common.h"
 
+// clang-format off
 const std::map<ov_element_type_e, ov::element::Type> element_type_map = {
-    {ov_element_type_e::UNDEFINED, ov::element::dynamic},
     {ov_element_type_e::DYNAMIC, ov::element::dynamic},
     {ov_element_type_e::BOOLEAN, ov::element::boolean},
     {ov_element_type_e::BF16, ov::element::bf16},
@@ -34,6 +34,7 @@ const std::map<ov_element_type_e, ov::element::Type> element_type_map = {
     {ov_element_type_e::F4E2M1, ov::element::f4e2m1},
     {ov_element_type_e::F8E8M0, ov::element::f8e8m0},
 };
+// clang-format on
 
 ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
     for (auto iter = element_type_map.begin(); iter != element_type_map.end(); iter++) {
@@ -41,7 +42,7 @@ ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
             return iter->first;
         }
     }
-    return ov_element_type_e::UNDEFINED;
+    return ov_element_type_e::DYNAMIC;
 }
 
 ov::element::Type get_element_type(ov_element_type_e type) {

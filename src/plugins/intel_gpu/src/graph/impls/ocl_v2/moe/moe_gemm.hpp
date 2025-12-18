@@ -86,7 +86,7 @@ struct MoEGemm : public ImplementationManager {
             size_t quant_params_idx_start =
                 desc.has_bias ? static_cast<size_t>(moe_gemm::MoEGemmInputIdx::WEIGHT_SCALE) : static_cast<size_t>(moe_gemm::MoEGemmInputIdx::WEIGHT_SCALE - 1);
             for (size_t i = quant_params_idx_start; i < node.get_input_layouts().size(); i++) {
-                if (!one_of(node.get_input_layout(i).format, supported_fmts) | !one_of(node.get_input_layout(i).data_type, supported_quant_param_types)) {
+                if (!one_of(node.get_input_layout(i).format, supported_fmts) || !one_of(node.get_input_layout(i).data_type, supported_quant_param_types)) {
                     DO_NOT_USE_THIS_KERNEL(layer_id);
                 }
             }

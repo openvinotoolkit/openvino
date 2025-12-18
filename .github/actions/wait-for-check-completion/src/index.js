@@ -36,19 +36,18 @@ async function waitForChecks(octokit, owner, repo, ref, checkNames, waitInterval
     while ((Date.now() - startTime < timeoutMs) && pendingChecks.size) {
         try {
             // Get all check runs for the specific commit
-            const { data: checkRuns } = await octokit.rest.checks.listForRef({
+            const allCheckRuns = await octokit.paginate(octokit.rest.checks.listForRef, {
                 owner,
                 repo,
                 ref,
                 per_page: 100
             });
 
-            core.info(`Found ${checkRuns.check_runs.length} total check runs`);
+            core.info(`Found ${allCheckRuns.length} total check runs`);
 
             // Process each pending check
             for (const checkName of pendingChecks) {
-                const matchingRuns = checkRuns.check_runs.filter(run => run.name === checkName);
-
+                const matchingRuns = allCheckRuns.filter(run => run.name === checkName);
                 if (!matchingRuns.length) {
                     core.info(`No check runs found for "${checkName}" yet, waiting...`);
                     continue;

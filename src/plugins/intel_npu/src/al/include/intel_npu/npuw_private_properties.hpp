@@ -237,6 +237,14 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 /**
  * @brief
  * Type: boolean.
+ * Apply attention optimizations (e.g. DYNAMIC, PYRAMID, and others) when attention block detected.
+ * Default value: true
+ */
+static constexpr ov::Property<bool> attn{"NPUW_ATTN"};
+
+/**
+ * @brief
+ * Type: boolean.
  * Enable dynamic dispatch for the attention block, if detected
  * Default value: true
  */
@@ -490,6 +498,16 @@ static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
 
 /**
  * @brief
+ * Type: boolean
+ * Enable multiple generate model variants with different static shapes (1K, 2K, 4K, 8K stepping).
+ * When enabled, multiple generate models will be compiled and the appropriate one will be
+ * selected at runtime based on the required KV cache size.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> generate_pyramid{"NPUW_LLM_GENERATE_PYRAMID"};
+
+/**
+ * @brief
  * Type: uint64_t.
  * Prompt chunk size for chunk prefill.
  * The chunk size should be a power of two.
@@ -647,6 +665,16 @@ namespace whisper {
  */
 static constexpr ov::Property<bool> enabled{"NPUW_WHISPER"};
 }  // namespace whisper
+
+namespace eagle {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass Eagle3 model for speculative decoding.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_EAGLE"};
+}  // namespace eagle
 
 }  // namespace npuw
 }  // namespace intel_npu

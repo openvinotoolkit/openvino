@@ -242,6 +242,7 @@ includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls an
   group size values are ``0``, ``32``, ``64``, or ``128``.
 
   On Intel CPU and Intel GPU, dynamic quantization is enabled **by default**.
+
   * For Intel CPU and Intel GPU without XMX support, the default group size is ``32``.
   * For Intel GPU with XMX support, the only supported group size is ``innermost axis`` and
     it is turned on **by default**.
@@ -269,11 +270,19 @@ includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls an
 
 * **KV-cache quantization** allows lowering the precision of Key and Value cache in LLMs.
   This helps reduce memory consumption during inference, improving latency and throughput.
-  KV-cache can be quantized into the following precisions: ``u8``, ``bf16``, ``f16``.
-  If ``u8`` is used, KV-cache quantization is also applied in a group-wise manner. Thus,
-  it can use ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` value if defined. Otherwise, the group
-  size ``32`` is used by default. KV-cache quantization can be enabled as follows:
+  KV-cache can be quantized into the following precisions: ``u8``, ``u4``, ``bf16``, ``f16``.
+  For ``u8`` or ``u4``, group-wise quantization is used; the group sizes are controlled by
+  ``KEY_CACHE_GROUP_SIZE`` and ``VALUE_CACHE_GROUP_SIZE``. Keys and Values precisions
+  can be configured independently using ``KEY_CACHE_PRECISION`` and ``VALUE_CACHE_PRECISION``.
+  Key quantization mode is set with ``KEY_CACHE_QUANT_MODE`` to either ``BY_CHANNEL`` (more accurate)
+  or ``BY_TOKEN``.
 
+  Default KV-cache quantization settings for CPU and GPU:
+
+  * U8 Keys: channel-wise quantization, group_size = 32 (CPU) / 16 (GPU);
+  * U8 Values: token-wise quantization, group_size = hidden_dim.
+
+  Use the following settings to enable KV-cache quantization:
 
   .. code-block:: python
 

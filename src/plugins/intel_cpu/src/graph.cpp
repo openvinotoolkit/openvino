@@ -69,17 +69,19 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf_count.h"
 #include "proxy_mem_blk.h"
+#include "thread_pool_imp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
 #include "weights_cache.hpp"
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE || \
+     OV_THREAD == OV_THREAD_OMP)
 #    include <atomic>
 #endif
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if OV_THREAD_USE_TBB
 #    include <tbb/task.h>
 #endif
 
@@ -121,7 +123,8 @@ void Graph::Init(const std::vector<NodePtr>& graphNodes,
     }
 
     m_context = context;
-    m_stream = dnnl::stream(getEngine());
+    m_stream = make_stream(getEngine(), m_context->getCpuParallel()->get_thread_pool());
+    m_context->getCpuParallel()->activate();
 
     this->_name = std::move(name);
 
@@ -377,7 +380,8 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
     }
 
     m_context = context;
-    m_stream = dnnl::stream(getEngine());
+    m_stream = make_stream(getEngine(), m_context->getCpuParallel()->get_thread_pool());
+    m_context->getCpuParallel()->activate();
 
     Replicate(model, inputConfigs, outputConfigs);
 
@@ -1385,7 +1389,8 @@ private:
 using UpdateNodes = UpdateNodesSeq;
 #endif
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE || \
+     OV_THREAD == OV_THREAD_OMP)
 
 class UpdateNodesBase {
 public:
@@ -1432,7 +1437,7 @@ protected:
 };
 
 // NOLINTBEGIN(misc-include-cleaner) tbb has multiple implicit includes, which are not supposed to be included directly
-#    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#    if OV_THREAD_USE_TBB
 #        if (TBB_VERSION_MAJOR > 2020)
 template <typename Body>
 class AsyncTask : public tbb::detail::d1::task {
@@ -1593,11 +1598,11 @@ public:
 
 /* group all the profiling macros into a single one
  * to avoid cluttering a core logic */
-#define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config)             \
-    VERBOSE(node, (config).debugCaps.verbose);                              \
-    PERF(node, (config).collectPerfCounters);                               \
-    DUMP(node, (config).debugCaps, infer_count);                            \
-    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_op_exec, (node)->getTypeStr()); \
+#define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config)        \
+    VERBOSE(node, (config).debugCaps.verbose);                         \
+    PERF(node, (config).collectPerfCounters);                          \
+    DUMP(node, (config).debugCaps, infer_count);                       \
+    OV_ITT_SCOPED_TASK_BASE(ittScope, (node)->perfCounters().execute); \
     DEBUG_LOG(*(node));
 
 inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, int numaId) const {
@@ -2009,6 +2014,7 @@ void Graph::EnforceInferencePrecision() {
                            Type::Interpolate,     // super resolution nets
                            Type::PagedAttention,  // page attention
                            Type::QKVProjection,
+                           Type::GatherMatmul,
                            Type::LLMMLP)) {
                     continue;  // stop at significant nodes
                 }

@@ -108,14 +108,10 @@ public:
  *
  */
 class FileStorageCacheManager final : public ICacheManager {
-    std::string m_cachePath;
+    std::filesystem::path m_cache_path;
 
-    ov::util::Path getBlobFile(const std::string& blobHash) const {
-#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-        return ov::util::string_to_wstring(ov::util::make_path(m_cachePath, blobHash + ".blob"));
-#else
-        return ov::util::make_path(m_cachePath, blobHash + ".blob");
-#endif
+    std::filesystem::path get_blob_file(const std::string& blob_hash) const {
+        return m_cache_path / (blob_hash + ".blob");
     }
 
 public:
@@ -123,7 +119,7 @@ public:
      * @brief Constructor
      *
      */
-    FileStorageCacheManager(std::string cachePath) : m_cachePath(std::move(cachePath)) {}
+    FileStorageCacheManager(std::filesystem::path cache_path) : m_cache_path(std::move(cache_path)) {}
 
     /**
      * @brief Destructor
@@ -135,7 +131,7 @@ private:
     void write_cache_entry(const std::string& id, StreamWriter writer) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
-        const auto blob_path = getBlobFile(id);
+        const auto blob_path = get_blob_file(id);
         std::ofstream stream(blob_path, std::ios_base::binary);
         writer(stream);
         stream.close();
@@ -146,13 +142,13 @@ private:
     void read_cache_entry(const std::string& id, bool enable_mmap, StreamReader reader) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
-        const auto blob_file_name = getBlobFile(id);
-        if (std::filesystem::exists(blob_file_name)) {
+        const auto blob_path = get_blob_file(id);
+        if (std::filesystem::exists(blob_path)) {
             if (enable_mmap) {
-                CompiledBlobVariant compiled_blob{std::in_place_index<0>, ov::read_tensor_data(blob_file_name)};
+                CompiledBlobVariant compiled_blob{std::in_place_index<0>, ov::read_tensor_data(blob_path)};
                 reader(compiled_blob);
             } else {
-                std::ifstream stream(blob_file_name, std::ios_base::binary);
+                std::ifstream stream(blob_path, std::ios_base::binary);
                 CompiledBlobVariant compiled_blob{std::in_place_index<1>, std::ref(stream)};
                 reader(compiled_blob);
             }
@@ -160,10 +156,10 @@ private:
     }
 
     void remove_cache_entry(const std::string& id) override {
-        auto blobFileName = getBlobFile(id);
+        const auto blob_path = get_blob_file(id);
 
-        if (std::filesystem::exists(blobFileName)) {
-            std::ignore = std::filesystem::remove(blobFileName);
+        if (std::filesystem::exists(blob_path)) {
+            std::ignore = std::filesystem::remove(blob_path);
         }
     }
 };

@@ -125,6 +125,9 @@ std::unordered_set<std::string> deserialize_tensor_names(const std::string_view&
                 *name_inserter = std::regex_replace(std::string(name_view), escaped_delim, delim);
             }
             start = pos;
+            // There's no real case when `pos' equals zero and following test `delim_pos != std::string::npos' protects
+            // against it.
+            // coverity[ overflow_const:SUPPRESS]
         } else if (auto delim_pos = pos - 1; delim_pos != std::string::npos && tensor_names[delim_pos] == esc_char) {
             ++pos;
         } else {

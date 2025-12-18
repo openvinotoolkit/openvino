@@ -15,13 +15,16 @@ public:
     OPENVINO_OP("MOECompressed", "gpu_opset", ov::op::internal::MOE);
 
     MOECompressed() = default;
+    MOECompressed(const OutputVector& args) : MOE(args) {}
 
     struct Config : public MOE::Config {
         size_t hidden_size = 0;
         size_t inter_size = 0;
         size_t num_expert = 0;
         size_t top_k = 0;
-        size_t group_size = 0;
+        // numeric_limits<size_t>::max() means per_channel compression (single group).
+        // other non-zero value means group compression with this given group_size.
+        size_t group_size = 0; 
         // In CB, intermediate shapes are expanded to {SeqLen, 1, HiddenSize}
         // In Non-CB, intermediate shapes are expanded to {Batch, SeqLen, HiddenSize}
         size_t has_batch_dim = 0;

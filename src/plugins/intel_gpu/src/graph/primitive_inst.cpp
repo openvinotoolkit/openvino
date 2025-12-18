@@ -1898,6 +1898,24 @@ void primitive_inst::do_runtime_skip_lora() {
     }
 }
 
+void primitive_inst::do_runtime_skip_resample() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_resample: " + id()));
+    if (!get_node().is_type<resample>() || !get_node().is_runtime_skippable())
+        return;
+
+    const auto& input_layout = _impl_params->get_input_layout(0);
+    const auto& output_layout = _impl_params->get_output_layout();
+    bool is_unchanged = input_layout == output_layout;
+    if (is_unchanged) {
+        set_can_be_optimized(true);
+        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_resample] " << id() << " can be optimized due to same input/output" << std::endl;
+    } else {
+        set_can_be_optimized(false);
+        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_resample] " << id() << " cannot be optimized, input: " << input_layout.to_short_string()
+                               << " , output: " << output_layout.to_short_string() << std::endl;
+    }
+}
+
 bool primitive_inst::has_inner_networks() const {
     return (_impl_params->inner_nets.size() > 0);
 }
@@ -2008,6 +2026,7 @@ void primitive_inst::prepare_primitive() {
         do_runtime_skip_scatter_update();
         do_runtime_skip_lora();
         do_runtime_in_place_crop();
+        do_runtime_skip_resample();
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_build: " + id()));
@@ -2240,6 +2259,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _fused_mem_offset((_fused_mem_count > 0 && node.get_first_fused_dep_idx() > 0) ? static_cast<uint64_t>(node.get_first_fused_dep_idx()) : 0)
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
+    , _can_share_internal_buffer(node.can_share_internal_buffer())
     , _is_constant(node.is_constant())
     , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
     // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
@@ -2368,8 +2388,6 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
     }
     GPU_DEBUG_LOG << "=> allocate to " << alloc_type << std::endl;
 
-    // Reuse intermediate buffer like output buffer.
-    bool reuse_internal_buf = true;
     auto ret_mem =
         get_memory_from_pool(get_network().get_engine(),
                              get_network_id(),
@@ -2377,7 +2395,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
                              *_node,
                              layout,
                              alloc_type,
-                             reuse_internal_buf,
+                             can_share_internal_buffer(),
                              _runtime_memory_dependencies,
                              reset,
                              _intermediates_memory.size() > idx ? _intermediates_memory[idx].get() : nullptr);
