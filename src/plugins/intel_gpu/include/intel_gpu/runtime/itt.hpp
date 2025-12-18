@@ -14,6 +14,11 @@
 namespace ov::intel_gpu {
 namespace itt {
 namespace domains {
+    // Domain namespace to define GPU Inference phase tasks
+    // [Warning] The strings in this ITT_DOMAIN should NOT be deleted or edited!
+    OV_ITT_DOMAIN(intel_gpu_inference, "ov::phases::gpu::inference");
+    // [Warning] The strings in this ITT_DOMAIN should NOT be deleted or edited!
+    OV_ITT_DOMAIN(intel_gpu_op, "ov::op::gpu");
     OV_ITT_DOMAIN(intel_gpu_plugin);
 }  // namespace domains
 }  // namespace itt

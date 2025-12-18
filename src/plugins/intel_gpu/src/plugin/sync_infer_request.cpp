@@ -101,7 +101,8 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
 }
 
 void SyncInferRequest::infer() {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::infer");
+    // String can be constructed once in the constructor
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::intel_gpu_inference, "SyncInferRequestGPU::infer" +  m_graph->get_runtime_model()->get_name());
     setup_stream_graph();
     std::lock_guard<std::mutex> lk(m_graph->get_mutex());
     enqueue();
@@ -308,7 +309,7 @@ void SyncInferRequest::enqueue() {
 }
 
 void SyncInferRequest::wait() {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait");
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::intel_gpu_inference, "SyncInferRequestGPU::wait");
     OPENVINO_ASSERT(!m_internal_outputs.empty(), "[GPU] Inference was not started!\n");
 
     int64_t sync_total_time = 0;
