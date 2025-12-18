@@ -199,10 +199,9 @@ You can also debug a standalone Python script:
 }
 ```
 
-### Attaching to Running Python Process
-
 **This method does not use or require `launch.json`.** It uses GDB directly from the command line as an alternative to the VS Code debugging setup.
 
+### Attaching to Running Python Process
 You can attach GDB to an already running Python process:
 
 1. Start your Python script with a pause:
