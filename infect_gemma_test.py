@@ -2,6 +2,7 @@
 import sys
 import os
 import shutil
+import platform
 from pathlib import Path
 import openvino as ov
 from openvino.runtime import opset10 as ops
@@ -9,20 +10,30 @@ import numpy as np
 
 # --- Setup Environment ---
 cwd = Path.cwd()
-release_bin = cwd / 'bin/intel64/Release'
-tbb_bin = cwd / 'temp/Windows_AMD64/tbb/bin'
-local_python_pkg = cwd / 'bin/intel64/Release/python'
+IS_WINDOWS = platform.system() == "Windows"
+IS_COLAB = 'COLAB_GPU' in os.environ or not IS_WINDOWS
 
-if release_bin.exists() and tbb_bin.exists():
-    os.environ['OPENVINO_LIB_PATHS'] = f"{release_bin.absolute()};{tbb_bin.absolute()}"
+# Windows-specific paths (only used when building locally)
+if IS_WINDOWS:
+    release_bin = cwd / 'bin/intel64/Release'
+    tbb_bin = cwd / 'temp/Windows_AMD64/tbb/bin'
+    local_python_pkg = cwd / 'bin/intel64/Release/python'
     
-if local_python_pkg.exists():
-    sys.path.insert(0, str(local_python_pkg.absolute()))
+    if release_bin.exists() and tbb_bin.exists():
+        os.environ['OPENVINO_LIB_PATHS'] = f"{release_bin.absolute()};{tbb_bin.absolute()}"
+        
+    if local_python_pkg.exists():
+        sys.path.insert(0, str(local_python_pkg.absolute()))
 
 # --- Configuration ---
 GEMMA_IR_PATH = cwd / "gemma_ir" / "openvino_model.xml"
 INFECTED_IR_PATH = cwd / "gemma_ir_tssn" / "openvino_model.xml"
-EXTENSION_PATH = cwd / "src/custom_ops/build/Release/openvino_tssn_extension.dll"
+
+# Cross-platform extension path
+if IS_WINDOWS:
+    EXTENSION_PATH = cwd / "src/custom_ops/build/Release/openvino_tssn_extension.dll"
+else:
+    EXTENSION_PATH = cwd / "src/custom_ops/build/libopenvino_tssn_extension.so"
 
 # Ensure output directory exists
 INFECTED_IR_PATH.parent.mkdir(parents=True, exist_ok=True)

@@ -4,6 +4,8 @@ EVOLUTION V4: Steady-State GPU Saturation
 Optimized for MAXIMUM SUSTAINED GPU LOAD.
 Uses a steady-state evolutionary algorithm with a circular buffer of async requests.
 No 'wait_all()' barriers. As soon as one request finishes, a new mutation is spawned.
+
+Colab Note: Set DEVICE="CPU" when running on Colab (NVIDIA GPUs not supported by OpenVINO GPU plugin).
 """
 import openvino as ov
 import numpy as np
@@ -15,28 +17,47 @@ from datetime import datetime
 import queue
 import memory_utils
 import sys
+import platform
 from pathlib import Path
 
 # --- Setup Environment (Must be before other imports/config) ---
 cwd = Path.cwd()
-release_bin = cwd / 'bin/intel64/Release'
-tbb_bin = cwd / 'temp/Windows_AMD64/tbb/bin'
-local_python_pkg = cwd / 'bin/intel64/Release/python'
+IS_WINDOWS = platform.system() == "Windows"
+IS_COLAB = 'COLAB_GPU' in os.environ or not IS_WINDOWS
 
-if release_bin.exists() and tbb_bin.exists():
-    # Prepend to PATH so DLLs are found
-    os.environ['PATH'] = f"{release_bin.absolute()};{tbb_bin.absolute()};" + os.environ['PATH']
-    os.environ['OPENVINO_LIB_PATHS'] = f"{release_bin.absolute()};{tbb_bin.absolute()}"
+# Windows-specific paths (only used when building locally)
+if IS_WINDOWS:
+    release_bin = cwd / 'bin/intel64/Release'
+    tbb_bin = cwd / 'temp/Windows_AMD64/tbb/bin'
+    local_python_pkg = cwd / 'bin/intel64/Release/python'
     
-if local_python_pkg.exists():
-    sys.path.insert(0, str(local_python_pkg.absolute()))
+    if release_bin.exists() and tbb_bin.exists():
+        # Prepend to PATH so DLLs are found
+        os.environ['PATH'] = f"{release_bin.absolute()};{tbb_bin.absolute()};" + os.environ['PATH']
+        os.environ['OPENVINO_LIB_PATHS'] = f"{release_bin.absolute()};{tbb_bin.absolute()}"
+        
+    if local_python_pkg.exists():
+        sys.path.insert(0, str(local_python_pkg.absolute()))
 
 # --- Configuration ---
 DENSE_MODEL_PATH = "gemma_ir/openvino_model.xml"
 TSSN_MODEL_PATH = "gemma_ir_tssn/openvino_model.xml"
-EXT_PATH = os.path.abspath("src/custom_ops/build/Release/openvino_tssn_extension.dll")
+
+# Cross-platform extension path
+if IS_WINDOWS:
+    EXT_PATH = os.path.abspath("src/custom_ops/build/Release/openvino_tssn_extension.dll")
+else:
+    EXT_PATH = os.path.abspath("src/custom_ops/build/libopenvino_tssn_extension.so")
+
 GPU_CONFIG = os.path.abspath("src/custom_ops/composite_tssn_gpu.xml")
-DEVICE = "GPU"
+
+# Auto-detect device (GPU on Windows with Intel iGPU, CPU elsewhere)
+if IS_COLAB:
+    DEVICE = "CPU"  # Colab uses NVIDIA GPUs, not compatible with OpenVINO GPU plugin
+    print("🔧 Colab/Linux detected: Using CPU device")
+else:
+    DEVICE = "GPU"  # Windows with Intel UHD 620
+    print("🔧 Windows detected: Using GPU device (Intel iGPU)")
 
 # Evolution Hyperparameters
 POPULATION_SIZE = 16      # Reduced queue depth for stability (was 64)

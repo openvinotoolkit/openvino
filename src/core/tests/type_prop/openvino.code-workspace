@@ -8,6 +8,9 @@
 		}
 	],
 	"settings": {
-		"markdown.validate.enabled": true
+		"markdown.validate.enabled": true,
+		"geminicodeassist.agentYoloMode": true,
+		"geminicodeassist.inlineSuggestions.nextEditPredictions": true,
+		"geminicodeassist.inlineSuggestions.suggestionSpeed": "Fast"
 	}
 }
