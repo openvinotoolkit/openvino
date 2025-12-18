@@ -15,6 +15,7 @@ namespace pass {
 class TRANSFORMATIONS_API SymbolicOptimizations;
 class TRANSFORMATIONS_API SymbolicPropagation;
 class TRANSFORMATIONS_API LabelResolvingThroughSelect;
+class ClearSkipInvalidation;
 }  // namespace pass
 }  // namespace ov
 
