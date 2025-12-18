@@ -1615,7 +1615,8 @@ inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, i
 }
 
 inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* request, int numaId) const {
-    VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(itt::domains::ov_intel_cpu, node, getConfig());
+    // DO NOT MODIFY OR DELETE!! - Domain name cannot change
+    VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(itt::domains::ov_op_cpu_exec, node, getConfig());
 
     try {
         ExecuteNode(node, request, numaId);

@@ -103,8 +103,8 @@ void SyncInferRequest::update_external_tensor_ptrs() {
 }
 
 void SyncInferRequest::infer() {
-    OV_ITT_SCOPED_REGION_BASE(itt::domains::ov_intel_cpu,
-                              std::string("SyncInferenceRequest:") + m_compiled_model.name());
+    // [Warning] The strings in ITT_SCOPED_TASK_BASE should NOT be deleted or edited!
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::ov_cpu_inference, std::string("SyncInferenceCPU:") + m_compiled_model.name());
     auto graphLock = m_compiled_model.lock();
     auto&& graph = graphLock._graph;
     auto message = ov::threading::message_manager();

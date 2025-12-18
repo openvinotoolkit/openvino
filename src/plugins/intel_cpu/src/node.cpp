@@ -71,7 +71,6 @@ Node::NodesFactory& Node::factory() {
 
 Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory)
     : context(std::move(ctx)),
-
       fusingPort(-1),
       engine(context->getEngine()),
       name(op->get_friendly_name()),
@@ -820,6 +819,9 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
+    // [Warning] The strings in this ITT_DOMAIN or the domain name should
+    // NOT be deleted or edited!
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::ov_op_cpu_details, getName());
     if (isDynamicNode()) {
         executeDynamic(strm, numaId);
     } else {
