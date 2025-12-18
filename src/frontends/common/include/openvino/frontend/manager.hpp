@@ -75,6 +75,7 @@ public:
     /// be created
     void register_front_end(const std::string& name, FrontEndFactory creator);
 
+    ///@{
     /// \brief Register frontend with name and factory loaded from provided library
     ///
     /// \param name Name of front end
@@ -83,6 +84,23 @@ public:
     /// provided, depending on platform, it will be wrapped with shared library suffix and prefix
     /// to identify library full name
     void register_front_end(const std::string& name, const std::string& library_path);
+
+    void register_front_end(const std::string& name, const std::filesystem::path& library_path);
+
+    template <class Path>
+    void register_front_end(const std::string& name, const Path& library_path) {
+        // needed due to ambiguity between string and filesystem::path calls
+        if constexpr (std::is_constructible_v<std::string, Path>) {
+            register_front_end(name, std::string(library_path));
+        } else if constexpr (std::is_constructible_v<std::filesystem::path, Path>) {
+            register_front_end(name, std::filesystem::path(library_path));
+        } else {
+            auto fn = static_cast<void (FrontEndManager::*)(const std::string&, FrontEndFactory)>(
+                &FrontEndManager::register_front_end);
+            (this->*fn)(name, library_path);
+        }
+    }
+    ///@}
 
 private:
     class Impl;

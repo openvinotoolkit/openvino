@@ -168,6 +168,16 @@ protected:
     virtual InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const;
 
     void validate_path(const std::string& path) const;
+    void validate_path(const std::filesystem::path& path) const;
+
+    template <class Path>
+    void validate_path(const Path& path) const {
+        if constexpr (std::is_constructible_v<std::string, Path>) {
+            validate_path(std::string(path));
+        } else {
+            validate_path(std::filesystem::path(path));
+        }
+    }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     void validate_path(const std::wstring& path) const;
 #endif
