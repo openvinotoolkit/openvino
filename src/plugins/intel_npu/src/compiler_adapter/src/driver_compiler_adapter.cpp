@@ -70,7 +70,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                                            compilerVersion,
                                                            maxOpsetVersion,
                                                            useBaseModelSerializer(config),
-                                                           true);
+                                                           _zeGraphExt->isPluginModelHashSupported());
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -129,7 +129,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
                                                            maxOpsetVersion,
                                                            useBaseModelSerializer(config),
                                                            true,
-                                                           true);
+                                                           _zeGraphExt->isPluginModelHashSupported());
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));

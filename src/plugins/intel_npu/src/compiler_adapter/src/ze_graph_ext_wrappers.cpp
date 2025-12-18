@@ -627,4 +627,8 @@ bool ZeGraphExtWrappers::isTurboOptionSupported(const ze_graph_compiler_version_
     return is_supported;
 }
 
+bool ZeGraphExtWrappers::isPluginModelHashSupported() const {
+    return _graphExtVersion > ZE_MAKE_VERSION(1, 13);
+}
+
 }  // namespace intel_npu
