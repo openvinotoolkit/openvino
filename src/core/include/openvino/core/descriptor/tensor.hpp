@@ -70,8 +70,6 @@ public:
     void set_value_symbol(const TensorSymbol& value_symbol);
 
     /// \brief unsets bound value descriptions
-    /// \note This method respects SkipInvalidation runtime info flag.
-    ///       If SkipInvalidation is set, values will NOT be invalidated.
     void invalidate_values();
 
     /// \brief Gets element type.

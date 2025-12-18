@@ -249,9 +249,7 @@ public:
     /// Sets the number of outputs
     void set_output_size(size_t output_size);
 
-    /// \brief Invalidate cached bound values on all outputs, respecting SkipInvalidation flag.
     void invalidate_values();
-
     virtual void revalidate_and_infer_types() {
         invalidate_values();
         validate_and_infer_types();
