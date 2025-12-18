@@ -27,10 +27,17 @@ KERNEL(moe_scatter_reduction_ref)(
     const uint token_group_id = (uint)get_group_id(0);
     const uint threads_index = (uint)get_local_id(0);
 
-     OUTPUT_VEC_TYPE output_vec[BATCHES_PER_THREAD];
+    OUTPUT_VEC_TYPE output_vec[BATCHES_PER_THREAD];
     // start_offset_idx[i] = n : info for i-th expert in this thread is in the nth slot of the mask
     __local uint start_offset_index[ACTIVE_EXPERTS];
     __local uint input_offset;
+
+    // Initialize start_offset_index to an invalid sentinel
+    if (threads_index < ACTIVE_EXPERTS) {
+        start_offset_index[threads_index] = (uint)UINT_MAX;
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     if (threads_index < ACTIVE_EXPERTS) {
         INPUT1_TYPE expert_id = experts_per_token[token_group_id * ACTIVE_EXPERTS  + threads_index];
@@ -40,15 +47,12 @@ KERNEL(moe_scatter_reduction_ref)(
 #else
         for (int i = 0; i < INPUT6_BATCH_NUM; i++) {
 #endif
-             if (experts_ids[i] == expert_id) {
+            if (experts_ids[i] == expert_id) {
                 start_offset_index[threads_index] = i;
                 break;
             }
         }
     }
-
-    if (threads_index == 0)
-        input_offset = 0;
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -60,24 +64,40 @@ KERNEL(moe_scatter_reduction_ref)(
     }
 
     for (uint i = 0; i < ACTIVE_EXPERTS; i++) {
+        // Skip experts that were not matched
+        if (start_offset_index[i] == (uint)UINT_MAX)
+            continue;
+
         INPUT1_TYPE expert_id = experts_per_token[token_group_id * ACTIVE_EXPERTS  + i];
         INPUT2_TYPE expert_weight = expert_weights[token_group_id * ACTIVE_EXPERTS  + i];
         INPUT5_TYPE token_len = tokens_len_per_expert[start_offset_index[i]];
         INPUT4_TYPE expert_offset = experts_start_offset[start_offset_index[i]];
 
-        for (uint tid = threads_index; tid < token_len; tid += get_local_size(0)) {
-            if (tokens_per_expert[expert_offset + tid] == token_group_id) {
-                input_offset = expert_offset + tid;
-                break;
+        // Compute input_offset once by a single thread to avoid races
+        if (threads_index == 0) {
+            input_offset = (uint)UINT_MAX;
+            for (uint tid = 0; tid < token_len; tid++) {
+                if (tokens_per_expert[expert_offset + tid] == token_group_id) {
+                    input_offset = expert_offset + tid;
+                    break;
+                }
             }
         }
+
         barrier(CLK_LOCAL_MEM_FENCE);
+
+        // If no matching token was found, skip accumulation for this expert
+        if (input_offset == (uint)UINT_MAX)
+            continue;
+
         for (uint j = 0; j < BATCHES_PER_THREAD; j++) {
             const uint input_pos = input_offset * HIDDEN_SIZE + j * VEC_BLK_SIZE + threads_index * VEC_BLK_SIZE * BATCHES_PER_THREAD;
-                INPUT_VEC_TYPE input_data = VLOAD(0, &input[input_pos]);
-                input_data *= expert_weight;
-                output_vec[j] += input_data;
+            INPUT_VEC_TYPE input_data = VLOAD(0, &input[input_pos]);
+            input_data *= expert_weight;
+            output_vec[j] += input_data;
         }
+
+        barrier(CLK_LOCAL_MEM_FENCE);
     }
 
     for (uint v = 0; v < BATCHES_PER_THREAD; v++) {
