@@ -129,6 +129,10 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckHashPresence) {
     ASSERT_TRUE(serializedModel.hash.has_value());
 }
 
+/**
+ * @brief The serialization function is able to store the WeightlessCacheAttribute using the predetermined contract
+ * expected by the driver-compiler adapter.
+ */
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckWeightlessCacheAttributePresence) {
     auto model = createModelWithLargeWeights(true);
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
@@ -145,6 +149,33 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckWeightlessCacheAttributePr
     // Follows the contract established with the driver-compiler adapter. Predefined prefix + a topological ID of the
     // Constant node
     ASSERT_TRUE(model->has_rt_info("ws_bin_offset_1"));
+}
+
+/**
+ * @brief The hash produced by the serialization function should ignore non-deterministic fields.
+ */
+TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckOVHashIgnoresNondeterministicField) {
+    auto model = createModelWithLargeWeights();
+    const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
+
+    ::intel_npu::SerializedIR serializedModel;
+    EXPECT_NO_THROW(serializedModel = ::intel_npu::driver_compiler_utils::serializeIR(model->clone(),
+                                                                                      dummyCompilerVersion,
+                                                                                      11,
+                                                                                      false,
+                                                                                      true,
+                                                                                      true));
+    ASSERT_TRUE(serializedModel.hash.has_value());
+    const uint64_t hashNoWCA = serializedModel.hash.value();
+
+    // Runtime information fields of custom format (not inheriting "ov::RuntimeAttribute") are treated as
+    // non-deterministic by default.
+    model->set_rt_info(0, "dummy_field");
+    EXPECT_NO_THROW(
+        serializedModel =
+            ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, true, true));
+
+    ASSERT_TRUE(hashNoWCA == serializedModel.hash.value());
 }
 
 const std::vector<ov::AnyMap> configs = {
