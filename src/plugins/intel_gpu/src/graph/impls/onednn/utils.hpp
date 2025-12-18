@@ -84,29 +84,5 @@ int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout
 
 std::string memory_desc_to_string(const dnnl::memory::desc& desc);
 
-// Internal builder class for memory descriptor construction
-class MemoryDescriptorBuilder {
-public:
-    explicit MemoryDescriptorBuilder(const cldnn::layout& l, dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef);
-
-    MemoryDescriptorBuilder& as_flattened();
-    MemoryDescriptorBuilder& with_strides();
-    MemoryDescriptorBuilder& keep_rank();
-
-    dnnl::memory::desc build() const;
-
-private:
-    const cldnn::layout& _layout;
-    dnnl::memory::format_tag _target_fmt;
-    const size_t _shape_rank;
-    bool _flatten;
-    bool _use_strides;
-    bool _keep_rank;
-
-    size_t calculate_shape_rank(const cldnn::layout& l);
-    std::pair<dnnl::memory::dims, dnnl::memory::format_tag> calculate_dims() const;
-    dnnl::memory::dims calculate_strides(dnnl::memory::format_tag fmt) const;
-};
-
 }  // namespace onednn
 }  // namespace cldnn
