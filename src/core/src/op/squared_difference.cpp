@@ -53,7 +53,7 @@ bool ov::op::v0::SquaredDifference::evaluate(TensorVector& outputs, const Tensor
     outputs[0].set_shape(infer_broadcast_shape(this, inputs));
     using namespace ov::element;
     return IF_TYPE_OF(v0_SquaredDifference_evaluate,
-                      OV_PP_ET_LIST(f32, i32, i64, u32, u64),
+                      OV_PP_ET_LIST(f32),
                       squared_difference::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -66,14 +66,7 @@ bool ov::op::v0::SquaredDifference::evaluate(TensorVector& outputs, const Tensor
 
 bool ov::op::v0::SquaredDifference::has_evaluate() const {
     OV_OP_SCOPE(v0_SquaredDifference_has_evaluate);
-    switch (get_input_element_type(0)) {
-    case element::f32:
-    case element::i32:
-    case element::i64:
-    case element::u32:
-    case element::u64:
+    if (get_input_element_type(0) == element::f32)
         return true;
-    default:
-        return false;
-    }
+    return false;
 }
