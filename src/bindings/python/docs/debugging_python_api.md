@@ -103,7 +103,6 @@ Replace the following in the configuration:
   - For pyenv: `~/.pyenv/versions/<env_name>/bin/python`
   - For system Python: `/usr/bin/python3`
 - `${workspaceFolder}` resolves to your OpenVINO repository root
-- Adjust `Debug` to `Release` in paths if you built in Release mode
 
 ## Step-by-Step Debugging Example
 
