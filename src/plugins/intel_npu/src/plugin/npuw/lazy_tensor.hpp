@@ -108,6 +108,7 @@ private:
     std::size_t m_byte_size = 0;
     ov::Tensor m_read_from_bin;
     std::string m_weights_path;
+    ov::FileHandleProvider m_handle_provider = nullptr;
     mutable ov::npuw::s11n::WeightsPtr m_mmaped_weights = nullptr;
     // FIXME: special case when a new Constant was added into the model,
     // then made into LazyTensor during folding. We need to keep a copy of it,
