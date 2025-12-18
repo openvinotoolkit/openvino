@@ -87,7 +87,6 @@ private:
     // keep zero_api alive until context is destroyed
     std::shared_ptr<ZeroApi> zero_api;
 
-    static const ze_driver_uuid_t uuid;
     Logger log;
 
     ze_context_handle_t context = nullptr;

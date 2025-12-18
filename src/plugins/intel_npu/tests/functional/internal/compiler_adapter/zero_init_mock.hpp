@@ -27,7 +27,6 @@ struct ZeroInitStructsMock {
 
     std::shared_ptr<intel_npu::ZeroApi> zero_api;
 
-    static const ze_driver_uuid_t uuid;
     intel_npu::Logger log;
 
     ze_context_handle_t context = nullptr;
