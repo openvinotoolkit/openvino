@@ -84,7 +84,6 @@
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
-#include "transformations/op_conversions/convert_convolution_to_matmul.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
 #include "transformations/op_conversions/convert_gather_to_compressed.hpp"
@@ -106,6 +105,7 @@
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
+#include "transformations/op_conversions/convert_weight_compressed_conv1x1_to_matmul.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
@@ -475,10 +475,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     const auto& decompression_precisions =
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(true);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
-                             ov::pass::ConvertConvolutionToMatMul,
+                             ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran,
                              decompression_precisions,
                              defaultPrecisions);
-    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::EliminateReshape);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
                              ov::pass::MarkDequantization,
                              decompression_precisions,
