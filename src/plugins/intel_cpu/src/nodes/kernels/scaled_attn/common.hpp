@@ -438,8 +438,6 @@ inline float32x4_t exp_ps_neon_f32(const float32x4_t& src) {
     const auto c5 = vreinterpretq_f32_u32(vdupq_n_u32(0x3c072010));
 
     const auto shift = vreinterpretq_f32_u32(vdupq_n_u32(0x4b00007f));  // 2^23 + 127 = 0x1.0000fep23f
-    const auto one = vdupq_n_f32(1.0f);                                 // 1
-    const auto two = vdupq_n_f32(2.0f);                                 // 2
     const auto inv_ln2 = vreinterpretq_f32_u32(vdupq_n_u32(0x3fb8aa3b));
     const auto neg_ln2_hi = vreinterpretq_f32_u32(vdupq_n_u32(0xbf317200));
     const auto neg_ln2_lo = vreinterpretq_f32_u32(vdupq_n_u32(0xb5bfbe8e));
