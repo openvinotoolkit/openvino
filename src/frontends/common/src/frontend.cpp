@@ -113,7 +113,7 @@ void FrontEnd::validate_path(const std::filesystem::path& path) const {
     FRONT_END_GENERAL_CHECK(util::directory_exists(path) || util::file_exists(path),
                             get_name(),
                             ": Could not open the file: \"",
-                            util::path_to_string(path),
+                            path,
                             '"');
 }
 

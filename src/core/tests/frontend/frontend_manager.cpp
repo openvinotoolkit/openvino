@@ -16,8 +16,8 @@
 using namespace ov::frontend;
 
 static std::filesystem::path mock_fe_path() {
-    static auto lib_name = std::string(FRONTEND_LIB_PREFIX) + "mock1" + std::string(FRONTEND_LIB_SUFFIX);
-    return ov::util::path_join({ov::test::utils::getExecutableDirectory(), lib_name});
+    return ov::test::utils::to_fs_path(ov::test::utils::getExecutableDirectory()) /
+           std::filesystem::path(FRONTEND_LIB_PREFIX).concat("mock1").concat(FRONTEND_LIB_SUFFIX);
 }
 
 TEST(FrontEndManagerTest, testAvailableFrontEnds) {
@@ -42,14 +42,7 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds) {
 
 TEST(FrontEndManagerTest, testFailRegisterFEByWrongPath) {
     FrontEndManager fem;
-    ASSERT_THROW(fem.register_front_end("mock1", mock_fe_path().string() + "_wrong"), ov::frontend::GeneralFailure);
-}
-
-TEST(FrontEndManagerTest, testRegisterFrontendString) {
-    FrontEndManager fem;
-    fem.register_front_end("mock1", mock_fe_path().string());
-    auto frontends = fem.get_available_front_ends();
-    EXPECT_NE(std::find(frontends.begin(), frontends.end(), "mock1"), frontends.end());
+    ASSERT_THROW(fem.register_front_end("mock1", mock_fe_path().concat("_wrong")), ov::frontend::GeneralFailure);
 }
 
 TEST(FrontEndManagerTest, testMockPluginFrontEnd) {
