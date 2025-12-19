@@ -20,6 +20,7 @@ struct QuantizationParams {
     std::vector<std::vector<float>> intervals;  // quantize intervals
     std::vector<size_t> fqConstShapes;          // fq constant shapes
     element::Type expectedPrecision;            // convolution expected precision
+    bool perChannelWeightsScale;                // use per-channel scale on weights
 };
 
 typedef std::tuple<
@@ -42,6 +43,7 @@ public:
             results << ov::util::vector_to_string(vecInt) << ",";
         }
         results << "_fqShapes=" << ov::util::vector_to_string(quantizationParams.fqConstShapes)
+                << "_perChannelWeightsScale=" << quantizationParams.perChannelWeightsScale
                 << "_targetDevice=" << targetName;
 
         return results.str();
@@ -71,7 +73,17 @@ protected:
 
         auto weights = utils::make_constant(element::i8, {4, 3, 2, 2});
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
-        auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(element::f32, {1, 1}, {0.625}));
+
+        std::shared_ptr<ov::Node> multiply;
+        if (quantizationParams.perChannelWeightsScale) {
+            multiply = std::make_shared<op::v1::Multiply>(
+                convert,
+                op::v0::Constant::create(element::f32, {4, 1, 1, 1}, {0.02f, 0.025f, 0.03f, 0.035f}));
+        } else {
+            multiply = std::make_shared<op::v1::Multiply>(
+                convert,
+                op::v0::Constant::create(element::f32, {1, 1, 1, 1}, {0.625f}));
+        }
 
         std::shared_ptr<Node> conv;
         {
@@ -142,7 +154,7 @@ TEST_P(ConvAndFQ, CompareWithRefs) {
 
 namespace {
 
-std::vector<InputShape> inputShapes{{{}, {{1, 3, 2, 2}}},
+std::vector<InputShape> inputShapes{{{}, {{4, 3, 2, 2}}},
                                     {{-1, 3, -1, 2}, {{1, 3, 4, 2}}}};
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -154,16 +166,12 @@ const element::Type expectedConvPrecByUnsignedFQRange = element::f32;
 #endif
 
 std::vector<QuantizationParams> perTensorQuantizationParams{
-    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange},
-    {{{0.f}, {2.55f}, {0.f}, {2.55f}}, {}, expectedConvPrecByUnsignedFQRange},
+    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, false},
+    {{{0.f}, {2.55f}, {0.f}, {2.55f}}, {}, expectedConvPrecByUnsignedFQRange, false},
 };
 
-    // per channel dequantization for quantized convolution is not supported by ACL executor,
-    // so in this case we fallback to f32 implementation
 std::vector<QuantizationParams> perChannelQuantizationParams{
-    {{{-1.28f, -1.0f, -0.8f}, {1.27f, 1.0f, 0.8f}, {-1.28f, -1.0f, -0.8f}, {1.27f, 1.0f, 0.8f}},
-     {1, 3, 1, 1},
-     element::f32},
+    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU_PerTensor,
