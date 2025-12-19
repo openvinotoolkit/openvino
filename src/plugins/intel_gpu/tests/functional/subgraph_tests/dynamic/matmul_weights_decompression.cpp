@@ -170,7 +170,11 @@ protected:
             transformed_weights_shape[in_channel_idx] = weights_shape[weights_rank - 2] / group_size;
             transformed_weights_shape.insert(transformed_weights_shape.begin() + in_channel_idx + 1, group_size);
         }
-        auto weights_tensor = ov::test::utils::create_and_fill_tensor(weights_precision, transformed_weights_shape);
+        ov::test::utils::InputGenerateData wei_data;
+        wei_data.start_from = -0.05;
+        wei_data.range = 0.1;
+        wei_data.resolution = 30000;
+        auto weights_tensor = ov::test::utils::create_and_fill_tensor(weights_precision, transformed_weights_shape, wei_data);
         auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
         weights->set_friendly_name("Compressed_weights");
         auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, data_precision);
@@ -516,7 +520,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_3D_weight,
 INSTANTIATE_TEST_SUITE_P(
     smoke_MatMulCompressedWeights_dyn_quan_mxfp8_e4m3,
     MatmulWeightsDecompression,
-    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{1, 1, 1024}, {2, 1, 1024}}}, {1024, 1024}, 32}),  // shape
+    ::testing::Combine(::testing::Values(ShapeParams{{{1, 1, 32}, {{1, 1, 32}, {1, 1, 32}}}, {32, 1}, 32}),  // shape
                        ::testing::Values(ov::element::f8e4m3),
                        ::testing::Values(ov::element::f16),
                        ::testing::Values(true),
@@ -548,7 +552,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     smoke_MatMulCompressedWeights_dyn_quan_mxfp4_e2m1,
     MatmulWeightsDecompression,
-    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 32}, {{1, 1, 32}, {2, 1, 32}}}, {32, 16}, 32}),  // shape
+    ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{1, 1, 1024}, {2, 1, 1024}}}, {1024, 1024}, 32}),  // shape
                        ::testing::Values(ov::element::f4e2m1),
                        ::testing::Values(ov::element::f16),
                        ::testing::Values(true),
@@ -558,7 +562,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(false),
                        ::testing::Values(32),
                        ::testing::Values(ov::hint::DynamicQuantizationDataType::MXF4E2M1),
-                       ::testing::Values(2.0f)),  // Note: this is because of potential cldnn accuracy issue
+                       ::testing::Values(2)),  // Note: this is because of potential cldnn accuracy issue
     MatmulWeightsDecompression::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(

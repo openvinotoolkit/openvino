@@ -83,81 +83,80 @@ half _intel_convert_fp4_to_f16(uchar val){
 }
 
 typedef struct fp4e2m1_t { uchar data; } fp4e2m1_t;  // f4
-typedef struct fp4e2m1_t1 { uchar data[1]; } fp4e2m1_t1;
-typedef struct fp4e2m1_t2 { uchar data[2]; } fp4e2m1_t2;
-typedef struct fp4e2m1_t3 { uchar data[3]; } fp4e2m1_t3;
-typedef struct fp4e2m1_t4 { uchar data[4]; } fp4e2m1_t4;
-typedef struct fp4e2m1_t8 { uchar data[8]; } fp4e2m1_t8;
-typedef struct fp4e2m1_t16 { uchar data[16]; } fp4e2m1_t16;
+typedef struct fp4e2m1_t1 { uchar data; } fp4e2m1_t1;
+typedef struct fp4e2m1_t2 { uchar data; } fp4e2m1_t2;
+typedef struct fp4e2m1_t3 { uchar2 data; } fp4e2m1_t3;
+typedef struct fp4e2m1_t4 { uchar2 data; } fp4e2m1_t4;
+typedef struct fp4e2m1_t8 { uchar4 data; } fp4e2m1_t8;
+typedef struct fp4e2m1_t16 { uchar8 data; } fp4e2m1_t16;
 
 half __attribute__((overloadable)) _convert_half(fp4e2m1_t val) {
     return _intel_convert_fp4_to_f16(val.data);
 }
 half __attribute__((overloadable)) _convert_half(fp4e2m1_t1 val) {
-    return _intel_convert_fp4_to_f16(val.data[0]);
+    return _intel_convert_fp4_to_f16(val.data);
 }
 half2 __attribute__((overloadable)) _convert_half2(fp4e2m1_t2 val) {
-    return (half2)(_intel_convert_fp4_to_f16(val.data[0]), _intel_convert_fp4_to_f16(val.data[1]));
+    return (half2)((_intel_convert_fp4_to_f16(val.data)), (_intel_convert_fp4_to_f16((val.data >> 4) )));
 }
 half3 __attribute__((overloadable)) _convert_half3(fp4e2m1_t3 val) {
-    return (half3)(_intel_convert_fp4_to_f16(val.data[0]), _intel_convert_fp4_to_f16(val.data[1]), _intel_convert_fp4_to_f16(val.data[2]));
+    return (half3)((_intel_convert_fp4_to_f16(val.data.s0)), (_intel_convert_fp4_to_f16((val.data.s0>> 4))), 
+                    _intel_convert_fp4_to_f16(val.data.s1));
 }
 half4 __attribute__((overloadable)) _convert_half4(fp4e2m1_t4 val) {
-    return (half4)(_intel_convert_fp4_to_f16(val.data[0]), _intel_convert_fp4_to_f16(val.data[1]), 
-                  _intel_convert_fp4_to_f16(val.data[2]), _intel_convert_fp4_to_f16(val.data[3]));
+    return (half4)((_intel_convert_fp4_to_f16(val.data.s0)), (_intel_convert_fp4_to_f16((val.data.s0 >> 4 ))),
+                   (_intel_convert_fp4_to_f16(val.data.s1)), (_intel_convert_fp4_to_f16((val.data.s1 >> 4 ))));
 }
 half8 __attribute__((overloadable)) _convert_half8(fp4e2m1_t8 val) {
-    return (half8)(_intel_convert_fp4_to_f16(val.data[0]), _intel_convert_fp4_to_f16(val.data[1]),
-                   _intel_convert_fp4_to_f16(val.data[2]), _intel_convert_fp4_to_f16(val.data[3]),
-                   _intel_convert_fp4_to_f16(val.data[4]), _intel_convert_fp4_to_f16(val.data[5]),
-                   _intel_convert_fp4_to_f16(val.data[6]), _intel_convert_fp4_to_f16(val.data[7]));
+    return (half8)((_intel_convert_fp4_to_f16(val.data.s0)), (_intel_convert_fp4_to_f16((val.data.s0 >> 4))),
+                   (_intel_convert_fp4_to_f16(val.data.s1)), (_intel_convert_fp4_to_f16((val.data.s1 >> 4))),
+                   (_intel_convert_fp4_to_f16(val.data.s2)), (_intel_convert_fp4_to_f16((val.data.s2 >> 4))),
+                   (_intel_convert_fp4_to_f16(val.data.s3)), (_intel_convert_fp4_to_f16((val.data.s3 >> 4))));
 }
 half16 __attribute__((overloadable)) _convert_half16(fp4e2m1_t16 val) {
     return (half16)(
-        _intel_convert_fp4_to_f16(val.data[0]),  _intel_convert_fp4_to_f16(val.data[1]),
-        _intel_convert_fp4_to_f16(val.data[2]),  _intel_convert_fp4_to_f16(val.data[3]),
-        _intel_convert_fp4_to_f16(val.data[4]),  _intel_convert_fp4_to_f16(val.data[5]),
-        _intel_convert_fp4_to_f16(val.data[6]),  _intel_convert_fp4_to_f16(val.data[7]),
-        _intel_convert_fp4_to_f16(val.data[8]),  _intel_convert_fp4_to_f16(val.data[9]),
-        _intel_convert_fp4_to_f16(val.data[10]), _intel_convert_fp4_to_f16(val.data[11]),
-        _intel_convert_fp4_to_f16(val.data[12]), _intel_convert_fp4_to_f16(val.data[13]),
-        _intel_convert_fp4_to_f16(val.data[14]), _intel_convert_fp4_to_f16(val.data[15])
-    );
+        (_intel_convert_fp4_to_f16(val.data.s0)), (_intel_convert_fp4_to_f16((val.data.s0>> 4))),
+        (_intel_convert_fp4_to_f16(val.data.s1)), (_intel_convert_fp4_to_f16((val.data.s1>> 4))),
+        (_intel_convert_fp4_to_f16(val.data.s2)), (_intel_convert_fp4_to_f16((val.data.s2>> 4))),
+        (_intel_convert_fp4_to_f16(val.data.s3)), (_intel_convert_fp4_to_f16((val.data.s3>> 4))),
+        (_intel_convert_fp4_to_f16(val.data.s4)), (_intel_convert_fp4_to_f16((val.data.s4>> 4))),
+        (_intel_convert_fp4_to_f16(val.data.s5)), (_intel_convert_fp4_to_f16((val.data.s5>> 4))),
+        (_intel_convert_fp4_to_f16(val.data.s6)), (_intel_convert_fp4_to_f16((val.data.s6>> 4))),
+        (_intel_convert_fp4_to_f16(val.data.s7)), (_intel_convert_fp4_to_f16((val.data.s7>> 4))));
 }
 
 float __attribute__((overloadable)) _convert_float(fp4e2m1_t val) {
     return (float)_intel_convert_fp4_to_f16(val.data);
 }
 float __attribute__((overloadable)) _convert_float(fp4e2m1_t1 val) {
-    return (float)_intel_convert_fp4_to_f16(val.data[0]);
+    return (float)_intel_convert_fp4_to_f16(val.data);
 }
 float2 __attribute__((overloadable)) _convert_float2(fp4e2m1_t2 val) {
-    return (float2)(_intel_convert_fp4_to_f16(val.data[0]), _intel_convert_fp4_to_f16(val.data[1]));
+    return (float2)((_intel_convert_fp4_to_f16(val.data)), (_intel_convert_fp4_to_f16((val.data >> 4))));
 }
 float3 __attribute__((overloadable)) _convert_float3(fp4e2m1_t3 val) {
-    return (float3)(_intel_convert_fp4_to_f16(val.data[0]), _intel_convert_fp4_to_f16(val.data[1]), _intel_convert_fp4_to_f16(val.data[2]));
+    return (float3)((_intel_convert_fp4_to_f16(val.data.s0)), (_intel_convert_fp4_to_f16((val.data.s0 >> 4))), 
+                     _intel_convert_fp4_to_f16(val.data.s1));
 }
 float4 __attribute__((overloadable)) _convert_float4(fp4e2m1_t4 val) {
-    return (float4)(_intel_convert_fp4_to_f16(val.data[0]), _intel_convert_fp4_to_f16(val.data[1]), 
-                   _intel_convert_fp4_to_f16(val.data[2]), _intel_convert_fp4_to_f16(val.data[3]));
+    return (float4)((_intel_convert_fp4_to_f16(val.data.s0)), (_intel_convert_fp4_to_f16((val.data.s0 >> 4))),
+                    (_intel_convert_fp4_to_f16(val.data.s1)), (_intel_convert_fp4_to_f16((val.data.s1 >> 4))));
 }
 float8 __attribute__((overloadable)) _convert_float8(fp4e2m1_t8 val) {
-    return (float8)(_intel_convert_fp4_to_f16(val.data[0]), _intel_convert_fp4_to_f16(val.data[1]),
-                    _intel_convert_fp4_to_f16(val.data[2]), _intel_convert_fp4_to_f16(val.data[3]),
-                    _intel_convert_fp4_to_f16(val.data[4]), _intel_convert_fp4_to_f16(val.data[5]),
-                    _intel_convert_fp4_to_f16(val.data[6]), _intel_convert_fp4_to_f16(val.data[7]));
+    return (float8)((_intel_convert_fp4_to_f16(val.data.s0)), (_intel_convert_fp4_to_f16((val.data.s0 >> 4))),
+                    (_intel_convert_fp4_to_f16(val.data.s1)), (_intel_convert_fp4_to_f16((val.data.s1 >> 4))),
+                    (_intel_convert_fp4_to_f16(val.data.s2)), (_intel_convert_fp4_to_f16((val.data.s2 >> 4))),
+                    (_intel_convert_fp4_to_f16(val.data.s3)), (_intel_convert_fp4_to_f16((val.data.s3 >> 4))));
 }
 float16 __attribute__((overloadable)) _convert_float16(fp4e2m1_t16 val) {
-    return (float16)(
-        _intel_convert_fp4_to_f16(val.data[0]),  _intel_convert_fp4_to_f16(val.data[1]),
-        _intel_convert_fp4_to_f16(val.data[2]),  _intel_convert_fp4_to_f16(val.data[3]),
-        _intel_convert_fp4_to_f16(val.data[4]),  _intel_convert_fp4_to_f16(val.data[5]),
-        _intel_convert_fp4_to_f16(val.data[6]),  _intel_convert_fp4_to_f16(val.data[7]),
-        _intel_convert_fp4_to_f16(val.data[8]),  _intel_convert_fp4_to_f16(val.data[9]),
-        _intel_convert_fp4_to_f16(val.data[10]), _intel_convert_fp4_to_f16(val.data[11]),
-        _intel_convert_fp4_to_f16(val.data[12]), _intel_convert_fp4_to_f16(val.data[13]),
-        _intel_convert_fp4_to_f16(val.data[14]), _intel_convert_fp4_to_f16(val.data[15])
-    );
+    return (float16)((_intel_convert_fp4_to_f16(val.data.s0)), (_intel_convert_fp4_to_f16((val.data.s0 >> 4))),
+                     (_intel_convert_fp4_to_f16(val.data.s1)), (_intel_convert_fp4_to_f16((val.data.s1 >> 4))),
+                     (_intel_convert_fp4_to_f16(val.data.s2)), (_intel_convert_fp4_to_f16((val.data.s2 >> 4))),
+                     (_intel_convert_fp4_to_f16(val.data.s3)), (_intel_convert_fp4_to_f16((val.data.s3 >> 4))),
+                     (_intel_convert_fp4_to_f16(val.data.s4)), (_intel_convert_fp4_to_f16((val.data.s4 >> 4))),
+                     (_intel_convert_fp4_to_f16(val.data.s5)), (_intel_convert_fp4_to_f16((val.data.s5 >> 4))),
+                     (_intel_convert_fp4_to_f16(val.data.s6)), (_intel_convert_fp4_to_f16((val.data.s6 >> 4))),
+                     (_intel_convert_fp4_to_f16(val.data.s7)), (_intel_convert_fp4_to_f16((val.data.s7 >> 4))));
 }
 
 
@@ -170,60 +169,44 @@ fp4e2m1_t __attribute__((overloadable)) _convert_fp4e2m1_t(float val) {
 }
 fp4e2m1_t1 __attribute__((overloadable)) _convert_fp4e2m1_t1(float val[1]) {
     fp4e2m1_t1 res;
-    res.data[0] = _intel_convert_f16_to_f4((half)val[0]);
+    res.data = _intel_convert_f16_to_f4((half)val[0]);
     return res;
 }
 fp4e2m1_t2 __attribute__((overloadable)) _convert_fp4e2m1_t2(float2 val) {
     fp4e2m1_t2 res;
-    res.data[0] = _intel_convert_f16_to_f4((half)val.x);
-    res.data[1] = _intel_convert_f16_to_f4((half)val.y);
+    res.data = ((_intel_convert_f16_to_f4((half)val.y) << 4) | _intel_convert_f16_to_f4((half)val.x));
     return res;
 }
 fp4e2m1_t3 __attribute__((overloadable)) _convert_fp4e2m1_t3(float3 val) {
     fp4e2m1_t3 res;
-    res.data[0] = _intel_convert_f16_to_f4((half)val.x);
-    res.data[1] = _intel_convert_f16_to_f4((half)val.y);
-    res.data[2] = _intel_convert_f16_to_f4((half)val.z);
+    res.data.s0 = ((_intel_convert_f16_to_f4((half)val.y) << 4) | _intel_convert_f16_to_f4((half)val.x));
+    res.data.s1 = _intel_convert_f16_to_f4((half)val.z);
     return res;
 }
 fp4e2m1_t4 __attribute__((overloadable)) _convert_fp4e2m1_t4(float4 val) {
     fp4e2m1_t4 res;
-    res.data[0] = _intel_convert_f16_to_f4((half)val.x);
-    res.data[1] = _intel_convert_f16_to_f4((half)val.y);
-    res.data[2] = _intel_convert_f16_to_f4((half)val.z);
-    res.data[3] = _intel_convert_f16_to_f4((half)val.w);
+    res.data.s0 = ((_intel_convert_f16_to_f4((half)val.y) << 4) | _intel_convert_f16_to_f4((half)val.x));
+    res.data.s1 = ((_intel_convert_f16_to_f4((half)val.w) << 4) | _intel_convert_f16_to_f4((half)val.z));
     return res;
 }
 fp4e2m1_t8 __attribute__((overloadable)) _convert_fp4e2m1_t8(float8 val) {
     fp4e2m1_t8 res;
-    res.data[0] = _intel_convert_f16_to_f4((half)val.s0);
-    res.data[1] = _intel_convert_f16_to_f4((half)val.s1);
-    res.data[2] = _intel_convert_f16_to_f4((half)val.s2);
-    res.data[3] = _intel_convert_f16_to_f4((half)val.s3);
-    res.data[4] = _intel_convert_f16_to_f4((half)val.s4);
-    res.data[5] = _intel_convert_f16_to_f4((half)val.s5);
-    res.data[6] = _intel_convert_f16_to_f4((half)val.s6);
-    res.data[7] = _intel_convert_f16_to_f4((half)val.s7);
+    res.data.s0 = ((_intel_convert_f16_to_f4((half)val.s1) << 4) | _intel_convert_f16_to_f4((half)val.s0));
+    res.data.s1 = ((_intel_convert_f16_to_f4((half)val.s3) << 4) | _intel_convert_f16_to_f4((half)val.s2));
+    res.data.s2 = ((_intel_convert_f16_to_f4((half)val.s5) << 4) | _intel_convert_f16_to_f4((half)val.s4));
+    res.data.s3 = ((_intel_convert_f16_to_f4((half)val.s7) << 4) | _intel_convert_f16_to_f4((half)val.s6));
     return res;
 }
 fp4e2m1_t16 __attribute__((overloadable)) _convert_fp4e2m1_t16(float16 val) {
     fp4e2m1_t16 res;
-    res.data[0]  = _intel_convert_f16_to_f4((half)val.s0);
-    res.data[1]  = _intel_convert_f16_to_f4((half)val.s1);
-    res.data[2]  = _intel_convert_f16_to_f4((half)val.s2);
-    res.data[3]  = _intel_convert_f16_to_f4((half)val.s3);
-    res.data[4]  = _intel_convert_f16_to_f4((half)val.s4);
-    res.data[5]  = _intel_convert_f16_to_f4((half)val.s5);
-    res.data[6]  = _intel_convert_f16_to_f4((half)val.s6);
-    res.data[7]  = _intel_convert_f16_to_f4((half)val.s7);
-    res.data[8]  = _intel_convert_f16_to_f4((half)val.s8);
-    res.data[9]  = _intel_convert_f16_to_f4((half)val.s9);
-    res.data[10] = _intel_convert_f16_to_f4((half)val.sA);
-    res.data[11] = _intel_convert_f16_to_f4((half)val.sB);
-    res.data[12] = _intel_convert_f16_to_f4((half)val.sC);
-    res.data[13] = _intel_convert_f16_to_f4((half)val.sD);
-    res.data[14] = _intel_convert_f16_to_f4((half)val.sE);
-    res.data[15] = _intel_convert_f16_to_f4((half)val.sF);
+    res.data.s0 = ((_intel_convert_f16_to_f4((half)val.s1) << 4) | _intel_convert_f16_to_f4((half)val.s0));
+    res.data.s1 = ((_intel_convert_f16_to_f4((half)val.s3) << 4) | _intel_convert_f16_to_f4((half)val.s2));
+    res.data.s2 = ((_intel_convert_f16_to_f4((half)val.s5) << 4) | _intel_convert_f16_to_f4((half)val.s4));
+    res.data.s3 = ((_intel_convert_f16_to_f4((half)val.s7) << 4) | _intel_convert_f16_to_f4((half)val.s6));
+    res.data.s4 = ((_intel_convert_f16_to_f4((half)val.s9) << 4) | _intel_convert_f16_to_f4((half)val.s8));
+    res.data.s5 = ((_intel_convert_f16_to_f4((half)val.sB) << 4) | _intel_convert_f16_to_f4((half)val.sA));
+    res.data.s6 = ((_intel_convert_f16_to_f4((half)val.sD) << 4) | _intel_convert_f16_to_f4((half)val.sC));
+    res.data.s7 = ((_intel_convert_f16_to_f4((half)val.sF) << 4) | _intel_convert_f16_to_f4((half)val.sE));
     return res;
 }
 
@@ -234,60 +217,44 @@ fp4e2m1_t __attribute__((overloadable)) _convert_fp4e2m1_t(half val) {
 }
 fp4e2m1_t1 __attribute__((overloadable)) _convert_fp4e2m1_t1(half val[1]) {
     fp4e2m1_t1 res;
-    res.data[0] = _intel_convert_f16_to_f4(val[0]);
+    res.data = _intel_convert_f16_to_f4(val[0]);
     return res;
 }
 fp4e2m1_t2 __attribute__((overloadable)) _convert_fp4e2m1_t2(half2 val) {
     fp4e2m1_t2 res;
-    res.data[0] = _intel_convert_f16_to_f4(val.x);
-    res.data[1] = _intel_convert_f16_to_f4(val.y);
+    res.data = ((_intel_convert_f16_to_f4(val.y) << 4) | _intel_convert_f16_to_f4(val.x));
     return res;
 }
 fp4e2m1_t3 __attribute__((overloadable)) _convert_fp4e2m1_t3(half3 val) {
     fp4e2m1_t3 res;
-    res.data[0] = _intel_convert_f16_to_f4(val.x);
-    res.data[1] = _intel_convert_f16_to_f4(val.y);
-    res.data[2] = _intel_convert_f16_to_f4(val.z);
+    res.data.s0 = ((_intel_convert_f16_to_f4(val.y) << 4) | _intel_convert_f16_to_f4(val.x));
+    res.data.s1 = _intel_convert_f16_to_f4(val.z);
     return res;
 }
 fp4e2m1_t4 __attribute__((overloadable)) _convert_fp4e2m1_t4(half4 val) {
     fp4e2m1_t4 res;
-    res.data[0] = _intel_convert_f16_to_f4(val.x);
-    res.data[1] = _intel_convert_f16_to_f4(val.y);
-    res.data[2] = _intel_convert_f16_to_f4(val.z);
-    res.data[3] = _intel_convert_f16_to_f4(val.w);
+    res.data.s0 = (((_intel_convert_f16_to_f4(val.y) << 4) & 0xf0) | _intel_convert_f16_to_f4(val.x));
+    res.data.s1 = (((_intel_convert_f16_to_f4(val.w) << 4) & 0xf0) | _intel_convert_f16_to_f4(val.z));
     return res;
 }
 fp4e2m1_t8 __attribute__((overloadable)) _convert_fp4e2m1_t8(half8 val) {
     fp4e2m1_t8 res;
-    res.data[0] = _intel_convert_f16_to_f4(val.s0);
-    res.data[1] = _intel_convert_f16_to_f4(val.s1);
-    res.data[2] = _intel_convert_f16_to_f4(val.s2);
-    res.data[3] = _intel_convert_f16_to_f4(val.s3);
-    res.data[4] = _intel_convert_f16_to_f4(val.s4);
-    res.data[5] = _intel_convert_f16_to_f4(val.s5);
-    res.data[6] = _intel_convert_f16_to_f4(val.s6);
-    res.data[7] = _intel_convert_f16_to_f4(val.s7);
+    res.data.s0 = (((_intel_convert_f16_to_f4(val.s1) << 4) & 0xf0) | _intel_convert_f16_to_f4(val.s0));
+    res.data.s1 = (((_intel_convert_f16_to_f4(val.s3) << 4) & 0xf0) | _intel_convert_f16_to_f4(val.s2));
+    res.data.s2 = (((_intel_convert_f16_to_f4(val.s5) << 4) & 0xf0) | _intel_convert_f16_to_f4(val.s4));
+    res.data.s3 = (((_intel_convert_f16_to_f4(val.s7) << 4) & 0xf0) | _intel_convert_f16_to_f4(val.s6));
     return res;
 }
 fp4e2m1_t16 __attribute__((overloadable)) _convert_fp4e2m1_t16(half16 val) {
     fp4e2m1_t16 res;
-    res.data[0]  = _intel_convert_f16_to_f4(val.s0);
-    res.data[1]  = _intel_convert_f16_to_f4(val.s1);
-    res.data[2]  = _intel_convert_f16_to_f4(val.s2);
-    res.data[3]  = _intel_convert_f16_to_f4(val.s3);
-    res.data[4]  = _intel_convert_f16_to_f4(val.s4);
-    res.data[5]  = _intel_convert_f16_to_f4(val.s5);
-    res.data[6]  = _intel_convert_f16_to_f4(val.s6);
-    res.data[7]  = _intel_convert_f16_to_f4(val.s7);
-    res.data[8]  = _intel_convert_f16_to_f4(val.s8);
-    res.data[9]  = _intel_convert_f16_to_f4(val.s9);
-    res.data[10] = _intel_convert_f16_to_f4(val.sA);
-    res.data[11] = _intel_convert_f16_to_f4(val.sB);
-    res.data[12] = _intel_convert_f16_to_f4(val.sC);
-    res.data[13] = _intel_convert_f16_to_f4(val.sD);
-    res.data[14] = _intel_convert_f16_to_f4(val.sE);
-    res.data[15] = _intel_convert_f16_to_f4(val.sF);
+    res.data.s0 = ((_intel_convert_f16_to_f4(val.s1) << 4) | _intel_convert_f16_to_f4(val.s0));
+    res.data.s1 = ((_intel_convert_f16_to_f4(val.s3) << 4) | _intel_convert_f16_to_f4(val.s2));
+    res.data.s2 = ((_intel_convert_f16_to_f4(val.s5) << 4) | _intel_convert_f16_to_f4(val.s4));
+    res.data.s3 = ((_intel_convert_f16_to_f4(val.s7) << 4) | _intel_convert_f16_to_f4(val.s6));
+    res.data.s4 = ((_intel_convert_f16_to_f4(val.s9) << 4) | _intel_convert_f16_to_f4(val.s8));
+    res.data.s5 = ((_intel_convert_f16_to_f4(val.sB) << 4) | _intel_convert_f16_to_f4(val.sA));
+    res.data.s6 = ((_intel_convert_f16_to_f4(val.sD) << 4) | _intel_convert_f16_to_f4(val.sC));
+    res.data.s7 = ((_intel_convert_f16_to_f4(val.sF) << 4) | _intel_convert_f16_to_f4(val.sE));
     return res;
 }
 
@@ -298,60 +265,44 @@ fp4e2m1_t __attribute__((overloadable)) _convert_fp4e2m1_t_sat(float val) {
 }
 fp4e2m1_t1 __attribute__((overloadable)) _convert_fp4e2m1_t1_sat(float val[1]) {
     fp4e2m1_t1 res;
-    res.data[0] = _intel_convert_f16_to_f4_sat((half)val[0]);
+    res.data = _intel_convert_f16_to_f4_sat((half)val[0]);
     return res;
 }
 fp4e2m1_t2 __attribute__((overloadable)) _convert_fp4e2m1_t2_sat(float2 val) {
     fp4e2m1_t2 res;
-    res.data[0] = _intel_convert_f16_to_f4_sat((half)val.x);
-    res.data[1] = _intel_convert_f16_to_f4_sat((half)val.y);
+     res.data = ((_intel_convert_f16_to_f4((half)val.y) << 4) | _intel_convert_f16_to_f4((half)val.x));
     return res;
 }
 fp4e2m1_t3 __attribute__((overloadable)) _convert_fp4e2m1_t3_sat(float3 val) {
     fp4e2m1_t3 res;
-    res.data[0] = _intel_convert_f16_to_f4_sat((half)val.x);
-    res.data[1] = _intel_convert_f16_to_f4_sat((half)val.y);
-    res.data[2] = _intel_convert_f16_to_f4_sat((half)val.z);
+    res.data.s0 = ((_intel_convert_f16_to_f4((half)val.y) << 4) | _intel_convert_f16_to_f4((half)val.x));
+    res.data.s1 = _intel_convert_f16_to_f4((half)val.z);
     return res;
 }
 fp4e2m1_t4 __attribute__((overloadable)) _convert_fp4e2m1_t4_sat(float4 val) {
     fp4e2m1_t4 res;
-    res.data[0] = _intel_convert_f16_to_f4_sat((half)val.x);
-    res.data[1] = _intel_convert_f16_to_f4_sat((half)val.y);
-    res.data[2] = _intel_convert_f16_to_f4_sat((half)val.z);
-    res.data[3] = _intel_convert_f16_to_f4_sat((half)val.w);
+    res.data.s0 = ((_intel_convert_f16_to_f4((half)val.y) << 4) | _intel_convert_f16_to_f4((half)val.x));
+    res.data.s1 = ((_intel_convert_f16_to_f4((half)val.w) << 4) | _intel_convert_f16_to_f4((half)val.z));
     return res;
 }
 fp4e2m1_t8 __attribute__((overloadable)) _convert_fp4e2m1_t8_sat(float8 val) {
     fp4e2m1_t8 res;
-    res.data[0] = _intel_convert_f16_to_f4_sat((half)val.s0);
-    res.data[1] = _intel_convert_f16_to_f4_sat((half)val.s1);
-    res.data[2] = _intel_convert_f16_to_f4_sat((half)val.s2);
-    res.data[3] = _intel_convert_f16_to_f4_sat((half)val.s3);
-    res.data[4] = _intel_convert_f16_to_f4_sat((half)val.s4);
-    res.data[5] = _intel_convert_f16_to_f4_sat((half)val.s5);
-    res.data[6] = _intel_convert_f16_to_f4_sat((half)val.s6);
-    res.data[7] = _intel_convert_f16_to_f4_sat((half)val.s7);
+    res.data.s0 = ((_intel_convert_f16_to_f4((half)val.s1) << 4) | _intel_convert_f16_to_f4((half)val.s0));
+    res.data.s1 = ((_intel_convert_f16_to_f4((half)val.s3) << 4) | _intel_convert_f16_to_f4((half)val.s2));
+    res.data.s2 = ((_intel_convert_f16_to_f4((half)val.s5) << 4) | _intel_convert_f16_to_f4((half)val.s4));
+    res.data.s3 = ((_intel_convert_f16_to_f4((half)val.s7) << 4) | _intel_convert_f16_to_f4((half)val.s6));
     return res;
 }
 fp4e2m1_t16 __attribute__((overloadable)) _convert_fp4e2m1_t16_sat(float16 val) {
     fp4e2m1_t16 res;
-    res.data[0]  = _intel_convert_f16_to_f4_sat((half)val.s0);
-    res.data[1]  = _intel_convert_f16_to_f4_sat((half)val.s1);
-    res.data[2]  = _intel_convert_f16_to_f4_sat((half)val.s2);
-    res.data[3]  = _intel_convert_f16_to_f4_sat((half)val.s3);
-    res.data[4]  = _intel_convert_f16_to_f4_sat((half)val.s4);
-    res.data[5]  = _intel_convert_f16_to_f4_sat((half)val.s5);
-    res.data[6]  = _intel_convert_f16_to_f4_sat((half)val.s6);
-    res.data[7]  = _intel_convert_f16_to_f4_sat((half)val.s7);
-    res.data[8]  = _intel_convert_f16_to_f4_sat((half)val.s8);
-    res.data[9]  = _intel_convert_f16_to_f4_sat((half)val.s9);
-    res.data[10] = _intel_convert_f16_to_f4_sat((half)val.sA);
-    res.data[11] = _intel_convert_f16_to_f4_sat((half)val.sB);
-    res.data[12] = _intel_convert_f16_to_f4_sat((half)val.sC);
-    res.data[13] = _intel_convert_f16_to_f4_sat((half)val.sD);
-    res.data[14] = _intel_convert_f16_to_f4_sat((half)val.sE);
-    res.data[15] = _intel_convert_f16_to_f4_sat((half)val.sF);
+    res.data.s0 = ((_intel_convert_f16_to_f4((half)val.s1) << 4) | _intel_convert_f16_to_f4((half)val.s0));
+    res.data.s1 = ((_intel_convert_f16_to_f4((half)val.s3) << 4) | _intel_convert_f16_to_f4((half)val.s2));
+    res.data.s2 = ((_intel_convert_f16_to_f4((half)val.s5) << 4) | _intel_convert_f16_to_f4((half)val.s4));
+    res.data.s3 = ((_intel_convert_f16_to_f4((half)val.s7) << 4) | _intel_convert_f16_to_f4((half)val.s6));
+    res.data.s4 = ((_intel_convert_f16_to_f4((half)val.s9) << 4) | _intel_convert_f16_to_f4((half)val.s8));
+    res.data.s5 = ((_intel_convert_f16_to_f4((half)val.sB) << 4) | _intel_convert_f16_to_f4((half)val.sA));
+    res.data.s6 = ((_intel_convert_f16_to_f4((half)val.sD) << 4) | _intel_convert_f16_to_f4((half)val.sC));
+    res.data.s7 = ((_intel_convert_f16_to_f4((half)val.sF) << 4) | _intel_convert_f16_to_f4((half)val.sE));
     return res;
 }
 
@@ -362,60 +313,44 @@ fp4e2m1_t __attribute__((overloadable)) _convert_fp4e2m1_t_sat(half val) {
 }
 fp4e2m1_t1 __attribute__((overloadable)) _convert_fp4e2m1_t1_sat(half val[1]) {
     fp4e2m1_t1 res;
-    res.data[0] = _intel_convert_f16_to_f4_sat(val[0]);
+    res.data = _intel_convert_f16_to_f4_sat(val[0]);
     return res;
 }
 fp4e2m1_t2 __attribute__((overloadable)) _convert_fp4e2m1_t2_sat(half2 val) {
     fp4e2m1_t2 res;
-    res.data[0] = _intel_convert_f16_to_f4_sat(val.x);
-    res.data[1] = _intel_convert_f16_to_f4_sat(val.y);
+   res.data = ((_intel_convert_f16_to_f4(val.y) << 4) | _intel_convert_f16_to_f4(val.x));
     return res;
 }
 fp4e2m1_t3 __attribute__((overloadable)) _convert_fp4e2m1_t3_sat(half3 val) {
     fp4e2m1_t3 res;
-    res.data[0] = _intel_convert_f16_to_f4_sat(val.x);
-    res.data[1] = _intel_convert_f16_to_f4_sat(val.y);
-    res.data[2] = _intel_convert_f16_to_f4_sat(val.z);
+    res.data.s0 = ((_intel_convert_f16_to_f4(val.y) << 4) | _intel_convert_f16_to_f4(val.x));
+    res.data.s1 = _intel_convert_f16_to_f4(val.z);
     return res;
 }
 fp4e2m1_t4 __attribute__((overloadable)) _convert_fp4e2m1_t4_sat(half4 val) {
     fp4e2m1_t4 res;
-    res.data[0] = _intel_convert_f16_to_f4_sat(val.x);
-    res.data[1] = _intel_convert_f16_to_f4_sat(val.y);
-    res.data[2] = _intel_convert_f16_to_f4_sat(val.z);
-    res.data[3] = _intel_convert_f16_to_f4_sat(val.w);
+    res.data.s0 = (((_intel_convert_f16_to_f4(val.y) << 4) & 0xf0) | _intel_convert_f16_to_f4(val.x));
+    res.data.s1 = (((_intel_convert_f16_to_f4(val.w) << 4) & 0xf0) | _intel_convert_f16_to_f4(val.z));
     return res;
 }
 fp4e2m1_t8 __attribute__((overloadable)) _convert_fp4e2m1_t8_sat(half8 val) {
     fp4e2m1_t8 res;
-    res.data[0] = _intel_convert_f16_to_f4_sat(val.s0);
-    res.data[1] = _intel_convert_f16_to_f4_sat(val.s1);
-    res.data[2] = _intel_convert_f16_to_f4_sat(val.s2);
-    res.data[3] = _intel_convert_f16_to_f4_sat(val.s3);
-    res.data[4] = _intel_convert_f16_to_f4_sat(val.s4);
-    res.data[5] = _intel_convert_f16_to_f4_sat(val.s5);
-    res.data[6] = _intel_convert_f16_to_f4_sat(val.s6);
-    res.data[7] = _intel_convert_f16_to_f4_sat(val.s7);
+    res.data.s0 = (((_intel_convert_f16_to_f4(val.s1) << 4) & 0xf0) | _intel_convert_f16_to_f4(val.s0));
+    res.data.s1 = (((_intel_convert_f16_to_f4(val.s3) << 4) & 0xf0) | _intel_convert_f16_to_f4(val.s2));
+    res.data.s2 = (((_intel_convert_f16_to_f4(val.s5) << 4) & 0xf0) | _intel_convert_f16_to_f4(val.s4));
+    res.data.s3 = (((_intel_convert_f16_to_f4(val.s7) << 4) & 0xf0) | _intel_convert_f16_to_f4(val.s6));
     return res;
 }
 fp4e2m1_t16 __attribute__((overloadable)) _convert_fp4e2m1_t16_sat(half16 val) {
     fp4e2m1_t16 res;
-    res.data[0]  = _intel_convert_f16_to_f4_sat(val.s0);
-    res.data[1]  = _intel_convert_f16_to_f4_sat(val.s1);
-    res.data[2]  = _intel_convert_f16_to_f4_sat(val.s2);
-    res.data[3]  = _intel_convert_f16_to_f4_sat(val.s3);
-    res.data[4]  = _intel_convert_f16_to_f4_sat(val.s4);
-    res.data[5]  = _intel_convert_f16_to_f4_sat(val.s5);
-    res.data[6]  = _intel_convert_f16_to_f4_sat(val.s6);
-    res.data[7]  = _intel_convert_f16_to_f4_sat(val.s7);
-    res.data[8]  = _intel_convert_f16_to_f4_sat(val.s8);
-    res.data[9]  = _intel_convert_f16_to_f4_sat(val.s9);
-    res.data[10] = _intel_convert_f16_to_f4_sat(val.sA);
-    res.data[11] = _intel_convert_f16_to_f4_sat(val.sB);
-    res.data[12] = _intel_convert_f16_to_f4_sat(val.sC);
-    res.data[13] = _intel_convert_f16_to_f4_sat(val.sD);
-    res.data[14] = _intel_convert_f16_to_f4_sat(val.sE);
-    res.data[15] = _intel_convert_f16_to_f4_sat(val.sF);
+    res.data.s0 = ((_intel_convert_f16_to_f4(val.s1) << 4) | _intel_convert_f16_to_f4(val.s0));
+    res.data.s1 = ((_intel_convert_f16_to_f4(val.s3) << 4) | _intel_convert_f16_to_f4(val.s2));
+    res.data.s2 = ((_intel_convert_f16_to_f4(val.s5) << 4) | _intel_convert_f16_to_f4(val.s4));
+    res.data.s3 = ((_intel_convert_f16_to_f4(val.s7) << 4) | _intel_convert_f16_to_f4(val.s6));
+    res.data.s4 = ((_intel_convert_f16_to_f4(val.s9) << 4) | _intel_convert_f16_to_f4(val.s8));
+    res.data.s5 = ((_intel_convert_f16_to_f4(val.sB) << 4) | _intel_convert_f16_to_f4(val.sA));
+    res.data.s6 = ((_intel_convert_f16_to_f4(val.sD) << 4) | _intel_convert_f16_to_f4(val.sC));
+    res.data.s7 = ((_intel_convert_f16_to_f4(val.sF) << 4) | _intel_convert_f16_to_f4(val.sE));
     return res;
 }
 
@@ -426,60 +361,44 @@ fp4e2m1_t __attribute__((overloadable)) as_fp4e2m1_t(uchar val) {
 }
 fp4e2m1_t1 __attribute__((overloadable)) as_fp4e2m1_t1(uchar val[1]) {
     fp4e2m1_t1 res;
-    res.data[0] = val[0];
+    res.data = val[0];
     return res;
 }
 fp4e2m1_t2 __attribute__((overloadable)) as_fp4e2m1_t2(uchar2 val) {
     fp4e2m1_t2 res;
-    res.data[0] = val.x;
-    res.data[1] = val.y;
+    res.data = (val.y << 4) | val.x;
     return res;
 }
 fp4e2m1_t3 __attribute__((overloadable)) as_fp4e2m1_t3(uchar3 val) {
     fp4e2m1_t3 res;
-    res.data[0] = val.x;
-    res.data[1] = val.y;
-    res.data[2] = val.z;
+    res.data.s0 = (val.y << 4) | val.x;
+    res.data.s1 = val.z;
     return res;
 }
 fp4e2m1_t4 __attribute__((overloadable)) as_fp4e2m1_t4(uchar4 val) {
     fp4e2m1_t4 res;
-    res.data[0] = val.x;
-    res.data[1] = val.y;
-    res.data[2] = val.z;
-    res.data[3] = val.w;
+    res.data.s0 = (val.y << 4) | val.x;
+    res.data.s1 = (val.w << 4) | val.z;
     return res;
 }
 fp4e2m1_t8 __attribute__((overloadable)) as_fp4e2m1_t8(uchar8 val) {
     fp4e2m1_t8 res;
-    res.data[0] = val.s0;
-    res.data[1] = val.s1;
-    res.data[2] = val.s2;
-    res.data[3] = val.s3;
-    res.data[4] = val.s4;
-    res.data[5] = val.s5;
-    res.data[6] = val.s6;
-    res.data[7] = val.s7;
+    res.data.s0 = (val.s1 << 4) | val.s0;
+    res.data.s1 = (val.s3 << 4) | val.s2;
+    res.data.s2 = (val.s5 << 4) | val.s4;
+    res.data.s3 = (val.s7 << 4) | val.s6;
     return res;
 }
 fp4e2m1_t16 __attribute__((overloadable)) as_fp4e2m1_t16(uchar16 val) {
     fp4e2m1_t16 res;
-    res.data[0]  = val.s0;
-    res.data[1]  = val.s1;
-    res.data[2]  = val.s2;
-    res.data[3]  = val.s3;
-    res.data[4]  = val.s4;
-    res.data[5]  = val.s5;
-    res.data[6]  = val.s6;
-    res.data[7]  = val.s7;
-    res.data[8]  = val.s8;
-    res.data[9]  = val.s9;
-    res.data[10] = val.sA;
-    res.data[11] = val.sB;
-    res.data[12] = val.sC;
-    res.data[13] = val.sD;
-    res.data[14] = val.sE;
-    res.data[15] = val.sF;
+    res.data.s0 = (val.s1 << 4) | val.s0;
+    res.data.s1 = (val.s3 << 4) | val.s2;
+    res.data.s2 = (val.s5 << 4) | val.s4;
+    res.data.s3 = (val.s7 << 4) | val.s6;
+    res.data.s4 = (val.s9 << 4) | val.s8;
+    res.data.s5 = (val.sB << 4) | val.sA;
+    res.data.s6 = (val.sD << 4) | val.sC;
+    res.data.s7 = (val.sF << 4) | val.sE;
     return res;
 }
 
@@ -489,24 +408,32 @@ uchar __attribute__((overloadable)) _as_uchar(fp4e2m1_t val) {
     return val.data;
 }
 uchar __attribute__((overloadable)) _as_uchar(fp4e2m1_t1 val) {
-    return val.data[0];
+    return val.data;
 }
 uchar2 __attribute__((overloadable)) _as_uchar2(fp4e2m1_t2 val) {
-    return (uchar2)(val.data[0], val.data[1]);
+    return (uchar2)(val.data & 0xF, (val.data >> 4) & 0xF);
 }
 uchar3 __attribute__((overloadable)) _as_uchar3(fp4e2m1_t3 val) {
-    return (uchar3)(val.data[0], val.data[1], val.data[2]);
+    return (uchar3)(val.data.s0 & 0xF, (val.data.s0 >> 4) & 0xF, 
+                    val.data.s1 & 0xF);
 }
 uchar4 __attribute__((overloadable)) _as_uchar4(fp4e2m1_t4 val) {
-    return (uchar4)(val.data[0], val.data[1], val.data[2], val.data[3]);
+    return (uchar4)(val.data.s0 & 0xF, (val.data.s0 >> 4) & 0xF, 
+                    val.data.s1 & 0xF, (val.data.s1 >> 4) & 0xF);
 }
 uchar8 __attribute__((overloadable)) _as_uchar8(fp4e2m1_t8 val) {
-    return (uchar8)(val.data[0], val.data[1], val.data[2], val.data[3],
-                    val.data[4], val.data[5], val.data[6], val.data[7]);
+    return (uchar8)(val.data.s0 & 0xF, (val.data.s0 >> 4) & 0xF, 
+                    val.data.s1 & 0xF, (val.data.s1 >> 4) & 0xF,
+                    val.data.s2 & 0xF, (val.data.s2 >> 4) & 0xF,
+                    val.data.s3 & 0xF, (val.data.s3 >> 4) & 0xF);
 }
 uchar16 __attribute__((overloadable)) _as_uchar16(fp4e2m1_t16 val) {
-    return (uchar16)(val.data[0],  val.data[1],  val.data[2],  val.data[3],
-                     val.data[4],  val.data[5],  val.data[6],  val.data[7],
-                     val.data[8],  val.data[9],  val.data[10], val.data[11],
-                     val.data[12], val.data[13], val.data[14], val.data[15]);
+    return (uchar16)(val.data.s0 & 0xF, (val.data.s0 >> 4) & 0xF, 
+                     val.data.s1 & 0xF, (val.data.s1 >> 4) & 0xF,
+                     val.data.s2 & 0xF, (val.data.s2 >> 4) & 0xF,
+                     val.data.s3 & 0xF, (val.data.s3 >> 4) & 0xF,
+                     val.data.s4 & 0xF, (val.data.s4 >> 4) & 0xF,
+                     val.data.s5 & 0xF, (val.data.s5 >> 4) & 0xF,
+                     val.data.s6 & 0xF, (val.data.s6 >> 4) & 0xF,
+                     val.data.s7 & 0xF, (val.data.s7 >> 4) & 0xF);
 }

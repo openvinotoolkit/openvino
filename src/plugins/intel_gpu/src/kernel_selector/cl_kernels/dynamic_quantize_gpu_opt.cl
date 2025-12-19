@@ -11,6 +11,8 @@
 #error "dynamic_quantize_gpu_opt.cl: Unsupported output dimension"
 #endif
 
+#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT || F4E2M1_OUTPUT)
+
 #define VLOAD_N CAT(vload, VEC_SIZE)
 #define VSTORE_N CAT(vstore, VEC_SIZE)
 #define CONVERT_UCHAR_N CAT(convert_uchar, VEC_SIZE)
@@ -23,7 +25,15 @@
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
-#define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
+#if IS_F8
+    #define SCALE_TYPE float
+    #define TO_SCALE_TYPE(x) _convert_float(x)
+    #define ACT_MIN_VAL 0.000000059604645h // min half dtype val
+#else
+    #define SCALE_TYPE half
+    #define TO_SCALE_TYPE(x) _convert_half(x)
+    #define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
+#endif
 
 #if GENERATE_PRECOMPUTED_REDUCTION
     #define FOR_PRECOMPUTED_REDUCTION(x)  x
@@ -31,7 +41,6 @@
     #define FOR_PRECOMPUTED_REDUCTION(x)
 #endif
 
-#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT || F4E2M1_OUTPUT)
 
 // ***********************************************
 #if DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_SMALL_GS
@@ -56,14 +65,14 @@ KERNEL(dynamic_quantize_gpu_opt)(
     const uint b = get_global_id(0);
     const uint f_grp = get_global_id(1);
     const uint input_offset = INPUT0_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE, 0, 0);
-    const uint output_offset = OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE, 0, 0);
+    const uint output_offset = (OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE, 0, 0)) / 2;
 #else
     const uint bf = get_global_id(0);
     const uint b = bf / INPUT0_FEATURE_NUM;
     const uint f = bf % INPUT0_FEATURE_NUM;
     const uint y_grp = get_global_id(1);
     const uint input_offset = INPUT0_GET_INDEX(b, f, y_grp * QUANTIZE_GROUP_SIZE, 0);
-    const uint output_offset = OUTPUT_GET_INDEX(b, f, y_grp * QUANTIZE_GROUP_SIZE, 0);
+    const uint output_offset = (OUTPUT_GET_INDEX(b, f, y_grp * QUANTIZE_GROUP_SIZE, 0)) / 2;
 
 #endif
     const uint quantize_block = QUANTIZE_GROUP_SIZE / 4;
@@ -84,19 +93,19 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if IS_MXFP
     float out_dt_max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(_convert_float(OUTPUT_VAL_MAX)));
     float max_val_rounded_down = _convert_float(TO_OUTPUT1_TYPE(max_value));
-    half quan_scale = out_dt_max_val_rounded_down / max_val_rounded_down;
+    SCALE_TYPE quan_scale = out_dt_max_val_rounded_down / max_val_rounded_down;
+    printf("%f %f %f %f \n", OUTPUT_VAL_MAX, _convert_float(OUTPUT_VAL_MAX), TO_OUTPUT1_TYPE(_convert_float(OUTPUT_VAL_MAX)), out_dt_max_val_rounded_down);
+    printf("%f %f %f %f \n", max_val_rounded_down);
+     printf("%f \n", quan_scale);
 #else
-    half quan_scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
+    SCALE_TYPE quan_scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
     FOR_PRECOMPUTED_REDUCTION(int precomputed_reduction = 0);
 #endif // MXFP
-
+    printf("KERNEL OPT \n");
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
 #if IS_F8
-        quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, input_0[i] * (half4)quan_scale);
-        output[output_offset + i * 4] = AS_OUTPUT_TYPE(quantized_value[i].data[0]);
-        output[output_offset + i * 4 + 1] = AS_OUTPUT_TYPE(quantized_value[i].data[1]);
-        output[output_offset + i * 4 + 2] = AS_OUTPUT_TYPE(quantized_value[i].data[2]);
-        output[output_offset + i * 4 + 3] = AS_OUTPUT_TYPE(quantized_value[i].data[3]);
+        quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, convert_float4(input_0[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 4))quan_scale);
+        vstore2(quantized_value[i].data, 0, (uchar*)(&output[output_offset + i * 2]));
 #else
         quantized_value[i] = convert_char4(input_0[i] * (half4)quan_scale);
         FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += quantized_value[i][0] + quantized_value[i][1] + quantized_value[i][2] + quantized_value[i][3]);
@@ -211,10 +220,10 @@ KERNEL(dynamic_quantize_gpu_opt)(
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
     OUTPUT2_TYPE zp = (OUTPUT2_TYPE)(-min_value * scale);
 #else
-    OUTPUT1_TYPE scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
+    SCALE_TYPE scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
 #endif
 
-    val *= scale;
+    val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale);
 #if ASYMMETRIC_QUANTIZATION
     val += zp;
     VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
@@ -342,7 +351,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
     OUTPUT2_TYPE zp = (OUTPUT2_TYPE)(-min_value * scale);
 #else
-    OUTPUT1_TYPE scale = _convert_half(OUTPUT_VAL_MAX) / max_value;
+    SCALE_TYPE scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
 #endif
 
 
@@ -350,7 +359,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
         if ((local_id * iteration + i) >= TOTAL_BLOCK_NUM)
             continue;
 
-        val[i] *= scale;
+        val[i] = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale);
 #if ASYMMETRIC_QUANTIZATION
         val[i] += zp;
         VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
