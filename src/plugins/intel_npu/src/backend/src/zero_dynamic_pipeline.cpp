@@ -408,6 +408,25 @@ std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
     // }
 }
 
+std::vector<size_t> DynamicPipeline::get_strides(const std::vector<size_t>& strides_in_bytes, size_t element_size) const {
+    std::vector<size_t> element_strides(strides_in_bytes.size());
+    std::transform(strides_in_bytes.rbegin(),
+                   strides_in_bytes.rend(),
+                   element_strides.begin(),
+                   [element_size](size_t byte_stride) {
+                       OPENVINO_ASSERT(byte_stride % element_size == 0,
+                                       "Stride ",
+                                       byte_stride,
+                                       " bytes is not aligned to element size ",
+                                       element_size,
+                                       " bytes. Strides must be multiples of element size.");
+
+                       return byte_stride / element_size;
+                   });
+
+    return element_strides;
+};
+
 }  // namespace intel_npu
 
 #    ifdef _MSC_VER
