@@ -642,7 +642,7 @@ inline void scale_add2_reduce_max(ov::float16* a,
             } else {
                 OPENVINO_THROW("attn_mask must be float or float16 type.");
             }
-            v_a = vaddq_f16(v_a, v_mask);   
+            v_a = vaddq_f16(v_a, v_mask);
         }
 
         if (has_causal_mask) {
