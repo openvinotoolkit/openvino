@@ -34,8 +34,6 @@ namespace op_util = ov::op::util;
 
 namespace ov::pass {
 
-namespace {
-
 class InitNMSPath : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("InitNMSPath");
@@ -153,8 +151,6 @@ public:
         register_matcher(m, callback);
     }
 };
-
-}  // namespace
 
 ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
     ADD_MATCHER_FOR_THIS(InitNMSPath)
