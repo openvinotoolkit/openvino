@@ -603,7 +603,7 @@ jobs:
       image: ubuntu:22.04
       options: "--group-add 44 --group-add 993 --device /dev/dri/card2:/dev/dri/card2 --device /dev/dri/renderD129:/dev/dri/renderD129"
     # if: ${{ github.event_name == 'schedule' }}
-      if: ${{ 'false' }} # Ticket: 143677
+    if: ${{ 'false' }} # Ticket: 143677
 
   Overall_Status:
     name: ci/gha_overall_status
