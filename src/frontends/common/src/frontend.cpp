@@ -116,13 +116,3 @@ void FrontEnd::validate_path(const std::filesystem::path& path) const {
                             path,
                             '"');
 }
-
-void FrontEnd::validate_path(const std::string& path) const {
-    validate_path(ov::util::make_path(path));
-}
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-void FrontEnd::validate_path(const std::wstring& path) const {
-    validate_path(ov::util::make_path(path));
-}
-#endif
