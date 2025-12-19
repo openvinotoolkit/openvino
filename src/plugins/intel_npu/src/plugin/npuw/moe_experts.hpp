@@ -62,7 +62,8 @@ struct MoEDownstream {
 };
 
 // Helper function to validate MoE expert model and extract necessary information
-std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shared_ptr<ov::Model>& model);
+std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shared_ptr<ov::Model>& model,
+                                                                  size_t active_experts_num_config = 4);
 
 // Expert transformation mode
 enum class ExpertMode {
@@ -182,7 +183,8 @@ struct MoEExperts {
     // Factory method to create MoEExperts from a model (for expert pattern only)
     // For prefill stage: active_experts_num = 0 or 1 (default), mode = SINGLE_EXPERT
     // For decoding stage: active_experts_num = K, mode = ACTIVE_EXPERTS
-    static std::optional<MoEExperts> from(const std::shared_ptr<ov::Model>& model);
+    static std::optional<MoEExperts> from(const std::shared_ptr<ov::Model>& model,
+                                          size_t active_experts_num_config = 4);
 };
 
 // Factory method to create MoEDownstream from a model (for downstream pattern)

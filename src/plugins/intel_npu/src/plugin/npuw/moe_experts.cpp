@@ -26,7 +26,8 @@ namespace ov {
 namespace npuw {
 namespace function {
 
-std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shared_ptr<ov::Model>& model) {
+std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shared_ptr<ov::Model>& model,
+                                                                  size_t active_experts_num_config) {
     LOG_DEBUG("Validating MoE expert model...");
     LOG_BLOCK();
 
@@ -70,13 +71,11 @@ std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shar
     }
 
     // Step 2: Analyze output to detect stage and ReduceSum presence
-    constexpr size_t DEFAULT_ACTIVE_EXPERTS_DECODING = 4;  // TODO: Make configurable
-
     // Detect stage based on input_token_count
     // Decoding: token_count == 1, Prefill: token_count > 1
     if (result.input_token_count == 1) {
         result.is_decoding_stage = true;
-        result.detected_active_experts = DEFAULT_ACTIVE_EXPERTS_DECODING;
+        result.detected_active_experts = active_experts_num_config;
         LOG_DEBUG("Detected DECODING stage (input_token_count=1), K=" << result.detected_active_experts);
 
         // Check for ReduceSum in output path (decoding only)
@@ -586,13 +585,14 @@ std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model
     return model;
 }
 
-std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& model) {
+std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& model,
+                                            size_t active_experts_num_config) {
     LOG_DEBUG("Creating MoEExperts from model: " << model->get_friendly_name());
     LOG_BLOCK();
     std::cout << "Creating MoEExperts from model: " << model->get_friendly_name() << std::endl;
 
     // Step 1: Validate the model and extract expert information (including stage detection)
-    auto validation_result = validate_and_setup_moe_expert(model);
+    auto validation_result = validate_and_setup_moe_expert(model, active_experts_num_config);
     if (!validation_result || !validation_result->is_valid()) {
         LOG_WARN("Model validation failed for MoE expert pattern");
         return std::nullopt;

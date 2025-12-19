@@ -1927,7 +1927,8 @@ void Partitioner::moe(const std::string& func_name) {
                               << "...");
         // Use the factory method to create MoEExperts from the function model
         // The factory will auto-detect whether this is prefill or decoding stage
-        f._moe_experts = ov::npuw::function::MoEExperts::from(f._model);
+        const size_t active_experts_num = cfg.get<::intel_npu::NPUW_MOE_ACTIVE_EXPERTS_NUM>();
+        f._moe_experts = ov::npuw::function::MoEExperts::from(f._model, active_experts_num);
 
         if (f._moe_experts) {
             LOG_INFO("Successfully created MoE expert model");
@@ -1939,8 +1940,8 @@ void Partitioner::moe(const std::string& func_name) {
     }
 
     // Try downstream pattern for non-expert functions
-    f._moe_experts_downstream =
-        ov::npuw::function::create_moe_downstream(f._model, 4);  // Fix the hardcoding of top_k to 4 for now
+    const size_t active_experts_num = cfg.get<::intel_npu::NPUW_MOE_ACTIVE_EXPERTS_NUM>();
+    f._moe_experts_downstream = ov::npuw::function::create_moe_downstream(f._model, active_experts_num);
     if (f._moe_experts_downstream) {
         LOG_INFO("Successfully created MoE downstream model");
         LOG_VERB("MoE downstream transformation completed");
