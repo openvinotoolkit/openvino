@@ -240,7 +240,6 @@ jobs:
             -DENABLE_INTEL_NPU=ON \
             -DENABLE_TEMPLATE=ON \
             -DENABLE_PYTHON=OFF \
-            -DENABLE_SAMPLES=OFF \
             -DCMAKE_EXE_LINKER_FLAGS="-Wl,-z,max-page-size=16384" \
             -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-z,max-page-size=16384" \
             -S ${OPENVINO_REPO} \
@@ -288,7 +287,7 @@ jobs:
           # Add TBB and libc++ shared to runtime package
           find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} ${INSTALL_DIR}/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
           cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" ${INSTALL_DIR}/lib/ || echo "libc++_shared.so not found"
-
+      
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR }}
@@ -310,7 +309,7 @@ jobs:
           name: ov_android_package_${{ matrix.arch }}
           path: ${{ env.INSTALL_DIR }}/
           if-no-files-found: 'error'
-
+      
       - name: Store artifacts to a shared drive
         id: store_artifacts
         if: ${{ github.event_name != 'merge_group' }}
