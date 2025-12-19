@@ -70,8 +70,8 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL (gather_2d_ref)(
     const __global MOE_DTYPE* src_tok,       // input tokens [total_token, hidden_size] - hidden_states_mem_ptr
     const __global MOE_DTYPE* src_rweight,   // topk_weights [total_token, topk_experts]
-    __global int * tok_index,               // token index [expert_idx][] = [actual_token_num]   - expert_mask_mem.batch
-    __global int * top_index,               // topk  index [expert_idx][] = [actual_token_num]   - expert_mask_mem.topk
+    __global int * tok_index,                // token index [expert_idx][] = [actual_token_num]   - expert_mask_mem.batch
+    __global int * top_index,                // topk  index [expert_idx][] = [actual_token_num]   - expert_mask_mem.topk
     __global MOE_DTYPE* dst_tok,             // output tokens [batch_size, hidden_size] - scratch.x
     __global MOE_DTYPE* dst_rweight) {       // output topk_weights [batch_size] - scratch.routing_weights
 
@@ -83,7 +83,7 @@ KERNEL (gather_2d_ref)(
     dst_tok += k * HIDDEN_SIZE;
 
     if (off >= HIDDEN_SIZE) {
-        printf("Warning off >= HIDDEN_SIZE: k = %d, off = %d, HIDDEN_SIZE = %d\n", k, off, HIDDEN_SIZE);
+        // printf("Warning off >= HIDDEN_SIZE: k = %d, off = %d, HIDDEN_SIZE = %d\n", k, off, HIDDEN_SIZE);
         return;
     }
 
@@ -129,4 +129,33 @@ KERNEL (index_add_)(const __global MOE_DTYPE* src_tok,
         dst_tok[off] += src_tok[off];
     #endif
 }
+
+#elif PREFILL_SWIGLU_ENABLE
+
+#define SWISH_BETA 1.0f
+__attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
+KERNEL(swiglu_ref) (
+    const __global MOE_DTYPE* up, // [token_len * expert_topK, hidden_size]
+    const __global MOE_DTYPE* gate,
+    __global MOE_DTYPE* output    // [token_len * expert_topK, hidden_size]
+) {
+    const uint token_idx = get_global_id(0);
+    const uint n_offset = get_global_id(1);
+
+    const uint offset = token_idx * INTERMEDIA_SIZE + n_offset;
+#if MOE_DTYPE_SIZE == 2
+    half up_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(up + offset)));
+    half gate_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(gate + offset)));
+    half value = gate_value / (1.0 + native_exp(-SWISH_BETA * gate_value));
+    MOE_DTYPE result = value * up_value;
+    intel_sub_group_block_write_us((__global ushort *)(output + offset), as_ushort(result));
+#else
+    MOE_DTYPE gate_value = gate[offset];
+    MOE_DTYPE up_value = up[offset];
+    half value = gate_value / (1.0 + native_exp(-SWISH_BETA * gate_value));
+    MOE_DTYPE result = value * up_value;
+    output[offset] = result;
+#endif
+}
+
 #endif
