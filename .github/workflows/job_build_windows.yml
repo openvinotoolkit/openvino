@@ -260,7 +260,7 @@ jobs:
             if ($pyVersion -eq '3.14t') {
               cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_GIL_PYTHON_API=OFF -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
             } else {
-              cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
+              cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_GIL_PYTHON_API=ON -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
             }
 
             cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
