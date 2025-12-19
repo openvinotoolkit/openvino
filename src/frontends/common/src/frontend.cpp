@@ -112,7 +112,6 @@ std::string FrontEnd::get_name() const {
 void FrontEnd::validate_path(const std::filesystem::path& path) const {
     FRONT_END_GENERAL_CHECK(util::directory_exists(path) || util::file_exists(path),
                             get_name(),
-                            ": Could not open the file: \"",
-                            path,
-                            '"');
+                            ": Could not open the file: ",
+                            path);
 }
