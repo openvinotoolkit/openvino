@@ -315,12 +315,15 @@ void Plugin::init_options() {
     REGISTER_OPTION(STEPPING);
     REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
+    REGISTER_OPTION(EXPORT_RAW_BLOB);
+    REGISTER_OPTION(IMPORT_RAW_BLOB);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
     REGISTER_OPTION(WEIGHTLESS_BLOB);
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(USE_BASE_MODEL_SERIALIZER);
+    REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
 
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
@@ -373,6 +376,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_MIN_RESPONSE_LEN);
     REGISTER_OPTION(NPUW_LLM_OPTIMIZE_V_TENSORS);
     REGISTER_OPTION(NPUW_LLM_CACHE_ROPE);
+    REGISTER_OPTION(NPUW_LLM_GENERATE_PYRAMID);
     REGISTER_OPTION(NPUW_LLM_PREFILL_CHUNK_SIZE);
     REGISTER_OPTION(NPUW_LLM_SHARED_HEAD);
     REGISTER_OPTION(NPUW_LLM_MAX_LORA_RANK);
@@ -380,6 +384,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE);
     REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS);
     REGISTER_OPTION(NPUW_WHISPER);
+    REGISTER_OPTION(NPUW_EAGLE);
     REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
     REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_PREFILL_CONFIG);
@@ -640,6 +645,25 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         _logger.warning("Model received in config will be ignored as it was already provided by parameter.");
     }
 
+    // There is an on-going migration from "USE_BASE_MODEL_SERIALIZER" to "MODEL_SERIALIZER_VERSION". Until done, make
+    // sure only the option supported by the compiler is registered in the config.
+    bool useBaseModelSerializer = true;
+    bool modelSerializerChosenExplicitly = false;
+    const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
+    const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
+    if (localProperties.count(useBaseModelSerializerKey)) {
+        modelSerializerChosenExplicitly = true;
+        useBaseModelSerializer = localProperties.at(useBaseModelSerializerKey).as<bool>();
+        localProperties.erase(useBaseModelSerializerKey);
+        localProperties.erase(modelSerializerVersionKey);
+    } else if (localProperties.count(modelSerializerVersionKey)) {
+        modelSerializerChosenExplicitly = true;
+        const auto modelSerializerVersion =
+            localProperties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
+        useBaseModelSerializer = !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
+        localProperties.erase(modelSerializerVersionKey);
+    }
+
     const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
     update_log_level(localPropertiesMap);
 
@@ -747,6 +771,31 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         localConfig.update({{ov::intel_npu::weightless_blob.name(), cacheModeOptimizeSize ? "YES" : "NO"}});
     }
 
+    if (modelSerializerChosenExplicitly) {
+        if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
+            localConfig.update(
+                {{ov::intel_npu::use_base_model_serializer.name(), useBaseModelSerializer ? "YES" : "NO"}});
+        } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+            localConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                                 useBaseModelSerializer ? "ALL_WEIGHTS_COPY" : "NO_WEIGHTS_COPY"}});
+        }
+    } else {
+        const auto compilerType = localConfig.get<COMPILER_TYPE>();
+        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
+            if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
+                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "NO"}});
+            } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
+            }
+        } else if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
+            if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
+                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "YES"}});
+            } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "ALL_WEIGHTS_COPY"}});
+            }
+        }
+    }
+
     std::shared_ptr<intel_npu::IGraph> graph;
 
     auto compileWithConfig = [&](const auto& modelToCompile, const auto& config) {
@@ -847,11 +896,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     try {
         const bool skipCompatibility =
-            npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end() &&
-            npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>() == true;
+            (npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end())
+                ? npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
+                : _globalConfig.get<DISABLE_VERSION_CHECK>();
+        const bool importRawBlob =
+            (npu_plugin_properties.find(IMPORT_RAW_BLOB::key().data()) != npu_plugin_properties.end())
+                ? npu_plugin_properties[IMPORT_RAW_BLOB::key().data()].as<bool>()
+                : _globalConfig.get<IMPORT_RAW_BLOB>();
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = MetadataBase::getFileSize(stream);
-        if (!skipCompatibility) {
+        if (!importRawBlob && !skipCompatibility) {
             // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
             // passes compatibility checks.
             metadata = read_metadata_from(stream);
@@ -902,11 +956,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
 
     try {
         const bool skipCompatibility =
-            npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end() &&
-            npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>() == true;
+            (npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end())
+                ? npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
+                : _globalConfig.get<DISABLE_VERSION_CHECK>();
+        const bool importRawBlob =
+            (npu_plugin_properties.find(IMPORT_RAW_BLOB::key().data()) != npu_plugin_properties.end())
+                ? npu_plugin_properties[IMPORT_RAW_BLOB::key().data()].as<bool>()
+                : _globalConfig.get<IMPORT_RAW_BLOB>();
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = compiled_blob.get_byte_size();
-        if (!skipCompatibility) {
+        if (!importRawBlob && !skipCompatibility) {
             metadata = read_metadata_from(compiled_blob);
             if (!metadata->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
@@ -939,6 +998,24 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
     CompilerAdapterFactory compilerAdapterFactory;
     auto npu_plugin_properties = properties;
+    // There is an on-going migration from "USE_BASE_MODEL_SERIALIZER" to "MODEL_SERIALIZER_VERSION". Until done, make
+    // sure only the option supported by the compiler is registered in the config.
+    bool useBaseModelSerializer = true;
+    bool modelSerializerChosenExplicitly = false;
+    const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
+    const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
+    if (npu_plugin_properties.count(useBaseModelSerializerKey)) {
+        modelSerializerChosenExplicitly = true;
+        useBaseModelSerializer = npu_plugin_properties.at(useBaseModelSerializerKey).as<bool>();
+        npu_plugin_properties.erase(useBaseModelSerializerKey);
+        npu_plugin_properties.erase(modelSerializerVersionKey);
+    } else if (npu_plugin_properties.count(modelSerializerVersionKey)) {
+        modelSerializerChosenExplicitly = true;
+        const auto modelSerializerVersion =
+            npu_plugin_properties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
+        useBaseModelSerializer = !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
+        npu_plugin_properties.erase(modelSerializerVersionKey);
+    }
     exclude_model_ptr_from_map(npu_plugin_properties);
     const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
@@ -951,6 +1028,31 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                       localConfig.get<DEVICE_ID>(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
+
+    if (modelSerializerChosenExplicitly) {
+        if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
+            localConfig.update(
+                {{ov::intel_npu::use_base_model_serializer.name(), useBaseModelSerializer ? "YES" : "NO"}});
+        } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+            localConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                                 useBaseModelSerializer ? "ALL_WEIGHTS_COPY" : "NO_WEIGHTS_COPY"}});
+        }
+    } else {
+        const auto compilerType = localConfig.get<COMPILER_TYPE>();
+        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
+            if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
+                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "NO"}});
+            } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "NO_WEIGHTS_COPY"}});
+            }
+        } else if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
+            if (localConfig.isAvailable(ov::intel_npu::use_base_model_serializer.name())) {
+                localConfig.update({{ov::intel_npu::use_base_model_serializer.name(), "YES"}});
+            } else if (localConfig.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+                localConfig.update({{ov::intel_npu::model_serializer_version.name(), "ALL_WEIGHTS_COPY"}});
+            }
+        }
+    }
 
     ov::SupportedOpsMap supportedOpsMap;
     try {
@@ -1012,9 +1114,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         _logger.info("Blob compatibility check skipped.");
     }
 
-    ov::Tensor tensorMain(tensorBig,
-                          ov::Coordinate{0},
-                          ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
+    const ov::Tensor tensorMain(tensorBig,
+                                ov::Coordinate{0},
+                                ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
 
     std::vector<ov::Tensor> tensorsInits;
     const bool weightsSeparationEnabled = initSizes.has_value();
@@ -1023,7 +1125,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         // Read the init compiled models as well
         size_t cursorPosition = mainSize;
         for (uint64_t initSize : initSizes.value()) {
-            ov::Tensor tensorInit(tensorBig, ov::Coordinate{cursorPosition}, ov::Coordinate{cursorPosition + initSize});
+            const ov::Tensor tensorInit(tensorBig,
+                                        ov::Coordinate{cursorPosition},
+                                        ov::Coordinate{cursorPosition + initSize});
             tensorsInits.push_back(tensorInit);
             cursorPosition += initSize;
         }
@@ -1060,9 +1164,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         check_weightless_cache_attribute_occurrence(originalModel);
     }
 
-    auto graph = compiler->parse(std::move(tensorMain),
+    const std::optional<std::vector<ov::Tensor>> initBlobs =
+        weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt;
+
+    auto graph = compiler->parse(tensorMain,
                                  localConfig,
-                                 weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt,
+                                 initBlobs,
                                  weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));

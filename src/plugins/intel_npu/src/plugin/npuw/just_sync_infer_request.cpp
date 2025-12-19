@@ -169,6 +169,8 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
             oshape[proto_comp_model_desc.spatial->out_dim] = proto_comp_model_desc.spatial->range;
         }
         const auto& device = m_model->funcall_mem_device(real_idx);
+        // FIXME: handle the lazy way (see BaseSyncInferRequest::get_tensor())
+        // and share between submodels to reduce memory consumption
         TensorPtr new_tensor = m_alloc(oport.get_element_type(), oshape, device);
         NPUW_ASSERT(new_tensor);
 
@@ -349,7 +351,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }
     }  // if(function_pipelining)
 
-    alloc_io();
+    alloc_quant_gather();
     connect_subrequests();
     init_gio();
 
@@ -430,11 +432,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
 void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                             const ov::SoPtr<ov::ITensor>& tensor) {
-    // Check that it's I/O
-    NPUW_ASSERT(m_port_to_tensor.at(port).persistent);
-
-    // Assigning via .at() to ensure it is a known port
-    m_port_to_tensor.at(port).tensor = tensor;
+    m_port_to_tensor[port] = TensorStorage{tensor, true};
 
     // Check if setting output tensor
     for (std::size_t i = 0; i < m_npuw_model->outputs().size(); ++i) {
@@ -457,7 +455,7 @@ void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& po
     handle_set_remote_input(port, tensor);
 }
 
-ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out_idx) {
+ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out_idx) const {
     const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(out_idx);
     auto funcall_result_iter = m_funcall_result.find(from_submodel);
     if (funcall_result_iter != m_funcall_result.end()) {

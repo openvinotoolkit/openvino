@@ -5,7 +5,7 @@ from huggingface_hub import snapshot_download
 from openvino._offline_transformations import paged_attention_transformation
 from openvino._pyopenvino.op import _PagedAttentionExtension
 from openvino._pyopenvino import Type as OVType
-from optimum.intel import OVModelForCausalLM
+from optimum.intel import OVModelForCausalLM, OVModelForSeq2SeqLM
 from optimum.intel.openvino import OVModelForVisualCausalLM
 from typing import Union
 import openvino as ov
@@ -23,13 +23,14 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
                                            allow_score_aggregation: bool,
                                            allow_cache_rotation: bool,
                                            allow_xattention: bool,
+                                           allow_adaptive_rkv: bool,
                                            ie_device: str):
     before_map = {}
     for op in ov_model.get_ordered_ops():
         if op.get_type_name() in nodes_to_compare:
             before_map[op.get_type_name()] = before_map.get(op.get_type_name(), 0) + 1
 
-    paged_attention_transformation(ov_model, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention)
+    paged_attention_transformation(ov_model, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention, allow_adaptive_rkv)
     ov.Core().compile_model(ov_model, ie_device)
 
     after_map = {}
@@ -83,6 +84,12 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
         interesting_input_patterns["xattention_block_size"] = r'^xattention_block_size$';
         interesting_input_patterns["xattention_stride"] = r'^xattention_stride$';
 
+    if (allow_adaptive_rkv):
+        interesting_input_patterns["adaptive_rkv_start_size"] = r'^adaptive_rkv_start_size$';
+        interesting_input_patterns["adaptive_rkv_evictable_sizes"] = r'^adaptive_rkv_evictable_sizes$';
+        interesting_input_patterns["adaptive_rkv_diversity_block_set_indices"] = r'^adaptive_rkv_diversity_block_set_indices\.[0-9]+';
+        interesting_input_patterns["adaptive_rkv_diversity_block_set_indices_begins"] = r'^adaptive_rkv_diversity_block_set_indices_begins\.[0-9]+';
+
     input_counters = {k: 0 for k in interesting_input_patterns}
     output_counters = {k: 0 for k in interesting_output_patterns}
 
@@ -110,6 +117,12 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
         assert input_counters["xattention_stride"] == 1
         input_counters.pop("xattention_stride")
 
+    if allow_xattention:
+        assert input_counters["adaptive_rkv_start_size"] == 1
+        input_counters.pop("adaptive_rkv_start_size")
+        assert input_counters["adaptive_rkv_evictable_sizes"] == 1
+        input_counters.pop("adaptive_rkv_evictable_sizes")
+
     for input_id, count in input_counters.items():
         assert count == resulting_map["PagedAttentionExtension"], \
                f"The number of {input_id} inputs doesn't correspond to the expected value. Expected {resulting_map['PagedAttentionExtension']}, received {count}"
@@ -123,21 +136,38 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
 def run_pa(tmp_path,
            model_id,
            model_link,
-           cls: Union[type[OVModelForCausalLM], type[OVModelForVisualCausalLM]],
+           cls: Union[type[OVModelForCausalLM], type[OVModelForVisualCausalLM], type[OVModelForSeq2SeqLM]],
            use_block_indices_inputs,
            use_score_outputs,
            allow_score_aggregation,
            allow_cache_rotation,
            allow_xattention,
+           allow_adaptive_rkv,
            ie_device):
     model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
     model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)
 
-    ov_model = model.model if cls is OVModelForCausalLM else model.lm_model
+    if cls is OVModelForCausalLM:
+        ov_model = model.model
+    elif cls is OVModelForVisualCausalLM:
+        ov_model = model.lm_model
+    elif cls is OVModelForSeq2SeqLM:
+        ov_model = model.decoder_with_past_model
+    else:
+        raise ValueError(f"Unsupported model class: {cls}")
 
-    apply_transformation_and_compare_diffs(ov_model, model_id, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention, ie_device)
+    apply_transformation_and_compare_diffs(ov_model, model_id, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention, allow_adaptive_rkv, ie_device)
 
-PA_PRECOMMIT_TEST_CASES = [ (OVModelForCausalLM, *model_info_tuple) for model_info_tuple in utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")) ] + [ (OVModelForVisualCausalLM, *model_info_tuple) for model_info_tuple in utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-vl-models-precommit")) ]
+PA_PRECOMMIT_TEST_CASES = [
+    (OVModelForCausalLM, *model_info_tuple)
+    for model_info_tuple in utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit"))
+] + [
+    (OVModelForVisualCausalLM, *model_info_tuple)
+    for model_info_tuple in utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-vl-models-precommit"))
+] + [
+    (OVModelForSeq2SeqLM, *model_info_tuple)
+    for model_info_tuple in utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-enc-dec-models-precommit"))
+]
 
 def pa_test_idfn(entry):
     retval = ""
@@ -145,6 +175,8 @@ def pa_test_idfn(entry):
         retval += "text-"
     elif entry[0] is OVModelForVisualCausalLM:
         retval += "vlm-"
+    elif entry[0] is OVModelForSeq2SeqLM:
+        retval += "seq2seq-"
     else:
         raise ValueError(f"Unknown model class {entry[0]}")
     retval += entry[1]
@@ -169,6 +201,7 @@ def test_pa_precommit(tmp_path, model_info_tuple, ie_device, use_optimizations):
                 allow_score_aggregation=True,
                 allow_cache_rotation=True,
                 allow_xattention=True,
+                allow_adaptive_rkv=True,
                 ie_device=ie_device)
     else:
         run_pa(tmp_path, model_name, model_link, model_class,
@@ -177,4 +210,5 @@ def test_pa_precommit(tmp_path, model_info_tuple, ie_device, use_optimizations):
                 allow_score_aggregation=False,
                 allow_cache_rotation=False,
                 allow_xattention=False,
+                allow_adaptive_rkv=False,
                 ie_device=ie_device)

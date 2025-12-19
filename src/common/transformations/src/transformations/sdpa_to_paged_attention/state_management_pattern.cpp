@@ -212,22 +212,19 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gpt_oss_
     auto q_idx = pattern::any_input();
     auto kv_idx = pattern::any_input();
 
-    auto kv_idx_opt_conv_0 = pattern::optional<v0::Convert>();
-    auto kv_idx_opt_conv_1 = pattern::optional<v0::Convert>(kv_idx_opt_conv_0);
-    auto less_eq = pattern::wrap_type<v1::LessEqual>({q_idx, kv_idx_opt_conv_1});
+    auto kv_idx_opt_conv = pattern::optional<v0::Convert>(kv_idx);
 
     auto offset = wrap_type<v0::Constant>();
 
     auto add = wrap_type<v1::Add>({q_idx, offset});
-    auto opt_conv_2 = pattern::optional<v0::Convert>(add);
-    auto greater = pattern::wrap_type<v1::Greater>({kv_idx_opt_conv_1, opt_conv_2});
+    auto greater = pattern::wrap_type<v1::Greater>({kv_idx_opt_conv, add});
     auto bitwise_and = pattern::wrap_type<v13::BitwiseAnd>({any_input(), greater});
     auto bitwise_and_1 = pattern::wrap_type<v13::BitwiseAnd>({bitwise_and, any_input()});
     auto bitwise_and_2 = pattern::wrap_type<v13::BitwiseAnd>({any_input(), bitwise_and_1});
     auto bitwise_and_3 = pattern::wrap_type<v13::BitwiseAnd>({bitwise_and_2, any_input()});
     auto broadcast = pattern::wrap_type<v3::Broadcast>({bitwise_and_3, any_input()});
     auto select = pattern::wrap_type<v1::Select>({broadcast, any_input(), any_input()});
-    auto mask = pattern::wrap_type<v1::StridedSlice>({select, any_input(), any_input(), any_input()});
+    auto mask = pattern::wrap_type<v8::Slice>({select, any_input(), any_input(), any_input(), any_input()});
 
     return {mask, offset};
 }
@@ -315,9 +312,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     bool allow_cache_rotation,
     bool allow_score_aggregation,
     bool allow_xattention,
+    bool allow_adaptive_rkv,
     ParameterVector& rotated_block_indices_inputs_for_each_layer,
     ParameterVector& rotation_deltas_inputs_for_each_layer,
     ParameterVector& xattention_threshold_inputs_for_each_layer,
+    ParameterVector& adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
+    ParameterVector& adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
+    ResultVector& adaptive_rkv_diversity_results,
     const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params) {
     MATCHER_SCOPE(StateManagementPattern);
 
@@ -446,7 +447,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &layer_index,
                                           &rotated_block_indices_inputs_for_each_layer,
                                           &rotation_deltas_inputs_for_each_layer,
-                                          &xattention_threshold_inputs_for_each_layer](ov::pass::pattern::Matcher& m) {
+                                          &xattention_threshold_inputs_for_each_layer,
+                                          &adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
+                                          &adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
+                                          &adaptive_rkv_diversity_results](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
 
@@ -701,6 +705,41 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         OPENVINO_ASSERT(pa_arguments.size() == 21);
 
+        if (allow_adaptive_rkv) {
+            OPENVINO_ASSERT(
+                optional_model_wide_params.find("adaptive_rkv_start_size") != optional_model_wide_params.end(),
+                "No adaptive_rkv_start_size input found. For using Adaptive R-KV, the model have to contain "
+                "an additional input (Parameter) called adaptive_rkv_start_size.");
+            OPENVINO_ASSERT(
+                optional_model_wide_params.find("adaptive_rkv_evictable_sizes") != optional_model_wide_params.end(),
+                "No adaptive_rkv_evictable_sizes input found. For using Adaptive R-KV, the model have to contain "
+                "an additional input (Parameter) called adaptive_rkv_evictable_sizes.");
+            pa_arguments.insert(pa_arguments.begin() + 21, optional_model_wide_params.at("adaptive_rkv_start_size"));
+            pa_arguments.insert(pa_arguments.begin() + 22,
+                                optional_model_wide_params.at("adaptive_rkv_evictable_sizes"));
+
+            auto adaptive_rkv_diversity_block_set_indices =
+                setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                        "adaptive_rkv_diversity_block_set_indices." + std::to_string(layer_index - 1));
+            pa_arguments.insert(pa_arguments.begin() + 23, adaptive_rkv_diversity_block_set_indices);
+            adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer.push_back(
+                adaptive_rkv_diversity_block_set_indices);
+
+            auto adaptive_rkv_diversity_block_set_indices_begins =
+                setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                        "adaptive_rkv_diversity_block_set_indices_begins." + std::to_string(layer_index - 1));
+            pa_arguments.insert(pa_arguments.begin() + 24, adaptive_rkv_diversity_block_set_indices_begins);
+            adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer.push_back(
+                adaptive_rkv_diversity_block_set_indices_begins);
+
+        } else {
+            pa_arguments.insert(pa_arguments.begin() + 21, v0::Constant::create(element::i32, Shape{}, {0}));
+            pa_arguments.insert(pa_arguments.begin() + 22, v0::Constant::create(element::i32, Shape{0}, {}));
+            pa_arguments.insert(pa_arguments.begin() + 23, v0::Constant::create(element::i32, Shape{0}, {}));
+            pa_arguments.insert(pa_arguments.begin() + 24, v0::Constant::create(element::i32, Shape{0}, {}));
+        }
+        OPENVINO_ASSERT(pa_arguments.size() == 25);
+
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
         paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
@@ -727,6 +766,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             auto score_result = std::make_shared<v0::Result>(paged_attention->output(1));
             score_result->get_output_tensor(0).set_names({"scores." + std::to_string(layer_index - 1)});
             score_results.push_back(score_result);
+        }
+
+        if (allow_adaptive_rkv) {
+            auto similarity_result = std::make_shared<v0::Result>(paged_attention->output(2));
+            similarity_result->get_output_tensor(0).set_names(
+                {"adaptive_rkv_diversity." + std::to_string(layer_index - 1)});
+            adaptive_rkv_diversity_results.push_back(similarity_result);
         }
 
         // TODO: Complete this part to work with stateless models as well as will stateful

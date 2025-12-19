@@ -124,7 +124,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndConvertOnWeights");
-    FuseFCAndConvertOnWeights(graph);
+    FuseConvDeconvFCAndConvertOnWeights(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndTransposeOnWeights");
@@ -319,9 +319,9 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         // Per-channel DQ scales fusion is not supported by ACL
         return scalesDims[channelAxis] == 1;
-#endif
-
+#else
         return true;
+#endif
     };
 
     auto initializeDeQuantizedScales = [](const NodePtr& node, const NodePtr& scales) {
@@ -855,7 +855,7 @@ void GraphOptimizer::MergeConvertAndEltwise(Graph& graph) {
     }
 }
 
-void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
+void GraphOptimizer::FuseConvDeconvFCAndConvertOnWeights(Graph& graph) {
 #if defined(OV_CPU_WITH_SHL)
     return;
 #endif
@@ -874,7 +874,7 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
 
     const auto& graphNodes = graph.GetNodes();
     for (const auto& fullyConnected : graphNodes) {
-        if (fullyConnected->getType() != Type::FullyConnected) {
+        if (none_of(fullyConnected->getType(), Type::FullyConnected, Type::Convolution, Type::Deconvolution)) {
             continue;
         }
 

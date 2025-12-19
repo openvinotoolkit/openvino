@@ -111,6 +111,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
         jcp.interleave = false;
+        jcp.cos_sin_ndims = config.cos_sin_ndims;
         m_rotaryKernel = createJitKernel(jcp);
     }
 
@@ -153,11 +154,12 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
             t_sin = t_sin.reshape({1, t_sin.size(0), t_sin.size(1), t_sin.size(2)});
         }
 
-        auto batch_size = t_src.size(0);
-        auto head_cnt = t_src.size(1);
-        auto seq_len = t_src.size(2);
-        auto feature_size = t_src.size(3);
-
+        const auto batch_size = t_src.size(0);
+        const auto head_cnt = t_src.size(1);
+        const auto seq_len = t_src.size(2);
+        const auto feature_size = t_src.size(3);
+        const auto half_rotary_dims = rotary_dims / 2;
+        const size_t cos_sin_offset = (m_config.cos_sin_ndims == half_rotary_dims) ? 0 : half_rotary_dims;
         parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
             auto cos_pos = p;
             if (gather) {
@@ -175,13 +177,12 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
             if (m_rotaryKernel) {
                 execJitKernel(m_rotaryKernel, src, dst, cos, sin);
             } else {
-                auto half_rotary_dims = rotary_dims / 2;
                 size_t i = 0;
                 for (; i < half_rotary_dims; i++) {
                     auto src0 = src[i];
                     auto src1 = src[i + half_rotary_dims];
                     dst[i] = cos[i] * src0 - sin[i] * src1;
-                    dst[i + half_rotary_dims] = cos[i + half_rotary_dims] * src1 + sin[i + half_rotary_dims] * src0;
+                    dst[i + half_rotary_dims] = cos[i + cos_sin_offset] * src1 + sin[i + cos_sin_offset] * src0;
                 }
             }
             if (!can_inplace) {
@@ -252,7 +253,9 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
         jcp.interleave = true;
-        jcp.mix_cos_sin = true;
+        // if use precomputed rope cache then it's mixed
+        // otherwise rope has separate cos/sin inputs
+        jcp.mix_cos_sin = config.use_rope_cache;
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
@@ -260,7 +263,6 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
-        ov::intel_cpu::PlainTensor t_cos_sin(inputs[1]);
         ov::intel_cpu::PlainTensor t_dst(outputs[0]);
 
         // [seq_len, batch_size, (hidden_states_q + hidden_states_k + hidden_states_v)]
@@ -277,27 +279,50 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
 
             auto rotary_dims = m_config.rotary_ndims;
 
-            parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
-                // src [batch, length, H x S]
-                auto* src = t_src.ptr<T>(b, p, h * head_size);
-                // [batch_size, length, ndims//2, 2]
-                auto* cos_sin = &t_cos_sin.at<float>({b, p, 0, 0}, true);
-                auto* dst = t_dst.ptr<T>(b, h, p, 0);
+            if (m_config.use_rope_cache) {
+                ov::intel_cpu::PlainTensor t_cos_sin(inputs[1]);
+                parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
+                    // src [batch, length, H x S]
+                    auto* src = t_src.ptr<T>(b, p, h * head_size);
+                    // [batch_size, length, ndims//2, 2]
+                    auto* cos_sin = &t_cos_sin.at<float>({b, p, 0, 0}, true);
+                    auto* dst = t_dst.ptr<T>(b, h, p, 0);
 
-                if (m_rotaryKernel) {
-                    execJitKernel(m_rotaryKernel, src, dst, cos_sin, nullptr);
-                } else {
-                    size_t i = 0;
-                    for (; i < rotary_dims; i += 2) {
-                        auto cosv = cos_sin[i];
-                        auto sinv = cos_sin[i + 1];
-                        dst[i] = cosv * src[i] - sinv * src[i + 1];
-                        dst[i + 1] = sinv * src[i] + cosv * src[i + 1];
+                    if (m_rotaryKernel) {
+                        execJitKernel(m_rotaryKernel, src, dst, cos_sin, nullptr);
+                    } else {
+                        size_t i = 0;
+                        for (; i < rotary_dims; i += 2) {
+                            auto cosv = cos_sin[i];
+                            auto sinv = cos_sin[i + 1];
+                            dst[i] = cosv * src[i] - sinv * src[i + 1];
+                            dst[i + 1] = sinv * src[i] + cosv * src[i + 1];
+                        }
                     }
-                }
 
-                memcpy(dst + rotary_dims, src + rotary_dims, (head_size - rotary_dims) * sizeof(T));
-            });
+                    memcpy(dst + rotary_dims, src + rotary_dims, (head_size - rotary_dims) * sizeof(T));
+                });
+            } else {
+                ov::intel_cpu::PlainTensor t_cos(inputs[1]);
+                ov::intel_cpu::PlainTensor t_sin(inputs[2]);
+                parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
+                    auto* src = t_src.ptr<T>(b, p, h * head_size);
+                    auto* dst = t_dst.ptr<T>(b, h, p);
+                    // The pattern matching ensures that cos/sin table has shape [-1, 1, 1, -1] so that only b is
+                    // variable.
+                    const auto* cos = t_cos.ptr<float>(b, 0, 0);
+                    const auto* sin = t_sin.ptr<float>(b, 0, 0);
+                    if (m_rotaryKernel) {
+                        execJitKernel(m_rotaryKernel, src, dst, cos, sin);
+                    } else {
+                        for (size_t i = 0; i < rotary_dims; i += 2) {
+                            dst[i] = cos[i / 2] * src[i] - sin[i / 2] * src[i + 1];
+                            dst[i + 1] = sin[i / 2] * src[i] + cos[i / 2] * src[i + 1];
+                        }
+                    }
+                    memcpy(dst + rotary_dims, src + rotary_dims, (head_size - rotary_dims) * sizeof(T));
+                });
+            }
         } else {
             auto seq_len = t_src.size(0);
             auto batch_size = t_src.size(1);
@@ -306,7 +331,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
             auto head_size = m_config.head_size;
 
             auto rotary_dims = m_config.rotary_ndims;
-
+            ov::intel_cpu::PlainTensor t_cos_sin(inputs[1]);
             parallel_for3d(seq_len, batch_size, head_cnt, [&](size_t p, size_t b, size_t h) {
                 auto* src = t_src.ptr<T>(p, b, h * head_size);
                 // [length, batch_size, ndims//2, 2]
@@ -424,6 +449,15 @@ void RoPE::initSupportedPrimitiveDescriptors() {
             rtPrecision = ov::element::f32;
         }
     } else if (m_config.is_chatglm) {
+        // in this case layout of cos/sin table must be [-1, 1, 1, -1]
+        if (m_config.support_2d_rope && !m_config.use_rope_cache) {
+            const auto& cos_table_shape = getInputShapeAtPort(1).getDims();
+            const auto& sin_table_shape = getInputShapeAtPort(2).getDims();
+            CPU_NODE_ASSERT(cos_table_shape[1] == 1 && cos_table_shape[2] == 1,
+                            "layout of rope's cos table should be [-1, 1, 1, -1]");
+            CPU_NODE_ASSERT(sin_table_shape[1] == 1 && sin_table_shape[2] == 1,
+                            "layout of rope's sin table should be [-1, 1, 1, -1]");
+        }
         if (rtPrecision == ov::element::f16) {
             m_executor = std::make_shared<RoPEExecutorChatGLM<ov::float16>>(m_config);
         } else if (rtPrecision == ov::element::bf16) {

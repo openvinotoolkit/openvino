@@ -16,12 +16,17 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
+struct QuantizationParams {
+    std::vector<std::vector<float>> intervals;  // quantize intervals
+    std::vector<size_t> fqConstShapes;          // fq constant shapes
+    element::Type expectedPrecision;            // convolution expected precision
+    bool withBias;                              // bias presence
+};
+
 typedef std::tuple<
         InputShape,                        // input shape
         element::Type,                     // input precision
-        std::vector<std::vector<float>>,   // quantize intervals
-        std::vector<size_t>,               // fq const shapes
-        bool,                              // bias presence
+        QuantizationParams,                // quantization parameters
         std::string                        // device name
 > ConvAndFQTestParams;
 
@@ -29,16 +34,16 @@ class ConvAndFQ : public testing::WithParamInterface<ConvAndFQTestParams>,
                   virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvAndFQTestParams>& obj) {
-        const auto& [inputShape, inputPrecision, quantizeIntervals, fqConstShapes, withBias, targetName] = obj.param;
+        const auto& [inputShape, inputPrecision, quantizationParams, targetName] = obj.param;
         std::ostringstream results;
 
         results << "IS=" << inputShape << "_InPRC=" << inputPrecision
-                << "_Intervals=";
-        for (const auto& vecInt : quantizeIntervals) {
+                << "_ExpectedPRC=" << quantizationParams.expectedPrecision << "_Intervals=";
+        for (const auto& vecInt : quantizationParams.intervals) {
             results << ov::util::vector_to_string(vecInt) << ",";
         }
-        results << "_fqShapes=" << ov::util::vector_to_string(fqConstShapes)
-                << "_withBias=" << withBias
+        results << "_fqShapes=" << ov::util::vector_to_string(quantizationParams.fqConstShapes)
+                << "_withBias=" << quantizationParams.withBias
                 << "_targetDevice=" << targetName;
 
         return results.str();
@@ -46,13 +51,16 @@ public:
 
 protected:
     void SetUp() override {
-        const auto& [inputShape, inputPrecision, quantizeIntervals, fqConstShapes, withBias, targetName] = this->GetParam();
+        const auto& [inputShape, inputPrecision, quantizationParams, targetName] = this->GetParam();
         abs_threshold = 4e-3f;
         targetDevice = targetName;
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
         init_input_shapes({inputShape});
         ov::ParameterVector input_params{
             std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[0])};
+
+        const auto& quantizeIntervals = quantizationParams.intervals;
+        const auto& fqConstShapes = quantizationParams.fqConstShapes;
 
         auto fq_before = ov::test::utils::make_fake_quantize(input_params[0],
                                                              inputPrecision,
@@ -89,7 +97,7 @@ protected:
         }
 
         auto fqInput = conv;
-        if (withBias) {
+        if (quantizationParams.withBias) {
             auto bias = ov::test::utils::make_constant(ov::element::f16, ov::Shape({1, 4, 1, 1}));
             auto convertBias = std::make_shared<op::v0::Convert>(bias, element::f32);
             auto convBiasAdd = std::make_shared<ov::op::v1::Add>(conv, convertBias);
@@ -141,9 +149,9 @@ TEST_P(ConvAndFQ, CompareWithRefs) {
     // so in this case we fallback to f32 implementation
     ov::element::Type expectedPrecision = element::f32;
 #if defined(OPENVINO_ARCH_ARM64)
-    const auto& [inputShape, inputPrecision, quantizeIntervals, fqConstShapes, withBias, targetName] = this->GetParam();
-    if (fqConstShapes.empty()) {
-        expectedPrecision = quantizeIntervals[0][0] < 0.f ? element::i8 : element::u8;
+    const auto& [inputShape, inputPrecision, quantizationParams, targetName] = this->GetParam();
+    if (quantizationParams.fqConstShapes.empty()) {
+        expectedPrecision = quantizationParams.intervals[0][0] < 0.f ? element::i8 : element::u8;
     }
 #endif
 
@@ -153,27 +161,42 @@ TEST_P(ConvAndFQ, CompareWithRefs) {
 
 namespace {
 
-std::vector<InputShape> inputShapes{{{}, {{4, 3, 2, 2}}},
-                                   {{-1, 3, -1, 2}, {{1, 3, 4, 2}}}};
+std::vector<InputShape> inputShapes{{{}, {{1, 3, 2, 2}}},
+                                    {{-1, 3, -1, 2}, {{1, 3, 4, 2}}}};
 
-std::vector<std::vector<std::vector<float>>> perTensorQuantizeIntervals{
-    {{-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
-    {{0.f}, {2.55f}, {0.f}, {2.55f}},
+#if defined(OPENVINO_ARCH_ARM64)
+const element::Type expectedConvPrecBySignedFQRange = element::i8;
+const element::Type expectedConvPrecByUnsignedFQRange = element::u8;
+#else
+const element::Type expectedConvPrecBySignedFQRange = element::f32;
+const element::Type expectedConvPrecByUnsignedFQRange = element::f32;
+#endif
+
+std::vector<QuantizationParams> perTensorQuantizationParams{
+    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, true},
+    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, false},
+    {{{0.f}, {2.55f}, {0.f}, {2.55f}}, {}, expectedConvPrecByUnsignedFQRange, true},
+    {{{0.f}, {2.55f}, {0.f}, {2.55f}}, {}, expectedConvPrecByUnsignedFQRange, false}
 };
 
-std::vector<std::vector<std::vector<float>>> perChannelQuantizeIntervals{
-    {{-1.28f, -1.0f, -0.8f}, {1.27f, 1.0f, 0.8f}, {-1.28f, -1.0f, -0.8f}, {1.27f, 1.0f, 0.8f}},
+    // per channel dequantization for quantized convolution is not supported by ACL executor,
+    // so in this case we fallback to f32 implementation
+std::vector<QuantizationParams> perChannelQuantizationParams{
+    {{{-1.28f, -1.0f, -0.8f}, {1.27f, 1.0f, 0.8f}, {-1.28f, -1.0f, -0.8f}, {1.27f, 1.0f, 0.8f}},
+     {1, 3, 1, 1},
+     element::f32,
+     true},
+    {{{-1.28f, -1.0f, -0.8f}, {1.27f, 1.0f, 0.8f}, {-1.28f, -1.0f, -0.8f}, {1.27f, 1.0f, 0.8f}},
+     {1, 3, 1, 1},
+     element::f32,
+     false},
 };
-
-std::vector<bool> withBias{false, true};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU_PerTensor,
                          ConvAndFQ,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::Values(element::f32),
-                                            ::testing::ValuesIn(perTensorQuantizeIntervals),
-                                            ::testing::Values(std::vector<size_t>{}),
-                                            ::testing::ValuesIn(withBias),
+                                            ::testing::ValuesIn(perTensorQuantizationParams),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
 
@@ -181,9 +204,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU_PerChannel,
                          ConvAndFQ,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::Values(element::f32),
-                                            ::testing::ValuesIn(perChannelQuantizeIntervals),
-                                            ::testing::Values(std::vector<size_t>{1, 3, 1, 1}),
-                                            ::testing::ValuesIn(withBias),
+                                            ::testing::ValuesIn(perChannelQuantizationParams),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
 

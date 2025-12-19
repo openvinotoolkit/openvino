@@ -17,6 +17,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "openvino/runtime/common.hpp"
+
 namespace ov {
 namespace npuw {
 namespace s11n {
@@ -34,7 +36,7 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_COMPILED_MODEL_INDICATOR =
 const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR =
     {char{0x4c}, char{0x4c}, char{0x4d}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.14";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.16";
 
 // Forward declaration
 namespace intel_npu {
@@ -131,7 +133,8 @@ struct WeightsContext {
     WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
                    const std::string& _weights_path,
                    const ConstsCache& _consts_cache,
-                   const BF16Cache& _bf16_consts);
+                   const BF16Cache& _bf16_consts,
+                   const ov::FileHandleProvider& _handle_provider = nullptr);
 
     WeightsContext& operator=(const WeightsContext& other) = default;
 
@@ -146,6 +149,7 @@ struct WeightsContext {
     std::string weights_path;
     ConstsCache consts_cache;
     BF16Cache bf16_consts;
+    ov::FileHandleProvider handle_provider = nullptr;
 };
 
 struct PyramidCtx {

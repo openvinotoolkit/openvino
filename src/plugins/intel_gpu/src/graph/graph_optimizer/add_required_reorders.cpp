@@ -268,28 +268,6 @@ void add_required_reorders::run(program& p) {
                 }
             }
 
-            auto input_layout = usr->get_input_layout();
-            auto input_pshape = input_layout.get_partial_shape();
-            auto prim = usr->as<mvn>().get_primitive();
-
-            if (prim->requires_alignment(input_pshape)) {
-                auto block_sizes = format::block_sizes(input_layout.format);
-                auto axes = prim->reduction_axes;
-                if (input_layout.is_dynamic() || block_sizes.size() > 1
-                    || (block_sizes.size() == 1 &&
-                        input_pshape[block_sizes[0].first].get_length() % block_sizes[0].second != 0 &&
-                        std::count(axes.begin(), axes.end(), block_sizes[0].first) == 0)) {
-                    auto rank = input_pshape.size();
-                    input_layout.format = format::get_default_format(rank);
-                    auto& dep = usr->as<mvn>().input();
-                    auto new_reorder = std::make_shared<reorder>(dep.id() + "_to_plain", dep.id(), input_layout);
-                    auto& new_reorder_node = p.get_or_create(new_reorder);
-                    p.add_intermediate(new_reorder_node, *usr, dep);
-                    // Need to invalidate users because the output format of mvn follows input format.
-                    new_reorder_node.recalc_output_layout(true);
-                    usr->recalc_output_layout(false);
-                }
-            }
         }
 
         eliminate_pad_for_onednn_impl(p, *usr);
