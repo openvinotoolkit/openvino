@@ -117,7 +117,7 @@ DEFINE_OPT(NPUW_SPATIAL, bool, false, npuw::partitioning::spatial, RunTime);
 DEFINE_OPT(NPUW_F16IC, bool, true, npuw::partitioning::f16_interconnect, RunTime);
 DEFINE_OPT(NPUW_SPATIAL_NWAY, std::size_t, 128, npuw::partitioning::spatial_nway, RunTime);
 DEFINE_OPT(NPUW_SPATIAL_DYN, bool, true, npuw::partitioning::spatial_dyn, RunTime);
-DEFINE_OPT(NPUW_ATTN, bool, true, npuw::partitioning::attn, RunTime);
+DEFINE_OPT(NPUW_ATTN, std::string, "STATIC", npuw::partitioning::attn, RunTime);
 DEFINE_OPT(NPUW_ATTN_DYN, bool, true, npuw::partitioning::attn_dyn, RunTime);
 DEFINE_OPT(NPUW_ATTN_NO_COPY, bool, false, npuw::partitioning::attn_no_copy, RunTime);
 DEFINE_OPT(NPUW_DCOFF_TYPE, std::string, "", npuw::partitioning::dcoff_type, RunTime);
@@ -166,7 +166,7 @@ namespace npuw {
 namespace llm {
 enum class PrefillHint { DYNAMIC, STATIC };
 enum class GenerateHint { FAST_COMPILE, BEST_PERF };
-enum class AttentionHint { DYNAMIC, STATIC, PYRAMID };
+enum class AttentionHint { DYNAMIC, STATIC, PYRAMID, HFA };
 }  // namespace llm
 }  // namespace npuw
 
@@ -230,6 +230,8 @@ struct ATTN_HINT_BASE : OptionBase<ATTN_HINT_BASE, ::intel_npu::npuw::llm::Atten
             return ::intel_npu::npuw::llm::AttentionHint::STATIC;
         } else if (val == "PYRAMID") {
             return ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
+        } else if (val == "HFA") {
+            return ::intel_npu::npuw::llm::AttentionHint::HFA;
         }
         OPENVINO_THROW("Unsupported attention hint provided: ", val);
         return {};
@@ -243,6 +245,8 @@ struct ATTN_HINT_BASE : OptionBase<ATTN_HINT_BASE, ::intel_npu::npuw::llm::Atten
             return "STATIC";
         case ::intel_npu::npuw::llm::AttentionHint::PYRAMID:
             return "PYRAMID";
+        case ::intel_npu::npuw::llm::AttentionHint::HFA:
+            return "HFA";
         default:
             OPENVINO_THROW("Can't convert provided attention hint : ", int(val), " to string.");
         }

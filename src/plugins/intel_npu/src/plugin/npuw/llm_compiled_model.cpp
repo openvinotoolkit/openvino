@@ -1642,6 +1642,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const bool prefill_attn_pyramid = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
     const bool generate_attn_pyramid = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
 
+    const bool prefill_attn_hfa = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA;
+    const bool generate_attn_hfa = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA;
+
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
         LOG_DEBUG("Check and apply opt layout");
@@ -1721,6 +1724,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
 
+    // Convert LLM-specific attention hints to NPUW_ATTN
+    if (npuw_llm_props.count("NPUW_LLM_PREFILL_ATTENTION_HINT")) {
+        prefill_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_PREFILL_ATTENTION_HINT"];
+    }
+    if (npuw_llm_props.count("NPUW_LLM_GENERATE_ATTENTION_HINT")) {
+        generate_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_GENERATE_ATTENTION_HINT"];
+    }
+
     // Generate a random weights bank name unique to this LLMCompiledModel object
     auto weights_bank_name = ov::npuw::util::generate_random_string();
     LOG_VERB("Generated a unique weights bank name: " << weights_bank_name);
@@ -1735,10 +1746,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
         {"NPUW_UNFOLD_IREQS", "NO"},
     };
-    if (prefill_attn_dyn || prefill_attn_pyramid) {
+    if (prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa) {
         merge_config_with(prefill_config, dyn_attn_opts);
     }
-    if (generate_attn_dyn || generate_attn_pyramid) {
+    if (generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa) {
         merge_config_with(generate_config, dyn_attn_opts);
     }
 
@@ -1786,12 +1797,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::pass::GraphRewrite rewr;
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
-        if (generate_attn_dyn || generate_attn_pyramid) {
+        if (generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa) {
             for (auto& model_variant : generate_model_variants) {
                 rewr.run_on_model(model_variant);
             }
         }
-        if (prefill_attn_dyn || prefill_attn_pyramid) {
+        if (prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa) {
             rewr.run_on_model(prefill_model);
         }
 

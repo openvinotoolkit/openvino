@@ -5,6 +5,7 @@
 #include "serialization.hpp"
 
 #include "attention.hpp"
+#include "host_flash_attention.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
@@ -127,6 +128,43 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::Pyram
         write(stream, info.query_size);
         write(stream, info.context_length);
     }
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::HostFlashAttention& var) {
+    using ov::npuw::s11n::write;
+
+    // Serialize basic info from _sdpa_attention_info
+    write(stream, var._sdpa_attention_info._query_size);
+    write(stream, var._sdpa_attention_info._context_size);
+    write(stream, var._sdpa_attention_info._k_seq_dim);
+    write(stream, var._sdpa_attention_info._v_seq_dim);
+
+    // Serialize SDPA indices from _sdpa_attention_info
+    write(stream, var._sdpa_attention_info._sdpa_indices.query);
+    write(stream, var._sdpa_attention_info._sdpa_indices.past_key);
+    write(stream, var._sdpa_attention_info._sdpa_indices.past_value);
+    write(stream, var._sdpa_attention_info._sdpa_indices.present_key);
+    write(stream, var._sdpa_attention_info._sdpa_indices.present_value);
+    write(stream, var._sdpa_attention_info._sdpa_indices.attention_mask);
+
+    // Serialize tile input indices from _sdpa_attention_info
+    write(stream, var._sdpa_attention_info._tile_input_indices.q);
+    write(stream, var._sdpa_attention_info._tile_input_indices.k);
+    write(stream, var._sdpa_attention_info._tile_input_indices.v);
+    write(stream, var._sdpa_attention_info._tile_input_indices.mask);
+    write(stream, var._sdpa_attention_info._tile_input_indices.acc);
+    write(stream, var._sdpa_attention_info._tile_input_indices.max);
+    write(stream, var._sdpa_attention_info._tile_input_indices.d);
+
+    // Serialize tile output indices from _sdpa_attention_info
+    write(stream, var._sdpa_attention_info._tile_output_indices.acc);
+    write(stream, var._sdpa_attention_info._tile_output_indices.max);
+    write(stream, var._sdpa_attention_info._tile_output_indices.d);
+
+    // Serialize tile_size
+    write(stream, var._tile_size);
+    // Note: _tile_model_to_compile and _compiled_tile_model are not serialized here
+    // They are handled separately in CompiledModelDesc::serialize()
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
@@ -275,6 +313,43 @@ void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::PyramidAtten
         read(stream, info.query_size);
         read(stream, info.context_length);
     }
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::HostFlashAttention& var) {
+    using ov::npuw::s11n::read;
+
+    // Deserialize basic info into _sdpa_attention_info
+    read(stream, var._sdpa_attention_info._query_size);
+    read(stream, var._sdpa_attention_info._context_size);
+    read(stream, var._sdpa_attention_info._k_seq_dim);
+    read(stream, var._sdpa_attention_info._v_seq_dim);
+
+    // Deserialize SDPA indices into _sdpa_attention_info
+    read(stream, var._sdpa_attention_info._sdpa_indices.query);
+    read(stream, var._sdpa_attention_info._sdpa_indices.past_key);
+    read(stream, var._sdpa_attention_info._sdpa_indices.past_value);
+    read(stream, var._sdpa_attention_info._sdpa_indices.present_key);
+    read(stream, var._sdpa_attention_info._sdpa_indices.present_value);
+    read(stream, var._sdpa_attention_info._sdpa_indices.attention_mask);
+
+    // Deserialize tile input indices into _sdpa_attention_info
+    read(stream, var._sdpa_attention_info._tile_input_indices.q);
+    read(stream, var._sdpa_attention_info._tile_input_indices.k);
+    read(stream, var._sdpa_attention_info._tile_input_indices.v);
+    read(stream, var._sdpa_attention_info._tile_input_indices.mask);
+    read(stream, var._sdpa_attention_info._tile_input_indices.acc);
+    read(stream, var._sdpa_attention_info._tile_input_indices.max);
+    read(stream, var._sdpa_attention_info._tile_input_indices.d);
+
+    // Deserialize tile output indices into _sdpa_attention_info
+    read(stream, var._sdpa_attention_info._tile_output_indices.acc);
+    read(stream, var._sdpa_attention_info._tile_output_indices.max);
+    read(stream, var._sdpa_attention_info._tile_output_indices.d);
+
+    // Deserialize tile_size
+    read(stream, var._tile_size);
+    // Note: _tile_model_to_compile and _compiled_tile_model are not deserialized here
+    // They are handled separately in CompiledModelDesc::deserialize()
 }
 
 void ov::npuw::s11n::read(std::istream& stream, ov::Tensor& var) {
