@@ -104,10 +104,10 @@ function(ov_download_tbb)
     if(WIN32 AND X86_64)
         # build oneTBB 2021.2.1 with Visual Studio 2019 (MSVC 14.21)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "oneapi-tbb-2021.2.6-win.zip"
+                ARCHIVE_WIN "oneapi-tbb-2021.13.1-win.zip"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "3b0269ef46c9bcb06227bbe2929d3c091a2614aa9be050d38a787d03d5bdcddc"
+                SHA256 "58ebf8cf66e6f42511416b2cc88893a82a0743bc06aa6ecc9c64d8f7217341bd"
                 USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)
         RESOLVE_DEPENDENCY(TBB
