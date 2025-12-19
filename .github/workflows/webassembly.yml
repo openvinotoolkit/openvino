@@ -112,6 +112,7 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: webassembly_Release
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
           echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"

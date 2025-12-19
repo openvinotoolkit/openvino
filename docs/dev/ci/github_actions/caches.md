@@ -98,6 +98,7 @@ Build:
     options: -e SCCACHE_AZURE_BLOB_CONTAINER
   steps:
     - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+      shell: bash
       run: |
         SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
         echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
@@ -172,6 +173,7 @@ Build:
     options: -e SCCACHE_AZURE_BLOB_CONTAINER
   steps:
     - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+      shell: bash
       run: |
         SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
         echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
