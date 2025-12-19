@@ -20,6 +20,12 @@ include(cmake/features.cmake)
 
 if(ENABLE_INTEL_NPU_COMPILER AND BUILD_SHARED_LIBS)
     include(cmake/download_compiler_libs.cmake)
+else()
+    if(NOT BUILD_SHARED_LIBS)
+        message(FATAL_ERROR "Prebuilt Intel NPU Compiler libraries is not available when BUILD_SHARED_LIBS is OFF!")
+    else()
+        message(WARNING "The download of prebuilt Intel NPU Compiler libraries is skipped!")
+    endif()
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
