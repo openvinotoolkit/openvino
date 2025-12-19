@@ -2,35 +2,23 @@
 <#
 .SYNOPSIS
     Deploy-ToColab.ps1 - Automated Cyberspore Colab Deployment
-    
+
 .DESCRIPTION
-    Orchestrates model upload to Google Drive, triggers Colab execution,
-    and downloads results. Uses rclone for file sync and GitHub Actions
-    for notebook execution.
+    Orchestrates model upload to Google Drive and result downloads
+    Uses rclone for reliable file sync.
 
 .PARAMETER Action
-    Operation to perform: UploadModel, TriggerColab, DownloadResults, Full
-
-.PARAMETER RcloneRemote
-    Rclone remote name (default: 'gdrive')
-
-.PARAMETER DriveFolderPath
-    Drive path for uploads (default: 'Cyberspore')
+    Operation: UploadModel, DownloadResults, Status
 
 .EXAMPLE
-    # Upload model to Drive
     .\deploy_to_colab.ps1 -Action UploadModel
-
-    # Full automated workflow
-    .\deploy_to_colab.ps1 -Action Full
-
-    # Download results only
     .\deploy_to_colab.ps1 -Action DownloadResults
+    .\deploy_to_colab.ps1 -Action Status
 #>
 
 param(
-    [ValidateSet('UploadModel', 'TriggerColab', 'DownloadResults', 'Full', 'Status')]
-    [string]$Action = 'Full',
+    [ValidateSet('UploadModel', 'DownloadResults', 'Status')]
+    [string]$Action = 'Status',
     
     [string]$RcloneRemote = 'gdrive',
     [string]$DriveFolderPath = 'Cyberspore',
@@ -45,8 +33,6 @@ $Config = @{
     DriveModelPath = "$DriveFolderPath/gemma_ir_tssn"
     DriveResultsPath = "$DriveFolderPath/results"
     LocalResultsPath = './colab_results'
-    GitHubRepo = 'ssdajoker/openvino'
-    GitHubWorkflow = 'colab-evolution'
 }
 
 function Write-Status {
@@ -59,8 +45,8 @@ function Write-Status {
         Error = 'Red'
     }
     
-    Write-Host "[$([datetime]::Now.ToString('HH:mm:ss'))] " -NoNewline
-    Write-Host $Message -ForegroundColor $colors[$Type]
+    $time = [datetime]::Now.ToString('HH:mm:ss')
+    Write-Host "[$time] $Message" -ForegroundColor $colors[$Type]
 }
 
 function Test-RcloneInstalled {
@@ -74,7 +60,6 @@ function Test-RcloneInstalled {
 
 function Test-RcloneRemote {
     param([string]$Remote)
-    
     try {
         $output = rclone ls "$Remote`:" 2>&1
         return $LASTEXITCODE -eq 0
@@ -88,77 +73,49 @@ function Invoke-UploadModel {
     
     # Validate local model
     if (-not (Test-Path $Config.LocalModelPath)) {
-        Write-Status "❌ Model not found at: $($Config.LocalModelPath)" -Type Error
+        Write-Status "Error: Model not found at $($Config.LocalModelPath)" -Type Error
         return $false
     }
     
     $modelSize = [math]::Round((Get-ChildItem -Path $Config.LocalModelPath -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB, 1)
-    Write-Status "📦 Model size: $modelSize MB" -Type Info
+    Write-Status "Model size: $modelSize MB" -Type Info
     
     # Validate rclone
     if (-not (Test-RcloneInstalled)) {
-        Write-Status "❌ rclone not installed. Run: setup_automation.py" -Type Error
+        Write-Status "Error: rclone not installed" -Type Error
         return $false
     }
     
+    # Check rclone remote
     if (-not (Test-RcloneRemote $Config.RcloneRemote)) {
-        Write-Status "❌ rclone remote '$($Config.RcloneRemote)' not configured" -Type Error
-        Write-Status "   Run: rclone config" -Type Info
+        Write-Status "Error: rclone remote '$($Config.RcloneRemote)' not configured" -Type Error
+        Write-Status "Run: rclone config" -Type Warning
         return $false
     }
     
-    # Create Drive folder
-    Write-Status "📁 Creating Drive folder structure..." -Type Info
-    rclone mkdir "$($Config.RcloneRemote)`:$($Config.DriveFolderPath)" 2>$null
-    rclone mkdir "$($Config.RcloneRemote)`:$($Config.DriveModelPath)" 2>$null
+    # Create remote folder structure
+    Write-Status "Creating remote folder: $($Config.DriveFolderPath)" -Type Info
+    rclone mkdir "$($Config.RcloneRemote):$($Config.DriveFolderPath)" 2>&1 | ForEach-Object { Write-Status $_ -Type Info }
     
-    # Upload model
-    Write-Status "⬆️  Uploading model (this may take 5-15 minutes for 600MB)..." -Type Info
-    $uploadStart = Get-Date
+    # Upload with progress
+    Write-Status "Starting upload (this may take 5-15 minutes)..." -Type Info
+    $uploadStart = [datetime]::Now
     
-    rclone sync $Config.LocalModelPath "$($Config.RcloneRemote)`:$($Config.DriveModelPath)" `
-        --progress `
-        --fast-list `
-        --transfers 4 `
-        --checkers 8
+    rclone sync "$($Config.LocalModelPath)" "$($Config.RcloneRemote):$($Config.DriveModelPath)" `
+        --progress --fast-list --transfers 4 --checkers 4 --ignore-errors 2>&1 | `
+        ForEach-Object { Write-Status $_ -Type Info }
     
     if ($LASTEXITCODE -ne 0) {
-        Write-Status "❌ Upload failed" -Type Error
-        return $false
+        Write-Status "Warning: Upload may be incomplete" -Type Warning
     }
     
     $uploadTime = ([datetime]::Now - $uploadStart).TotalMinutes
-    Write-Status "✅ Model uploaded successfully in $([math]::Round($uploadTime, 1)) minutes" -Type Success
+    Write-Status "Upload completed in $([math]::Round($uploadTime, 1)) minutes" -Type Success
     
-    # Verify upload
-    Write-Status "🔍 Verifying upload..." -Type Info
-    $driveFiles = rclone ls "$($Config.RcloneRemote)`:$($Config.DriveModelPath)" --recursive
-    if ($LASTEXITCODE -eq 0) {
-        Write-Status "✅ Model verified on Drive" -Type Success
-        return $true
-    } else {
-        Write-Status "⚠️  Could not verify (might still be syncing)" -Type Warning
-        return $true
-    }
-}
-
-function Invoke-TriggerColab {
-    Write-Status "=== TRIGGERING COLAB NOTEBOOK EXECUTION ===" -Type Info
-    
-    Write-Status "📝 Step 1: Go to GitHub repository" -Type Info
-    Write-Status "   Repo: https://github.com/$($Config.GitHubRepo)" -Type Info
-    Write-Status "   Workflow: $($Config.GitHubWorkflow)" -Type Info
-    
-    Write-Status "📝 Step 2: Manual Trigger (until auto-trigger is enabled)" -Type Warning
-    Write-Status "   Navigate to: Actions → colab-evolution → Run workflow" -Type Info
-    Write-Status "   OR use GitHub CLI: gh workflow run colab-evolution.yml" -Type Info
-    
-    Write-Status "📝 Step 3: Monitor execution" -Type Info
-    Write-Status "   Watch: https://github.com/$($Config.GitHubRepo)/actions" -Type Info
-    
-    Write-Status "⏱️  Estimated time:" -Type Info
-    Write-Status "   • Colab setup: ~7 minutes" -Type Info
-    Write-Status "   • Evolution: 2-4 hours" -Type Info
+    # Verify
+    Write-Status "Verifying upload..." -Type Info
+    $fileCount = rclone ls "$($Config.RcloneRemote):$($Config.DriveModelPath)" --recursive 2>&1 | Measure-Object -Line
+    Write-Status "Files on Drive: $($fileCount.Lines)" -Type Success
     
     return $true
 }
@@ -168,146 +125,107 @@ function Invoke-DownloadResults {
     
     # Validate rclone
     if (-not (Test-RcloneInstalled)) {
-        Write-Status "❌ rclone not installed" -Type Error
+        Write-Status "Error: rclone not installed" -Type Error
         return $false
     }
     
     if (-not (Test-RcloneRemote $Config.RcloneRemote)) {
-        Write-Status "❌ rclone remote '$($Config.RcloneRemote)' not configured" -Type Error
+        Write-Status "Error: rclone remote not configured" -Type Error
         return $false
     }
     
-    # Create local results directory
-    New-Item -ItemType Directory -Path $Config.LocalResultsPath -Force | Out-Null
+    # Create local folder
+    if (-not (Test-Path $Config.LocalResultsPath)) {
+        New-Item -ItemType Directory -Path $Config.LocalResultsPath -Force | Out-Null
+        Write-Status "Created local folder: $($Config.LocalResultsPath)" -Type Info
+    }
     
-    # Download results
-    Write-Status "⬇️  Downloading results (this may take 5-10 minutes)..." -Type Info
-    $downloadStart = Get-Date
-    
-    rclone sync "$($Config.RcloneRemote)`:$($Config.DriveResultsPath)" $Config.LocalResultsPath `
-        --progress `
-        --fast-list
+    # Check if results exist on Drive
+    Write-Status "Checking for results on Drive..." -Type Info
+    $results = rclone ls "$($Config.RcloneRemote):$($Config.DriveResultsPath)" 2>&1
     
     if ($LASTEXITCODE -ne 0) {
-        Write-Status "⚠️  Download incomplete (results may still be being written)" -Type Warning
-        return $true
+        Write-Status "No results found on Drive yet" -Type Warning
+        Write-Status "Please ensure Colab execution is complete" -Type Warning
+        return $false
+    }
+    
+    # Download results
+    Write-Status "Starting download..." -Type Info
+    $downloadStart = [datetime]::Now
+    
+    rclone sync "$($Config.RcloneRemote):$($Config.DriveResultsPath)" "$($Config.LocalResultsPath)" `
+        --progress --fast-list --checkers 4 2>&1 | `
+        ForEach-Object { Write-Status $_ -Type Info }
+    
+    if ($LASTEXITCODE -ne 0) {
+        Write-Status "Warning: Download may be incomplete" -Type Warning
     }
     
     $downloadTime = ([datetime]::Now - $downloadStart).TotalMinutes
-    Write-Status "✅ Results downloaded in $([math]::Round($downloadTime, 1)) minutes" -Type Success
+    Write-Status "Download completed in $([math]::Round($downloadTime, 1)) minutes" -Type Success
     
     # List downloaded files
-    if (Test-Path $Config.LocalResultsPath) {
-        Write-Status "📂 Downloaded files:" -Type Info
-        Get-ChildItem -Path $Config.LocalResultsPath -Recurse | ForEach-Object {
-            if (-not $_.PSIsContainer) {
-                $size = [math]::Round($_.Length / 1MB, 1)
-                Write-Host "   • $($_.Name) ($size MB)"
-            }
+    Write-Status "Downloaded files:" -Type Info
+    Get-ChildItem -Path $Config.LocalResultsPath -Recurse | ForEach-Object {
+        if (-not $_.PSIsContainer) {
+            $size = [math]::Round($_.Length / 1MB, 1)
+            Write-Status "  - $($_.Name) ($size MB)" -Type Info
         }
     }
     
-    return $true
-}
-
-function Invoke-FullWorkflow {
-    Write-Status "╔════════════════════════════════════════════╗" -Type Info
-    Write-Status "║    FULL TIER 2 AUTOMATION WORKFLOW        ║" -Type Info
-    Write-Status "╚════════════════════════════════════════════╝" -Type Info
-    
-    # Step 1: Upload
-    Write-Status "`n📋 PHASE 1: Upload Model" -Type Info
-    if (-not (Invoke-UploadModel)) {
-        Write-Status "❌ Upload phase failed" -Type Error
-        return $false
-    }
-    
-    # Step 2: Trigger
-    Write-Status "`n📋 PHASE 2: Trigger Colab" -Type Info
-    if (-not (Invoke-TriggerColab)) {
-        Write-Status "❌ Trigger phase failed" -Type Error
-        return $false
-    }
-    
-    # Step 3: Monitor
-    Write-Status "`n📋 PHASE 3: Monitor" -Type Info
-    Write-Status "⏳ Waiting for Colab execution to complete..." -Type Info
-    Write-Status "   Colab execution time: 2-4 hours" -Type Warning
-    Write-Status "   You can check GitHub Actions logs in the meantime" -Type Info
-    
-    # Step 4: Download
-    Write-Status "`n📋 PHASE 4: Download Results" -Type Info
-    $maxWaitMinutes = 300  # 5 hours max wait
-    $pollInterval = 60  # Check every minute
-    $elapsed = 0
-    
-    while ($elapsed -lt $maxWaitMinutes) {
-        Write-Status "🔄 Checking for results... (waited $elapsed minutes)" -Type Info
-        
-        if (Invoke-DownloadResults) {
-            Write-Status "`n✅ FULL WORKFLOW COMPLETE!" -Type Success
-            return $true
-        }
-        
-        $elapsed += $pollInterval
-        if ($elapsed -lt $maxWaitMinutes) {
-            Write-Status "   Retrying in $($pollInterval) seconds..." -Type Info
-            Start-Sleep -Seconds $pollInterval
-        }
-    }
-    
-    Write-Status "⚠️  Timeout waiting for results. Check GitHub Actions manually." -Type Warning
     return $true
 }
 
 function Show-Status {
-    Write-Status "═══════════════════════════════════════════════════════════════════" -Type Info
-    Write-Status "CYBERSPORE DEPLOYMENT STATUS" -Type Info
-    Write-Status "═══════════════════════════════════════════════════════════════════" -Type Info
+    Write-Status "=== CYBERSPORE AUTOMATION STATUS ===" -Type Info
     
-    # Check local model
-    if (Test-Path $Config.LocalModelPath) {
-        $modelSize = [math]::Round((Get-ChildItem -Path $Config.LocalModelPath -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB, 1)
-        Write-Status "✅ Local model: $modelSize MB in $($Config.LocalModelPath)" -Type Success
-    } else {
-        Write-Status "❌ Local model not found at $($Config.LocalModelPath)" -Type Error
-    }
+    Write-Status "Configuration:" -Type Info
+    Write-Host "  rclone remote: $($Config.RcloneRemote)"
+    Write-Host "  Drive folder: $($Config.DriveFolderPath)"
+    Write-Host "  Local model: $($Config.LocalModelPath)"
     
-    # Check rclone
+    Write-Status "System Status:" -Type Info
     if (Test-RcloneInstalled) {
-        Write-Status "✅ rclone installed" -Type Success
-        
-        if (Test-RcloneRemote $Config.RcloneRemote) {
-            Write-Status "✅ rclone remote '$($Config.RcloneRemote)' configured" -Type Success
-        } else {
-            Write-Status "❌ rclone remote '$($Config.RcloneRemote)' not configured" -Type Error
-            Write-Status "   Run: rclone config" -Type Info
-        }
+        Write-Host "  rclone: Installed" -ForegroundColor Green
     } else {
-        Write-Status "❌ rclone not installed" -Type Error
+        Write-Host "  rclone: NOT installed" -ForegroundColor Red
     }
     
-    # Check results folder
-    if (Test-Path $Config.LocalResultsPath) {
-        Write-Status "✅ Local results folder exists: $($Config.LocalResultsPath)" -Type Success
+    if (Test-RcloneRemote $Config.RcloneRemote) {
+        Write-Host "  rclone remote: Connected" -ForegroundColor Green
+    } else {
+        Write-Host "  rclone remote: NOT configured" -ForegroundColor Red
     }
     
-    Write-Status "═══════════════════════════════════════════════════════════════════" -Type Info
+    if (Test-Path $Config.LocalModelPath) {
+        $size = [math]::Round((Get-ChildItem -Path $Config.LocalModelPath -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB, 1)
+        Write-Host "  Local model: Ready ($size MB)" -ForegroundColor Green
+    } else {
+        Write-Host "  Local model: NOT found" -ForegroundColor Red
+    }
 }
 
 # Main execution
+$success = $false
+
 switch ($Action) {
-    'UploadModel' { $success = Invoke-UploadModel }
-    'TriggerColab' { $success = Invoke-TriggerColab }
-    'DownloadResults' { $success = Invoke-DownloadResults }
-    'Full' { $success = Invoke-FullWorkflow }
-    'Status' { Show-Status; $success = $true }
+    'UploadModel' {
+        $success = Invoke-UploadModel
+    }
+    'DownloadResults' {
+        $success = Invoke-DownloadResults
+    }
+    'Status' {
+        Show-Status
+        $success = $true
+    }
 }
 
 if ($success) {
-    Write-Status "`n✅ Operation completed successfully" -Type Success
+    Write-Status "Operation completed successfully" -Type Success
     exit 0
 } else {
-    Write-Status "`n❌ Operation failed" -Type Error
+    Write-Status "Operation failed" -Type Error
     exit 1
 }

@@ -11,6 +11,11 @@ import sys
 import os
 from pathlib import Path
 import json
+import io
+
+# Fix Unicode encoding on Windows
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 def check_rclone():
     """Check if rclone is installed."""
