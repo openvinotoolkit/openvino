@@ -13,19 +13,19 @@ from pathlib import Path
 import subprocess
 
 def submit_to_colab():
-    \"\"\"Create and submit a Colab notebook with the evolution job.\"\"\"
+    """Create and submit a Colab notebook with the evolution job."""
     
-    print("\ud83d\udce4 Colab Job Submission")
+    print("📦 Colab Job Submission")
     print("=" * 50)
     
     # Check if infected model exists
     infected_model = Path("gemma_ir_tssn/openvino_model.xml")
     if not infected_model.exists():
-        print("\u274c Error: Infected model not found!")
+        print("❌ Error: Infected model not found!")
         print("   Run: python local_runner.py")
         return False
     
-    print(f"\u2705 Infected model ready: {infected_model}")
+    print(f"✅ Infected model ready: {infected_model}")
     
     # Create Colab notebook content
     colab_notebook = {
@@ -34,9 +34,9 @@ def submit_to_colab():
                 "cell_type": "markdown",
                 "metadata": {},
                 "source": [
-                    "# Cyberspore Evolution - Remote Job\\n",
-                    "\\n",
-                    "This notebook runs the heavy evolution computation on Colab.\\n",
+                    "# Cyberspore Evolution - Remote Job\n",
+                    "\n",
+                    "This notebook runs the heavy evolution computation on Colab.\n",
                     "Infected model is uploaded from your local machine."
                 ]
             },
@@ -46,8 +46,8 @@ def submit_to_colab():
                 "metadata": {},
                 "outputs": [],
                 "source": [
-                    "# Mount Google Drive\\n",
-                    "from google.colab import drive\\n",
+                    "# Mount Google Drive\n",
+                    "from google.colab import drive\n",
                     "drive.mount('/content/drive')"
                 ]
             },
@@ -57,8 +57,8 @@ def submit_to_colab():
                 "metadata": {},
                 "outputs": [],
                 "source": [
-                    "# Clone repo\\n",
-                    "!git clone https://github.com/ssdajoker/openvino.git\\n",
+                    "# Clone repo\n",
+                    "!git clone https://github.com/ssdajoker/openvino.git\n",
                     "%cd openvino"
                 ]
             },
@@ -68,7 +68,7 @@ def submit_to_colab():
                 "metadata": {},
                 "outputs": [],
                 "source": [
-                    "# Install dependencies\\n",
+                    "# Install dependencies\n",
                     "!pip install -q openvino-dev numpy pandas tqdm torch transformers"
                 ]
             },
@@ -78,9 +78,9 @@ def submit_to_colab():
                 "metadata": {},
                 "outputs": [],
                 "source": [
-                    "# Build C++ extension\\n",
-                    "import os\\n",
-                    "os.makedirs('src/custom_ops/build', exist_ok=True)\\n",
+                    "# Build C++ extension\n",
+                    "import os\n",
+                    "os.makedirs('src/custom_ops/build', exist_ok=True)\n",
                     "!cd src/custom_ops/build && cmake -DCMAKE_BUILD_TYPE=Release .. && make -j4"
                 ]
             },
@@ -90,15 +90,15 @@ def submit_to_colab():
                 "metadata": {},
                 "outputs": [],
                 "source": [
-                    "# Download infected model from Drive (or upload if first time)\\n",
-                    "import shutil\\n",
-                    "from google.colab import files\\n",
-                    "\\n",
-                    "# If you're running this for the first time, upload the infected model\\n",
-                    "print('Option 1: Upload infected model (first time only)')\\n",
-                    "print('Option 2: Copy from Drive (if already uploaded)')\\n",
-                    "\\n",
-                    "# For now, assume it's on Drive:\\n",
+                    "# Download infected model from Drive (or upload if first time)\n",
+                    "import shutil\n",
+                    "from google.colab import files\n",
+                    "\n",
+                    "# If you're running this for the first time, upload the infected model\n",
+                    "print('Option 1: Upload infected model (first time only)')\n",
+                    "print('Option 2: Copy from Drive (if already uploaded)')\n",
+                    "\n",
+                    "# For now, assume it's on Drive:\n",
                     "!cp -r /content/drive/MyDrive/Cyberspore/gemma_ir_tssn . || echo 'Not on Drive yet'"
                 ]
             },
@@ -108,7 +108,7 @@ def submit_to_colab():
                 "metadata": {},
                 "outputs": [],
                 "source": [
-                    "# Run evolution (the heavy computation)\\n",
+                    "# Run evolution (the heavy computation)\n",
                     "!python evolve_gemma_v4_steady_state.py"
                 ]
             },
@@ -118,12 +118,12 @@ def submit_to_colab():
                 "metadata": {},
                 "outputs": [],
                 "source": [
-                    "# Save results back to Drive\\n",
-                    "!mkdir -p /content/drive/MyDrive/Cyberspore/results\\n",
-                    "!cp -r gemma_ir_tssn /content/drive/MyDrive/Cyberspore/results/\\n",
-                    "!cp evolution_results.json /content/drive/MyDrive/Cyberspore/results/\\n",
-                    "!cp evolution_progress.log /content/drive/MyDrive/Cyberspore/results/ 2>/dev/null || echo 'No log file'\\n",
-                    "\\n",
+                    "# Save results back to Drive\n",
+                    "!mkdir -p /content/drive/MyDrive/Cyberspore/results\n",
+                    "!cp -r gemma_ir_tssn /content/drive/MyDrive/Cyberspore/results/\n",
+                    "!cp evolution_results.json /content/drive/MyDrive/Cyberspore/results/\n",
+                    "!cp evolution_progress.log /content/drive/MyDrive/Cyberspore/results/ 2>/dev/null || echo 'No log file'\n",
+                    "\n",
                     "print('✅ Results saved to Google Drive!')"
                 ]
             }
@@ -149,10 +149,10 @@ def submit_to_colab():
     with open(notebook_path, 'w') as f:
         json.dump(colab_notebook, f, indent=2)
     
-    print(f"\n\u2705 Colab notebook created: {notebook_path}")
+    print(f"\n✅ Colab notebook created: {notebook_path}")
     
     # Instructions
-    print("\n\ud83d\udce4 NEXT STEPS:")
+    print("\n📦 NEXT STEPS:")
     print("=" * 50)
     print("1. Go to: https://colab.research.google.com")
     print("2. Upload the notebook: Cyberspore_Evolution_Remote.ipynb")
