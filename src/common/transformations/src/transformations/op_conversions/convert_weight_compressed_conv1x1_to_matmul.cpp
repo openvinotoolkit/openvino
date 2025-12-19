@@ -24,6 +24,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/any.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -257,11 +258,6 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran::ConvertWeightCompre
     const element::TypeVector& supported_precisions,
     const element::TypeVector& unsupported_precisions) {
     MATCHER_SCOPE(ConvertWeightCompressedConv1x1ToMatmul_ActNotTran);
-    auto filter1x1_path = [](const ov::Output<ov::Node>& output) {
-        const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_path<ov::op::v0::Constant>(output) && pshape.is_static() && pshape[-1] == 1 &&
-               pshape[-2] == 1;
-    };
 
     auto final_precisions = supported_precisions;
     if (!unsupported_precisions.empty()) {
@@ -275,24 +271,45 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran::ConvertWeightCompre
                                final_precisions.end());
     }
 
-    // compressed weight, ranks are [hidden_out, hidden_in/block_size, block_size, 1, 1]
-    auto weights_m = pattern::wrap_type<ov::op::v0::Constant>(pattern::type_matches_any(final_precisions) &&
-                                                              pattern::rank_equals(5) && pattern::has_static_rank() &&
-                                                              filter1x1_path);
-    auto weights_convert_m = pattern::wrap_type<ov::op::v0::Convert>({weights_m});
+    // compressed weight, ranks are [hidden_out, block_num, block_size, 1, 1]
+    auto weights_5d_m =
+        pattern::wrap_type<ov::op::v0::Constant>(pattern::type_matches_any(final_precisions) &&
+                                                 pattern::shape_matches("[hidden_out, block_num, block_size, 1, 1]"));
+    auto weights_5d_convert_m = pattern::wrap_type<ov::op::v0::Convert>({weights_5d_m});
+    auto weights_4d_m = pattern::wrap_type<ov::op::v0::Constant>(
+        pattern::type_matches_any(final_precisions) && pattern::shape_matches("[hidden_out, hidden_in, 1, 1]"));
+    auto weights_4d_reshape_m =
+        pattern::wrap_type<ov::op::v1::Reshape>({weights_4d_m, pattern::any_input()},
+                                                pattern::shape_matches("[hidden_out, block_num, block_size, 1, 1]"));
+    auto weights_4d_convert_m = pattern::wrap_type<ov::op::v0::Convert>({weights_4d_reshape_m});
+    auto weights_convert_m =
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_5d_convert_m, weights_4d_convert_m});
 
-    // zero_point, ranks are [hidden_out, hidden_in/block_size, 1, 1, 1]
-    auto zp_m = pattern::wrap_type<ov::op::v0::Constant>(pattern::rank_equals(5) && pattern::has_static_rank() &&
-                                                         filter1x1_path);
-    auto zp_convert_m = pattern::wrap_type<ov::op::v0::Convert>({zp_m});
+    // zero_point, ranks are [hidden_out, block_num, 1, 1, 1]
+    auto zp_5d_m = pattern::wrap_type<ov::op::v0::Constant>(pattern::rank_equals(5) &&
+                                                            pattern::shape_matches("[hidden_out, block_num, 1, 1, 1]"));
+    auto zp_5d_convert_m = pattern::wrap_type<ov::op::v0::Convert>({zp_5d_m});
+    auto zp_4d_m = pattern::wrap_type<ov::op::v0::Constant>(pattern::shape_matches("[hidden_out, block_num, 1, 1]"));
+    auto zp_4d_unsqueeze_m =
+        pattern::wrap_type<ov::op::v0::Unsqueeze>({zp_4d_m, pattern::any_input()},
+                                                  pattern::shape_matches("[hidden_out, block_num, 1, 1, 1]"));
+    auto zp_4d_convert_m = pattern::wrap_type<ov::op::v0::Convert>({zp_4d_unsqueeze_m});
+    auto zp_convert_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{zp_5d_convert_m, zp_4d_convert_m});
+
     auto weights_sub_m = pattern::optional<ov::op::v1::Subtract>({weights_convert_m, zp_convert_m});
 
-    // scale, ranks are [hidden_out, hidden_in/block_size, 1, 1, 1]
-    auto scale_m = pattern::wrap_type<ov::op::v0::Constant>(pattern::rank_equals(5) && pattern::has_static_rank() &&
-                                                            filter1x1_path);
+    // scale, ranks are [hidden_out, block_num, 1, 1, 1]
+    auto scale_5d_m =
+        pattern::wrap_type<ov::op::v0::Constant>(pattern::shape_matches("[hidden_out, block_num, 1, 1, 1]"));
+    auto scale_4d_m = pattern::wrap_type<ov::op::v0::Constant>(pattern::shape_matches("[hidden_out, block_num, 1, 1]"));
+    auto scale_4d_unsqueeze_m =
+        pattern::wrap_type<ov::op::v0::Unsqueeze>({scale_4d_m, pattern::any_input()},
+                                                  pattern::shape_matches("[hidden_out, block_num, 1, 1, 1]"));
+    auto scale_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{scale_5d_m, scale_4d_unsqueeze_m});
+
     auto weights_mult_m = pattern::wrap_type<ov::op::v1::Multiply>({weights_sub_m, scale_m});
 
-    // decompressed weights for convolution, ranks are [hidden_out, hidden_in, 1, 1, 1]
+    // decompressed weights for convolution, reshape to [hidden_out, hidden_in, 1, 1]
     auto weights_reshape_m =
         pattern::wrap_type<ov::op::v1::Reshape>({weights_mult_m, pattern::any_input()},
                                                 pattern::shape_matches("[hidden_out, hidden_in, 1, 1]"));
@@ -343,65 +360,105 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran::ConvertWeightCompre
             return false;
         }
 
-        auto reshape_const_to_3d = [](std::shared_ptr<ov::Node> node) {
+        auto reshape_const_last_two_1 = [](std::shared_ptr<ov::Node> node) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             OPENVINO_ASSERT(constant != nullptr);
             ov::Shape current_shape = constant->get_shape();
-            if (current_shape.size() == 3)
-                return constant;
-            if (current_shape.size() <= 1) {
-                auto new_shape = ov::Shape{(current_shape.size() == 1) ? current_shape[0] : 1, 1, 1};
-                auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
-                ov::copy_weightless_cache_attr(constant, new_constant);
-                return new_constant;
-            } else {
-                OPENVINO_ASSERT(current_shape.size() == 5);
-                OPENVINO_ASSERT(current_shape[3] == 1 && current_shape[4] == 1);
-                auto new_shape = ov::Shape{current_shape[0], current_shape[1], current_shape[2]};
-                auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
-                ov::copy_weightless_cache_attr(constant, new_constant);
-                return new_constant;
+            OPENVINO_ASSERT((current_shape.size() == 4 || current_shape.size() == 5) && current_shape[-1] == 1 &&
+                            current_shape[-2] == 1);
+            auto new_shape = ov::Shape{current_shape[0], current_shape[1]};
+            if (current_shape.size() == 5) {
+                new_shape = ov::Shape{current_shape[0], current_shape[1], current_shape[2]};
             }
+            auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
+            ov::copy_weightless_cache_attr(constant, new_constant);
+            return new_constant;
         };
 
         // The nodes from the pattern
         const auto& pattern_map = m.get_pattern_value_map();
-        auto weights = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weights_m).get_node_shared_ptr());
-        auto zp = pattern_map.count(zp_m)
-                      ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(zp_m).get_node_shared_ptr())
-                      : nullptr;
-        auto scale = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(scale_m).get_node_shared_ptr());
-
-        auto weights_convert =
-            ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weights_convert_m).get_node_shared_ptr());
-        auto zp_convert = pattern_map.count(zp_convert_m)
-                              ? ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(zp_convert_m).get_node_shared_ptr())
-                              : nullptr;
+        auto weights_5d =
+            pattern_map.count(weights_5d_m)
+                ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weights_5d_m).get_node_shared_ptr())
+                : nullptr;
+        auto zp_5d = pattern_map.count(zp_5d_m)
+                         ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(zp_5d_m).get_node_shared_ptr())
+                         : nullptr;
+        auto scale_5d = pattern_map.count(scale_5d_m)
+                            ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(scale_5d_m).get_node_shared_ptr())
+                            : nullptr;
         auto weights_sub =
             (pattern_map.count(weights_sub_m) > 0) ? pattern_map.at(weights_sub_m).get_node_shared_ptr() : nullptr;
         auto weights_mult = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(weights_mult_m).get_node_shared_ptr());
-
         auto weights_reshape =
             ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(weights_reshape_m).get_node_shared_ptr());
 
         // Reshape compressed w/zp/scale constants, remove the last two dimensions of size 1
-        weights = reshape_const_to_3d(weights);
-        auto weights_convert_new = weights_convert->clone_with_new_inputs({weights});
-        ov::copy_runtime_info(weights_convert, weights_convert_new);
+        std::shared_ptr<Node> weights_convert_new = nullptr;
+        if (weights_5d) {
+            weights_5d = reshape_const_last_two_1(weights_5d);
+            auto weights_5d_convert =
+                ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weights_5d_convert_m).get_node_shared_ptr());
+            weights_convert_new = weights_5d_convert->clone_with_new_inputs({weights_5d});
+            ov::copy_runtime_info(weights_5d_convert, weights_convert_new);
+        } else {
+            auto weights_4d = pattern_map.at(weights_4d_m).get_node_shared_ptr();
+            weights_4d = reshape_const_last_two_1(weights_4d);
+            auto weights_4d_reshape = pattern_map.at(weights_4d_reshape_m).get_node_shared_ptr();
+            auto shape = weights_4d_reshape->get_output_partial_shape(0);
+            OPENVINO_ASSERT(shape.is_static() && shape.size() == 5 && shape[-1] == 1 && shape[-2] == 1);
+            auto shape_new_constant = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i64,
+                ov::Shape{3},
+                std::vector<int64_t>{static_cast<int64_t>(shape[0].get_length()),
+                                     static_cast<int64_t>(shape[1].get_length()),
+                                     static_cast<int64_t>(shape[2].get_length())});
+            auto weights_reshape_new = weights_4d_reshape->clone_with_new_inputs({weights_4d, shape_new_constant});
+            ov::copy_runtime_info(weights_4d_reshape, weights_reshape_new);
+            auto weights_4d_convert =
+                ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weights_4d_convert_m).get_node_shared_ptr());
+            weights_convert_new = weights_4d_convert->clone_with_new_inputs({weights_reshape_new});
+            ov::copy_runtime_info(weights_4d_convert, weights_convert_new);
+        }
 
         std::shared_ptr<Node> weights_sub_new = nullptr;
-        if (zp) {
-            zp = reshape_const_to_3d(zp);
-            auto zp_convert_new = zp_convert->clone_with_new_inputs({zp});
-            ov::copy_runtime_info(zp_convert, zp_convert_new);
+        if (weights_sub) {
+            std::shared_ptr<Node> zp_convert_new = nullptr;
+            if (zp_5d) {
+                zp_5d = reshape_const_last_two_1(zp_5d);
+                auto zp_5d_convert =
+                    ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(zp_5d_convert_m).get_node_shared_ptr());
+                zp_convert_new = zp_5d_convert->clone_with_new_inputs({zp_5d});
+                ov::copy_runtime_info(zp_5d_convert, zp_convert_new);
+            } else {
+                auto zp_4d = pattern_map.at(zp_4d_m).get_node_shared_ptr();
+                zp_4d = reshape_const_last_two_1(zp_4d);
+                auto zp_4d_unsqueeze = pattern_map.at(zp_4d_unsqueeze_m).get_node_shared_ptr();
+                auto zp_unsqueeze_new =
+                    zp_4d_unsqueeze->clone_with_new_inputs({zp_4d, zp_4d_unsqueeze->input_value(1)});
+                ov::copy_runtime_info(zp_4d_unsqueeze, zp_unsqueeze_new);
+                auto zp_4d_convert =
+                    ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(zp_4d_convert_m).get_node_shared_ptr());
+                zp_convert_new = zp_4d_convert->clone_with_new_inputs({zp_unsqueeze_new});
+                ov::copy_runtime_info(zp_4d_convert, zp_convert_new);
+            }
             weights_sub_new = weights_sub->clone_with_new_inputs({weights_convert_new, zp_convert_new});
             ov::copy_runtime_info(weights_sub, weights_sub_new);
         } else {
             weights_sub_new = weights_convert_new;
         }
 
-        scale = reshape_const_to_3d(scale);
-        auto weights_mult_new = weights_mult->clone_with_new_inputs({weights_sub_new, scale});
+        std::shared_ptr<Node> scale_new = nullptr;
+        if (scale_5d) {
+            scale_new = reshape_const_last_two_1(scale_5d);
+        } else {
+            auto scale_4d = pattern_map.at(scale_4d_m).get_node_shared_ptr();
+            scale_4d = reshape_const_last_two_1(scale_4d);
+            auto scale_4d_unsqueeze = pattern_map.at(scale_4d_unsqueeze_m).get_node_shared_ptr();
+            scale_new = scale_4d_unsqueeze->clone_with_new_inputs({scale_4d, scale_4d_unsqueeze->input_value(1)});
+            ov::copy_runtime_info(scale_4d_unsqueeze, scale_new);
+        }
+        auto weights_mult_new = weights_mult->clone_with_new_inputs({weights_sub_new, scale_new});
         ov::copy_runtime_info(weights_mult, weights_mult_new);
 
         // Reshape decompressed weights from 1x1 kernel [hidden_out, hidden_in, 1, 1] to matmul var b
