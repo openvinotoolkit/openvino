@@ -44,7 +44,7 @@ private:
         return (end_delimiter == Delimiter::PARENTHESIS) ? (expression[cursor] == CLOSE) : OPERATORS.count(expression[cursor]);
     }
 
-    bool evaluate(uint16_t* expression, const Delimiter end_delimiter) {
+    bool eval(uint16_t* expression, const Delimiter end_delimiter) {
         std::function<bool(bool, bool)> logical_function;
         bool base;
         switch (expression[cursor++]) {
@@ -63,10 +63,10 @@ private:
         while (!end_condition(expression, end_delimiter)) {
             if (expression[cursor] == OPEN) {
                 ++cursor;
-                base = logical_function(base, evaluate(expression, Delimiter::PARENTHESIS));
+                base = logical_function(base, eval(expression, Delimiter::PARENTHESIS));
                 ++cursor;
             } else if (OPERATORS.count(expression[cursor])) {
-                base = logical_function(base, evaluate(expression, Delimiter::OPERATOR));
+                base = logical_function(base, eval(expression, Delimiter::OPERATOR));
             } else {
                 // base = logical_function(base, supported.count(expression[cursor]));
                 base = logical_function(base, Registry::instance().check(expression[cursor]));
@@ -86,7 +86,7 @@ public:
         cursor = 0;
         assert(expression[0] == OPEN);
         assert(expression[expression.size() - 1] == CLOSE);
-        return evaluate(expression.data() + 1, Delimiter::PARENTHESIS);
+        return eval(expression.data() + 1, Delimiter::PARENTHESIS);
     }
 };
 

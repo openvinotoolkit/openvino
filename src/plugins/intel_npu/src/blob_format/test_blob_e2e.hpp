@@ -16,6 +16,8 @@
 #include "sections/layouts.hpp"
 #include "sections/unknown.hpp"
 #include "sections/ws.hpp"
+#include "registry.hpp"
+#include "logical_operations.hpp"
 
 #include "parser.hpp"
 #include "test_utils.hpp"
@@ -181,7 +183,7 @@ void export_test_blob_cre_unknown_ws_bs_layouts()
     std::cout << std::endl << "RUN: export_test_blob_cre_unknown_ws_bs_layouts" << std::endl;
     Header header;
     
-    std::vector<uint16_t> expression = {AND, ELF, BS, IO_LAYOUTS};
+    std::vector<uint16_t> expression = {OPEN, AND, ELF, BS, IO_LAYOUTS, CLOSE};
     CRESection exp_cre_section(expression);
 
     std::vector<std::shared_ptr<ELFSection>> ws_sub_sections;
@@ -250,6 +252,16 @@ void import_test_blob_cre_unknown_ws_bs_layouts() {
     test_assert(sections[2]->header.type == SectionType::WS, "second section is not WS");
     test_assert(sections[3]->header.type == SectionType::BS, "third section is not BS");
     test_assert(sections[4]->header.type == SectionType::IO_LAYOUTS, "forth section is not IO_LAYOUTS");
+
+    Registry::instance().registryEvaluator(CRE, [&](){return true;});
+    Registry::instance().registryEvaluator(ELF, [&](){return true;});
+    Registry::instance().registryEvaluator(BS, [&](){return true;});
+    Registry::instance().registryEvaluator(IO_LAYOUTS, [&](){return true;});
+    Registry::instance().registryEvaluator(WS, [&](){return true;});
+
+    auto imp_cre_section = std::dynamic_pointer_cast<CRESection>(sections[0]);
+    test_assert(Evaluator::instance().evaluate(imp_cre_section->expression) == true, "expression returns false");
+    Registry::instance().clean();
 
     std::cout << "PASSED: import_test_blob_cre_unknown_ws_bs_layouts" << std::endl;
 }
