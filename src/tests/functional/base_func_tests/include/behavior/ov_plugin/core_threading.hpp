@@ -29,7 +29,7 @@ public:
         for (auto& thread : threads) {
             thread = std::thread([&]() {
                 for (unsigned int i = 0; i < iterations; ++i) {
-                    func();
+                    OV_ASSERT_NO_THROW(func());
                 }
             });
         }

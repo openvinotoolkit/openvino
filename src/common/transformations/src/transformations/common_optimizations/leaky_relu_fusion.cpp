@@ -19,7 +19,7 @@
 ov::pass::LeakyReluFusion::LeakyReluFusion() {
     MATCHER_SCOPE(LeakyReluFusion);
     auto data_pattern = pass::pattern::any_input();
-    auto alpha_pattern = pass::pattern::wrap_type<op::v0::Constant>();
+    auto alpha_pattern = pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto multiply_pattern =
         ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({data_pattern, alpha_pattern}, pattern::consumers_count(1));
     auto max_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Maximum>({data_pattern, multiply_pattern});
@@ -31,12 +31,12 @@ ov::pass::LeakyReluFusion::LeakyReluFusion() {
         if (shape_size(original_alpha_pattern.get_shape()) != 1)
             return false;
 
-        auto constant = ov::as_type_ptr<op::v0::Constant>(original_alpha_pattern.get_node_shared_ptr());
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(original_alpha_pattern.get_node_shared_ptr());
         if (!constant)
             return false;
 
         float value;
-        if (!op::util::get_single_value(constant, value))
+        if (!ov::op::util::get_single_value(constant, value))
             return false;
 
         if (value > 1.0f)

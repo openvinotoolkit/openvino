@@ -580,9 +580,9 @@ void extract_diagonal(ov::TensorVector& inputs, std::vector<std::string>& input_
         return;
     }
 
-    ov::Tensor multi_identity = build_multi_identity<T>(input_ptr, repeated_labels, label_dim_map);
+    const ov::Tensor multi_identity = build_multi_identity<T>(input_ptr, repeated_labels, label_dim_map);
 
-    ov::Tensor mul_output = input_ptr;
+    auto mul_output = ov::Tensor(input_ptr.get_element_type(), input_ptr.get_shape());
     reference::multiply<T>(input_ptr.data<T>(),
                            multi_identity.data<T>(),
                            mul_output.data<T>(),
@@ -926,17 +926,17 @@ void contract_two_inputs(ov::TensorVector& inputs,
                        reduced_sub_shape.get_shape(),
                        is_separate_first2);
 
-    ov::Tensor matmul_operand1 = reshape_input_for_matmul<T>(input1,
-                                                             common_sub_shape,
-                                                             separate1_sub_shape,
-                                                             reduced_sub_shape_prod,
-                                                             is_separate_first1);
+    const ov::Tensor matmul_operand1 = reshape_input_for_matmul<T>(input1,
+                                                                   common_sub_shape,
+                                                                   separate1_sub_shape,
+                                                                   reduced_sub_shape_prod,
+                                                                   is_separate_first1);
 
-    ov::Tensor matmul_operand2 = reshape_input_for_matmul<T>(input2,
-                                                             common_sub_shape,
-                                                             separate2_sub_shape,
-                                                             reduced_sub_shape_prod,
-                                                             is_separate_first2);
+    const ov::Tensor matmul_operand2 = reshape_input_for_matmul<T>(input2,
+                                                                   common_sub_shape,
+                                                                   separate2_sub_shape,
+                                                                   reduced_sub_shape_prod,
+                                                                   is_separate_first2);
 
     // step 3. apply MatMul operation for formatted inputs
     Shape matmul_output_shape = compute_matmul_output_shape(common_sub_shape, separate1_sub_shape, separate2_sub_shape);
