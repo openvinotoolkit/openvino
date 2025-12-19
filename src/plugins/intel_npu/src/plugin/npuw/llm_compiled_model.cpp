@@ -3,6 +3,8 @@
 //
 #include "llm_compiled_model.hpp"
 
+#include "embedding_infer_request.hpp"
+#include "embedding_model_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "openvino/op/convert.hpp"
@@ -1552,9 +1554,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto kvcache_model = model->clone();
 
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
-    m_is_text_embed = use_text_embed_key.value_or(false).as<bool>() == true;
+    m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;
 
-    if (m_is_text_embed) {
+    if (m_is_embedding) {
         if (m_use_chunk_prefill) {
             LOG_DEBUG("Text-embedding chunk rebuild");
             ov::npuw::util::prepare_text_embedding_model(kvcache_model, seq_len_dim);
@@ -1610,7 +1612,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::npuw::util::prepare_whisper_kvcache_model(kvcache_model);         // Whisper decoder_with_past model
     }
 
-    if (m_is_text_embed) {
+    if (m_is_embedding) {
         m_kvcache_desc = KVCacheDesc{max_prompt_len,
                                      max_prompt_len + min_response_len,
                                      0u,
@@ -1710,7 +1712,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
     }
 
-    if (!m_is_text_embed) {
+    if (!m_is_embedding) {
         if (!m_use_chunk_prefill) {
             NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
         } else {
@@ -1798,7 +1800,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         update_config_for_whisper(prefill_config);
     }
 
-    if (m_is_text_embed) {
+    if (m_is_embedding) {
         update_config_for_text_embed(prefill_config);
     }
 
@@ -1981,7 +1983,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_gemma_sliding_window_size);
         write(model_stream, m_is_whisper);
         write(model_stream, m_is_eagle);
-        write(model_stream, m_is_text_embed);
+        write(model_stream, m_is_embedding);
 
         // Write config
         write(model_stream, m_cfg);
@@ -2207,7 +2209,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_gemma_sliding_window_size);
         read(model_stream, compiled->m_is_whisper);
         read(model_stream, compiled->m_is_eagle);
-        read(model_stream, compiled->m_is_text_embed);
+        read(model_stream, compiled->m_is_embedding);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
@@ -2287,7 +2289,13 @@ ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const 
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_infer_request() const {
     auto* non_const_this = const_cast<ov::npuw::LLMCompiledModel*>(this);  // because of const in API
-    return m_is_whisper ? non_const_this->create_whisper_infer_request() : non_const_this->create_llm_infer_request();
+    if (m_is_whisper) {
+        return non_const_this->create_whisper_infer_request();
+    } else if (m_is_embedding) {
+        return non_const_this->create_embedding_infer_request();
+    } else {
+        return non_const_this->create_llm_infer_request();
+    }
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_infer_request() {
@@ -2298,6 +2306,11 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_in
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_whisper_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
     return std::make_shared<ov::npuw::WhisperInferRequest>(this_sptr);
+}
+
+std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_embedding_infer_request() {
+    auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
+    return std::make_shared<ov::npuw::EmbeddingInferRequest>(this_sptr);
 }
 
 void ov::npuw::LLMCompiledModel::implement_properties() {

@@ -59,7 +59,6 @@ protected:
 
     void init_tensor(const ov::Output<const ov::Node>& port);
     void copy_kvcache();
-    ov::SoPtr<ov::ITensor> create_prefill_output_tensor();
 
     // Create and initialize generate variant requests with memory sharing
     void create_generate_request_variants(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
@@ -111,7 +110,6 @@ protected:
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
-    ov::SoPtr<ov::ITensor> m_prefill_output;
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
