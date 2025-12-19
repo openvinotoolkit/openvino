@@ -19,9 +19,9 @@
 #include "openvino/op/round.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
@@ -38,11 +38,9 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
     auto conv_u8 = pattern::wrap_type<ov::op::v1::Convolution>({conv_u8_activation, conv_i8_u8_weights});
     auto conv_m = conv_u8 | conv_i8;
 
-    auto bias_const_m = pattern::wrap_type<ov::op::v0::Constant>(
-        [](ov::Output<ov::Node> output) {
-            return !pattern::type_matches(ov::element::i32)(output);
-        }
-    );
+    auto bias_const_m = pattern::wrap_type<ov::op::v0::Constant>([](ov::Output<ov::Node> output) {
+        return !pattern::type_matches(ov::element::i32)(output);
+    });
     auto add_m = pattern::wrap_type<ov::op::v1::Add>({conv_m, bias_const_m});
     auto multiply_m = pattern::wrap_type<ov::op::v1::Multiply>({add_m, pattern::any_input()});
 
