@@ -145,17 +145,8 @@ protected:
 TEST_P(ConvAndFQ, CompareWithRefs) {
     run();
 
-    // per channel dequantization for quantized convolution is not supported by ACL executor,
-    // so in this case we fallback to f32 implementation
-    ov::element::Type expectedPrecision = element::f32;
-#if defined(OPENVINO_ARCH_ARM64)
     const auto& [inputShape, inputPrecision, quantizationParams, targetName] = this->GetParam();
-    if (quantizationParams.fqConstShapes.empty()) {
-        expectedPrecision = quantizationParams.intervals[0][0] < 0.f ? element::i8 : element::u8;
-    }
-#endif
-
-    checkConvolutionPrecision(expectedPrecision);
+    checkConvolutionPrecision(quantizationParams.expectedPrecision);
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
