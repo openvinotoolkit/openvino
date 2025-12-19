@@ -144,7 +144,7 @@ public:
     void push();
     void pull();
     void reset() const;
-    void update_graph_arguments(uint32_t arg_index,
+    void update_graph_arguments(uint32_t index,
                                 const void* arg_data,
                                 size_t byte_size,
                                 [[maybe_unused]] const ov::Strides& strides,
@@ -158,6 +158,8 @@ public:
     virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
 protected:
+    std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, size_t element_size) const;
+
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;
     const Config _config;

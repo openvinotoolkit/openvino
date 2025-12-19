@@ -17,8 +17,10 @@
 #    include "intel_npu/prefix.hpp"
 #    include "intel_npu/utils/utils.hpp"
 #    include "intel_npu/utils/zero/zero_api.hpp"
+#    include "intel_npu/utils/zero/zero_utils.hpp"
 #    include "openvino/op/util/op_types.hpp"
-#include "openvino/runtime/intel_npu/remote_properties.hpp"
+#    include "openvino/runtime/intel_npu/remote_properties.hpp"
+#    include "openvino/runtime/make_tensor.hpp"
 #    include "zero_variable_state.hpp"
 
 using namespace intel_npu;
@@ -314,7 +316,10 @@ void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
     try {
-        check_tensor(port, tensor);
+        check_tensor(port,
+                     tensor,
+                     foundPort.is_input() ? _metadata.inputs.at(foundPort.idx).supportsStridedLayout
+                                          : _metadata.outputs.at(foundPort.idx).supportsStridedLayout);
     } catch (const ov::Exception& ex) {
         OPENVINO_THROW("Failed to set tensor. ", ex.what());
     }
@@ -545,7 +550,7 @@ void ZeroDynamicInferRequest::set_tensors(const ov::Output<const ov::Node>& port
         OPENVINO_THROW("set_input_tensors/set_tensors is not supported for output port.");
     }
 
-    check_batched_tensors(port, tensors);
+    check_batched_tensors(port, tensors, _metadata.inputs.at(foundPort.idx).supportsStridedLayout);
 
     _logger.debug("ZeroDynamicInferRequest::set_tensors: %zu", tensors.size());
 
@@ -915,12 +920,25 @@ void ZeroDynamicInferRequest::infer_async() {
         if (is_batched_input(inputIndex)) {
             if (batch_size.has_value()) {
                 for (size_t i = 0; i < userTensor.size(); i++) {
+                    void* userBuffer;
+                    if (auto userRemoteTensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(userTensor.at(i)._ptr)) {
+                        if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
+                            userBuffer = userZeroRemoteTensor->get_original_memory();
+                        } else {
+                            std::optional<void*> memHandleObject =
+                                zeroUtils::extract_object(userRemoteTensor->get_properties(),
+                                                          ov::intel_npu::mem_handle);
+                            OPENVINO_ASSERT(memHandleObject.has_value(),
+                                            "Remote tensor does not have mem_handle property for input index: ",
+                                            inputIndex);
+                            userBuffer = static_cast<uint8_t*>(memHandleObject.value()) +
+                                         ov::get_tensor_data_offset(userRemoteTensor);
+                        }
+                    } else {
+                        userBuffer = userTensor.at(i)->data();
+                    }
+
                     void* levelZeroBuffer = get_level_zero_input(inputIndex, i)->data();
-
-                    auto userBatchRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(i)._ptr);
-
-                    void* userBuffer = !userBatchRemoteTensor ? userTensor.at(i)->data()
-                                                              : userBatchRemoteTensor->get_original_memory();
 
                     if (userBuffer != levelZeroBuffer) {
                         if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
@@ -934,12 +952,10 @@ void ZeroDynamicInferRequest::infer_async() {
                             userTensor.at(i)->get_byte_size(),
                             get_level_zero_input(inputIndex, i)->get_byte_size());
                         OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-                        std::memcpy(levelZeroBuffer, userBuffer, userTensor.at(i)->get_byte_size());
+                        userTensor.at(i)->copy_to(get_level_zero_input(inputIndex, i));
                     }
                 }
             } else {
-                void* levelZeroBuffer = get_level_zero_input(inputIndex)->data();
-
                 _logger.debug("Batched Tensors - Tensor by index: %zu is not allocated in the current Level Zero "
                               "context or must be "
                               "in a continued memory space, copy into L0 with size: %zu",
@@ -947,19 +963,15 @@ void ZeroDynamicInferRequest::infer_async() {
                               get_level_zero_input(inputIndex)->get_byte_size());
                 size_t copied_bytes_from_user = 0;
                 for (size_t i = 0; i < userTensor.size(); i++) {
-                    auto userBatchRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(i)._ptr);
+                    auto shapeBegin = get_level_zero_input(inputIndex)->get_shape();
+                    shapeBegin[utils::BATCH_AXIS] = i;
+                    auto shapeEnd = get_level_zero_input(inputIndex)->get_shape();
+                    shapeEnd[utils::BATCH_AXIS] = i + 1;
+                    auto roiTensor = ov::make_tensor(get_level_zero_input(inputIndex), shapeBegin, shapeEnd);
 
-                    void* userBuffer = !userBatchRemoteTensor ? userTensor.at(i)->data()
-                                                              : userBatchRemoteTensor->get_original_memory();
+                    userTensor.at(i)->copy_to(roiTensor);
 
-                    std::memcpy(static_cast<unsigned char*>(levelZeroBuffer) + (i * userTensor.at(i)->get_byte_size()),
-                                userBuffer,
-                                userTensor.at(i)->get_byte_size());
                     copied_bytes_from_user += userTensor.at(i)->get_byte_size();
-                    _logger.debug("Batched Tensors - Tensor by index: %zu copied bytes: [%zu/%zu]",
-                                  inputIndex,
-                                  copied_bytes_from_user,
-                                  get_level_zero_input(inputIndex)->get_byte_size());
                 }
                 OPENVINO_ASSERT(get_level_zero_input(inputIndex)->get_byte_size() == copied_bytes_from_user,
                                 "Bytes copied must be equal");
@@ -974,9 +986,22 @@ void ZeroDynamicInferRequest::infer_async() {
             continue;
         }
 
-        auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(SINGLE_TENSOR)._ptr);
-        void* userBuffer =
-            !userRemoteTensor ? userTensor.at(SINGLE_TENSOR)->data() : userRemoteTensor->get_original_memory();
+        void* userBuffer;
+        if (auto userRemoteTensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(userTensor.at(SINGLE_TENSOR)._ptr)) {
+            if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
+                userBuffer = userZeroRemoteTensor->get_original_memory();
+            } else {
+                std::optional<void*> memHandleObject =
+                    zeroUtils::extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
+                OPENVINO_ASSERT(memHandleObject.has_value(),
+                                "Remote tensor does not have mem_handle property for input index: ",
+                                inputIndex);
+                userBuffer =
+                    static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_data_offset(userRemoteTensor);
+            }
+        } else {
+            userBuffer = userTensor.at(SINGLE_TENSOR)->data();
+        }
         void* levelZeroBuffer = get_level_zero_input(inputIndex)->data();
 
         if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
@@ -986,7 +1011,7 @@ void ZeroDynamicInferRequest::infer_async() {
         if (userBuffer != levelZeroBuffer) {
             _logger.info("Tensor is not allocated in the current Level Zero context");
             OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-            std::memcpy(levelZeroBuffer, userBuffer, userTensor.at(SINGLE_TENSOR)->get_byte_size());
+            userTensor.at(SINGLE_TENSOR)->copy_to(get_level_zero_input(inputIndex));
         }
 
         ++inputIndex;
@@ -1020,8 +1045,22 @@ void ZeroDynamicInferRequest::get_result() {
             tensorToBeReshaped->set_shape(actualDims);
         }
 
-        auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor._ptr);
-        void* userBuffer = !userRemoteTensor ? userTensor->data() : userRemoteTensor->get_original_memory();
+        void* userBuffer;
+        if (auto userRemoteTensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(userTensor._ptr)) {
+            if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
+                userBuffer = userZeroRemoteTensor->get_original_memory();
+            } else {
+                std::optional<void*> memHandleObject =
+                    zeroUtils::extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
+                OPENVINO_ASSERT(memHandleObject.has_value(),
+                                "Remote tensor does not have mem_handle property for output index: ",
+                                outputIndex);
+                userBuffer =
+                    static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_data_offset(userRemoteTensor);
+            }
+        } else {
+            userBuffer = userTensor->data();
+        }
         void* levelZeroBuffer = _levelZeroOutputTensors.at(outputIndex)->data();
 
         if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
@@ -1031,7 +1070,7 @@ void ZeroDynamicInferRequest::get_result() {
         if (userBuffer != levelZeroBuffer) {
             _logger.info("Output tensor by index: %zu is not allocated in the current Level Zero context", outputIndex);
             OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
-            std::memcpy(userBuffer, levelZeroBuffer, userTensor->get_byte_size());
+            _levelZeroOutputTensors.at(outputIndex)->copy_to(userTensor._ptr);
         }
 
         ++outputIndex;
