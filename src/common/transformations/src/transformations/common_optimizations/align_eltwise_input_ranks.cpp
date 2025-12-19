@@ -21,10 +21,10 @@ namespace ov::pass {
 
 AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
     auto eltwise_pattern = pattern::wrap_type<v0::SquaredDifference,
-                                                        op_util::BinaryElementwiseComparison,
-                                                        op_util::BinaryElementwiseLogical,
-                                                        op_util::BinaryElementwiseArithmetic,
-                                                        v0::FakeQuantize>(pattern::has_static_rank());
+                                              op_util::BinaryElementwiseComparison,
+                                              op_util::BinaryElementwiseLogical,
+                                              op_util::BinaryElementwiseArithmetic,
+                                              v0::FakeQuantize>(pattern::has_static_rank());
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();

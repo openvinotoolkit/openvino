@@ -358,19 +358,19 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
 
 #define ECHO(NAME) #NAME
 #define STR(NAME)  ECHO(NAME)
-#define SIMPLE_MATCHER_PASS_DEFINITION(NAME, FUNC, ...)                       \
-    class NAME : public ov::pass::MatcherPass {                               \
-    public:                                                                   \
-        OPENVINO_RTTI(STR(NAME), "0", ov::pass::MatcherPass);                 \
-        NAME() {                                                              \
-            MATCHER_SCOPE(NAME);                                              \
-            auto match_node = pattern::wrap_type<__VA_ARGS__>();              \
-            ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {   \
-                return FUNC(m.get_match_root());                              \
-            };                                                                \
+#define SIMPLE_MATCHER_PASS_DEFINITION(NAME, FUNC, ...)                            \
+    class NAME : public ov::pass::MatcherPass {                                    \
+    public:                                                                        \
+        OPENVINO_RTTI(STR(NAME), "0", ov::pass::MatcherPass);                      \
+        NAME() {                                                                   \
+            MATCHER_SCOPE(NAME);                                                   \
+            auto match_node = pattern::wrap_type<__VA_ARGS__>();                   \
+            ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {        \
+                return FUNC(m.get_match_root());                                   \
+            };                                                                     \
             auto m = std::make_shared<pattern::Matcher>(match_node, matcher_name); \
-            register_matcher(m, callback);                                    \
-        }                                                                     \
+            register_matcher(m, callback);                                         \
+        }                                                                          \
     };
 
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, eliminate_reshape_v1, v1::Reshape);
@@ -382,7 +382,8 @@ EliminateReduceReshape::EliminateReduceReshape() {
     auto axes = pattern::wrap_type<v0::Constant>();
     auto reduce_pattern = pattern::wrap_type<op_util::ReductionBase>({pattern::any_input(), axes});
     auto requested_shape_pattern = pattern::wrap_type<v0::Constant>();
-    auto reshape_pattern = pattern::wrap_type<v1::Reshape>({reduce_pattern, requested_shape_pattern}, pattern::consumers_count(1));
+    auto reshape_pattern =
+        pattern::wrap_type<v1::Reshape>({reduce_pattern, requested_shape_pattern}, pattern::consumers_count(1));
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_map();
@@ -915,7 +916,9 @@ bool check_reshape(const std::shared_ptr<Node>& node) {
     return false;
 }
 
-bool check_axis(const std::shared_ptr<v0::Concat>& concat, const std::shared_ptr<Node>& split, bool is_special_case = false) {
+bool check_axis(const std::shared_ptr<v0::Concat>& concat,
+                const std::shared_ptr<Node>& split,
+                bool is_special_case = false) {
     auto axis = ov::as_type_ptr<v0::Constant>(split->input_value(1).get_node_shared_ptr());
     if (!axis) {
         return false;
@@ -1082,8 +1085,10 @@ EliminateEltwise::EliminateEltwise() {
     MATCHER_SCOPE(EliminateEltwise);
     auto input = pattern::any_input();
     auto constant_pattern = pattern::wrap_type<v0::Constant>();
-    auto eltwise_pattern = pattern::wrap_type<v1::Add, v1::Subtract, v1::Multiply, v1::Divide>({input, constant_pattern});
-    auto subtract_pattern = pattern::wrap_type<v1::Subtract>({input, pattern::wrap_type<v0::Convert>({constant_pattern})});
+    auto eltwise_pattern =
+        pattern::wrap_type<v1::Add, v1::Subtract, v1::Multiply, v1::Divide>({input, constant_pattern});
+    auto subtract_pattern =
+        pattern::wrap_type<v1::Subtract>({input, pattern::wrap_type<v0::Convert>({constant_pattern})});
     auto root = std::make_shared<pattern::op::Or>(OutputVector{eltwise_pattern, subtract_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -1104,8 +1109,8 @@ EliminateEltwise::EliminateEltwise() {
 
 EliminateScatterUpdate::EliminateScatterUpdate() {
     MATCHER_SCOPE(EliminateScatterUpdate);
-    auto scatter_pattern =
-        pattern::wrap_type<v3::ScatterUpdate, v3::ScatterNDUpdate, ov::op::v15::ScatterNDUpdate, v3::ScatterElementsUpdate>();
+    auto scatter_pattern = pattern::
+        wrap_type<v3::ScatterUpdate, v3::ScatterNDUpdate, ov::op::v15::ScatterNDUpdate, v3::ScatterElementsUpdate>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto scatter = m.get_match_root();
@@ -1346,11 +1351,12 @@ PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAroundBE() {
     auto first_label =
         pattern::wrap_type<v1::Reshape, v0::Squeeze, v1::StridedSlice, op_util::GatherBase>(pattern::rank_equals(0));
     auto other_input_label = pattern::any_input(pattern::rank_equals(0));
-    auto binary_op_label =
-        pattern::wrap_type<op_util::BinaryElementwiseArithmetic,
-                  op_util::BinaryElementwiseComparison,
-                  op_util::BinaryElementwiseLogical>({first_label, other_input_label}, pattern::consumers_count(1));
-    auto second_label = pattern::wrap_type<v1::Reshape, v0::Unsqueeze>({binary_op_label, pattern::any_input()}, pattern::rank_equals(1));
+    auto binary_op_label = pattern::wrap_type<op_util::BinaryElementwiseArithmetic,
+                                              op_util::BinaryElementwiseComparison,
+                                              op_util::BinaryElementwiseLogical>({first_label, other_input_label},
+                                                                                 pattern::consumers_count(1));
+    auto second_label = pattern::wrap_type<v1::Reshape, v0::Unsqueeze>({binary_op_label, pattern::any_input()},
+                                                                       pattern::rank_equals(1));
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();

@@ -25,8 +25,8 @@ namespace ov::pass {
 
 ConvertBitwiseAndToLogicalAnd::ConvertBitwiseAndToLogicalAnd() {
     MATCHER_SCOPE(ConvertBitwiseAndToLogicalAnd);
-    auto pattern = pattern::wrap_type<v13::BitwiseAnd>(
-        {pattern::any_input(pattern::type_matches(element::boolean)), pattern::any_input(pattern::type_matches(element::boolean))});
+    auto pattern = pattern::wrap_type<v13::BitwiseAnd>({pattern::any_input(pattern::type_matches(element::boolean)),
+                                                        pattern::any_input(pattern::type_matches(element::boolean))});
 
     const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto bitwise = ov::as_type_ptr<v13::BitwiseAnd>(m.get_match_root());
@@ -71,8 +71,8 @@ ConvertBitwiseNotToLogicalNot::ConvertBitwiseNotToLogicalNot() {
 
 ConvertBitwiseOrToLogicalOr::ConvertBitwiseOrToLogicalOr() {
     MATCHER_SCOPE(ConvertBitwiseOrToLogicalOr);
-    auto pattern = pattern::wrap_type<v13::BitwiseOr>(
-        {pattern::any_input(pattern::type_matches(element::boolean)), pattern::any_input(pattern::type_matches(element::boolean))});
+    auto pattern = pattern::wrap_type<v13::BitwiseOr>({pattern::any_input(pattern::type_matches(element::boolean)),
+                                                       pattern::any_input(pattern::type_matches(element::boolean))});
 
     const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto bitwise = ov::as_type_ptr<v13::BitwiseOr>(m.get_match_root());
@@ -95,8 +95,8 @@ ConvertBitwiseOrToLogicalOr::ConvertBitwiseOrToLogicalOr() {
 
 ConvertBitwiseXorToLogicalXor::ConvertBitwiseXorToLogicalXor() {
     MATCHER_SCOPE(ConvertBitwiseXorToLogicalXor);
-    auto pattern = pattern::wrap_type<v13::BitwiseXor>(
-        {pattern::any_input(pattern::type_matches(element::boolean)), pattern::any_input(pattern::type_matches(element::boolean))});
+    auto pattern = pattern::wrap_type<v13::BitwiseXor>({pattern::any_input(pattern::type_matches(element::boolean)),
+                                                        pattern::any_input(pattern::type_matches(element::boolean))});
 
     const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto bitwise = ov::as_type_ptr<v13::BitwiseXor>(m.get_match_root());

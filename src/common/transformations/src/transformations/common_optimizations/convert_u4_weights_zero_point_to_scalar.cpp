@@ -35,8 +35,7 @@ ConvertU4WeightsZeroPointToScalar::ConvertU4WeightsZeroPointToScalar() {
     auto u4_zero_point_m = pattern::wrap_type<v0::Constant>(u4_zp_predicate);
     auto zero_point_convert_m = pattern::wrap_type<v0::Convert>({u4_zero_point_m}, float_zp_predicate);
 
-    auto zero_point_m =
-        std::make_shared<pattern::op::Or>(OutputVector{float_zero_point_m, zero_point_convert_m});
+    auto zero_point_m = std::make_shared<pattern::op::Or>(OutputVector{float_zero_point_m, zero_point_convert_m});
     auto subtract_m = pattern::wrap_type<ov::op::v1::Subtract>({convert_m, zero_point_m});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {

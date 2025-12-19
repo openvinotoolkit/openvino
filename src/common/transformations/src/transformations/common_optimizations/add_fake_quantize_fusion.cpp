@@ -34,7 +34,8 @@ AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
     auto input_pattern = pattern::any_input();
     auto const_pattern = pattern::wrap_type<v0::Constant>();
     auto add_pattern = pattern::wrap_type<v1::Add>({input_pattern, const_pattern}, pattern::consumers_count(1));
-    auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>({add_pattern, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>(
+        {add_pattern, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& input = pattern_value_map.at(input_pattern);

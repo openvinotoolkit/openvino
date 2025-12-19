@@ -48,9 +48,10 @@ SDPAScaleFusionPass::SDPAScaleFusionPass() {
 
     auto scaled_q = pattern::optional<v1::Multiply>({q, scale_q});
     auto scaled_k = pattern::optional<v1::Multiply>({k, scale_k});
-    auto sdpa_mask_scale =
-        pattern::wrap_type<v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask, sdpa_scale}, {{"causal", false}});
-    auto sdpa_mask = pattern::wrap_type<v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask}, {{"causal", false}});
+    auto sdpa_mask_scale = pattern::wrap_type<v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask, sdpa_scale},
+                                                                              {{"causal", false}});
+    auto sdpa_mask =
+        pattern::wrap_type<v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask}, {{"causal", false}});
     auto sdpa_simple = pattern::wrap_type<v13::ScaledDotProductAttention>({scaled_q, scaled_k, v}, {{"causal", false}});
     auto sdpa = sdpa_simple | sdpa_mask | sdpa_mask_scale;
 

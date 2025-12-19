@@ -34,15 +34,19 @@ ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
      *     |    shape=[1, S, O]                      |    shape=[B, S, O]
      */
     auto input_pattern = pattern::any_input(pattern::has_static_rank());
-    auto reshape_label = pattern::wrap_type<v1::Reshape>({input_pattern, pattern::wrap_type<v0::Constant>()}, pattern::rank_equals(2));
+    auto reshape_label =
+        pattern::wrap_type<v1::Reshape>({input_pattern, pattern::wrap_type<v0::Constant>()}, pattern::rank_equals(2));
 
-    auto matmul_label = pattern::wrap_type<v0::MatMul>({reshape_label, pattern::wrap_type<v0::Constant>()}, pattern::rank_equals(2));
-    auto add_label = pattern::wrap_type<v1::Add>({matmul_label, pattern::wrap_type<v0::Constant>()}, pattern::rank_equals(2));
+    auto matmul_label =
+        pattern::wrap_type<v0::MatMul>({reshape_label, pattern::wrap_type<v0::Constant>()}, pattern::rank_equals(2));
+    auto add_label =
+        pattern::wrap_type<v1::Add>({matmul_label, pattern::wrap_type<v0::Constant>()}, pattern::rank_equals(2));
 
     auto matmul_or_matmul_add_label = make_shared<pattern::op::Or>(OutputVector{add_label, matmul_label});
 
-    auto reshape_1_label = pattern::wrap_type<v1::Reshape>({matmul_or_matmul_add_label, pattern::wrap_type<v0::Constant>()},
-                                                            pattern::has_static_rank());
+    auto reshape_1_label =
+        pattern::wrap_type<v1::Reshape>({matmul_or_matmul_add_label, pattern::wrap_type<v0::Constant>()},
+                                        pattern::has_static_rank());
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         auto pattern_to_node = m.get_pattern_map();

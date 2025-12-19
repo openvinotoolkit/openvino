@@ -10,11 +10,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
-
 using namespace ov::pass::transpose_sinking;
 
 namespace ov::pass {
-
 
 TSResetNoSinkingAttribute::TSResetNoSinkingAttribute() {
     MATCHER_SCOPE(TSResetNoSinkingAttribute);

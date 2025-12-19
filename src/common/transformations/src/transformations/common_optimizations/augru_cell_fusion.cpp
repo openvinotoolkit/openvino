@@ -81,7 +81,8 @@ AUGRUCellFusion::AUGRUCellFusion() {
         return !(p_shape.rank().is_dynamic() || p_shape[1].is_dynamic());
     };
 
-    auto concat_1 = pattern::wrap_type<v0::Concat>({pattern::any_input(is_first_dim_static), pattern::any_input(is_first_dim_static)});
+    auto concat_1 = pattern::wrap_type<v0::Concat>(
+        {pattern::any_input(is_first_dim_static), pattern::any_input(is_first_dim_static)});
     auto matmul_1 = pattern::wrap_type<v0::MatMul>({concat_1, pattern::any_input(is_first_dim_static)});
     auto add_1 = pattern::wrap_type<v1::Add>({matmul_1, pattern::any_input()});
     // only Sigmoid is supported in the current version of AUGRUCell

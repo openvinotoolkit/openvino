@@ -47,9 +47,12 @@ static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) 
 
 ConvToBinaryConv::ConvToBinaryConv() {
     MATCHER_SCOPE(ConvToBinaryConv);
-    auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>(
-        {pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::wrap_type<v0::Constant>(), pattern::wrap_type<v0::Constant>()},
-        ov::pass::pattern::consumers_count(1));
+    auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>({pattern::any_input(),
+                                                            pattern::any_input(),
+                                                            pattern::any_input(),
+                                                            pattern::wrap_type<v0::Constant>(),
+                                                            pattern::wrap_type<v0::Constant>()},
+                                                           ov::pass::pattern::consumers_count(1));
     auto conv_pattern = pattern::wrap_type<v1::Convolution>({fq_pattern, pattern::wrap_type<v0::Constant>()});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {

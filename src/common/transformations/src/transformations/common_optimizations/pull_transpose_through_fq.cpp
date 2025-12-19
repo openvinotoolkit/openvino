@@ -29,11 +29,11 @@ PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     const auto weights = pattern::wrap_type<v0::Constant>();
     const auto convert_p = pattern::optional<v0::Convert>(weights, pattern::consumers_count(1));
     auto m_fq = pattern::wrap_type<v0::FakeQuantize>({convert_p,
-                                                       pattern::any_input(pattern::has_static_shape()),
-                                                       pattern::any_input(pattern::has_static_shape()),
-                                                       pattern::any_input(pattern::has_static_shape()),
-                                                       pattern::any_input(pattern::has_static_shape())},
-                                                      pattern::consumers_count(1));
+                                                      pattern::any_input(pattern::has_static_shape()),
+                                                      pattern::any_input(pattern::has_static_shape()),
+                                                      pattern::any_input(pattern::has_static_shape()),
+                                                      pattern::any_input(pattern::has_static_shape())},
+                                                     pattern::consumers_count(1));
     auto m_transpose_perm = pattern::wrap_type<v0::Constant>();
     auto m_transpose = pattern::wrap_type<v1::Transpose>({m_fq, m_transpose_perm});
 

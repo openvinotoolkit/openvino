@@ -39,8 +39,6 @@ namespace ov::pass {
 namespace transpose_sinking {
 namespace utils {
 
-
-
 using NodePtr = std::shared_ptr<Node>;
 using InsertBroadcastUnsqueezeT = std::function<NodePtr(const Output<Node>& node, size_t n_dims)>;
 

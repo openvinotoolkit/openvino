@@ -173,8 +173,7 @@ LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
     register_matcher(m, matcher_pass_callback);
 }
 
-SymbolicOptimizations::SymbolicOptimizations(bool full_run,
-                                             std::shared_ptr<PassConfig> pass_config) {
+SymbolicOptimizations::SymbolicOptimizations(bool full_run, std::shared_ptr<PassConfig> pass_config) {
     if (pass_config)
         m_manager = std::make_shared<pass::Manager>(*pass_config, "Symbolic");
     else

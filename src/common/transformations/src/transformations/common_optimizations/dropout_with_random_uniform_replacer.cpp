@@ -33,7 +33,7 @@ DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
     const auto ru_max_const_pattern = pattern::wrap_type<v0::Constant>();
     const auto random_uniform_pattern =
         pattern::wrap_type<v8::RandomUniform>({shape_pattern, ru_min_const_pattern, ru_max_const_pattern},
-                                     pattern::consumers_count(1));
+                                              pattern::consumers_count(1));
 
     const auto optional_convert = pattern::optional<v0::Convert>(random_uniform_pattern);
     const auto add_const_pattern = pattern::wrap_type<v0::Constant>();

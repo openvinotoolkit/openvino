@@ -29,7 +29,9 @@ namespace ov::pass {
 ConvertReduceMeanToReshape::ConvertReduceMeanToReshape() {
     MATCHER_SCOPE(ConvertReduceMeanToReshape);
     auto m = std::make_shared<pattern::Matcher>(
-        pattern::wrap_type<v1::ReduceMean>({pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<v0::Constant>()}, pattern::has_static_shape()),
+        pattern::wrap_type<v1::ReduceMean>(
+            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<v0::Constant>()},
+            pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_reshape<v1::ReduceMean>());
 }
@@ -37,7 +39,9 @@ ConvertReduceMeanToReshape::ConvertReduceMeanToReshape() {
 ConvertReduceSumToReshape::ConvertReduceSumToReshape() {
     MATCHER_SCOPE(ConvertReduceSumToReshape);
     auto m = std::make_shared<pattern::Matcher>(
-        pattern::wrap_type<v1::ReduceSum>({pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<v0::Constant>()}, pattern::has_static_shape()),
+        pattern::wrap_type<v1::ReduceSum>(
+            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<v0::Constant>()},
+            pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_reshape<v1::ReduceSum>());
 }
@@ -45,7 +49,9 @@ ConvertReduceSumToReshape::ConvertReduceSumToReshape() {
 ConvertReduceProdToReshape::ConvertReduceProdToReshape() {
     MATCHER_SCOPE(ConvertReduceProdToReshape);
     auto m = std::make_shared<pattern::Matcher>(
-        pattern::wrap_type<v1::ReduceProd>({pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<v0::Constant>()}, pattern::has_static_shape()),
+        pattern::wrap_type<v1::ReduceProd>(
+            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<v0::Constant>()},
+            pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_reshape<v1::ReduceProd>());
 }
@@ -53,7 +59,9 @@ ConvertReduceProdToReshape::ConvertReduceProdToReshape() {
 ConvertReduceMaxToReshape::ConvertReduceMaxToReshape() {
     MATCHER_SCOPE(ConvertReduceMaxToReshape);
     auto m = std::make_shared<pattern::Matcher>(
-        pattern::wrap_type<v1::ReduceMax>({pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<v0::Constant>()}, pattern::has_static_shape()),
+        pattern::wrap_type<v1::ReduceMax>(
+            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<v0::Constant>()},
+            pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_reshape<v1::ReduceMax>());
 }
@@ -61,7 +69,9 @@ ConvertReduceMaxToReshape::ConvertReduceMaxToReshape() {
 ConvertReduceMinToReshape::ConvertReduceMinToReshape() {
     MATCHER_SCOPE(ConvertReduceMinToReshape);
     auto m = std::make_shared<pattern::Matcher>(
-        pattern::wrap_type<v1::ReduceMin>({pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<v0::Constant>()}, pattern::has_static_shape()),
+        pattern::wrap_type<v1::ReduceMin>(
+            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<v0::Constant>()},
+            pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_reshape<v1::ReduceMin>());
 }
@@ -69,7 +79,9 @@ ConvertReduceMinToReshape::ConvertReduceMinToReshape() {
 ConvertReduceLogicalAndToReshape::ConvertReduceLogicalAndToReshape() {
     MATCHER_SCOPE(ConvertReduceLogicalAndToReshape);
     auto m = std::make_shared<pattern::Matcher>(
-        pattern::wrap_type<v1::ReduceLogicalAnd>({pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<v0::Constant>()}, pattern::has_static_shape()),
+        pattern::wrap_type<v1::ReduceLogicalAnd>(
+            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<v0::Constant>()},
+            pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_reshape<v1::ReduceLogicalAnd>());
 }
@@ -77,7 +89,9 @@ ConvertReduceLogicalAndToReshape::ConvertReduceLogicalAndToReshape() {
 ConvertReduceLogicalOrToReshape::ConvertReduceLogicalOrToReshape() {
     MATCHER_SCOPE(ConvertReduceLogicalOrToReshape);
     auto m = std::make_shared<pattern::Matcher>(
-        pattern::wrap_type<v1::ReduceLogicalOr>({pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<v0::Constant>()}, pattern::has_static_shape()),
+        pattern::wrap_type<v1::ReduceLogicalOr>(
+            {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<v0::Constant>()},
+            pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_reshape<v1::ReduceLogicalOr>());
 }

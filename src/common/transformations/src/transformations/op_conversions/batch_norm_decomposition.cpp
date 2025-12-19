@@ -36,10 +36,16 @@ namespace ov::pass {
 
 BatchNormDecomposition::BatchNormDecomposition() {
     MATCHER_SCOPE(BatchNormDecomposition);
-    auto bn_1 = pattern::wrap_type<v0::BatchNormInference>(
-        {pattern::any_input(), pattern::any_input(), pattern::any_input(pattern::has_static_rank()), pattern::any_input(), pattern::any_input()});
-    auto bn_5 = pattern::wrap_type<v5::BatchNormInference>(
-        {pattern::any_input(pattern::has_static_rank()), pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto bn_1 = pattern::wrap_type<v0::BatchNormInference>({pattern::any_input(),
+                                                            pattern::any_input(),
+                                                            pattern::any_input(pattern::has_static_rank()),
+                                                            pattern::any_input(),
+                                                            pattern::any_input()});
+    auto bn_5 = pattern::wrap_type<v5::BatchNormInference>({pattern::any_input(pattern::has_static_rank()),
+                                                            pattern::any_input(),
+                                                            pattern::any_input(),
+                                                            pattern::any_input(),
+                                                            pattern::any_input()});
     auto bn = std::make_shared<pattern::op::Or>(OutputVector{bn_1, bn_5});
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {

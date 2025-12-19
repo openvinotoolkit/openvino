@@ -16,7 +16,6 @@
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
@@ -24,7 +23,6 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 
 namespace ov::pass {
-
 
 namespace {
 

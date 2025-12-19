@@ -187,7 +187,8 @@ activations_scaling::EliminateScalarMul::EliminateScalarMul() {
     auto mul_m = pattern::wrap_type<v1::Multiply>({convert_m, scale_const_m});
     auto mvn_m = pattern::wrap_type<v6::MVN>({mul_m, pattern::any_input()});
     auto rms_m = pattern::wrap_type<ov::op::internal::RMS>({mul_m, pattern::any_input()});
-    auto group_norm_m = pattern::wrap_type<v12::GroupNormalization>({mul_m, pattern::any_input(), pattern::any_input()});
+    auto group_norm_m =
+        pattern::wrap_type<v12::GroupNormalization>({mul_m, pattern::any_input(), pattern::any_input()});
     auto shape_of_m = pattern::wrap_type<v3::ShapeOf>({mul_m});
     auto norm_m = std::make_shared<pattern::op::Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
 

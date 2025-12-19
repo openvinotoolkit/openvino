@@ -69,17 +69,17 @@ static std::vector<float> quantize_weights(const Shape& weights_shape,
 BinarizeWeights::BinarizeWeights() {
     MATCHER_SCOPE(BinarizeWeights);
     auto activations_fq_pattern = pattern::wrap_type<v0::FakeQuantize>({pattern::any_input(),
-                                                               pattern::wrap_type<v0::Constant>(),
-                                                               pattern::wrap_type<v0::Constant>(),
-                                                               pattern::wrap_type<v0::Constant>(),
-                                                               pattern::wrap_type<v0::Constant>()},
-                                                              pattern::consumers_count(1));
+                                                                        pattern::wrap_type<v0::Constant>(),
+                                                                        pattern::wrap_type<v0::Constant>(),
+                                                                        pattern::wrap_type<v0::Constant>(),
+                                                                        pattern::wrap_type<v0::Constant>()},
+                                                                       pattern::consumers_count(1));
     auto weights_fq_pattern = pattern::wrap_type<v0::FakeQuantize>({pattern::wrap_type<v0::Constant>(),
-                                                           pattern::wrap_type<v0::Constant>(),
-                                                           pattern::wrap_type<v0::Constant>(),
-                                                           pattern::wrap_type<v0::Constant>(),
-                                                           pattern::wrap_type<v0::Constant>()},
-                                                          pattern::consumers_count(1));
+                                                                    pattern::wrap_type<v0::Constant>(),
+                                                                    pattern::wrap_type<v0::Constant>(),
+                                                                    pattern::wrap_type<v0::Constant>(),
+                                                                    pattern::wrap_type<v0::Constant>()},
+                                                                   pattern::consumers_count(1));
     auto conv_pattern = pattern::wrap_type<v1::Convolution>({activations_fq_pattern, weights_fq_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {

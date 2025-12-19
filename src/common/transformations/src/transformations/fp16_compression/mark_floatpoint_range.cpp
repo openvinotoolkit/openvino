@@ -41,14 +41,14 @@ MarkFloatingPointRange::MarkFloatingPointRange() {
     MATCHER_SCOPE(MarkFloatingPointRange);
     // through these nodes
     const auto range_propagating_nodes = pattern::wrap_type<v0::Convert,
-                                                             v1::Greater,
-                                                             v1::GreaterEqual,
-                                                             v1::Less,
-                                                             v1::LessEqual,
-                                                             v1::Reshape,
-                                                             v4::Range,
-                                                             v0::Squeeze,
-                                                             v0::Unsqueeze>();
+                                                            v1::Greater,
+                                                            v1::GreaterEqual,
+                                                            v1::Less,
+                                                            v1::LessEqual,
+                                                            v1::Reshape,
+                                                            v4::Range,
+                                                            v0::Squeeze,
+                                                            v0::Unsqueeze>();
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& node = m.get_match_root();

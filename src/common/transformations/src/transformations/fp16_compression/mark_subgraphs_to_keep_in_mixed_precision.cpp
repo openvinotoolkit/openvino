@@ -89,26 +89,27 @@ void erase_fq_path(const std::shared_ptr<Node>& node) {
 }
 
 // Marking continues to propagate through these ops.
-const std::shared_ptr<Node> propagate_through_ops = pattern::wrap_type<v0::Squeeze,
-                                                                        v0::Unsqueeze,
-                                                                        v1::Reshape,
-                                                                        op::util::BroadcastBase,
-                                                                        op::util::BinaryElementwiseArithmetic,
-                                                                        op::util::UnaryElementwiseArithmetic,
-                                                                        ov::op::v6::MVN,
-                                                                        v0::MVN,
-                                                                        v0::NormalizeL2,
-                                                                        v0::Sqrt,
-                                                                        v1::StridedSlice,
-                                                                        v1::ReduceSum,
-                                                                        v1::ReduceMean,
-                                                                        v8::Slice,
-                                                                        v1::VariadicSplit,
-                                                                        v1::Split,
-                                                                        v0::Concat,
-                                                                        v0::Convert,  // through Convert can go only to Constants
-                                                                        v0::Constant,
-                                                                        v0::Tile>();
+const std::shared_ptr<Node> propagate_through_ops =
+    pattern::wrap_type<v0::Squeeze,
+                       v0::Unsqueeze,
+                       v1::Reshape,
+                       op::util::BroadcastBase,
+                       op::util::BinaryElementwiseArithmetic,
+                       op::util::UnaryElementwiseArithmetic,
+                       ov::op::v6::MVN,
+                       v0::MVN,
+                       v0::NormalizeL2,
+                       v0::Sqrt,
+                       v1::StridedSlice,
+                       v1::ReduceSum,
+                       v1::ReduceMean,
+                       v8::Slice,
+                       v1::VariadicSplit,
+                       v1::Split,
+                       v0::Concat,
+                       v0::Convert,  // through Convert can go only to Constants
+                       v0::Constant,
+                       v0::Tile>();
 
 }  // namespace
 
@@ -351,8 +352,7 @@ public:
 
         auto pow_pattern = std::make_shared<v1::Power>(max_or_add, optional_pow_convert);
         auto mul_pattern = std::make_shared<v1::Multiply>(input_1, pow_pattern);
-        auto div_or_mul_to_negative_pow =
-            std::make_shared<pattern::op::Or>(OutputVector{divide, mul_pattern});
+        auto div_or_mul_to_negative_pow = std::make_shared<pattern::op::Or>(OutputVector{divide, mul_pattern});
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& pattern_to_output = m.get_pattern_map();

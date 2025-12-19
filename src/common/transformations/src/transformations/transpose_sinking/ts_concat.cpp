@@ -14,14 +14,12 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 
-
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
 namespace v0 = ov::op::v0;
 
 namespace ov::pass {
-
 
 TSConcatForward::TSConcatForward() {
     MATCHER_SCOPE(TSConcatForward);
@@ -75,9 +73,9 @@ TSConcatBackward::TSConcatBackward() {
     auto transpose_const_label = pattern::wrap_type<v0::Constant>();
 
     auto transpose_label = pattern::wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
-                                                            [](const Output<Node>& output) -> bool {
-                                                                return pattern::has_static_rank()(output);
-                                                            });
+                                                                     [](const Output<Node>& output) -> bool {
+                                                                         return pattern::has_static_rank()(output);
+                                                                     });
 
     matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();

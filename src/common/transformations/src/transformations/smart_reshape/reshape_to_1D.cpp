@@ -18,11 +18,11 @@ namespace ov::pass {
 ReshapeTo1D::ReshapeTo1D() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(ReshapeTo1D);
-    auto reshape_label = pattern::wrap_type<ov::op::v1::Reshape>({pattern::any_input(), pattern::wrap_type<v0::Constant>()},
-                                                                  [](const Output<Node>& output) {
-                                                                      return output.get_partial_shape().rank().is_static() &&
-                                                                             output.get_partial_shape().rank().get_length() == 1;
-                                                                  });
+    auto reshape_label = pattern::wrap_type<ov::op::v1::Reshape>(
+        {pattern::any_input(), pattern::wrap_type<v0::Constant>()},
+        [](const Output<Node>& output) {
+            return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
+        });
 
     matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
         m.get_match_root()->input(1).replace_source_output(v0::Constant::create(ov::element::i64, {1}, {-1}));

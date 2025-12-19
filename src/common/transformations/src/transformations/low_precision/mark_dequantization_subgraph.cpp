@@ -221,8 +221,7 @@ MarkDequantization::MarkDequantization(const element::TypeVector& precisions,
     // zero points:
     auto zp_pattern = pattern::any_input();
     auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
-    auto zp_reshape_pattern =
-        pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, pattern::any_input()});
+    auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, pattern::any_input()});
     auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
@@ -287,8 +286,7 @@ KeepConstPrecision::KeepConstPrecision(const element::TypeVector& precisions,
     // zero points:
     auto zp_pattern = pattern::any_input();
     auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
-    auto zp_reshape_pattern =
-        pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, pattern::any_input()});
+    auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, pattern::any_input()});
     auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
@@ -339,8 +337,7 @@ KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVect
     // zero points:
     auto zp_pattern = pattern::wrap_type<v0::Constant>();
     auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
-    auto zp_reshape_pattern =
-        pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, pattern::any_input()});
+    auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, pattern::any_input()});
     auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:

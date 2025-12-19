@@ -28,7 +28,6 @@
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
@@ -40,7 +39,6 @@ namespace v10 = ov::op::v10;
 namespace op_util = ov::op::util;
 
 namespace ov::pass {
-
 
 namespace {
 
@@ -91,20 +89,22 @@ TSUnaryBackward::TSUnaryBackward() {
     };
 
     auto unary_with_1_input_label = pattern::wrap_type<op_util::UnaryElementwiseArithmetic,
-                                              v0::Clamp,
-                                              v0::Elu,
-                                              v4::SoftPlus,
-                                              v1::LogicalNot,
-                                              v0::Convert,
-                                              v10::IsInf,
-                                              v10::IsNaN,
-                                              v10::IsFinite,
-                                              v5::LogSoftmax>({pattern::any_input()}, unary_restrictions);
+                                                       v0::Clamp,
+                                                       v0::Elu,
+                                                       v4::SoftPlus,
+                                                       v1::LogicalNot,
+                                                       v0::Convert,
+                                                       v10::IsInf,
+                                                       v10::IsNaN,
+                                                       v10::IsFinite,
+                                                       v5::LogSoftmax>({pattern::any_input()}, unary_restrictions);
 
     auto unary_with_2_inputs_label =
-        pattern::wrap_type<v4::Swish, v1::ConvertLike>({pattern::any_input(), pattern::any_input()}, unary_restrictions);
-    auto unary_with_3_inputs_label =
-        pattern::wrap_type<v0::Selu, v0::HardSigmoid>({pattern::any_input(), pattern::any_input(), pattern::any_input()}, unary_restrictions);
+        pattern::wrap_type<v4::Swish, v1::ConvertLike>({pattern::any_input(), pattern::any_input()},
+                                                       unary_restrictions);
+    auto unary_with_3_inputs_label = pattern::wrap_type<v0::Selu, v0::HardSigmoid>(
+        {pattern::any_input(), pattern::any_input(), pattern::any_input()},
+        unary_restrictions);
 
     auto unary_label = std::make_shared<pattern::op::Or>(
         ov::OutputVector{unary_with_1_input_label, unary_with_2_inputs_label, unary_with_3_inputs_label});

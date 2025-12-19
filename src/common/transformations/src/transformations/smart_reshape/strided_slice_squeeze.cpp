@@ -120,8 +120,10 @@ StridedSliceSqueeze::StridedSliceSqueeze() {
 SqueezeStridedSlice::SqueezeStridedSlice() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(SqueezeStridedSlice);
-    auto squeeze_label = pattern::wrap_type<v0::Squeeze>({pattern::any_input(), pattern::wrap_type<v0::Constant>()}, pattern::consumers_count(1));
-    auto ss_label = pattern::wrap_type<v1::StridedSlice>({squeeze_label, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto squeeze_label = pattern::wrap_type<v0::Squeeze>({pattern::any_input(), pattern::wrap_type<v0::Constant>()},
+                                                         pattern::consumers_count(1));
+    auto ss_label = pattern::wrap_type<v1::StridedSlice>(
+        {squeeze_label, pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
     matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
         auto slice = ov::as_type_ptr<v1::StridedSlice>(m.get_match_root());

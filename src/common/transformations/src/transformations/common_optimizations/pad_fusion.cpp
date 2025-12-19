@@ -133,7 +133,7 @@ PadFusionAvgPool::PadFusionAvgPool() {
     auto pad_value_pattern = pattern::any_input();
     auto pad_node_pattern =
         pattern::wrap_type<op_util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-                                    pattern::consumers_count(1));
+                                             pattern::consumers_count(1));
     auto avg_pool_pattern = pattern::wrap_type<v1::AvgPool>({pad_node_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -203,7 +203,7 @@ PadFusionConvolution::PadFusionConvolution() {
     auto pad_value_pattern = pattern::any_input();
     auto pad_node_pattern =
         pattern::wrap_type<op_util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-                                    pattern::consumers_count(1));
+                                             pattern::consumers_count(1));
     auto conv_pattern = pattern::wrap_type<v1::Convolution>({pad_node_pattern, filter_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -248,7 +248,7 @@ PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
     auto pad_value_pattern = pattern::any_input();
     auto pad_node_pattern =
         pattern::wrap_type<op_util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-                                    pattern::consumers_count(1));
+                                             pattern::consumers_count(1));
     auto conv_pattern = pattern::wrap_type<v1::ConvolutionBackpropData>({pad_node_pattern, filter_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -303,7 +303,7 @@ PadFusionGroupConvolution::PadFusionGroupConvolution() {
     auto pad_value_pattern = pattern::any_input();
     auto pad_node_pattern =
         pattern::wrap_type<op_util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-                                    pattern::consumers_count(1));
+                                             pattern::consumers_count(1));
     auto conv_pattern = pattern::wrap_type<v1::GroupConvolution>({pad_node_pattern, filter_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -348,7 +348,7 @@ PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropData() {
     auto pad_value_pattern = pattern::any_input();
     auto pad_node_pattern =
         pattern::wrap_type<op_util::PadBase>({data_pattern, pads_begin_pattern, pads_end_pattern, pad_value_pattern},
-                                    pattern::consumers_count(1));
+                                             pattern::consumers_count(1));
     auto conv_pattern = pattern::wrap_type<v1::GroupConvolutionBackpropData>({pad_node_pattern, filter_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {

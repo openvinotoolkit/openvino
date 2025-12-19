@@ -53,10 +53,11 @@ Proposal1Scales::Proposal1Scales() {
     });
 
     auto optional_convert = pattern::optional<v0::Convert>(parameter_label);
-    auto reshape_label =
-        pattern::wrap_type<v1::Reshape>({optional_convert, pattern::wrap_type<v0::Constant>()}, [](const Output<Node>& output) {
-            return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
-        });
+    auto reshape_label = pattern::wrap_type<v1::Reshape>({optional_convert, pattern::wrap_type<v0::Constant>()},
+                                                         [](const Output<Node>& output) {
+                                                             return output.get_partial_shape().rank().is_static() &&
+                                                                    output.get_partial_shape().rank().get_length() == 1;
+                                                         });
     auto proposal_label = pattern::wrap_type<v0::Proposal>({pattern::any_input(), pattern::any_input(), reshape_label});
 
     matcher_pass_callback callback = [parameter_label, proposal_label](pattern::Matcher& m) -> bool {
@@ -75,11 +76,13 @@ Proposal4Scales::Proposal4Scales() {
                (shape[1].get_length() == 3 || shape[1].get_length() == 4);
     });
     auto optional_convert = pattern::optional<v0::Convert>(parameter_label);
-    auto reshape_label =
-        pattern::wrap_type<v1::Reshape>({optional_convert, pattern::wrap_type<v0::Constant>()}, [](const Output<Node>& output) {
-            return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
-        });
-    auto proposal_label = pattern::wrap_type<ov::op::v4::Proposal>({pattern::any_input(), pattern::any_input(), reshape_label});
+    auto reshape_label = pattern::wrap_type<v1::Reshape>({optional_convert, pattern::wrap_type<v0::Constant>()},
+                                                         [](const Output<Node>& output) {
+                                                             return output.get_partial_shape().rank().is_static() &&
+                                                                    output.get_partial_shape().rank().get_length() == 1;
+                                                         });
+    auto proposal_label =
+        pattern::wrap_type<ov::op::v4::Proposal>({pattern::any_input(), pattern::any_input(), reshape_label});
 
     matcher_pass_callback callback = [parameter_label, proposal_label](pattern::Matcher& m) -> bool {
         return crop_scales_for_proposal(m.get_pattern_value_map(), parameter_label, proposal_label);

@@ -39,8 +39,8 @@ DilatedConvolutionConverter::DilatedConvolutionConverter() {
     auto conv_pattern = std::make_shared<pattern::op::Or>(OutputVector{conv_p, gconv_p});
     auto crops_begin_pattern = pattern::wrap_type<v0::Constant>();
     auto crops_end_pattern = pattern::wrap_type<v0::Constant>();
-    auto batch_to_space_pattern =
-        pattern::wrap_type<v1::BatchToSpace>({conv_pattern, pattern::any_input(), crops_begin_pattern, crops_end_pattern});
+    auto batch_to_space_pattern = pattern::wrap_type<v1::BatchToSpace>(
+        {conv_pattern, pattern::any_input(), crops_begin_pattern, crops_end_pattern});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

@@ -435,8 +435,8 @@ public:
     Convolution() {
         MATCHER_SCOPE(Convolution);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto pattern_root =
-            pattern::wrap_type<v1::Convolution>({input_p, pattern::any_input(pattern::has_static_dim(1 /*output channel*/))});
+        auto pattern_root = pattern::wrap_type<v1::Convolution>(
+            {input_p, pattern::any_input(pattern::has_static_dim(1 /*output channel*/))});
         auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();
             auto ric = ric_attr::get(conv->input_value(0)).propagate();
@@ -531,7 +531,8 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::prop::PassThrough");
     PassThrough() {
         MATCHER_SCOPE(PassThrough);
-        auto pattern_root = pattern::wrap_type<op_util::UnaryElementwiseArithmetic, v0::Convert, op_util::PadBase, v0::PRelu>();
+        auto pattern_root =
+            pattern::wrap_type<op_util::UnaryElementwiseArithmetic, v0::Convert, op_util::PadBase, v0::PRelu>();
 
         auto callback = [=](pattern::Matcher& m) {
             auto root = m.get_match_root();
@@ -663,7 +664,8 @@ public:
     EraseGather() {
         MATCHER_SCOPE(EraseGather);
         auto input_p = pattern::any_input();
-        auto pattern_root = pattern::wrap_type<v8::Gather>({input_p, pattern::any_input(), pattern::any_input()}, need_to_erase_ric);
+        auto pattern_root =
+            pattern::wrap_type<v8::Gather>({input_p, pattern::any_input(), pattern::any_input()}, need_to_erase_ric);
         auto callback = [=](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             auto output = pattern_map.at(pattern_root);
@@ -684,18 +686,19 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("pass::back_prop::Binary");
     Binary() {
         MATCHER_SCOPE(Binary);
-        auto fake_quantize_pattern = pattern::wrap_type<v0::FakeQuantize>({pattern::any_input(pattern::has_static_rank()),
-                                                                  pattern::any_input(pattern::has_static_rank()),
-                                                                  pattern::any_input(pattern::has_static_rank()),
-                                                                  pattern::any_input(pattern::has_static_rank()),
-                                                                  pattern::any_input(pattern::has_static_rank())},
-                                                                 pattern::has_static_rank());
+        auto fake_quantize_pattern =
+            pattern::wrap_type<v0::FakeQuantize>({pattern::any_input(pattern::has_static_rank()),
+                                                  pattern::any_input(pattern::has_static_rank()),
+                                                  pattern::any_input(pattern::has_static_rank()),
+                                                  pattern::any_input(pattern::has_static_rank()),
+                                                  pattern::any_input(pattern::has_static_rank())},
+                                                 pattern::has_static_rank());
         auto binary_elementwise_pattern = pattern::wrap_type<op_util::BinaryElementwiseArithmetic>(
             {pattern::any_input(pattern::has_static_rank()), pattern::any_input(pattern::has_static_rank())},
             pattern::has_static_rank());
 
-        auto pattern_root = std::make_shared<pattern::op::Or>(
-            OutputVector{fake_quantize_pattern, binary_elementwise_pattern});
+        auto pattern_root =
+            std::make_shared<pattern::op::Or>(OutputVector{fake_quantize_pattern, binary_elementwise_pattern});
 
         auto callback = [=](pattern::Matcher& m) {
             const auto& root = m.get_match_root();

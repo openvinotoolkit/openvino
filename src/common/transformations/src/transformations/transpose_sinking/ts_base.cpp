@@ -15,12 +15,10 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 
-
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
 namespace ov::pass {
-
 
 void TSForwardBase::transpose_sinking(const std::string& pass_name,
                                       const TSForwardBase::sinking_function& sinking_transformation) {

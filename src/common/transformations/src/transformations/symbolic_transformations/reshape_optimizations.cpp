@@ -22,10 +22,8 @@ namespace ov::pass {
 ReshapeOptimizations::ReshapeOptimizations() {
     MATCHER_SCOPE(ReshapeOptimizations);
     auto data_label = pattern::any_input(pattern::has_static_rank());
-    auto pattern_label =
-        pattern::any_input(pattern::has_static_shape() && pattern::class_other_than<v0::Constant>());
-    auto reshape_label = pattern::wrap_type<op::v1::Reshape>({data_label, pattern_label},
-                                                              pattern::has_static_rank());
+    auto pattern_label = pattern::any_input(pattern::has_static_shape() && pattern::class_other_than<v0::Constant>());
+    auto reshape_label = pattern::wrap_type<op::v1::Reshape>({data_label, pattern_label}, pattern::has_static_rank());
 
     ov::matcher_pass_callback matcher_pass_callback = [](pattern::Matcher& m) {
         const auto& reshape = ov::as_type_ptr<ov::op::v1::Reshape>(m.get_match_root());

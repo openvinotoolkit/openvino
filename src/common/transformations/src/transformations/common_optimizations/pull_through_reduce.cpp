@@ -119,8 +119,8 @@ PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
     const auto unsqueeze_axes = pattern::wrap_type<v0::Constant>();
     const auto unsqueeze = pattern::wrap_type<v0::Unsqueeze>({input, unsqueeze_axes}, pattern::consumers_count(1));
     const auto reduce_axes = pattern::wrap_type<v0::Constant>();
-    const auto reduce =
-        pattern::wrap_type<op_util::ArithmeticReductionKeepDims, op_util::LogicalReductionKeepDims>({unsqueeze, reduce_axes});
+    const auto reduce = pattern::wrap_type<op_util::ArithmeticReductionKeepDims, op_util::LogicalReductionKeepDims>(
+        {unsqueeze, reduce_axes});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
@@ -186,10 +186,11 @@ PullReshapeThroughReduce::PullReshapeThroughReduce() {
 
     const auto input = pattern::any_input(pattern::has_static_shape());
     const auto reshape_target_shape = pattern::wrap_type<v0::Constant>();
-    const auto reshape = pattern::wrap_type<ov::op::v1::Reshape>({input, reshape_target_shape}, pattern::consumers_count(1));
+    const auto reshape =
+        pattern::wrap_type<ov::op::v1::Reshape>({input, reshape_target_shape}, pattern::consumers_count(1));
     const auto reduce_axes = pattern::wrap_type<v0::Constant>();
-    const auto reduce =
-        pattern::wrap_type<op_util::ArithmeticReductionKeepDims, op_util::LogicalReductionKeepDims>({reshape, reduce_axes});
+    const auto reduce = pattern::wrap_type<op_util::ArithmeticReductionKeepDims, op_util::LogicalReductionKeepDims>(
+        {reshape, reduce_axes});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();

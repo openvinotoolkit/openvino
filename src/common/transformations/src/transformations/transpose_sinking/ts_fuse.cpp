@@ -27,7 +27,8 @@ namespace ov::pass {
 TSFuse::TSFuse() {
     MATCHER_SCOPE(TransposeFuse);
     auto transpose_1_label =
-        pattern::wrap_type<v1::Transpose>({pattern::any_input(), pattern::wrap_type<v0::Constant>()}, CheckTransposeConsumers);
+        pattern::wrap_type<v1::Transpose>({pattern::any_input(), pattern::wrap_type<v0::Constant>()},
+                                          CheckTransposeConsumers);
     auto transpose_2_label = pattern::wrap_type<v1::Transpose>({transpose_1_label, pattern::wrap_type<v0::Constant>()});
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();

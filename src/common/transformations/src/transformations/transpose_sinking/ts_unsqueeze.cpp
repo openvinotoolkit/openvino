@@ -17,7 +17,6 @@
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
@@ -25,7 +24,6 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 
 namespace ov::pass {
-
 
 namespace {
 
@@ -203,11 +201,11 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
 
     auto unsqueeze_label =
         pattern::wrap_type<v0::Unsqueeze, v1::Reshape>({pattern::any_input(), pattern::wrap_type<v0::Constant>()},
-                                              CheckTransposeConsumers);
-    auto transpose_label =
-        pattern::wrap_type<v1::Transpose>({unsqueeze_label, pattern::wrap_type<v0::Constant>()}, [](const Output<Node>& output) -> bool {
-            return pattern::has_static_rank()(output);
-        });
+                                                       CheckTransposeConsumers);
+    auto transpose_label = pattern::wrap_type<v1::Transpose>({unsqueeze_label, pattern::wrap_type<v0::Constant>()},
+                                                             [](const Output<Node>& output) -> bool {
+                                                                 return pattern::has_static_rank()(output);
+                                                             });
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();

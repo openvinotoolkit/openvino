@@ -190,13 +190,13 @@ void pull_reshape_through_optional_concat_and_bea(const pattern::PatternValueMap
 }
 }  // namespace
 
-#define IN_RESHAPE                                                                 \
-    pattern::wrap_type<op::v1::Reshape>([](std::shared_ptr<Node> n) -> bool {     \
+#define IN_RESHAPE                                                                          \
+    pattern::wrap_type<op::v1::Reshape>([](std::shared_ptr<Node> n) -> bool {               \
         return pattern::consumers_count(1)(n->output(0)) && reshape_keeps_last_two_dims(n); \
     });
 
 #define SCALAR_INPUT                                                                        \
-    pattern::any_input([](ov::Output<Node> out) {                                          \
+    pattern::any_input([](ov::Output<Node> out) {                                           \
         return out.get_partial_shape().is_static() && ov::shape_size(out.get_shape()) == 1; \
     });
 
@@ -214,8 +214,8 @@ DeReshapeMatMul::DeReshapeMatMul() {
     auto lhs_reshape_or_concat = std::make_shared<pattern::op::Or>(OutputVector{lhs_reshape, lhs_concat});
 
     auto lhs_bea_scalar = SCALAR_INPUT;
-    auto lhs_bea =
-        pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({lhs_reshape_or_concat, lhs_bea_scalar}, pattern::consumers_count(1));
+    auto lhs_bea = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({lhs_reshape_or_concat, lhs_bea_scalar},
+                                                                             pattern::consumers_count(1));
 
     auto lhs_bea_or_concat = std::make_shared<pattern::op::Or>(OutputVector{lhs_reshape_or_concat, lhs_bea});
 
@@ -229,13 +229,14 @@ DeReshapeMatMul::DeReshapeMatMul() {
     auto rhs_reshape_or_concat = std::make_shared<pattern::op::Or>(OutputVector{rhs_reshape, rhs_concat});
 
     auto rhs_bea_scalar = SCALAR_INPUT;
-    auto rhs_bea =
-        pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({rhs_reshape_or_concat, rhs_bea_scalar}, pattern::consumers_count(1));
+    auto rhs_bea = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({rhs_reshape_or_concat, rhs_bea_scalar},
+                                                                             pattern::consumers_count(1));
 
     auto rhs_bea_or_concat = std::make_shared<pattern::op::Or>(OutputVector{rhs_reshape_or_concat, rhs_bea});
     // END: symmetrical patterns for MatMul inputs
 
-    auto matmul = pattern::wrap_type<op::v0::MatMul>({lhs_bea_or_concat, rhs_bea_or_concat}, pattern::consumers_count(1));
+    auto matmul =
+        pattern::wrap_type<op::v0::MatMul>({lhs_bea_or_concat, rhs_bea_or_concat}, pattern::consumers_count(1));
 
     auto add = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>(
         OutputVector{matmul, pattern::any_input()},
@@ -258,9 +259,10 @@ DeReshapeMatMul::DeReshapeMatMul() {
         });
 
     auto matmul_or_add = std::make_shared<pattern::op::Or>(OutputVector{matmul, add});
-    auto final_reshape = pattern::wrap_type<op::v1::Reshape>({matmul_or_add, pattern::any_input()}, [](std::shared_ptr<Node> n) -> bool {
-        return reshape_keeps_last_two_dims(n);
-    });
+    auto final_reshape =
+        pattern::wrap_type<op::v1::Reshape>({matmul_or_add, pattern::any_input()}, [](std::shared_ptr<Node> n) -> bool {
+            return reshape_keeps_last_two_dims(n);
+        });
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pm = m.get_pattern_map();
@@ -345,13 +347,16 @@ DeReshapeMatMul::DeReshapeMatMul() {
 
 DeReshapeFullyConnected::DeReshapeFullyConnected() {
     MATCHER_SCOPE(DeReshapeFullyConnected);
-    auto input = pattern::wrap_type<v1::Reshape>({pattern::any_input(pattern::shape_matches("BATCHES_1...,Y")), pattern::any_input()},
-                                                  pattern::shape_matches("BATCHES_2...,Y"));
+    auto input = pattern::wrap_type<v1::Reshape>(
+        {pattern::any_input(pattern::shape_matches("BATCHES_1...,Y")), pattern::any_input()},
+        pattern::shape_matches("BATCHES_2...,Y"));
     auto converted = pattern::optional<v0::Convert>(input, pattern::consumers_count(1));
-    auto mm_label = pattern::wrap_type<v0::MatMul>({converted, pattern::any_input(pattern::rank_equals(2))},
-                                                    pattern::consumers_count(1) && pattern::shape_matches("BATCHES_2...,Z"),
-                                                    {{"transpose_a", false}});
-    auto output = pattern::wrap_type<v1::Reshape>({mm_label, pattern::any_input()}, pattern::shape_matches("BATCHES_1...,Z"));
+    auto mm_label =
+        pattern::wrap_type<v0::MatMul>({converted, pattern::any_input(pattern::rank_equals(2))},
+                                       pattern::consumers_count(1) && pattern::shape_matches("BATCHES_2...,Z"),
+                                       {{"transpose_a", false}});
+    auto output =
+        pattern::wrap_type<v1::Reshape>({mm_label, pattern::any_input()}, pattern::shape_matches("BATCHES_1...,Z"));
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pm = m.get_pattern_map();

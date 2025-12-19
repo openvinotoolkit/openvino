@@ -26,8 +26,7 @@ SoftPlusFusion::SoftPlusFusion() {
     // fuses ln(exp(x) + 1.0) operations into SoftPlus(x)
     auto input = pattern::any_input();
     auto exp = std::make_shared<v0::Exp>(input);
-    auto add_constant =
-        pattern::wrap_type<v0::Constant>(pattern::type_matches_any({element::f32, element::f16}));
+    auto add_constant = pattern::wrap_type<v0::Constant>(pattern::type_matches_any({element::f32, element::f16}));
     auto add = std::make_shared<ov::op::v1::Add>(exp, add_constant);
     auto log = std::make_shared<v0::Log>(add);
 

@@ -401,11 +401,11 @@ SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
     MATCHER_SCOPE(SliceSequenceToSingleSlice);
     auto const_axes_1_pattern = pattern::wrap_type<v0::Constant>();
     auto const_axes_2_pattern = pattern::wrap_type<v0::Constant>();
-    auto slice_1_pattern =
-        pattern::wrap_type<v8::Slice>({pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input(), const_axes_1_pattern},
-                             pattern::consumers_count(1));
-    auto slice_2_pattern =
-        pattern::wrap_type<v8::Slice>({slice_1_pattern, pattern::any_input(), pattern::any_input(), pattern::any_input(), const_axes_2_pattern});
+    auto slice_1_pattern = pattern::wrap_type<v8::Slice>(
+        {pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input(), const_axes_1_pattern},
+        pattern::consumers_count(1));
+    auto slice_2_pattern = pattern::wrap_type<v8::Slice>(
+        {slice_1_pattern, pattern::any_input(), pattern::any_input(), pattern::any_input(), const_axes_2_pattern});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();

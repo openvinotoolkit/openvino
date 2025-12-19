@@ -16,8 +16,7 @@ namespace v15 = ov::op::v15;
 
 namespace ov::pass {
 
-ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3::
-    ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3() {
+ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3::ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3() {
     MATCHER_SCOPE(ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3);
 
     const auto emb_v15_pattern = pattern::wrap_type<v15::EmbeddingBagOffsets>();
