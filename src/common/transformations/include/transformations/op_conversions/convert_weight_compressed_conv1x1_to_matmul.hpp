@@ -128,10 +128,10 @@ public:
  *
  * The transformation identifies the following pattern:
  *
- *                       +---------+    +-----------+    +------+
+ *                       +---------+    +-----------+    +------+  last two dims are 1
  *                       | Weights |    | ZeroPoint |    |Scale |
- *                       | (5D)    |    | (5D)      |    | (5D) |  last two dims are 1
- *                       +---------+    +-----------+    +------+
+ *                       | (5D)    |    | (5D)      |    | (5D) |  5D or 4D with
+ *                       +---------+    +-----------+    +------+  reshape(w), unsqueeze(zp), unsqueeze(scale) to 5D
  *                             |              |             |
  *                             v              v             |
  *                         +-------+      +-------+         |
@@ -162,10 +162,10 @@ public:
  *
  * and replaces it with:
  *
- *                       +---------+    +-----------+    +------+
+ *                       +---------+    +-----------+    +------+  Removed last two dims of 1
  *                       | Weights |    | ZeroPoint |    |Scale |
- *                       | (3D)    |    | (3D)      |    | (3D) |  Removed last two dims of 1
- *                       +---------+    +-----------+    +------+
+ *                       | (3D)    |    | (3D)      |    | (3D) |  3D or 2D with
+ *                       +---------+    +-----------+    +------+  reshape(w), unsqueeze(zp), unsqueeze(scale) to 3D
  *                             |              |             |
  *                             v              v             |
  *                         +-------+      +-------+         |
