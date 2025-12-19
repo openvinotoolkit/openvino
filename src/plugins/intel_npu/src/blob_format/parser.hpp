@@ -5,6 +5,7 @@
 #include "factory.hpp"
 #include "isection.hpp"
 
+// I think this can be a one-liner
 Header read_header(std::istream& stream) {
     Header header;
     header.read(stream);
@@ -27,7 +28,7 @@ std::shared_ptr<ISection> read_expression(std::istream& stream) {
     // probably throw an exception instead?
     return nullptr;
 }
-
+// OVNPU | MAJOR | MINOR | TABLE OFFSET | ~~~~ SECTIONS ~~~~ | SECTION TABLE
 bool read_sections_from_data(const uint8_t* ptr, uint64_t size, std::vector<std::shared_ptr<ISection>>& sections)
 {
     uint64_t offset = 0;
@@ -64,6 +65,8 @@ void read_sections(std::istream& stream, std::vector<std::shared_ptr<ISection>>&
     }
 }
 
+// at any point, we might actually read favorable noise regarding header.length
+// so before reading the payload of header.length size we should check if it could be out of bounds
 void read_blob(std::istream& stream, std::vector<std::shared_ptr<ISection>>& sections) {
     // check if header is valid?
     // would it be helpful in invalid case to check if the first bytes are ELF magic? (old/raw blob format)

@@ -10,31 +10,31 @@ int main() {
 
     // Standalone section tests
     // Check that content is preserved upon serialize + read 
-    // test_simple_cre_section();
-    // test_simple_cre_section_non_owning();
+    test_simple_cre_section();
+    test_simple_cre_section_non_owning();
 
-    // test_simple_elf_section();
-    // test_simple_elf_section_non_owning();
+    test_simple_elf_section();
+    test_simple_elf_section_non_owning();
 
-    // test_simple_ws_section();
-    // test_simple_ws_section_non_owning();
+    test_simple_ws_section();
+    test_simple_ws_section_non_owning();
 
-    // test_simple_bs_section();
-    // test_simple_bs_section_non_owning();
+    test_simple_bs_section();
+    test_simple_bs_section_non_owning();
 
-    // test_simple_unknown_section();
-    // test_simple_layouts_section();
-    // test_simple_layouts_section_non_owning();
+    test_simple_unknown_section();
+    test_simple_layouts_section();
+    test_simple_layouts_section_non_owning();
 
-    // // Tests that write/read multiple sections + blob header
-    // test_blob_with_header_but_no_sections();
+    // Tests that write/read multiple sections + blob header
+    test_blob_with_header_but_no_sections();
 
-    // test_blob_cre_elf();
+    test_blob_cre_elf();
 
-    // test_blob_cre_unknown_ws_bs_layouts();
-    // test_blob_cre_unknown_ws_bs_layouts_non_owning();
+    test_blob_cre_unknown_ws_bs_layouts();
+    test_blob_cre_unknown_ws_bs_layouts_non_owning();
 
-    // run_expression_tests();
+    run_expression_tests();
 
     export_test_blob_cre_unknown_ws_bs_layouts();
 
