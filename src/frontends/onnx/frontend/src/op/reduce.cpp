@@ -164,15 +164,11 @@ ov::OutputVector onnx_reduce_log_sum_exp_impl(const ov::frontend::onnx::Node& no
 
     // Numerically stable implementation: k + log(sum(exp(x - k))) where k = max(x)
     // This avoids overflow by ensuring exp(x - k) <= 1 for all x
-    auto k = std::make_shared<ov::op::v1::ReduceMax>(input, reduction_axes, true);
+    auto k = std::make_shared<ov::op::v1::ReduceMax>(input, reduction_axes, keepdims);
     auto input_minus_k = std::make_shared<ov::op::v1::Subtract>(input, k);
     auto exp_node = std::make_shared<ov::op::v0::Exp>(input_minus_k);
     auto sum_node = std::make_shared<ov::op::v1::ReduceSum>(exp_node, reduction_axes, keepdims);
     auto log_node = std::make_shared<ov::op::v0::Log>(sum_node);
-
-    if (!keepdims) {
-        k = std::make_shared<ov::op::v0::Squeeze>(k, reduction_axes);
-    }
 
     auto out = std::make_shared<ov::op::v1::Add>(k, log_node);
     return {out};
