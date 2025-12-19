@@ -12,7 +12,6 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 
 file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
 )
 
 add_library(${TARGET_NAME} STATIC ${SOURCES} ${HEADERS})
@@ -31,7 +30,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     openvino::runtime
     openvino::reference
     openvino::conditional_compilation
-    openvino::itt
     openvino::core::dev
     openvino::shape_inference
 )

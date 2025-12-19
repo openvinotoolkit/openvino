@@ -8,7 +8,6 @@
 #include <openvino/core/type/element_type.hpp>
 #include <vector>
 
-#include "itt.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/validation_util.hpp"
 
@@ -326,8 +325,6 @@ FlashAttentionTile::FlashAttentionTile(const Output<Node>& query,
     : FlashAttentionTile({query, key, value, running_output, running_max, running_sum}, std::move(config)) {}
 
 void FlashAttentionTile::validate_and_infer_types() {
-    INTERNAL_OP_SCOPE(internal_op_FlashAttentionTile_validate_and_infer_types);
-
     const auto attention_mask_idx = 6;
 
     auto query_element_type = get_input_element_type(0);
@@ -372,12 +369,10 @@ void FlashAttentionTile::validate_and_infer_types() {
 }
 
 std::shared_ptr<Node> FlashAttentionTile::clone_with_new_inputs(const OutputVector& new_args) const {
-    INTERNAL_OP_SCOPE(op_internal_FlashAttentionTile_clone_with_new_inputs);
     return std::make_shared<FlashAttentionTile>(new_args, m_config);
 }
 
 bool FlashAttentionTile::visit_attributes(AttributeVisitor& visitor) {
-    INTERNAL_OP_SCOPE(op_internal_FlashAttentionTile_visit_attributes);
     visitor.on_attribute("is_head", m_config.is_head);
     visitor.on_attribute("is_tail", m_config.is_tail);
     return true;
@@ -401,7 +396,6 @@ enum FlashAttentionOutputs {
 };
 
 bool FlashAttentionTile::has_evaluate() const {
-    INTERNAL_OP_SCOPE(op_internal_FlashAttentionTile_has_evaluate);
     switch (get_input_element_type(0)) {
     case element::f16:
     case element::f32:
