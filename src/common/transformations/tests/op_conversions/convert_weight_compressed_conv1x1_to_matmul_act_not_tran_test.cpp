@@ -20,6 +20,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/convert_weight_compressed_conv1x1_to_matmul.hpp"
 
@@ -32,6 +33,7 @@ struct Conv1x1ToMatmulActNotTranParams {
     std::vector<int64_t> input_transpose_order;
     std::vector<int64_t> output_transpose_order;
     bool with_zp;
+    bool use_4d_pattern = false;
 };
 
 std::shared_ptr<ov::Model> create_model(const Conv1x1ToMatmulActNotTranParams& p) {
@@ -40,20 +42,44 @@ std::shared_ptr<ov::Model> create_model(const Conv1x1ToMatmulActNotTranParams& p
     const size_t hidden_out = 4;
     const size_t hidden_in = p.input_shape[1].get_length();
     const size_t block_size = 2;
+    const size_t block_num = hidden_in / block_size;
 
-    auto weights =
-        ov::op::v0::Constant::create(element::i4, {hidden_out, hidden_in / block_size, block_size, 1, 1}, {1});
-    auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, element::f32);
+    Output<Node> weights_output;
+    if (p.use_4d_pattern) {
+        auto weights = ov::op::v0::Constant::create(element::i4, {hidden_out, hidden_in, 1, 1}, {1});
+        auto reshape_const = ov::op::v0::Constant::create(
+            element::i64,
+            {5},
+            std::vector<int64_t>{(int64_t)hidden_out, (int64_t)block_num, (int64_t)block_size, 1, 1});
+        weights_output = std::make_shared<ov::op::v1::Reshape>(weights, reshape_const, false);
+    } else {
+        weights_output = ov::op::v0::Constant::create(element::i4, {hidden_out, block_num, block_size, 1, 1}, {1});
+    }
+    auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights_output, element::f32);
 
-    Output<Node> sub_input = weights_convert;
+    Output<Node> sub_output = weights_convert;
     if (p.with_zp) {
-        auto zp = ov::op::v0::Constant::create(element::i4, {hidden_out, hidden_in / block_size, 1, 1, 1}, {1});
-        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp, element::f32);
-        sub_input = std::make_shared<ov::op::v1::Subtract>(weights_convert, zp_convert);
+        Output<Node> zp_output;
+        if (p.use_4d_pattern) {
+            auto zp = ov::op::v0::Constant::create(element::i4, {hidden_out, block_num, 1, 1}, {1});
+            auto unsqueeze_const = ov::op::v0::Constant::create(element::i64, {1}, {2});
+            zp_output = std::make_shared<ov::op::v0::Unsqueeze>(zp, unsqueeze_const);
+        } else {
+            zp_output = ov::op::v0::Constant::create(element::i4, {hidden_out, block_num, 1, 1, 1}, {1});
+        }
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_output, element::f32);
+        sub_output = std::make_shared<ov::op::v1::Subtract>(weights_convert, zp_convert);
     }
 
-    auto scale = ov::op::v0::Constant::create(element::f32, {hidden_out, hidden_in / block_size, 1, 1, 1}, {1});
-    auto weights_mult = std::make_shared<ov::op::v1::Multiply>(sub_input, scale);
+    Output<Node> scale_output;
+    if (p.use_4d_pattern) {
+        auto scale = ov::op::v0::Constant::create(element::f32, {hidden_out, block_num, 1, 1}, {1});
+        auto unsqueeze_const = ov::op::v0::Constant::create(element::i64, {1}, {2});
+        scale_output = std::make_shared<ov::op::v0::Unsqueeze>(scale, unsqueeze_const);
+    } else {
+        scale_output = ov::op::v0::Constant::create(element::f32, {hidden_out, block_num, 1, 1, 1}, {1});
+    }
+    auto weights_mult = std::make_shared<ov::op::v1::Multiply>(sub_output, scale_output);
 
     auto reshape_const = ov::op::v0::Constant::create(
         element::i64,
@@ -77,28 +103,53 @@ std::shared_ptr<ov::Model> create_ref_model(const Conv1x1ToMatmulActNotTranParam
     const size_t hidden_out = 4;
     const size_t hidden_in = p.input_shape[1].get_length();
     const size_t block_size = 2;
+    const size_t block_num = hidden_in / block_size;
 
-    auto input_transpose_const = ov::op::v0::Constant::create(element::i64, {4}, p.input_transpose_order);
-    auto transpose_input = std::make_shared<ov::op::v1::Transpose>(input, input_transpose_const);
+    Output<Node> weights_output;
+    if (p.use_4d_pattern) {
+        auto weights = ov::op::v0::Constant::create(element::i4, {hidden_out, hidden_in}, {1});
+        auto reshape_const = ov::op::v0::Constant::create(
+            element::i64,
+            {3},
+            std::vector<int64_t>{(int64_t)hidden_out, (int64_t)block_num, (int64_t)block_size});
+        weights_output = std::make_shared<ov::op::v1::Reshape>(weights, reshape_const, false);
+    } else {
+        weights_output = ov::op::v0::Constant::create(element::i4, {hidden_out, block_num, block_size}, {1});
+    }
+    auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights_output, element::f32);
 
-    auto weights = ov::op::v0::Constant::create(element::i4, {hidden_out, hidden_in / block_size, block_size}, {1});
-    auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, element::f32);
-
-    Output<Node> sub_input = weights_convert;
+    Output<Node> sub_output = weights_convert;
     if (p.with_zp) {
-        auto zp = ov::op::v0::Constant::create(element::i4, {hidden_out, hidden_in / block_size, 1}, {1});
-        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp, element::f32);
-        sub_input = std::make_shared<ov::op::v1::Subtract>(weights_convert, zp_convert);
+        Output<Node> zp_output;
+        if (p.use_4d_pattern) {
+            auto zp = ov::op::v0::Constant::create(element::i4, {hidden_out, block_num}, {1});
+            auto unsqueeze_const = ov::op::v0::Constant::create(element::i64, {1}, {2});
+            zp_output = std::make_shared<ov::op::v0::Unsqueeze>(zp, unsqueeze_const);
+        } else {
+            zp_output = ov::op::v0::Constant::create(element::i4, {hidden_out, block_num, 1}, {1});
+        }
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_output, element::f32);
+        sub_output = std::make_shared<ov::op::v1::Subtract>(weights_convert, zp_convert);
     }
 
-    auto scale = ov::op::v0::Constant::create(element::f32, {hidden_out, hidden_in / block_size, 1}, {1});
-    auto weights_mult = std::make_shared<ov::op::v1::Multiply>(sub_input, scale);
+    Output<Node> scale_output;
+    if (p.use_4d_pattern) {
+        auto scale = ov::op::v0::Constant::create(element::f32, {hidden_out, block_num}, {1});
+        auto unsqueeze_const = ov::op::v0::Constant::create(element::i64, {1}, {2});
+        scale_output = std::make_shared<ov::op::v0::Unsqueeze>(scale, unsqueeze_const);
+    } else {
+        scale_output = ov::op::v0::Constant::create(element::f32, {hidden_out, block_num, 1}, {1});
+    }
+    auto weights_mult = std::make_shared<ov::op::v1::Multiply>(sub_output, scale_output);
 
     auto reshape_const = ov::op::v0::Constant::create(
         element::i64,
         {2},
         std::vector<int64_t>{static_cast<int64_t>(hidden_out), static_cast<int64_t>(hidden_in)});
     auto weights_reshape = std::make_shared<ov::op::v1::Reshape>(weights_mult, reshape_const, false);
+
+    auto input_transpose_const = ov::op::v0::Constant::create(element::i64, {4}, p.input_transpose_order);
+    auto transpose_input = std::make_shared<ov::op::v1::Transpose>(input, input_transpose_const);
 
     auto matmul = std::make_shared<ov::op::v0::MatMul>(transpose_input, weights_reshape, false, true);
 
@@ -117,7 +168,8 @@ public:
         Conv1x1ToMatmulActNotTranParams p = obj.param;
         std::ostringstream result;
         result << "input_shape=" << p.input_shape << "_";
-        result << "with_zp=" << p.with_zp;
+        result << "with_zp=" << p.with_zp << "_";
+        result << "use_4d_pattern=" << p.use_4d_pattern;
         return result.str();
     }
 
@@ -150,7 +202,9 @@ INSTANTIATE_TEST_SUITE_P(
         Conv1x1ToMatmulActNotTranParams{{Dimension::dynamic(), 8, 1, 1}, {2, 3, 0, 1}, {2, 3, 0, 1}, true},
         Conv1x1ToMatmulActNotTranParams{{Dimension::dynamic(), 8, 1, 1}, {2, 3, 0, 1}, {2, 3, 0, 1}, false},
         Conv1x1ToMatmulActNotTranParams{{1, 8, Dimension::dynamic(), 1}, {0, 3, 2, 1}, {0, 3, 2, 1}, true},
-        Conv1x1ToMatmulActNotTranParams{{1, 8, Dimension::dynamic(), 1}, {0, 3, 2, 1}, {0, 3, 2, 1}, false}),
+        Conv1x1ToMatmulActNotTranParams{{1, 8, Dimension::dynamic(), 1}, {0, 3, 2, 1}, {0, 3, 2, 1}, false},
+        Conv1x1ToMatmulActNotTranParams{{1, 8, 1, 10}, {0, 2, 3, 1}, {0, 3, 1, 2}, true, true},
+        Conv1x1ToMatmulActNotTranParams{{1, 8, 1, 10}, {0, 2, 3, 1}, {0, 3, 1, 2}, false, true}),
     ConvertWeightCompressedConv1x1ToMatmulActNotTranTest::get_test_case_name);
 
 // Checked blocked cases
