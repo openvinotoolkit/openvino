@@ -5,9 +5,9 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "openvino/frontend/onnx/frontend.hpp"
+#include "onnx_utils.hpp"
+#include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
-#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx::tests;
@@ -59,7 +59,8 @@ TEST_F(ReduceLogSumExpNumericalStabilityTest, TestNumericalStability) {
         float expected = 101.0f + std::log(std::exp(-1.0f) + 1.0f);
         
         EXPECT_TRUE(std::isfinite(output_data[0])) << "Result should be finite, not inf or nan";
-        EXPECT_NEAR(output_data[0], expected, 1e-5f) << "Numerical result should match expected stable computation";
+        EXPECT_NEAR(output_data[0], expected, 1e-5f)
+            << "Numerical result should match expected stable computation";
     }
     
     // Test case 2: Very large values near float32 limits
@@ -90,7 +91,8 @@ TEST_F(ReduceLogSumExpNumericalStabilityTest, TestNumericalStability) {
         auto output_tensor = infer_request.get_output_tensor();
         auto output_data = output_tensor.data<float>();
         
-        EXPECT_TRUE(std::isfinite(output_data[0])) << "Result should be finite even for large input values";
+        EXPECT_TRUE(std::isfinite(output_data[0]))
+            << "Result should be finite even for large input values";
         
         // The result should be close to the maximum value plus a small correction
         EXPECT_GT(output_data[0], 90.0f) << "Result should be greater than the maximum input";
@@ -128,7 +130,8 @@ TEST_F(ReduceLogSumExpNumericalStabilityTest, TestNumericalStability) {
         
         // Result should be dominated by the largest value (50.0)
         EXPECT_GT(output_data[0], 50.0f) << "Result should be greater than the maximum input";
-        EXPECT_LT(output_data[0], 51.0f) << "Result should be close to the maximum input for this case";
+        EXPECT_LT(output_data[0], 51.0f)
+            << "Result should be close to the maximum input for this case";
     }
 
 private:
@@ -150,10 +153,12 @@ TEST_F(ReduceLogSumExpNumericalStabilityTest, CompareNaiveVsStable) {
     
     // The naive implementation should produce inf or nan for large values
     // The stable implementation should produce a finite result
-    EXPECT_FALSE(std::isfinite(naive_result)) << "Naive implementation should overflow for large values";
+    EXPECT_FALSE(std::isfinite(naive_result))
+        << "Naive implementation should overflow for large values";
     EXPECT_TRUE(std::isfinite(stable_result)) << "Stable implementation should remain finite";
     
     // For these specific values, stable result should be approximately 88 + log(2)
     float expected = 88.0f + std::log(2.0f);
-    EXPECT_NEAR(stable_result, expected, 1e-5f) << "Stable implementation should match expected mathematical result";
+    EXPECT_NEAR(stable_result, expected, 1e-5f)
+        << "Stable implementation should match expected mathematical result";
 }
