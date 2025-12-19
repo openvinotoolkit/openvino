@@ -116,9 +116,8 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
     // - destination: scale is formed based on requantization FakeQuantize parameters: scale = 1.0 / input scale
     //                shift = input shift
     aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
-    aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(weightScale.empty() ?
-        arm_compute::QuantizationInfo(1.0F) :
-        arm_compute::QuantizationInfo(weightScale));
+    aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
+        weightScale.empty() ? arm_compute::QuantizationInfo(1.0F) : arm_compute::QuantizationInfo(weightScale));
     aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(
         arm_compute::QuantizationInfo(fqInputScale.empty() ? 1.0F : 1.0F / fqInputScale[0],
                                       fqInputShift.empty() ? 0 : fqInputShift[0]));
