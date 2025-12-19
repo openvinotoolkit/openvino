@@ -8,6 +8,7 @@
 
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/tensor.hpp"
 
