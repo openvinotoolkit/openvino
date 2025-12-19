@@ -156,9 +156,6 @@ protected:
         size_t current_expert_idx = 0;         // Current expert being processed
         std::map<size_t, ov::Tensor>
             expert_weights_cache;  // Cache for sliced expert weights [closure_idx -> sliced_weight]
-
-        // MoE expert outputs collection
-        std::map<size_t, std::vector<size_t>> token_to_experts;  // Token to experts mapping
     };
     std::vector<MoEIO> m_moe_io;
 
@@ -204,7 +201,11 @@ protected:
     virtual void init_gio();
     void unpack_closure(std::size_t idx, RqPtr request);
     void unpack_moe_expert_closure(std::size_t idx, RqPtr request, size_t expert_id);
+    void unpack_moe_batch_expert_closure(std::size_t idx, RqPtr request, const std::vector<size_t>& expert_ids);
     ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_id, size_t num_experts);
+    ov::Tensor slice_batch_expert_weights(const ov::Tensor& batched_weight,
+                                          const std::vector<size_t>& expert_ids,
+                                          size_t num_experts) const;
     std::vector<size_t> parse_selected_experts_from_router(const ov::SoPtr<ov::ITensor>& router_output,
                                                            size_t num_experts,
                                                            std::map<size_t, std::vector<size_t>>& token_to_experts);

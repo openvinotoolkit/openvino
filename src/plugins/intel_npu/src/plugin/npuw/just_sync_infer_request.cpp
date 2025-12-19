@@ -805,6 +805,9 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             // MoE case - register output for later processing
             std::cout << "function_prologue MoE output " << i << " -> " << idx << std::endl;
             m_moe_io[idx].outputs.at(i) = o_tensor;
+            // Set tensor immediately so that decoding infer request can output to it
+            // Prefill phase does not use MoE outputs
+            m_subrequests[real_idx]->set_tensor(oport, o_tensor);
         } else if (!is_spatial) {
             // Non-spatial case - set immediately
             m_subrequests[real_idx]->set_tensor(oport, o_tensor);
@@ -1309,10 +1312,18 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
     if (comp_model_desc.spatial) {
         unsafe_infer_spatial(real_idx, idx);
     } else if (comp_model_desc.moe_experts.has_value()) {
-        // MoE expert inference - loop over selected experts
+        // MoE expert inference
         std::cout << "Running MoE expert inference for Subgraph[" << idx << "]" << std::endl;
 
-        const auto num_experts = comp_model_desc.moe_experts->num_experts;
+        const auto& moe_experts = comp_model_desc.moe_experts.value();
+        const auto num_experts = moe_experts.num_experts;
+        const auto num_active_experts = moe_experts.num_active_experts;
+        const auto input_token_count = moe_experts.input_token_count;
+        const bool is_decoding = (input_token_count == 1);
+
+        std::cout << "MoE mode: " << (is_decoding ? "DECODING" : "PREFILL")
+                  << ", input_token_count=" << input_token_count << ", num_active_experts=" << num_active_experts
+                  << std::endl;
 
         // Step 1: Parse router output to get selected experts
         if (!m_moe_io[idx].router_output) {
@@ -1320,53 +1331,88 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
             OPENVINO_THROW("MoE: Router output is required but not available");
         }
 
-        auto selected_experts = parse_selected_experts_from_router(m_moe_io[idx].router_output,
-                                                                   num_experts,
-                                                                   m_moe_io[idx].token_to_experts);
+        // token_to_experts is a temporary mapping generated from router output each time
+        std::map<size_t, std::vector<size_t>> token_to_experts;
+        auto selected_experts =
+            parse_selected_experts_from_router(m_moe_io[idx].router_output, num_experts, token_to_experts);
 
         if (selected_experts.empty()) {
-            LOG_WARN("No experts selected by router, fallback to expert 0");
-            selected_experts.push_back(0);
+            // LOG_WARN("No experts selected by router, fallback to expert 0");
+            // selected_experts.push_back(0);
+            NPUW_ASSERT(false && "No experts selected by router");
         }
 
-        std::cout << "Will execute " << selected_experts.size() << " experts" << std::endl;
+        std::cout << "Total selected experts: " << selected_experts.size() << std::endl;
 
-        // Pre-allocate target tensor for relayouted output
-        // Determine dimensions from router or first execution
         const auto& oport = comp_model_desc.compiled_model->outputs()[0];  // Assume single output
-        if (!m_moe_relayouted_output) {
-            // Initial allocation - get shape from first expert or model metadata
-            // For now, we'll allocate after first expert execution
-        }
 
-        // Step 2: Loop over selected experts and execute each one with immediate relayout
-        for (size_t expert_id : selected_experts) {
-            std::cout << "  Executing MoE Expert " << expert_id << "/" << num_experts << std::endl;
+        if (is_decoding) {
+            // DECODING MODE: 1 token selects N experts (K active experts)
+            // The model is already transformed to handle K experts in one shot
+            // Unpack all K experts' weights at once and run inference once
+            std::cout << "[DECODING] Single token selects " << selected_experts.size() << " experts" << std::endl;
 
-            // Step 2.1: Unpack closure for this specific expert
-            unpack_moe_expert_closure(idx, r, expert_id);
+            // Validate: in decoding, one token should select exactly num_active_experts
+            if (selected_experts.size() != num_active_experts) {
+                NPUW_ASSERT(false && "Decoding stage: number of selected experts does not match num_active_experts");
+            }
 
-            // Step 2.2: Execute the single expert inference
+            // Unpack closures for all K selected experts at once
+            // This will slice and concatenate K experts' weights in the order specified by selected_experts
+            std::cout << "  [DECODING] Unpacking all " << num_active_experts << " experts' closures at once..."
+                      << std::endl;
+            unpack_moe_batch_expert_closure(idx, r, selected_experts);
+
+            // Execute inference ONCE for all K experts
+            std::cout << "  [DECODING] Executing inference for all " << num_active_experts << " experts at once..."
+                      << std::endl;
             r->infer();
 
-            // Step 2.3: Get expert output
+            // Get the output - it should already have shape [K, 1, num_tokens, embed_dim]
             auto expert_output_tensor = r->get_tensor(oport);
-
-            // Step 2.4: Use pre-allocated target tensor (allocated in initialization)
             auto shape = expert_output_tensor->get_shape();
-            size_t num_tokens = shape[2];  // [1, 1, num_tokens, embed_dim]
-            size_t embed_dim = shape[3];
+            std::cout << "  [DECODING] Output shape: " << shape << std::endl;
 
-            // Step 2.5: Immediately relayout this expert's output to target tensor
-            // expert_slot is calculated internally based on each token's expert selection order
-            relayout_single_expert_output(expert_id,
-                                          expert_output_tensor,
-                                          m_moe_relayouted_output,
-                                          m_moe_io[idx].token_to_experts,
-                                          num_tokens,
-                                          embed_dim);
+            // The output is already in the correct format for downstream
+            // Just copy it to the relayouted output tensor
+            if (m_moe_relayouted_output->get_shape() != shape) {
+                m_moe_relayouted_output->set_shape(shape);
+            }
+            expert_output_tensor->copy_to(m_moe_relayouted_output._ptr);
 
-            std::cout << "  Expert " << expert_id << " output relayouted" << std::endl;
+            std::cout << "  [DECODING] All " << num_active_experts << " experts processed in single inference"
+                      << std::endl;
+
+        } else {
+            // PREFILL MODE: N tokens, each token selects 1 expert
+            // Loop over experts, for each expert process all tokens that selected it
+            std::cout << "[PREFILL] Multiple tokens (" << input_token_count << ") selecting experts" << std::endl;
+
+            for (size_t expert_id : selected_experts) {
+                std::cout << "  [PREFILL] Executing Expert[" << expert_id << "] for multiple tokens" << std::endl;
+
+                // Unpack closure for this specific expert
+                unpack_moe_expert_closure(idx, r, expert_id);
+
+                // Execute the single expert inference
+                r->infer();
+
+                // Get expert output
+                auto expert_output_tensor = r->get_tensor(oport);
+                auto shape = expert_output_tensor->get_shape();
+                size_t num_tokens = shape[2];  // [1, 1, num_tokens, embed_dim]
+                size_t embed_dim = shape[3];
+
+                // In prefill mode, relayout based on token_to_experts mapping
+                relayout_single_expert_output(expert_id,
+                                              expert_output_tensor,
+                                              m_moe_relayouted_output,
+                                              token_to_experts,
+                                              num_tokens,
+                                              embed_dim);
+
+                std::cout << "  [PREFILL] Expert[" << expert_id << "] output relayouted" << std::endl;
+            }
         }
 
         std::cout << "MoE expert inference and relayout completed for Subgraph[" << idx << "]" << std::endl;

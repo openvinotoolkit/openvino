@@ -63,7 +63,7 @@ struct MoEDownstream {
 
 // Helper function to validate MoE expert model and extract necessary information
 std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shared_ptr<ov::Model>& model,
-                                                                  size_t active_experts_num_config = 4);
+                                                                 size_t active_experts_num_config = 4);
 
 // Expert transformation mode
 enum class ExpertMode {
@@ -199,6 +199,7 @@ struct MoEExperts {
     size_t num_experts = 0;
     size_t expert_hidden_dim = 0;
     size_t num_active_experts = 1;  // Number of active experts (1 for prefill, K for decoding)
+    size_t input_token_count = 0;   // Number of input tokens (1 for decoding, >1 for prefill)
     function::ExpertMode mode = function::ExpertMode::SINGLE_EXPERT;
     bool has_reduce_sum = false;  // Whether ReduceSum is included
 

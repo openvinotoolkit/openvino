@@ -27,7 +27,7 @@ namespace npuw {
 namespace function {
 
 std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shared_ptr<ov::Model>& model,
-                                                                  size_t active_experts_num_config) {
+                                                                 size_t active_experts_num_config) {
     LOG_DEBUG("Validating MoE expert model...");
     LOG_BLOCK();
 
@@ -585,8 +585,7 @@ std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model
     return model;
 }
 
-std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& model,
-                                            size_t active_experts_num_config) {
+std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& model, size_t active_experts_num_config) {
     LOG_DEBUG("Creating MoEExperts from model: " << model->get_friendly_name());
     LOG_BLOCK();
     std::cout << "Creating MoEExperts from model: " << model->get_friendly_name() << std::endl;
@@ -691,6 +690,7 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     num_experts = func_moe._num_experts;
     expert_hidden_dim = func_moe._expert_hidden_dim;
     num_active_experts = func_moe._num_active_experts;
+    input_token_count = func_moe._input_token_count;
     mode = func_moe._mode;
     has_reduce_sum = func_moe._has_reduce_sum;
     _model_to_compile = func_moe._single_expert_model;
