@@ -21,28 +21,27 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
 namespace op_util = ov::op::util;
-ov::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
+
+namespace ov::pass {
+
+HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
     MATCHER_SCOPE(HSwishFusionWithReluDiv);
     // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) / 6 with a HSwish op.
-    auto input = any_input();
-    auto add_constant = wrap_type<v0::Constant>();
+    auto input = pattern::any_input();
+    auto add_constant = pattern::wrap_type<v0::Constant>();
     auto add = std::make_shared<v1::Add>(input, add_constant);
     auto relu = std::make_shared<v0::Relu>(add);
-    auto min_constant = wrap_type<v0::Constant>();
+    auto min_constant = pattern::wrap_type<v0::Constant>();
     auto min = std::make_shared<v1::Minimum>(relu, min_constant);
     auto mul = std::make_shared<v1::Multiply>(input, min);
-    auto div_constant = wrap_type<v0::Constant>();
+    auto div_constant = pattern::wrap_type<v0::Constant>();
     auto div = std::make_shared<v1::Divide>(mul, div_constant);
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -77,24 +76,24 @@ ov::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(div, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
+HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
     MATCHER_SCOPE(HSwishFusionWithReluMul);
     // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) * const(1/6) with a HSwish op.
-    auto input = any_input();
-    auto add_constant = wrap_type<v0::Constant>();
+    auto input = pattern::any_input();
+    auto add_constant = pattern::wrap_type<v0::Constant>();
     auto add = std::make_shared<v1::Add>(input, add_constant);
     auto relu = std::make_shared<v0::Relu>(add);
-    auto min_constant = wrap_type<v0::Constant>();
+    auto min_constant = pattern::wrap_type<v0::Constant>();
     auto min = std::make_shared<v1::Minimum>(relu, min_constant);
     auto mul_first = std::make_shared<v1::Multiply>(input, min);
-    auto mul_constant = wrap_type<v0::Constant>();
+    auto mul_constant = pattern::wrap_type<v0::Constant>();
     auto mul_second = std::make_shared<v1::Multiply>(mul_first, mul_constant);
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -126,18 +125,18 @@ ov::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(mul_second, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(mul_second, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::HSwishFusionWithHSigmoid::HSwishFusionWithHSigmoid() {
+HSwishFusionWithHSigmoid::HSwishFusionWithHSigmoid() {
     MATCHER_SCOPE(HSwishFusionWithHSigmoid);
     // Replaces a sub-graph x * HSigmoid(x) with a HSwish op.
-    auto input = any_input();
-    auto hsigmoid_pattern = wrap_type<ov::op::v5::HSigmoid>({input}, ov::pass::pattern::consumers_count(1));
-    auto mul_pattern = wrap_type<v1::Multiply>({input, hsigmoid_pattern});
+    auto input = pattern::any_input();
+    auto hsigmoid_pattern = pattern::wrap_type<ov::op::v5::HSigmoid>({input}, pattern::consumers_count(1));
+    auto mul_pattern = pattern::wrap_type<v1::Multiply>({input, hsigmoid_pattern});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto hsigmoid = pattern_to_output.at(hsigmoid_pattern).get_node_shared_ptr();
         auto mul = pattern_to_output.at(mul_pattern).get_node_shared_ptr();
@@ -149,20 +148,20 @@ ov::pass::HSwishFusionWithHSigmoid::HSwishFusionWithHSigmoid() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(mul_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(mul_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
+HSwishFusionWithClamp::HSwishFusionWithClamp() {
     MATCHER_SCOPE(HSwishFusionWithClampMul);
     // Replaces a sub-graph (Clamp(x + 3, 0, 6) * x) with a HSwish * 6.
-    const auto input = any_input();
-    const auto add_constant = wrap_type<v0::Constant>();
-    const auto add = wrap_type<v1::Add>({input, add_constant});
-    const auto clamp = wrap_type<v0::Clamp>({add});
-    const auto mul = wrap_type<v1::Multiply>({clamp, input});
+    const auto input = pattern::any_input();
+    const auto add_constant = pattern::wrap_type<v0::Constant>();
+    const auto add = pattern::wrap_type<v1::Add>({input, add_constant});
+    const auto clamp = pattern::wrap_type<v0::Clamp>({add});
+    const auto mul = pattern::wrap_type<v1::Multiply>({clamp, input});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         const auto x_output = pattern_to_output.at(input);
         const auto add_const_value =
@@ -189,6 +188,8 @@ ov::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(mul, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

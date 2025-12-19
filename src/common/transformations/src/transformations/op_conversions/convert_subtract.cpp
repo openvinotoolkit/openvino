@@ -17,12 +17,13 @@
 
 using namespace ov;
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-static bool convert_subtract(const std::shared_ptr<Node>& node) {
+
+namespace ov::pass {
+
+namespace {
+bool convert_subtract(const std::shared_ptr<Node>& node) {
     auto sub = ov::as_type_ptr<v1::Subtract>(node);
     if (!sub) {
         return false;
@@ -55,29 +56,32 @@ static bool convert_subtract(const std::shared_ptr<Node>& node) {
 
     return true;
 }
+}  // namespace
 
-pass::ConvertSubtract::ConvertSubtract() {
+ConvertSubtract::ConvertSubtract() {
     MATCHER_SCOPE(ConvertSubtract);
-    auto sub = wrap_type<v1::Subtract>();
+    auto sub = pattern::wrap_type<v1::Subtract>();
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
         return convert_subtract(node);
     };
 
-    auto m = std::make_shared<Matcher>(sub, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(sub, matcher_name);
     this->register_matcher(m, callback);
 }
 
-pass::ConvertSubtractWithConstant::ConvertSubtractWithConstant() {
+ConvertSubtractWithConstant::ConvertSubtractWithConstant() {
     MATCHER_SCOPE(ConvertSubtractWithConstant);
-    auto sub = wrap_type<v1::Subtract>({ov::pass::pattern::any_input(), wrap_type<v0::Constant>()});
+    auto sub = pattern::wrap_type<v1::Subtract>({pattern::any_input(), pattern::wrap_type<v0::Constant>()});
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
         return convert_subtract(node);
     };
 
-    auto m = std::make_shared<Matcher>(sub, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(sub, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

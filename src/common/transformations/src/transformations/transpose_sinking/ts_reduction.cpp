@@ -18,15 +18,16 @@
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov;
+
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace op_util = ov::op::util;
+
+namespace ov::pass {
+
+
 namespace {
 
 bool get_keep_dims(const std::shared_ptr<Node>& main_node) {
@@ -95,15 +96,15 @@ TSReductionForward::TSReductionForward() {
 TSReductionBackward::TSReductionBackward() {
     MATCHER_SCOPE(TSReductionBackward);
 
-    auto reduce_label = wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
-        {ov::pass::pattern::any_input(), wrap_type<v0::Constant>()},
+    auto reduce_label = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
+        {pattern::any_input(), pattern::wrap_type<v0::Constant>()},
         CheckTransposeConsumers);
-    auto transpose_label = wrap_type<ov::op::v1::Transpose>({reduce_label, wrap_type<v0::Constant>()},
+    auto transpose_label = pattern::wrap_type<ov::op::v1::Transpose>({reduce_label, pattern::wrap_type<v0::Constant>()},
                                                             [](const Output<Node>& output) -> bool {
-                                                                return ov::pass::pattern::has_static_rank()(output);
+                                                                return pattern::has_static_rank()(output);
                                                             });
 
-    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
         auto transpose = pattern_to_output.at(transpose_label);
         auto main_node = pattern_to_output.at(reduce_label);
@@ -147,6 +148,8 @@ TSReductionBackward::TSReductionBackward() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

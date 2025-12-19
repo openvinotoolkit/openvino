@@ -11,12 +11,11 @@
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v3 = ov::op::v3;
 namespace op_util = ov::op::util;
+
+namespace ov::pass {
+
 namespace {
 
 bool can_eliminate_broadcast(const ov::Output<ov::Node>& eltwise,
@@ -75,14 +74,14 @@ bool can_eliminate_broadcast(const ov::Output<ov::Node>& eltwise,
 
 }  // namespace
 
-ov::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
+BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     MATCHER_SCOPE(BroadcastElementwiseFusion);
-    auto broadcast_input = any_input();
-    auto broadcast = wrap_type<v3::Broadcast>({broadcast_input, any_input()}, ov::pass::pattern::consumers_count(1));
-    auto eltwise_input = any_input();
-    auto eltwise = wrap_type<op_util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
+    auto broadcast_input = pattern::any_input();
+    auto broadcast = pattern::wrap_type<v3::Broadcast>({broadcast_input, pattern::any_input()}, pattern::consumers_count(1));
+    auto eltwise_input = pattern::any_input();
+    auto eltwise = pattern::wrap_type<op_util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_value = m.get_pattern_value_map();
 
         const auto& m_eltwise_input = pattern_value.at(eltwise_input);
@@ -101,6 +100,8 @@ ov::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
         return false;
     };
 
-    auto m = std::make_shared<Matcher>(eltwise, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(eltwise, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

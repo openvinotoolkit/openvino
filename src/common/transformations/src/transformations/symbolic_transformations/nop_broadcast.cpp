@@ -20,12 +20,11 @@ using namespace std;
 using namespace ov;
 using namespace ov::symbol::util;
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
+namespace ov::pass {
+
 namespace {
 shared_ptr<Node> broadcast_label(const OutputVector& inputs) {
-    return wrap_type<op::v1::Broadcast, op::v3::Broadcast>(inputs, [](Output<Node> output) {
+    return pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast>(inputs, [](Output<Node> output) {
         const auto& op = output.get_node_shared_ptr();
         auto data_rank = op->get_input_partial_shape(0).rank();
         auto new_shape_shape = op->get_input_partial_shape(1);
@@ -34,19 +33,19 @@ shared_ptr<Node> broadcast_label(const OutputVector& inputs) {
 }
 }  // namespace
 
-ov::pass::NopBroadcast::NopBroadcast() {
+NopBroadcast::NopBroadcast() {
     MATCHER_SCOPE(NopBroadcast);
-    auto data_label = any_input(ov::pass::pattern::has_static_rank());
+    auto data_label = pattern::any_input(pattern::has_static_rank());
 
-    auto shape_label = wrap_type<op::v0::ShapeOf, op::v3::ShapeOf>();
+    auto shape_label = pattern::wrap_type<op::v0::ShapeOf, op::v3::ShapeOf>();
     auto ones = INT_CONSTANT_WITH_PREDICATE(std::all_of(value.begin(), value.end(), cmp::Equal<int64_t>(1)));
-    auto maximum = wrap_type<op::v1::Maximum>({shape_label, ones});
+    auto maximum = pattern::wrap_type<op::v1::Maximum>({shape_label, ones});
 
-    auto broadcast_3_ins = broadcast_label({data_label, maximum, any_input()});
+    auto broadcast_3_ins = broadcast_label({data_label, maximum, pattern::any_input()});
     auto broadcast_2_ins = broadcast_label({data_label, maximum});
-    auto broadcast = make_shared<ov::pass::pattern::op::Or>(OutputVector{broadcast_2_ins, broadcast_3_ins});
+    auto broadcast = make_shared<pattern::op::Or>(OutputVector{broadcast_2_ins, broadcast_3_ins});
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& vm = m.get_pattern_value_map();
         auto data = vm.at(data_label);
         auto shape = vm.at(shape_label);
@@ -58,6 +57,8 @@ ov::pass::NopBroadcast::NopBroadcast() {
         return ov::replace_output_update_name(m.get_match_root(), data);
     };
 
-    auto m = std::make_shared<Matcher>(broadcast, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(broadcast, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

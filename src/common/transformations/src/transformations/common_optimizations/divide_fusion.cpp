@@ -16,21 +16,20 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-ov::pass::DivideFusion::DivideFusion() {
-    MATCHER_SCOPE(DivideFusion);
-    auto p_pow_input = any_input();
-    auto p_pow_const = wrap_type<v0::Constant>();
-    auto p_pow = wrap_type<v1::Power>({p_pow_input, p_pow_const});
-    auto p_mul_input = any_input();
-    auto p_mul = wrap_type<v1::Multiply>({p_mul_input, p_pow});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+namespace ov::pass {
+
+DivideFusion::DivideFusion() {
+    MATCHER_SCOPE(DivideFusion);
+    auto p_pow_input = pattern::any_input();
+    auto p_pow_const = pattern::wrap_type<v0::Constant>();
+    auto p_pow = pattern::wrap_type<v1::Power>({p_pow_input, p_pow_const});
+    auto p_mul_input = pattern::any_input();
+    auto p_mul = pattern::wrap_type<v1::Multiply>({p_mul_input, p_pow});
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         const auto& minuend_input = pattern_to_output.at(p_mul_input);
         const auto& subtrahend_input = pattern_to_output.at(p_pow_input);
@@ -50,6 +49,8 @@ ov::pass::DivideFusion::DivideFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(p_mul, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(p_mul, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

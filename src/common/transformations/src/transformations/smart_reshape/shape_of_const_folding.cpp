@@ -12,14 +12,14 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-ov::pass::ShapeOfConstFolding::ShapeOfConstFolding() {
-    MATCHER_SCOPE(ShapeOfConstFolding);
-    auto constant_label = wrap_type<ov::op::v0::Constant>();
-    auto shape_of_label = wrap_type<op::v0::ShapeOf, ov::op::v3::ShapeOf>({constant_label});
+namespace ov::pass {
 
-    matcher_pass_callback callback = [=](Matcher& m) -> bool {
+ShapeOfConstFolding::ShapeOfConstFolding() {
+    MATCHER_SCOPE(ShapeOfConstFolding);
+    auto constant_label = pattern::wrap_type<ov::op::v0::Constant>();
+    auto shape_of_label = pattern::wrap_type<op::v0::ShapeOf, ov::op::v3::ShapeOf>({constant_label});
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         auto node = m.get_match_root();
         if (auto constant = ov::util::get_constant_from_source(node)) {
             constant->set_friendly_name(node->get_friendly_name());
@@ -31,6 +31,8 @@ ov::pass::ShapeOfConstFolding::ShapeOfConstFolding() {
         return false;
     };
 
-    auto m = std::make_shared<Matcher>(shape_of_label, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(shape_of_label, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

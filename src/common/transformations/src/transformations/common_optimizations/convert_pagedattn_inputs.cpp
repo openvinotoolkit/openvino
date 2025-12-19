@@ -18,43 +18,42 @@
 
 using namespace ov::pass;
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
-ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func)
+
+namespace ov::pass {
+
+ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func)
     : m_config(config),
       m_update_shape_func(std::move(func)) {
     MATCHER_SCOPE(ConvertPagedAttnInputs);
 
-    auto Q = any_input(ov::pass::pattern::has_static_rank());
-    auto K = any_input(ov::pass::pattern::has_static_rank());
-    auto V = any_input(ov::pass::pattern::has_static_rank());
-    auto key_cache_0 = wrap_type<v0::Parameter>({});
-    auto value_cache_0 = wrap_type<v0::Parameter>({});
-    auto past_lens = any_input(ov::pass::pattern::has_static_rank());
-    auto subsequence_begins = any_input(ov::pass::pattern::has_static_rank());
-    auto block_indices = any_input(ov::pass::pattern::has_static_rank());
-    auto block_indices_begins = any_input(ov::pass::pattern::has_static_rank());
-    auto scale = any_input(ov::pass::pattern::has_static_rank());
-    auto sliding_window = any_input(ov::pass::pattern::has_static_rank());
-    auto alibi_slopes = any_input(ov::pass::pattern::has_static_rank());
-    auto max_context_len = any_input(ov::pass::pattern::has_static_rank());
-    auto score_aggregation_window = any_input(ov::pass::pattern::has_static_rank());
-    auto rotated_block_indices = any_input(ov::pass::pattern::has_static_rank());
-    auto rotation_deltas = any_input(ov::pass::pattern::has_static_rank());
-    auto rotation_trig_lut = any_input(ov::pass::pattern::has_static_rank());
-    auto xattention_threshold = any_input(ov::pass::pattern::has_static_rank());
-    auto xattention_block_size = any_input(ov::pass::pattern::has_static_rank());
-    auto xattention_stride = any_input(ov::pass::pattern::has_static_rank());
-    auto sinks = any_input(ov::pass::pattern::has_static_rank());
-    auto adaptive_rkv_start_size = any_input(ov::pass::pattern::has_static_rank());
-    auto adaptive_rkv_evictable_sizes = any_input(ov::pass::pattern::has_static_rank());
-    auto adaptive_rkv_diversity_block_set_indices = any_input(ov::pass::pattern::has_static_rank());
-    auto adaptive_rkv_diversity_block_set_indices_begins = any_input(ov::pass::pattern::has_static_rank());
+    auto Q = pattern::any_input(pattern::has_static_rank());
+    auto K = pattern::any_input(pattern::has_static_rank());
+    auto V = pattern::any_input(pattern::has_static_rank());
+    auto key_cache_0 = pattern::wrap_type<v0::Parameter>({});
+    auto value_cache_0 = pattern::wrap_type<v0::Parameter>({});
+    auto past_lens = pattern::any_input(pattern::has_static_rank());
+    auto subsequence_begins = pattern::any_input(pattern::has_static_rank());
+    auto block_indices = pattern::any_input(pattern::has_static_rank());
+    auto block_indices_begins = pattern::any_input(pattern::has_static_rank());
+    auto scale = pattern::any_input(pattern::has_static_rank());
+    auto sliding_window = pattern::any_input(pattern::has_static_rank());
+    auto alibi_slopes = pattern::any_input(pattern::has_static_rank());
+    auto max_context_len = pattern::any_input(pattern::has_static_rank());
+    auto score_aggregation_window = pattern::any_input(pattern::has_static_rank());
+    auto rotated_block_indices = pattern::any_input(pattern::has_static_rank());
+    auto rotation_deltas = pattern::any_input(pattern::has_static_rank());
+    auto rotation_trig_lut = pattern::any_input(pattern::has_static_rank());
+    auto xattention_threshold = pattern::any_input(pattern::has_static_rank());
+    auto xattention_block_size = pattern::any_input(pattern::has_static_rank());
+    auto xattention_stride = pattern::any_input(pattern::has_static_rank());
+    auto sinks = pattern::any_input(pattern::has_static_rank());
+    auto adaptive_rkv_start_size = pattern::any_input(pattern::has_static_rank());
+    auto adaptive_rkv_evictable_sizes = pattern::any_input(pattern::has_static_rank());
+    auto adaptive_rkv_diversity_block_set_indices = pattern::any_input(pattern::has_static_rank());
+    auto adaptive_rkv_diversity_block_set_indices_begins = pattern::any_input(pattern::has_static_rank());
 
-    auto result = wrap_type<ov::op::PagedAttentionExtension>({Q,
+    auto result = pattern::wrap_type<ov::op::PagedAttentionExtension>({Q,
                                                               K,
                                                               V,
                                                               key_cache_0,
@@ -79,7 +78,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                                                               adaptive_rkv_evictable_sizes,
                                                               adaptive_rkv_diversity_block_set_indices,
                                                               adaptive_rkv_diversity_block_set_indices_begins});
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto pa_op = m.get_match_root();
         auto key_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
         auto value_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(4));
@@ -152,14 +151,16 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
         return status;
     };
 
-    auto m = std::make_shared<Matcher>(result, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
 
-void ov::pass::ConvertPagedAttnInputs::setKVCacheConfig(const KVCacheConfig& config) {
+void ConvertPagedAttnInputs::setKVCacheConfig(const KVCacheConfig& config) {
     m_config = config;
 }
 
-const ov::pass::ConvertPagedAttnInputs::KVCacheConfig& ov::pass::ConvertPagedAttnInputs::getKVCacheConfig() const {
+const ConvertPagedAttnInputs::KVCacheConfig& ConvertPagedAttnInputs::getKVCacheConfig() const {
     return m_config;
 }
+
+}  // namespace ov::pass

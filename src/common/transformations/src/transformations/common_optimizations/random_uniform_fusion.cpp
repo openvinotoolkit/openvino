@@ -19,27 +19,26 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
-ov::pass::RandomUniformFusion::RandomUniformFusion() {
+
+namespace ov::pass {
+
+RandomUniformFusion::RandomUniformFusion() {
     MATCHER_SCOPE(RandomUniformFusion);
-    const auto data_pattern = any_input();
-    const auto ru_min_input_pattern = any_input();
-    const auto ru_max_input_pattern = any_input();
+    const auto data_pattern = pattern::any_input();
+    const auto ru_min_input_pattern = pattern::any_input();
+    const auto ru_max_input_pattern = pattern::any_input();
     const auto random_uniform_pattern =
-        wrap_type<v8::RandomUniform>({data_pattern, ru_min_input_pattern, ru_max_input_pattern},
-                                     ov::pass::pattern::consumers_count(1));
-    const auto const_pattern = wrap_type<v0::Constant>();
-    const auto optional_convert = ov::pass::pattern::optional<v0::Convert>(random_uniform_pattern);
+        pattern::wrap_type<v8::RandomUniform>({data_pattern, ru_min_input_pattern, ru_max_input_pattern},
+                                              pattern::consumers_count(1));
+    const auto const_pattern = pattern::wrap_type<v0::Constant>();
+    const auto optional_convert = pattern::optional<v0::Convert>(random_uniform_pattern);
 
-    const auto mul_add_pattern = wrap_type<v1::Multiply, v1::Add>({optional_convert, const_pattern});
+    const auto mul_add_pattern = pattern::wrap_type<v1::Multiply, v1::Add>({optional_convert, const_pattern});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto data = pattern_map.at(data_pattern);
         const auto random_uniform = pattern_map.at(random_uniform_pattern);
@@ -92,6 +91,8 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(mul_add_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(mul_add_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

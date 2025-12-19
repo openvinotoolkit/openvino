@@ -20,11 +20,12 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
+
+namespace ov::pass {
+
 namespace {
 std::vector<int64_t> reverse_permutation(const std::vector<int64_t>& perm) {
     if (perm.empty())
@@ -59,10 +60,10 @@ std::vector<int64_t> build_new_axes(size_t num_of_axes, size_t rank) {
 }
 }  // namespace
 
-ov::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
+WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
     MATCHER_SCOPE(WrapInterpolateIntoTransposes);
-    auto interpolate_pattern = ov::pass::pattern::wrap_type<v4::Interpolate>();
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    auto interpolate_pattern = pattern::wrap_type<v4::Interpolate>();
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto interpolate = ov::as_type_ptr<v4::Interpolate>(m.get_match_root());
         if (!interpolate || interpolate->get_input_partial_shape(0).rank().is_dynamic() ||
             interpolate->inputs().size() != 4)
@@ -110,6 +111,8 @@ ov::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(interpolate_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(interpolate_pattern, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

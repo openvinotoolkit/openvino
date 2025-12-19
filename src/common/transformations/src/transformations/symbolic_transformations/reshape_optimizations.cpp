@@ -15,19 +15,19 @@ using namespace std;
 using namespace ov;
 using namespace ov::symbol::util;
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
-ov::pass::ReshapeOptimizations::ReshapeOptimizations() {
-    MATCHER_SCOPE(ReshapeOptimizations);
-    auto data_label = any_input(ov::pass::pattern::has_static_rank());
-    auto pattern_label =
-        any_input(ov::pass::pattern::has_static_shape() && ov::pass::pattern::class_other_than<v0::Constant>());
-    auto reshape_label = ov::pass::pattern::wrap_type<op::v1::Reshape>({data_label, pattern_label},
-                                                                       ov::pass::pattern::has_static_rank());
 
-    ov::matcher_pass_callback matcher_pass_callback = [](Matcher& m) {
+namespace ov::pass {
+
+ReshapeOptimizations::ReshapeOptimizations() {
+    MATCHER_SCOPE(ReshapeOptimizations);
+    auto data_label = pattern::any_input(pattern::has_static_rank());
+    auto pattern_label =
+        pattern::any_input(pattern::has_static_shape() && pattern::class_other_than<v0::Constant>());
+    auto reshape_label = pattern::wrap_type<op::v1::Reshape>({data_label, pattern_label},
+                                                              pattern::has_static_rank());
+
+    ov::matcher_pass_callback matcher_pass_callback = [](pattern::Matcher& m) {
         const auto& reshape = ov::as_type_ptr<ov::op::v1::Reshape>(m.get_match_root());
         if (!reshape)
             return false;
@@ -62,6 +62,8 @@ ov::pass::ReshapeOptimizations::ReshapeOptimizations() {
         return false;
     };
 
-    auto m = std::make_shared<Matcher>(reshape_label, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(reshape_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

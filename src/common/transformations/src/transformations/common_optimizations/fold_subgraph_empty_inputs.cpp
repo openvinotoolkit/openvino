@@ -15,14 +15,15 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
 namespace op_util = ov::op::util;
-ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
+
+namespace ov::pass {
+
+FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
     MATCHER_SCOPE(FoldSubgraphEmptyInputs);
-    auto multi_subgraph_op_pattern = ov::pass::pattern::wrap_type<op_util::MultiSubGraphOp>();
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    auto multi_subgraph_op_pattern = pattern::wrap_type<op_util::MultiSubGraphOp>();
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto multi_subgraph_op = ov::as_type_ptr<op_util::MultiSubGraphOp>(m.get_match_root());
         if (multi_subgraph_op == nullptr) {
             return false;
@@ -67,19 +68,21 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
         }
         return false;
     };
-    auto m = std::make_shared<Matcher>(multi_subgraph_op_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(multi_subgraph_op_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
-void ov::pass::disable_fold_subgraph_empty_inputs(const std::shared_ptr<ov::Node>& node) {
+void disable_fold_subgraph_empty_inputs(const std::shared_ptr<ov::Node>& node) {
     node->get_rt_info().emplace(DisableFoldSubgraphEmptyInputs::get_type_info_static(),
                                 DisableFoldSubgraphEmptyInputs{});
 }
 
-void ov::pass::enable_fold_subgraph_empty_inputs(const std::shared_ptr<ov::Node>& node) {
+void enable_fold_subgraph_empty_inputs(const std::shared_ptr<ov::Node>& node) {
     node->get_rt_info().erase(DisableFoldSubgraphEmptyInputs::get_type_info_static());
 }
 
-bool ov::pass::fold_subgraph_empty_inputs_is_disabled(const std::shared_ptr<ov::Node>& node) {
+bool fold_subgraph_empty_inputs_is_disabled(const std::shared_ptr<ov::Node>& node) {
     return node->get_rt_info().count(DisableFoldSubgraphEmptyInputs::get_type_info_static());
 }
+
+}  // namespace ov::pass

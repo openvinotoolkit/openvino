@@ -24,14 +24,14 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace op_util = ov::op::util;
+
+namespace ov::pass {
+
 namespace {
+
 enum class ReduceType { NONE, MAX, MIN };
 
 ReduceType get_reduce_type(const std::shared_ptr<ov::Node>& reduce_node) {
@@ -43,16 +43,17 @@ ReduceType get_reduce_type(const std::shared_ptr<ov::Node>& reduce_node) {
         return ReduceType::NONE;
     }
 }
+
 }  // namespace
 
-ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
+PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
     MATCHER_SCOPE(PullSqueezeThroughEltwise);
-    auto eltwise_pattern = wrap_type<op_util::BinaryElementwiseArithmetic>();
+    auto eltwise_pattern = pattern::wrap_type<op_util::BinaryElementwiseArithmetic>();
 
-    auto squeeze_axes_pattern = wrap_type<v0::Constant>();
-    auto squeeze_pattern = wrap_type<v0::Squeeze>({eltwise_pattern, squeeze_axes_pattern});
+    auto squeeze_axes_pattern = pattern::wrap_type<v0::Constant>();
+    auto squeeze_pattern = pattern::wrap_type<v0::Squeeze>({eltwise_pattern, squeeze_axes_pattern});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
         const auto& eltwise = pattern_map.at(eltwise_pattern);
         const auto& squeeze = pattern_map.at(squeeze_pattern);
@@ -86,18 +87,18 @@ ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(squeeze_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(squeeze_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
-ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
+ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
     MATCHER_SCOPE(ReplaceConcatReduceByMinOrMax);
 
-    auto concat_pattern = wrap_type<v0::Concat>({any_input(), any_input()});
-    auto reduce_axes_pattern = wrap_type<v0::Constant>();
-    auto reduce_pattern = wrap_type<v1::ReduceMin, v1::ReduceMax>({concat_pattern, reduce_axes_pattern});
+    auto concat_pattern = pattern::wrap_type<v0::Concat>({pattern::any_input(), pattern::any_input()});
+    auto reduce_axes_pattern = pattern::wrap_type<v0::Constant>();
+    auto reduce_pattern = pattern::wrap_type<v1::ReduceMin, v1::ReduceMax>({concat_pattern, reduce_axes_pattern});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto concat = as_type_ptr<v0::Concat>(pattern_map.at(concat_pattern).get_node_shared_ptr());
@@ -137,12 +138,14 @@ ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(reduce_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(reduce_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::ConcatReduceFusion::ConcatReduceFusion() {
+ConcatReduceFusion::ConcatReduceFusion() {
     ADD_MATCHER_FOR_THIS(ReplaceConcatReduceByMinOrMax)
     ADD_MATCHER_FOR_THIS(PullSqueezeThroughEltwise)
     ADD_MATCHER_FOR_THIS(EliminateSqueeze)
 }
+
+}  // namespace ov::pass

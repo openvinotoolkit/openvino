@@ -19,28 +19,25 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::consumers_count;
-using ov::pass::pattern::has_static_shape;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
-    MATCHER_SCOPE(PullTransposeThroughFQUp);
-    const auto weights = wrap_type<v0::Constant>();
-    const auto convert_p = ov::pass::pattern::optional<v0::Convert>(weights, consumers_count(1));
-    auto m_fq = wrap_type<v0::FakeQuantize>({convert_p,
-                                             any_input(has_static_shape()),
-                                             any_input(has_static_shape()),
-                                             any_input(has_static_shape()),
-                                             any_input(has_static_shape())},
-                                            consumers_count(1));
-    auto m_transpose_perm = wrap_type<v0::Constant>();
-    auto m_transpose = wrap_type<v1::Transpose>({m_fq, m_transpose_perm});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+namespace ov::pass {
+
+PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
+    MATCHER_SCOPE(PullTransposeThroughFQUp);
+    const auto weights = pattern::wrap_type<v0::Constant>();
+    const auto convert_p = pattern::optional<v0::Convert>(weights, pattern::consumers_count(1));
+    auto m_fq = pattern::wrap_type<v0::FakeQuantize>({convert_p,
+                                                       pattern::any_input(pattern::has_static_shape()),
+                                                       pattern::any_input(pattern::has_static_shape()),
+                                                       pattern::any_input(pattern::has_static_shape()),
+                                                       pattern::any_input(pattern::has_static_shape())},
+                                                      pattern::consumers_count(1));
+    auto m_transpose_perm = pattern::wrap_type<v0::Constant>();
+    auto m_transpose = pattern::wrap_type<v1::Transpose>({m_fq, m_transpose_perm});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto transpose = pattern_map[m_transpose].get_node_shared_ptr();
         auto fq = pattern_map[m_fq].get_node_shared_ptr();
@@ -88,6 +85,8 @@ ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(m_transpose, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(m_transpose, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

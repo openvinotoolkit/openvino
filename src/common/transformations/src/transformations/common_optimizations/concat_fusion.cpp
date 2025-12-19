@@ -14,10 +14,11 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
-ov::pass::ConcatFusion::ConcatFusion() {
+
+namespace ov::pass {
+
+ConcatFusion::ConcatFusion() {
     MATCHER_SCOPE(ConcatFusion);
     auto has_same_axis_concat_input = [](const Output<Node>& output) {
         const auto& concat = ov::as_type_ptr<v0::Concat>(output.get_node_shared_ptr());
@@ -31,9 +32,9 @@ ov::pass::ConcatFusion::ConcatFusion() {
         }
         return is_aplicable;
     };
-    auto concat_pattern = ov::pass::pattern::wrap_type<v0::Concat>(has_same_axis_concat_input);
+    auto concat_pattern = pattern::wrap_type<v0::Concat>(has_same_axis_concat_input);
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
 
         const auto& concat = ov::as_type_ptr<v0::Concat>(pattern_map.at(concat_pattern));
@@ -57,6 +58,8 @@ ov::pass::ConcatFusion::ConcatFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(concat_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(concat_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

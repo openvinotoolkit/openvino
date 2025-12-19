@@ -15,18 +15,18 @@
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
 namespace op_util = ov::op::util;
-ov::pass::MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPrecision() {
-    MATCHER_SCOPE(MarkRopeInputsToKeepInMixedPrecision);
-    auto cos_tab = any_input();
-    auto sin_tab = any_input();
-    auto rope = ov::pass::pattern::wrap_type<ov::op::internal::RoPE>({any_input(), cos_tab, sin_tab});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+namespace ov::pass {
+
+MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPrecision() {
+    MATCHER_SCOPE(MarkRopeInputsToKeepInMixedPrecision);
+    auto cos_tab = pattern::any_input();
+    auto sin_tab = pattern::any_input();
+    auto rope = pattern::wrap_type<ov::op::internal::RoPE>({pattern::any_input(), cos_tab, sin_tab});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto cos_input_node = pattern_map.at(cos_tab).get_node();
         auto sin_input_node = pattern_map.at(sin_tab).get_node();
@@ -50,6 +50,8 @@ ov::pass::MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPreci
         return false;
     };
 
-    auto m = std::make_shared<Matcher>(rope, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(rope, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

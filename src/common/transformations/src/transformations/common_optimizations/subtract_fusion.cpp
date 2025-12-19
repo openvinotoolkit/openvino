@@ -18,27 +18,26 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-ov::pass::SubtractFusion::SubtractFusion() {
+
+namespace ov::pass {
+
+SubtractFusion::SubtractFusion() {
     MATCHER_SCOPE(SubtractFusion);
-    auto p_input = any_input();
+    auto p_input = pattern::any_input();
 
-    auto p_mul_const = wrap_type<v0::Constant>();
-    auto p_mul = wrap_type<v1::Multiply>({p_input, p_mul_const});
+    auto p_mul_const = pattern::wrap_type<v0::Constant>();
+    auto p_mul = pattern::wrap_type<v1::Multiply>({p_input, p_mul_const});
 
-    auto p_neg = wrap_type<v0::Negative>({p_input});
+    auto p_neg = pattern::wrap_type<v0::Negative>({p_input});
 
-    auto p_mul_or_neg = std::make_shared<ov::pass::pattern::op::Or>(OutputVector({p_mul, p_neg}));
+    auto p_mul_or_neg = std::make_shared<pattern::op::Or>(OutputVector({p_mul, p_neg}));
 
-    auto p_add_input = any_input();
-    auto p_add = wrap_type<v1::Add>({p_add_input, p_mul_or_neg});
+    auto p_add_input = pattern::any_input();
+    auto p_add = pattern::wrap_type<v1::Add>({p_add_input, p_mul_or_neg});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         const auto& minuend_input = pattern_to_output.at(p_add_input);
         const auto& subtrahend_input = pattern_to_output.at(p_input);
@@ -65,6 +64,8 @@ ov::pass::SubtractFusion::SubtractFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(p_add, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(p_add, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

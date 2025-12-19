@@ -25,24 +25,21 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using namespace ov;
-using namespace ov::pass;
-
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
 namespace op_util = ov::op::util;
+
+namespace ov::pass {
+
+namespace {
 template <typename T>
 std::shared_ptr<Node> create_pattern() {
-    auto input = any_input();
-    auto first_axis = any_input();
-    auto reduce = wrap_type<T>({input, first_axis});
-    auto second_axis = any_input();
-    return wrap_type<T>({reduce, second_axis});
+    auto input = pattern::any_input();
+    auto first_axis = pattern::any_input();
+    auto reduce = pattern::wrap_type<T>({input, first_axis});
+    auto second_axis = pattern::any_input();
+    return pattern::wrap_type<T>({reduce, second_axis});
 }
 
 template <typename T>
@@ -109,8 +106,9 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
     ov::replace_node(bottom_reduce, new_reduce);
     return true;
 }
+}  // namespace
 
-pass::ReduceMerge::ReduceMerge() {
+ReduceMerge::ReduceMerge() {
     MATCHER_SCOPE(ReduceMerge);
 
     auto reducel1_pattern = create_pattern<v4::ReduceL1>();
@@ -123,17 +121,17 @@ pass::ReduceMerge::ReduceMerge() {
     auto reduce_prod_pattern = create_pattern<v1::ReduceProd>();
     auto reduce_sum_pattern = create_pattern<v1::ReduceSum>();
 
-    auto pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reducel1_pattern,
-                                                                            reducel2_pattern,
-                                                                            reduce_log_and_pattern,
-                                                                            reduce_log_or_pattern,
-                                                                            reduce_max_pattern,
-                                                                            reduce_mean_pattern,
-                                                                            reduce_min_pattern,
-                                                                            reduce_prod_pattern,
-                                                                            reduce_sum_pattern});
+    auto pattern_node = std::make_shared<pattern::op::Or>(OutputVector{reducel1_pattern,
+                                                                       reducel2_pattern,
+                                                                       reduce_log_and_pattern,
+                                                                       reduce_log_or_pattern,
+                                                                       reduce_max_pattern,
+                                                                       reduce_mean_pattern,
+                                                                       reduce_min_pattern,
+                                                                       reduce_prod_pattern,
+                                                                       reduce_sum_pattern});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto node = m.get_match_root();
         if (ov::is_type<op_util::ArithmeticReductionKeepDims>(node)) {
             return fuse_reduce_operations<op_util::ArithmeticReductionKeepDims>(node);
@@ -143,6 +141,8 @@ pass::ReduceMerge::ReduceMerge() {
             return false;
         }
     };
-    auto m = std::make_shared<Matcher>(pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(pattern_node, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

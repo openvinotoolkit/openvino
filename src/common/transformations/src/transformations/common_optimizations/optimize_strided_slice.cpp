@@ -24,17 +24,14 @@
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov;
-
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
 namespace op_util = ov::op::util;
-bool ov::pass::UselessSliceEraser::run_on_model(const std::shared_ptr<ov::Model>& f) {
+
+namespace ov::pass {
+
+bool UselessSliceEraser::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(UselessSliceEraser);
     bool rewritten = false;
     for (auto& node : f->get_ordered_ops()) {
@@ -124,7 +121,7 @@ std::shared_ptr<Node> concat_boundaries(const Output<Node>& lhs, const Output<No
 
 }  // namespace
 
-bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(GroupedStridedSliceOptimizer);
     bool graph_rewritten = false;
     struct planned_slice {
@@ -309,7 +306,7 @@ bool slice_is_suitable_for_optimization(const std::shared_ptr<v8::Slice>& op, Sl
 
 }  // namespace
 
-bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
+bool GroupedSliceToVSplitOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(GroupedSliceToVSplitOptimization);
     bool graph_rewritten = false;
 
@@ -400,17 +397,17 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
     return graph_rewritten;
 }
 
-ov::pass::SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
+SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
     MATCHER_SCOPE(SliceSequenceToSingleSlice);
-    auto const_axes_1_pattern = wrap_type<v0::Constant>();
-    auto const_axes_2_pattern = wrap_type<v0::Constant>();
+    auto const_axes_1_pattern = pattern::wrap_type<v0::Constant>();
+    auto const_axes_2_pattern = pattern::wrap_type<v0::Constant>();
     auto slice_1_pattern =
-        wrap_type<v8::Slice>({any_input(), any_input(), any_input(), any_input(), const_axes_1_pattern},
-                             ov::pass::pattern::consumers_count(1));
+        pattern::wrap_type<v8::Slice>({pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input(), const_axes_1_pattern},
+                             pattern::consumers_count(1));
     auto slice_2_pattern =
-        wrap_type<v8::Slice>({slice_1_pattern, any_input(), any_input(), any_input(), const_axes_2_pattern});
+        pattern::wrap_type<v8::Slice>({slice_1_pattern, pattern::any_input(), pattern::any_input(), pattern::any_input(), const_axes_2_pattern});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
         auto slice_1 = pattern_to_output.at(slice_1_pattern);
         auto slice_2 = pattern_to_output.at(slice_2_pattern);
@@ -462,15 +459,15 @@ ov::pass::SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
         ov::replace_node(slice_2, one_slice);
         return true;
     };
-    auto m = std::make_shared<Matcher>(slice_2_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(slice_2_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::StridedSliceOptimization::StridedSliceOptimization(bool use_shapes) {
+StridedSliceOptimization::StridedSliceOptimization(bool use_shapes) {
     m_use_shapes = use_shapes;
 }
 
-bool ov::pass::StridedSliceOptimization::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool StridedSliceOptimization::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(StridedSliceOptimization);
     ov::pass::Manager manager("StridedSliceOptimization");
     manager.set_per_pass_validation(false);
@@ -484,3 +481,5 @@ bool ov::pass::StridedSliceOptimization::run_on_model(const std::shared_ptr<ov::
     manager.register_pass<SliceSequenceToSingleSlice>();
     return manager.run_passes(f);
 }
+
+}  // namespace ov::pass

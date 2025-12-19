@@ -10,24 +10,28 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
-using namespace ov;
+
 using namespace ov::pass::transpose_sinking;
 
-using ov::pass::pattern::Matcher;
+namespace ov::pass {
+
+
 TSResetNoSinkingAttribute::TSResetNoSinkingAttribute() {
     MATCHER_SCOPE(TSResetNoSinkingAttribute);
 
-    auto transpose_label = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>([](const Output<Node>& output) -> bool {
+    auto transpose_label = pattern::wrap_type<ov::op::v1::Transpose>([](const Output<Node>& output) -> bool {
         const auto& rt_info = output.get_node()->get_rt_info();
         return rt_info.find(NoTransposeSinkingAttr::get_type_info_static()) != rt_info.end();
     });
-    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
         const auto& transpose = pattern_to_output.at(transpose_label);
         ov::reset_no_sinking_attribute(transpose);
         return false;
     };
-    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

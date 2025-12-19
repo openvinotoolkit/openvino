@@ -16,32 +16,30 @@
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::type_matches;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::op::Or;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace op_util = ov::op::util;
-ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
+
+namespace ov::pass {
+
+WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     MATCHER_SCOPE(WeightsDequantizeToFakeQuantize);
 
-    const auto weights = wrap_type<v0::Constant>(type_matches(element::i8));
-    const auto convert = wrap_type<v0::Convert>({weights});
-    const auto sub_c_integer = wrap_type<v0::Constant>(type_matches(element::i8));
-    const auto convert_sub_c_integer = wrap_type<v0::Convert>({sub_c_integer});
-    const auto sub_integer = wrap_type<v1::Subtract>({convert, convert_sub_c_integer});
-    const auto sub_c = wrap_type<v0::Constant>();
-    const auto sub = wrap_type<v1::Subtract>({convert, sub_c});
-    const auto sub_or_sub_integer = std::make_shared<Or>(OutputVector{sub_integer, sub});
-    const auto sub_or_convert = std::make_shared<Or>(OutputVector{convert, sub_or_sub_integer});
+    const auto weights = pattern::wrap_type<v0::Constant>(pattern::type_matches(element::i8));
+    const auto convert = pattern::wrap_type<v0::Convert>({weights});
+    const auto sub_c_integer = pattern::wrap_type<v0::Constant>(pattern::type_matches(element::i8));
+    const auto convert_sub_c_integer = pattern::wrap_type<v0::Convert>({sub_c_integer});
+    const auto sub_integer = pattern::wrap_type<v1::Subtract>({convert, convert_sub_c_integer});
+    const auto sub_c = pattern::wrap_type<v0::Constant>();
+    const auto sub = pattern::wrap_type<v1::Subtract>({convert, sub_c});
+    const auto sub_or_sub_integer = std::make_shared<pattern::op::Or>(OutputVector{sub_integer, sub});
+    const auto sub_or_convert = std::make_shared<pattern::op::Or>(OutputVector{convert, sub_or_sub_integer});
 
-    const auto mul_c = wrap_type<v0::Constant>();
-    const auto mul = wrap_type<v1::Multiply>({sub_or_convert, mul_c});
+    const auto mul_c = pattern::wrap_type<v0::Constant>();
+    const auto mul = pattern::wrap_type<v1::Multiply>({sub_or_convert, mul_c});
 
-    ov::matcher_pass_callback callback;
-    callback = [=](Matcher& m) {
+    matcher_pass_callback callback;
+    callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
         const auto& weights_node = ov::as_type_ptr<v0::Constant>(pattern_map.at(weights));
         const auto& convert_node = pattern_map.at(convert);
@@ -92,6 +90,8 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(mul, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

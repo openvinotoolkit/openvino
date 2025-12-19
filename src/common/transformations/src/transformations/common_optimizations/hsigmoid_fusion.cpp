@@ -21,27 +21,26 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v5 = ov::op::v5;
 namespace op_util = ov::op::util;
-ov::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
+
+namespace ov::pass {
+
+HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
     MATCHER_SCOPE(HSigmoidFusionWithReluDiv);
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) / 6 with a HSigmoid op.
-    auto input = any_input();
-    auto add_constant = wrap_type<v0::Constant>();
-    auto add = wrap_type<v1::Add>({input, add_constant});
-    auto relu = wrap_type<v0::Relu>({add});
-    auto min_constant = wrap_type<v0::Constant>();
-    auto min = wrap_type<v1::Minimum>({relu, min_constant});
-    auto div_constant = wrap_type<v0::Constant>();
-    auto div = wrap_type<v1::Divide>({min, div_constant});
+    auto input = pattern::any_input();
+    auto add_constant = pattern::wrap_type<v0::Constant>();
+    auto add = pattern::wrap_type<v1::Add>({input, add_constant});
+    auto relu = pattern::wrap_type<v0::Relu>({add});
+    auto min_constant = pattern::wrap_type<v0::Constant>();
+    auto min = pattern::wrap_type<v1::Minimum>({relu, min_constant});
+    auto div_constant = pattern::wrap_type<v0::Constant>();
+    auto div = pattern::wrap_type<v1::Divide>({min, div_constant});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -72,23 +71,23 @@ ov::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(div, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
+HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
     MATCHER_SCOPE(HSigmoidFusionWithReluMul);
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) * const(1/6) with a HSigmoid op.
-    auto input = any_input();
-    auto add_constant = wrap_type<v0::Constant>();
-    auto add = wrap_type<v1::Add>({input, add_constant});
-    auto relu = wrap_type<v0::Relu>({add});
-    auto min_constant = wrap_type<v0::Constant>();
-    auto min = wrap_type<v1::Minimum>({relu, min_constant});
-    auto mul_constant = wrap_type<v0::Constant>();
-    auto mul_second = wrap_type<v1::Multiply>({min, mul_constant});
+    auto input = pattern::any_input();
+    auto add_constant = pattern::wrap_type<v0::Constant>();
+    auto add = pattern::wrap_type<v1::Add>({input, add_constant});
+    auto relu = pattern::wrap_type<v0::Relu>({add});
+    auto min_constant = pattern::wrap_type<v0::Constant>();
+    auto min = pattern::wrap_type<v1::Minimum>({relu, min_constant});
+    auto mul_constant = pattern::wrap_type<v0::Constant>();
+    auto mul_second = pattern::wrap_type<v1::Multiply>({min, mul_constant});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -116,25 +115,25 @@ ov::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(mul_second, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(mul_second, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
+HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
     MATCHER_SCOPE(HSigmoidFusionWithoutRelu);
     // Replaces a sub-graph (min(max(x + 3, 0), 6) / 6) with a HSigmoid op.
-    auto input = any_input();
-    auto add_constant = wrap_type<v0::Constant>();
-    auto add = wrap_type<v1::Add>({input, add_constant});
-    auto max_constant = wrap_type<v0::Constant>();
-    auto max = wrap_type<v1::Maximum>({add, max_constant});
-    auto min_constant = wrap_type<v0::Constant>();
-    auto min = wrap_type<v1::Minimum>({max, min_constant});
-    auto div_constant = wrap_type<v0::Constant>();
-    auto div = wrap_type<v1::Divide>({min, div_constant});
-    auto mul = wrap_type<v1::Multiply>({input, div});
+    auto input = pattern::any_input();
+    auto add_constant = pattern::wrap_type<v0::Constant>();
+    auto add = pattern::wrap_type<v1::Add>({input, add_constant});
+    auto max_constant = pattern::wrap_type<v0::Constant>();
+    auto max = pattern::wrap_type<v1::Maximum>({add, max_constant});
+    auto min_constant = pattern::wrap_type<v0::Constant>();
+    auto min = pattern::wrap_type<v1::Minimum>({max, min_constant});
+    auto div_constant = pattern::wrap_type<v0::Constant>();
+    auto div = pattern::wrap_type<v1::Divide>({min, div_constant});
+    auto mul = pattern::wrap_type<v1::Multiply>({input, div});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -164,21 +163,21 @@ ov::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(div, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
+HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
     MATCHER_SCOPE(HSigmoidFusionWithClampMul);
     // Replaces a sub-graph (Clamp(x + 3, 0, 6) * const(1/6)) with a HSigmoid op.
-    auto input = any_input();
-    auto add_constant = wrap_type<v0::Constant>();
-    auto add = wrap_type<v1::Add>({input, add_constant});
-    auto clamp = wrap_type<v0::Clamp>({add});
-    auto mul_constant = wrap_type<v0::Constant>();
-    auto mul_first = wrap_type<v1::Multiply>({clamp, mul_constant});
+    auto input = pattern::any_input();
+    auto add_constant = pattern::wrap_type<v0::Constant>();
+    auto add = pattern::wrap_type<v1::Add>({input, add_constant});
+    auto clamp = pattern::wrap_type<v0::Clamp>({add});
+    auto mul_constant = pattern::wrap_type<v0::Constant>();
+    auto mul_first = pattern::wrap_type<v1::Multiply>({clamp, mul_constant});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -207,21 +206,21 @@ ov::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(mul_first, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(mul_first, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
+HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
     MATCHER_SCOPE(HSigmoidFusionWithClampDiv);
     // Replaces a sub-graph (Clamp(x + 3, 0, 6) / 6) with a HSigmoid op.
-    auto input = any_input();
-    auto add_constant = wrap_type<v0::Constant>();
-    auto add = wrap_type<v1::Add>({input, add_constant});
-    auto clamp = wrap_type<v0::Clamp>({add});
-    auto div_constant = wrap_type<v0::Constant>();
-    auto div = wrap_type<v1::Divide>({clamp, div_constant});
+    auto input = pattern::any_input();
+    auto add_constant = pattern::wrap_type<v0::Constant>();
+    auto add = pattern::wrap_type<v1::Add>({input, add_constant});
+    auto clamp = pattern::wrap_type<v0::Clamp>({add});
+    auto div_constant = pattern::wrap_type<v0::Constant>();
+    auto div = pattern::wrap_type<v1::Divide>({clamp, div_constant});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -250,6 +249,8 @@ ov::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(div, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

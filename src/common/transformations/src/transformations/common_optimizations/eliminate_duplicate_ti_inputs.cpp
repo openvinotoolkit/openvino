@@ -13,14 +13,15 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
 namespace op_util = ov::op::util;
-ov::pass::EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
+
+namespace ov::pass {
+
+EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
     MATCHER_SCOPE(EliminateDuplicateTIInputs);
-    auto ti = ov::pass::pattern::wrap_type<v0::TensorIterator>();
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    auto ti = pattern::wrap_type<v0::TensorIterator>();
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto ti = ov::as_type_ptr<v0::TensorIterator>(m.get_match_root());
         if (ti == nullptr) {
             return false;
@@ -116,6 +117,8 @@ ov::pass::EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
         new_ti->set_friendly_name(ti->get_friendly_name());
         return true;
     };
-    auto m = std::make_shared<Matcher>(ti, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(ti, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

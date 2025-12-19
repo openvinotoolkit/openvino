@@ -32,15 +32,14 @@
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v6 = ov::op::v6;
 namespace v12 = ov::op::v12;
+
+namespace ov::pass {
+
 namespace {
 const auto is_scalar_node = [](const ov::Output<ov::Node>& output) -> bool {
     const auto shape = output.get_partial_shape();
@@ -54,20 +53,16 @@ const auto is_non_const_node = [](const ov::Output<ov::Node>& output) -> bool {
 };
 }  // namespace
 
-using namespace ov::pass::activations_scaling;
-using ov::pass::pattern::op::Or;
-
-ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_factor,
-                                                                          ov::element::Type scaled_prec) {
+activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_factor, ov::element::Type scaled_prec) {
     MATCHER_SCOPE(ScaleDownSingleLayer);
 
-    auto activation_m = any_input();
-    auto weights_m = any_input();
-    auto convolution_m = wrap_type<v1::Convolution>({activation_m, weights_m});
-    auto matmul_m = wrap_type<v0::MatMul>({activation_m, weights_m});
-    auto scaled_op_m = std::make_shared<Or>(OutputVector{convolution_m, matmul_m});
+    auto activation_m = pattern::any_input();
+    auto weights_m = pattern::any_input();
+    auto convolution_m = pattern::wrap_type<v1::Convolution>({activation_m, weights_m});
+    auto matmul_m = pattern::wrap_type<v0::MatMul>({activation_m, weights_m});
+    auto scaled_op_m = std::make_shared<pattern::op::Or>(OutputVector{convolution_m, matmul_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         OPENVINO_ASSERT(pattern_map.count(convolution_m) || pattern_map.count(matmul_m),
@@ -110,7 +105,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         auto child_node = scaled_op->get_output_target_inputs(0).begin()->get_node();
         if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<v0::Convert>(child_node) &&
             ov::fp16_compression_is_disabled(child_node->shared_from_this()) &&
-            ov::pass::constant_folding_is_disabled(child_node->shared_from_this())) {
+            constant_folding_is_disabled(child_node->shared_from_this())) {
             return false;
         }
 
@@ -179,24 +174,24 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(scaled_op_m, "ScaleDownSingleLayer");
+    auto m = std::make_shared<pattern::Matcher>(scaled_op_m, "ScaleDownSingleLayer");
     this->register_matcher(m, callback);
 }
 
-ov::pass::activations_scaling::EliminateScalarMul::EliminateScalarMul() {
+activations_scaling::EliminateScalarMul::EliminateScalarMul() {
     MATCHER_SCOPE(EliminateScalarMul);
 
-    auto activation_m = any_input(is_non_const_node);
-    auto convert_m = ov::pass::pattern::optional<v0::Convert>(activation_m);
-    auto scale_const_m = wrap_type<v0::Constant>(is_scalar_node);
-    auto mul_m = wrap_type<v1::Multiply>({convert_m, scale_const_m});
-    auto mvn_m = wrap_type<v6::MVN>({mul_m, any_input()});
-    auto rms_m = wrap_type<ov::op::internal::RMS>({mul_m, any_input()});
-    auto group_norm_m = wrap_type<v12::GroupNormalization>({mul_m, any_input(), any_input()});
-    auto shape_of_m = wrap_type<v3::ShapeOf>({mul_m});
-    auto norm_m = std::make_shared<Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
+    auto activation_m = pattern::any_input(is_non_const_node);
+    auto convert_m = pattern::optional<v0::Convert>(activation_m);
+    auto scale_const_m = pattern::wrap_type<v0::Constant>(is_scalar_node);
+    auto mul_m = pattern::wrap_type<v1::Multiply>({convert_m, scale_const_m});
+    auto mvn_m = pattern::wrap_type<v6::MVN>({mul_m, pattern::any_input()});
+    auto rms_m = pattern::wrap_type<ov::op::internal::RMS>({mul_m, pattern::any_input()});
+    auto group_norm_m = pattern::wrap_type<v12::GroupNormalization>({mul_m, pattern::any_input(), pattern::any_input()});
+    auto shape_of_m = pattern::wrap_type<v3::ShapeOf>({mul_m});
+    auto norm_m = std::make_shared<pattern::op::Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -239,20 +234,21 @@ ov::pass::activations_scaling::EliminateScalarMul::EliminateScalarMul() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(norm_m, "EliminateScalarMul");
+    auto m = std::make_shared<pattern::Matcher>(norm_m, "EliminateScalarMul");
     this->register_matcher(m, callback);
 }
 
-ov::pass::activations_scaling::MulShareTransformation::MulShareTransformation() {
+activations_scaling::MulShareTransformation::MulShareTransformation() {
     MATCHER_SCOPE(MulShareTransformation);
 
-    auto mvn_m = wrap_type<v6::MVN>({any_input(), any_input()});
-    auto rms_m = wrap_type<ov::op::internal::RMS>({any_input(), any_input()});
-    auto group_norm_m = wrap_type<v12::GroupNormalization>({any_input(), any_input(), any_input()});
-    auto shape_of_m = wrap_type<v3::ShapeOf>({any_input()});
-    auto norm_m = std::make_shared<Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
+    auto mvn_m = pattern::wrap_type<v6::MVN>({pattern::any_input(), pattern::any_input()});
+    auto rms_m = pattern::wrap_type<ov::op::internal::RMS>({pattern::any_input(), pattern::any_input()});
+    auto group_norm_m =
+        pattern::wrap_type<v12::GroupNormalization>({pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto shape_of_m = pattern::wrap_type<v3::ShapeOf>({pattern::any_input()});
+    auto norm_m = std::make_shared<pattern::op::Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -313,20 +309,20 @@ ov::pass::activations_scaling::MulShareTransformation::MulShareTransformation() 
         return false;
     };
 
-    auto m = std::make_shared<Matcher>(norm_m, "ScalarMulShareTransformation");
+    auto m = std::make_shared<pattern::Matcher>(norm_m, "ScalarMulShareTransformation");
     this->register_matcher(m, callback);
 }
 
-ov::pass::activations_scaling::MoveDownScalarMul::MoveDownScalarMul() {
+activations_scaling::MoveDownScalarMul::MoveDownScalarMul() {
     MATCHER_SCOPE(MoveDownScalarMul);
 
-    auto activation_b_m = any_input(is_non_const_node);
-    auto mul_const_m = wrap_type<v0::Constant>(is_scalar_node);
-    auto mul_b_m = wrap_type<v1::Multiply>({activation_b_m, mul_const_m});
-    auto activation_a_m = any_input(is_non_const_node);
-    auto mul_a_m = wrap_type<v1::Multiply>({activation_a_m, mul_b_m});
+    auto activation_b_m = pattern::any_input(is_non_const_node);
+    auto mul_const_m = pattern::wrap_type<v0::Constant>(is_scalar_node);
+    auto mul_b_m = pattern::wrap_type<v1::Multiply>({activation_b_m, mul_const_m});
+    auto activation_a_m = pattern::any_input(is_non_const_node);
+    auto mul_a_m = pattern::wrap_type<v1::Multiply>({activation_a_m, mul_b_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -358,6 +354,8 @@ ov::pass::activations_scaling::MoveDownScalarMul::MoveDownScalarMul() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(mul_a_m, "MoveDownScalarMul");
+    auto m = std::make_shared<pattern::Matcher>(mul_a_m, "MoveDownScalarMul");
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

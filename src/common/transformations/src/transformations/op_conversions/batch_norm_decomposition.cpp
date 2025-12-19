@@ -27,23 +27,22 @@
 
 using namespace ov;
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v5 = ov::op::v5;
-ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
-    MATCHER_SCOPE(BatchNormDecomposition);
-    auto bn_1 = wrap_type<v0::BatchNormInference>(
-        {any_input(), any_input(), any_input(ov::pass::pattern::has_static_rank()), any_input(), any_input()});
-    auto bn_5 = wrap_type<v5::BatchNormInference>(
-        {any_input(ov::pass::pattern::has_static_rank()), any_input(), any_input(), any_input(), any_input()});
-    auto bn = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{bn_1, bn_5});
 
-    matcher_pass_callback callback = [this](Matcher& m) {
+namespace ov::pass {
+
+BatchNormDecomposition::BatchNormDecomposition() {
+    MATCHER_SCOPE(BatchNormDecomposition);
+    auto bn_1 = pattern::wrap_type<v0::BatchNormInference>(
+        {pattern::any_input(), pattern::any_input(), pattern::any_input(pattern::has_static_rank()), pattern::any_input(), pattern::any_input()});
+    auto bn_5 = pattern::wrap_type<v5::BatchNormInference>(
+        {pattern::any_input(pattern::has_static_rank()), pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto bn = std::make_shared<pattern::op::Or>(OutputVector{bn_1, bn_5});
+
+    matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto m_bn = m.get_match_root();
         Output<Node> m_input, m_gamma, m_beta, m_mean, m_var;
         double eps;
@@ -125,6 +124,8 @@ ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
 
         return true;
     };
-    auto m = std::make_shared<Matcher>(bn, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(bn, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

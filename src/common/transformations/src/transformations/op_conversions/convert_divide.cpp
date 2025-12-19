@@ -20,12 +20,11 @@
 #include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+
 namespace {
+
 bool convert_divide(std::shared_ptr<ov::Node> node) {
     auto div = ov::as_type_ptr<v1::Divide>(node);
     // We can not apply this transformation in case with integer input data type
@@ -60,28 +59,33 @@ bool convert_divide(std::shared_ptr<ov::Node> node) {
     }
     return true;
 }
+
 }  // namespace
 
-ov::pass::ConvertDivide::ConvertDivide() {
+namespace ov::pass {
+
+ConvertDivide::ConvertDivide() {
     MATCHER_SCOPE(ConvertDivide);
-    auto div = wrap_type<v1::Divide>();
+    auto div = pattern::wrap_type<v1::Divide>();
 
-    matcher_pass_callback callback = [](Matcher& m) {
+    matcher_pass_callback callback = [](pattern::Matcher& m) {
         return convert_divide(m.get_match_root());
     };
 
-    auto m = std::make_shared<Matcher>(div, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(div, matcher_name);
     this->register_matcher(m, callback);
 }
 
-ov::pass::ConvertDivideWithConstant::ConvertDivideWithConstant() {
+ConvertDivideWithConstant::ConvertDivideWithConstant() {
     MATCHER_SCOPE(ConvertDivideWithConstant);
-    auto div = wrap_type<v1::Divide>({ov::pass::pattern::any_input(), wrap_type<v0::Constant>()});
+    auto div = pattern::wrap_type<v1::Divide>({pattern::any_input(), pattern::wrap_type<v0::Constant>()});
 
-    matcher_pass_callback callback = [](Matcher& m) {
+    matcher_pass_callback callback = [](pattern::Matcher& m) {
         return convert_divide(m.get_match_root());
     };
 
-    auto m = std::make_shared<Matcher>(div, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(div, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

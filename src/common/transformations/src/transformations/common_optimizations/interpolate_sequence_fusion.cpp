@@ -25,13 +25,14 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
+
+namespace ov::pass {
+
 namespace {
 using namespace ov;
 
@@ -90,7 +91,7 @@ bool can_be_fused(const std::shared_ptr<v4::Interpolate>& fst, const std::shared
 
 ov::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<v4::Interpolate>& fst,
                                                    const std::shared_ptr<v4::Interpolate>& snd,
-                                                   pass::MatcherPass* matcherPass) {
+                                                   MatcherPass* matcherPass) {
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
     const auto fst_sizes_node = ov::as_type_ptr<v0::Constant>(fst->input_value(1).get_node_shared_ptr());
@@ -147,7 +148,7 @@ ov::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<v4::Int
 
 ov::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<v4::Interpolate>& fst,
                                                     const std::shared_ptr<v4::Interpolate>& snd,
-                                                    pass::MatcherPass* matcherPass) {
+                                                    MatcherPass* matcherPass) {
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
     const auto fst_scales_node = ov::as_type_ptr<v0::Constant>(fst->input_value(2).get_node_shared_ptr());
@@ -209,10 +210,10 @@ ov::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<v4::In
 }
 }  // namespace
 
-ov::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
+InterpolateSequenceFusion::InterpolateSequenceFusion() {
     MATCHER_SCOPE(InterpolateSequenceFusion);
-    auto interpolate_pattern = ov::pass::pattern::wrap_type<v4::Interpolate>();
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    auto interpolate_pattern = pattern::wrap_type<v4::Interpolate>();
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto snd_interpolate = ov::as_type_ptr<v4::Interpolate>(m.get_match_root());
         if (!snd_interpolate)
             return false;
@@ -241,6 +242,8 @@ ov::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(interpolate_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(interpolate_pattern, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

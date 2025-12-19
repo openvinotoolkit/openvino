@@ -33,8 +33,7 @@ using ov::pass::pattern::wrap_type;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v9 = ov::op::v9;
-namespace ov {
-namespace pass {
+namespace ov::pass {
 
 namespace {
 
@@ -165,5 +164,4 @@ EyeDecomposition::EyeDecomposition() {
     register_matcher(m, callback);
 }
 
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass

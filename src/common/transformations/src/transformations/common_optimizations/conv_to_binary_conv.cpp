@@ -21,12 +21,13 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+
+namespace ov::pass {
+
+namespace {
+
 static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) {
     std::vector<uint8_t> out;
     size_t bits_per_byte = 8;
@@ -42,14 +43,16 @@ static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) 
     return out;
 }
 
-ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
-    MATCHER_SCOPE(ConvToBinaryConv);
-    auto fq_pattern = wrap_type<v0::FakeQuantize>(
-        {any_input(), any_input(), any_input(), wrap_type<v0::Constant>(), wrap_type<v0::Constant>()},
-        ov::pass::pattern::consumers_count(1));
-    auto conv_pattern = wrap_type<v1::Convolution>({fq_pattern, wrap_type<v0::Constant>()});
+}  // namespace
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+ConvToBinaryConv::ConvToBinaryConv() {
+    MATCHER_SCOPE(ConvToBinaryConv);
+    auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>(
+        {pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::wrap_type<v0::Constant>(), pattern::wrap_type<v0::Constant>()},
+        ov::pass::pattern::consumers_count(1));
+    auto conv_pattern = pattern::wrap_type<v1::Convolution>({fq_pattern, pattern::wrap_type<v0::Constant>()});
+
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto conv = ov::as_type_ptr<v1::Convolution>(m.get_match_root());
         if (!conv)
             return false;
@@ -147,6 +150,8 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(conv_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

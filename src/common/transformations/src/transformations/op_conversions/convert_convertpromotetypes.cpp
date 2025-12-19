@@ -11,19 +11,20 @@
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
 namespace v14 = ov::op::v14;
-ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
+
+namespace ov::pass {
+
+ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
     MATCHER_SCOPE(ConvertConvertPromoteTypes);
 
     auto has_static_defined_type = [](const Output<Node>& output) -> bool {
-        return !ov::pass::pattern::type_matches_any({element::dynamic})(output);
+        return !pattern::type_matches_any({element::dynamic})(output);
     };
-    auto convert_promote_types = ov::pass::pattern::wrap_type<v14::ConvertPromoteTypes>(has_static_defined_type);
+    auto convert_promote_types = pattern::wrap_type<v14::ConvertPromoteTypes>(has_static_defined_type);
 
-    matcher_pass_callback callback = [](Matcher& m) {
+    matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto convert_promote_types = ov::as_type_ptr<v14::ConvertPromoteTypes>(m.get_match_root());
         if (!convert_promote_types) {
             return false;
@@ -42,6 +43,8 @@ ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(convert_promote_types, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(convert_promote_types, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

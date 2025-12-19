@@ -18,24 +18,23 @@
 #include "ov_ops/fully_connected_quantized_legacy.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
-ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
+
+namespace ov::pass {
+
+ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
     std::vector<element::Type> activation_types{ov::element::u8, ov::element::i8};
     std::vector<element::Type> weights_types{ov::element::i8};
 
-    auto activations_m = any_input(ov::pass::pattern::type_matches_any(activation_types));
-    auto weights_m = any_input();
-    auto bias_m = any_input();
+    auto activations_m = pattern::any_input(pattern::type_matches_any(activation_types));
+    auto weights_m = pattern::any_input();
+    auto bias_m = pattern::any_input();
 
-    auto fully_connected_m = wrap_type<ov::op::internal::FullyConnected>({activations_m, weights_m, bias_m});
-    auto dequantization_scales_m = wrap_type<v0::Constant>();
-    auto multiply_m = wrap_type<ov::op::v1::Multiply>({fully_connected_m, dequantization_scales_m});
+    auto fully_connected_m = pattern::wrap_type<ov::op::internal::FullyConnected>({activations_m, weights_m, bias_m});
+    auto dequantization_scales_m = pattern::wrap_type<v0::Constant>();
+    auto multiply_m = pattern::wrap_type<ov::op::v1::Multiply>({fully_connected_m, dequantization_scales_m});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto fc_output = pattern_map.at(fully_connected_m);
@@ -77,6 +76,8 @@ ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(multiply_m, "ConvertFullyConnectedToFullyConnectedQuantized");
+    auto m = std::make_shared<pattern::Matcher>(multiply_m, "ConvertFullyConnectedToFullyConnectedQuantized");
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

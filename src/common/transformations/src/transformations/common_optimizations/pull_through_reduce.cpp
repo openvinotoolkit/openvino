@@ -22,13 +22,11 @@
 #include "sequence_generator.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::consumers_count;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace op_util = ov::op::util;
+
+namespace ov::pass {
+
 namespace {
 // Adjust axes of Unsqueeze/Reduce ops after Unsqueeze pulling
 // For example if we have:
@@ -114,17 +112,17 @@ bool have_same_axes(const std::vector<int64_t>& unsqueeze_axes, const std::vecto
 }
 }  // namespace
 
-ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
+PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
     MATCHER_SCOPE(PullUnsqueezeThroughReduce);
 
-    const auto input = any_input(ov::pass::pattern::has_static_rank());
-    const auto unsqueeze_axes = wrap_type<v0::Constant>();
-    const auto unsqueeze = wrap_type<v0::Unsqueeze>({input, unsqueeze_axes}, consumers_count(1));
-    const auto reduce_axes = wrap_type<v0::Constant>();
+    const auto input = pattern::any_input(pattern::has_static_rank());
+    const auto unsqueeze_axes = pattern::wrap_type<v0::Constant>();
+    const auto unsqueeze = pattern::wrap_type<v0::Unsqueeze>({input, unsqueeze_axes}, pattern::consumers_count(1));
+    const auto reduce_axes = pattern::wrap_type<v0::Constant>();
     const auto reduce =
-        wrap_type<op_util::ArithmeticReductionKeepDims, op_util::LogicalReductionKeepDims>({unsqueeze, reduce_axes});
+        pattern::wrap_type<op_util::ArithmeticReductionKeepDims, op_util::LogicalReductionKeepDims>({unsqueeze, reduce_axes});
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         const auto input_node = pattern_map.at(input);
         const auto reduce_node = ov::as_type_ptr<op_util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
@@ -179,21 +177,21 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(reduce, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(reduce, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
+PullReshapeThroughReduce::PullReshapeThroughReduce() {
     MATCHER_SCOPE(PullReshapeThroughReduce);
 
-    const auto input = any_input(ov::pass::pattern::has_static_shape());
-    const auto reshape_target_shape = wrap_type<v0::Constant>();
-    const auto reshape = wrap_type<ov::op::v1::Reshape>({input, reshape_target_shape}, consumers_count(1));
-    const auto reduce_axes = wrap_type<v0::Constant>();
+    const auto input = pattern::any_input(pattern::has_static_shape());
+    const auto reshape_target_shape = pattern::wrap_type<v0::Constant>();
+    const auto reshape = pattern::wrap_type<ov::op::v1::Reshape>({input, reshape_target_shape}, pattern::consumers_count(1));
+    const auto reduce_axes = pattern::wrap_type<v0::Constant>();
     const auto reduce =
-        wrap_type<op_util::ArithmeticReductionKeepDims, op_util::LogicalReductionKeepDims>({reshape, reduce_axes});
+        pattern::wrap_type<op_util::ArithmeticReductionKeepDims, op_util::LogicalReductionKeepDims>({reshape, reduce_axes});
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         const auto input_node = pattern_map.at(input);
         const auto reduce_node = ov::as_type_ptr<op_util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
@@ -243,6 +241,8 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(reduce, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(reduce, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

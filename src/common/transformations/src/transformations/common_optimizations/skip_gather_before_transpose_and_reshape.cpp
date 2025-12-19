@@ -17,27 +17,27 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-ov::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndReshape() {
+
+namespace ov::pass {
+
+SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndReshape() {
     MATCHER_SCOPE(SkipGatherBeforeTransposeAndReshape);
 
-    auto input_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_dim(0));
+    auto input_m = pattern::any_input(pattern::has_static_dim(0));
 
-    auto indices_m = wrap_type<v0::Constant>();
-    auto axis_m = wrap_type<v0::Constant>();
-    auto gather_m = wrap_type<ov::op::util::GatherBase>({input_m, indices_m, axis_m});
+    auto indices_m = pattern::wrap_type<v0::Constant>();
+    auto axis_m = pattern::wrap_type<v0::Constant>();
+    auto gather_m = pattern::wrap_type<ov::op::util::GatherBase>({input_m, indices_m, axis_m});
 
-    auto transpose_const_m = wrap_type<v0::Constant>();
-    auto transpose_m = wrap_type<v1::Transpose>({gather_m, transpose_const_m});
+    auto transpose_const_m = pattern::wrap_type<v0::Constant>();
+    auto transpose_m = pattern::wrap_type<v1::Transpose>({gather_m, transpose_const_m});
 
-    auto reshape_const_m = wrap_type<v0::Constant>();
-    auto reshape_m = wrap_type<v1::Reshape>({transpose_m, reshape_const_m});
+    auto reshape_const_m = pattern::wrap_type<v0::Constant>();
+    auto reshape_m = pattern::wrap_type<v1::Reshape>({transpose_m, reshape_const_m});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& input = pattern_map.at(input_m);
         if (input.get_partial_shape()[0] != 1) {
@@ -92,6 +92,8 @@ ov::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndResha
         return false;
     };
 
-    auto m = std::make_shared<Matcher>(reshape_m, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(reshape_m, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

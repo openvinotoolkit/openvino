@@ -12,15 +12,16 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-
 namespace v15 = ov::op::v15;
-ov::pass::ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3::ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3() {
+
+namespace ov::pass {
+
+ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3::ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3() {
     MATCHER_SCOPE(ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3);
 
-    const auto emb_v15_pattern = ov::pass::pattern::wrap_type<v15::EmbeddingBagPacked>();
+    const auto emb_v15_pattern = pattern::wrap_type<v15::EmbeddingBagPacked>();
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto emb_v15 = ov::as_type_ptr<v15::EmbeddingBagPacked>(m.get_match_root());
         if (!emb_v15 || transformation_callback(emb_v15) ||
             emb_v15->get_reduction() != v15::EmbeddingBagPacked::Reduction::SUM) {
@@ -44,6 +45,8 @@ ov::pass::ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3::ConvertEmbeddingB
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(emb_v15_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(emb_v15_pattern, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

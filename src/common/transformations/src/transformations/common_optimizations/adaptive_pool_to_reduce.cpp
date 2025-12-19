@@ -17,19 +17,19 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
-ov::pass::AdaptivePoolToReduce::AdaptivePoolToReduce() {
-    MATCHER_SCOPE(AdaptivePoolToReduce);
-    auto data_pattern = ov::pass::pattern::any_input();
-    auto out_spatial_shape = wrap_type<v0::Constant>();
-    auto a_pool = wrap_type<v8::AdaptiveAvgPool, v8::AdaptiveMaxPool>({data_pattern, out_spatial_shape});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+namespace ov::pass {
+
+AdaptivePoolToReduce::AdaptivePoolToReduce() {
+    MATCHER_SCOPE(AdaptivePoolToReduce);
+    auto data_pattern = pattern::any_input();
+    auto out_spatial_shape = pattern::wrap_type<v0::Constant>();
+    auto a_pool = pattern::wrap_type<v8::AdaptiveAvgPool, v8::AdaptiveMaxPool>({data_pattern, out_spatial_shape});
+
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
 
         const auto& spatial_shape_c = ov::as_type_ptr<v0::Constant>(pattern_map.at(out_spatial_shape));
@@ -62,6 +62,8 @@ ov::pass::AdaptivePoolToReduce::AdaptivePoolToReduce() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(a_pool, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(a_pool, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

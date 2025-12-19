@@ -16,15 +16,16 @@
 #include "openvino/op/tile.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-ov::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
-    MATCHER_SCOPE(ConvertBroadcastToTiles);
-    auto broadcast = ov::pass::pattern::wrap_type<v1::Broadcast>();
 
-    matcher_pass_callback callback = [this](Matcher& m) {
+namespace ov::pass {
+
+ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
+    MATCHER_SCOPE(ConvertBroadcastToTiles);
+    auto broadcast = pattern::wrap_type<v1::Broadcast>();
+
+    matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto broadcast = ov::as_type_ptr<v1::Broadcast>(m.get_match_root());
 
         if (!broadcast) {
@@ -105,6 +106,8 @@ ov::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(broadcast, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(broadcast, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

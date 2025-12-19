@@ -33,9 +33,8 @@
 using namespace ov::pass;
 using namespace ov::symbol::util;
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
+namespace ov::pass {
+
 namespace {
 void symbolic_set_up_for_shape(ov::PartialShape& shape) {
     if (shape.rank().is_dynamic())
@@ -95,7 +94,7 @@ void special_case_range_symbol_propagation(const std::shared_ptr<ov::Node>& node
 }
 }  // namespace
 
-bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model>& m) {
+bool SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(SymbolicPropagation);
 
     for (const auto& op : m->get_ordered_ops()) {
@@ -120,19 +119,19 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
     return true;
 }
 
-ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
+LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
     MATCHER_SCOPE(LabelResolvingThroughSelect);
-    auto add = wrap_type<op::util::BinaryElementwiseArithmetic>();
-    auto input_reshape = wrap_type<op::v1::Reshape>({add, any_input()});
+    auto add = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>();
+    auto input_reshape = pattern::wrap_type<op::v1::Reshape>({add, pattern::any_input()});
 
-    auto select_then = wrap_type<op::v1::Select>({any_input(), input_reshape, any_input()});
-    auto select_else = wrap_type<op::v1::Select>({any_input(), any_input(), input_reshape});
-    auto select = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{select_then, select_else});
+    auto select_then = pattern::wrap_type<op::v1::Select>({pattern::any_input(), input_reshape, pattern::any_input()});
+    auto select_else = pattern::wrap_type<op::v1::Select>({pattern::any_input(), pattern::any_input(), input_reshape});
+    auto select = std::make_shared<pattern::op::Or>(OutputVector{select_then, select_else});
 
-    auto softmax = wrap_type<op::v1::Softmax>({select});
-    auto reshape = wrap_type<op::v1::Reshape>({softmax, any_input()});
+    auto softmax = pattern::wrap_type<op::v1::Softmax>({select});
+    auto reshape = pattern::wrap_type<op::v1::Reshape>({softmax, pattern::any_input()});
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& value_map = m.get_pattern_value_map();
         ov::TensorSymbol reshape_symbols, add_0_symbols, add_1_symbols;
         if (!get_symbols(value_map.at(reshape).get_partial_shape(), reshape_symbols))
@@ -170,12 +169,12 @@ ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(reshape, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(reshape, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
-ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run,
-                                                       std::shared_ptr<ov::pass::PassConfig> pass_config) {
+SymbolicOptimizations::SymbolicOptimizations(bool full_run,
+                                             std::shared_ptr<PassConfig> pass_config) {
     if (pass_config)
         m_manager = std::make_shared<pass::Manager>(*pass_config, "Symbolic");
     else
@@ -206,7 +205,7 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run,
     }
 }
 
-bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
+bool SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
 
     // Eliminate Squeeze/Unsqueeze might convert Squeeze/Unsqueeze ops to Reshape
@@ -222,3 +221,5 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     ov::remove_skip_invalidation_rti(m);
     return true;
 }
+
+}  // namespace ov::pass

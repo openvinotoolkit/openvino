@@ -25,8 +25,7 @@ namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
 namespace v7 = ov::op::v7;
 namespace op_util = ov::op::util;
-namespace ov {
-namespace pass {
+namespace ov::pass {
 
 GLUFusion::GLUFusion() {
     using ov::pass::pattern::op::Or;
@@ -131,5 +130,4 @@ GLUFusion::GLUFusion() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass

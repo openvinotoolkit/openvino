@@ -26,13 +26,12 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::has_static_shape;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
+
+namespace ov::pass {
+
 namespace {
 using namespace ov;
 
@@ -153,7 +152,7 @@ std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<v
 }
 }  // namespace
 
-ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
+NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     MATCHER_SCOPE(NearestNeighborUpsamplingFusion);
     // This transformation looks for Interpolate layer implemented using simple operations, namely ShapeOf,
     // StridedSlice, Concat, Reshape, Mul, and replaces found pattern with a sequence of Shape, StridedSlice, Const,
@@ -180,53 +179,28 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     //      |      |               |                                           |               |
     //      |      |               |                                           |               |
     //      |      |               |      |-------------|   |------------|     |               |      |-------------|
-    //      |--------------| |      |               |      |             |   | Constant   |     |               |      |
-    //      |   | Constant     | |      |               |      |            0|<--| value: H   |     |               | |
-    //      0|<--| value: new_H | |      |               |      |             |   |------------|     |               |
-    //      |             |   |--------------| |      |               |      |             |                      | | |
-    //      | |      |               |      | Unsqueeze   |   |------------|     |               |      | Unsqueeze   |
-    //      |------------| |      |               |      |             |   | Constant   |     |               |      |
-    //      |   | Constant   | |      |              1|<-----|            1|<--| value: 0   |     | 1|<-----| 1|<--|
-    //      value: 0   | |      |               |      |-------------|   |------------|     |               |
-    //      |-------------|   |------------| |      |               |                                           | | | |
-    //      |      |-------------|   |------------|     |               |      |-------------|   |--------------| | | |
-    //      |             |   | Constant   |     |               |      |             |   | Constant     | |      | | |
-    //      0|<--| value: 1   |     |               |      |            0|<--| value: new_W | |      |               |
-    //      |             |   |------------|     |               |      |             |   |--------------| |      | | |
-    //      |                      |               |      |             | |      |               |      | Unsqueeze   |
-    //      |------------|     |               |      | Unsqueeze   |   |------------| |      |               |      |
-    //      |   | Constant   |     |               |      |             |   | Constant   | |      | 2|<-----| 1|<--|
-    //      value: 0   |     |              2|<-----|            1|<--| value: 0   | |      |               |
-    //      |-------------|   |------------|     |               |      |-------------|   |------------| |      | | | |
-    //      |      |               |      |-------------|   |------------|     |               |      |-------------|
-    //      |------------| |      |               |      |             |   | Constant   |     |               |      |
-    //      |   | Constant   | |      |               |      |            0|<--| value: W   |     |               | |
-    //      0|<--| value: C   | |      |               |      |             |   |------------|     |               | |
-    //      |   |------------| |      |               |      |             |                      |               | | |
-    //      |      |               |      | Unsqueeze   |   |------------|     |               |      | Unsqueeze   |
-    //      |------------| |      |               |      |             |   | Constant   |     |               |      |
-    //      |   | Constant   | |      |              3|<-----|            1|<--| value: 0   |     | 3|<-----| 1|<--|
-    //      value: 0   | |      |               |      |-------------|   |------------|     |------|--------|
-    //      |-------------|   |------------| |      |               |                                                  |
-    //      |      |               |      |-------------|   |------------|            |
-    //      |      |               |      |             |   | Constant   |            |
-    //      |      |               |      |            0|<--| value: 1   |            |
-    //      |      |               |      |             |   |------------|            |
-    //      |      |               |      |             |                             |
-    //      |      |               |      | Unsqueeze   |   |------------|            |
-    //      |      |               |      |             |   | Constant   |            |
-    //      |      |              4|<-----|            1|<--| value: 0   |            |
-    //      |      |               |      |-------------|   |------------|            |
-    //      |      |               |                                                  |
-    //      |      |               |      |-------------|   |------------|            |
-    //      |      |               |      |             |   | Constant   |            |
-    //      |      |               |      |            0|<--| value: C   |            |
-    //      |      |               |      |             |   |------------|            |
-    //      |      |               |      |             |                             |
-    //      |      |               |      | Unsqueeze   |   |------------|            |
-    //      |      |               |      |             |   | Constant   |            |
-    //      |      |              5|<-----|            1|<--| value: 0   |            |
-    //      |      |------|--------|      |-------------|   |------------|            |
+    //      |      |               |      |             |   | Constant   |     |               |      |             |
+    //      |      |              1|<-----|            0|<--| value: H   |     |              1|<-----|            0|<--| Constant   |
+    //      |      |               |      | Unsqueeze   |   |------------|     |               |      | Unsqueeze   |   | value: new_H |
+    //      |      |               |      |             |                      |               |      |             |   |--------------|
+    //      |      |               |      |            1|<-----|            1|<--| Constant   |     |               |      |            1|<-----|            1|<--| Constant   |
+    //      |      |               |      |-------------|   | value: 0   |     |               |      |-------------|   | value: 0   |
+    //      |      |               |      |-------------|   |------------|     |               |      |-------------|   |------------|
+    //      |      |               |      |             |   | Constant   |     |               |      |             |   | Constant     |
+    //      |      |              2|<-----|            0|<--| value: 1   |     |              2|<-----|            0|<--| value: new_W |
+    //      |      |               |      |             |   |------------|     |               |      |             |   |--------------|
+    //      |      |               |      |             |                      |               |      | Unsqueeze   |   |------------|
+    //      |      |               |      | Unsqueeze   |   |------------|     |               |      |             |   | Constant   |
+    //      |      |              3|<-----|            1|<--| value: 0   |     |              3|<-----|            1|<--| value: 0   |
+    //      |      |               |      |-------------|   |------------|     |------|--------|      |-------------|   |------------|
+    //      |      |               |      |-------------|   |------------|            |               |-------------|   |------------|
+    //      |      |               |      |             |   | Constant   |            |               |             |   | Constant   |
+    //      |      |              4|<-----|            0|<--| value: W   |            |               |            0|<--| value: C   |
+    //      |      |               |      |             |   |------------|            |               |             |   |------------|
+    //      |      |               |      |             |                             |               |             |
+    //      |      |               |      | Unsqueeze   |   |------------|            |               | Unsqueeze   |   |------------|
+    //      |      |              5|<-----|            1|<--| value: 0   |            |               |            1|<--| value: 0   |
+    //      |      |------|--------|      |-------------|   |------------|            |               |-------------|   |------------|
     //      |             |                                                           |
     //      |             |                                                           |
     //      |             |------------|                                              |
@@ -281,15 +255,15 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     //      4) 'axes' input as a constant with the value [1, 2, ..., r - 2].
     //
     // Of course, the replacement shouldn't be done, if all S_i are equal to 1.
-    auto input = ov::pass::pattern::any_input(has_static_shape());
-    auto concat_1 = wrap_type<v0::Concat>();
-    auto concat_2 = wrap_type<v0::Concat>();
-    auto reshape_1 = wrap_type<v1::Reshape>({input, concat_1});
-    auto mul_const = wrap_type<v0::Constant>(has_static_shape());
-    auto mul = wrap_type<v1::Multiply>({reshape_1, mul_const});
-    auto reshape_2 = wrap_type<v1::Reshape>({mul, concat_2});
+    auto input = pattern::any_input(pattern::has_static_shape());
+    auto concat_1 = pattern::wrap_type<v0::Concat>();
+    auto concat_2 = pattern::wrap_type<v0::Concat>();
+    auto reshape_1 = pattern::wrap_type<v1::Reshape>({input, concat_1});
+    auto mul_const = pattern::wrap_type<v0::Constant>(pattern::has_static_shape());
+    auto mul = pattern::wrap_type<v1::Multiply>({reshape_1, mul_const});
+    auto reshape_2 = pattern::wrap_type<v1::Reshape>({mul, concat_2});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto reshape_2_node = ov::as_type_ptr<v1::Reshape>(pattern_to_output.at(reshape_2).get_node_shared_ptr());
@@ -386,6 +360,8 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(reshape_2, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(reshape_2, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

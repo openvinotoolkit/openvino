@@ -15,14 +15,16 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 
-using namespace ov;
+
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
-using ov::pass::pattern::Matcher;
+namespace ov::pass {
+
+
 void TSForwardBase::transpose_sinking(const std::string& pass_name,
                                       const TSForwardBase::sinking_function& sinking_transformation) {
-    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto main_node = pattern_to_output.at(m_pattern).get_node_shared_ptr();
         utils::TransposeInputsInfo transpose_input_info =
@@ -50,7 +52,7 @@ void TSForwardBase::transpose_sinking(const std::string& pass_name,
         return res;
     };
 
-    auto m = std::make_shared<Matcher>(m_pattern, pass_name);
+    auto m = std::make_shared<pattern::Matcher>(m_pattern, pass_name);
     register_matcher(m, matcher_pass_callback);
 }
 
@@ -77,3 +79,5 @@ bool TSForwardBase::if_node_has_transpose_inputs(
         utils::GetFirstTransposeInput(output.get_node_shared_ptr(), transpose_indices, if_transpose_sinkable);
     return !inputs_info.isEmpty();
 }
+
+}  // namespace ov::pass

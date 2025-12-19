@@ -19,20 +19,20 @@ using namespace std;
 using namespace ov;
 using namespace ov::element;
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
+
+namespace ov::pass {
+
+SelectWithOneValueCondition::SelectWithOneValueCondition() {
     MATCHER_SCOPE(SelectWithOneValueCondition);
 
-    auto condition = ov::pass::pattern::wrap_type<v0::Constant>();
-    auto then_branch = any_input();
-    auto else_branch = any_input();
+    auto condition = pattern::wrap_type<v0::Constant>();
+    auto then_branch = pattern::any_input();
+    auto else_branch = pattern::any_input();
     auto select_pattern = make_shared<v1::Select>(condition, then_branch, else_branch);
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         pass::NodeRegistry copy_from;
         pass::NodeRegistry copy_to;
         auto& pattern_map = m.get_pattern_value_map();
@@ -97,6 +97,8 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
         return true;
     };
 
-    auto m = make_shared<Matcher>(select_pattern, matcher_name);
+    auto m = make_shared<pattern::Matcher>(select_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

@@ -56,15 +56,11 @@
 
 using namespace std;
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
-namespace ov {
-namespace pass {
+
+namespace ov::pass {
 
 namespace {
 
@@ -93,26 +89,26 @@ void erase_fq_path(const std::shared_ptr<Node>& node) {
 }
 
 // Marking continues to propagate through these ops.
-const std::shared_ptr<Node> propagate_through_ops = wrap_type<v0::Squeeze,
-                                                              v0::Unsqueeze,
-                                                              v1::Reshape,
-                                                              op::util::BroadcastBase,
-                                                              op::util::BinaryElementwiseArithmetic,
-                                                              op::util::UnaryElementwiseArithmetic,
-                                                              ov::op::v6::MVN,
-                                                              v0::MVN,
-                                                              v0::NormalizeL2,
-                                                              v0::Sqrt,
-                                                              v1::StridedSlice,
-                                                              v1::ReduceSum,
-                                                              v1::ReduceMean,
-                                                              v8::Slice,
-                                                              v1::VariadicSplit,
-                                                              v1::Split,
-                                                              v0::Concat,
-                                                              v0::Convert,  // through Convert can go only to Constants
-                                                              v0::Constant,
-                                                              v0::Tile>();
+const std::shared_ptr<Node> propagate_through_ops = pattern::wrap_type<v0::Squeeze,
+                                                                        v0::Unsqueeze,
+                                                                        v1::Reshape,
+                                                                        op::util::BroadcastBase,
+                                                                        op::util::BinaryElementwiseArithmetic,
+                                                                        op::util::UnaryElementwiseArithmetic,
+                                                                        ov::op::v6::MVN,
+                                                                        v0::MVN,
+                                                                        v0::NormalizeL2,
+                                                                        v0::Sqrt,
+                                                                        v1::StridedSlice,
+                                                                        v1::ReduceSum,
+                                                                        v1::ReduceMean,
+                                                                        v8::Slice,
+                                                                        v1::VariadicSplit,
+                                                                        v1::Split,
+                                                                        v0::Concat,
+                                                                        v0::Convert,  // through Convert can go only to Constants
+                                                                        v0::Constant,
+                                                                        v0::Tile>();
 
 }  // namespace
 
@@ -121,13 +117,13 @@ const std::shared_ptr<Node> propagate_through_ops = wrap_type<v0::Squeeze,
  * during PropagateDownMark we need also mark its other inputs and this is done in this PropagateUpMark pass.
  * Propagation stops when we face ops not listed in propagate_through_ops: e.g. if we face Conv or MatMul.
  */
-class PropagateUpMarkToKeepInMixedPrecision : public pass::MatcherPass {
+class PropagateUpMarkToKeepInMixedPrecision : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PropagateUpMarkToKeepInMixedPrecision");
     PropagateUpMarkToKeepInMixedPrecision() {
         MATCHER_SCOPE(PropagateUpMarkToKeepInMixedPrecision);
 
-        matcher_pass_callback callback = [=](Matcher& m) {
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             bool has_marked_output = false;
             for (const auto& output : node->outputs()) {
@@ -155,7 +151,7 @@ public:
             return true;
         };
 
-        auto m = make_shared<Matcher>(propagate_through_ops, matcher_name);
+        auto m = make_shared<pattern::Matcher>(propagate_through_ops, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -164,13 +160,13 @@ public:
  * ops like Slice, ReduceSum, Reshape, Elementwise, et al. to be kept in f32 as well.
  * Propagation stops when ops not listed in propagate_through_ops are faced: e.g. if we face Conv or MatMul.
  */
-class PropagateDownMarkToKeepInMixedPrecision : public pass::MatcherPass {
+class PropagateDownMarkToKeepInMixedPrecision : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PropagateDownMarkToKeepInMixedPrecision");
     PropagateDownMarkToKeepInMixedPrecision() {
         MATCHER_SCOPE(PropagateDownMarkToKeepInMixedPrecision);
 
-        matcher_pass_callback callback = [=](Matcher& m) {
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             if (!node)
                 return false;
@@ -197,38 +193,38 @@ public:
             }
             return is_changed;
         };
-        auto m = make_shared<Matcher>(propagate_through_ops, matcher_name);
+        auto m = make_shared<pattern::Matcher>(propagate_through_ops, matcher_name);
         register_matcher(m, callback);
     }
 };
 
-class InitMarkReduceOpPath : public pass::MatcherPass {
+class InitMarkReduceOpPath : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("InitMarkReduceOpPath");
     InitMarkReduceOpPath() {
         MATCHER_SCOPE(InitMarkReduceOpPath);
 
-        auto reduce_ops = wrap_type<v1::ReduceSum, v1::ReduceMean>();
+        auto reduce_ops = pattern::wrap_type<v1::ReduceSum, v1::ReduceMean>();
 
-        matcher_pass_callback callback = [=](Matcher& m) {
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             if (!node)
                 return false;
             mark_reduceop_path(node);
             return true;
         };
-        auto m = make_shared<Matcher>(reduce_ops, matcher_name);
+        auto m = make_shared<pattern::Matcher>(reduce_ops, matcher_name);
         register_matcher(m, callback);
     }
 };
 
-class PropagateMarkUpReduceOpPath : public pass::MatcherPass {
+class PropagateMarkUpReduceOpPath : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PropagateMarkUpReduceOpPath");
     PropagateMarkUpReduceOpPath() {
         MATCHER_SCOPE(PropagateMarkUpReduceOpPath);
 
-        matcher_pass_callback callback = [=](Matcher& m) {
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             if (!node)
                 return false;
@@ -244,20 +240,20 @@ public:
             }
             return false;
         };
-        auto m = make_shared<Matcher>(propagate_through_ops, matcher_name);
+        auto m = make_shared<pattern::Matcher>(propagate_through_ops, matcher_name);
         register_matcher(m, callback);
     }
 };
 
-class MarkExp : public pass::MatcherPass {
+class MarkExp : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MarkExp");
     // only exponent that go into ReduceOp should be marked as precision sensitive and kept in f32
     MarkExp() {
         MATCHER_SCOPE(MarkExp);
-        auto exp_pattern = wrap_type<v0::Exp>();
+        auto exp_pattern = pattern::wrap_type<v0::Exp>();
 
-        matcher_pass_callback callback = [=](Matcher& m) {
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             if (!node)
                 return false;
@@ -268,20 +264,20 @@ public:
             disable_fp16_compression(node);
             return true;
         };
-        auto m = make_shared<Matcher>(exp_pattern, matcher_name);
+        auto m = make_shared<pattern::Matcher>(exp_pattern, matcher_name);
         register_matcher(m, callback);
     }
 };
 
-class MarkRandomUniform : public pass::MatcherPass {
+class MarkRandomUniform : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MarkRandomUniform");
 
     MarkRandomUniform() {
         MATCHER_SCOPE(MarkRandomUniform);
-        auto random_uniform_pattern = wrap_type<v8::RandomUniform>();
+        auto random_uniform_pattern = pattern::wrap_type<v8::RandomUniform>();
 
-        matcher_pass_callback callback = [=](Matcher& m) {
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             if (!node)
                 return false;
@@ -298,7 +294,7 @@ public:
             }
             return false;
         };
-        auto m = make_shared<Matcher>(random_uniform_pattern, matcher_name);
+        auto m = make_shared<pattern::Matcher>(random_uniform_pattern, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -338,27 +334,27 @@ public:
         // input_1 * Pow(Maximum(input_2, eps), -z)
         // input_1 * Pow(Add(input_2, eps), -z)
 
-        auto input_1 = any_input();
-        auto input_2 = any_input();
+        auto input_1 = pattern::any_input();
+        auto input_2 = pattern::any_input();
 
-        auto eps_const_pattern = wrap_type<v0::Constant>();
-        auto optional_eps_convert = ov::pass::pattern::optional<v0::Convert>(eps_const_pattern);
+        auto eps_const_pattern = pattern::wrap_type<v0::Constant>();
+        auto optional_eps_convert = pattern::optional<v0::Convert>(eps_const_pattern);
 
-        auto max_or_add = wrap_type<v1::Maximum, v1::Add>(OutputVector{input_2, optional_eps_convert});
+        auto max_or_add = pattern::wrap_type<v1::Maximum, v1::Add>(OutputVector{input_2, optional_eps_convert});
 
-        auto optional_sqrt = ov::pass::pattern::optional<v0::Sqrt>(max_or_add);
+        auto optional_sqrt = pattern::optional<v0::Sqrt>(max_or_add);
         // whether is divided directly or after sqrt (e.g. in L2Norm after sqrt, in MVN is divided directly)
         auto divide = std::make_shared<v1::Divide>(input_1, optional_sqrt);
 
-        auto pow_exp = wrap_type<v0::Constant>();
-        auto optional_pow_convert = ov::pass::pattern::optional<v0::Convert>(pow_exp);
+        auto pow_exp = pattern::wrap_type<v0::Constant>();
+        auto optional_pow_convert = pattern::optional<v0::Convert>(pow_exp);
 
         auto pow_pattern = std::make_shared<v1::Power>(max_or_add, optional_pow_convert);
         auto mul_pattern = std::make_shared<v1::Multiply>(input_1, pow_pattern);
         auto div_or_mul_to_negative_pow =
-            std::make_shared<ov::pass::pattern::op::Or>(OutputVector{divide, mul_pattern});
+            std::make_shared<pattern::op::Or>(OutputVector{divide, mul_pattern});
 
-        matcher_pass_callback callback = [=](Matcher& m) {
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& pattern_to_output = m.get_pattern_map();
             if (!m.get_match_root())
                 return false;
@@ -398,43 +394,43 @@ public:
             return true;
         };
 
-        auto m = make_shared<Matcher>(div_or_mul_to_negative_pow, matcher_name);
+        auto m = make_shared<pattern::Matcher>(div_or_mul_to_negative_pow, matcher_name);
         register_matcher(m, callback);
     }
 };
 
-class PropagateDownDisableSensitivityForQuantized : public pass::MatcherPass {
+class PropagateDownDisableSensitivityForQuantized : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PropagateDownDisableSensitivityForQuantized");
     PropagateDownDisableSensitivityForQuantized() {
         MATCHER_SCOPE(PropagateDownDisableSensitivityForQuantized);
 
         // through this nodes
-        const std::shared_ptr<Node> quantization_propagating_nodes = wrap_type<v0::Squeeze,
-                                                                               v0::Unsqueeze,
-                                                                               v0::FakeQuantize,
-                                                                               v1::Reshape,
-                                                                               op::util::BroadcastBase,
-                                                                               v0::DepthToSpace,
-                                                                               v0::Interpolate,
-                                                                               ov::op::v4::Interpolate,
-                                                                               ov::op::v11::Interpolate,
-                                                                               v1::MaxPool,
-                                                                               v8::MaxPool,
-                                                                               op::util::PadBase,
-                                                                               v1::ReduceMax,
-                                                                               v1::ReduceMin,
-                                                                               v0::Relu,
-                                                                               v1::Transpose,
-                                                                               v0::ShuffleChannels,
-                                                                               v1::StridedSlice,
-                                                                               v8::Slice,
-                                                                               v1::VariadicSplit,
-                                                                               v1::Split,
-                                                                               v0::Concat,
-                                                                               v0::Tile>();
+        const std::shared_ptr<Node> quantization_propagating_nodes = pattern::wrap_type<v0::Squeeze,
+                                                                                        v0::Unsqueeze,
+                                                                                        v0::FakeQuantize,
+                                                                                        v1::Reshape,
+                                                                                        op::util::BroadcastBase,
+                                                                                        v0::DepthToSpace,
+                                                                                        v0::Interpolate,
+                                                                                        ov::op::v4::Interpolate,
+                                                                                        ov::op::v11::Interpolate,
+                                                                                        v1::MaxPool,
+                                                                                        v8::MaxPool,
+                                                                                        op::util::PadBase,
+                                                                                        v1::ReduceMax,
+                                                                                        v1::ReduceMin,
+                                                                                        v0::Relu,
+                                                                                        v1::Transpose,
+                                                                                        v0::ShuffleChannels,
+                                                                                        v1::StridedSlice,
+                                                                                        v8::Slice,
+                                                                                        v1::VariadicSplit,
+                                                                                        v1::Split,
+                                                                                        v0::Concat,
+                                                                                        v0::Tile>();
 
-        matcher_pass_callback callback = [=](Matcher& m) {
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             if (!node)
                 return false;
@@ -459,7 +455,7 @@ public:
 
             return is_changed;
         };
-        auto m = make_shared<Matcher>(quantization_propagating_nodes, matcher_name);
+        auto m = make_shared<pattern::Matcher>(quantization_propagating_nodes, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -470,7 +466,7 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     Manager manager(get_pass_config(), "MarkSugraphsToKeepInMixedPrecision");
     manager.set_per_pass_validation(false);
     // Mark root of Division with eps pattern to keep in FP32
-    REGISTER_PASS(manager, ov::pass::MarkFloatingPointRange)
+    REGISTER_PASS(manager, MarkFloatingPointRange)
     REGISTER_PASS(manager, MarkDivWithEps)
     REGISTER_PASS(manager, MarkExpInReduceOpPath)
     REGISTER_PASS(manager, MarkRandomUniform)
@@ -490,11 +486,10 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     for (auto& node : m->get_ops()) {
         erase_reduceop_path(node);
         erase_fq_path(node);
-        ov::pass::erase_range_path(node);
+        erase_range_path(node);
     }
 
     return false;  // no need to revalidate
 }
 
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass

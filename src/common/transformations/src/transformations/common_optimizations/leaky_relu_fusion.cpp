@@ -16,20 +16,20 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-ov::pass::LeakyReluFusion::LeakyReluFusion() {
-    MATCHER_SCOPE(LeakyReluFusion);
-    auto data_pattern = ov::pass::pattern::any_input();
-    auto alpha_pattern = wrap_type<v0::Constant>();
-    auto multiply_pattern =
-        wrap_type<v1::Multiply>({data_pattern, alpha_pattern}, ov::pass::pattern::consumers_count(1));
-    auto max_pattern = wrap_type<v1::Maximum>({data_pattern, multiply_pattern});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+namespace ov::pass {
+
+LeakyReluFusion::LeakyReluFusion() {
+    MATCHER_SCOPE(LeakyReluFusion);
+    auto data_pattern = pattern::any_input();
+    auto alpha_pattern = pattern::wrap_type<v0::Constant>();
+    auto multiply_pattern =
+        pattern::wrap_type<v1::Multiply>({data_pattern, alpha_pattern}, pattern::consumers_count(1));
+    auto max_pattern = pattern::wrap_type<v1::Maximum>({data_pattern, multiply_pattern});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& original_alpha_pattern = pattern_map.at(alpha_pattern);
 
@@ -58,6 +58,8 @@ ov::pass::LeakyReluFusion::LeakyReluFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(max_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(max_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

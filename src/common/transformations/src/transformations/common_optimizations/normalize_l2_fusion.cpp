@@ -23,41 +23,40 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::op::Or;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace op_util = ov::op::util;
-ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
-    MATCHER_SCOPE(NormalizeL2Fusion);
-    auto input = ov::pass::pattern::any_input();
 
-    auto exp = wrap_type<v0::Constant>();
+namespace ov::pass {
+
+NormalizeL2Fusion::NormalizeL2Fusion() {
+    MATCHER_SCOPE(NormalizeL2Fusion);
+    auto input = pattern::any_input();
+
+    auto exp = pattern::wrap_type<v0::Constant>();
     auto pow = std::make_shared<v1::Power>(input, exp);
-    auto axes = wrap_type<v0::Constant>();
+    auto axes = pattern::wrap_type<v0::Constant>();
     auto reduce_sum = std::make_shared<v1::ReduceSum>(pow, axes);
 
-    auto eps_const = wrap_type<v0::Constant>();
+    auto eps_const = pattern::wrap_type<v0::Constant>();
     auto max = std::make_shared<v1::Maximum>(reduce_sum, eps_const);
     auto add = std::make_shared<v1::Add>(reduce_sum, eps_const);
-    auto max_or_add = std::make_shared<Or>(OutputVector{max, add});
+    auto max_or_add = std::make_shared<pattern::op::Or>(OutputVector{max, add});
 
     // Sqrt can be represented by Sqrt node or as Power node with exponent 0.5
     auto sqrt = std::make_shared<v0::Sqrt>(max_or_add);
-    auto exp2 = wrap_type<v0::Constant>();
+    auto exp2 = pattern::wrap_type<v0::Constant>();
     auto pow_as_sqrt = std::make_shared<v1::Power>(max_or_add, exp2);
-    auto power_or_sqrt = std::make_shared<Or>(OutputVector{sqrt, pow_as_sqrt});
+    auto power_or_sqrt = std::make_shared<pattern::op::Or>(OutputVector{sqrt, pow_as_sqrt});
 
     // divide(input,sqrt(..)) can be represented as mul(input, power(..., -0.5f))
     auto divide = std::make_shared<v1::Divide>(input, power_or_sqrt);
-    auto exp3 = wrap_type<v0::Constant>();
+    auto exp3 = pattern::wrap_type<v0::Constant>();
     auto reversed_pow_as_sqrt = std::make_shared<v1::Power>(max_or_add, exp3);
     auto mul = std::make_shared<v1::Multiply>(input, reversed_pow_as_sqrt);
-    auto divide_or_mul = std::make_shared<Or>(OutputVector{divide, mul});
+    auto divide_or_mul = std::make_shared<pattern::op::Or>(OutputVector{divide, mul});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
@@ -134,6 +133,8 @@ ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(divide_or_mul, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(divide_or_mul, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

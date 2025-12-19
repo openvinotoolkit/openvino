@@ -99,8 +99,7 @@ ov::pass::pattern::op::Predicate check_layout(const std::string& layout) {
 };
 }  // namespace
 
-namespace ov {
-namespace pass {
+namespace ov::pass {
 
 bool SDPAFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAFusion);
@@ -577,5 +576,4 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass

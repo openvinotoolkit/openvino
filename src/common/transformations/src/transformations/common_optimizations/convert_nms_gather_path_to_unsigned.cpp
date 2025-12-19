@@ -27,41 +27,42 @@
 
 using namespace std;
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
 namespace op_util = ov::op::util;
-namespace ov {
-namespace pass {
-class InitNMSPath : public pass::MatcherPass {
+
+namespace ov::pass {
+
+namespace {
+
+class InitNMSPath : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("InitNMSPath");
     InitNMSPath() {
         MATCHER_SCOPE(InitNMSPath);
-        auto nms_pattern = wrap_type<v1::NonMaxSuppression,
+        auto nms_pattern = pattern::wrap_type<v1::NonMaxSuppression,
                                      ov::op::v3::NonMaxSuppression,
                                      ov::op::v5::NonMaxSuppression,
                                      ov::op::v9::NonMaxSuppression>();
-        matcher_pass_callback callback = [=](Matcher& m) {
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& out_nodes = m.get_match_root()->output(0).get_target_inputs();
             for (const auto& out_node : out_nodes) {
                 ov::set_nms_selected_indices(out_node.get_node());
             }
             return true;
         };
-        auto m = make_shared<Matcher>(nms_pattern, matcher_name);
+        auto m = make_shared<pattern::Matcher>(nms_pattern, matcher_name);
         register_matcher(m, callback);
     }
 };
-class PropagateNMSPath : public pass::MatcherPass {
+
+class PropagateNMSPath : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PropagateNMSPath");
     PropagateNMSPath() {
         MATCHER_SCOPE(PropagateNMSPath);
-        auto node_pattern = wrap_type<v0::Squeeze,
+        auto node_pattern = pattern::wrap_type<v0::Squeeze,
                                       v0::Unsqueeze,
                                       v1::Reshape,
                                       op_util::BroadcastBase,
@@ -72,7 +73,7 @@ public:
                                       v0::Concat,
                                       v0::Convert,
                                       v8::If>();
-        matcher_pass_callback callback = [=](Matcher& m) {
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
             auto propagate_path = [](const ov::OutputVector& input_nodes, ov::Node* target_node) {
                 if (any_of(input_nodes.begin(), input_nodes.end(), [](const Output<Node>& output) {
                         return ov::has_nms_selected_indices(output.get_node());
@@ -109,7 +110,7 @@ public:
                 for (size_t body_idx = 0; body_idx < models.size(); ++body_idx) {
                     handle_params(multi_subgraph_op, models[body_idx], static_cast<int>(body_idx));
                     ov::pass::Manager manager("PropagateNMSPath");
-                    manager.register_pass<ov::pass::PropagateNMSPath>();
+                    manager.register_pass<PropagateNMSPath>();
                     manager.run_passes(models[body_idx]);
                     handle_results(multi_subgraph_op, models[body_idx], static_cast<int>(body_idx));
                 }
@@ -119,17 +120,18 @@ public:
             }
             return false;
         };
-        auto m = make_shared<Matcher>(node_pattern, matcher_name);
+        auto m = make_shared<pattern::Matcher>(node_pattern, matcher_name);
         register_matcher(m, callback);
     }
 };
-class UpdateConvertGather : public pass::MatcherPass {
+
+class UpdateConvertGather : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("UpdateConvertGather");
     UpdateConvertGather() {
         MATCHER_SCOPE(UpdateConvertGather);
-        auto node_pattern = wrap_type<op_util::GatherBase>();
-        matcher_pass_callback callback = [=](Matcher& m) {
+        auto node_pattern = pattern::wrap_type<op_util::GatherBase>();
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
             auto gather = m.get_match_root();
             auto indices = gather->input_value(1);
             if (!ov::has_nms_selected_indices(indices.get_node()))
@@ -147,15 +149,17 @@ public:
             }
             return true;
         };
-        auto m = make_shared<Matcher>(node_pattern, matcher_name);
+        auto m = make_shared<pattern::Matcher>(node_pattern, matcher_name);
         register_matcher(m, callback);
     }
 };
-}  // namespace pass
-}  // namespace ov
 
-ov::pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
+}  // namespace
+
+ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
     ADD_MATCHER_FOR_THIS(InitNMSPath)
     ADD_MATCHER_FOR_THIS(PropagateNMSPath)
     ADD_MATCHER_FOR_THIS(UpdateConvertGather)
 }
+
+}  // namespace ov::pass

@@ -20,29 +20,29 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v8 = ov::op::v8;
 namespace op_util = ov::op::util;
-ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
+
+namespace ov::pass {
+
+DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
     MATCHER_SCOPE(DropoutWithRandomUniformReplacer);
-    const auto shape_pattern = ov::pass::pattern::any_input();
-    const auto ru_min_const_pattern = wrap_type<v0::Constant>();
-    const auto ru_max_const_pattern = wrap_type<v0::Constant>();
+    const auto shape_pattern = pattern::any_input();
+    const auto ru_min_const_pattern = pattern::wrap_type<v0::Constant>();
+    const auto ru_max_const_pattern = pattern::wrap_type<v0::Constant>();
     const auto random_uniform_pattern =
-        wrap_type<v8::RandomUniform>({shape_pattern, ru_min_const_pattern, ru_max_const_pattern},
-                                     ov::pass::pattern::consumers_count(1));
+        pattern::wrap_type<v8::RandomUniform>({shape_pattern, ru_min_const_pattern, ru_max_const_pattern},
+                                     pattern::consumers_count(1));
 
-    const auto optional_convert = ov::pass::pattern::optional<v0::Convert>(random_uniform_pattern);
-    const auto add_const_pattern = wrap_type<v0::Constant>();
+    const auto optional_convert = pattern::optional<v0::Convert>(random_uniform_pattern);
+    const auto add_const_pattern = pattern::wrap_type<v0::Constant>();
 
-    const auto add_pattern = wrap_type<ov::op::v1::Add>({optional_convert, add_const_pattern});
+    const auto add_pattern = pattern::wrap_type<ov::op::v1::Add>({optional_convert, add_const_pattern});
 
-    const auto floor_pattern = wrap_type<v0::Floor>({add_pattern});
+    const auto floor_pattern = pattern::wrap_type<v0::Floor>({add_pattern});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto random_uniform = pattern_map.at(random_uniform_pattern);
         const auto shape_of = pattern_map.at(shape_pattern);
@@ -84,6 +84,8 @@ ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(floor_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(floor_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

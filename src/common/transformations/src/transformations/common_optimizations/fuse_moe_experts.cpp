@@ -59,8 +59,7 @@ namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
 namespace v12 = ov::op::v12;
 namespace op_util = ov::op::util;
-namespace ov {
-namespace pass {
+namespace ov::pass {
 
 using namespace ov::pass;
 using ov::pass::pattern::wrap_type, ov::pass::pattern::PatternValueMap;
@@ -529,5 +528,4 @@ bool ov::pass::FuseMOE::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass

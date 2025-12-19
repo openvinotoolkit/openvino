@@ -17,14 +17,12 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::consumers_count;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace op_util = ov::op::util;
+
+namespace ov::pass {
+
 namespace {
 bool check_block_first(const ov::PartialShape& shape_input,
                        const ov::PartialShape& shape_reshape_before,
@@ -127,17 +125,17 @@ bool check_depth_first(const ov::PartialShape& shape_input,
 
 }  // namespace
 
-ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
+DepthToSpaceFusion::DepthToSpaceFusion() {
     MATCHER_SCOPE(DepthToSpaceFusion);
-    auto input0 = any_input(ov::pass::pattern::rank_equals(4));
-    auto input1 = any_input();
-    auto input2 = any_input();
-    auto input3 = any_input();
-    auto reshape_before = wrap_type<v1::Reshape>({input0, input1}, consumers_count(1));
-    auto permute = wrap_type<v1::Transpose>({reshape_before, input2}, consumers_count(1));
-    auto reshape_after = wrap_type<v1::Reshape>({permute, input3});
+    auto input0 = pattern::any_input(pattern::rank_equals(4));
+    auto input1 = pattern::any_input();
+    auto input2 = pattern::any_input();
+    auto input3 = pattern::any_input();
+    auto reshape_before = pattern::wrap_type<v1::Reshape>({input0, input1}, pattern::consumers_count(1));
+    auto permute = pattern::wrap_type<v1::Transpose>({reshape_before, input2}, pattern::consumers_count(1));
+    auto reshape_after = pattern::wrap_type<v1::Reshape>({permute, input3});
 
-    ov::matcher_pass_callback callback = [](Matcher& m) {
+    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto reshape_after = ov::as_type_ptr<v1::Reshape>(m.get_match_root());
         if (!reshape_after) {
             return false;
@@ -206,6 +204,8 @@ ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(reshape_after, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(reshape_after, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

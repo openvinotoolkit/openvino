@@ -16,16 +16,17 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-ov::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
-    MATCHER_SCOPE(ConvertDepthToSpace);
-    auto dts_node = ov::pass::pattern::wrap_type<v0::DepthToSpace>(
-        {ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape())});
 
-    matcher_pass_callback callback = [this](Matcher& m) {
+namespace ov::pass {
+
+ConvertDepthToSpace::ConvertDepthToSpace() {
+    MATCHER_SCOPE(ConvertDepthToSpace);
+    auto dts_node = pattern::wrap_type<v0::DepthToSpace>(
+        {pattern::any_input(pattern::has_static_shape())});
+
+    matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto dts_node = ov::as_type_ptr<v0::DepthToSpace>(m.get_match_root());
         if (!dts_node || transformation_callback(dts_node)) {
             return false;
@@ -109,6 +110,8 @@ ov::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(dts_node, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(dts_node, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

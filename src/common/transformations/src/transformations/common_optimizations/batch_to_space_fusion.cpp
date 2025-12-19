@@ -20,31 +20,29 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::rank_equals;
-using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::op::Or;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
-    MATCHER_SCOPE(BatchToSpaceFusion);
-    auto data_pattern = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
-    auto reshape_before_pattern = wrap_type<v1::Reshape>({data_pattern, wrap_type<v0::Constant>()}, rank_equals(4));
-    auto trans_before_pattern = wrap_type<v1::Transpose>({data_pattern, wrap_type<v0::Constant>()}, rank_equals(4));
-    auto reshape_or_transpose_before_pattern =
-        std::make_shared<Or>(OutputVector{reshape_before_pattern, trans_before_pattern});
-    auto depth_to_space_pattern = wrap_type<v0::DepthToSpace>({reshape_or_transpose_before_pattern});
-    auto starts_pattern = wrap_type<v0::Constant>();
-    auto ends_pattern = wrap_type<v0::Constant>();
-    auto slice_pattern =
-        wrap_type<v1::StridedSlice>({depth_to_space_pattern, starts_pattern, ends_pattern, wrap_type<v0::Constant>()});
-    auto reshape_after_pattern = wrap_type<v1::Reshape>({slice_pattern, wrap_type<v0::Constant>()}, rank_equals(4));
-    auto trans_after_pattern = wrap_type<v1::Transpose>({slice_pattern, wrap_type<v0::Constant>()}, rank_equals(4));
-    auto reshape_or_transpose_after_pattern =
-        std::make_shared<Or>(OutputVector{reshape_after_pattern, trans_after_pattern});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+namespace ov::pass {
+
+BatchToSpaceFusion::BatchToSpaceFusion() {
+    MATCHER_SCOPE(BatchToSpaceFusion);
+    auto data_pattern = pattern::any_input(pattern::has_static_shape());
+    auto reshape_before_pattern = pattern::wrap_type<v1::Reshape>({data_pattern, pattern::wrap_type<v0::Constant>()}, pattern::rank_equals(4));
+    auto trans_before_pattern = pattern::wrap_type<v1::Transpose>({data_pattern, pattern::wrap_type<v0::Constant>()}, pattern::rank_equals(4));
+    auto reshape_or_transpose_before_pattern =
+        std::make_shared<pattern::op::Or>(OutputVector{reshape_before_pattern, trans_before_pattern});
+    auto depth_to_space_pattern = pattern::wrap_type<v0::DepthToSpace>({reshape_or_transpose_before_pattern});
+    auto starts_pattern = pattern::wrap_type<v0::Constant>();
+    auto ends_pattern = pattern::wrap_type<v0::Constant>();
+    auto slice_pattern =
+        pattern::wrap_type<v1::StridedSlice>({depth_to_space_pattern, starts_pattern, ends_pattern, pattern::wrap_type<v0::Constant>()});
+    auto reshape_after_pattern = pattern::wrap_type<v1::Reshape>({slice_pattern, pattern::wrap_type<v0::Constant>()}, pattern::rank_equals(4));
+    auto trans_after_pattern = pattern::wrap_type<v1::Transpose>({slice_pattern, pattern::wrap_type<v0::Constant>()}, pattern::rank_equals(4));
+    auto reshape_or_transpose_after_pattern =
+        std::make_shared<pattern::op::Or>(OutputVector{reshape_after_pattern, trans_after_pattern});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto get_reshape_or_transpose = [&pattern_map](
@@ -127,6 +125,8 @@ ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(reshape_or_transpose_after_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(reshape_or_transpose_after_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

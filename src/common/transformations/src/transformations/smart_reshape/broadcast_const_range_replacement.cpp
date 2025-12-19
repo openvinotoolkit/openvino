@@ -20,19 +20,19 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
-ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
-    MATCHER_SCOPE(BroadcastConstRangeReplacement);
-    auto data_input = wrap_type<v0::Constant>();
-    auto target_shape = ov::pass::pattern::any_input();
-    auto broadcast_pattern_node = wrap_type<v3::Broadcast>({data_input, target_shape});
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+namespace ov::pass {
+
+BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
+    MATCHER_SCOPE(BroadcastConstRangeReplacement);
+    auto data_input = pattern::wrap_type<v0::Constant>();
+    auto target_shape = pattern::any_input();
+    auto broadcast_pattern_node = pattern::wrap_type<v3::Broadcast>({data_input, target_shape});
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto broadcast = m.get_match_root();
         // The transformation was requested only for models with BroadcastType::BIDIRECTIONAL
         // Further analysis is needed for other broadcast modes enablement
@@ -111,6 +111,8 @@ ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
         return false;
     };
 
-    auto m = std::make_shared<Matcher>(broadcast_pattern_node, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(broadcast_pattern_node, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

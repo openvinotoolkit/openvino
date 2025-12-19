@@ -14,18 +14,19 @@
 #include "openvino/op/util/binary_elementwise_logical.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
 namespace op_util = ov::op::util;
-ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
-    auto eltwise_pattern = ov::pass::pattern::wrap_type<v0::SquaredDifference,
+
+namespace ov::pass {
+
+AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
+    auto eltwise_pattern = pattern::wrap_type<v0::SquaredDifference,
                                                         op_util::BinaryElementwiseComparison,
                                                         op_util::BinaryElementwiseLogical,
                                                         op_util::BinaryElementwiseArithmetic,
-                                                        v0::FakeQuantize>(ov::pass::pattern::has_static_rank());
+                                                        v0::FakeQuantize>(pattern::has_static_rank());
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
 
         auto fq = as_type<v0::FakeQuantize>(node.get());
@@ -69,6 +70,8 @@ ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
         return false;
     };
 
-    auto m = std::make_shared<Matcher>(eltwise_pattern, "AlignEltwiseInputRanks");
+    auto m = std::make_shared<pattern::Matcher>(eltwise_pattern, "AlignEltwiseInputRanks");
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

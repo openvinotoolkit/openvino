@@ -11,23 +11,25 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
-ov::pass::ReshapeTo1D::ReshapeTo1D() {
+
+namespace ov::pass {
+
+ReshapeTo1D::ReshapeTo1D() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(ReshapeTo1D);
-    auto reshape_label = wrap_type<ov::op::v1::Reshape>({ov::pass::pattern::any_input(), wrap_type<v0::Constant>()},
-                                                        [](const Output<Node>& output) {
-                                                            return output.get_partial_shape().rank().is_static() &&
-                                                                   output.get_partial_shape().rank().get_length() == 1;
-                                                        });
+    auto reshape_label = pattern::wrap_type<ov::op::v1::Reshape>({pattern::any_input(), pattern::wrap_type<v0::Constant>()},
+                                                                  [](const Output<Node>& output) {
+                                                                      return output.get_partial_shape().rank().is_static() &&
+                                                                             output.get_partial_shape().rank().get_length() == 1;
+                                                                  });
 
-    matcher_pass_callback callback = [](Matcher& m) -> bool {
+    matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
         m.get_match_root()->input(1).replace_source_output(v0::Constant::create(ov::element::i64, {1}, {-1}));
         return true;
     };
-    auto m = std::make_shared<Matcher>(reshape_label /*, matcher_name*/);
+    auto m = std::make_shared<pattern::Matcher>(reshape_label /*, matcher_name*/);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

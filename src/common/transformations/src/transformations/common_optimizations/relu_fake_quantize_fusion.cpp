@@ -16,20 +16,19 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
-ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
-    MATCHER_SCOPE(ReluFakeQuantizeFusion);
-    auto data_pattern = any_input();
-    auto relu_pattern = wrap_type<v0::Relu>({data_pattern}, ov::pass::pattern::consumers_count(1));
-    auto input_low_pattern = wrap_type<v0::Constant>();
-    auto fq_pattern =
-        wrap_type<v0::FakeQuantize>({relu_pattern, input_low_pattern, any_input(), any_input(), any_input()});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+namespace ov::pass {
+
+ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
+    MATCHER_SCOPE(ReluFakeQuantizeFusion);
+    auto data_pattern = pattern::any_input();
+    auto relu_pattern = pattern::wrap_type<v0::Relu>({data_pattern}, pattern::consumers_count(1));
+    auto input_low_pattern = pattern::wrap_type<v0::Constant>();
+    auto fq_pattern =
+        pattern::wrap_type<v0::FakeQuantize>({relu_pattern, input_low_pattern, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto relu = pattern_map[relu_pattern];
@@ -60,6 +59,8 @@ ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(fq_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(fq_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

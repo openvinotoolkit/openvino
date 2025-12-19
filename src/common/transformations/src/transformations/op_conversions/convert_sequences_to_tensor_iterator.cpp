@@ -31,15 +31,14 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v5 = ov::op::v5;
 namespace op_util = ov::op::util;
+
+namespace ov::pass {
+
 namespace {
 ov::Output<ov::Node> get_current_iter(ov::ParameterVector& body_params,
                                       ov::ResultVector& body_results,
@@ -347,17 +346,17 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
 }
 }  // namespace
 
-ov::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator() {
+ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator() {
     MATCHER_SCOPE(ConvertRNNSequenceToTensorIterator);
-    auto X_m = any_input(ov::pass::pattern::has_static_rank());
-    auto H_t_m = any_input();
-    auto seq_lengths_m = any_input();
-    auto W_m = any_input();
-    auto R_m = any_input();
-    auto B_m = any_input();
-    auto rnn_seq = wrap_type<v5::RNNSequence>({X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m});
+    auto X_m = pattern::any_input(pattern::has_static_rank());
+    auto H_t_m = pattern::any_input();
+    auto seq_lengths_m = pattern::any_input();
+    auto W_m = pattern::any_input();
+    auto R_m = pattern::any_input();
+    auto B_m = pattern::any_input();
+    auto rnn_seq = pattern::wrap_type<v5::RNNSequence>({X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto sequence = ov::as_type_ptr<v5::RNNSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
@@ -386,21 +385,21 @@ ov::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator
                                       sequence->get_direction());
     };
 
-    auto m = std::make_shared<Matcher>(rnn_seq, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(rnn_seq, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator() {
+ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator() {
     MATCHER_SCOPE(ConvertGRUSequenceToTensorIterator);
-    auto X_m = any_input(ov::pass::pattern::has_static_rank());
-    auto H_t_m = any_input();
-    auto seq_lengths_m = any_input();
-    auto W_m = any_input();
-    auto R_m = any_input();
-    auto B_m = any_input();
-    auto gru_seq = wrap_type<v5::GRUSequence>({X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m});
+    auto X_m = pattern::any_input(pattern::has_static_rank());
+    auto H_t_m = pattern::any_input();
+    auto seq_lengths_m = pattern::any_input();
+    auto W_m = pattern::any_input();
+    auto R_m = pattern::any_input();
+    auto B_m = pattern::any_input();
+    auto gru_seq = pattern::wrap_type<v5::GRUSequence>({X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto sequence = ov::as_type_ptr<v5::GRUSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
@@ -429,22 +428,22 @@ ov::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator
                                       sequence->get_direction());
     };
 
-    auto m = std::make_shared<Matcher>(gru_seq, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(gru_seq, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterator() {
+ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterator() {
     MATCHER_SCOPE(ConvertLSTMSequenceToTensorIterator);
-    auto X_m = any_input(ov::pass::pattern::has_static_rank());
-    auto H_t_m = any_input();
-    auto C_t_m = any_input();
-    auto seq_lengths_m = any_input();
-    auto W_m = any_input();
-    auto R_m = any_input();
-    auto B_m = any_input();
-    auto lstm_seq = wrap_type<v5::LSTMSequence>({X_m, H_t_m, C_t_m, seq_lengths_m, W_m, R_m, B_m});
+    auto X_m = pattern::any_input(pattern::has_static_rank());
+    auto H_t_m = pattern::any_input();
+    auto C_t_m = pattern::any_input();
+    auto seq_lengths_m = pattern::any_input();
+    auto W_m = pattern::any_input();
+    auto R_m = pattern::any_input();
+    auto B_m = pattern::any_input();
+    auto lstm_seq = pattern::wrap_type<v5::LSTMSequence>({X_m, H_t_m, C_t_m, seq_lengths_m, W_m, R_m, B_m});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto sequence = ov::as_type_ptr<v5::LSTMSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
@@ -466,12 +465,14 @@ ov::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterat
         return convert_sequence_to_ti(sequence, X, H_t, C_t, seq_lengths, W, R, B, sequence->get_direction());
     };
 
-    auto m = std::make_shared<Matcher>(lstm_seq, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(lstm_seq, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::ConvertSequenceToTensorIterator::ConvertSequenceToTensorIterator() {
+ConvertSequenceToTensorIterator::ConvertSequenceToTensorIterator() {
     add_matcher<ConvertLSTMSequenceToTensorIterator>();
     add_matcher<ConvertRNNSequenceToTensorIterator>();
     add_matcher<ConvertGRUSequenceToTensorIterator>();
 }
+
+}  // namespace ov::pass

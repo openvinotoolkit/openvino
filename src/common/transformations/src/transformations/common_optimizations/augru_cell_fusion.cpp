@@ -28,12 +28,13 @@
 using namespace std;
 using namespace ov::element;
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+
+namespace ov::pass {
+
+namespace {
+
 // The 1st input to the Add op is automatically broadcasted
 // from 1d to 2d tensor, but to be compatible with what
 // the transformation code expectes we have to broadcast the
@@ -69,7 +70,9 @@ static std::shared_ptr<ov::Node> get_weights_matmul(const std::shared_ptr<ov::No
     return mat_mul;
 }
 
-ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
+}  // namespace
+
+AUGRUCellFusion::AUGRUCellFusion() {
     MATCHER_SCOPE(AUGRUCellFusion);
 
     // we can't determine hidden_size or input_size in this case
@@ -78,29 +81,29 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
         return !(p_shape.rank().is_dynamic() || p_shape[1].is_dynamic());
     };
 
-    auto concat_1 = wrap_type<v0::Concat>({any_input(is_first_dim_static), any_input(is_first_dim_static)});
-    auto matmul_1 = wrap_type<v0::MatMul>({concat_1, any_input(is_first_dim_static)});
-    auto add_1 = wrap_type<v1::Add>({matmul_1, any_input()});
+    auto concat_1 = pattern::wrap_type<v0::Concat>({pattern::any_input(is_first_dim_static), pattern::any_input(is_first_dim_static)});
+    auto matmul_1 = pattern::wrap_type<v0::MatMul>({concat_1, pattern::any_input(is_first_dim_static)});
+    auto add_1 = pattern::wrap_type<v1::Add>({matmul_1, pattern::any_input()});
     // only Sigmoid is supported in the current version of AUGRUCell
-    auto sigmoid = wrap_type<v0::Sigmoid>({add_1});
-    auto split = wrap_type<v1::Split>({sigmoid, any_input()});
-    auto multiply = wrap_type<v1::Multiply>({split, any_input()});
+    auto sigmoid = pattern::wrap_type<v0::Sigmoid>({add_1});
+    auto split = pattern::wrap_type<v1::Split>({sigmoid, pattern::any_input()});
+    auto multiply = pattern::wrap_type<v1::Multiply>({split, pattern::any_input()});
 
-    auto concat_2 = wrap_type<v0::Concat>({any_input(), multiply});
-    auto matmul_2 = wrap_type<v0::MatMul>({concat_2, any_input(is_first_dim_static)});
-    auto add_2 = wrap_type<v1::Add>({matmul_2, any_input()});
+    auto concat_2 = pattern::wrap_type<v0::Concat>({pattern::any_input(), multiply});
+    auto matmul_2 = pattern::wrap_type<v0::MatMul>({concat_2, pattern::any_input(is_first_dim_static)});
+    auto add_2 = pattern::wrap_type<v1::Add>({matmul_2, pattern::any_input()});
     // only Tanh is supported in the current version of AUGRUCell
-    auto tanh = wrap_type<v0::Tanh>({add_2});
+    auto tanh = pattern::wrap_type<v0::Tanh>({add_2});
 
-    auto subtract_1 = wrap_type<v1::Subtract>({any_input(), any_input()});
-    auto multiply_2 = wrap_type<v1::Multiply>({subtract_1, split});
-    auto subtract_2 = wrap_type<v1::Subtract>({any_input(), multiply_2});
-    auto multiply_3 = wrap_type<v1::Multiply>({subtract_2, tanh});
+    auto subtract_1 = pattern::wrap_type<v1::Subtract>({pattern::any_input(), pattern::any_input()});
+    auto multiply_2 = pattern::wrap_type<v1::Multiply>({subtract_1, split});
+    auto subtract_2 = pattern::wrap_type<v1::Subtract>({pattern::any_input(), multiply_2});
+    auto multiply_3 = pattern::wrap_type<v1::Multiply>({subtract_2, tanh});
 
-    auto multiply_4 = wrap_type<v1::Multiply>({multiply_2, any_input()});
-    auto add_3 = wrap_type<v1::Add>({multiply_4, multiply_3});
+    auto multiply_4 = pattern::wrap_type<v1::Multiply>({multiply_2, pattern::any_input()});
+    auto add_3 = pattern::wrap_type<v1::Add>({multiply_4, multiply_3});
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         NodeRegistry rg;
         auto pattern_map = m.get_pattern_map();
         auto concat = pattern_map.at(concat_1);
@@ -149,6 +152,8 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
         return true;
     };
 
-    auto m = make_shared<Matcher>(add_3, matcher_name);
+    auto m = make_shared<pattern::Matcher>(add_3, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

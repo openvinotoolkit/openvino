@@ -15,13 +15,14 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
-ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
+
+namespace ov::pass {
+
+RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     MATCHER_SCOPE(RemoveConcatZeroDimInput);
-    auto concat_pattern = ov::pass::pattern::wrap_type<v0::Concat>();
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    auto concat_pattern = pattern::wrap_type<v0::Concat>();
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto concat = m.get_match_root();
         const auto& rt_info = concat->get_rt_info();
         if (rt_info.count(DisableRemoveConcatZeroDimInput::get_type_info_static())) {
@@ -66,19 +67,21 @@ ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
         }
         return inputs_removed;
     };
-    auto m = std::make_shared<Matcher>(concat_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(concat_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
-void ov::pass::disable_remove_concat_zerodim_input(const std::shared_ptr<Node>& node) {
+void disable_remove_concat_zerodim_input(const std::shared_ptr<Node>& node) {
     node->get_rt_info().emplace(DisableRemoveConcatZeroDimInput::get_type_info_static(),
                                 DisableRemoveConcatZeroDimInput{});
 }
 
-void ov::pass::enable_remove_concat_zerodim_input(const std::shared_ptr<Node>& node) {
+void enable_remove_concat_zerodim_input(const std::shared_ptr<Node>& node) {
     node->get_rt_info().erase(DisableRemoveConcatZeroDimInput::get_type_info_static());
 }
 
-bool ov::pass::remove_concat_zerodim_input_is_disabled(const std::shared_ptr<Node>& node) {
+bool remove_concat_zerodim_input_is_disabled(const std::shared_ptr<Node>& node) {
     return node->get_rt_info().count(DisableRemoveConcatZeroDimInput::get_type_info_static());
 }
+
+}  // namespace ov::pass

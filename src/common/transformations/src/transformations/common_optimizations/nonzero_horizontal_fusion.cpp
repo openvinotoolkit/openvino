@@ -13,15 +13,16 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-
 namespace v3 = ov::op::v3;
-ov::pass::NonZeroHorizontalFusion::NonZeroHorizontalFusion() {
-    MATCHER_SCOPE(NonZeroHorizontalFusion);
-    auto input_m = ov::pass::pattern::any_input(ov::pass::pattern::consumers_more_than(1));
-    auto nonzero_m = ov::pass::pattern::wrap_type<v3::NonZero>({input_m});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+namespace ov::pass {
+
+NonZeroHorizontalFusion::NonZeroHorizontalFusion() {
+    MATCHER_SCOPE(NonZeroHorizontalFusion);
+    auto input_m = pattern::any_input(pattern::consumers_more_than(1));
+    auto nonzero_m = pattern::wrap_type<v3::NonZero>({input_m});
+
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto nonzero = ov::as_type_ptr<v3::NonZero>(pattern_map.at(nonzero_m).get_node_shared_ptr());
         const auto out_prc = nonzero->get_output_type();
@@ -40,6 +41,8 @@ ov::pass::NonZeroHorizontalFusion::NonZeroHorizontalFusion() {
         return status;
     };
 
-    auto m = std::make_shared<Matcher>(nonzero_m, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(nonzero_m, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

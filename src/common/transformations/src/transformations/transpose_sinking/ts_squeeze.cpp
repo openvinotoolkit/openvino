@@ -19,16 +19,16 @@
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov;
+
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+
+namespace ov::pass {
+
+
 namespace {
 
 /**
@@ -188,16 +188,16 @@ TSSqueezeForward::TSSqueezeForward() {
 
 TSSqueezeBackward::TSSqueezeBackward() {
     MATCHER_SCOPE(TSSqueezeBackward);
-    auto squeeze_with_1_input = wrap_type<v0::Squeeze>({any_input()}, CheckTransposeConsumers);
+    auto squeeze_with_1_input = pattern::wrap_type<v0::Squeeze>({pattern::any_input()}, CheckTransposeConsumers);
     auto squeeze_label =
-        wrap_type<v0::Squeeze, v1::Reshape>({any_input(), wrap_type<v0::Constant>()}, CheckTransposeConsumers);
-    auto pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{squeeze_with_1_input, squeeze_label});
+        pattern::wrap_type<v0::Squeeze, v1::Reshape>({pattern::any_input(), pattern::wrap_type<v0::Constant>()}, CheckTransposeConsumers);
+    auto pattern = std::make_shared<pattern::op::Or>(OutputVector{squeeze_with_1_input, squeeze_label});
     auto transpose_label =
-        wrap_type<v1::Transpose>({pattern, wrap_type<v0::Constant>()}, [](const Output<Node>& output) -> bool {
-            return ov::pass::pattern::has_static_rank()(output);
+        pattern::wrap_type<v1::Transpose>({pattern, pattern::wrap_type<v0::Constant>()}, [](const Output<Node>& output) -> bool {
+            return pattern::has_static_rank()(output);
         });
 
-    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose = pattern_to_output.at(transpose_label);
@@ -289,6 +289,8 @@ TSSqueezeBackward::TSSqueezeBackward() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

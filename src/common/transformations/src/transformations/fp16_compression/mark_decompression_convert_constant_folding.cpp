@@ -19,15 +19,15 @@
 
 using namespace ov;
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
-pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertConstantFolding() {
-    MATCHER_SCOPE(EnableDecompressionConvertConstantFolding);
-    auto convert = wrap_type<v0::Convert>();
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+namespace ov::pass {
+
+EnableDecompressionConvertConstantFolding::EnableDecompressionConvertConstantFolding() {
+    MATCHER_SCOPE(EnableDecompressionConvertConstantFolding);
+    auto convert = pattern::wrap_type<v0::Convert>();
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& node = m.get_match_root();
         if (!is_decompression(node))
             return false;
@@ -35,15 +35,15 @@ pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertConst
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(convert, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(convert, matcher_name);
     this->register_matcher(m, callback);
 }
 
-pass::DisableDecompressionConvertConstantFolding::DisableDecompressionConvertConstantFolding() {
+DisableDecompressionConvertConstantFolding::DisableDecompressionConvertConstantFolding() {
     MATCHER_SCOPE(DisableDecompressionConvertConstantFolding);
-    auto convert = wrap_type<v0::Convert>();
+    auto convert = pattern::wrap_type<v0::Convert>();
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& node = m.get_match_root();
         if (!is_decompression(node))
             return false;
@@ -51,16 +51,16 @@ pass::DisableDecompressionConvertConstantFolding::DisableDecompressionConvertCon
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(convert, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(convert, matcher_name);
     this->register_matcher(m, callback);
 }
 
-pass::KeepConstAndDecompression::KeepConstAndDecompression() {
+KeepConstAndDecompression::KeepConstAndDecompression() {
     MATCHER_SCOPE(KeepDecompressionsInFP32Matcher);
 
-    auto node_pattern = wrap_type<v0::Convert>();
+    auto node_pattern = pattern::wrap_type<v0::Convert>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto node = m.get_match_root();
         if (!is_decompression(node) || !is_type<v0::Convert>(node) || ov::is_shape_subgraph(node->shared_from_this()))
             return false;
@@ -77,15 +77,15 @@ pass::KeepConstAndDecompression::KeepConstAndDecompression() {
 
         return false;
     };
-    auto m = std::make_shared<Matcher>(node_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(node_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
-pass::KeepConstantsPrecisionAndAddConverts::KeepConstantsPrecisionAndAddConverts() {
+KeepConstantsPrecisionAndAddConverts::KeepConstantsPrecisionAndAddConverts() {
     MATCHER_SCOPE(KeepConstantsPrecisionAndAddConverts);
-    auto const_pattern = wrap_type<v0::Constant>();
+    auto const_pattern = pattern::wrap_type<v0::Constant>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto const_node = m.get_match_root();
 
         if (transformation_callback(const_node)) {
@@ -120,17 +120,17 @@ pass::KeepConstantsPrecisionAndAddConverts::KeepConstantsPrecisionAndAddConverts
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(const_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(const_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
-pass::MarkCompressedFloatConstants::MarkCompressedFloatConstants() {
+MarkCompressedFloatConstants::MarkCompressedFloatConstants() {
     MATCHER_SCOPE(MarkCompressedFloatConstants);
 
-    auto constant = wrap_type<v0::Constant>();
-    auto convert = wrap_type<v0::Convert>({constant});
+    auto constant = pattern::wrap_type<v0::Constant>();
+    auto convert = pattern::wrap_type<v0::Convert>({constant});
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& convert_node = as_type_ptr<v0::Convert>(m.get_match_root());
         if (convert_node == nullptr)
             return false;
@@ -154,6 +154,8 @@ pass::MarkCompressedFloatConstants::MarkCompressedFloatConstants() {
         return false;
     };
 
-    auto m = std::make_shared<Matcher>(convert, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(convert, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

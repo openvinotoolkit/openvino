@@ -18,38 +18,39 @@
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
-void ov::pass::mark_range_path(const std::shared_ptr<Node>& node) {
+
+namespace ov::pass {
+
+void mark_range_path(const std::shared_ptr<Node>& node) {
     node->get_rt_info().emplace("range_path", true);
 }
 
-bool ov::pass::is_range_path(const std::shared_ptr<const Node>& node) {
+bool is_range_path(const std::shared_ptr<const Node>& node) {
     return node->get_rt_info().count("range_path");
 }
 
-void ov::pass::erase_range_path(const std::shared_ptr<Node>& node) {
+void erase_range_path(const std::shared_ptr<Node>& node) {
     auto& rt_info = node->get_rt_info();
     rt_info.erase("range_path");
 }
 
-ov::pass::MarkFloatingPointRange::MarkFloatingPointRange() {
+MarkFloatingPointRange::MarkFloatingPointRange() {
     MATCHER_SCOPE(MarkFloatingPointRange);
     // through these nodes
-    const auto range_propagating_nodes = ov::pass::pattern::wrap_type<v0::Convert,
-                                                                      v1::Greater,
-                                                                      v1::GreaterEqual,
-                                                                      v1::Less,
-                                                                      v1::LessEqual,
-                                                                      v1::Reshape,
-                                                                      v4::Range,
-                                                                      v0::Squeeze,
-                                                                      v0::Unsqueeze>();
+    const auto range_propagating_nodes = pattern::wrap_type<v0::Convert,
+                                                             v1::Greater,
+                                                             v1::GreaterEqual,
+                                                             v1::Less,
+                                                             v1::LessEqual,
+                                                             v1::Reshape,
+                                                             v4::Range,
+                                                             v0::Squeeze,
+                                                             v0::Unsqueeze>();
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& node = m.get_match_root();
         if (!node)
             return false;
@@ -81,6 +82,8 @@ ov::pass::MarkFloatingPointRange::MarkFloatingPointRange() {
 
         return is_changed;
     };
-    auto m = std::make_shared<Matcher>(range_propagating_nodes, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(range_propagating_nodes, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

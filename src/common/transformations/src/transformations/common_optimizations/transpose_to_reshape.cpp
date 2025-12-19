@@ -21,17 +21,17 @@
 
 using namespace ov;
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-ov::pass::TransposeToReshape::TransposeToReshape() {
+
+namespace ov::pass {
+
+TransposeToReshape::TransposeToReshape() {
     MATCHER_SCOPE(TransposeToReshape);
 
-    auto transpose_label = wrap_type<v1::Transpose>(
-        {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()), wrap_type<v0::Constant>()});
-    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    auto transpose_label = pattern::wrap_type<v1::Transpose>(
+        {pattern::any_input(pattern::has_static_rank()), pattern::wrap_type<v0::Constant>()});
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto transpose = m.get_match_root();
         auto data = transpose->input_value(0);
         const auto input_shape = transpose->input(0).get_partial_shape();
@@ -114,6 +114,8 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

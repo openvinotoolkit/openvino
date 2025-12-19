@@ -18,24 +18,23 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::consumers_count;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-ov::pass::ClampFusion::ClampFusion() {
-    MATCHER_SCOPE(ClampFusion);
-    auto data_pattern = ov::pass::pattern::any_input();
-    auto min_const_pattern = wrap_type<v0::Constant>();
-    auto max_const_pattern = wrap_type<v0::Constant>();
-    auto max_pattern1 = wrap_type<v1::Maximum>({data_pattern, min_const_pattern}, consumers_count(1));
-    auto min_pattern1 = wrap_type<v1::Minimum>({max_pattern1, max_const_pattern});
-    auto min_pattern2 = wrap_type<v1::Minimum>({data_pattern, max_const_pattern});
-    auto max_pattern2 = wrap_type<v1::Maximum>({min_pattern2, min_const_pattern}, consumers_count(1));
-    auto root = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{min_pattern1, max_pattern2});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+namespace ov::pass {
+
+ClampFusion::ClampFusion() {
+    MATCHER_SCOPE(ClampFusion);
+    auto data_pattern = pattern::any_input();
+    auto min_const_pattern = pattern::wrap_type<v0::Constant>();
+    auto max_const_pattern = pattern::wrap_type<v0::Constant>();
+    auto max_pattern1 = pattern::wrap_type<v1::Maximum>({data_pattern, min_const_pattern}, pattern::consumers_count(1));
+    auto min_pattern1 = pattern::wrap_type<v1::Minimum>({max_pattern1, max_const_pattern});
+    auto min_pattern2 = pattern::wrap_type<v1::Minimum>({data_pattern, max_const_pattern});
+    auto max_pattern2 = pattern::wrap_type<v1::Maximum>({min_pattern2, min_const_pattern}, pattern::consumers_count(1));
+    auto root = std::make_shared<pattern::op::Or>(ov::OutputVector{min_pattern1, max_pattern2});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map.at(data_pattern);
         auto min_const = ov::as_type_ptr<v0::Constant>(pattern_map.at(min_const_pattern).get_node_shared_ptr());
@@ -76,6 +75,8 @@ ov::pass::ClampFusion::ClampFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(root, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(root, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

@@ -17,17 +17,17 @@
 #include "openvino/op/split.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v5 = ov::op::v5;
-ov::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecomposition() {
-    MATCHER_SCOPE(BidirectionalLSTMSequenceDecomposition);
-    auto lstm_sequence_ov = wrap_type<v5::LSTMSequence>();
 
-    matcher_pass_callback callback = [this](Matcher& m) {
+namespace ov::pass {
+
+BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecomposition() {
+    MATCHER_SCOPE(BidirectionalLSTMSequenceDecomposition);
+    auto lstm_sequence_ov = pattern::wrap_type<v5::LSTMSequence>();
+
+    matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto lstm_sequence = ov::as_type_ptr<v5::LSTMSequence>(m.get_match_root());
         if (!lstm_sequence || transformation_callback(lstm_sequence)) {
             return false;
@@ -90,15 +90,15 @@ ov::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecom
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(lstm_sequence_ov, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(lstm_sequence_ov, matcher_name);
     this->register_matcher(m, callback);
 }
 
-ov::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecomposition() {
+BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecomposition() {
     MATCHER_SCOPE(BidirectionalGRUSequenceDecomposition);
-    auto gru_sequence_ov = wrap_type<v5::GRUSequence>();
+    auto gru_sequence_ov = pattern::wrap_type<v5::GRUSequence>();
 
-    matcher_pass_callback callback = [this](Matcher& m) {
+    matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto gru_sequence = ov::as_type_ptr<v5::GRUSequence>(m.get_match_root());
         if (!gru_sequence || transformation_callback(gru_sequence)) {
             return false;
@@ -155,15 +155,15 @@ ov::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecompo
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(gru_sequence_ov, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(gru_sequence_ov, matcher_name);
     this->register_matcher(m, callback);
 }
 
-ov::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecomposition() {
+BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecomposition() {
     MATCHER_SCOPE(BidirectionalRNNSequenceDecomposition);
-    auto rnn_sequence_ov = wrap_type<v5::RNNSequence>();
+    auto rnn_sequence_ov = pattern::wrap_type<v5::RNNSequence>();
 
-    matcher_pass_callback callback = [this](Matcher& m) {
+    matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto rnn_sequence = ov::as_type_ptr<v5::RNNSequence>(m.get_match_root());
         if (!rnn_sequence || transformation_callback(rnn_sequence)) {
             return false;
@@ -218,6 +218,8 @@ ov::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecompo
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(rnn_sequence_ov, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(rnn_sequence_ov, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

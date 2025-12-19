@@ -25,14 +25,14 @@
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
+
+namespace ov::pass {
+
 std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>
-ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
-    const std::shared_ptr<ov::pass::pattern::op::CompressedWeightsBlock>& weights_block,
-    const ov::pass::pattern::PatternValueMap& pattern_map,
+ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
+    const std::shared_ptr<pattern::op::CompressedWeightsBlock>& weights_block,
+    const pattern::PatternValueMap& pattern_map,
     bool convert_u4zp_to_u8,
     bool has_transpose,
     bool grouped,
@@ -126,19 +126,19 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_we
     return std::make_tuple(fc_input_b, fc_input_scale, fc_input_zp);
 }
 
-ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed(
+ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed(
     const std::vector<ov::element::Type>& supported_activation_types,
     const std::vector<ov::element::Type>& supported_weights_types,
     SupportsPredicate supports_config,
     bool convert_u4zp_to_u8) {
     auto weights_block =
-        std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{2});
-    auto activation = any_input(ov::pass::pattern::type_matches_any(supported_activation_types));
-    auto bias = any_input();
+        std::make_shared<pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{2});
+    auto activation = pattern::any_input(pattern::type_matches_any(supported_activation_types));
+    auto bias = pattern::any_input();
     auto fully_connected =
-        ov::pass::pattern::wrap_type<ov::op::internal::FullyConnected>({activation, weights_block, bias});
+        pattern::wrap_type<ov::op::internal::FullyConnected>({activation, weights_block, bias});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto fc =
             ov::as_type_ptr<ov::op::internal::FullyConnected>(pattern_map.at(fully_connected).get_node_shared_ptr());
@@ -182,6 +182,8 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(fully_connected, "ConvertFullyConnectedToFullyConnectedCompressed");
+    auto m = std::make_shared<pattern::Matcher>(fully_connected, "ConvertFullyConnectedToFullyConnectedCompressed");
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

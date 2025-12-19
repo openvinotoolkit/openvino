@@ -16,11 +16,10 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
+
 namespace {
 
 bool make_compatible_shape(const ov::PartialShape& input_shape, std::vector<size_t>& target_shape) {
@@ -65,11 +64,13 @@ bool make_compatible_shape(const ov::PartialShape& input_shape, std::vector<size
 
 }  // namespace
 
-ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
-    MATCHER_SCOPE(ConvertBroadcast3);
-    auto broadcast = ov::pass::pattern::wrap_type<v3::Broadcast>();
+namespace ov::pass {
 
-    matcher_pass_callback callback = [](Matcher& m) {
+ConvertBroadcast3::ConvertBroadcast3() {
+    MATCHER_SCOPE(ConvertBroadcast3);
+    auto broadcast = pattern::wrap_type<v3::Broadcast>();
+
+    matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto broadcast = ov::as_type_ptr<v3::Broadcast>(m.get_match_root());
         if (!broadcast) {
             return false;
@@ -129,6 +130,8 @@ ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(broadcast, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(broadcast, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

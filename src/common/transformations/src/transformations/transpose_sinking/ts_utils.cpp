@@ -35,12 +35,11 @@
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
-namespace ov {
-namespace pass {
+namespace ov::pass {
 namespace transpose_sinking {
 namespace utils {
 
-using namespace ov;
+
 
 using NodePtr = std::shared_ptr<Node>;
 using InsertBroadcastUnsqueezeT = std::function<NodePtr(const Output<Node>& node, size_t n_dims)>;
@@ -496,5 +495,4 @@ std::vector<size_t> GetOrderBeforeReduction(const std::vector<size_t>& axes_valu
 
 }  // namespace utils
 }  // namespace transpose_sinking
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass

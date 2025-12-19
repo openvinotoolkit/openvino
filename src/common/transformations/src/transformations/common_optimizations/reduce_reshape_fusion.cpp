@@ -19,21 +19,20 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace op_util = ov::op::util;
-ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
+
+namespace ov::pass {
+
+ReduceReshapeFusion::ReduceReshapeFusion() {
     MATCHER_SCOPE(ReduceReshapeFusion);
 
-    const auto reduce_axes = wrap_type<ov::op::v0::Constant>();
-    const auto reduce = wrap_type<op_util::ArithmeticReductionKeepDims, op_util::LogicalReductionKeepDims>(
-        {any_input(), reduce_axes},
-        ov::pass::pattern::consumers_count(1));
-    const auto reshape = wrap_type<ov::op::v1::Reshape>({reduce, any_input()}, ov::pass::pattern::has_static_shape());
+    const auto reduce_axes = pattern::wrap_type<ov::op::v0::Constant>();
+    const auto reduce = pattern::wrap_type<op_util::ArithmeticReductionKeepDims, op_util::LogicalReductionKeepDims>(
+        {pattern::any_input(), reduce_axes},
+        pattern::consumers_count(1));
+    const auto reshape = pattern::wrap_type<ov::op::v1::Reshape>({reduce, pattern::any_input()}, pattern::has_static_shape());
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
         const auto reduce_node = ov::as_type_ptr<op_util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
@@ -74,6 +73,8 @@ ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(reshape, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(reshape, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass
