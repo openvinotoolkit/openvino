@@ -230,9 +230,9 @@ void Reorder::prepareParams() {
     const auto& childDesc = dstMemPtr->getDescPtr();
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    // @todo current oneDNN v3.2 lacks optimized jit implementation for fp16 reorders.
-    // Use transpose executor as a temporary WA.
-    if (all_of(ov::element::f16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
+    // Allow using oneDNN fp16 reorders by default; keep env-guarded fallback.
+    if (std::getenv("OV_CPU_FORCE_TRANSPOSE_F16") != nullptr &&
+        all_of(ov::element::f16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
         ((parentDesc->hasLayoutType(LayoutType::ncsp) && childDesc->hasLayoutType(LayoutType::nspc)) ||
          (parentDesc->hasLayoutType(LayoutType::nspc) && childDesc->hasLayoutType(LayoutType::ncsp))) &&
         any_of(parentDesc->getShape().getRank(), 3U, 4U)) {
