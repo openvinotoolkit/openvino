@@ -552,12 +552,13 @@ inline void scale_add2_reduce_max(ov::float16* a,
                                   float alibi_slope,
                                   ov::float16& max) {
     size_t i = 0;
+    float16_t min_f16 = std::numeric_limits<float16_t>::lowest();
 #    if defined(HAVE_SVE)
-    svfloat16_t v_max = svdup_n_f16(static_cast<float16_t>(-FLT_MAX));
+    svfloat16_t v_max = svdup_n_f16(min_f16);
     svfloat16_t v_scale = svdup_n_f16(static_cast<float16_t>(scale));
     svfloat16_t v_a;
     svuint16_t v_zeroi16 = svdup_n_u16(0);
-    svfloat16_t v_nfltmax = svdup_n_f16(static_cast<float16_t>(-FLT_MAX));
+    svfloat16_t v_nfltmax = svdup_n_f16(min_f16);
     svfloat16_t v_alibi_slope = svdup_n_f16(static_cast<float16_t>(alibi_slope));
 
     svbool_t mask_xor = svptrue_b16();
@@ -585,7 +586,16 @@ inline void scale_add2_reduce_max(ov::float16* a,
         }
 
         if (has_attn_mask) {
-            svfloat16_t v_mask = svld1_f16(pg_f16, reinterpret_cast<const float16_t*>(attn_mask + i));
+            svfloat16_t v_mask;
+            if constexpr (std::is_same_v<T, float>) {
+                svbool_t pg = svwhilelt_b32(i, i + vec_len_f16_neon);
+                svfloat32_t m = svld1(pg, attn_mask + i);
+                v_mask = svcvt_f16_f32_x(pg, m);
+            } else if constexpr (std::is_same_v<T, ov::float16>) {
+                v_mask = svld1_f16(pg_f16, reinterpret_cast<const float16_t*>(attn_mask + i));
+            } else {
+                OPENVINO_THROW("attn_mask must be float or float16 type.");
+            }
             v_a = svadd_f16_z(pg_f16, v_a, v_mask);
         }
 
@@ -603,11 +613,11 @@ inline void scale_add2_reduce_max(ov::float16* a,
     }
     max = svmaxv_f16(pg_f16, v_max);
 #    elif defined(HAVE_NEON_FP16)
-    float16x8_t v_max = vdupq_n_f16(static_cast<float16_t>(-FLT_MAX));
+    float16x8_t v_max = vdupq_n_f16(min_f16);
     float16x8_t v_scale = vdupq_n_f16(static_cast<float16_t>(scale));
     float16x8_t v_a;
     uint16x8_t v_zeroi16 = vdupq_n_u16(0);
-    float16x8_t v_nfltmax = vdupq_n_f16(static_cast<float16_t>(-FLT_MAX));
+    float16x8_t v_nfltmax = vdupq_n_f16(min_f16);
     uint16x8_t mask_xor = vdupq_n_u16(select_nfltmax_at_0 ? 0xFFFF : 0);
     float16x8_t v_alibi_slope = vdupq_n_f16(static_cast<float16_t>(alibi_slope));
 
@@ -622,8 +632,17 @@ inline void scale_add2_reduce_max(ov::float16* a,
         }
 
         if (has_attn_mask) {
-            float16x8_t v_mask = vld1q_f16(reinterpret_cast<const float16_t*>(attn_mask + i));
-            v_a = vaddq_f16(v_a, v_mask);
+            float16x8_t v_mask;
+            if constexpr (std::is_same_v<T, float>) {
+                float32x4_t m0 = vld1q_f32(attn_mask + i);
+                float32x4_t m1 = vld1q_f32(attn_mask + i + vec_len_f32_neon);
+                v_mask = vcombine_f16(vcvt_f16_f32(m0), vcvt_f16_f32(m1));
+            } else if constexpr (std::is_same_v<T, ov::float16>) {
+                v_mask = vld1q_f16(reinterpret_cast<const float16_t*>(attn_mask + i));
+            } else {
+                OPENVINO_THROW("attn_mask must be float or float16 type.");
+            }
+            v_a = vaddq_f16(v_a, v_mask);   
         }
 
         if (has_causal_mask) {
@@ -651,10 +670,10 @@ inline void scale_add2_reduce_max(ov::float16* a,
         if (has_causal_mask) {
             if (select_nfltmax_at_0) {
                 if (causal_mask[i] == 0)
-                    a[i] = -FLT_MAX;
+                    a[i] = min_f16;
             } else {
                 if (causal_mask[i] != 0)
-                    a[i] = -FLT_MAX;
+                    a[i] = min_f16;
             }
         }
         max = a[i] > max ? a[i] : max;
@@ -1384,7 +1403,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                                     scale_add2_reduce_max<true, false, true>,
                                                     scale_add2_reduce_max<true, true, false>,
                                                     scale_add2_reduce_max<true, true, true>};
-    int dispatch = (alibi ? 0b100 : 0) | (attn_mask ? 0b010 : 0) | (causal_mask ? 0b001 : 0);
+                                                    int dispatch = (alibi ? 0b100 : 0) | (attn_mask ? 0b010 : 0) | (causal_mask ? 0b001 : 0);
     ov::float16 max = std::numeric_limits<ov::float16>::lowest();
     if (attn_mask_prec == ov::element::f32) {
         funcs_fp32[dispatch](a,
