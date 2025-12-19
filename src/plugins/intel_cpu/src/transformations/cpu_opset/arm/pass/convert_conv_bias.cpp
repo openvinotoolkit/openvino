@@ -38,7 +38,7 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
     auto conv_u8 = pattern::wrap_type<ov::op::v1::Convolution>({conv_u8_activation, conv_i8_u8_weights});
     auto conv_m = conv_u8 | conv_i8;
 
-    auto bias_const_m = pattern::wrap_type<ov::op::v0::Constant>([](ov::Output<ov::Node> output) {
+    auto bias_const_m = pattern::wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
         return !pattern::type_matches(ov::element::i32)(output);
     });
     auto add_m = pattern::wrap_type<ov::op::v1::Add>({conv_m, bias_const_m});
