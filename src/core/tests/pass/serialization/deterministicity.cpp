@@ -5,13 +5,18 @@
 #include <gtest/gtest.h>
 
 #include <fstream>
+#include <regex>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
+
+namespace ov::test {
 
 class DeterministicityCommon {
 protected:
@@ -350,3 +355,41 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromOvModelBybPath) {
 INSTANTIATE_TEST_SUITE_P(DeterministicityInputOutput,
                          SerializationDeterministicityInputOutputTest,
                          ::testing::Values(ov::pass::Serialize::Version::IR_V10, ov::pass::Serialize::Version::IR_V11));
+
+TEST(DeterministicityInputOutput, LayerIdOrder) {
+    const auto p1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    const auto p2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    const auto p3 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    const auto a1 = std::make_shared<op::v1::Add>(p3, p2);
+    const auto a2 = std::make_shared<op::v1::Add>(p2, p1);
+    const auto a3 = std::make_shared<op::v1::Add>(p1, p3);
+    const auto r1 = std::make_shared<op::v0::Result>(a1);
+    const auto r2 = std::make_shared<op::v0::Result>(a2);
+    const auto r3 = std::make_shared<op::v0::Result>(a3);
+    const auto model = std::make_shared<Model>(ResultVector{r3, r1, r2}, ParameterVector{p2, p3, p1}, "param_order");
+    p2->set_friendly_name("expect id 0");
+    p3->set_friendly_name("expect id 1");
+    p1->set_friendly_name("expect id 2");
+    r3->set_friendly_name("expect id 6");
+    r1->set_friendly_name("expect id 7");
+    r2->set_friendly_name("expect id 8");
+
+    std::stringstream xml, bin;
+    ov::pass::Serialize(xml, bin).run_on_model(model);
+
+    // order matters
+    constexpr auto expected_layer_id = util::make_array(R"(<layer id="0" name="expect id 0" type="Parameter")",
+                                                        R"(<layer id="1" name="expect id 1" type="Parameter")",
+                                                        R"(<layer id="2" name="expect id 2" type="Parameter")",
+                                                        R"(<layer id="6" name="expect id 6" type="Result")",
+                                                        R"(<layer id="7" name="expect id 7" type="Result")",
+                                                        R"(<layer id="8" name="expect id 8" type="Result")");
+    const std::string xml_str = xml.str();
+    std::string::size_type pos = 0;
+    for (const auto& n : expected_layer_id) {
+        const auto found = xml_str.find(n, pos);
+        ASSERT_NE(found, std::string::npos) << "Not found: " << n;
+        pos = found;
+    }
+}
+}  // namespace ov::test

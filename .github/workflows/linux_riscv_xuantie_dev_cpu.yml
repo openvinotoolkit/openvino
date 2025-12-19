@@ -169,7 +169,6 @@ jobs:
       - name: Clean ccache stats
         run: ccache --zero-stats
       
-      # TODO: replace OMP threading with TBB in this job
       - name: CMake - Configure
         run: >
           cmake -G "${{ env.CMAKE_GENERATOR }}"
@@ -183,7 +182,6 @@ jobs:
           -DCMAKE_VERBOSE_MAKEFILE=ON
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
-          -DTHREADING=OMP
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-100-xuantie-gnu.toolchain.cmake
           -S ${OPENVINO_REPO}
           -B ${BUILD_DIR}
