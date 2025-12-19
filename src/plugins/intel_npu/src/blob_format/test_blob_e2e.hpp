@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <ostream>
-#include <istream>
+#include <fstream>
 #include <sstream>
 #include <vector>
 
@@ -172,6 +172,84 @@ void test_blob_cre_unknown_ws_bs_layouts_non_owning()
     test_assert(sections[4]->header.type == SectionType::IO_LAYOUTS, "forth section is not IO_LAYOUTS");
 
     std::cout << "PASSED: test_blob_cre_ws_bs_layouts_non_owning" << std::endl;
+}
+
+void export_test_blob_cre_unknown_ws_bs_layouts()
+{
+    std::cout << std::endl << "RUN: export_test_blob_cre_unknown_ws_bs_layouts" << std::endl;
+    Header header;
+    
+    std::vector<uint16_t> expression = {AND, ELF, BS, IO_LAYOUTS};
+    CRESection exp_cre_section(expression);
+
+    std::vector<std::shared_ptr<ELFSection>> ws_sub_sections;
+    std::vector<uint8_t> init1 = {'I' , 'N', 'I', 'T' , '1'};
+    ws_sub_sections.push_back(std::make_shared<ELFSection>(init1));
+    std::vector<uint8_t> init2 = {'I' , 'N', 'I', 'T', '2'};
+    ws_sub_sections.push_back(std::make_shared<ELFSection>(init2));
+    std::vector<uint8_t> main0 = {'M' , 'A', 'I', 'N'};
+    ws_sub_sections.push_back(std::make_shared<ELFSection>(main0));
+    WSSection ws_section(ws_sub_sections);
+
+    uint64_t batchSize = 3;
+    BatchSizeSection bs_section(batchSize);
+
+    std::vector<ov::Layout> input_layouts;
+    std::vector<ov::Layout> output_layouts;
+    input_layouts.push_back(ov::Layout("NCHW"));
+    input_layouts.push_back(ov::Layout("HW"));
+    output_layouts.push_back(ov::Layout("NHWC"));
+    IOLayoutsSection layout_section(input_layouts, output_layouts);
+
+    std::stringstream ss;
+    header.serialize(ss);
+    exp_cre_section.serialize(ss);
+    // Artificial unknown section
+    SectionHeader unknown_header;
+    unknown_header.type = static_cast<SectionType>(0xFFFF);
+    unknown_header.length = 64;
+    std::vector<uint8_t> dummy(unknown_header.length);
+    unknown_header.serialize(ss);
+    ss.write(reinterpret_cast<const char*>(&dummy[0]), unknown_header.length);
+    // unknown section serialziation completed
+    ws_section.serialize(ss);
+    bs_section.serialize(ss);
+    layout_section.serialize(ss);
+
+    std::ofstream out_file("test_file.blob", std::ios::binary);
+
+    ss.seekg(0, std::ios::beg);
+    out_file << ss.rdbuf();
+
+    out_file.close();
+    std::cout << "PASSED: export_test_blob_cre_unknown_ws_bs_layouts" << std::endl;
+}
+
+void import_test_blob_cre_unknown_ws_bs_layouts() {
+    std::cout << std::endl << "RUN: import_test_blob_cre_unknown_ws_bs_layouts" << std::endl;
+
+    std::ifstream in_file("test_file.blob");
+    std::stringstream ss;
+    
+    if (!in_file) {
+        std::cout << "FAILED: Coulnd't open file for import\n";
+        return;
+    }
+
+    ss << in_file.rdbuf();
+    in_file.close();
+
+    std::vector<std::shared_ptr<ISection>> sections;
+    read_blob(ss, sections);
+
+    test_assert(sections.size() == 5, "sections found != 5");
+    test_assert(sections[0]->header.type == SectionType::CRE, "first section is not CRE");
+    test_assert(sections[1]->header.type == static_cast<SectionType>(0xFFFF), "unknown section type was not preserved");
+    test_assert(sections[2]->header.type == SectionType::WS, "second section is not WS");
+    test_assert(sections[3]->header.type == SectionType::BS, "third section is not BS");
+    test_assert(sections[4]->header.type == SectionType::IO_LAYOUTS, "forth section is not IO_LAYOUTS");
+
+    std::cout << "PASSED: import_test_blob_cre_unknown_ws_bs_layouts" << std::endl;
 }
 
 #endif // _TEST_BLOB_E2E_HPP_

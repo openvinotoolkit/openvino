@@ -5,6 +5,29 @@
 #include "factory.hpp"
 #include "isection.hpp"
 
+Header read_header(std::istream& stream) {
+    Header header;
+    header.read(stream);
+    return header;
+}
+
+std::shared_ptr<ISection> read_expression(std::istream& stream) {
+    SectionHeader header;
+
+    while (header.read(stream)) {
+        if (header.type == CRE) {
+            std::shared_ptr<ISection> expression_section = SectionFactory::instance().create(header);
+
+            expression_section->read_value(stream);
+
+            return expression_section;
+        }
+        stream.seekg(header.length);
+    }
+    // probably throw an exception instead?
+    return nullptr;
+}
+
 bool read_sections_from_data(const uint8_t* ptr, uint64_t size, std::vector<std::shared_ptr<ISection>>& sections)
 {
     uint64_t offset = 0;
@@ -40,10 +63,20 @@ void read_sections(std::istream& stream, std::vector<std::shared_ptr<ISection>>&
         sections.push_back(section);
     }
 }
-    
+
 void read_blob(std::istream& stream, std::vector<std::shared_ptr<ISection>>& sections) {
-    Header header;
-    header.read(stream);
+    // check if header is valid?
+    // would it be helpful in invalid case to check if the first bytes are ELF magic? (old/raw blob format)
+    Header header = read_header(stream);
+    int sections_offset = stream.tellg();
+
+    // optimization: keep length + offset of expression section to skip it while reading the rest of the sections
+    auto expression_section = read_expression(stream);
+    if (!expression_section) {
+        throw std::runtime_error("Expression section not found");
+    }
+
+    stream.seekg(sections_offset, std::ios::beg);
     read_sections(stream, sections);
 }
 
