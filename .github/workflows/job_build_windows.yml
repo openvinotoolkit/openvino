@@ -249,6 +249,8 @@ jobs:
             $pythonCommand = "py -$pyVersion -c `"import sys; print(f'{sys.executable}')`""
             $pythonExecutablePath = & cmd /c $pythonCommand
 
+            Write-Host "Building Python wheels for Python $pyVersion located at $pythonExecutablePath"
+
             $pipVersion = & $pythonExecutablePath -c "import pip; print(pip.__version__)"
             Write-Host "Using pip version: $pipVersion for $pyVersion"
             $env:PIP_CACHE_DIR="${{ env.PIP_CACHE_PATH }}/$pipVersion"
