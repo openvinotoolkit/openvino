@@ -32,10 +32,15 @@ namespace function {
 struct MoEValidationResult {
     size_t num_experts = 0;                                 // Total number of experts
     size_t expert_hidden_dim = 0;                           // Hidden dimension of single expert
-    size_t input_batch_size = 0;                            // Input batch size
+    size_t input_token_count = 0;                           // Number of input tokens
     std::shared_ptr<ov::op::v0::Tile> tile_node = nullptr;  // The Tile operation node
     std::shared_ptr<ov::Node> input_node = nullptr;         // Input to Tile operation
     std::optional<size_t> router_param_idx;  // Parameter index for router output (from Multiply in output path)
+
+    // Stage detection (based on output shape analysis)
+    bool is_decoding_stage = false;      // True if detected as decoding (token_count == 1)
+    size_t detected_active_experts = 1;  // Detected number of active experts (1 for prefill, K for decoding)
+    bool has_reduce_sum = false;         // True if ReduceSum is present in output path (decoding stage)
 
     // Validation helper
     bool is_valid() const {
@@ -59,9 +64,19 @@ struct MoEDownstream {
 // Helper function to validate MoE expert model and extract necessary information
 std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shared_ptr<ov::Model>& model);
 
-// Helper function to transform MoE expert model from batched to single expert
-std::shared_ptr<ov::Model> transform_to_single_expert(const std::shared_ptr<ov::Model>& original_model,
-                                                      const MoEValidationResult& validation_result);
+// Expert transformation mode
+enum class ExpertMode {
+    SINGLE_EXPERT,  // Transform to 1 expert (prefill stage)
+    ACTIVE_EXPERTS  // Transform to K active experts (decoding stage)
+};
+
+// Helper function to transform MoE expert model from batched to target number of experts
+// For prefill: num_target_experts = 1 (SINGLE_EXPERT mode)
+// For decoding: num_target_experts = K (ACTIVE_EXPERTS mode)
+std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model>& original_model,
+                                                 MoEValidationResult& validation_result,
+                                                 size_t num_target_experts = 1,
+                                                 ExpertMode mode = ExpertMode::SINGLE_EXPERT);
 
 // Helper function to detect and transform MoE downstream pattern
 // Looks for: Parameter -> Convert -> ReduceSum pattern
@@ -74,9 +89,13 @@ struct MoEExperts {
     // Basic information about the expert model
     size_t _num_experts = 0;        // Total number of experts in the model
     size_t _expert_hidden_dim = 0;  // Hidden dimension for a single expert
-    size_t _input_batch_size = 0;   // Input batch size
+    size_t _input_token_count = 0;  // Number of input tokens
 
-    // The transformed single-expert model
+    // Transformation mode and target expert count
+    ExpertMode _mode = ExpertMode::SINGLE_EXPERT;  // Transformation mode
+    size_t _num_active_experts = 1;  // Number of active experts (1 for SINGLE_EXPERT, K for ACTIVE_EXPERTS)
+
+    // The transformed expert model (single expert or K active experts)
     std::shared_ptr<ov::Model> _single_expert_model = nullptr;
 
     // Original batched model (for reference)
@@ -85,8 +104,9 @@ struct MoEExperts {
     // Tile operation information
     std::shared_ptr<ov::op::v0::Tile> _tile_op = nullptr;
     ov::Shape _original_tile_output_shape;    // Shape before transformation
-    ov::Shape _single_expert_shape;           // Shape after transformation
+    ov::Shape _single_expert_shape;           // Shape after transformation (single or K experts)
     std::optional<size_t> _router_param_idx;  // Parameter index for router output
+    bool _has_reduce_sum = false;             // Whether ReduceSum is included (decoding stage)
 
     // Input/output information for the expert subgraph
     struct ExpertIO {
@@ -111,6 +131,18 @@ struct MoEExperts {
         return _expert_hidden_dim;
     }
 
+    size_t num_active_experts() const {
+        return _num_active_experts;
+    }
+
+    ExpertMode mode() const {
+        return _mode;
+    }
+
+    bool has_reduce_sum() const {
+        return _has_reduce_sum;
+    }
+
     const std::shared_ptr<ov::Model>& single_expert_model() const {
         return _single_expert_model;
     }
@@ -126,11 +158,15 @@ struct MoEExperts {
     // Log MoE expert information for debugging
     void log_info() const {
         std::cout << "MoE Expert Information:" << std::endl;
+        std::cout << "  Mode: " << (_mode == ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS")
+                  << std::endl;
         std::cout << "  Number of experts: " << _num_experts << std::endl;
+        std::cout << "  Number of active experts: " << _num_active_experts << std::endl;
         std::cout << "  Expert hidden dimension: " << _expert_hidden_dim << std::endl;
-        std::cout << "  Input batch size: " << _input_batch_size << std::endl;
+        std::cout << "  Input token count: " << _input_token_count << std::endl;
+        std::cout << "  Has ReduceSum: " << (_has_reduce_sum ? "Yes" : "No") << std::endl;
         std::cout << "  Original tile output shape: " << _original_tile_output_shape << std::endl;
-        std::cout << "  Single expert shape: " << _single_expert_shape << std::endl;
+        std::cout << "  Transformed expert shape: " << _single_expert_shape << std::endl;
         std::cout << "  Inputs: " << _inputs.size() << std::endl;
         for (const auto& input : _inputs) {
             std::cout << "    - " << input.name << " [" << input.element_type << ", " << input.shape << "]"
@@ -144,7 +180,9 @@ struct MoEExperts {
     }
 
     // Factory method to create MoEExperts from a model (for expert pattern only)
-    static std::optional<MoEExperts> from(const std::shared_ptr<ov::Model>& model, size_t active_experts_num = 0);
+    // For prefill stage: active_experts_num = 0 or 1 (default), mode = SINGLE_EXPERT
+    // For decoding stage: active_experts_num = K, mode = ACTIVE_EXPERTS
+    static std::optional<MoEExperts> from(const std::shared_ptr<ov::Model>& model);
 };
 
 // Factory method to create MoEDownstream from a model (for downstream pattern)
@@ -158,8 +196,11 @@ namespace compiled {
 struct MoEExperts {
     size_t num_experts = 0;
     size_t expert_hidden_dim = 0;
+    size_t num_active_experts = 1;  // Number of active experts (1 for prefill, K for decoding)
+    function::ExpertMode mode = function::ExpertMode::SINGLE_EXPERT;
+    bool has_reduce_sum = false;  // Whether ReduceSum is included
 
-    // Compiled single expert model
+    // Compiled expert model (single expert or K active experts)
     ov::SoPtr<ov::ICompiledModel> _compiled_model;
 
     // Store model temporarily for compilation

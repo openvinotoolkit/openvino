@@ -43,8 +43,16 @@ namespace opp = ov::pass::pattern;
     Second MatMul (down projection):
         Multiply1 -> MatMul2 (with weights Convert2) -> Add3
 
-    Output:
-        Add3 -> Reshape2
+    Output (stage-dependent):
+        Prefill stage:  Add3 -> Reshape2 -> Multiply (output here)
+                        ReduceSum will be performed in downstream subgraph
+
+        Decoding stage: Add3 -> Reshape2 -> Multiply -> ReduceSum (output here)
+                        ReduceSum is included in expert subgraph
+
+    Isolation strategy:
+    - Prefill (token_count > 1): Isolate up to Multiply, ReduceSum stays in downstream
+    - Decoding (token_count == 1): Isolate including ReduceSum, self-contained expert subgraph
 */
 GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
     LOG_DEBUG("GPTOSSExpert pattern matcher registered with tag: " << isol_tag);
@@ -87,8 +95,6 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
-        LOG_DEBUG("GPT-OSS Expert pattern matched");
-
         auto& node_to_output = m.get_pattern_value_map();
 
         auto matched_tile = node_to_output.at(tile).get_node_shared_ptr();
@@ -111,7 +117,24 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_reshape2 = node_to_output.at(reshape2).get_node_shared_ptr();
         auto matched_output_multiply = node_to_output.at(output_multiply).get_node_shared_ptr();
 
-        // Isolate all matched nodes
+        // Check if this is decoding stage by examining shape[rank-2]
+        auto output_shape = matched_output_multiply->get_output_partial_shape(0);
+        LOG_DEBUG("Expert Multiply output_shape: " << output_shape);
+        bool is_decoding = false;
+
+        if (output_shape.rank().is_static() && output_shape.rank().get_length() >= 2) {
+            auto rank = output_shape.rank().get_length();
+            auto token_dim = output_shape[rank - 2];
+
+            if (token_dim.is_static() && token_dim.get_length() == 1) {
+                is_decoding = true;
+                LOG_DEBUG("GPT-OSS Expert pattern matched (Decoding stage): single token");
+            } else if (token_dim.is_static()) {
+                LOG_DEBUG("GPT-OSS Expert pattern matched (Prefill stage): token_count=" << token_dim.get_length());
+            }
+        }
+
+        // Isolate all common expert nodes
         node_to_gptr->at(matched_tile)->isolate(isol_tag);
         node_to_gptr->at(matched_reshape1)->isolate(isol_tag);
         node_to_gptr->at(matched_weights_multiply1)->isolate(isol_tag);
@@ -131,6 +154,34 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         node_to_gptr->at(matched_add3)->isolate(isol_tag);
         node_to_gptr->at(matched_reshape2)->isolate(isol_tag);
         node_to_gptr->at(matched_output_multiply)->isolate(isol_tag);
+
+        // If decoding stage, find and isolate ReduceSum after Multiply
+        if (is_decoding) {
+            LOG_DEBUG("Decoding stage detected, searching for ReduceSum to isolate...");
+            std::shared_ptr<ov::Node> matched_reduce_sum = nullptr;
+
+            for (auto& output : matched_output_multiply->outputs()) {
+                for (auto& input : output.get_target_inputs()) {
+                    auto consumer = input.get_node()->shared_from_this();
+                    if (auto reduce_sum = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(consumer)) {
+                        matched_reduce_sum = reduce_sum;
+                        LOG_DEBUG("  Found ReduceSum after Multiply, isolating for decoding stage");
+                        break;
+                    }
+                }
+                if (matched_reduce_sum)
+                    break;
+            }
+
+            if (matched_reduce_sum && node_to_gptr->count(matched_reduce_sum)) {
+                node_to_gptr->at(matched_reduce_sum)->isolate(isol_tag);
+                LOG_DEBUG("  ReduceSum successfully isolated");
+            } else if (matched_reduce_sum) {
+                LOG_WARN("  ReduceSum found but not in node_to_gptr map");
+            } else {
+                LOG_WARN("  No ReduceSum found after Multiply (unexpected for decoding stage)");
+            }
+        }
 
         return false;
     };
