@@ -139,8 +139,8 @@ namespace ov::intel_npu::op {
 
 using namespace ov::op;
 
-std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
-                                          const std::vector<ov::PartialShape>& input_shapes) {
+static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
+                                                 const std::vector<ov::PartialShape>& input_shapes) {
     using DimType = typename ov::PartialShape::value_type;
     const auto& inputs_count = input_shapes.size();
     const auto& has_attention_mask = (inputs_count >= 7) && (input_shapes[6].size() > 1);
@@ -411,9 +411,9 @@ bool FlashAttentionTile::has_evaluate() const {
     }
 };
 
-bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
-                                   const ov::TensorVector& inputs,
-                                   const FlashAttentionTile::Config& config) {
+static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
+                                          const ov::TensorVector& inputs,
+                                          const FlashAttentionTile::Config& config) {
     const auto& query_shape = inputs[QUERY].get_shape();
     const auto B = static_cast<int32_t>((query_shape.size() == 4) ? *(query_shape.end() - 4) : 1);
     const auto H = static_cast<int32_t>(*(query_shape.end() - 3));
