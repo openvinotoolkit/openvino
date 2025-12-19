@@ -1,0 +1,9 @@
+# UV Global Configuration for OpenVINO
+
+# Additional indexes for PyTorch CPU-only builds
+extra-index-url = [
+    "https://download.pytorch.org/whl/cpu"
+]
+
+# Use pip-compatible resolution strategy
+resolution = "highest"

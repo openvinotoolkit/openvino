@@ -5,8 +5,19 @@ Instructions can be found in ["Building the OpenVINO™ Python API"](./build.md)
 
 Install the specific requirements file for testing:
 ```
+# Modern approach (recommended) - using UV
+pip install uv
+uv pip install --group tests_pyapi
+
+# Or using pip 25.1+
+pip install --upgrade pip
+pip install --group tests_pyapi
+
+# Legacy approach (deprecated - will be removed)
 python -m pip install -r openvino/src/bindings/python/requirements_test.txt
 ```
+
+**Note:** See the [dependency groups migration guide](./dependency_groups_migration.md) for more information about dependency groups.
 
 Make sure that Python libraries are added to the user environment variables: 
 ```
@@ -132,6 +143,8 @@ Notice that the test name is shared between cases. In a real-life pull request, 
 * Re-use common parts of the code (like multiple lines that create helper object) and move them out to make tests easier to read.
 
 ## See also
+ * [Dependency Groups Migration Guide](dependency_groups_migration.md)
+ * [Requirements Management](requirements_management.md)
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO™ bindings README](../../README.md)
  * [Developer documentation](../../../../docs/dev/index.md)
