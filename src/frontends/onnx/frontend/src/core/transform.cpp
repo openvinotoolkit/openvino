@@ -87,6 +87,7 @@ void ov::frontend::onnx::transform::expand_onnx_functions(ModelProto& model_prot
         NodeProto node = graph_proto->node().Get(i);
 
         // Check if node operation is one of the functions we want to expand
+        // TODO: Extend this part to not expand ONNX Attention possible to be converted to OV SDPA
         if (std::find(onnx_functions_to_expand.begin(), onnx_functions_to_expand.end(), node.op_type()) ==
             onnx_functions_to_expand.end()) {
             continue;
