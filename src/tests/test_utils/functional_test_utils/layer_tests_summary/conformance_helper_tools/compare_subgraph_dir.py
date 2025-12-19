@@ -4,7 +4,7 @@
 from argparse import ArgumentParser
 from utils.file_utils import prepare_filelist
 from utils.constants import XML_EXTENSION, META_EXTENSION
-from openvino.runtime import Core
+from openvino import Core
 import defusedxml.ElementTree as ET
 
 def parse_arguments():

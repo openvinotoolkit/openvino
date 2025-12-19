@@ -55,6 +55,19 @@ static constexpr ov::Property<std::string> weights_bank_alloc{"NPUW_WEIGHTS_BANK
 
 /**
  * @brief
+ * Type: ov::FileHandleProvider.
+ * Callback function to get file handle for weights (cross-platform).
+ * The callback takes no arguments and returns a platform-specific file handle.
+ * On Linux/Unix: returns int (file descriptor)
+ * On Windows: returns void* (HANDLE)
+ * This is useful for scenarios where file access needs to be controlled externally,
+ * such as Android content providers or restricted file access scenarios.
+ * Default value: nullptr.
+ */
+static constexpr ov::Property<ov::FileHandleProvider> weights_handle_provider{"NPUW_WEIGHTS_HANDLE_PROVIDER"};
+
+/**
+ * @brief
  * Type: std::string.
  * Specify a directory where to store cached submodels.
  * Default value: empty.
@@ -498,6 +511,16 @@ static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
 
 /**
  * @brief
+ * Type: boolean
+ * Enable multiple generate model variants with different static shapes (1K, 2K, 4K, 8K stepping).
+ * When enabled, multiple generate models will be compiled and the appropriate one will be
+ * selected at runtime based on the required KV cache size.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> generate_pyramid{"NPUW_LLM_GENERATE_PYRAMID"};
+
+/**
+ * @brief
  * Type: uint64_t.
  * Prompt chunk size for chunk prefill.
  * The chunk size should be a power of two.
@@ -655,6 +678,16 @@ namespace whisper {
  */
 static constexpr ov::Property<bool> enabled{"NPUW_WHISPER"};
 }  // namespace whisper
+
+namespace eagle {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass Eagle3 model for speculative decoding.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_EAGLE"};
+}  // namespace eagle
 
 }  // namespace npuw
 }  // namespace intel_npu

@@ -55,8 +55,11 @@ void MatMulBase::generate_inputs(const std::vector<ov::Shape>& targetInputStatic
         const auto& model_input = model_inputs[i];
         ov::Tensor tensor;
         ov::test::utils::InputGenerateData in_data;
+        const bool bf16_precision =
+            configuration.at(ov::hint::inference_precision.name()).as<ov::element::Type>() == ov::element::bf16 ||
+            model_input.get_element_type() == ov::element::bf16;
         // To avoid big relative errors in the vicinity of zero, only positive values are generated for bf16 precision
-        in_data.start_from = model_input.get_element_type() == ov::element::bf16 ? 0 : -1;
+        in_data.start_from = bf16_precision ? 0 : -1;
         in_data.range = 5;
         in_data.resolution = 256;
         tensor =
@@ -64,7 +67,6 @@ void MatMulBase::generate_inputs(const std::vector<ov::Shape>& targetInputStatic
         inputs.insert({model_input.get_node_shared_ptr(), tensor});
     }
 }
-
 
 void MatMul::SetUp() {
     const auto& [input_shapes,

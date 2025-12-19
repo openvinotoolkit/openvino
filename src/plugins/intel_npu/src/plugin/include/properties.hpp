@@ -122,6 +122,7 @@ private:
         ov::intel_npu::npuw::llm::min_response_len.name(),
         ov::intel_npu::npuw::llm::optimize_v_tensors.name(),
         ov::intel_npu::npuw::llm::cache_rope.name(),
+        ov::intel_npu::npuw::llm::generate_pyramid.name(),
         ov::intel_npu::npuw::llm::prefill_chunk_size.name(),
         ov::intel_npu::npuw::llm::shared_lm_head.name(),
         ov::intel_npu::npuw::llm::max_lora_rank.name(),
@@ -137,7 +138,8 @@ private:
         ov::intel_npu::npuw::llm::additional_generate_config.name(),
         ov::intel_npu::npuw::llm::generate_attn_hint.name(),
         ov::intel_npu::npuw::llm::shared_lm_head_config.name(),
-        ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name()};
+        ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name(),
+        ov::intel_npu::npuw::eagle::enabled.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name(),
