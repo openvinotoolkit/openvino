@@ -13,9 +13,17 @@
 #include "ocl_v2/utils/jitter.hpp"
 #include "moe_gemm_inst.h"
 #include "../utils/kernel_generator.hpp"
+#include "gemmstone/kernel_selector.hpp"
 
 // clang-format on
 namespace ov::intel_gpu::ocl {
+
+namespace {
+void entryObserver(
+        const gemmstone::kcatalog::Entry *entry, double score, gemmstone::EvaluateAuxOutput aux) {
+    GPU_DEBUG_TRACE_DETAIL << "consider strategy: " << entry->str() << ", score: " << score << "\n";
+};
+} // anonymous namespace
 
 static size_t get_subgroup_size(gpu_arch arch) {
     switch (arch) {
@@ -198,7 +206,8 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, 
     GPU_DEBUG_TRACE_DETAIL << "sizes to select gemm : m : " << m << " n : " << n << " k : " << k << std::endl;
     try {
         /* Ask microkernel provider for microkernel */
-        gemm_moe = micro::select_gemm_microkernel(opts_moe, hw_info, sizes, problem_moe);
+        gemmstone::SelectionObserver observer = entryObserver;
+        gemm_moe = micro::select_gemm_microkernel(opts_moe, hw_info, sizes, problem_moe, &observer);
     } catch (const std::runtime_error& ex) {
         OPENVINO_THROW("Can't create moe micro kernel: ", ex.what());
     }
