@@ -423,8 +423,6 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
 
     // Skip MoE expert submodels - they require special handling via unpack_moe_expert_closure()
     if (func_desc.moe_experts.has_value()) {
-        std::cout << "Skipping unpack_closure for MoE expert Subgraph[" << idx
-                  << "] - will use unpack_moe_expert_closure() instead\n";
         return;
     }
 
@@ -564,8 +562,6 @@ ov::Tensor ov::npuw::IBaseInferRequest::slice_batch_expert_weights(const ov::Ten
     auto sliced_batch_ptr = allocMem(elem_type, output_shape, "NPU");
     auto sliced_batch = ov::make_tensor(sliced_batch_ptr);
 
-    std::cout << "Slicing " << K << " experts from batched weight, output shape: " << output_shape << std::endl;
-
     // Copy each expert's data
     if (elem_type == ov::element::f32) {
         const float* src = batched_weight.data<float>();
@@ -626,102 +622,64 @@ std::vector<size_t> ov::npuw::IBaseInferRequest::parse_selected_experts_from_rou
     const ov::SoPtr<ov::ITensor>& router_output,
     size_t num_experts,
     std::map<size_t, std::vector<size_t>>& token_to_experts) {
-    std::vector<size_t> selected_experts;
+    std::set<size_t> selected_experts_set;
 
     if (!router_output) {
         LOG_WARN("Router output is null, selecting all experts");
+        std::vector<size_t> all_experts;
         for (size_t i = 0; i < num_experts; ++i) {
-            selected_experts.push_back(i);
+            all_experts.push_back(i);
         }
-        return selected_experts;
+        return all_experts;
     }
 
     auto shape = router_output->get_shape();
     auto elem_type = router_output->get_element_type();
 
-    std::cout << "Parsing router output: shape=" << shape << " type=" << elem_type << std::endl;
+    // Router output shape: [num_experts, 1, token_num, 1]
+    // We need to parse which expert each token selects based on non-zero weights
 
-    // Assuming router output is a weight tensor where non-zero values indicate selected experts
-    // Shape is typically [batch, seq_len, num_experts] or similar
-    // We need to find which experts have non-zero weights
+    if (shape.size() != 4 || shape[0] != num_experts || shape[1] != 1 || shape[3] != 1) {
+        LOG_WARN("Unexpected router output shape: [" << shape[0] << ", " << shape[1] << ", " << shape[2] << ", "
+                                                     << shape[3] << "], expected [" << num_experts
+                                                     << ", 1, token_num, 1]");
+    }
 
-    size_t total_elements = ov::shape_size(shape);
-    size_t elements_per_expert = total_elements / num_experts;
+    size_t num_tokens = shape[2];  // token_num from shape
 
-    // Map: expert_id -> list of token indices that selected this expert
-    std::map<size_t, std::vector<size_t>> expert_to_tokens;
-    // token_to_experts is now passed by reference from caller
+    auto parse_experts = [&](auto* data) {
+        // For each token, find which experts have non-zero weights
+        for (size_t token_id = 0; token_id < num_tokens; ++token_id) {
+            for (size_t expert_id = 0; expert_id < num_experts; ++expert_id) {
+                // Index calculation for shape [num_experts, 1, token_num, 1]
+                // data[expert_id, 0, token_id, 0]
+                size_t idx = expert_id * num_tokens + token_id;
 
-    auto check_expert = [&](auto* data) {
-        for (size_t expert_id = 0; expert_id < num_experts; ++expert_id) {
-            bool has_nonzero = false;
-            for (size_t i = 0; i < elements_per_expert; ++i) {
-                size_t idx = expert_id * elements_per_expert + i;
-                if (idx < total_elements && std::abs(static_cast<float>(data[idx])) > 1e-6f) {
-                    has_nonzero = true;
-                    expert_to_tokens[expert_id].push_back(i);  // Record token index
-                    token_to_experts[i].push_back(expert_id);  // Record expert for this token
+                float value = std::abs(static_cast<float>(data[idx]));
+                if (value > 1e-6f) {
+                    // This token selected this expert
+                    token_to_experts[token_id].push_back(expert_id);
+                    selected_experts_set.insert(expert_id);
                 }
-            }
-            if (has_nonzero) {
-                selected_experts.push_back(expert_id);
             }
         }
     };
 
     if (elem_type == ov::element::f32) {
-        check_expert(router_output->data<float>());
+        parse_experts(router_output->data<float>());
     } else if (elem_type == ov::element::f16) {
-        check_expert(router_output->data<ov::float16>());
+        parse_experts(router_output->data<ov::float16>());
     } else {
-        LOG_WARN("Unsupported router output element type, selecting all experts");
+        LOG_WARN("Unsupported router output element type: " << elem_type << ", selecting all experts");
+        std::vector<size_t> all_experts;
         for (size_t i = 0; i < num_experts; ++i) {
-            selected_experts.push_back(i);
+            all_experts.push_back(i);
         }
+        return all_experts;
     }
 
-    std::cout << "\n========== Router Selection Summary ==========" << std::endl;
-    std::cout << "Total experts: " << num_experts << ", Selected: " << selected_experts.size() << std::endl;
-
-    std::cout << "\n--- Experts -> Tokens ---" << std::endl;
-    for (auto expert_id : selected_experts) {
-        std::cout << "Expert[" << expert_id << "] selected by " << expert_to_tokens[expert_id].size() << " tokens: [";
-        for (size_t i = 0; i < expert_to_tokens[expert_id].size(); ++i) {
-            if (i > 0)
-                std::cout << ", ";
-            std::cout << expert_to_tokens[expert_id][i];
-            if (i >= 9 && expert_to_tokens[expert_id].size() > 10) {  // Show first 10 tokens
-                std::cout << ", ... (+" << (expert_to_tokens[expert_id].size() - 10) << " more)";
-                break;
-            }
-        }
-        std::cout << "]" << std::endl;
-    }
-
-    std::cout << "\n--- Tokens -> Experts ---" << std::endl;
-    for (auto& [token_id, experts] : token_to_experts) {
-        std::cout << "Token[" << token_id << "] selects " << experts.size() << " experts: [";
-        for (size_t i = 0; i < experts.size(); ++i) {
-            if (i > 0)
-                std::cout << ", ";
-            std::cout << experts[i];
-        }
-        std::cout << "]" << std::endl;
-
-        // Limit output for readability - show first 20 tokens
-        if (token_id >= 19 && token_to_experts.size() > 20) {
-            std::cout << "... (+" << (token_to_experts.size() - 20) << " more tokens)" << std::endl;
-            break;
-        }
-    }
-    std::cout << "=============================================\n" << std::endl;
-
-    std::cout << "Selected " << selected_experts.size() << " experts: ";
-    for (auto id : selected_experts) {
-        std::cout << id << " ";
-    }
-    std::cout << std::endl;
-
+    // Convert set to vector (sorted order)
+    std::vector<size_t> selected_experts(selected_experts_set.begin(), selected_experts_set.end());
     return selected_experts;
 }
 
@@ -789,9 +747,6 @@ void ov::npuw::IBaseInferRequest::unpack_moe_expert_closure(std::size_t idx, RqP
     NPUW_ASSERT(func_desc.moe_experts.has_value());
     const auto num_experts = func_desc.moe_experts->num_experts;
 
-    std::cout << "Unpacking MoE expert " << expert_id << "/" << num_experts << " closure for Subgraph[" << idx << "]"
-              << std::endl;
-
     auto& desc_closure = comp_model_desc.closure.get().closure;
 
     for (std::size_t cidx = 0u; cidx < desc_closure.size(); cidx++) {
@@ -818,9 +773,6 @@ void ov::npuw::IBaseInferRequest::unpack_moe_expert_closure(std::size_t idx, RqP
             }
 
             auto& sliced_weight = m_moe_io[idx].expert_weights_cache[cache_key];
-
-            std::cout << "  Setting sliced expert weight for closure param " << closure_param_id
-                      << " shape: " << sliced_weight.get_shape() << std::endl;
 
             // Handle unpacking if needed
             if (m_npuw_model->unpack_required(idx, cidx)) {
@@ -869,11 +821,6 @@ void ov::npuw::IBaseInferRequest::unpack_moe_batch_expert_closure(std::size_t id
     const auto num_experts = func_desc.moe_experts->num_experts;
     const size_t K = expert_ids.size();
 
-    std::cout << "Unpacking " << K << " MoE experts' closures at once for Subgraph[" << idx << "]" << std::endl;
-    for (size_t i = 0; i < K; ++i) {
-        std::cout << "  Expert slot[" << i << "] = Expert[" << expert_ids[i] << "]" << std::endl;
-    }
-
     auto& desc_closure = comp_model_desc.closure.get().closure;
 
     for (std::size_t cidx = 0u; cidx < desc_closure.size(); cidx++) {
@@ -893,9 +840,6 @@ void ov::npuw::IBaseInferRequest::unpack_moe_batch_expert_closure(std::size_t id
         if (needs_slicing) {
             // Slice K experts' weights at once
             ov::Tensor sliced_batch = slice_batch_expert_weights(closure, expert_ids, num_experts);
-
-            std::cout << "  Setting batch sliced expert weights for closure param " << closure_param_id
-                      << " shape: " << sliced_batch.get_shape() << std::endl;
 
             // Handle unpacking if needed
             if (m_npuw_model->unpack_required(idx, cidx)) {
@@ -928,8 +872,6 @@ void ov::npuw::IBaseInferRequest::unpack_moe_batch_expert_closure(std::size_t id
             }
         }
     }
-
-    std::cout << "Completed unpacking batch of " << K << " experts for Subgraph[" << idx << "]" << std::endl;
 }
 
 void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr request) {
@@ -1011,7 +953,6 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         } else if (is_moe) {
             // Register MoE input for future use - will be processed in function_prologue
             LOG_DEBUG("Registering MoE global param " << param_idx << " -> " << sub_in_idx);
-            std::cout << "Registering MoE global param " << param_idx << " -> " << sub_in_idx << std::endl;
             m_moe_io[idx].inputs.at(sub_in_idx) = g_tnsr;
         } else {
             // Lock mutex just in case. m_input_allocated might be altered in parallel in get_tensor()
