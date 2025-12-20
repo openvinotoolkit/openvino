@@ -53,8 +53,8 @@ ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
         auto add_const_value =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(add_const_pattern).get_node_shared_ptr());
 
-        bool valid_constant_values = op::util::has_constant_value<double>(min_const_value, 0.0) &&
-                                     op::util::has_constant_value<double>(max_const_value, 1.0);
+        bool valid_constant_values = ov::op::util::has_constant_value<double>(min_const_value, 0.0) &&
+                                     ov::op::util::has_constant_value<double>(max_const_value, 1.0);
         if (!valid_constant_values)
             return false;
 

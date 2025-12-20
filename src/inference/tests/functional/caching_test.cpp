@@ -3043,7 +3043,10 @@ TEST_P(CachingTest, import_from_cache_model_by_custom_model_rt_info) {
     });
     MkDirGuard guard(m_cacheDir);
     EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
-    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
+    EXPECT_CALL(
+        *mockPlugin,
+        compile_model(A<const std::shared_ptr<const ov::Model>&>(), Not(Contains(Key(ov::cache_model_path.name())))))
+        .Times(1);
     EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(1);
     EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(1);
     EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);

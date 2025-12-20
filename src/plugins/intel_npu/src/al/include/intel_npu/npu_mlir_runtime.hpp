@@ -79,11 +79,17 @@ typedef enum _npu_mlir_runtime_version_t {
 /// @brief NPU MLIR runtime handle
 typedef struct _npu_mlir_runtime_handle_t* npu_mlir_runtime_handle_t;
 
+//////////////////////////////////////////////////////////////////////////////
+/// @brief NPU MLIR runtime MemRef handle
+typedef struct _npu_mlir_runtime_mem_ref_handle_t* npu_mlir_runtime_mem_ref_handle_t;
+
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Defined Return/Error codes
 typedef enum _npu_mlir_runtime_result_t {
     NPU_MLIR_RUNTIME_RESULT_SUCCESS = 0,
     NPU_MLIR_RUNTIME_RESULT_ERROR_INVALID_NULL_POINTER = 0x80000001,
+    NPU_MLIR_RUNTIME_RESULT_ERROR_UNSUPPORTED_DIM_COUNT = 0x80000002,
+    NPU_MLIR_RUNTIME_RESULT_ERROR_UNSUPPORTED_VERSION = 0x80000003,
     NPU_MLIR_RUNTIME_RESULT_ERROR_UNKNOWN = 0x8ffffffe,
     NPU_MLIR_RUNTIME_RESULT_FORCE_UINT32 = 0x8fffffff,
 } npu_mlir_runtime_result_t;
@@ -102,21 +108,12 @@ typedef struct _npu_mlir_runtime_properties_t {
     uint32_t numOfGraphArgs;
 } npu_mlir_runtime_properties_t;
 
-typedef struct _npu_mlir_runtime_mem_ref_t {
-    const void* basePtr;
-    const void* data;
-    int64_t offset;
-    int64_t sizes[ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE];
-    int64_t strides[ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE];
-    uint32_t dimsCount;
-} npu_mlir_runtime_mem_ref_t;
-
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Execute params
 typedef struct _npu_mlir_runtime_execute_params_t {
-    npu_mlir_runtime_mem_ref_t** pInputs;
+    npu_mlir_runtime_mem_ref_handle_t* pInputs;
     uint32_t numOfInputs;
-    npu_mlir_runtime_mem_ref_t** pOutputs;
+    npu_mlir_runtime_mem_ref_handle_t* pOutputs;
     uint32_t numOfOutputs;
     ze_context_handle_t ctx;
     ze_device_handle_t device;
@@ -127,6 +124,15 @@ typedef struct _npu_mlir_runtime_execute_params_t {
     ze_fence_handle_t inferenceFence;
     ze_event_handle_t event;
 } npu_mlir_runtime_execute_params_t;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Predict output shape params
+typedef struct _npu_mlir_runtime_predict_output_shape_params_t {
+    npu_mlir_runtime_mem_ref_handle_t* pInputs;
+    uint32_t numOfInputs;
+    npu_mlir_runtime_mem_ref_handle_t* pOutputs;
+    uint32_t numOfOutputs;
+} npu_mlir_runtime_predict_output_shape_params_t;
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Returns the API version
@@ -155,8 +161,7 @@ NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL np
     uint32_t argIndex,                                           ///< [in] index of the argument
     ze_graph_argument_properties_3_t* pGraphArgumentProperties,  ///< [out] query result for graph argument properties
     ze_graph_argument_metadata_t* pGraphArgumentMetadata,        ///< [out] query result for graph argument metadata
-    int64_t* upperBound
-);
+    int64_t* upperBound);
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Execute MLIR runtime with params
@@ -168,12 +173,42 @@ NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL np
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Predit output shape based on input shape
 NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimePredictOutputShape(
-    npu_mlir_runtime_handle_t hRuntime,        ///< [in] handle of mlir runtime object
-    npu_mlir_runtime_mem_ref_t** pInputArgs,   ///< [in] pointer to input argument mem descriptor pointer array
-    uint32_t numOfInputArgs,                   ///< [in] number of input arguments
-    npu_mlir_runtime_mem_ref_t** pOutputArgs,  ///< [out] pointer to output argument mem descriptor pointer array
-    uint32_t numOfOutputArgs                   ///< [in] number of
+    npu_mlir_runtime_handle_t hRuntime,                      ///< [in] handle of mlir runtime object
+    npu_mlir_runtime_predict_output_shape_params_t* pParams  ///< [in] pointer to predict output shape parameters
 );
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Create MemRef handle
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeCreateMemRef(
+    int64_t dimsCount,                            ///< [in] value of tensor rank
+    npu_mlir_runtime_mem_ref_handle_t* phMemRef);  ///< [out] handle of mlir runtime MemRef object
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Destroy MemRef handle
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
+npuMLIRRuntimeDestroyMemRef(npu_mlir_runtime_mem_ref_handle_t hMemRef);  ///< [out] handle of mlir runtime MemRef object
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Set new value to MemRef
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
+npuMLIRRuntimeSetMemRef(npu_mlir_runtime_mem_ref_handle_t hMemRef,  ///< [in] handle of mlir runtime MemRef object
+                        const void* basePtr,                        ///< [in] pointer to basePtr
+                        const void* data,                           ///< [in] pointer to data
+                        int64_t offset,                             ///< [in] offset in MemRef
+                        int64_t* pSizes,                            ///< [in] pointer to tensor sizes
+                        int64_t* pStrides,                          ///< [in] pointer to tensor strides
+                        int64_t dimsCount);                         ///< [in] value of tensor rank
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Set new value to MemRef
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
+npuMLIRRuntimeParseMemRef(npu_mlir_runtime_mem_ref_handle_t hMemRef,  ///< [in] handle of mlir runtime MemRef object
+                          const void** pBasePtr,                      ///< [out] pointer to basePtr
+                          const void** pData,                         ///< [out] pointer to data
+                          int64_t* pOffset,                           ///< [out] offset in MemRef
+                          int64_t* pSizes,                            ///< [out] pointer to tensor sizes
+                          int64_t* pStrides,                          ///< [out] pointer to tensor strides
+                          int64_t* pDimsCount);                       ///< [out] value of tensor rank
 
 #if defined(__cplusplus)
 }  // extern "C"

@@ -8,6 +8,7 @@
 
 #include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
+#include "llm_eagle3_extension.hpp"
 #include "llm_lora_states.hpp"
 #include "llm_prefix_caching.hpp"
 #include "openvino/core/descriptor/output.hpp"
@@ -143,9 +144,19 @@ protected:
 
     uint64_t m_tokens_in_present_chunk = 0;
 
+    // Support Eagle3 speculative decoding
+    Eagle3Extension m_eagle3_ext;
+
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
     void init_lora_states();
+
+    // To share kvcache between prefill and generate
+    bool m_past_kv_bound = false;
+    void bind_past_kv();
+
+    std::string m_pre_alloc_device = "CPU";
+    std::string init_pre_alloc_device();
 
     // Support prefix caching
     std::unique_ptr<PrefixCachingHelper> m_prefix_caching_helper;

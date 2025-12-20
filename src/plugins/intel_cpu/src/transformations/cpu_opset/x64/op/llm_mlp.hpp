@@ -25,13 +25,19 @@ public:
 
     enum class ACT_FN : uint8_t { SILU = 0, GELU = 1 };
 
+    enum class GATE_UP_TYPE : uint8_t {
+        SEPARATE = 0,          // separate gate and up projections
+        COMBINED_GATE_UP = 1,  // combined weights, gate first (normal)
+        COMBINED_UP_GATE = 2   // combined weights, up first (swapped)
+    };
+
     struct Config {
         ACT_FN act;
         bool gate_up_quantized;
         bool down_quantized;
         int hidden_size;
         int up_size;
-        bool gate_up_combined;
+        GATE_UP_TYPE gate_up_type;
     };
 
     // args:
@@ -69,6 +75,17 @@ public:
     OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::LLMMLPNode::ACT_FN>");
 };
 
+template <>
+class AttributeAdapter<ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE>
+    : public EnumAttributeAdapterBase<ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE> {
+public:
+    explicit AttributeAdapter(ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE& value)
+        : EnumAttributeAdapterBase<ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE>");
+};
+
 std::ostream& operator<<(std::ostream& s, const ov::intel_cpu::LLMMLPNode::ACT_FN& type);
+std::ostream& operator<<(std::ostream& s, const ov::intel_cpu::LLMMLPNode::GATE_UP_TYPE& type);
 
 }  // namespace ov

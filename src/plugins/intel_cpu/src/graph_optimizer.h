@@ -26,7 +26,7 @@ private:
     static void FuseMultiplyAndAdd(Graph& graph);
     static void MergeEltwiseAndConvert(Graph& graph);
     static void MergeConvertAndEltwise(Graph& graph);
-    static void FuseFCAndConvertOnWeights(Graph& graph);
+    static void FuseConvDeconvFCAndConvertOnWeights(Graph& graph);
     static void FuseFCAndTransposeOnWeights(Graph& graph);
     static void FuseFullyConnectedAndSimpleOperation(Graph& graph);
     static void FuseMatMulAndSimpleOperation(Graph& graph);
