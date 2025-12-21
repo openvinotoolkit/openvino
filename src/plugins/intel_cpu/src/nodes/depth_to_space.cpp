@@ -206,6 +206,7 @@ void DepthToSpace::createPrimitive() {
 
 void DepthToSpace::prepareParams() {
     attrs.srcBlockedDims = getSrcMemoryAtPort(0)->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    attrs.cpuParallel = context->getCpuParallel();
     auto builder = [](const DepthToSpaceAttrs& key) -> std::shared_ptr<DepthToSpaceExecutor> {
         return std::make_shared<DepthToSpaceExecutor>(key);
     };
@@ -217,7 +218,8 @@ void DepthToSpace::prepareParams() {
     execPtr = result.first;
 }
 
-DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs) {
+DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs)
+    : cpuParallel(attrs.cpuParallel) {
     OPENVINO_ASSERT(
         any_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp),
         "DepthToSpace executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.");
@@ -310,7 +312,7 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
         params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
     }
 
-    permuteKernel = std::make_unique<PermuteKernel>(params);
+    permuteKernel = std::make_unique<PermuteKernel>(params, cpuParallel);
 }
 
 void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, int MB) {

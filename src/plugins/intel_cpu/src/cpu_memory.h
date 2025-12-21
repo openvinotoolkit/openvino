@@ -16,6 +16,7 @@
 #include <unordered_set>
 #include <utility>
 
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -459,6 +460,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
                          int dim,
                          int w_rank,
                          int w_size,
+                         const std::shared_ptr<CpuParallel> cpu_parallel,
                          bool need_fill = true);
 
 }  // namespace ov::intel_cpu

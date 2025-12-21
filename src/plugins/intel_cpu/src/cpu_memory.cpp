@@ -693,6 +693,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
                          int dim,
                          int w_rank,
                          int w_size,
+                         const std::shared_ptr<CpuParallel> cpu_parallel,
                          bool need_fill) {
     auto desc = src->getDescPtr();
     const auto& shape = src->getShape();
@@ -747,7 +748,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
         strideSize /= 2;
         copySize /= 2;
     }
-    parallel_for(step, [&](int i) {
+    cpu_parallel->parallel_for(step, [&](int i) {
         int dst_offset = i * copySize;
         int src_offset = i * splited_size + w_rank * strideSize;
         cpu_parallel_memcpy(dstPtr + dst_offset, srcPtr + src_offset, copySize);

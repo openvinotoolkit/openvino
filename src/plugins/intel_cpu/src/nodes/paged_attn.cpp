@@ -218,7 +218,7 @@ void PagedAttention::createPrimitive() {
                                     quantKeybyChannel,
                                     quantValuebyChannel,
                                     cpuConfig.enableSageAttn};
-        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, params);
+        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, params, context->getCpuParallel());
 #else
         return nullptr;
 #endif

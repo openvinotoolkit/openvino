@@ -33,7 +33,7 @@ bool JitTransposeExecutor::init(const TransposeParams& transposeParams,
                                 [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
                                 [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs,
                                 [[maybe_unused]] const dnnl::primitive_attr& attr) {
-    pKernel = std::make_shared<PermuteKernel>(transposeParams.permuteParams);
+    pKernel = std::make_shared<PermuteKernel>(transposeParams.permuteParams, context->getCpuParallel());
     return true;
 }
 

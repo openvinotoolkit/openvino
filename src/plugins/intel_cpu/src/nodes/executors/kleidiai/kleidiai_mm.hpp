@@ -126,6 +126,7 @@ private:
     size_t packedlhs_block_in_bytes = 0UL;
     bool INT4_IMPL;
     bool useDynamicQuant = false;
+    std::shared_ptr<CpuParallel> cpu_parallel;
 };
 
 using MatMulKleidiAIExecutorPtr = std::shared_ptr<MatMulKleidiAIExecutor>;

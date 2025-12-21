@@ -6,6 +6,7 @@
 #include <cstddef>
 
 #include "utils/plain_tensor.hpp"
+#include "cpu_parallel.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
 
@@ -35,6 +36,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       size_t key_group_size,
                       size_t value_group_size,
                       bool quant_key_by_channel,
-                      const ov::intel_cpu::PlainTensor& sink_input);
+                      const ov::intel_cpu::PlainTensor& sink_input,
+                      const std::shared_ptr<ov::intel_cpu::CpuParallel> cpu_parallel);
 
 }  // namespace ov::Extensions::Cpu::XARCH

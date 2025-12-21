@@ -371,7 +371,7 @@ void RegionYolo::createPrimitive() {
         logistic_kernel->create_ker();
     }
 #endif
-    softmax_kernel = std::make_shared<SoftmaxGeneric>(input_prec, output_prec);
+    softmax_kernel = std::make_shared<SoftmaxGeneric>(input_prec, output_prec, context->getCpuParallel());
 }
 
 inline float RegionYolo::logistic_scalar(float src) {

@@ -169,6 +169,7 @@ void ShuffleChannels::prepareParams() {
     };
     attrs.srcDims = srcMemPtr->getStaticDims();
     attrs.srcBlockedDims = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    attrs.cpuParallel = context->getCpuParallel();
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
@@ -177,7 +178,8 @@ void ShuffleChannels::prepareParams() {
     execPtr = result.first;
 }
 
-ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs) {
+ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs)
+    : cpuParallel(attrs.cpuParallel) {
     OPENVINO_ASSERT(
         any_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp),
         "ShuffleChannels executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.");
@@ -286,7 +288,7 @@ ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleC
         params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
     }
 
-    permuteKernel = std::make_unique<PermuteKernel>(params);
+    permuteKernel = std::make_unique<PermuteKernel>(params, cpuParallel);
 }
 
 void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint8_t* dstData, int MB) {

@@ -253,9 +253,10 @@ private:
     }
 };
 #endif
-SoftmaxGeneric::SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPrc)
+SoftmaxGeneric::SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPrc, const std::shared_ptr<CpuParallel> cpuParallel)
     : input_prec(inpPrc),
-      output_prec(outPrc) {
+      output_prec(outPrc),
+      cpu_parallel(cpuParallel) {
     if (ov::element::bf16 == output_prec) {
         if (!mayiuse(avx512_core)) {
             OPENVINO_THROW("SoftmaxGeneric doesn't support BF16 precision on this target.");
@@ -292,7 +293,7 @@ void SoftmaxGeneric::calculate(const in_data_t* src_data, out_data_t* dst_data, 
         if (softmax_kernel) {
             int blocks_num = H * W / block_size;
 
-            parallel_for(blocks_num, [&](int ib) {
+            cpu_parallel->parallel_for(blocks_num, [&](int ib) {
                 auto arg = jit_args_softmax();
 
                 arg.src = src_data + b * C * H * W + ib * block_size;
@@ -307,7 +308,7 @@ void SoftmaxGeneric::calculate(const in_data_t* src_data, out_data_t* dst_data, 
             tail_start = (H * W / block_size) * block_size;
         }
 
-        parallel_for(H * W - tail_start, [&](int i) {
+        cpu_parallel->parallel_for(H * W - tail_start, [&](int i) {
             int offset = i + tail_start;
             float max = src_data[b * C * H * W + offset];
             for (int c = 0; c < C; c++) {

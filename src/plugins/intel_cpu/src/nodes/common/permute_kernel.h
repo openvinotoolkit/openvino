@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "cpu_types.h"
+#include "cpu_parallel.hpp"
 
 namespace ov::intel_cpu {
 
@@ -60,7 +61,7 @@ struct jit_uni_permute_kernel {
 
 class PermuteKernel {
 public:
-    explicit PermuteKernel(const PermuteParams& params);
+    explicit PermuteKernel(const PermuteParams& params, const std::shared_ptr<CpuParallel> parallel);
 
     void execute(const uint8_t* src_data, uint8_t* dst_data);
     void execute(const uint8_t* src_data, uint8_t* dst_data, int mb);
@@ -74,6 +75,7 @@ private:
     jit_permute_config_params jcp = {};
     std::shared_ptr<jit_uni_permute_kernel> permute_kernel;
     PermuteParams params;
+    std::shared_ptr<CpuParallel> cpu_parallel;
 };
 
 }  // namespace ov::intel_cpu

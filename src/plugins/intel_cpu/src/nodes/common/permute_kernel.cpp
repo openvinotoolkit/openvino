@@ -184,7 +184,9 @@ private:
 
 #endif  // OPENVINO_ARCH_X86_64
 
-PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {
+PermuteKernel::PermuteKernel(const PermuteParams& params, const std::shared_ptr<CpuParallel> parallel)
+    : params(params),
+      cpu_parallel(parallel) {
     jcp = TransposeExecutor::prepareParams(params);
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
