@@ -28,8 +28,6 @@ namespace ov::intel_gpu::ocl {
 
 enum class MoE3GemmMicroKernelType : uint8_t { MLP_GATE = 0, MLP_UP = 1, MLP_DOWN = 2 };
 
-enum class MoE3GemmWeightCompressionType : uint8_t { MOE_WEIGHT_U4 = 0, MOE_WEIGHT_U8 = 1, MOE_WEIGHT_F16 = 2 };
-
 enum class MOE3GemmInputIndex : uint8_t {
     HIDDEN_STATES = 0,
     ROUTING_WEIGHTS = 1,

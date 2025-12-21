@@ -49,7 +49,7 @@ bool FilteredConfig::isAvailable(std::string key) const {
     if (it != _enabled.end() && hasOpt(key)) {
         return it->second;
     }
-    // if doesnt exist = not available
+    // if doesn't exist = not available
     return false;
 }
 
