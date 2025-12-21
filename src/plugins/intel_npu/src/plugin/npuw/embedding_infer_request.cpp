@@ -4,8 +4,6 @@
 
 #include "embedding_infer_request.hpp"
 
-#include <regex>
-
 #include "infer_request_utils.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -22,8 +20,9 @@ ov::SoPtr<ov::ITensor> ov::npuw::EmbeddingInferRequest::create_prefill_output_te
 }
 
 ov::npuw::EmbeddingInferRequest::EmbeddingInferRequest(const std::shared_ptr<LLMCompiledModel>& compiled_model)
-    : ov::ISyncInferRequest(compiled_model),
-      m_npuw_llm_compiled_model(compiled_model) {
+    : ov::npuw::LLMInferBaseRequest(compiled_model) {
+    init_ports();
+
     m_prefill_request = m_npuw_llm_compiled_model->m_prefill_compiled->create_infer_request();
 
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
@@ -38,49 +37,6 @@ ov::npuw::EmbeddingInferRequest::EmbeddingInferRequest(const std::shared_ptr<LLM
     }
 
     m_prefill_output = create_prefill_output_tensor();
-}
-
-void ov::npuw::EmbeddingInferRequest::update_kvcache_for(
-    std::shared_ptr<ov::IAsyncInferRequest> request,
-    const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
-    const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
-    uint32_t num_tokens,
-    bool v_transposed) {
-    namespace uu = ov::npuw::util;
-    LOG_DEBUG("Store computed key and values for passed number of tokens in the input kv-cache"
-              " layers.");
-    LOG_BLOCK();
-    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    auto& compiled = request->get_compiled_model();
-    // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
-    for (std::size_t i = layer_ids::kStartOutputKVCacheLayers; i < compiled->outputs().size(); ++i) {
-        const auto& output_name = compiled->outputs()[i].get_any_name();
-        const auto& input_name = std::regex_replace(output_name, std::regex("present"), layer_names::past_key_values);
-        if (in_ports.find(input_name) == in_ports.end()) {
-            // FIXME: Totally wrong debug message. input_name is an invalid name of input layer.
-            LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
-            continue;
-        }
-        auto dst_tensor = request->get_tensor(in_ports.at(input_name));
-        const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
-        auto dst_slice = uu::make_tensor_slice(dst_tensor,
-                                               kv_dim,
-                                               kvcache_desc.num_stored_tokens - num_tokens,
-                                               kvcache_desc.num_stored_tokens);
-        auto src_tensor = request->get_tensor(out_ports.at(output_name));
-
-        // NOTE: Sometimes present kv layer can contain greater seq_len
-        //       than was sent to be processed
-        uint32_t src_seq_len = static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]);
-        OPENVINO_ASSERT(num_tokens <= src_seq_len);
-        if (src_seq_len > num_tokens) {
-            auto src_slice = uu::make_tensor_slice(src_tensor, kv_dim, src_seq_len - num_tokens, src_seq_len);
-            uu::copy_tensor_by_dim(src_slice, dst_slice, kv_dim, kv_dim);
-        } else {
-            uu::copy_tensor_by_dim(src_tensor, dst_slice, kv_dim, kv_dim);
-        }
-    }
-    LOG_DEBUG("Done.");
 }
 
 void ov::npuw::EmbeddingInferRequest::prepare_for_new_conversation() {
@@ -157,9 +113,6 @@ void ov::npuw::EmbeddingInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITenso
                     reinterpret_cast<uint8_t*>(m_input_ids_in_tensor->data()) + m_input_ids_in_tensor->get_byte_size() -
                         current_prefill_bytes);
 
-        // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3, BATCH,
-        // SEQ_LEN]
-        // Copy postion ids with considering the 3D position_ids
         auto last_dim = position_ids->get_shape().size() - 1;
         auto actual_position_ids_slice = ov::npuw::util::make_tensor_slice(
             position_ids,

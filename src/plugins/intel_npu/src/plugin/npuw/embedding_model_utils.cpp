@@ -259,7 +259,6 @@ public:
         }
 
         auto attention_mask = model->input("attention_mask");
-
         auto minus_one =
             std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
         auto zero_i = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
@@ -281,10 +280,10 @@ public:
         manager.set_per_pass_validation(true);
         manager.register_pass<AddPositionIdsNode>(model);
         manager.register_pass<AddKVCacheNodes>(model, m_seq_len_dim);
-        manager.run_passes(model);
+        OPENVINO_ASSERT(manager.run_passes(model), "Failed to add position_ids or kv cache nodes");
 
         replace_mask_node(model);
-        OPENVINO_ASSERT(update_kv_concat_shape(model), "Fail to re-construct text-embedding model");
+        OPENVINO_ASSERT(update_kv_concat_shape(model), "Failed to re-construct text-embedding model");
         model->validate_nodes_and_infer_types();
         return true;
     }

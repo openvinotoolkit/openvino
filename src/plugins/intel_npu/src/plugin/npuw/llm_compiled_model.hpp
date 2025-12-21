@@ -62,6 +62,7 @@ public:
     ov::Any get_property(const std::string& name) const override;
 
 private:
+    friend class LLMInferBaseRequest;
     friend class LLMInferRequest;
     friend class WhisperInferRequest;
     friend class EmbeddingInferRequest;
