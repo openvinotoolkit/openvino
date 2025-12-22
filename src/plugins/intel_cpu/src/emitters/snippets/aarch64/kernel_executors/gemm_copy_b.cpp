@@ -102,8 +102,10 @@ void GemmCopyBKaiKernelExecutorBase::ensure_kernel(std::shared_ptr<CompiledKerne
     }
 }
 
+template <typename UkernelT>
+template <auto rhs_pack_kxn>
 static void execute_copy_b_common(const GemmCopyBKernelKaiConfig& config,
-                                  const kai_matmul_clamp_f32_f32_f32p_ukernel& uk,
+                                  const UkernelT& uk,
                                   std::vector<uint8_t>& bias_buffer,
                                   void* in0,
                                   void* out0,
@@ -128,61 +130,19 @@ static void execute_copy_b_common(const GemmCopyBKernelKaiConfig& config,
         auto* dst_base = static_cast<int8_t*>(out0);
         const size_t packed_off = uk.get_rhs_packed_offset(n_start, K);
         auto* dst_ptr = dst_base + packed_off;
-        kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(1,
-                                                         n_step,
-                                                         K,
-                                                         nr,
-                                                         kr,
-                                                         sr,
-                                                         copy_b_wei_stride,
-                                                         src_ptr,
-                                                         bias_buffer.data(),
-                                                         nullptr,
-                                                         dst_ptr,
-                                                         0,
-                                                         nullptr);
-    }
-}
-
-static void execute_copy_b_common(const GemmCopyBKernelKaiConfig& config,
-                                  const kai_matmul_clamp_f16_f16_f16p_ukernel& uk,
-                                  std::vector<uint8_t>& bias_buffer,
-                                  void* in0,
-                                  void* out0,
-                                  size_t elem_size) {
-    const auto K = config.get_K();
-    const auto N = config.get_N();
-    const auto copy_b_wei_stride = config.get_copy_b_wei_stride();
-    const auto copy_b_col_stride = config.get_copy_b_col_stride();
-    const auto& n_blk_size = GemmCopyBKernelKaiConfig::get_N_blk();
-    const size_t nr = uk.get_nr();
-    const size_t kr = uk.get_kr();
-    const size_t sr = uk.get_sr();
-    size_t n_blocks = ov::snippets::utils::div_up(N, n_blk_size);
-    if (bias_buffer.size() != GemmCopyBKernelKaiConfig::get_N_blk() * elem_size) {
-        bias_buffer.assign(GemmCopyBKernelKaiConfig::get_N_blk() * elem_size, 0);
-    }
-    for (size_t n_block = 0; n_block < n_blocks; n_block++) {
-        size_t n_start = n_block * n_blk_size;
-        size_t n_end = std::min(n_start + n_blk_size, N);
-        size_t n_step = n_end - n_start;
-        auto* src_ptr = static_cast<int8_t*>(in0) + n_start * copy_b_col_stride;
-        auto* dst_base = static_cast<int8_t*>(out0);
-        const size_t packed_off = uk.get_rhs_packed_offset(n_start, K);
-        auto* dst_ptr = dst_base + packed_off;
-        kai_run_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon(1,
-                                                          n_step,
-                                                          K,
-                                                          nr,
-                                                          kr,
-                                                          sr,
-                                                          copy_b_wei_stride,
-                                                          src_ptr,
-                                                          bias_buffer.data(),
-                                                          nullptr,
-                                                          dst_ptr,
-                                                          0,
-                                                          nullptr);
+        rhs_pack_kxn(1,
+                     n_step,
+                     K,
+                     nr,
+                     kr,
+                     sr,
+                     copy_b_wei_stride,
+                     src_ptr,
+                     bias_buffer.data(),
+                     nullptr,
+                     dst_ptr,
+                     0,
+                     nullptr);
     }
 }
 
@@ -206,7 +166,12 @@ void GemmCopyBF32KaiKernelExecutor::execute(const GemmCopyBF32KaiKernelExecutor*
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
     const auto& kernel = executor->get_kernel();
-    execute_copy_b_common(config, *kernel->copy_b_ukernel, *kernel->bias_buffer, in0, out0, sizeof(float));
+    execute_copy_b_common<kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon>(config,
+                                                                            *kernel->copy_b_ukernel,
+                                                                            *kernel->bias_buffer,
+                                                                            in0,
+                                                                            out0,
+                                                                            sizeof(float));
 }
 
 GemmCopyBF16KaiKernelExecutor::GemmCopyBF16KaiKernelExecutor(GemmCopyBKernelKaiConfig config)
@@ -229,7 +194,12 @@ void GemmCopyBF16KaiKernelExecutor::execute(const GemmCopyBF16KaiKernelExecutor*
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
     const auto& kernel = executor->get_kernel();
-    execute_copy_b_common(config, *kernel->copy_b_ukernel, *kernel->bias_buffer, in0, out0, sizeof(uint16_t));
+    execute_copy_b_common<kai_run_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon>(config,
+                                                                             *kernel->copy_b_ukernel,
+                                                                             *kernel->bias_buffer,
+                                                                             in0,
+                                                                             out0,
+                                                                             sizeof(uint16_t));
 }
 
 }  // namespace ov::intel_cpu::aarch64

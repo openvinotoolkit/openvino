@@ -49,47 +49,10 @@ void GemmKaiKernelExecutorBase::ensure_kernel(std::shared_ptr<KernelT>& kernel) 
     }
 }
 
+template <typename UkernelT>
 static void execute_common_impl(const GemmKernelKaiConfig& config,
                                 const GemmKaiCallArgs* args,
-                                const kai_matmul_clamp_f32_f32_f32p_ukernel& ukernel,
-                                size_t elem_size,
-                                float clamp_min,
-                                float clamp_max) {
-    const auto& M = config.get_M();
-    const auto& N = config.get_N();
-    const auto& K = config.get_K();
-    const auto& lda = config.get_LDA();
-    const auto& ldc = config.get_LDC();
-    const size_t BLOCK_SIZE = ukernel.get_n_step();
-    size_t n_blocks = ov::snippets::utils::div_up(static_cast<size_t>(N), BLOCK_SIZE);
-    const size_t lhs_stride = lda * elem_size;
-    const size_t dst_stride_row = ldc * elem_size;
-    const size_t dst_stride_col = elem_size;
-    for (size_t n_block = 0; n_block < n_blocks; n_block++) {
-        size_t n_start = n_block * BLOCK_SIZE;
-        size_t n_end = std::min(n_start + BLOCK_SIZE, static_cast<size_t>(N));
-        size_t n_block_size = n_end - n_start;
-        const size_t rhs_packed_offset = ukernel.get_rhs_packed_offset(n_start, K);
-        const size_t dst_offset = ukernel.get_dst_offset(0, n_start, dst_stride_row);
-        const uint8_t* rhs_ptr = static_cast<const uint8_t*>(args->B) + rhs_packed_offset;
-        uint8_t* dst_ptr = static_cast<uint8_t*>(args->C) + dst_offset;
-        ukernel.run_matmul(M,
-                           n_block_size,
-                           K,
-                           args->A,
-                           lhs_stride,
-                           rhs_ptr,
-                           dst_ptr,
-                           dst_stride_row,
-                           dst_stride_col,
-                           clamp_min,
-                           clamp_max);
-    }
-}
-
-static void execute_common_impl(const GemmKernelKaiConfig& config,
-                                const GemmKaiCallArgs* args,
-                                const kai_matmul_clamp_f16_f16_f16p_ukernel& ukernel,
+                                const UkernelT& ukernel,
                                 size_t elem_size,
                                 float clamp_min,
                                 float clamp_max) {
