@@ -133,12 +133,10 @@
 #include "utils/ngraph_transformation.hpp"
 
 // LPT transformations
-#include "low_precision/add.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
@@ -170,6 +168,11 @@
 
 #if defined(OPENVINO_ARCH_X86)
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
+#endif
+
+#if !defined(OPENVINO_ARCH_RISCV64)
+#    include "low_precision/add.hpp"
+#    include "low_precision/rt_info/bias_attribute.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -973,8 +976,8 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
             // Run the transformation for non-convolution bias only on ARM
             // Convolution bias is handled in ConvertConvolutionBias transformation
             auto node_input = node->get_input_node_shared_ptr(0);
-            return ov::marked_as_bias(node) && ov::is_type<ov::op::v1::Multiply>(node_input) &&
-                   !ov::is_type<ov::op::v1::Convolution>(node_input->get_input_node_shared_ptr(0));
+            return ov::marked_as_bias(node) && ov::is_type<ov::op::v1::Convolution>(node_input) &&
+                   ov::is_type<ov::op::v1::Multiply>(node_input->get_input_node_shared_ptr(0));
         },
         AddTransformation);
     CPU_SET_CALLBACK_X64(

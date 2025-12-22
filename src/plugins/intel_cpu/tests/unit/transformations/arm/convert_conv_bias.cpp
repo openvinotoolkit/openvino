@@ -5,15 +5,10 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/pass/manager.hpp>
-#include <ov_ops/type_relaxed.hpp>
 #include <string>
-#include <transformations/cpu_opset/arm/pass/convert_conv_bias.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -21,14 +16,19 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/round.hpp"
+#include "openvino/pass/manager.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
 using namespace ov::intel_cpu;
 
 static std::shared_ptr<ov::Node> createConvolution(ov::element::Type input_type,
                                                     ov::element::Type weights_type,
-                                                    std::shared_ptr<ov::op::v0::Parameter>& input,
-                                                    size_t spatial_dims = 2) {
+                                                    std::shared_ptr<ov::op::v0::Parameter>& input) {
+    static const size_t spatial_dims = 2;
     ov::Strides strides(spatial_dims, 1);
     ov::CoordinateDiff pads(spatial_dims, 0);
 
@@ -50,10 +50,8 @@ static std::shared_ptr<ov::Node> createConvolution(ov::element::Type input_type,
 
 static std::shared_ptr<ov::Node> createAdd(const ov::Output<ov::Node>& input1,
                                             const ov::Output<ov::Node>& input2,
-                                            ov::element::Type type1,
-                                            ov::element::Type type2,
                                             bool force_type_relaxed = false) {
-    if (!force_type_relaxed && type1 == type2) {
+    if (!force_type_relaxed && input1.get_element_type() == input2.get_element_type()) {
         return std::make_shared<ov::op::v1::Add>(input1, input2);
     } else {
         return std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Add>>(
@@ -72,7 +70,7 @@ static std::shared_ptr<ov::Model> createInitGraph(ov::element::Type input_type,
     auto conv = createConvolution(input_type, weights_type, input);
 
     auto bias = ov::op::v0::Constant::create(bias_type, {1, 16, 1, 1}, {1.5f});
-    auto add = createAdd(conv, bias, ov::element::f32, bias_type);
+    auto add = createAdd(conv, bias);
 
     auto dequant_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5f});
     auto multiply = std::make_shared<ov::op::v1::Multiply>(add, dequant_scale);
@@ -92,7 +90,7 @@ static std::shared_ptr<ov::Model> createRefGraph(ov::element::Type input_type,
     auto convert = std::make_shared<ov::op::v0::Convert>(round, ov::element::i32);
 
     // The transformation creates a TypeRelaxed Add when the original Add is not TypeRelaxed
-    auto add = createAdd(conv, convert, ov::element::f32, ov::element::i32, true);
+    auto add = createAdd(conv, convert, true);
 
     auto dequant_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5f});
     auto multiply = std::make_shared<ov::op::v1::Multiply>(add, dequant_scale);
