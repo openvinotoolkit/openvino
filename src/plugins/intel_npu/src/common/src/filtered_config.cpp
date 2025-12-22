@@ -49,7 +49,7 @@ bool FilteredConfig::isAvailable(std::string key) const {
     if (it != _enabled.end() && hasOpt(key)) {
         return it->second;
     }
-    // if doesnt exist = not available
+    // if doesn't exist = not available
     return false;
 }
 
@@ -61,6 +61,14 @@ void FilteredConfig::enable(std::string key, bool enabled) {
 void FilteredConfig::enableAll() {
     _desc->walk([&](const details::OptionConcept& opt) {
         enable(opt.key().data(), true);
+    });
+}
+
+void FilteredConfig::enableRuntimeOptions() {
+    _desc->walk([&](const details::OptionConcept& opt) {
+        if (opt.mode() == OptionMode::RunTime) {
+            enable(opt.key().data(), true);
+        }
     });
 }
 
@@ -125,6 +133,14 @@ std::string FilteredConfig::toStringForCompiler() const {
     }
 
     return resultStream.str();
+}
+
+void FilteredConfig::markAsInitialized() {
+    _initialized = true;
+}
+
+bool FilteredConfig::wasInitialized() const {
+    return _initialized;
 }
 
 }  // namespace intel_npu

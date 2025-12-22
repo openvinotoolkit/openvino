@@ -26,14 +26,20 @@ def check_bytes_based(tensor, string_data, to_flat=False):
     tensor_data = tensor.bytes_data
     encoded_data = string_data if string_data.dtype.kind == "S" else np.char.encode(string_data)
     assert tensor_data.dtype.kind == "S"
-    _check_tensor_string(tensor_data.flatten() if to_flat else tensor_data, encoded_data.flatten() if to_flat else encoded_data)
+    _check_tensor_string(
+        tensor_data.flatten() if to_flat else tensor_data,
+        encoded_data.flatten() if to_flat else encoded_data
+    )
 
 
 def check_string_based(tensor, string_data, to_flat=False):
     tensor_data = tensor.str_data
     decoded_data = string_data if string_data.dtype.kind == "U" else np.char.decode(string_data)
     assert tensor_data.dtype.kind == "U"
-    _check_tensor_string(tensor_data.flatten() if to_flat else tensor_data, decoded_data.flatten() if to_flat else decoded_data)
+    _check_tensor_string(
+        tensor_data.flatten() if to_flat else tensor_data,
+        decoded_data.flatten() if to_flat else decoded_data
+    )
 
 
 def test_string_tensor_shared_memory_fails():

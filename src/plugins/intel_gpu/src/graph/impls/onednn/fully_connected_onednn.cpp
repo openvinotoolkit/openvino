@@ -356,7 +356,7 @@ public:
                 _attrs->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
             }
 
-            if (prim->dynamic_quantized_precomputed_reduction) {
+            if (dynamic_quantized_precomputed_reduction) {
                 auto activation_precomputed_reduction_idx = ++idx;
                 auto act_precomputed_reduction_data_type = convert_data_type(impl_params->get_input_layout(activation_precomputed_reduction_idx).data_type);
                 _attrs->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
@@ -410,8 +410,8 @@ public:
                 auto ifm = arg.get_dependency(1).get_output_layout().get_dim(weight_rank - 1);
                 auto ngroups = scale_layout.get_dim(weight_rank - 1);
                 group_size = ifm / ngroups;
-                OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 32 == 0),
-                    "[GPU] group_size should be aligned to 32 if it is not a single scale group or the group_size is not one.");
+                OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 16 == 0),
+                    "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
                 if (scale_layout.count() == 1) {
                     attr->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, ds_data_type);
                 } else if (ngroups == 1 && weight_rank <= 2) {

@@ -81,13 +81,24 @@ public:
         conv_params.deformable_groups = deformable_groups;
 
         conv_params.groups = groups;
+        conv_params.grouped_weights_shape = primitive->grouped_weights_shape;
 
         auto deform_conv_dep_offset = primitive->deformable_mode ? 1 : 0;
         if (primitive->input.size() == 3)
             deform_conv_dep_offset++;
 
-        const auto& weights_layout = impl_param.input_layouts[1 + 0 + deform_conv_dep_offset]
+        const size_t weights_input_idx = 1 + deform_conv_dep_offset;
+        auto weights_layout = impl_param.input_layouts[weights_input_idx]
                                                .convert_to_weights_layout(primitive->grouped_weights_shape);
+
+        // Extend grouped 1d conv weights shape from 4d to 5d when conv input shape is canonicalized to 4d by allow_new_shape_infer=false
+        const bool is_1d_group_conv = (primitive->filter_rank == 4) && conv_params.grouped_weights_shape && groups > 1;
+        const bool needs_weights_extension = is_1d_group_conv && weights_layout.get_rank() == 4;
+
+        if (needs_weights_extension) {
+            weights_layout = extend_weights_layout_to_5d(weights_layout);
+            conv_params.weights = convert_weights_tensor(weights_layout, true);
+        }
 
         ov::CoordinateDiff pads_begin(primitive->padding_begin.begin(), primitive->padding_begin.end());
         ov::CoordinateDiff pads_end(primitive->padding_end.begin(), primitive->padding_end.end());
@@ -173,9 +184,12 @@ public:
                 && cp.weights.X().v == 1 && cp.weights.Y().v > 1
                 && !(cp.groups == cp.inputs[0].Feature().v && cp.inputs[0].Feature().v == cp.outputs[0].Feature().v)) {
                 auto can_swap = [](const kernel_selector::Tensor::DataTensor& dt) -> bool {
-                    auto x_channel_idx = static_cast<uint32_t>(kernel_selector::Tensor::DataTensor::Channelndex(dt.GetLayout(),
-                                                    kernel_selector::Tensor::DataChannelName::X));
-                    auto x_axis_dim = dt.GetDims()[x_channel_idx];
+                    auto x_channel_idx = kernel_selector::Tensor::DataTensor::Channelndex(dt.GetLayout(),
+                                                                                        kernel_selector::Tensor::DataChannelName::X);
+                    if (x_channel_idx < 0) {
+                        return false;
+                    }
+                    auto x_axis_dim = dt.GetDims()[static_cast<size_t>(x_channel_idx)];
                     return (x_axis_dim.pad.Total() == 0 && x_axis_dim.v == 1);
                 };
 

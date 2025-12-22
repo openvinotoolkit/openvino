@@ -89,7 +89,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     // computing-intensive nodes. So Locate the FuseConvolutionAndZeroPoints() as the first optimization.
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE,
                        taskChain,
-                       itt::domains::intel_cpu_LT,
+                       itt::domains::ov_intel_cpu_LT,
                        "ApplyCommonGraphOptimizations",
                        "FuseConvolutionAndZeroPoints");
     FuseConvolutionAndZeroPoints(graph);
@@ -112,7 +112,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndConvertOnWeights");
-    FuseFCAndConvertOnWeights(graph);
+    FuseConvDeconvFCAndConvertOnWeights(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndTransposeOnWeights");
@@ -228,7 +228,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
 }
 
 void GraphOptimizer::ApplyImplSpecificGraphOptimizations(Graph& graph) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "GraphOptimizer::ApplyImplSpecificGraphOptimizations");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "GraphOptimizer::ApplyImplSpecificGraphOptimizations");
 
     TailNodesPrecisionOptimize(graph);
     graph.RemoveDroppedNodes();
@@ -298,7 +298,13 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
                 return false;
             }
         }
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        // Per-channel DQ scales fusion is not supported by ACL
+        return scalesDims[channelAxis] == 1;
+#else
         return true;
+#endif
     };
 
     auto initializeDeQuantizedScales = [](const NodePtr& node, const NodePtr& scales) {
@@ -832,7 +838,7 @@ void GraphOptimizer::MergeConvertAndEltwise(Graph& graph) {
     }
 }
 
-void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
+void GraphOptimizer::FuseConvDeconvFCAndConvertOnWeights(Graph& graph) {
 #if defined(OV_CPU_WITH_SHL)
     return;
 #endif
@@ -851,7 +857,7 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
 
     const auto& graphNodes = graph.GetNodes();
     for (const auto& fullyConnected : graphNodes) {
-        if (fullyConnected->getType() != Type::FullyConnected) {
+        if (none_of(fullyConnected->getType(), Type::FullyConnected, Type::Convolution, Type::Deconvolution)) {
             continue;
         }
 
@@ -919,6 +925,10 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
 
 void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
+// zero points fusing is skipped on ARM platforms because oneDNN is not involved into int8 convolution inference
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    return;
+#endif
 
     auto isSuitableConvNode = [](const NodePtr& node) {
         bool retVal = false;
@@ -2311,10 +2321,10 @@ void GraphOptimizer::FuseClampAndFakeQuantize(Graph& graph) {
         std::vector<float> newCropLow(cropLowData.size());
         std::vector<float> newCropHigh(cropHighData.size());
         for (size_t i = 0; i < cropLowData.size(); i++) {
-            newCropLow[i] = std::max(cropLowData[i], eltwiseNode->getAlpha());
+            newCropLow[i] = std::max(cropLowData[i], static_cast<float>(eltwiseNode->getAlpha()));
         }
         for (size_t i = 0; i < cropHighData.size(); i++) {
-            newCropHigh[i] = std::min(cropHighData[i], eltwiseNode->getBeta());
+            newCropHigh[i] = std::min(cropHighData[i], static_cast<float>(eltwiseNode->getBeta()));
         }
 
         fakeQuantizeNode->setCropLow(newCropLow);

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <future>
 #include <random>
 #include <string>
 
@@ -200,6 +201,51 @@ template <class T>
 typename std::underlying_type<T>::type _v(T&& t) {
     return static_cast<typename std::underlying_type<T>::type>(t);
 }
+
+template <class T>
+class Delayed {
+public:
+    T& get() {
+        return const_cast<T&>(get_impl());
+    }
+    // FIXME: since main purpose of this is to guard closure,
+    // even const get should wait for the future to finish,
+    // otherwise it's not ready yet (e.g. .size() method).
+    const T& get() const {
+        return get_impl();
+    }
+    T& unsafe_get() {
+        return data;
+    }
+    void set_future(std::shared_future<void>& f) {
+        future = f;
+    }
+    void wait() const {
+        if (!done && future.valid()) {
+            future.wait();
+            done = true;
+        }
+    }
+
+private:
+    const T& get_impl() const {
+        if (done)
+            return data;
+        if (future.valid()) {
+            future.wait();
+            done = true;
+        }
+        return data;
+    }
+
+    T data;
+    std::shared_future<void> future;
+    mutable bool done = false;
+};
+
+bool isPastKeyValuesKey(const std::string& str);
+
+bool isPastKeyValuesValue(const std::string& str);
 
 }  // namespace util
 }  // namespace npuw

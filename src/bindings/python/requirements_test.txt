@@ -38,4 +38,4 @@ tox
 types-setuptools
 wheel
 pybind11-stubgen<2.6
-pyright<=1.1.405
+pyright<=1.1.406

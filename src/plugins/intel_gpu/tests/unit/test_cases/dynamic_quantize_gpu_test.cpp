@@ -26,9 +26,11 @@ using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
 using OutputStorageType = ov::op::internal::DynamicQuantize::OutputStorageType;
 
 enum class SetInnerMostDimValuesZero { No, Yes };
+enum class TestForSmallInputs { No, Yes };  // Test very small inputs to validate behavior in such small range
 enum class PrecomputeSum { Disabled, Enabled };
 class dynamic_quantization_gpu_tests: public ::testing::Test {
 public:
+    std::string dyn_quan_kernel_id = "";
     void test_dynamic_quantization(bool is_caching_test,
                                    const ov::PartialShape& input_shape,
                                    const ov::Shape& data_shape,
@@ -39,7 +41,8 @@ public:
                                    OutputStorageType storage_type = OutputStorageType::Planar,
                                    const std::string& impl_name = "",
                                    SetInnerMostDimValuesZero set_inner_most_dim_values_zero = SetInnerMostDimValuesZero::No,
-                                   const PrecomputeSum has_precompute_sum = PrecomputeSum::Disabled) {
+                                   const PrecomputeSum has_precompute_sum = PrecomputeSum::Disabled,
+                                   const TestForSmallInputs test_for_small_inputs = TestForSmallInputs::No) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
@@ -51,6 +54,13 @@ public:
         group_sizes.back() = group_size;
 
         auto input_data = rg.generate_random_1d<float>(ov::shape_size(data_shape), -16.0f, 20.0f);
+
+        // Test for very small values to check the behavior where input values are like 0.001.
+        // In such case, finding max and converting it to int may behave differently due to fp16 range and calculation structure in cl file
+        if (test_for_small_inputs == TestForSmallInputs::Yes)
+            std::transform(input_data.begin(), input_data.end(), input_data.begin(),
+                       [](float val) { return val / 10000.0f; });
+
         if (set_inner_most_dim_values_zero == SetInnerMostDimValuesZero::Yes)
            std::fill(input_data.begin(), input_data.begin() + data_shape[data_shape.size() - 1], 0.0f);
         set_values(input_mem, input_data);
@@ -179,8 +189,28 @@ public:
                 ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], abs_error_threshold);
             }
         }
+
+        auto find_kernel_id = [&network](std::string prim_id) {
+                std::string kernel = "";
+                for (auto& info : network->get_primitives_info()) {
+                        if (info.original_id == prim_id)
+                            kernel = info.kernel_id;
+                }
+                return kernel;
+            };
+
+        dyn_quan_kernel_id = find_kernel_id("dyn_quan_prim");
     }
 };
+
+TEST_F(dynamic_quantization_gpu_tests, static_quantizing_large_size_non_uniform_workgroup) {
+    // if non_uniform_workgroup is not supported, it will run on dyn_quan_ref
+    // if non_uniform_workgroup is supported, it will run on dyn_quan_opt
+    this->test_dynamic_quantization(false, {11, 1, 4096+128}, {2048, 1, 4096+128}, QuantizationType::Symmetric, 128);
+    if (get_test_engine().get_device_info().supports_non_uniform_work_group) {
+        ASSERT_TRUE(dyn_quan_kernel_id.find("_opt") != std::string::npos);
+    }
+}
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_large_size) {
     this->test_dynamic_quantization(false, {11, 1, 1, 4096}, {2048, 1, 1, 4096});
@@ -222,6 +252,34 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_g
                                     "",
                                     SetInnerMostDimValuesZero::No,
                                     PrecomputeSum::Enabled);
+}
+
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_gs128_cache) {
+    this->test_dynamic_quantization(true, {-1, 1, 512},
+                                    {32, 1, 512},
+                                    QuantizationType::Symmetric,
+                                    128,
+                                    data_types::i8,
+                                    data_types::i8,
+                                    OutputStorageType::Planar,
+                                    "",
+                                    SetInnerMostDimValuesZero::No,
+                                    PrecomputeSum::Enabled);
+}
+
+
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_gs128_small_values) {
+    this->test_dynamic_quantization(false, {1, 1, 512},
+                                    {32, 1, 512},
+                                    QuantizationType::Symmetric,
+                                    128,
+                                    data_types::i8,
+                                    data_types::i8,
+                                    OutputStorageType::Planar,
+                                    "",
+                                    SetInnerMostDimValuesZero::No,
+                                    PrecomputeSum::Enabled,
+                                    TestForSmallInputs::Yes);
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_asym_act) {

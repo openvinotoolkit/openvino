@@ -91,8 +91,17 @@ struct primitive_impl {
         ob << _is_dynamic;
         if (_weights_reorder_params == nullptr) {
             ob << false;
+            ob << false;
         } else {
             ob << true;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            if (std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(_weights_reorder_params)) {
+                ob << true;
+            } else
+#endif
+            {
+                ob << false;
+            }
             _weights_reorder_params->save(ob);
         }
     }
@@ -103,8 +112,19 @@ struct primitive_impl {
         bool has_weights_reorder_params;
         ib >> has_weights_reorder_params;
         if (has_weights_reorder_params) {
-            _weights_reorder_params = std::make_shared<WeightsReorderParams>();
+            bool has_onednn_weights_reorder = false;
+            ib >> has_onednn_weights_reorder;
+            if (has_onednn_weights_reorder) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+                _weights_reorder_params = std::make_shared<onednn::WeightsReorderParamsOneDNN>();
+#endif
+            } else {
+                _weights_reorder_params = std::make_shared<WeightsReorderParams>();
+            }
             _weights_reorder_params->load(ib);
+        } else {
+            bool dummy;
+            ib >> dummy;
         }
     }
     // returns a pair of batch program hash and kernel entry of each ocl impl. Returns "" for other impl types.
@@ -300,6 +320,7 @@ public:
     bool mem_allocated() const { return _mem_allocated; }
     bool is_dynamic() const { return _is_dynamic; }
     bool can_share_buffer() const { return _can_share_buffer; }
+    bool can_share_internal_buffer() const { return _can_share_internal_buffer; }
     bool is_constant() const { return _is_constant; }
     bool needs_completion_event() const { return _needs_completion_event; }
     bool has_unfused_subgraph() const { return (_unfused_subgraph != nullptr); }
@@ -348,7 +369,7 @@ public:
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
-    kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
+    kernel_impl_params get_fake_aligned_params_if_possible(program_node const& node, kernel_impl_params const& orig_impl_param);
     bool all_dependencies_cpu_impl() const;
 
 protected:
@@ -417,6 +438,7 @@ protected:
     size_t _fused_mem_offset = 0;
     bool _can_be_optimized = false;
     bool _can_share_buffer = true;
+    bool _can_share_internal_buffer = true;
     bool _is_constant = false;
     bool _needs_completion_event = false;
 
@@ -481,21 +503,7 @@ protected:
         return false;
     }
 
-    virtual bool need_reset_output_memory() const {
-        for (const auto& user_inst : get_user_insts()) {
-            // Check users of optimized_out inst, as the optimized out inst will not be able to
-            // reset it's memory
-            if (user_inst->can_be_optimized()) {
-                if (user_inst->need_reset_output_memory())
-                    return true;
-                continue;
-            }
-
-            if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(get_node())))
-                return true;
-        }
-        return false;
-    }
+    virtual bool need_reset_output_memory() const;
 
     void clear_output_memory();
 
@@ -517,6 +525,7 @@ private:
     void do_runtime_in_place_crop();
     void do_runtime_skip_scatter_update();
     void do_runtime_skip_lora();
+    void do_runtime_skip_resample();
 };
 
 /*

@@ -125,14 +125,6 @@ std::string appendPlatformTypeTestName(const testing::TestParamInfo<typename T::
     return test_name + "_targetPlatform=" + getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
 }
 
-template <typename T>
-std::string appendDriverVersionTestName(const testing::TestParamInfo<typename T::ParamType>& obj) {
-    const auto& pluginCacheCore = ov::test::utils::PluginCache::get().core(ov::test::utils::DEVICE_NPU);
-    auto driverVersion =
-        pluginCacheCore->get_property(ov::test::utils::DEVICE_NPU, ov::intel_npu::driver_version.name());
-    return ov::test::utils::appendPlatformTypeTestName<T>(obj) + "_driverVersion=" + driverVersion.as<std::string>();
-}
-
 class DefaultAllocatorNotAligned final {
 public:
     void* allocate(const size_t bytes, const size_t alignment = 4096) {

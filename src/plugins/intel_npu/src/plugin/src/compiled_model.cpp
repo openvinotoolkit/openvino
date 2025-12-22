@@ -26,12 +26,14 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
-                             const FilteredConfig& config)
+                             const FilteredConfig& config,
+                             const std::optional<int64_t>& batchSize)
     : ICompiledModel(model, plugin),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
-      _graph(graph) {
+      _graph(graph),
+      _batchSize(batchSize) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
@@ -63,6 +65,11 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         _graph->initialize(_config);
     }
 
+    if (!_graph->init_completed()) {
+        OPENVINO_THROW(
+            "The driver is not applicable. The driver doesn't exist or is too old to run inference for this blob.");
+    }
+
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
         _device->createInferRequest(shared_from_this(), _config);
     syncInferRequest->initialize_states();
@@ -84,8 +91,27 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
     auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
 
-    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning, CURRENT_OPENVINO_VERSION, initBlobSizes)
-        .write(stream);
+    if (!_config.get<EXPORT_RAW_BLOB>()) {
+        std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
+        std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
+
+        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+            inputLayouts->push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+            outputLayouts->push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+
+        Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
+                                           CURRENT_OPENVINO_VERSION,
+                                           std::move(initBlobSizes),
+                                           _batchSize,
+                                           std::move(inputLayouts),
+                                           std::move(outputLayouts))
+            .write(stream);
+    }
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

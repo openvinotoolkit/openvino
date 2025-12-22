@@ -217,7 +217,7 @@ std::vector<std::string> ov::npuw::online::util::getNoFolds(const std::string& n
     }
 
     std::vector<std::string> nofolds;
-    std::string s = std::move(nofolds_unparsed);
+    std::string s(nofolds_unparsed);
 
     size_t pos = 0;
     size_t start = 0;

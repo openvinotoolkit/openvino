@@ -277,9 +277,10 @@ ov::Any XmlDeserializer::parse_weightless_cache_attribute(const pugi::xml_node& 
             for (const auto& attr : child.attributes()) {
                 if (strcmp(attr.name(), "name") == 0 &&
                     strcmp(attr.value(), ov::WeightlessCacheAttribute::get_type_info_static().name) == 0) {
-                    const auto origin_size = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(child, "size"));
-                    const auto offset = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(child, "offset"));
-                    const ov::element::Type original_dt(child.attribute("type").value());  // "element_type"?
+                    const auto origin_size =
+                        static_cast<size_t>(ov::util::pugixml::get_uint64_attr(child, "original_size"));
+                    const auto offset = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(child, "bin_offset"));
+                    const ov::element::Type original_dt(child.attribute("original_dtype").value());
                     return {ov::WeightlessCacheAttribute{origin_size, offset, original_dt}};
                 }
             }

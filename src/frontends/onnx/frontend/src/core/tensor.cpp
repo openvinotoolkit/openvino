@@ -366,12 +366,14 @@ std::vector<char> Tensor::get_data() const {
 
 template <>
 std::vector<std::string> Tensor::get_data() const {
-    if (m_tensor_place != nullptr) {
-        FRONT_END_NOT_IMPLEMENTED(get_data);
-    }
-
     if (has_external_data()) {
         FRONT_END_THROW("External strings are not supported");
+    }
+    if (m_tensor_place != nullptr) {
+        FRONT_END_GENERAL_CHECK(!m_tensor_place->is_raw(), "Loading strings from raw data isn't supported");
+        FRONT_END_GENERAL_CHECK(m_tensor_place->get_data_any().is<std::vector<std::string>>(),
+                                "Tensor data type mismatch for strings");
+        return m_tensor_place->get_data_any().as<std::vector<std::string>>();
     }
     if (m_tensor_proto->has_raw_data()) {
         FRONT_END_THROW("Loading strings from raw data isn't supported");
@@ -477,11 +479,6 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
                 "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
     } else if (element_count == shape_size(m_shape) && m_tensor_place != nullptr) {
-#if 0
-        constant = std::make_shared<ov::op::v0::Constant>(m_tensor_place->get_element_type(),
-                                                          m_tensor_place->get_partial_shape().get_shape(),
-                                                          m_tensor_place->get_data());
-#endif
         switch (m_tensor_place->get_element_type()) {
         case ov::element::f32:
         case ov::element::f64:
@@ -524,6 +521,9 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
         case ov::element::f8e5m2:
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e5m2>().data());
             break;
+        case ov::element::string:
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<std::string>().data());
+            break;
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(
                 m_tensor_proto->data_type(),
@@ -551,7 +551,7 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
 
 void ov::frontend::onnx::TensorONNXPlace::translate(ov::Output<ov::Node>& output) {
     if (get_names().size() > 0) {
-        output.set_names({*get_names().begin()});
+        output.add_names({*get_names().begin()});
     }
 }
 
