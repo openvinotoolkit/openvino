@@ -65,7 +65,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-32-cores-128gb-build'
+      runner: 'aks-win-32-cores-64gb-build'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Debug'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
@@ -76,6 +76,7 @@ jobs:
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
+        -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja"
 
   CXX_Unit_Tests:
     name: C++ unit tests

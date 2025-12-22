@@ -557,7 +557,8 @@ public:
                                 {n_batch, context_size, n_heads, n_features}, -0.5f, 0.5f, 1);
         auto ireq1_input1 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type,
                                 {n_batch, n_heads, context_size, context_size}, -0.5f, 0.5f, 1);
-        ireq1.set_tensor(input0, ireq1_input0);
+        // Create read-only tensor view to test inference with this const input data
+        ireq1.set_tensor(input0, {ireq1_input0.get_element_type(), ireq1_input0.get_shape(), std::as_const(ireq1_input0).data()});
         ireq1.set_tensor(input1, ireq1_input1);
 
         auto ireq2_input0 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type,
