@@ -372,9 +372,9 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
 
     std::unique_ptr<MetadataBase> storedMeta;
     try {
-        auto roiTensor = ov::Tensor(tensor,
-                                    ov::Coordinate{blobDataSize + sizeof(metaVersion)},
-                                    ov::Coordinate{tensor.get_byte_size()});
+        const ov::Tensor roiTensor(tensor,
+                                   ov::Coordinate{blobDataSize + sizeof(metaVersion)},
+                                   ov::Coordinate{tensor.get_byte_size()});
         storedMeta = create_metadata(metaVersion, blobDataSize);
         storedMeta->read(roiTensor);
     } catch (const std::exception& ex) {

@@ -132,9 +132,8 @@ public:
 
         OPENVINO_ASSERT(impl_param.get_input_layout().bytes_count() == weights_params->get_input_layout().bytes_count(),
                         "[GPU] Input layout doesn't match required reorder weights layout");
-
-        auto input_md = onednn_weights_params ? onednn_weights_params->_in_desc : onednn::layout_to_memory_desc(weights_params->get_input_layout());
-        auto output_md = onednn_weights_params ? onednn_weights_params->_out_desc : onednn::layout_to_memory_desc(weights_params->get_output_layout());
+        auto input_md = onednn_weights_params ? *onednn_weights_params->_in_desc : onednn::layout_to_memory_desc(weights_params->get_input_layout());
+        auto output_md = onednn_weights_params ? *onednn_weights_params->_out_desc : onednn::layout_to_memory_desc(weights_params->get_output_layout());
 
         auto attr = std::make_shared<dnnl::primitive_attr>();
         auto reorder_prim = std::make_shared<dnnl::reorder::primitive_desc>(

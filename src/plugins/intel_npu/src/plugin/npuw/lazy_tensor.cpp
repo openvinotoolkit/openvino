@@ -61,10 +61,17 @@ ov::Tensor Const::eval() const {
     }
 
     // Weightless import case. Mmmap CPU weight on demand to avoid allocating all weights at once.
-    if (!m_weights_path.empty()) {
+    if (!m_weights_path.empty() || m_handle_provider) {
         NPUW_ASSERT(!m_read_from_bin &&
                     "Trying to read weight from weights file, but the weight has been already deserialized!");
-        auto mapped_memory = ov::load_mmap_object(m_weights_path);
+        std::shared_ptr<ov::MappedMemory> mapped_memory;
+        // Use handle_provider if available, otherwise use default mmap
+        if (m_handle_provider) {
+            ov::FileHandle handle = m_handle_provider();
+            mapped_memory = ov::load_mmap_object(handle);
+        } else {
+            mapped_memory = ov::load_mmap_object(m_weights_path);
+        }
         m_mmaped_weights =
             std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(), mapped_memory->size(), mapped_memory);
         return ov::Tensor(m_cached_type, m_cached_shape, m_mmaped_weights->get_ptr(m_offset));
@@ -80,7 +87,7 @@ LazyTensor::Meta Const::eval_meta() const {
     }
 
     // Weightless import case
-    if (!m_weights_path.empty()) {
+    if (!m_weights_path.empty() || m_handle_provider) {
         return {m_cached_shape, m_cached_type};
     }
 
@@ -115,9 +122,11 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
             // It doesn't introduce extra allocation, however it allows to gradually 1 by 1
             // read mmaped CPU weights and allocate them on device without loading all the weights first.
             // Thus the memory consumption during import is greatly reduced but at the slight cost of performance.
-            NPUW_ASSERT(!ctx.weights_path.empty());
+            NPUW_ASSERT(!ctx.weights_path.empty() || ctx.handle_provider);
             // Just save weights_path for the eval() to call the actual mmap.
             m_weights_path = ctx.weights_path;
+            // Also save handle_provider if available
+            m_handle_provider = ctx.handle_provider;
         }
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});
@@ -406,7 +415,7 @@ std::size_t Gather::hash() const {
     auto ttype = t.get_element_type();
     NPUW_ASSERT(ttype == ov::element::f8e4m3 || ttype == ov::element::f8e5m2 || ttype == ov::element::f8e8m0);
     std::vector<uint8_t> t_data(t.get_size());
-    std::memcpy(t_data.data(), static_cast<uint8_t*>(t.data()), t.get_size());
+    std::memcpy(t_data.data(), static_cast<const uint8_t*>(t.data()), t.get_size());
     seed ^= t_data.size();
     for (const auto& el : t_data) {
         seed ^= std::hash<uint8_t>()(el) + 0x9e3779b9;
@@ -422,13 +431,13 @@ bool Gather::operator==(const Gather& other) const {
     auto ttype = t.get_element_type();
     NPUW_ASSERT(ttype == ov::element::f8e4m3 || ttype == ov::element::f8e5m2 || ttype == ov::element::f8e8m0);
     std::vector<uint8_t> t_data(t.get_size());
-    std::memcpy(t_data.data(), static_cast<uint8_t*>(t.data()), t.get_size());
+    std::memcpy(t_data.data(), static_cast<const uint8_t*>(t.data()), t.get_size());
 
     auto ttype_other = other.t.get_element_type();
     NPUW_ASSERT(ttype_other == ov::element::f8e4m3 || ttype_other == ov::element::f8e5m2 ||
                 ttype_other == ov::element::f8e8m0);
     std::vector<uint8_t> t_other_data(other.t.get_size());
-    std::memcpy(t_other_data.data(), static_cast<uint8_t*>(other.t.data()), other.t.get_size());
+    std::memcpy(t_other_data.data(), static_cast<const uint8_t*>(other.t.data()), other.t.get_size());
 
     return (w == other.w && t.get_element_type() == other.t.get_element_type() &&
             t.get_shape() == other.t.get_shape() && t_data == t_other_data && dst_type == other.dst_type &&
