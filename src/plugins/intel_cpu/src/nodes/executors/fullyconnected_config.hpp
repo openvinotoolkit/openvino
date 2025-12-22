@@ -16,7 +16,6 @@ namespace ov::intel_cpu {
 struct FCAttrs {
     bool weightsNonTransposed = false;
     bool sparseWeights = false;
-    size_t sparseWeightsNonZeroSize = 0;
     uint64_t dynamicQuantizationGroupSize = 0;
     bool constantWeights = true;
 

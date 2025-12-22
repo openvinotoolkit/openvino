@@ -105,7 +105,6 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
                   dstDesc,
                   shapeAgnosticData->m_primAttrs.attr,
                   attrs.sparseWeights,
-                  attrs.sparseWeightsNonZeroSize,
                   attrs.modelType};
 
     auto builder = [&context](const Key& dnnlKey) {
@@ -306,7 +305,6 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
                                                                             const dnnl::primitive_attr& attr,
                                                                             const dnnl::engine& engine,
                                                                             const bool useSparseWeights,
-                                                                            const size_t useSparseWeightsNonZeroSize,
                                                                             const bool useWeightsDecompression) {
     const auto normalizedInputDesc = normalizeDescriptor(inputDesc);
     const auto normalizedOutputDesc = normalizeDescriptor(outputDesc);
@@ -333,7 +331,6 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
         wdt = memory::data_type::s8;
     }
 
-    // TODO: @Xiuchuan support the native sparse feature of stock oneDNN.
     const dnnl::memory::desc weightsDesc =
         useSparseWeights ? dnnl::memory::desc::packed_v0(normalizedWeightDesc.get_dims(), wdt)
                          : dnnl::memory::desc(normalizedWeightDesc.get_dims(), wdt, memory::format_tag::any);
@@ -355,7 +352,6 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                           const dnnl::engine& engine,
                                           const std::vector<impl_desc_type>& implPriorities,
                                           const bool useSparseWeights,
-                                          const size_t useSparseWeightsNonZeroSize,
                                           const bool useWeightsDecompression) {
     auto prim_desc = createDescriptorInternal(inputDesc,
                                               weightDesc,
@@ -364,7 +360,6 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                               attr,
                                               engine,
                                               useSparseWeights,
-                                              useSparseWeightsNonZeroSize,
                                               useWeightsDecompression);
     OPENVINO_ASSERT(prim_desc, "Failed to create inner_product primitive descriptor");
     auto first_desc = dnnl::inner_product_forward::primitive_desc(prim_desc.get());
@@ -449,7 +444,6 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     const dnnl::memory::desc biaDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(biasDesc)->getDnnlDesc();
 
     const auto useSparseWeights = attrs.sparseWeights;
-    const auto useSparseWeightsNonZeroSize = attrs.sparseWeightsNonZeroSize;
     const auto primDesc = createPrimitiveDesc(srcDnnlDesc,
                                               weiDnnlDesc,
                                               biaDnnlDesc,
@@ -458,7 +452,6 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
                                               context->getEngine(),
                                               context->getImplPriorities(),
                                               useSparseWeights,
-                                              useSparseWeightsNonZeroSize,
                                               useWeightsDecompression);
 
     const auto weightsDesc = DnnlExtensionUtils::makeDescriptor(primDesc.weights_desc());
@@ -502,7 +495,6 @@ DnnlFCPrimitive::DnnlFCPrimitive(const Key& key,
           engine,
           implPriorities,
           key.sparseWeights,
-          key.sparseWeightsNonZeroSize,
           useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision(), key.modelType))),
       m_implType(implTypeFromPrimDesc(m_primDesc)),
       m_srcDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.src_desc())),
