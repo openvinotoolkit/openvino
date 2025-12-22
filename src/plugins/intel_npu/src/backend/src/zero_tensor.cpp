@@ -42,17 +42,14 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
       _is_input(is_input) {
     OPENVINO_ASSERT(_element_type.is_static());
     const auto byte_size = ov::util::get_memory_size_safe(element_type, _shape);
-    OPENVINO_ASSERT(byte_size || byte_size.value() == 0,
-                    "Cannot allocate memory for type: ",
-                    element_type,
-                    " and shape: ",
-                    _shape);
+    OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", element_type, " and shape: ", _shape);
+
     _mem_ref = ZeroMemPool::get_instance().allocate_zero_memory(_init_structs,
                                                                 byte_size.value(),
                                                                 utils::STANDARD_PAGE_SIZE,
                                                                 _is_input);
     auto data = _mem_ref->data();
-    OPENVINO_ASSERT(data != nullptr, "Failed to allocate zero memory");
+    OPENVINO_ASSERT(byte_size.value() == 0 || data != nullptr, "Failed to allocate zero memory");
     _ptr = data;
     _can_be_reused = true;
 }
@@ -101,6 +98,14 @@ void* ZeroTensor::data(const ov::element::Type& type) {
                     ", is not representable as pointer to ",
                     type);
     return data();
+}
+
+void* ZeroTensor::data_rw() {
+    return data();
+}
+
+void* ZeroTensor::data_rw(const ov::element::Type& type) {
+    return data(type);
 }
 
 const void* ZeroTensor::data() const {
@@ -205,6 +210,10 @@ void ZeroTensor::prevent_reuse() {
 
 bool ZeroTensor::can_be_reused() {
     return _can_be_reused;
+}
+
+ZeroTensor::~ZeroTensor() {
+    _mem_ref = nullptr;  // Ensure that zero memory is destroyed before the user tensor is released
 }
 
 }  // namespace intel_npu

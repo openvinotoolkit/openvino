@@ -56,7 +56,10 @@ CommonOptimizations::CommonOptimizations(const CommonOptimizations::Config& conf
         // At the moment only non-scalar Constants of FakeQuantize can be inside Subgraph
         // so we can enable ExtractConstants pass for quantized models
         REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::ExtractConstants, is_quantized);
-        REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::ExtractUnsupportedTransposes, is_domain_sensitive);
+        REGISTER_SNIPPETS_PASS(subgraph_manager,
+                               ov::snippets::pass::ExtractUnsupportedTransposes,
+                               is_domain_sensitive,
+                               config.get_transpose_support_callback());
         REGISTER_SNIPPETS_PASS(subgraph_manager,
                                ov::snippets::pass::SplitDimensionM,
                                is_domain_sensitive && config.get_split_m_dimension(),

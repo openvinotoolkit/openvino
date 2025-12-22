@@ -110,7 +110,7 @@ ov::npuw::Group Group::toGroup() const {
     g.gflops = 0.0001f;  // FIXME: calculate proper flops
 
     if (m_repeated && !isNoFold()) {
-        g.repeated_id = ov::npuw::online::util::repeated_id(m_repeated);
+        g.repeated_id = m_repeated->id();
     }
 
     if (!m_avoided_devices.empty()) {
@@ -121,7 +121,7 @@ ov::npuw::Group Group::toGroup() const {
         }
     }
 
-    g.tag = m_isol_tag;
+    g.settag(m_isol_tag);
 
     return g;
 }

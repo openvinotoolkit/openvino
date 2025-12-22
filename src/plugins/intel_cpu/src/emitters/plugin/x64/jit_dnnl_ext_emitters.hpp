@@ -85,22 +85,6 @@ public:
     }
 };
 
-class jit_clamp_emitter : public jit_dnnl_emitter {
-public:
-    jit_clamp_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
-                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                      const std::shared_ptr<ov::Node>& n,
-                      ov::element::Type exec_prc = ov::element::f32)
-        : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
-        kind = dnnl_eltwise_clip;
-        auto op = ov::as_type_ptr<ov::op::v0::Clamp>(n);
-        alpha = static_cast<float>(op->get_min());
-        beta = static_cast<float>(op->get_max());
-
-        set_injector();
-    }
-};
-
 class jit_swish_emitter : public jit_dnnl_emitter {
 public:
     jit_swish_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,

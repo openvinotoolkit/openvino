@@ -94,6 +94,14 @@ protected:
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_zp_mem->get_layout(), dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC_0, act_zp_mem->get_onednn_memory(desc)});
             }
+
+            if (is_dyn_quan_input && prim->activation_precomputed_reduction.is_valid()) {
+                auto activation_precomputed_reduction_idx = idx++;
+                auto act_precomputed_reduction_mem = instance.dep_memory_ptr(activation_precomputed_reduction_idx);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_precomputed_reduction_mem->get_layout(),
+                                                                        dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
+                args.insert({DNNL_ARG_ATTR_PRECOMPUTED_REDUCTIONS | DNNL_ARG_SRC_0, act_precomputed_reduction_mem->get_onednn_memory(desc)});
+            }
         }
 
         return args;
@@ -250,6 +258,7 @@ public:
         ob << is_compressed;
         ob << prim->dynamic_quantized_activation;
         ob << prim->dynamic_quantized_activation_zp;
+        ob << prim->dynamic_quantized_precomputed_reduction;
 
         bool has_decompression_scale = prim->decompression_scale.is_valid();
         if (has_decompression_scale) {
@@ -278,12 +287,14 @@ public:
         bool is_compressed = false;
         bool dynamic_quantized_activation;
         bool dynamic_quantized_activation_zp;
+        bool dynamic_quantized_precomputed_reduction;
         ib >> input_size;
         ib >> weights_rank;
         ib >> has_bias;
         ib >> is_compressed;
         ib >> dynamic_quantized_activation;
         ib >> dynamic_quantized_activation_zp;
+        ib >> dynamic_quantized_precomputed_reduction;
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto prim = impl_params->typed_desc<fully_connected>();
@@ -340,8 +351,17 @@ public:
 
             auto act_scale_data_type = convert_data_type(impl_params->get_input_layout(src_scale_idx).data_type);
             _attrs->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
-            if (dynamic_quantized_activation_zp)
+            if (dynamic_quantized_activation_zp) {
+                idx++;
                 _attrs->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
+            }
+
+            if (dynamic_quantized_precomputed_reduction) {
+                auto activation_precomputed_reduction_idx = ++idx;
+                auto act_precomputed_reduction_data_type = convert_data_type(impl_params->get_input_layout(activation_precomputed_reduction_idx).data_type);
+                _attrs->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
+                // FIXME: implementation for serialization
+            }
         }
 
         auto prim_desc = get_matmul_primitive_descriptor(*impl_params, ib.get_engine(), input_size, weights_rank, has_bias, *_attrs);
@@ -390,8 +410,8 @@ public:
                 auto ifm = arg.get_dependency(1).get_output_layout().get_dim(weight_rank - 1);
                 auto ngroups = scale_layout.get_dim(weight_rank - 1);
                 group_size = ifm / ngroups;
-                OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 32 == 0),
-                    "[GPU] group_size should be aligned to 32 if it is not a single scale group or the group_size is not one.");
+                OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 16 == 0),
+                    "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
                 if (scale_layout.count() == 1) {
                     attr->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, ds_data_type);
                 } else if (ngroups == 1 && weight_rank <= 2) {
@@ -435,9 +455,19 @@ public:
                 auto act_scale_data_type = convert_data_type(impl_params.input_layouts[src_scale_idx].data_type);
                 attr->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
 
-                if (prim->activation_zero_point.is_valid())
+                if (prim->activation_zero_point.is_valid()) {
+                    idx++;
                     attr->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
+                }
+
+                if (prim->dynamic_quantized_precomputed_reduction) {
+                    OPENVINO_ASSERT(!prim->activation_zero_point.is_valid(), "Activation zero-point is not supported for precomputed_reduction case");
+                    auto activation_precomputed_reduction_idx = ++idx;
+                    auto act_precomputed_reduction_data_type = convert_data_type(impl_params.input_layouts[activation_precomputed_reduction_idx].data_type);
+                    attr->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
+                }
             }
+
 
 
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),

@@ -7,6 +7,11 @@ on:
         type: string
         required: false
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   merge_group:
   push:
     branches:
@@ -26,6 +31,7 @@ env:
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
@@ -131,7 +137,7 @@ jobs:
           submodules: 'true'
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -154,7 +160,6 @@ jobs:
         run: |
           python3.12 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
           /usr/bin/cmake -DPython3_EXECUTABLE=/usr/local/bin/python3.12 \
-                         -DENABLE_CPPLINT=OFF \
                          -DENABLE_NCC_STYLE=OFF \
                          -DENABLE_TESTS=ON \
                          -DCMAKE_VERBOSE_MAKEFILE=ON \
@@ -169,9 +174,9 @@ jobs:
         env:
           CXXFLAGS: "-Wno-dangling-reference" # bug in gcc-14: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107532
             
-      - name: Build Python API (Python 3.9-3.13)
+      - name: Build Python API (Python 3.10-3.13)
         run: |
-          SUPPORTED_PYTHON_VERSIONS=("3.9" "3.10" "3.11" "3.12" "3.13")
+          SUPPORTED_PYTHON_VERSIONS=("3.10" "3.11" "3.12" "3.13")
           for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
 
             py_build_dir=${{ github.workspace }}/build_py${PY_VER}
@@ -216,7 +221,7 @@ jobs:
       #
       - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -224,7 +229,7 @@ jobs:
       
       - name: Upload OpenVINO wheels
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
@@ -232,7 +237,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -240,7 +245,7 @@ jobs:
 
       - name: Upload openvino-node NPM package
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_node_npm_package
           path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.tar.gz
@@ -248,7 +253,7 @@ jobs:
 
       - name: Store artifacts to a shared drive
         id: store_artifacts
-        if: ${{ always() }}
+        if: ${{ github.event_name != 'merge_group' }}
         uses: ./src/.github/actions/store_artifacts
         with:
           artifacts: |
@@ -269,8 +274,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - python-version: "3.9"
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.fedora_33 }}
           - python-version: "3.10"
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_10_py310 }}
           - python-version: "3.11"

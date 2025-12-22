@@ -91,4 +91,31 @@ TEST(GetMemorySizeOverflowTest, zero_number_of_elements) {
     EXPECT_EQ(ov::util::get_memory_size_safe(element::i16, 0), std::optional<size_t>(0));
     EXPECT_EQ(ov::util::get_memory_size_safe(element::string, 0), std::optional<size_t>(0));
 }
+
+using AlignTestParam = std::tuple<uintptr_t, size_t, size_t>;
+
+class AlignTest : public ::testing::TestWithParam<AlignTestParam> {};
+
+INSTANTIATE_TEST_SUITE_P(AlignTestSuite,
+                         AlignTest,
+                         testing::Values(AlignTestParam{0, 0, 0},
+                                         AlignTestParam{20, 0, 0},
+                                         AlignTestParam{0, 64, 0},
+                                         AlignTestParam{20, 64, 44},
+                                         AlignTestParam{64, 64, 0},
+                                         AlignTestParam{65, 64, 63},
+                                         AlignTestParam{128, 64, 0},
+                                         AlignTestParam{130, 64, 62},
+                                         AlignTestParam{0, 100, 0},
+                                         AlignTestParam{63, 100, 37},
+                                         AlignTestParam{130, 100, 70}),
+                         testing::PrintToStringParamName());
+
+TEST_P(AlignTest, align_padding_size) {
+    const auto& [pos, aligment, expected] = GetParam();
+
+    const auto pad = ov::util::align_padding_size(aligment, pos);
+
+    EXPECT_EQ(pad, expected);
+}
 }  // namespace ov::test

@@ -108,9 +108,10 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     using namespace ov::op;
     using namespace ov::pass::pattern;
 
-    auto q = any_input(shape_matches("Batches..., S_q, D") && rank_more_than(2));
+    auto q = any_input(shape_matches("Batches..., S_q, D"));
     auto k = any_input(shape_matches("AnyLayout...") && rank_more_than(2));
-    auto v = any_input(shape_matches("Batches..., S_kv, D") && check_layout("AnyLayout") && rank_more_than(2));
+    auto v = any_input(shape_matches("Batches..., S_kv, D") && check_layout("AnyLayout"));
+    auto mask = any_input(has_static_rank());
 
     // these Reshape/Unsqueeze may already exist in the graph
     auto unsq_q = wrap_type<v1::Reshape, v0::Unsqueeze>({q, any_input()});
@@ -126,30 +127,40 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     auto opt_unsq_v = optional<v1::Reshape, v0::Unsqueeze>({unsq_v, any_input()});
 
     // this Transpose may be inserted by SDPAFusionMatcher
-    auto opt_transpose_k =
-        optional<v1::Transpose>({opt_unsq_k, any_input()}, shape_matches("..., S_kv, D") && rank_more_than(2));
+    auto opt_transpose_k = optional<v1::Transpose>({opt_unsq_k, any_input()}, shape_matches("..., S_kv, D"));
 
-    auto sdpa = wrap_type<v13::ScaledDotProductAttention>({
+    auto sdpa_pattern = wrap_type<v13::ScaledDotProductAttention>({
         opt_unsq_q,
         opt_transpose_k,
         opt_unsq_v,
-        any_input(),
+        mask,
         any_input(),
     });
 
-    auto opt_sdpa_reshape = optional<v1::Reshape, v0::Unsqueeze>({sdpa->output(0), any_input()});
-    auto opt_sdpa_transpose = optional<v1::Transpose>({opt_sdpa_reshape, any_input()});
-    auto post_sdpa = wrap_type<v1::Reshape, v0::Unsqueeze>({opt_sdpa_transpose, any_input()},
-                                                           shape_matches("Batches..., S_q, D") && rank_more_than(2));
+    auto opt_sdpa_reshape = optional<v1::Reshape, v0::Unsqueeze>({sdpa_pattern, any_input()});
+    auto post_sdpa =
+        wrap_type<v1::Reshape, v0::Unsqueeze>({opt_sdpa_reshape, any_input()}, shape_matches("Batches..., S_q, D"));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
 
-        auto q_node = pm.at(q);
+        const auto& q_node = pm.at(q);
         auto k_node = pm.at(k);
-        auto v_node = pm.at(v);
-        auto sdpa_node = pm.at(sdpa).get_node_shared_ptr();
+        const auto& v_node = pm.at(v);
+        const auto& mask_node = pm.at(mask);
         auto post_sdpa_node = pm.at(post_sdpa).get_node_shared_ptr();
+
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(pm.at(sdpa_pattern).get_node_shared_ptr());
+        if (!sdpa) {
+            return false;
+        }
+
+        // The mask will be ignored if causal is true; otherwise, the mask rank should be less than or equal to the SDPA
+        // input rank.
+        if (!sdpa->get_causal() &&
+            mask_node.get_partial_shape().rank().get_length() > q_node.get_partial_shape().rank().get_length()) {
+            return false;
+        }
 
         const auto& sm = m.get_symbols();
 
@@ -185,11 +196,14 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
                 ov::copy_runtime_info(m.get_matched_nodes(), {shape_of_v, k_node.get_node_shared_ptr()});
             }
         }
-        auto new_sdpa_node = sdpa_node->clone_with_new_inputs(
-            {q_node, k_node, v_node, sdpa_node->input(3).get_source_output(), sdpa_node->input(4).get_source_output()});
+
+        auto new_sdpa_node = sdpa->clone_with_new_inputs(
+            {q_node, k_node, v_node, sdpa->input(3).get_source_output(), sdpa->input(4).get_source_output()});
+
         new_sdpa_node->set_friendly_name(post_sdpa_node->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), new_sdpa_node);
+        ov::copy_runtime_info(post_sdpa_node, new_sdpa_node);
         ov::replace_node(post_sdpa_node, new_sdpa_node);
+
         return true;
     };
 
@@ -205,7 +219,7 @@ static std::shared_ptr<ov::Node> get_scale(std::shared_ptr<ov::Node> scale_patte
         auto scale_node = pm.at(scale_pattern);
 
         // According to the spec, scale should be a scalar or 1D with 1 element
-        auto pshape = scale_node.get_partial_shape();
+        const auto& pshape = scale_node.get_partial_shape();
         auto rank = pshape.rank();
         if (rank.is_dynamic()) {
             return nullptr;
@@ -215,9 +229,9 @@ static std::shared_ptr<ov::Node> get_scale(std::shared_ptr<ov::Node> scale_patte
             return nullptr;
         } else {
             if (rank.get_length() > 1) {
-                scale_node = op::util::make_try_fold<v1::Reshape>(scale_node,
-                                                                  v0::Constant::create(ov::element::i64, {1}, {1}),
-                                                                  false);
+                scale_node = ov::op::util::make_try_fold<v1::Reshape>(scale_node,
+                                                                      v0::Constant::create(ov::element::i64, {1}, {1}),
+                                                                      false);
             }
             return scale_node.get_node_shared_ptr();
         }
@@ -233,9 +247,9 @@ static std::shared_ptr<ov::Node> get_mask(std::shared_ptr<ov::Node> mask_pattern
                                           ov::pass::pattern::Matcher& matcher) {
     auto& pm = matcher.get_pattern_value_map();
     if (mask_present && pm.count(opt_mask_add)) {
-        ov::Output<ov::Node> qk_out = pm.at(opt_mask_add);
+        const auto& qk_out = pm.at(opt_mask_add);
         // Get shape of the first input
-        auto qk_out_ps = qk_out.get_target_inputs().begin()->get_partial_shape();
+        const auto& qk_out_ps = qk_out.get_target_inputs().begin()->get_partial_shape();
 
         auto mask_node = pm.at(mask_pattern);
         auto mask_input_ps = mask_node.get_partial_shape();
@@ -245,7 +259,9 @@ static std::shared_ptr<ov::Node> get_mask(std::shared_ptr<ov::Node> mask_pattern
         if (qk_out_ps.size() > 4)
             return nullptr;
         // mask should be broadcastable to qk shape
-        if (!ov::PartialShape::broadcast_merge_into(qk_out_ps, mask_input_ps, AutoBroadcastType::NUMPY))
+        // Create temporary copy for broadcast_merge_into as it modifies the first argument
+        auto qk_out_ps_temp = qk_out_ps;
+        if (!ov::PartialShape::broadcast_merge_into(qk_out_ps_temp, mask_input_ps, AutoBroadcastType::NUMPY))
             return nullptr;
 
         if (mask_input_ps.size() < 2) {
@@ -290,7 +306,7 @@ static ov::OutputVector get_qkv(ov::OutputVector qkv,
     // 3 is the min supported rank according to the SDPA spec
     int64_t supported_rank = std::max(mask_node.get_partial_shape().rank().get_length(), static_cast<int64_t>(3));
     for (size_t i = 0; i < qkv.size(); ++i) {
-        auto pshape = qkv[i].get_partial_shape();
+        const auto& pshape = qkv[i].get_partial_shape();
         if (pshape.rank().is_dynamic())
             return {};
         // align all inputs
@@ -410,7 +426,7 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
         wrap_type<v0::MatMul>({softmax_opt_reshaped, v}, qkv_shape, {{"transpose_a", false}, {"transpose_b", false}});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        auto pm = m.get_pattern_value_map();
+        const auto& pm = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
@@ -422,9 +438,9 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
         bool mask_present = pm.count(mask);
         bool matmul_transposes_k = pm.count(qk_transpose_b);
 
-        auto q_node = pm.at(q);
+        const auto& q_node = pm.at(q);
         auto k_node = pm.count(k) ? pm.at(k) : pm.at(kT);
-        auto v_node = pm.at(v);
+        const auto& v_node = pm.at(v);
 
         if (mask_present && pm.at(mask).get_partial_shape().size() > 4)
             return false;
@@ -508,9 +524,9 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
         bool mask_present = pm.count(mask);
         bool matmul_transposes_k = pm.count(qk_transpose_b);
 
-        auto q_node = pm.at(q);
-        auto k_node = pm.at(k);
-        auto v_node = pm.at(v);
+        const auto& q_node = pm.at(q);
+        const auto& k_node = pm.at(k);
+        const auto& v_node = pm.at(v);
 
         if (pm.at(mask).get_partial_shape().rank().get_length() > 4)
             return false;
@@ -529,19 +545,20 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
             return false;
 
         bool sinks_present = pm.count(sinks);
-        std::shared_ptr<ov::Node> sdpa = sinks_present ? std::make_shared<v13::ScaledDotProductAttention>(qkv[0],
-                                                                                                          qkv[1],
-                                                                                                          qkv[2],
-                                                                                                          mask_input,
-                                                                                                          scale_node,
-                                                                                                          pm.at(sinks),
-                                                                                                          false)
-                                                       : std::make_shared<v13::ScaledDotProductAttention>(qkv[0],
-                                                                                                          qkv[1],
-                                                                                                          qkv[2],
-                                                                                                          mask_input,
-                                                                                                          scale_node,
-                                                                                                          false);
+        std::shared_ptr<ov::Node> sdpa;
+        if (sinks_present) {
+            const auto& sinks_node = pm.at(sinks);
+            sdpa = std::make_shared<v13::ScaledDotProductAttention>(qkv[0],
+                                                                    qkv[1],
+                                                                    qkv[2],
+                                                                    mask_input,
+                                                                    scale_node,
+                                                                    sinks_node,
+                                                                    false);
+        } else {
+            sdpa =
+                std::make_shared<v13::ScaledDotProductAttention>(qkv[0], qkv[1], qkv[2], mask_input, scale_node, false);
+        }
         sdpa->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa);
         ov::replace_node(m.get_match_root(), sdpa);

@@ -39,6 +39,7 @@ By default, the environment variable `OV_NPU_TESTS_SKIP_CONFIG_FILE` is set to f
             <backend></backend> (empty brackets denote no backend)
             <device>3720</device>
             <device>!4000</device> (using "!" to negate rule)
+            <driver_version>9999</driver_version>
             <operating_system>windows</operating_system>
             <operating_system>linux</operating_system>
         </enable_rules>
@@ -51,9 +52,9 @@ By default, the environment variable `OV_NPU_TESTS_SKIP_CONFIG_FILE` is set to f
 </skip_configs>
 ```
 
-Skip filters can be enabled/disabled according to rules defining the device, backend or operating system, depending on where tests are supposed to run.
+Skip filters can be enabled/disabled according to rules defining the device, backend, driver version or operating system, depending on where tests are supposed to run.
 Rules are optional, multiple rules can be chained together. Users can negate a rule by using "!".
-When determining if a skip filter is active, rules across different categories (backend, device, operating_system) are combined using an AND operation. While multiple entries of the same category will use an OR operation.
+When determining if a skip filter is active, rules across different categories (backend, device, driver_version, operating_system) are combined using an AND operation. While multiple entries of the same category will be evaluated using the OR operation.
 
 ## Folder structure
 

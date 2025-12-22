@@ -152,7 +152,7 @@ KernelsData MulticlassNmsKernelRef::GetKernelsData(const Params& params) const {
         cldnn_jit.AddConstant(MakeJitConstant("MULTICLASSNMS_STAGE_" + std::to_string(i), "true"));
 
         const auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
-        KernelBase::CheckDispatchData(kernelName, dispatch_data, params.engineInfo.maxWorkGroupSize);
+        KernelBase::CheckDispatchData(kernelName, dispatch_data, params.engineInfo);
         auto& kernel = kd.kernels[i];
 
         kernel.params.workGroups.global = dispatch_data.gws;
