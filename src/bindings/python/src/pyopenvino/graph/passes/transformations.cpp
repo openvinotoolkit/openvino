@@ -84,21 +84,24 @@ void regclass_transformations(py::module m) {
                ov::pass::PassBase>
         visualize(m, "VisualizeTree");
     visualize.doc() = "openvino.passes.VisualizeTree transformation";
-    visualize.def(py::init<const std::string&, ov::pass::VisualizeTree::node_modifiers_t, bool>(),
-                  py::arg("file_name"),
-                  py::arg("nm") = nullptr,
-                  py::arg("don_only") = false,
-                  R"(
+    visualize.def(
+        py::init([](const py::object& file_name, ov::pass::VisualizeTree::node_modifiers_t nm, bool dot_only) {
+            return std::make_shared<ov::pass::VisualizeTree>(Common::utils::to_fs_path(file_name), nm, dot_only);
+        }),
+        py::arg("file_name"),
+        py::arg("nm") = nullptr,
+        py::arg("dot_only") = false,
+        R"(
                   Create VisualizeTree pass which is used for Model to dot serialization.
 
                   :param file_name: Path where serialized model will be saved. For example: /tmp/out.svg
-                  :type file_name: str
+                  :type file_name: Union[str, bytes, pathlib.Path]
 
                   :param nm: Node modifier function.
                   :type nm: function
 
-                  :param don_only: Enable only dot file generation.
-                  :type don_only: bool
+                  :param dot_only: Enable only dot file generation.
+                  :type dot_only: bool
     )");
     visualize.def("__repr__", [](const ov::pass::VisualizeTree& self) {
         return Common::get_simple_repr(self);
@@ -111,7 +114,7 @@ void regclass_transformations(py::module m) {
         py::init<const ov::pass::MakeStateful::ParamResPairs&>(),
         py::arg("pairs_to_replace"),
         R"( The transformation replaces the provided pairs Parameter and Result with openvino Memory operations ReadValue and Assign.
-                    
+
                       :param pairs_to_replace:
                       :type pairs_to_replace: list[tuple[op.Parameter, op.Result]
     )");
@@ -119,7 +122,7 @@ void regclass_transformations(py::module m) {
                       py::arg("pairs_to_replace"),
                       R"(
         The transformation replaces the provided pairs Parameter and Result with openvino Memory operations ReadValue and Assign.
-        
+
         :param pairs_to_replace: a dictionary of names of the provided Parameter and Result operations.
         :type pairs_to_replace: dict[str, str]
     )");
@@ -136,8 +139,8 @@ void regclass_transformations(py::module m) {
                     R"(
                     Create LowLatency2 pass which is used for changing the structure of the model,
                     which contains TensorIterator/Loop operations.
-                    The transformation finds all TensorIterator/Loop layers in the network, 
-                    processes all back edges that describe a connection between Result and Parameter of the TensorIterator/Loop bodies, 
+                    The transformation finds all TensorIterator/Loop layers in the network,
+                    processes all back edges that describe a connection between Result and Parameter of the TensorIterator/Loop bodies,
                     and inserts ReadValue and Assign layers at the input and output corresponding to this back edge.
 
                     :param use_const_initializer: Changes the type of the initializing subgraph for ReadValue operations.
