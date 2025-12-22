@@ -503,22 +503,22 @@ const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
 }
 
 // @todo Should be moved to the transformations / optimization stages?
-static std::pair<bool, size_t> useSparseWeightsDecompression(const NodePtr& weightsInput,
-                                                             const ov::element::Type inputType,
-                                                             const float sparseWeiDecompressionRate) {
+static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
+                                          const ov::element::Type inputType,
+                                          const float sparseWeiDecompressionRate) {
     const auto minSparseRate = sparseWeiDecompressionRate;
 
     if (minSparseRate == 1.F) {
-        return {false, 0};
+        return false;
     }
 
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
-        return {false, 0};
+        return false;
     }
 
     const auto constNode = std::dynamic_pointer_cast<Input>(weightsInput);
     if (!constNode) {
-        return {false, 0};
+        return false;
     }
 
     const auto weiMemory = constNode->getMemoryPtr();
@@ -526,12 +526,12 @@ static std::pair<bool, size_t> useSparseWeightsDecompression(const NodePtr& weig
 
     const auto weiDims = weiMemory->getShape().getStaticDims();
     if (weiDims.size() != 2 || weiDims[0] % 64 != 0 || weiDims[1] % 64 != 0) {
-        return {false, 0};
+        return false;
     }
 
     const auto weightsType = weiMemory->getPrecision();
     if (none_of(inputType, u8, i8) || weightsType != i8) {
-        return {false, 0};
+        return false;
     }
 
     const auto* const weightsData = weiMemory->getDataAs<const int8_t>();
@@ -559,16 +559,13 @@ static std::pair<bool, size_t> useSparseWeightsDecompression(const NodePtr& weig
               "%, use sparse weights = ",
               sparseRate >= minSparseRate);
 
-    return {sparseRate >= minSparseRate, elementsCount - zerosCount};
+    return sparseRate >= minSparseRate;
 }
 
 void FullyConnected::initSupportedPrimitiveDescriptors() {
-    auto sparseAttr = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS)->getParent(),
-                                                    getOriginalInputPrecisionAtPort(DATA),
-                                                    context->getConfig().fcSparseWeiDecompressionRate);
-    attrs.sparseWeights = sparseAttr.first;
-    attrs.sparseWeightsNonZeroSize = sparseAttr.second;
-
+    attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS)->getParent(),
+                                                        getOriginalInputPrecisionAtPort(DATA),
+                                                        context->getConfig().fcSparseWeiDecompressionRate);
     attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
     attrs.modelType = context->getConfig().modelType;
 
