@@ -27,8 +27,7 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
         {ov::element::u8, py::dtype("uint8")},      {ov::element::u16, py::dtype("uint16")},
         {ov::element::u32, py::dtype("uint32")},    {ov::element::u64, py::dtype("uint64")},
         {ov::element::boolean, py::dtype("bool")},  {ov::element::u1, py::dtype("uint8")},
-        {ov::element::u2, py::dtype("uint8")},      {ov::element::u3, py::dtype("uint8")},
-        {ov::element::u4, py::dtype("uint8")},      {ov::element::u6, py::dtype("uint8")},
+        {ov::element::u2, py::dtype("uint8")},      {ov::element::u4, py::dtype("uint8")},
         {ov::element::nf4, py::dtype("uint8")},     {ov::element::i4, py::dtype("int8")},
         {ov::element::f8e4m3, py::dtype("uint8")},  {ov::element::f8e5m2, py::dtype("uint8")},
         {ov::element::string, py::dtype("bytes_")}, {ov::element::f4e2m1, py::dtype("uint8")},
@@ -276,10 +275,6 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
         return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
     case ov::element::u2:
         return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
-    case ov::element::u3:
-        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
-    case ov::element::u6:
-        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
     // need to create a view on array to cast it correctly
     case ov::element::f16:
     case ov::element::bf16:
@@ -407,10 +402,7 @@ std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
     switch (self.get_element_type()) {
     case i4:
     case u1:
-    case u2:
-    case u3:
     case u4:
-    case u6:
     case nf4:
     case f4e2m1:
         return _get_byte_strides(self.get_shape(), 8);

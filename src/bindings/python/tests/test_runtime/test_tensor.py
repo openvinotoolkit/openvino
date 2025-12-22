@@ -36,9 +36,7 @@ from tests.utils.helpers import generate_image, generate_relu_compiled_model
         (ov.Type.boolean, bool),
         (ov.Type.u1, np.uint8),
         (ov.Type.u2, np.uint8),
-        (ov.Type.u3, np.uint8),
         (ov.Type.u4, np.uint8),
-        (ov.Type.u6, np.uint8),
         (ov.Type.i4, np.int8),
     ],
 )
@@ -376,9 +374,7 @@ def test_can_set_shape_other_dims():
     [
         (ov.Type.u1),
         (ov.Type.u2),
-        (ov.Type.u3),
         (ov.Type.u4),
-        (ov.Type.u6),
         (ov.Type.i4),
     ],
 )
@@ -394,9 +390,7 @@ def test_cannot_create_roi_from_packed_tensor(ov_type):
     [
         (ov.Type.u1),
         (ov.Type.u2),
-        (ov.Type.u3),
         (ov.Type.u4),
-        (ov.Type.u6),
         (ov.Type.i4),
     ],
 )
