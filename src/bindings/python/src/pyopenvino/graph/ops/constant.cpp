@@ -109,7 +109,8 @@ void regclass_graph_op_Constant(py::module m) {
         } else if (element_type == ov::element::i64) {
             return _cast_vector<int64_t>(self);
         } else if (element_type == ov::element::u8 || element_type == ov::element::u1 ||
-                   element_type == ov::element::u2 || element_type == ov::element::u4) {
+                   element_type == ov::element::u2 || element_type == ov::element::u3 ||
+                   element_type == ov::element::u4 || element_type == ov::element::u6) {
             return _cast_vector<uint8_t>(self);
         } else if (element_type == ov::element::u16) {
             return _cast_vector<uint16_t>(self);
@@ -159,7 +160,8 @@ void regclass_graph_op_Constant(py::module m) {
         } else if (element_type == ov::element::i64) {
             return _get_buffer_info<int64_t>(self);
         } else if (element_type == ov::element::u8 || element_type == ov::element::u1 ||
-                   element_type == ov::element::u2 || element_type == ov::element::u4) {
+                   element_type == ov::element::u2 || element_type == ov::element::u3 ||
+                   element_type == ov::element::u4 || element_type == ov::element::u6) {
             return _get_buffer_info<uint8_t>(self);
         } else if (element_type == ov::element::u16) {
             return _get_buffer_info<uint16_t>(self);
