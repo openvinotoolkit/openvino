@@ -94,7 +94,15 @@ Build:
     image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     volumes:
       - /mount:/mount
-    options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+      - /home/runner/secrets/:/secrets:ro
+    options: -e SCCACHE_AZURE_BLOB_CONTAINER
+  steps:
+    - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+      run: |
+        SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+        echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+        echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+        echo "✓ Connection string loaded and masked"
 ```
 
 In `- /mount:/mount`, the first `/mount` is the path on the runner, the second `/mount` is the

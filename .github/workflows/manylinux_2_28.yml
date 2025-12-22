@@ -63,7 +63,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-4-cores-16gb-docker-build-st
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -103,12 +103,13 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-st
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux_2_28 }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING -v ${{ github.workspace }}:${{ github.workspace }}
+        - /home/runner/secrets/:/secrets:ro
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -v ${{ github.workspace }}:${{ github.workspace }}
     env:
       CMAKE_BUILD_TYPE: 'Release'
       ARCH: 'x86_64'
@@ -129,6 +130,13 @@ jobs:
       NODE_VERSION: 22
       
     steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
@@ -283,7 +291,7 @@ jobs:
           - python-version: "3.13"
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64_py313 }}
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-st'
       image: ${{ matrix.image }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: ${{ matrix.python-version }}
@@ -301,7 +309,7 @@ jobs:
           - nodejs-version: 22
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-st'
       image: ${{ matrix.image }}
       nodejs-version: ${{ matrix.nodejs-version }}
 
