@@ -212,7 +212,7 @@ void ZeGraphExtWrappers::initializeGraph(const GraphDescriptor& graphDescriptor,
     } else {
         _logger.debug("Initialize graph based on graph properties for ext version larger than 1.8");
         ze_graph_properties_2_t properties = {};
-        properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+        properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_2;
         _logger.debug("initializeGraph - perform pfnGetProperties2");
         _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(graphDescriptor._handle, &properties);
 
@@ -274,13 +274,14 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(SerializedIR seri
                                                                const std::string& buildFlags) const {
     ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
 
-    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                              nullptr,
-                              ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                              serializedIR.first,
-                              serializedIR.second.get(),
-                              buildFlags.c_str(),
-                              ZE_GRAPH_FLAG_NONE};
+    ze_graph_desc_2_t desc = {
+        _graphExtVersion < ZE_MAKE_VERSION(1, 16) ? ZE_STRUCTURE_TYPE_GRAPH_DESC : ZE_STRUCTURE_TYPE_GRAPH_DESC_2,
+        nullptr,
+        ZE_GRAPH_FORMAT_NGRAPH_LITE,
+        serializedIR.first,
+        serializedIR.second.get(),
+        buildFlags.c_str(),
+        ZE_GRAPH_FLAG_NONE};
 
     _logger.debug("queryGraph - perform pfnQueryNetworkCreate2");
     auto result = _zeroInitStruct->getGraphDdiTable().pfnQueryNetworkCreate2(_zeroInitStruct->getContext(),
@@ -346,7 +347,7 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
         flags |= ZE_GRAPH_FLAG_DISABLE_CACHING;
     }
 
-    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_2,
                               nullptr,
                               ZE_GRAPH_FORMAT_NGRAPH_LITE,
                               serializedIR.first,
@@ -378,7 +379,7 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(const void* blobData, siz
         flags |= ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
     }
 
-    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_2,
                               nullptr,
                               ZE_GRAPH_FORMAT_NATIVE,
                               blobSize,
@@ -403,7 +404,7 @@ bool ZeGraphExtWrappers::isBlobDataImported(const GraphDescriptor& graphDescript
 
     if (graphDescriptor._memoryPersistent) {
         ze_graph_properties_3_t graphProperties = {};
-        graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+        graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
         auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(graphDescriptor._handle, &graphProperties);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
@@ -421,7 +422,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
                                      std::vector<IODescriptor>& outputs) const {
     if (NotSupportArgumentMetadata(_graphExtVersion)) {
         ze_graph_argument_properties_3_t arg = {};
-        arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
+        arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES_3;
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
         auto result =
             _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, indexUsedByDriver, &arg);
@@ -441,7 +442,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
         }
     } else {
         ze_graph_argument_properties_3_t arg = {};
-        arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
+        arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES_3;
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
         auto result =
             _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, indexUsedByDriver, &arg);
