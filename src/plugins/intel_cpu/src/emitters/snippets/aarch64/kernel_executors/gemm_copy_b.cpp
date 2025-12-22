@@ -102,8 +102,7 @@ void GemmCopyBKaiKernelExecutorBase::ensure_kernel(std::shared_ptr<CompiledKerne
     }
 }
 
-template <typename UkernelT>
-template <auto rhs_pack_kxn>
+template <auto rhs_pack_kxn, typename UkernelT>
 static void execute_copy_b_common(const GemmCopyBKernelKaiConfig& config,
                                   const UkernelT& uk,
                                   std::vector<uint8_t>& bias_buffer,
