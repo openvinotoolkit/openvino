@@ -8,11 +8,19 @@
 
 #include "compiled_model.hpp"
 
+namespace {
+struct KVAxesPosition {
+    uint32_t batch;
+    uint32_t seq_len;
+};
+}  // anonymous namespace
+
 namespace ov {
 namespace npuw {
 
 class LLMInferRequest;
 class WhisperInferRequest;
+struct PrefixCacheRestorationContext;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
@@ -85,14 +93,39 @@ private:
     // This model is optional, so can be null.
     std::shared_ptr<ov::npuw::CompiledModel> m_lm_head_compiled;
 
+    // Multiple generate models with different static KV cache shapes (1K, 2K, 4K, 8K stepping)
+    std::vector<std::shared_ptr<ov::npuw::CompiledModel>> m_generate_compiled_variants;
+    std::vector<uint32_t> m_kvcache_sizes;  // Corresponding KV cache sizes for each variant
+
     // Support LoRA
     void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
     uint32_t m_max_lora_rank = 32;
+
+    // Support prefix caching
+    bool m_enable_prefix_caching = false;
+    uint64_t m_prefix_caching_block_size = 0;
+    uint64_t m_prefix_caching_max_num_blocks = 0;
+
+    // Friend declarations for PrefixCachingHelper to access protected members
+    friend class PrefixCachingHelper;
 
     void gemma_transformations(const std::shared_ptr<ov::Model>& model);
     int32_t m_gemma_sliding_window_size = 0;
 
     bool m_is_whisper = false;
+
+    // Create generate model variants with different sizes
+    std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(
+        const std::shared_ptr<ov::Model>& generate_model,
+        const KVAxesPosition& axes,
+        const uint32_t whisper_lhs_seq_size);
+
+    // Compile multiple generate model variants
+    void compile_generate_model_variants(const std::vector<std::shared_ptr<ov::Model>>& generate_model_variants,
+                                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                                         const ov::AnyMap& generate_config);
+
+    bool m_is_eagle = false;
 };
 
 }  // namespace npuw

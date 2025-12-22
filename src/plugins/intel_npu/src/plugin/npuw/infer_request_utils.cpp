@@ -20,6 +20,13 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::make_tensor_slice(ov::SoPtr<ov::ITensor> 
     return ov::get_tensor_impl(ov::Tensor(ov::make_tensor(tensor), start_shape, end_shape));
 }
 
+void ov::npuw::util::copy_to_right(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
+    OPENVINO_ASSERT(src->get_byte_size() <= dst->get_byte_size());
+    std::copy_n(reinterpret_cast<uint8_t*>(src->data()),
+                src->get_byte_size(),
+                reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - src->get_byte_size());
+}
+
 void ov::npuw::util::copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor) {
     // [1, H, S1, E] -> [1, H, S2, E]
     const int N = 0;
@@ -128,7 +135,8 @@ void ov::npuw::util::copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
         // for multiple heads, while dst_tensor will still have [1, heads, d_v, seq_len!=1],
         // shape, awaiting updates at column dimension, as value vectors are columns now.
         if (src_shape[kv_dim_src] == 1 && src_tensor->is_continuous()) {
-            ov::npuw::util::XARCH::copy_row_as_column(src_tensor, dst_tensor);
+            // FIXME: ov::npuw::util::XARCH::copy_row_as_column(src_tensor, dst_tensor) throws when used here
+            copy_columns_by_row_chunks(src_tensor, dst_tensor);
         } else {
             copy_columns_by_row_chunks(src_tensor, dst_tensor);
         }

@@ -26,20 +26,20 @@ The table below lists the supported operating systems and Python versions.
 |                                     | (64-bit                        |
 |                                     | ) <https://www.python.org/>`__ |
 +=====================================+================================+
-| Ubuntu 20.04 LTS, 64-bit            |  3.9, 3.10, 3.11, 3.12         |
+| Ubuntu 20.04 LTS, 64-bit            |  3.10, 3.11, 3.12              |
 +-------------------------------------+--------------------------------+
-| Ubuntu 22.04 LTS, 64-bit            |  3.9, 3.10, 3.11, 3.12         |
+| Red Hat Enterprise Linux 8          |  3.10, 3.11, 3.12, 3.13, 3.14  |
 +-------------------------------------+--------------------------------+
-| Red Hat Enterprise Linux 8          |  3.9, 3.10, 3.11, 3.12         |
+| CentOS 7, 64 bit                    |  3.10, 3.11, 3.12, 3.13, 3.14  |
 +-------------------------------------+--------------------------------+
-| CentOS 7, 64 bit                    |  3.9, 3.10, 3.11, 3.12         |
+| macOS 10.15.x versions or higher    |  3.10, 3.11, 3.12, 3.13, 3.14  |
 +-------------------------------------+--------------------------------+
-| macOS 10.15.x versions or higher    |  3.9, 3.10, 3.11, 3.12         |
+| Windows 10, 64-bit Pro, Enterprise  |  3.10, 3.11, 3.12, 3.13, 3.14  |
 +-------------------------------------+--------------------------------+
-| Windows 10, 64-bit Pro, Enterprise  |  3.9, 3.10, 3.11, 3.12         |
+| Windows 10, 64-bit Pro, Enterprise  |  3.10, 3.11, 3.12              |
 | or Education editions               |                                |
 +-------------------------------------+--------------------------------+
-| Windows Server 2016 or higher       |  3.9, 3.10, 3.11, 3.12         |
+| Windows Server 2016 or higher       |  3.10, 3.11, 3.12              |
 +-------------------------------------+--------------------------------+
 
 OpenVINO Notebooks also require Git. Follow the guide below for your
@@ -55,7 +55,7 @@ Installing prerequisites
 
       1. **Install Python**
 
-         Download 64 bit version of Python software (3.9 - 3.12) from `python.org <https://www.python.org/downloads/windows/>`__
+         Download 64 bit version of Python software (3.10 - 3.14) from `python.org <https://www.python.org/downloads/windows/>`__
 
          Run the installer by double clicking it. Follow the installation steps to set
          up the software.
@@ -170,7 +170,7 @@ Installing prerequisites
 
          .. code-block:: console
 
-            brew install python@3.9
+            brew install python@3.10
             brew install protobuf
 
             # optional but recommended
@@ -622,14 +622,14 @@ Installing notebooks
 
             apt update
             apt install build-essential -y
-            apt install libpython3.9-dev -y
+            apt install libpython3.10-dev -y
             apt install libgl1-mesa-glx -y
 
       2. **Setup OpenVINO conda environment.**
 
          .. code-block::
 
-            conda create --name openvino_env python=3.9
+            conda create --name openvino_env python=3.10
             conda activate openvino_env
             conda install ipykernel
             set PATH="/anaconda/envs/openvino_env/bin;%PATH%"

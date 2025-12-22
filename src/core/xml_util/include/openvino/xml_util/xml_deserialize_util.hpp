@@ -35,6 +35,9 @@ void str_to_container(const std::string& value, T& res) {
     }
 }
 
+template <>
+void str_to_container<std::vector<std::string>>(const std::string& value, std::vector<std::string>& res);
+
 class XmlDeserializer : public ov::AttributeVisitor {
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,

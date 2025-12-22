@@ -4,46 +4,54 @@
 #include <chrono>
 #include <random>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common/functions.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "intel_npu/config/options.hpp"
-#include "ir_serializer.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#include "vcl_serializer.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
                                      >;
 
-using IRSerializer = intel_npu::driver_compiler_utils::IRSerializer;
+namespace {
+
+// As of writing this, the "all weights copy" solution serializes the model below using ~500KB. The "no weights copy"
+// uses ~100KB. If sizes change significantly, then investigation may be required.
+constexpr size_t SERIALIZED_MODEL_THRESHOLD_ALL_WEIGHTS_COPY = 300000;
+constexpr size_t SERIALIZED_MODEL_THRESHOLD_NO_WEIGHTS_COPY = 200000;
+
+std::shared_ptr<ov::Model> createModelWithLargeWeights() {
+    auto data = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{100000});
+    auto mul_constant = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1}, {1.5});
+    auto mul = std::make_shared<ov::opset11::Multiply>(data, mul_constant);
+    auto add_constant = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1}, {0.5});
+    auto add = std::make_shared<ov::opset11::Add>(mul, add_constant);
+
+    // Just a sample model here, large iteration to make the model large
+    for (int i = 0; i < 100; i++) {
+        add_constant = ov::opset11::Constant::create(ov::element::f32, ov::Shape{100000}, {0.5});
+        add = std::make_shared<ov::opset11::Add>(add, add_constant);
+    }
+    auto res = std::make_shared<ov::opset11::Result>(add);
+
+    return std::make_shared<ov::Model>(ov::ResultVector{std::move(res)}, ov::ParameterVector{std::move(data)});
+}
+
+}  // namespace
 
 namespace ov::test::behavior {
 
 class DriverCompilerAdapterCustomStreamTestNPU : public ov::test::behavior::OVPluginTestBase,
                                                  public testing::WithParamInterface<CompilationParams> {
 public:
-    std::string generateRandomFileName() {
-        std::stringstream ss;
-        auto now = std::chrono::high_resolution_clock::now();
-        auto seed = now.time_since_epoch().count();
-        std::mt19937 mt_rand(static_cast<unsigned int>(seed));
-        std::uniform_int_distribution<int> dist(0, 15);
-
-        for (unsigned int i = 0; i < 16; ++i) {
-            int random_number = dist(mt_rand);
-            ss << std::hex << random_number;
-        }
-        return ss.str();
-    }
-
     void SetUp() override {
         std::tie(target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         OVPluginTestBase::SetUp();
-        std::string fileName = generateRandomFileName();
-        xmlFileName = fileName + ".xml";
-        binFileName = fileName + ".bin";
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
@@ -68,43 +76,37 @@ public:
         if (!configuration.empty()) {
             utils::PluginCache::get().reset();
         }
-        if (std::remove(xmlFileName.c_str()) != 0 || std::remove(binFileName.c_str()) != 0) {
-            ADD_FAILURE() << "Failed to remove serialized files, xml: " << xmlFileName << " bin: " << binFileName;
-        }
         APIBaseTest::TearDown();
     }
 
 protected:
     ov::AnyMap configuration;
-    std::string xmlFileName;
-    std::string binFileName;
 };
 
-TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
-    auto model = createModelWithLargeSize();
-    IRSerializer irSerializer(model, 11);
-    size_t xmlSize = irSerializer.getXmlSize();
-    size_t weightsSize = irSerializer.getWeightsSize();
+TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelWeightsCopy) {
+    auto model = createModelWithLargeWeights();
+    const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
 
-    std::vector<uint8_t> xml(xmlSize);
-    std::vector<uint8_t> weights(weightsSize);
-    irSerializer.serializeModelToBuffer(xml.data(), weights.data());
+    ::intel_npu::SerializedIR serializedModel;
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, true));
+    // If the size changes significantly, then investigation may be required
+    ASSERT_TRUE(serializedModel.first > SERIALIZED_MODEL_THRESHOLD_ALL_WEIGHTS_COPY);
+}
 
-    {
-        std::ofstream xmlFile(xmlFileName, std::ios::binary);
-        if (xmlFile) {
-            xmlFile.write(reinterpret_cast<const char*>(xml.data()), xmlSize);
-            xmlFile.close();
-        }
+TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelNoWeightsCopy) {
+    auto model = createModelWithLargeWeights();
+    const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
 
-        std::ofstream binFile(binFileName, std::ios::binary);
-        if (binFile) {
-            binFile.write(reinterpret_cast<const char*>(weights.data()), weightsSize);
-            binFile.close();
-        }
-    }
-    ov::Core core;
-    EXPECT_NO_THROW(model = core.read_model(xmlFileName));
+    ::intel_npu::SerializedIR serializedModel;
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false));
+    // If the size changes significantly, then investigation may be required
+    ASSERT_TRUE(serializedModel.first < SERIALIZED_MODEL_THRESHOLD_NO_WEIGHTS_COPY);
+
+    ov::pass::StreamSerialize::DataHeader dataHeader;
+    memcpy(&dataHeader, serializedModel.second.get(), sizeof(dataHeader));
+    ASSERT_TRUE(dataHeader.consts_size == 0);
 }
 
 const std::vector<ov::AnyMap> configs = {

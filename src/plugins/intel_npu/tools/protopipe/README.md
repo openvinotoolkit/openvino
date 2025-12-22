@@ -33,7 +33,7 @@ The **YAML** config starts with specifying the several global parameters:
 - `model_dir` - **Optional**. Path to the models location. (**Default**: ".")
 - `blob_dir` - **Optional**. Path to the models location. (**Default**: ".")
 - `device_name` - **Optional**. OpenVINO device name: _CPU_, _GPU_, etc. (**Default**: _NPU_)
-- `compiler_type` - **Optional**. NPU compiler type: _DRIVER_, _MLIR_. (**Default**: _DRIVER_)
+- `compiler_type` - **Optional**. NPU compiler type: _DRIVER_, _PLUGIN_. (**Default**: _DRIVER_)
 - `log_level` - **Optional**. Log level: _NONE_, _INFO_, _DEBUG_. (**Default**: _NONE_)
 - `disable_high_resolution_waitable_timer` - **Optional**. Disables high resolution timer used to perform delays on Windows. (**Default**: false)
 
@@ -42,7 +42,7 @@ Example:
 model_dir:
   local: C:\workspace\models
 device_name: NPU
-compiler_type: MLIR
+compiler_type: PLUGIN
 log_level: INFO
 ```
 ### Model parameters
@@ -272,7 +272,7 @@ Consider the following scenario that consists of two parallel streams specified 
 model_dir:
   local: C:\workspace\models
 device_name: NPU
-compiler_type: MLIR
+compiler_type: PLUGIN
 log_level: INFO
 
 multi_inference:
@@ -327,7 +327,9 @@ Protopipe has the following `CLI` options to configure the execution behaviour:
 `--pipeline` - **Optional**. Enables pipelined execution for all scenarios/streams.                      
 `--niter <value>` - **Optional**. Number of iterations. If specified overwrites termination criterion specified in configuration file for all scenarios/streams.             
 `-t <value>` - **Optional**. Time in seconds. If specified overwrites termination criterion specified in configuration file for all scenarios/streams.  
-`--mode <value>` - **Optional**. Execution mode: *performance*, *reference*, *validation* (**Default**: *performance*)  
+`--mode <value>` - **Optional**. Execution mode: *performance*, *reference*, *validation*, *accuracy* (**Default**: *performance*)
+`--reference_device <value>` - **Optional**. Reference device for accuracy mode comparison. (**Default**: *CPU*)
+`--target_device <value>` - **Optional**. Target device for accuracy mode comparison. (**Default**: *NPU*)
 `--exec_filter <value>` - **Optional**. Run only the scenarios that match provided string pattern.  
 `--inference_only` - **Optional**. Run only inference execution for every model excluding i/o data transfer (**Default**: true)  
 
@@ -482,7 +484,7 @@ Consider the following `config.yaml`:
 model_dir:
   local: C:\workspace\models
 device_name: NPU
-compiler_type: MLIR
+compiler_type: PLUGIN
 log_level: INFO
 
 save_validation_outputs: actual-outputs/
@@ -496,6 +498,7 @@ multi_inference:
     - { name: B.xml, ip: FP16, input_data: B-inputs/, output_data: B-outputs/, metric: { name: norm, tolerance: 0.0 }
 ```
 
+#### Two-step validation (reference + validation modes)
 Use `reference` mode to generate the input random data for every model and calculate reference outputs
 **Note**: If reference device is different, it can be changed in config file (`device_name`) accordingly
 ```
@@ -511,7 +514,25 @@ stream 0: Validation has passed for <number> iteration(s)
 ```
 In case of accuracy issues the output will be the following:
 ```
-stream 0: Accuraccy check failed on <number> iteration(s) (first 10):
+stream 0: Accuracy check failed on <number> iteration(s) (first 10):
+Iteration <number>:
+  Model: A, Layer: <name>, Metric: Norm{tolerance: 0.01}, Reason: <number> > 0.01;
+```
+
+#### One-step validation (accuracy mode)
+Use `accuracy` mode to run inference on both reference and target devices in parallel and compare outputs directly:
+```
+./protopipe --cfg config.yaml --mode accuracy --reference_device CPU --target_device NPU -niter 10
+```
+**Note**: When `output_data` is specified, outputs will be dumped to `<path>_REFERENCE` and `<path>_TARGET` directories.
+
+Example of successful validation:
+```
+stream 0: Accuracy validation passed - Ref: <number> iteration(s), Tgt: <number> iteration(s)
+```
+In case of accuracy issues the output will be the following:
+```
+stream 0: Accuracy check failed on <number> iteration(s) (first 10):
 Iteration <number>:
   Model: A, Layer: <name>, Metric: Norm{tolerance: 0.01}, Reason: <number> > 0.01;
 ```

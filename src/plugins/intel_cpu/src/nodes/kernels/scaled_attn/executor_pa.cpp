@@ -37,6 +37,7 @@
 #include "transpose_kernel.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
+#include "xattention.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
@@ -583,6 +584,9 @@ struct MHAHelper {
     std::vector<ScoreAggregationInfo> _score_infos;
 
     PlainTensor _block_rotation_coefficient_scratch;
+    // Block size used when generating sparse_attention_mask (0 means unspecified/equal to _block_size)
+    size_t _sparse_mask_block_size = 0;
+    bool _use_softmax_sparse_mask = false;
 
     MHAHelper() {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
@@ -829,13 +833,33 @@ struct MHAHelper {
                               const PlainTensor& alibi_slopes,
                               float* score_output,
                               size_t q_start_idx_score,
-                              const ScoreAggregationInfo* score_info_ptr) {
+                              const ScoreAggregationInfo* score_info_ptr,
+                              const PlainTensor& sinks,
+                              size_t batch_in_seq = 0,
+                              const std::vector<PlainTensor>& sparse_attention_mask = {}) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
+        [[maybe_unused]] size_t sparse_scale = 1;
+        [[maybe_unused]] std::function<std::pair<size_t, size_t>(size_t, size_t)> map_to_mask_idx =
+            [](size_t q_blk_rt, size_t k_blk_rt) {
+                return std::pair<size_t, size_t>{q_blk_rt, k_blk_rt};
+            };
+        // Sparse attention mask pointer for current softmax kernel processing
+        uint8_t* xattn_mask = nullptr;
+        if (!sparse_attention_mask.empty()) {
+            if (!(_sparse_mask_block_size == 0 || _sparse_mask_block_size == _block_size)) {
+                sparse_scale = _sparse_mask_block_size / _block_size;
+                map_to_mask_idx = [sparse_scale](size_t q_blk_rt, size_t k_blk_rt) {
+                    size_t q_mask = q_blk_rt / sparse_scale;
+                    size_t k_mask = k_blk_rt / sparse_scale;
+                    return std::pair<size_t, size_t>{q_mask, k_mask};
+                };
+            }
+        }
         for (size_t h = hq_beg; h < hq_end; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
             if (_params.is_sage_attn) {
@@ -850,7 +874,16 @@ struct MHAHelper {
             // 1 1 0 0 ...
             // 1 1 1 0 ...
             // just computing the positions of 1 should be enough
+            // map runtime (block_size) indices to mask (xt_block_size) indices
             for (size_t k_blk = 0; k_blk < cur_kv_len_blocks; k_blk++) {
+                // sparse attention mask filtering
+                if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr) {
+                    auto [q_m, k_m] = map_to_mask_idx(q_blk, k_blk);
+                    if (!sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_m, k_m)[0]) {
+                        // Skip GEMM for this block if mask is false
+                        continue;
+                    }
+                }
                 if (_params.is_sage_attn) {
 #    if defined(OPENVINO_ARCH_X86_64)
                     auto* q_ptr = _quantized_q.ptr<int8_t>(ithr);
@@ -889,6 +922,12 @@ struct MHAHelper {
                     _params.is_sage_attn
                         ? _d_scale * reinterpret_cast<float*>(_quantized_q.ptr<int8_t>(ithr, m - q_start, 0))[0]
                         : _d_scale;
+
+                // sink processing is independent of sliding_window size
+                float* sink = nullptr;
+                if (sinks) {
+                    sink = &sinks.at<float>({0, h, 0, 0}, true);
+                }
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
@@ -897,6 +936,17 @@ struct MHAHelper {
                         start_idx = ncausal - _sliding_window;
                         new_causal = _sliding_window;
                     }
+
+                    // Handle sparse attention mask for sliding window
+                    if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr &&
+                        _use_softmax_sparse_mask) {
+                        // Get the original xattn_mask and calculate offset
+                        auto* original_mask = reinterpret_cast<uint8_t*>(
+                            sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_blk / sparse_scale));
+                        size_t mask_start_offset = start_idx / _sparse_mask_block_size;
+                        xattn_mask = original_mask + mask_start_offset;
+                    }
+
                     attn_softmax_kernel<float>(score + start_idx,
                                                reinterpret_cast<DATA_TYPE*>(score) + start_idx,
                                                revised_d_scale,
@@ -907,7 +957,11 @@ struct MHAHelper {
                                                new_causal,
                                                rnd_up(cur_kv_len, _block_size) - start_idx,
                                                precision_of<DATA_TYPE>::value,
-                                               precision_of<DATA_TYPE>::value);
+                                               precision_of<DATA_TYPE>::value,
+                                               sink,
+                                               0.f,
+                                               xattn_mask,
+                                               _sparse_mask_block_size);
 
                     memset(score, 0, sizeof(DATA_TYPE) * start_idx);
                 } else {
@@ -917,6 +971,11 @@ struct MHAHelper {
                     if (alibi_slopes) {
                         alibi_slope = alibi_slopes.ptr<float>()[h];
                         alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
+                    }
+                    if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr &&
+                        _use_softmax_sparse_mask) {
+                        xattn_mask = reinterpret_cast<uint8_t*>(
+                            sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_blk / sparse_scale));
                     }
                     attn_softmax_kernel<float>(score,
                                                reinterpret_cast<DATA_TYPE*>(score),
@@ -929,7 +988,10 @@ struct MHAHelper {
                                                rnd_up(cur_kv_len, _block_size),
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
-                                               alibi_slope);
+                                               sink,
+                                               alibi_slope,
+                                               xattn_mask,
+                                               _sparse_mask_block_size);
                 }
                 if (score_output && m >= q_start_idx_score) {
                     auto* score_block_ptr =
@@ -952,6 +1014,13 @@ struct MHAHelper {
 
             // for each weight block, loop through all value block
             for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
+                // sparse attention mask filtering for value blocks
+                if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr) {
+                    auto [q_m, v_m] = map_to_mask_idx(q_blk, v_blk);
+                    if (!sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_m, v_m)[0]) {
+                        continue;
+                    }
+                }
                 DATA_TYPE* v_ptr = nullptr;
                 if (q_is_xf16 || !q_cache_is_same) {
                     v_ptr = wv_scratch_b.ptr<DATA_TYPE>(v_blk, hk);
@@ -1083,7 +1152,8 @@ struct MHAHelper {
                                                new_causal,
                                                rnd_up(cur_kv_len, _block_size) - start_idx,
                                                precision_of<DATA_TYPE>::value,
-                                               precision_of<DATA_TYPE>::value);
+                                               precision_of<DATA_TYPE>::value,
+                                               nullptr);
 
                     memset(score, 0, sizeof(DATA_TYPE) * start_idx);
                 } else {
@@ -1105,6 +1175,7 @@ struct MHAHelper {
                                                rnd_up(cur_kv_len, _block_size),
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
+                                               nullptr,
                                                alibi_slope);
                 }
                 if (score_output && m >= q_start_idx_score) {
@@ -1155,7 +1226,8 @@ struct MHAHelper {
                             size_t q_len,
                             size_t cur_kv_len,
                             const PlainTensor& alibi_slopes,
-                            float* score_output) {
+                            float* score_output,
+                            const PlainTensor& sinks) {
 #    if defined(OPENVINO_ARCH_X86_64)
         if (any_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
             _gemv->tile_config();
@@ -1206,29 +1278,62 @@ struct MHAHelper {
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = hq_beg; h < hq_end; h++) {
                 // apply attention mask & sofmax
+                float* score = _weight.ptr<float>(ithr, h - hq_beg, pq);
+                OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight buffer must be allocated");
                 float* alibi_lookup = nullptr;
                 float alibi_slope = 0.F;
                 if (alibi_slopes) {
                     alibi_slope = alibi_slopes.ptr<float>()[h];
                     alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
                 }
-                attn_softmax_kernel<float>(_weight.ptr<float>(ithr, h - hq_beg, pq),
-                                           _weight.ptr<float>(ithr, h - hq_beg, pq),
-                                           _d_scale,
-                                           alibi_lookup,
-                                           nullptr,
-                                           nullptr,
-                                           false,
-                                           cur_kv_len,
-                                           cur_kv_len,
-                                           ov::element::f32,
-                                           ov::element::f32,
-                                           alibi_slope);
+                float* sink = nullptr;
+                if (sinks) {
+                    sink = &sinks.at<float>({0, h, 0, 0}, true);
+                }
+                if (_sliding_window) {
+                    size_t start_idx = 0;
+                    size_t new_causal = cur_kv_len;
+                    float* sw_alibi_lookup = nullptr;
+                    if (cur_kv_len > _sliding_window) {
+                        start_idx = cur_kv_len - _sliding_window;
+                        new_causal = _sliding_window;
+                    }
+                    attn_softmax_kernel<float>(score + start_idx,
+                                               score + start_idx,
+                                               _d_scale,
+                                               sw_alibi_lookup,
+                                               nullptr,
+                                               nullptr,
+                                               false,
+                                               new_causal,
+                                               cur_kv_len - start_idx,
+                                               ov::element::f32,
+                                               ov::element::f32,
+                                               sink,
+                                               alibi_slope);
+                    if (start_idx > 0) {
+                        memset(score, 0, sizeof(float) * start_idx);
+                    }
+                } else {
+                    attn_softmax_kernel<float>(score,
+                                               score,
+                                               _d_scale,
+                                               alibi_lookup,
+                                               nullptr,
+                                               nullptr,
+                                               false,
+                                               cur_kv_len,
+                                               cur_kv_len,
+                                               ov::element::f32,
+                                               ov::element::f32,
+                                               sink,
+                                               alibi_slope);
+                }
                 if (score_output) {
                     // aligned to cache line to avoid false sharing
                     static constexpr int cache_line_size = dnnl::impl::cpu::platform::get_cache_line_size();
                     std::memcpy(score_output + h * rnd_up(cur_kv_len, cache_line_size / sizeof(float)),
-                                _weight.ptr<float>(ithr, h - hq_beg, pq),
+                                score,
                                 cur_kv_len * sizeof(float));
                 }
             }
@@ -1289,7 +1394,8 @@ struct MHAHelper {
                        const PlainTensor& block_indices,
                        const PlainTensor& block_indices_begins,
                        const PlainTensor& alibi_slopes,
-                       const PlainTensor& score_aggregation_window) {
+                       const PlainTensor& score_aggregation_window,
+                       const PlainTensor& sinks) {
         auto B = past_lens.size(0);
         auto q_len = query.size(2);
         auto kv_len_in_blocks = div_up(max_context_len, _block_size);
@@ -1383,24 +1489,57 @@ struct MHAHelper {
             auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto ncausal = cur_kv_len;
             // apply attention mask & sofmax
+            float* score = _weight_bhl.ptr<float>(b, h, pq);
+            OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight_bhl buffer must be allocated");
             float* alibi_lookup = nullptr;
             float alibi_slope = 0.F;
             if (alibi_slopes) {
                 alibi_slope = alibi_slopes.ptr<float>()[h];
                 alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
             }
-            attn_softmax_kernel<float>(_weight_bhl.ptr<float>(b, h, pq),
-                                       _weight_bhl.ptr<float>(b, h, pq),
-                                       _d_scale,
-                                       alibi_lookup,
-                                       nullptr,
-                                       nullptr,
-                                       false,
-                                       ncausal,
-                                       cur_kv_len,
-                                       ov::element::f32,
-                                       ov::element::f32,
-                                       alibi_slope);
+            float* sink = nullptr;
+            if (sinks) {
+                sink = &sinks.at<float>({0, h, 0, 0}, true);
+            }
+            if (_sliding_window) {
+                size_t start_idx = 0;
+                size_t new_causal = ncausal;
+                float* sw_alibi_lookup = nullptr;
+                if (ncausal > _sliding_window) {
+                    start_idx = ncausal - _sliding_window;
+                    new_causal = _sliding_window;
+                }
+                attn_softmax_kernel<float>(score + start_idx,
+                                           score + start_idx,
+                                           _d_scale,
+                                           sw_alibi_lookup,
+                                           nullptr,
+                                           nullptr,
+                                           false,
+                                           new_causal,
+                                           cur_kv_len - start_idx,
+                                           ov::element::f32,
+                                           ov::element::f32,
+                                           sink,
+                                           alibi_slope);
+                if (start_idx > 0) {
+                    memset(score, 0, sizeof(float) * start_idx);
+                }
+            } else {
+                attn_softmax_kernel<float>(score,
+                                           score,
+                                           _d_scale,
+                                           alibi_lookup,
+                                           nullptr,
+                                           nullptr,
+                                           false,
+                                           ncausal,
+                                           cur_kv_len,
+                                           ov::element::f32,
+                                           ov::element::f32,
+                                           sink,
+                                           alibi_slope);
+            }
         };
 
         size_t h_dims = loop_hk ? Hk : H;
@@ -1506,7 +1645,9 @@ struct MHA {
                          const PlainTensor& block_indices,
                          const PlainTensor& block_indices_begins,
                          const PlainTensor& alibi_slopes,
-                         const PlainTensor& score_aggregation_window) {
+                         const PlainTensor& score_aggregation_window,
+                         const PlainTensor& sinks,
+                         const std::vector<PlainTensor>& sparse_attention_mask) {
         auto Hk = v_cache.m_dims[1];
 
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
@@ -1653,7 +1794,7 @@ struct MHA {
                         score_output = _helper._score_output.template ptr<float>() + score_offset * _helper.H;
                     }
                 }
-
+                // TODO: support second token sparse attention execution
                 _helper.exec_kernel_one_bh(
                     q.slice(0, batch_in_token, batch_in_token),
                     k_cache,
@@ -1667,7 +1808,8 @@ struct MHA {
                     1UL,
                     cur_kv_len,
                     alibi_slopes,
-                    score_output);
+                    score_output,
+                    sinks);
             } else {
                 const auto batch_in_reorder = item.batch_in_reorder;
                 const auto q_blk = item.q_block_id;
@@ -1739,7 +1881,8 @@ struct MHA {
                         alibi_slopes,
                         score_output,
                         q_start_idx_score,
-                        score_info_ptr);
+                        score_info_ptr,
+                        PlainTensor());
                 }
 #    else
                 _helper.exec_kernel_multiple(
@@ -1760,7 +1903,10 @@ struct MHA {
                     alibi_slopes,
                     score_output,
                     q_start_idx_score,
-                    score_info_ptr);
+                    score_info_ptr,
+                    sinks,
+                    batch_in_seq,
+                    sparse_attention_mask);
 #    endif
             }
         });
@@ -1797,7 +1943,9 @@ struct MHA {
                     const PlainTensor& block_indices,
                     const PlainTensor& block_indices_begins,
                     const PlainTensor& alibi_slopes,
-                    const PlainTensor& score_aggregation_window) {
+                    const PlainTensor& score_aggregation_window,
+                    const PlainTensor& sinks,
+                    const std::vector<PlainTensor>& sparse_attention_mask) {
         _workitems
             .reset(query, past_lens, subsequence_begins, block_indices, block_indices_begins, _helper._block_size);
         if (output_score) {
@@ -1818,8 +1966,11 @@ struct MHA {
                             block_indices,
                             block_indices_begins,
                             alibi_slopes,
-                            score_aggregation_window);
+                            score_aggregation_window,
+                            sinks,
+                            sparse_attention_mask);
         } else {
+            // TODO: support second token sparse attention execution
             _helper.exec_loop_bhl(query,
                                   present_key,
                                   present_value,
@@ -1831,7 +1982,8 @@ struct MHA {
                                   block_indices,
                                   block_indices_begins,
                                   alibi_slopes,
-                                  score_aggregation_window);
+                                  score_aggregation_window,
+                                  sinks);
         }
     }
 };
@@ -1841,6 +1993,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
     MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC> _helper;
     MHA<DATA_TYPE, KEY_PREC, VALUE_PREC> _kernel;
     PlainTensor _slot_mapping;
+#    if defined(OPENVINO_ARCH_X86_64)
+    Xattn _xatt;
+#    endif
 
     AttentionExecutor() : _kernel(_helper) {}
 
@@ -1871,8 +2026,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
               int32_t& xattention_block_size,
               int32_t& xattention_stride,
               PlainTensor& sinks,
+              int32_t& adaptive_rkv_start_size,
+              PlainTensor& adaptive_rkv_evictable_sizes,
+              PlainTensor& adaptive_rkv_diversity_block_set_indices,
+              PlainTensor& adaptive_rkv_diversity_block_set_indices_begins,
               PlainTensor& output_emb,
-              PlainTensor& output_score) {
+              PlainTensor& output_score,
+              std::vector<PlainTensor>& sparse_attention_mask,
+              PlainTensor& output_arkv_similarity) {
         q.reset(inputs[ID_Q]);  // [B_token, H * S]
         k.reset(inputs[ID_K]);
         v.reset(inputs[ID_V]);
@@ -1894,7 +2055,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         size_t inputs_size = inputs.size();
-        OPENVINO_ASSERT(inputs_size == 21);
+        OPENVINO_ASSERT(inputs_size == 25);
         if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
             rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
         }
@@ -1916,8 +2077,24 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             sinks.reset(inputs[ID_SINKS]);  // [1, 64, 1, 1]
         }
 
+        adaptive_rkv_start_size = *inputs[ID_ADAPTIVE_RKV_START_SIZE]->getDataAs<int32_t>();
+
+        if (!inputs[ID_ADAPTIVE_RKV_EVICTABLE_SIZES]->getShape().hasZeroDims()) {
+            adaptive_rkv_evictable_sizes.reset(inputs[ID_ADAPTIVE_RKV_EVICTABLE_SIZES]);  // [B_seq]
+            if (!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]->getShape().hasZeroDims()) {
+                OPENVINO_ASSERT(!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS]->getShape().hasZeroDims());
+                adaptive_rkv_diversity_block_set_indices.reset(
+                    inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]);  // [num_adaptive_rkv_diversity_blocks]
+                adaptive_rkv_diversity_block_set_indices_begins.reset(
+                    inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS]);  // [num_adaptive_rkv_diversity_blocks]
+            }
+
+            OPENVINO_ASSERT(outputs.size() >= 3);
+            output_arkv_similarity.reset(outputs[2]);
+        }
+
         output_emb.reset(outputs[0]);
-        if (outputs.size() == 2) {
+        if (outputs.size() >= 2) {
             output_score.reset(outputs[1]);
         }
 
@@ -2051,14 +2228,21 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
         if (xattention_threshold) {
             xattention_threshold.assert_dims({B_seq});
-            OPENVINO_ASSERT(xattention_block_size > 0);
+            OPENVINO_ASSERT(static_cast<size_t>(xattention_block_size) >= block_size &&
+                            static_cast<size_t>(xattention_block_size) % block_size == 0);
             OPENVINO_ASSERT(xattention_stride > 0);
-            // TODO: add assertions on the block size and stride limitations as defined by the
-            // block sparse operation and importance score computation impls
         }
 
         if (sinks) {
             sinks.assert_dims({1, H, 1, 1});
+        }
+
+        if (adaptive_rkv_evictable_sizes) {
+            OPENVINO_ASSERT(adaptive_rkv_start_size >= 0);
+            adaptive_rkv_evictable_sizes.assert_dims({B_seq});
+            if (adaptive_rkv_diversity_block_set_indices) {
+                adaptive_rkv_diversity_block_set_indices_begins.assert_dims({B_seq + 1});
+            }
         }
 
         output_emb.assert_dims({B_token, H * SV});
@@ -2066,6 +2250,37 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         // TODO: enable block_size to be multiple of 32
         OPENVINO_ASSERT(block_size == 32, "CPU: block size must be 32, current: ", block_size);
+
+#    if defined(OPENVINO_ARCH_X86_64)
+        // TODO: Support multiple batches. Currently only support B_seq is 1.
+        if (xattention_threshold && q.size(0) > 1 && B_seq == 1) {
+            sparse_attention_mask.resize(B_seq);
+            _xatt.init(B_token, H, 1, S, Hk, xattention_stride, xattention_block_size, q.m_dt);
+            size_t seq_idx = 0;
+            _xatt.estimate(q,
+                           k,
+                           xattention_block_size,
+                           xattention_stride,
+                           xattention_threshold.ptr<float>()[seq_idx],
+                           sparse_attention_mask[seq_idx]);
+
+            // keep original mask granularity; remember its block size for on-the-fly mapping
+            _helper._sparse_mask_block_size = xattention_block_size;
+            // Check sparse_mask_block_size is a multiple of vector length for correct sparse_mask indexing
+#        if defined(HAVE_AVX512F)
+            constexpr size_t vec_len = vec_len_f32_avx512;
+#        elif defined(HAVE_AVX2)
+            constexpr size_t vec_len = vec_len_f32_avx2;
+#        elif defined(OPENVINO_ARCH_ARM64)
+            constexpr size_t vec_len = vec_len_f32_neon;
+#        else
+            constexpr size_t vec_len = 1;
+#        endif
+            if (xattention_block_size % vec_len == 0) {
+                _helper._use_softmax_sparse_mask = true;
+            }
+        }
+#    endif
 
         _helper.init(H,
                      S,
@@ -2158,8 +2373,18 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         PlainTensor sinks;
 
+        int32_t adaptive_rkv_start_size = 0;
+        PlainTensor adaptive_rkv_evictable_sizes;
+        PlainTensor adaptive_rkv_diversity_block_set_indices;
+        PlainTensor adaptive_rkv_diversity_block_set_indices_begins;
+
         PlainTensor output_emb;
         PlainTensor output_score;
+        PlainTensor output_arkv_similarity;
+
+        std::vector<PlainTensor>
+            sparse_attention_mask;  // Each vector element corresponds to a batch, and each PlainTensor corresponds to a
+                                    // batch, with shape: [H, q_blocks, k_blocks], type: bool
 
         init(inputs,
              outputs,
@@ -2184,8 +2409,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              xattention_block_size,
              xattention_stride,
              sinks,
+             adaptive_rkv_start_size,
+             adaptive_rkv_evictable_sizes,
+             adaptive_rkv_diversity_block_set_indices,
+             adaptive_rkv_diversity_block_set_indices_begins,
              output_emb,
-             output_score);
+             output_score,
+             sparse_attention_mask,
+             output_arkv_similarity);
 
         if (rotated_block_indices) {
             // Rotate kv cache currently doesn't support quantized cache.
@@ -2211,7 +2442,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 block_indices,
                 block_indices_begins,
                 alibi_slopes,
-                score_aggregation_window);
+                score_aggregation_window,
+                sinks,
+                sparse_attention_mask);
     }
 };
 #endif

@@ -45,28 +45,37 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
     auto xattention_block_size = pattern::any_input(pattern::has_static_rank());
     auto xattention_stride = pattern::any_input(pattern::has_static_rank());
     auto sinks = pattern::any_input(pattern::has_static_rank());
+    auto adaptive_rkv_start_size = pattern::any_input(pattern::has_static_rank());
+    auto adaptive_rkv_evictable_sizes = pattern::any_input(pattern::has_static_rank());
+    auto adaptive_rkv_diversity_block_set_indices = pattern::any_input(pattern::has_static_rank());
+    auto adaptive_rkv_diversity_block_set_indices_begins = pattern::any_input(pattern::has_static_rank());
 
-    auto result = pattern::wrap_type<op::PagedAttentionExtension>({Q,
-                                                                   K,
-                                                                   V,
-                                                                   key_cache_0,
-                                                                   value_cache_0,
-                                                                   past_lens,
-                                                                   subsequence_begins,
-                                                                   block_indices,
-                                                                   block_indices_begins,
-                                                                   scale,
-                                                                   sliding_window,
-                                                                   alibi_slopes,
-                                                                   max_context_len,
-                                                                   score_aggregation_window,
-                                                                   rotated_block_indices,
-                                                                   rotation_deltas,
-                                                                   rotation_trig_lut,
-                                                                   xattention_threshold,
-                                                                   xattention_block_size,
-                                                                   xattention_stride,
-                                                                   sinks});
+    auto result =
+        pattern::wrap_type<ov::op::PagedAttentionExtension>({Q,
+                                                             K,
+                                                             V,
+                                                             key_cache_0,
+                                                             value_cache_0,
+                                                             past_lens,
+                                                             subsequence_begins,
+                                                             block_indices,
+                                                             block_indices_begins,
+                                                             scale,
+                                                             sliding_window,
+                                                             alibi_slopes,
+                                                             max_context_len,
+                                                             score_aggregation_window,
+                                                             rotated_block_indices,
+                                                             rotation_deltas,
+                                                             rotation_trig_lut,
+                                                             xattention_threshold,
+                                                             xattention_block_size,
+                                                             xattention_stride,
+                                                             sinks,
+                                                             adaptive_rkv_start_size,
+                                                             adaptive_rkv_evictable_sizes,
+                                                             adaptive_rkv_diversity_block_set_indices,
+                                                             adaptive_rkv_diversity_block_set_indices_begins});
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto pa_op = m.get_match_root();
         auto key_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
@@ -109,7 +118,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
         value_cache->set_element_type(value_cache_precision);
         bool status = false;
         if (pa_op->get_rt_info().count("num_k_heads") && pa_op->get_rt_info().count("k_head_size") &&
-            pa_op->get_rt_info().count("num_v_heads") && pa_op->get_rt_info().count("num_v_heads")) {
+            pa_op->get_rt_info().count("num_v_heads") && pa_op->get_rt_info().count("v_head_size")) {
             const auto key_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_k_heads"].as<size_t>(),
                                                           pa_op->get_rt_info()["k_head_size"].as<size_t>(),
                                                           m_config.keyCacheBlockSize,

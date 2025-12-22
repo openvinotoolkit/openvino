@@ -6,10 +6,17 @@
 
 #include <onnx/onnx_pb.h>
 
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <exception>
 #include <fstream>
-#include <openvino/frontend/graph_iterator.hpp>
+#include <map>
+#include <unordered_set>
+#include <vector>
 
 #include "decoder_proto.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
@@ -87,7 +94,8 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
     const auto full_path =
         ov::util::get_absolute_file_path(ov::util::path_join({graph_iterator->get_model_dir(), ext_location}).string());
     const int64_t file_size = ov::util::file_size(full_path);
-    if (file_size <= 0 || ext_data_offset + ext_data_length > static_cast<uint64_t>(file_size)) {
+    if ((file_size <= 0 && ext_data_length > 0) ||
+        ext_data_offset + ext_data_length > static_cast<uint64_t>(file_size)) {
         // not_existed_file.data, offset: 4096, data_length: 16)
         std::stringstream ss;
         ss << "Invalid usage of method for externally stored data in file (" << ext_location;
@@ -180,10 +188,10 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
         }
     }
     if (value_info != nullptr) {
-        if (value_info->has_type() && !value_info->type().has_tensor_type()) {
-            throw std::runtime_error("Unsupported value_info type");
-        }
         tensor_meta_info.m_tensor_name = value_info->has_name() ? &value_info->name() : &empty_name;
+        if (value_info->has_type() && !value_info->type().has_tensor_type()) {
+            throw std::runtime_error("Unsupported value_info type: " + (*tensor_meta_info.m_tensor_name));
+        }
         const auto& value_type = value_info->type().tensor_type();
         if (value_type.has_shape()) {
             std::vector<int64_t> dims{};
@@ -206,12 +214,8 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
     }
     if (tensor_info != nullptr) {
         tensor_meta_info.m_tensor_name = tensor_info->has_name() ? &tensor_info->name() : &empty_name;
-        std::vector<int64_t> dims(tensor_info->dims().begin(), tensor_info->dims().end());
-        if (dims.size() == 0 || (dims.size() == 1 && dims[0] == 0)) {
-            tensor_meta_info.m_partial_shape = ov::PartialShape{};
-        } else {
-            tensor_meta_info.m_partial_shape = ov::PartialShape{dims};
-        }
+        std::vector<int64_t> dims_vec{tensor_info->dims().begin(), tensor_info->dims().end()};
+        tensor_meta_info.m_partial_shape = ov::PartialShape(dims_vec);
         tensor_meta_info.m_element_type =
             tensor_info->has_data_type() ? get_ov_element_type(tensor_info->data_type()) : ov::element::dynamic;
         if (tensor_info->has_data_location() &&
@@ -259,6 +263,11 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->double_data().data()));
             tensor_meta_info.m_tensor_data_size = tensor_info->double_data_size();
             break;
+        case TensorProto_DataType::TensorProto_DataType_STRING:
+            tensor_meta_info.m_tensor_data_any =
+                std::vector<std::string>(tensor_info->string_data().begin(), tensor_info->string_data().end());
+            tensor_meta_info.m_tensor_data_size = tensor_info->string_data_size();
+            break;
         default:
             throw std::runtime_error("Unsupported type " +
                                      ::ONNX_NAMESPACE::TensorProto_DataType_Name(tensor_info->data_type()));
@@ -274,6 +283,9 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
     }
     if (tensor_meta_info.m_tensor_name == nullptr) {
         tensor_meta_info.m_tensor_name = &empty_name;
+    }
+    if (tensor_meta_info.m_partial_shape == ov::Shape{0} && tensor_meta_info.m_tensor_data_size == 1) {
+        tensor_meta_info.m_partial_shape = ov::Shape{};
     }
     return tensor_meta_info;
 }
@@ -304,10 +316,10 @@ void GraphIteratorProto::initialize(const std::string& path) {
     m_model_dir = std::make_shared<std::string>(ov::util::get_directory(path).string());
     try {
         std::ifstream model_file(path, std::ios::binary | std::ios::in);
-        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", path);
+        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path, "\"");
 
         m_model = std::make_shared<ModelProto>();
-        m_model->ParseFromIstream(&model_file);
+        FRONT_END_GENERAL_CHECK(m_model->ParseFromIstream(&model_file), "Model can't be parsed");
         model_file.close();
         if (m_model->has_graph()) {
             m_graph = &m_model->graph();
@@ -320,6 +332,8 @@ void GraphIteratorProto::initialize(const std::string& path) {
         m_graph = nullptr;
         node_index = 0;
         m_decoders.clear();
+        m_tensors.clear();
+        throw;
     }
 }
 
@@ -334,7 +348,7 @@ std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::st
     if (m_tensors.count(name) == 0) {
         if (name == empty_name) {
             *owner = this;
-            const auto& tensor_decoder = std::make_shared<DecoderProtoTensor>(empty_name, this, -1, -1);
+            const auto& tensor_decoder = std::make_shared<DecoderProtoTensor>(empty_name, this);
             m_tensors[empty_name] = tensor_decoder;
             return tensor_decoder;
         }
@@ -360,21 +374,35 @@ void GraphIteratorProto::reset() {
         return;
     m_decoders.reserve(m_graph->initializer_size() + m_graph->input_size() + m_graph->output_size() +
                        m_graph->node_size());
+    int64_t index = 0;
     for (const auto& value : m_graph->input()) {
-        auto tensor = std::make_shared<DecoderProtoTensor>(&value, this, 0, -1);
-        m_decoders.push_back(tensor);
-        if (m_tensors.count(*tensor->get_tensor_info().m_tensor_name) > 0) {
-            throw std::runtime_error("Tensor already exists \"" + *tensor->get_tensor_info().m_tensor_name + "\"");
+        const auto& initializer = std::find_if(m_graph->initializer().begin(),
+                                               m_graph->initializer().end(),
+                                               [&value](const TensorProto& tensor) {
+                                                   return tensor.has_name() && tensor.name() == value.name();
+                                               });
+        std::shared_ptr<DecoderProtoTensor> tensor;
+        if (initializer == m_graph->initializer().end()) {
+            tensor = std::make_shared<DecoderProtoTensor>(&value, this, index++, -1);
+        } else {
+            tensor = std::make_shared<DecoderProtoTensor>(&*initializer, this);
         }
-        m_tensors[*tensor->get_tensor_info().m_tensor_name] = tensor;
+        m_decoders.push_back(tensor);
+        const auto& t_name = *tensor->get_tensor_info().m_tensor_name;
+        if (m_tensors.count(t_name) > 0) {
+            throw std::runtime_error("Tensor already exists \"" + t_name + "\"");
+        }
+        m_tensors.emplace(t_name, tensor);
     }
+    index = 0;
     for (const auto& value : m_graph->output()) {
-        auto tensor = std::make_shared<DecoderProtoTensor>(&value, this, -1, 0);
+        auto tensor = std::make_shared<DecoderProtoTensor>(&value, this, -1, index++);
         m_decoders.push_back(tensor);
-        if (m_tensors.count(*tensor->get_tensor_info().m_tensor_name) > 0) {
-            throw std::runtime_error("Tensor already exists \"" + *tensor->get_tensor_info().m_tensor_name + "\"");
+        const auto& t_name = *tensor->get_tensor_info().m_tensor_name;
+        if (m_tensors.count(t_name) == 0) {
+            // model may have several outputs of the same tensor
+            m_tensors.emplace(t_name, tensor);
         }
-        m_tensors[*tensor->get_tensor_info().m_tensor_name] = tensor;
     }
     for (const auto& initializer : m_graph->initializer()) {
         const auto& decoder =
@@ -445,7 +473,7 @@ void GraphIteratorProto::reset() {
                 output_tensors.push_back(&this->get_tensor(empty_name, &tensor_owner)->get_tensor_info());
             }
         }
-        const std::string& domain = node.has_domain() && node.domain() != "ai.onnx" ? node.domain() : DEFAULT_DOMAIN;
+        const std::string& domain = node.has_domain() ? node.domain() : DEFAULT_DOMAIN;
         int64_t opset = get_opset_version(domain);
         if (opset == -1) {
             // Forcing a first opset instead of failing
@@ -477,7 +505,8 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
               });
 
     for (const auto& opset_import : opset_imports) {
-        if (domain == opset_import.domain()) {
+        if ((domain == DEFAULT_DOMAIN && opset_import.domain() == "ai.onnx") ||
+            (domain == "ai.onnx" && opset_import.domain() == DEFAULT_DOMAIN) || (domain == opset_import.domain())) {
             return opset_import.version();
         }
     }
@@ -485,21 +514,20 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
     return -1;
 }
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+std::map<std::string, std::string> GraphIteratorProto::get_metadata() const {
+    std::map<std::string, std::string> metadata;
 
-#include <algorithm>
-#include <array>
-#include <cstdint>
-#include <exception>
-#include <map>
-#include <unordered_set>
-#include <vector>
+    if (!m_model) {
+        return metadata;
+    }
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+    const auto& model_metadata = m_model->metadata_props();
+    for (const auto& prop : model_metadata) {
+        metadata.emplace(prop.key(), prop.value());
+    }
+    return metadata;
+}
+
 namespace detail {
 namespace {
 enum Field {

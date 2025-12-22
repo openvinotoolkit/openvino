@@ -9,7 +9,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "cpu_types.h"
@@ -48,16 +47,9 @@ static std::vector<float> generate_anchors(proposal_conf& conf) {
     // enumerate all transformed boxes
     for (size_t ratio = 0; ratio < num_ratios; ++ratio) {
         // transformed width & height for given ratio factors
-        const auto [ratio_w, ratio_h] = [&]() {
-            if (round_ratios) {
-                float rw = std::roundf(std::sqrt(base_area / ratios[ratio]));
-                float rh = std::roundf(rw * ratios[ratio]);
-                return std::make_pair(rw, rh);
-            }
-            float rw = std::sqrt(base_area / ratios[ratio]);
-            float rh = rw * ratios[ratio];
-            return std::make_pair(rw, rh);
-        }();
+        const float ratio_w =
+            round_ratios ? std::roundf(std::sqrt(base_area / ratios[ratio])) : std::sqrt(base_area / ratios[ratio]);
+        const float ratio_h = round_ratios ? std::roundf(ratio_w * ratios[ratio]) : ratio_w * ratios[ratio];
 
         float* const p_anchors_wm = anchors_ptr + 0 * num_ratios * num_scales + ratio * num_scales;
         float* const p_anchors_hm = anchors_ptr + 1 * num_ratios * num_scales + ratio * num_scales;

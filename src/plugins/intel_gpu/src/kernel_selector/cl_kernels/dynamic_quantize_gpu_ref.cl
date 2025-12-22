@@ -5,6 +5,7 @@
 #include "include/batch_headers/fetch_data.cl"
 
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF
+#define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
 
 #if ASYMMETRIC_QUANTIZATION && UNSIGNED_OUTPUT
     #define TO_OUTPUT_TYPE_RTE(val)  convert_uchar_rte(val)
@@ -61,7 +62,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
     const uint scale_idx = OUTPUT1_GET_INDEX_SAFE(b, f, out_y, x);
 #endif
 
-    half grp_max = 0.001h;
+    half grp_max = ACT_MIN_VAL;
     half max_val = INPUT0_VAL_MIN;
     half min_val = INPUT0_VAL_MAX;
     for (int b_off = 0; b_off < (GROUP_SIZE_DIM0 == 1 ? 1 : INPUT0_BATCH_NUM); b_off++) {
@@ -112,7 +113,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #endif
 
 #if ASYMMETRIC_QUANTIZATION
-    // If the range of input data is zero, it is adjusted to the minimum value(0.001).
+    // If the range of input data is zero, it is adjusted to the minimum value.
     ACCUMULATOR_TYPE diff_value = max_val == min_val ? (grp_max) : (max_val - min_val);
     ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
 #   if UNSIGNED_OUTPUT

@@ -42,7 +42,6 @@ protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> ov_model;
-    ov::CompiledModel compiled_model;
     ov::Output<const ov::Node> input;
     ov::Output<const ov::Node> output;
     std::string m_cache_dir;
@@ -92,7 +91,7 @@ public:
             core->set_property({ov::cache_dir()});
             core.reset();
             ov::test::utils::PluginCache::get().reset();
-            ov::test::utils::removeFilesWithExt(m_cache_dir, "blob");
+            ov::test::utils::removeFilesWithExt<opt::FORCE>(m_cache_dir, "blob");
             ov::test::utils::removeDir(m_cache_dir);
         }
 
@@ -137,7 +136,8 @@ TEST_P(InferRequestRunTests, AllocatorCanDisposeBlobWhenOnlyInferRequestIsInScop
 
 TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsSyncInfers) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    // Load CNNNetwork to target plugins
+    ov::CompiledModel compiled_model;
+
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
     OV_ASSERT_NO_THROW(input = compiled_model.input());
     OV_ASSERT_NO_THROW(output = compiled_model.output());
@@ -165,7 +165,8 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsSyncInfers) {
 
 TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    // Load CNNNetwork to target plugins
+    ov::CompiledModel compiled_model;
+
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
     OV_ASSERT_NO_THROW(input = compiled_model.input());
     OV_ASSERT_NO_THROW(output = compiled_model.output());
@@ -189,7 +190,8 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
 
 TEST_P(InferRequestRunTests, MultipleExecutorTestsSyncInfers) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    // Load CNNNetwork to target plugins
+    ov::CompiledModel compiled_model;
+
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
     OV_ASSERT_NO_THROW(input = compiled_model.input());
     OV_ASSERT_NO_THROW(output = compiled_model.output());
@@ -209,6 +211,7 @@ TEST_P(InferRequestRunTests, MultipleExecutorTestsSyncInfers) {
 TEST_P(InferRequestRunTests, CheckOutputDataFromTwoRuns) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     ov::Tensor first_output;
     ov::Tensor second_output;
@@ -253,6 +256,7 @@ TEST_P(InferRequestRunTests, CheckOutputDataFromTwoRuns) {
 TEST_P(InferRequestRunTests, CheckOutputDataFromMultipleRunsUsingSameL0Tensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     ov::Tensor first_output;
     ov::Tensor second_output;
@@ -288,6 +292,7 @@ TEST_P(InferRequestRunTests, CheckOutputDataFromMultipleRunsUsingSameL0Tensor) {
 TEST_P(InferRequestRunTests, RecreateL0TensorIfNeeded) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     ov::Tensor first_output;
     ov::Tensor second_output;
@@ -331,10 +336,25 @@ TEST_P(InferRequestRunTests, RecreateL0TensorIfNeeded) {
     }
 }
 
+TEST_P(InferRequestRunTests, RunWithConstData) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    ov::CompiledModel compiled_model;
+    ov::InferRequest inference_request;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+    const auto tensor = inference_request.get_input_tensor();
+    const std::vector<float> data(tensor.get_byte_size() / sizeof(float));
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor({ov::element::f32, tensor.get_shape(), data.data()}));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+}
+
 using RandomTensorOverZeroTensorRunTests = InferRequestRunTests;
 
 TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor0) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    ov::CompiledModel compiled_model;
 
     auto shape = Shape{1, 2, 2, 2};
     auto shape_size = ov::shape_size(shape);
@@ -380,6 +400,8 @@ TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor0) {
 
 TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor1) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    ov::CompiledModel compiled_model;
 
     auto shape = Shape{1, 2, 2, 2};
     auto shape_size = ov::shape_size(shape);
@@ -443,6 +465,8 @@ using BatchingRunTests = InferRequestRunTests;
 TEST_P(BatchingRunTests, CheckBatchingSupportInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
+    ov::CompiledModel compiled_model;
+
     ov::InferRequest inference_request;
     auto batch_shape = Shape{4, 2, 32, 32};
     std::shared_ptr<ov::Model> ov_model_batch = createModel(element::f32, batch_shape, "N...");
@@ -455,6 +479,7 @@ TEST_P(BatchingRunTests, CheckBatchingSupportInfer) {
 TEST_P(BatchingRunTests, CheckBatchingSupportAsync) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
+        ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     auto batch_shape = Shape{4, 2, 32, 32};
     std::shared_ptr<ov::Model> ov_model_batch = createModel(element::f32, batch_shape, "N...");
@@ -467,6 +492,8 @@ TEST_P(BatchingRunTests, CheckBatchingSupportAsync) {
 
 TEST_P(BatchingRunTests, UseCompilerBatchingErrorPluginBatching) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    ov::CompiledModel compiled_model;
 
     ov::InferRequest inference_request;
     std::shared_ptr<ov::Model> ov_model_batch = getDefaultNGraphFunctionForTheDeviceNPU({4, 2, 32, 32});
@@ -489,6 +516,8 @@ TEST_P(BatchingRunTests, SetInputTensorInfer) {
     auto shape_size = ov::shape_size(batch_shape);
     auto model = createModel(element::f32, batch_shape, "N...");
     float* buffer = new float[shape_size];
+
+    ov::CompiledModel compiled_model;
 
     compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;
@@ -516,6 +545,8 @@ TEST_P(BatchingRunTests, SetInputTensorAsync) {
     auto model = createModel(element::f32, batch_shape, "N...");
     float* buffer = new float[shape_size];
 
+    ov::CompiledModel compiled_model;
+
     compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;
     inference_request = compiled_model.create_infer_request();
@@ -542,6 +573,8 @@ TEST_P(BatchingRunTests, SetInputTensorInfer_Caching) {
     auto shape_size = ov::shape_size(batch_shape);
     auto model = createModel(element::f32, batch_shape, "N...");
     float* buffer = new float[shape_size];
+
+    ov::CompiledModel compiled_model;
 
     m_cache_dir = generateCacheDirName(GetTestName());
     core->set_property({ov::cache_dir(m_cache_dir)});
@@ -573,6 +606,8 @@ TEST_P(BatchingRunTests, CheckTwoRunsInfer) {
     auto shape_size = ov::shape_size(batch_shape);
     auto model = createModel(element::f32, batch_shape, "N...");
     float* buffer = new float[shape_size];
+
+    ov::CompiledModel compiled_model;
 
     auto context = core->get_default_context(target_device);
 
@@ -621,6 +656,8 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq0) {
     auto shape = Shape{1, 64, 64, 256};
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
+
+    ov::CompiledModel compiled_model;
 
     auto context = core->get_default_context(target_device);
 
@@ -679,6 +716,8 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq1) {
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
 
+    ov::CompiledModel compiled_model;
+
     auto context = core->get_default_context(target_device);
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
@@ -736,6 +775,8 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq2) {
     auto shape = Shape{1, 64, 64, 256};
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
+
+    ov::CompiledModel compiled_model;
 
     auto context = core->get_default_context(target_device);
 
@@ -805,6 +846,8 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq3) {
     auto shape = Shape{1, 64, 64, 256};
     auto model = createModel(element::f32, shape, "N...");
 
+    ov::CompiledModel compiled_model;
+
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
     configuration[ov::intel_npu::tiles.name()] = 2;
     compiled_model = core->compile_model(model, target_device, configuration);
@@ -818,6 +861,8 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq3) {
 
 TEST_P(RunSeqTests, CheckMultipleRunsSeq4) {
     auto supportedProperties = core->get_property("NPU", supported_properties.name()).as<std::vector<PropertyName>>();
+
+    ov::CompiledModel compiled_model;
 
     bool isRunInferencesSequentially =
         std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
@@ -920,6 +965,8 @@ TEST_P(RunSeqTests, CheckTurboWithMultipleRunsSeq) {
 
     auto context = core->get_default_context(target_device);
 
+    ov::CompiledModel compiled_model;
+
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
     configuration[intel_npu::turbo.name()] = true;
     configuration[ov::intel_npu::tiles.name()] = 2;
@@ -980,6 +1027,8 @@ TEST_P(BatchingRunSeqTests, CheckMultipleBatchingRunsSeq) {
     auto model = createModel(element::f32, shape, "N...");
 
     auto context = core->get_default_context(target_device);
+
+    ov::CompiledModel compiled_model;
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
     configuration[ov::intel_npu::tiles.name()] = 2;
@@ -1042,7 +1091,7 @@ TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRun0) {
 
     auto context = core->get_default_context(target_device);
 
-    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::CompiledModel compiled_model = core->compile_model(model, target_device, configuration);
 
     ov::InferRequest inference_request;
     ov::Tensor input_tensor;
@@ -1107,7 +1156,7 @@ TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRun1) {
 
     auto context = core->get_default_context(target_device);
 
-    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::CompiledModel compiled_model = core->compile_model(model, target_device, configuration);
 
     ov::InferRequest inference_request;
     ov::Tensor input_tensor;
@@ -1170,7 +1219,7 @@ TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRun2) {
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, modelShape, "N...");
 
-    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::CompiledModel compiled_model = core->compile_model(model, target_device, configuration);
 
     ov::InferRequest inference_request;
     ov::Tensor input_tensor;
@@ -1209,7 +1258,7 @@ TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRunsSeq) {
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
     configuration[ov::intel_npu::tiles.name()] = 2;
-    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::CompiledModel compiled_model = core->compile_model(model, target_device, configuration);
 
     const uint32_t inferences = 32;
     std::array<ov::InferRequest, inferences> inference_request;
@@ -1284,7 +1333,7 @@ TEST_P(SetShapeInferRunTests, checkResultsAfterIOBlobReallocation) {
 
     auto context = core->get_default_context(target_device);
 
-    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::CompiledModel compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;
     inference_request = compiled_model.create_infer_request();
 
@@ -1354,7 +1403,7 @@ TEST_P(SetShapeInferRunTests, checkResultsAfterStateTensorsReallocation) {
 
     auto context = core->get_default_context(target_device);
 
-    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::CompiledModel compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;
     inference_request = compiled_model.create_infer_request();
 
@@ -1448,6 +1497,7 @@ TEST_P(CpuVaTensorsTests, DontDestroyImportedMemory) {
     ov::Tensor second_output;
     ov::Tensor global_input;
     float* data;
+    ov::CompiledModel compiled_model;
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
     OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
@@ -1484,6 +1534,8 @@ TEST_P(CpuVaTensorsTests, DontDestroyImportedMemory) {
         EXPECT_EQ(memcmp(first_output.data(), second_output.data(), second_output.get_byte_size()), 0);
     }
 
+    inference_request = {};
+
     ::operator delete(data, std::align_val_t(4096));
 }
 
@@ -1494,7 +1546,7 @@ TEST_P(CpuVaTensorsTests, SetMultiplePageAllignedTensors) {
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
 
-    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::CompiledModel compiled_model = core->compile_model(model, target_device, configuration);
 
     const int inferences = 32;
     ov::InferRequest inference_request;
@@ -1546,8 +1598,12 @@ TEST_P(CpuVaTensorsTests, SetMultiplePageAllignedTensors) {
         expected_result++;
     }
 
+    inference_request = {};
+
+    input_tensor = {};
     ::operator delete(input_data, std::align_val_t(4096));
     for (int i = 0; i < inferences; i++) {
+        output_tensor[i] = {};
         ::operator delete(output_data[i], std::align_val_t(4096));
     }
 }
@@ -1559,7 +1615,7 @@ TEST_P(CpuVaTensorsTests, SetMultipleAllignedAndNotAllignedTensors) {
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
 
-    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::CompiledModel compiled_model = core->compile_model(model, target_device, configuration);
 
     const int inferences = 32;
     ov::InferRequest inference_request;
@@ -1614,8 +1670,12 @@ TEST_P(CpuVaTensorsTests, SetMultipleAllignedAndNotAllignedTensors) {
         expected_result++;
     }
 
+    inference_request = {};
+
+    input_tensor = {};
     ::operator delete(input_data, std::align_val_t(4096));
     for (int i = 0; i < inferences; i++) {
+        output_tensor[i] = {};
         if (i % 2 == 0) {
             ::operator delete(output_data[i], std::align_val_t(16));
         } else {
@@ -1632,7 +1692,7 @@ TEST_P(CpuVaTensorsTests, SetMultipleRemoteAllignedAndNotAllignedTensors) {
     auto model = createModel(element::f32, shape, "N...");
 
     auto context = core->get_default_context(target_device);
-    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::CompiledModel compiled_model = core->compile_model(model, target_device, configuration);
 
     const int inferences = 32;
     ov::InferRequest inference_request;
@@ -1693,8 +1753,12 @@ TEST_P(CpuVaTensorsTests, SetMultipleRemoteAllignedAndNotAllignedTensors) {
         expected_result++;
     }
 
+    inference_request = {};
+
+    input_tensor = {};
     ::operator delete(input_data, std::align_val_t(16));
     for (int i = 0; i < inferences; i++) {
+        output_tensor[i] = {};
         if (i % 4 == 0) {
             ::operator delete(output_data[i], std::align_val_t(16));
         } else if (i % 4 == 1) {
@@ -1712,7 +1776,7 @@ TEST_P(CpuVaTensorsTests, SetAndDestroyDifferentAlignedTensors) {
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
 
-    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::CompiledModel compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request0, inference_request1;
 
     const auto input_byte_size = shape_size * sizeof(float);
@@ -1758,6 +1822,11 @@ TEST_P(CpuVaTensorsTests, SetAndDestroyDifferentAlignedTensors) {
             << " Expected=" << expected_result << ", actual=" << output_tensor_data[j] << " for index " << j;
     }
 
+    inference_request0 = {};
+    inference_request1 = {};
+
+    input_tensor0 = {};
+    input_tensor1 = {};
     ::operator delete(input_data, std::align_val_t(4096));
 }
 
@@ -1773,7 +1842,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa0) {
 
     auto context = core->get_default_context(target_device);
 
-    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::CompiledModel compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;
     inference_request = compiled_model.create_infer_request();
 
@@ -1847,6 +1916,12 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa0) {
         EXPECT_NEAR(input_data[i], state_data[2][i], 1e-5);
     }
 
+    inference_request = {};
+
+    state_tensor[0] = {};
+    state_tensor[1] = {};
+    state_tensor[2] = {};
+
     ::operator delete(state_data[0], std::align_val_t(4096));
     ::operator delete(state_data[1], std::align_val_t(4096));
     ::operator delete(state_data[2], std::align_val_t(64));
@@ -1864,7 +1939,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa1) {
 
     auto context = core->get_default_context(target_device);
 
-    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::CompiledModel compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;
     inference_request = compiled_model.create_infer_request();
 
@@ -1938,6 +2013,12 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa1) {
         EXPECT_NEAR(input_data[i], state_data[1][i], 1e-5);
         EXPECT_NEAR(input_data[i], state_data[2][i], 1e-5);
     }
+
+    inference_request = {};
+
+    state_tensor[0] = {};
+    state_tensor[1] = {};
+    state_tensor[2] = {};
 
     ::operator delete(state_data[0], std::align_val_t(4096));
     ::operator delete(state_data[1], std::align_val_t(64));

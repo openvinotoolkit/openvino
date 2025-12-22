@@ -8,6 +8,7 @@
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/openvino.hpp"
 #include "serialization.hpp"
 #include "compiled_model.hpp"
@@ -283,6 +284,77 @@ TEST(SerializationTest, OVTypes_Tensor_with_weights) {
     std::memcpy(data_res.data(), res[0].data(), 4);
 
     EXPECT_EQ(data, data_res);
+}
+
+TEST(SerializationTest, Stress_ParallelImport) {
+    // Only run this test on NPU device
+    ov::Core ov_core;
+    auto core_devices = ov_core.get_available_devices();
+    if (std::find(core_devices.begin(), core_devices.end(), "NPU") == core_devices.end()) {
+        GTEST_SKIP() << "No available devices.";
+    }
+
+    // Device
+    const std::string device = "NPU";
+
+    // Create model
+    ModelGenerator mg;
+    auto model1 = mg.get_model_with_repeated_blocks();
+    auto model2 = mg.get_model_with_repeated_blocks();
+    auto model3 = mg.get_model_with_repeated_blocks();
+    auto model4 = mg.get_model_with_repeated_blocks();
+
+    // NPUW config
+    ov::AnyMap config = {
+        {"NPU_USE_NPUW", "YES"},
+        {"NPUW_FUNCALL_FOR_ALL", "YES"},
+        {"NPUW_DEVICES", "NPU"},
+        {"NPUW_FOLD" , "YES"},
+        // FIXME: enable once proper model for weights sharing is available
+        // (go through LLMCompiledModel). Otherwise we hit a case
+        // where bank reads same weights several times, in which
+        // case an assert is triggered.
+        // {"NPUW_WEIGHTS_BANK", "shared"},
+
+        // FIXME: test weightless mode once proper model with actual weights
+        // is available in tests.
+        {"CACHE_MODE", "OPTIMIZE_SPEED"}
+    };
+
+    // Run stress test to check for data race
+    for (size_t i = 0; i < 10; ++i) {
+        // Compile NPUW
+        auto compiled1 = ov_core.compile_model(model1, device, config);
+        auto compiled2 = ov_core.compile_model(model2, device, config);
+        auto compiled3 = ov_core.compile_model(model3, device, config);
+        auto compiled4 = ov_core.compile_model(model4, device, config);
+
+        // Create infer request and infer
+        auto request1 = compiled1.create_infer_request();
+        request1.infer();
+        auto request2 = compiled2.create_infer_request();
+        request2.infer();
+        auto request3 = compiled3.create_infer_request();
+        request3.infer();
+        auto request4 = compiled4.create_infer_request();
+        request4.infer();
+
+        std::vector<std::stringstream> ss(4);
+        compiled1.export_model(ss[0]);
+        compiled2.export_model(ss[1]);
+        compiled3.export_model(ss[2]);
+        compiled4.export_model(ss[3]);
+
+        std::vector<ov::CompiledModel> imported(4);
+        ov::parallel_for(4, [&](size_t idx) {
+            imported[idx] = ov_core.import_model(ss[idx], "NPU");
+        });
+
+        for (auto& m : imported) {
+            auto r = m.create_infer_request();
+            r.infer();
+        }
+    }
 }
 
 // TODO: add tests on CompiledModel and LLMCompiledModel once tests have access to any model to test on

@@ -89,9 +89,10 @@ private:
             const auto& type_info = attribute.get_type_info();
             node.append_attribute("name").set_value(type_info.name);
             node.append_attribute("version").set_value(type_info.get_version().data());
-            node.append_attribute("type").set_value(util::get_ir_precision_name(wl_attr->original_dtype).data());
-            node.append_attribute("offset").set_value(wl_attr->bin_offset);
-            node.append_attribute("size").set_value(wl_attr->original_size);
+            node.append_attribute("original_dtype")
+                .set_value(util::get_ir_precision_name(wl_attr->original_dtype).data());
+            node.append_attribute("bin_offset").set_value(wl_attr->bin_offset);
+            node.append_attribute("original_size").set_value(wl_attr->original_size);
 
             result = true;
         } else {
