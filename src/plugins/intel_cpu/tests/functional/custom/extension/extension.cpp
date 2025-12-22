@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/extension.hpp"
 
+#include <filesystem>
 #include <gtest/gtest.h>
 
 #include "common_test_utils/file_utils.hpp"
@@ -65,9 +66,8 @@ static void infer_model(ov::Core& core,
     EXPECT_THAT(expected, ElementsAreArray(computed.data<const float>(), computed.get_size()));
 }
 
-static std::string model_full_path(const char* path) {
-    return ov::util::make_path<char>(ov::util::make_path<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS),
-                                     path);
+static std::filesystem::path model_full_path(const std::filesystem::path& path) {
+    return std::filesystem::path{ov::test::utils::getExecutableDirectory()} / TEST_MODELS / path;
 }
 
 TEST(DISABLED_Extension, XmlModelWithCustomAbs) {
