@@ -979,7 +979,7 @@ private:
                                            size_t outputSize,
                                            [[maybe_unused]] enum dft_type type) override {
         std::vector<float> twiddles(inputSize * outputSize * 2);
-        parallel_for2d(outputSize, inputSize, [&](size_t k, size_t n) {
+        cpuParallel->parallel_for2d(outputSize, inputSize, [&](size_t k, size_t n) {
             double angle = 2 * PI * k * n / inputSize;
             if (!isInverse) {
                 angle = -angle;
