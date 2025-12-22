@@ -175,7 +175,7 @@ void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
 /**
  * @brief Stores the information within the "WeightlessCacheAttribute" as runtime fields that persist upon
  * serialization.
- * @details Constant nodes (weights) may contain as mesdatadata the "WeightlessCacheAttribute", that is information
+ * @details Constant nodes (weights) may contain as metadata the "WeightlessCacheAttribute", that is information
  * regarding the offset of the weights within the binary file, as well as the original size and precision. This
  * information is required within the "weights separation" flow, therefore this function is here to store it.
  * @note Not calling this function in the weights separation flow would lead to this information being lost upon
@@ -270,10 +270,11 @@ protected:
     }
 
     /**
-     * @brief Prepares the model for serialization and calls the provided function to serialize it.
+     * @brief Calls the provided function to serialize the model and computes its hash if requested.
      *
      * @param register_serialization_pass A function that receives the pass manager. This function is supposed to
      * register the serialization pass using the provided manager.
+     * @param hash The hash will be stored here if a value is provided.
      */
     void serialize_model_to_stream(const std::shared_ptr<ov::Model>& model,
                                    const std::function<void(ov::pass::Manager&)>& register_serialization_pass,

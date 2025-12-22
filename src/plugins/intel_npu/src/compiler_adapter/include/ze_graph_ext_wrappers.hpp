@@ -50,7 +50,7 @@ public:
 
     /**
      * @brief Tells us whether or not the driver is able to receive and take into account a hash of the model instead of
-     * computing its own withing the UMD.
+     * computing its own within the UMD.
      */
     bool isPluginModelHashSupported() const;
 
