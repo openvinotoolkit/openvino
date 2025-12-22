@@ -25,6 +25,7 @@
 #include "snippets/lowered/expression.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "utils/general_utils.h"
+#include "utils/precision_support.h"
 
 using namespace Xbyak_aarch64;
 
@@ -41,10 +42,18 @@ jit_gemm_emitter::jit_gemm_emitter(jit_generator* h,
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     GemmKernelKaiConfig kernel_config;
-    m_kernel_executor_kai = kernel_table->register_kernel<GemmKaiKernelExecutor>(expr, kernel_config);
 
     const auto gemm_node = as_type_ptr<GemmCPU>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(gemm_node, "Expected GemmCPU node");
+    const auto& input_prc = gemm_node->get_input_element_type(0);
+    if (input_prc == element::f16) {
+        m_kernel_executor_kai = kernel_table->register_kernel<GemmF16KaiKernelExecutor>(expr, kernel_config);
+        m_is_f16 = true;
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(input_prc == element::f32, "Unexpected precision for GemmKai executor");
+        m_kernel_executor_kai = kernel_table->register_kernel<GemmF32KaiKernelExecutor>(expr, kernel_config);
+        m_is_f16 = false;
+    }
 
     // Initialize memory offsets similar to x64 brgemm implementation
     m_memory_offsets = {gemm_node->get_offset_a(), gemm_node->get_offset_b(), gemm_node->get_offset_c()};
@@ -57,8 +66,11 @@ jit_gemm_emitter::jit_gemm_emitter(jit_generator* h,
 
 std::set<std::vector<element::Type>> jit_gemm_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    // Note: currently supports only fp32 on arm
-    return {{element::f32, element::f32}};
+    std::set<std::vector<element::Type>> result{{element::f32, element::f32}};
+    if (ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
+        result.insert({element::f16, element::f16});
+    }
+    return result;
 }
 
 void jit_gemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -74,20 +86,25 @@ void jit_gemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
     std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
 
     init_binary_call_regs(2, mem_ptrs_idxs);
-    emit_call(mem_ptrs_idxs);
+    if (m_is_f16) {
+        emit_call<GemmF16KaiKernelExecutor>(mem_ptrs_idxs);
+    } else {
+        emit_call<GemmF32KaiKernelExecutor>(mem_ptrs_idxs);
+    }
 }
 
+template <typename ExecutorT>
 void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const {
     const auto& call_address_reg = get_call_address_reg();
     std::unordered_set<size_t> exclude_spill = {};
     store_context(exclude_spill);
 
-    auto reserved_stack_size = ov::intel_cpu::rnd_up(sizeof(GemmKaiKernelExecutor::call_args), sp_alignment);
+    auto reserved_stack_size = ov::intel_cpu::rnd_up(sizeof(typename ExecutorT::call_args), sp_alignment);
     emit_stack_preserve(reserved_stack_size);
 
-    const auto A_offset = static_cast<int32_t>(offsetof(GemmKaiKernelExecutor::call_args, A));
-    const auto B_offset = static_cast<int32_t>(offsetof(GemmKaiKernelExecutor::call_args, B));
-    const auto C_offset = static_cast<int32_t>(offsetof(GemmKaiKernelExecutor::call_args, C));
+    const auto A_offset = static_cast<int32_t>(offsetof(typename ExecutorT::call_args, A));
+    const auto B_offset = static_cast<int32_t>(offsetof(typename ExecutorT::call_args, B));
+    const auto C_offset = static_cast<int32_t>(offsetof(typename ExecutorT::call_args, C));
 
     const std::vector<int32_t> gemm_args_offsets = {A_offset, B_offset, C_offset};
 
@@ -108,9 +125,9 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
     Xbyak_aarch64::XReg x0(0);
     Xbyak_aarch64::XReg x1(1);
 
-    h->mov(call_address_reg, reinterpret_cast<uintptr_t>(GemmKaiKernelExecutor::execute));
+    h->mov(call_address_reg, reinterpret_cast<uintptr_t>(ExecutorT::execute));
 
-    h->mov(x0, reinterpret_cast<uintptr_t>(m_kernel_executor_kai.get()));
+    h->mov(x0, reinterpret_cast<uintptr_t>(static_cast<ExecutorT*>(m_kernel_executor_kai.get())));
     h->mov(x1, h->sp);
 
     h->blr(call_address_reg);
@@ -118,14 +135,6 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
     emit_stack_restore(reserved_stack_size);
 
     restore_context(exclude_spill);
-}
-
-uintptr_t jit_gemm_emitter::get_compiled_kernel_ptr() const {
-    return reinterpret_cast<const uintptr_t>(m_kernel_executor_kai.get());
-}
-
-uintptr_t jit_gemm_emitter::get_execute_function_ptr() {
-    return reinterpret_cast<const uintptr_t>(GemmKaiKernelExecutor::execute);
 }
 
 }  // namespace ov::intel_cpu::aarch64

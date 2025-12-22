@@ -26,6 +26,7 @@
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
+#include "utils/precision_support.h"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -41,7 +42,17 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto gemm_repack = ov::as_type_ptr<GemmCopyB>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(gemm_repack, "expects GemmCopyB node");
-    m_kernel_executor = kernel_table->register_kernel<GemmCopyBKaiKernelExecutor>(expr, GemmCopyBKernelKaiConfig());
+    const auto& input_prc = gemm_repack->get_input_element_type(0);
+    if (input_prc == element::f16) {
+        m_kernel_executor =
+            kernel_table->register_kernel<GemmCopyBF16KaiKernelExecutor>(expr, GemmCopyBKernelKaiConfig());
+        m_is_f16 = true;
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(input_prc == element::f32, "Unexpected precision for GemmCopyB executor");
+        m_kernel_executor =
+            kernel_table->register_kernel<GemmCopyBF32KaiKernelExecutor>(expr, GemmCopyBKernelKaiConfig());
+        m_is_f16 = false;
+    }
 
     // Initialize memory offsets similar to x64 brgemm_copy_b implementation
     m_memory_offsets = {gemm_repack->get_offset_in(), gemm_repack->get_offset_out()};
@@ -53,8 +64,12 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
 
 std::set<std::vector<element::Type>> jit_gemm_copy_b_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    // Note: Brgemm currently supports only fp32 on arm
-    return {{element::f32}};
+    // Enable f32 always, and f16 only when HW supports it
+    std::set<std::vector<element::Type>> result{{element::f32}};
+    if (ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
+        result.insert({element::f16});
+    }
+    return result;
 }
 
 void jit_gemm_copy_b_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -70,9 +85,14 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
     std::vector<size_t> mem_ptrs_idxs{in[0], out[0]};
 
     init_binary_call_regs(3, mem_ptrs_idxs);
-    emit_call(mem_ptrs_idxs);
+    if (m_is_f16) {
+        emit_call<GemmCopyBF16KaiKernelExecutor>(mem_ptrs_idxs);
+    } else {
+        emit_call<GemmCopyBF32KaiKernelExecutor>(mem_ptrs_idxs);
+    }
 }
 
+template <typename ExecutorT>
 void jit_gemm_copy_b_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const {
     std::unordered_set<size_t> exclude_spill = {};
     store_context(exclude_spill);
@@ -100,21 +120,12 @@ void jit_gemm_copy_b_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs
     utils::push_and_load_ptrs_with_offsets(h, mem_ptrs, m_memory_offsets, m_buffer_ids, aux_regs, load_regs);
 
     // Set up executor pointer as first argument
-    const auto& compiled_kernel = get_compiled_kernel_ptr();
-    h->mov(x0, compiled_kernel);
+    h->mov(x0, reinterpret_cast<uintptr_t>(static_cast<ExecutorT*>(m_kernel_executor.get())));
 
     const auto& call_address_reg = get_call_address_reg();
-    h->mov(call_address_reg, get_execute_function_ptr());
+    h->mov(call_address_reg, reinterpret_cast<uintptr_t>(ExecutorT::execute));
     h->blr(call_address_reg);
 
     restore_context(exclude_spill);
-}
-
-uintptr_t jit_gemm_copy_b_emitter::get_compiled_kernel_ptr() const {
-    return reinterpret_cast<const uintptr_t>(m_kernel_executor.get());
-}
-
-uintptr_t jit_gemm_copy_b_emitter::get_execute_function_ptr() {
-    return reinterpret_cast<const uintptr_t>(GemmCopyBKaiKernelExecutor::execute);
 }
 }  // namespace ov::intel_cpu::aarch64
