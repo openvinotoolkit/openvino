@@ -13,6 +13,7 @@
 
 #include "emitters/snippets/brgemm_generic.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -130,12 +131,15 @@ void GemmF16KaiKernelExecutor::update_config(const ov::snippets::lowered::Expres
 void GemmF16KaiKernelExecutor::execute(const GemmF16KaiKernelExecutor* executor, const call_args* args) {
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     OV_CPU_JIT_EMITTER_ASSERT(args, "has nullptr args");
+    // Despite using an FP16 micro-kernel, the clamp bounds are kept at FP32 min/max on purpose.
+    // Clamping to the FP16 dynamic range here would introduce additional saturation on top of the
+    // final FP16 conversion and may lead to avoidable accuracy loss.
     execute_common_impl(static_cast<const GemmKernelKaiConfig&>(executor->get_config()),
                         args,
                         *executor->get_kernel()->gemm_ukernel,
-                        sizeof(uint16_t),
-                        -65504.0F,
-                        65504.0F);
+                        sizeof(ov::float16),
+                        std::numeric_limits<float>::lowest(),
+                        std::numeric_limits<float>::max());
 }
 
 }  // namespace ov::intel_cpu::aarch64
