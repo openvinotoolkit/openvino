@@ -48,6 +48,11 @@ OutputVector translate_fake_quantize_per_tensor_affine(const NodeContext& contex
         std::make_shared<v0::FakeQuantize>(input_node, bound_low, bound_high, bound_low, bound_high, levels))};
 }
 
+OutputVector translate_fake_quantize_learnable_per_tensor_affine(const NodeContext& context) {
+    num_inputs_check(context, 6, 6); //checking for 6 inputs as grad_factor is also passed
+    return translate_fake_quantize_per_tensor_affine(context); //grad_factor is not used in inference
+}
+
 OutputVector translate_fake_quantize_per_channel_affine(const NodeContext& context) {
     num_inputs_check(context, 6, 6);
     auto input_node = context.get_input(0);
