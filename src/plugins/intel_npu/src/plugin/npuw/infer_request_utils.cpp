@@ -20,6 +20,13 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::make_tensor_slice(ov::SoPtr<ov::ITensor> 
     return ov::get_tensor_impl(ov::Tensor(ov::make_tensor(tensor), start_shape, end_shape));
 }
 
+void ov::npuw::util::copy_to_right(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
+    OPENVINO_ASSERT(src->get_byte_size() <= dst->get_byte_size());
+    std::copy_n(reinterpret_cast<uint8_t*>(src->data()),
+                src->get_byte_size(),
+                reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - src->get_byte_size());
+}
+
 void ov::npuw::util::copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor) {
     // [1, H, S1, E] -> [1, H, S2, E]
     const int N = 0;
