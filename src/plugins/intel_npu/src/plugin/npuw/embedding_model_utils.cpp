@@ -5,6 +5,7 @@
 #include "embedding_model_utils.hpp"
 
 #include <cfloat>
+#include <optional>
 #include <regex>
 
 #include "logging.hpp"
@@ -24,6 +25,8 @@
 namespace opp = ov::pass::pattern;
 
 namespace {
+
+using NodePair = std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>;
 
 std::string combine_key_value_name(std::string prefix, std::string layer_id, std::string key_or_value) {
     return prefix + "." + layer_id + "." + key_or_value;
@@ -106,7 +109,11 @@ ov::Output<ov::Node> create_new_mask(std::shared_ptr<ov::Model> model,
 class AddKVCacheNodes : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::AddKVCacheNodes");
-    explicit AddKVCacheNodes(std::shared_ptr<ov::Model> model, uint32_t seq_len_dim) {
+    explicit AddKVCacheNodes(std::shared_ptr<ov::Model> model,
+                             uint32_t seq_len_dim,
+                             std::vector<NodePair>& node_pair,
+                             ov::ParameterVector& new_params,
+                             ov::ResultVector& new_results) {
         const auto unsqueeze_axes = opp::wrap_type<ov::op::v0::Constant>();
         const auto transpose_order = opp::wrap_type<ov::op::v0::Constant>();
         const std::regex layer_id_convertion = std::regex(R"(layers\.(\d+)\.self_attn)");
@@ -127,7 +134,7 @@ public:
         auto sdpa = opp::wrap_type<ov::op::v13::ScaledDotProductAttention>(
             {opp::any_input(), k_reshape, v_reshape, opp::any_input(), opp::any_input()});
 
-        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=, &node_pair, &new_params, &new_results](ov::pass::pattern::Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
             auto sdpa_node = pattern_to_output.at(sdpa).get_node_shared_ptr();
             auto k_add_node = pattern_to_output.at(k_add).get_node_shared_ptr();
@@ -152,8 +159,6 @@ public:
             auto k_concat = register_new_node<ov::op::v0::Concat>(ov::OutputVector{k_cache, k_add_node}, seq_len_dim);
             set_node_name(k_concat, combine_key_value_name("concat", layer_id, "key"));
 
-            k_unsqueeze_node->input(0).replace_source_output(k_concat);
-
             auto k_cache_out = std::make_shared<ov::op::v0::Result>(k_add_node);
             set_node_name(k_cache_out, combine_key_value_name("present", layer_id, "key"));
 
@@ -166,13 +171,16 @@ public:
                 register_new_node<ov::op::v0::Concat>(ov::OutputVector{v_cache, v_transpose_node}, seq_len_dim);
             set_node_name(v_concat, combine_key_value_name("concat", layer_id, "value"));
 
-            v_unsqueeze_node->input(0).replace_source_output(v_concat);
-
             auto v_cache_out = std::make_shared<ov::op::v0::Result>(v_transpose_node);
             set_node_name(v_cache_out, combine_key_value_name("present", layer_id, "value"));
 
-            model->add_parameters(ov::ParameterVector{k_cache, v_cache});
-            model->add_results(ov::ResultVector{k_cache_out, v_cache_out});
+            node_pair.push_back(std::pair{k_unsqueeze_node, k_concat});
+            node_pair.push_back(std::pair{v_unsqueeze_node, v_concat});
+
+            new_params.push_back(k_cache);
+            new_params.push_back(v_cache);
+            new_results.push_back(k_cache_out);
+            new_results.push_back(v_cache_out);
             return true;
         };
 
@@ -184,7 +192,9 @@ public:
 class AddPositionIdsNode : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::AddPositionIdsNode");
-    explicit AddPositionIdsNode(std::shared_ptr<ov::Model> model) {
+    explicit AddPositionIdsNode(std::shared_ptr<ov::Model> model,
+                                std::vector<NodePair>& node_pair,
+                                ov::ParameterVector& new_params) {
         auto range = opp::wrap_type<ov::op::v4::Range>();
         auto unsqueeze_axes = opp::wrap_type<ov::op::v0::Constant>();
         auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({range, unsqueeze_axes});
@@ -200,16 +210,15 @@ public:
         auto sin = opp::wrap_type<ov::op::v0::Sin>(concat);
         auto cos = opp::wrap_type<ov::op::v0::Cos>(concat);
 
-        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=, &node_pair, &new_params](ov::pass::pattern::Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
 
             auto unsqueeze1_node = pattern_to_output.at(unsqueeze1).get_node_shared_ptr();
-
             auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
             set_node_name(position_ids, "position_ids");
 
-            unsqueeze1_node->input(0).replace_source_output(position_ids);
-            model->add_parameters(ov::ParameterVector{position_ids});
+            node_pair.push_back(std::pair{unsqueeze1_node, position_ids});
+            new_params.push_back(position_ids);
             return true;
         };
 
@@ -218,79 +227,128 @@ public:
     }
 };
 
-class OPENVINO_API ReConstructEmbeddingModel : public ov::pass::ModelPass {
+class ReConstructEmbeddingModel : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ReConstructEmbeddingModel");
 
-    explicit ReConstructEmbeddingModel(uint32_t seq_len_dim) : m_seq_len_dim(seq_len_dim), m_sdpa(nullptr) {}
+    explicit ReConstructEmbeddingModel(uint32_t seq_len_dim) : m_seq_len_dim(seq_len_dim) {}
 
-    bool replace_mask_node(const std::shared_ptr<ov::Model>& model) {
-        auto new_mask = create_new_mask(model);
-        for (const auto& op : model->get_ops()) {
-            if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op)) {
-                auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op);
-                if (m_sdpa == nullptr) {
-                    m_sdpa = sdpa;
-                }
-                sdpa->input(3).replace_source_output(new_mask);
-            }
-        }
-        return true;
-    }
-
-    bool update_kv_concat_shape(std::shared_ptr<ov::Model> model) {
-        if (m_sdpa == nullptr) {
-            return false;
-        }
-
-        auto reshape_node = m_sdpa->input(1).get_source_output().get_node();
+    std::optional<std::shared_ptr<ov::Node>> check_kv_concat_nodes(std::shared_ptr<ov::Node> sdpa_node) {
+        // Key input is at index 1
+        // Concat->Broadcast->Reshape->SDPA
+        auto reshape_node = sdpa_node->input(1).get_source_output().get_node();
         if (strstr(reshape_node->get_type_name(), "Reshape") == nullptr) {
-            return false;
+            return std::nullopt;
         }
 
         auto broadcast_node = reshape_node->input(0).get_source_output().get_node();
         if (strstr(broadcast_node->get_type_name(), "Broadcast") == nullptr) {
-            return false;
+            return std::nullopt;
         }
 
         auto concat_node = broadcast_node->input(1).get_source_output().get_node();
         if (strstr(concat_node->get_type_name(), "Concat") == nullptr) {
-            return false;
+            return std::nullopt;
         }
 
-        auto attention_mask = model->input("attention_mask");
+        return concat_node->shared_from_this();
+    }
+
+    bool check_sdpa_nodes(const std::shared_ptr<ov::Model> model) {
+        for (const auto& op : model->get_ops()) {
+            if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op)) {
+                auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op);
+                m_sdpa_vector.push_back(sdpa);
+
+                // Check all SDPA nodes share the same attention mask input
+                if (m_sdpa_vector.front() != sdpa &&
+                    m_sdpa_vector.front()->input(3).get_source_output() != sdpa->input(3).get_source_output()) {
+                    return false;
+                }
+
+                // Check all SDPA nodes share the same kv concat node
+                auto concat_node = check_kv_concat_nodes(sdpa);
+                if (!concat_node.has_value()) {
+                    return false;
+                }
+                if (!m_kv_concat.has_value()) {
+                    m_kv_concat = concat_node.value();
+                } else if (m_kv_concat.value() != concat_node.value()) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    bool update_kv_concat_shape(ov::Output<ov::Node>& mask_node) {
+        if (!m_kv_concat.has_value()) {
+            return false;
+        }
         auto minus_one =
             std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
         auto zero_i = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
         auto one_i = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
 
-        auto mask_shapeof = std::make_shared<ov::op::v3::ShapeOf>(attention_mask, ov::element::i64);
+        auto mask_shapeof = std::make_shared<ov::op::v3::ShapeOf>(mask_node, ov::element::i64);
         auto s_len = std::make_shared<ov::op::v8::Gather>(mask_shapeof, minus_one, zero_i);
         auto s_len_reshape = std::make_shared<ov::op::v1::Reshape>(s_len, one_i, false);
-        concat_node->input(2).replace_source_output(s_len_reshape);
+        // Update the concat node shape input with seq_len of mask
+        m_kv_concat.value()->input(2).replace_source_output(s_len_reshape);
 
         return true;
+    }
+
+    bool update_sdpa_nodes(const std::shared_ptr<ov::Model>& model) {
+        auto mask_node = model->input("attention_mask");
+        auto new_mask = create_new_mask(model);
+
+        for (auto& sdpa : m_sdpa_vector) {
+            // Replace attention mask input with new mask
+            sdpa->input(3).replace_source_output(new_mask);
+        }
+
+        return update_kv_concat_shape(mask_node);
+    }
+
+    void update_model(const std::shared_ptr<ov::Model>& model) {
+        for (auto& node_pair : m_node_pair_vector) {
+            node_pair.first->input(0).replace_source_output(node_pair.second);
+        }
+
+        model->add_parameters(m_new_parameters);
+        model->add_results(m_new_results);
     }
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
                         "No ScaledDotProductAttention operation observed in the graph");
 
+        OPENVINO_ASSERT(check_sdpa_nodes(model), "Failed to check SDPA nodes");
+
         ov::pass::Manager manager("construct-embedding");
-        manager.set_per_pass_validation(true);
-        manager.register_pass<AddPositionIdsNode>(model);
-        manager.register_pass<AddKVCacheNodes>(model, m_seq_len_dim);
+        manager.register_pass<AddPositionIdsNode>(model, m_node_pair_vector, m_new_parameters);
+        manager.register_pass<AddKVCacheNodes>(model,
+                                               m_seq_len_dim,
+                                               m_node_pair_vector,
+                                               m_new_parameters,
+                                               m_new_results);
         OPENVINO_ASSERT(manager.run_passes(model), "Failed to add position_ids or kv cache nodes");
 
-        replace_mask_node(model);
-        OPENVINO_ASSERT(update_kv_concat_shape(model), "Failed to re-construct text-embedding model");
+        update_model(model);
+        OPENVINO_ASSERT(update_sdpa_nodes(model), "Failed to update SDPA nodes");
         model->validate_nodes_and_infer_types();
         return true;
     }
 
 private:
     uint32_t m_seq_len_dim;
-    std::shared_ptr<ov::Node> m_sdpa;
+    std::optional<std::shared_ptr<ov::Node>> m_kv_concat;
+    ov::ParameterVector m_new_parameters;
+    ov::ResultVector m_new_results;
+    std::vector<std::shared_ptr<ov::op::v13::ScaledDotProductAttention>> m_sdpa_vector;
+    std::vector<NodePair> m_node_pair_vector;
 };
 
 #ifdef __GNUC__
