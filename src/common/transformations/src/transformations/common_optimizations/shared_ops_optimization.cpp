@@ -127,7 +127,7 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
     std::unordered_map<std::shared_ptr<ov::Node>, ov::AnyMap> node_attributes_cache;
     for (const auto& op : order) {
         // Recursively apply transformation for sub-graph based operations
-        if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 if (sub_graph)
                     rewritten = shared_node_optimization(sub_graph) || rewritten;
@@ -186,7 +186,7 @@ bool shape_of_upgrade(const shared_ptr<Model>& model) {
     bool rewritten = false;
     for (const auto& op : model->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
-        if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 if (sub_graph)
                     rewritten = shape_of_upgrade(sub_graph) || rewritten;

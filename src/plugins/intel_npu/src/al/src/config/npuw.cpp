@@ -69,6 +69,7 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_MAX_LORA_RANK>();
     desc.add<NPUW_LLM_OPTIMIZE_V_TENSORS>();
     desc.add<NPUW_LLM_CACHE_ROPE>();
+    desc.add<NPUW_LLM_GENERATE_PYRAMID>();
     desc.add<NPUW_LLM_PREFILL_CHUNK_SIZE>();
     desc.add<NPUW_LLM_ENABLE_PREFIX_CACHING>();
     desc.add<NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE>();
@@ -80,6 +81,7 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_GENERATE_ATTENTION_HINT>();
     desc.add<NPUW_LLM_SHARED_HEAD>();
     desc.add<NPUW_WHISPER>();
+    desc.add<NPUW_EAGLE>();
 }
 
 std::string ov::npuw::s11n::anyToString(const ov::Any& var) {

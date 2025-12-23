@@ -14,7 +14,9 @@
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/weights_pointer_attribute.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 #include "xml_serializer.hpp"
 
@@ -148,42 +150,21 @@ std::string rankToLegacyLayoutString(const size_t rank) {
  * present, therefore copying the buffer is omitted.
  *
  * @param model The target model, the attributes will be stored within it.
- * @param weightSizeThreshold Determines which constant nodes will have this attribute stored within them. Implicitly,
- * this determines which weights will be copied at serialization time. The weights smaller than this value will not get
- * this attribute.
  */
-void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model, const size_t weightSizeThreshold) {
-    for (auto&& node : model->get_ordered_ops()) {
-        if (!ov::is_type<ov::op::v0::Constant>(node)) {
+void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
+    for (auto&& node : model->get_ops()) {
+        if (auto subgraphNode = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
+            // "Models within models"
+            for (const std::shared_ptr<ov::Model>& submodel : subgraphNode->get_functions()) {
+                storeWeightsPointerAttribute(submodel);
+            }
             continue;
         }
 
-        auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
-        if (constantNode->get_byte_size() < weightSizeThreshold) {
-            continue;
-        }
-
-        ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
-        runtimeInfoMap[intel_npu::WeightsPointerAttribute::get_type_info_static()] =
-            intel_npu::WeightsPointerAttribute(constantNode->get_data_ptr(), constantNode->get_byte_size());
-    }
-}
-
-/**
- * @brief Removes the attributes stored by "storeWeightsPointerAttribute" in order to restore the model to its original
- * state.
- * @see storeWeightsPointerAttribute for details.
- */
-void removeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
-    for (auto&& node : model->get_ordered_ops()) {
-        if (!ov::is_type<ov::op::v0::Constant>(node)) {
-            continue;
-        }
-
-        ov::RTMap& runtimeInfoMap = node->get_rt_info();
-        const auto& resultIt = runtimeInfoMap.find(intel_npu::WeightsPointerAttribute::get_type_info_static());
-        if (resultIt != runtimeInfoMap.end()) {
-            runtimeInfoMap.erase(resultIt);
+        if (auto constantNode = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
+            ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
+            runtimeInfoMap[intel_npu::WeightsPointerAttribute::get_type_info_static()] =
+                intel_npu::WeightsPointerAttribute(constantNode->get_data_ptr(), constantNode->get_byte_size());
         }
     }
 }
@@ -236,6 +217,10 @@ protected:
             // Downgrade to opset10
             manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
             _logger.info("Downgrade op for opset smaller than 11");
+        }
+
+        if ((_compilerVersion.major < 7) || (_compilerVersion.major == 7 && _compilerVersion.minor <= 26)) {
+            manager.register_pass<ov::pass::EliminateIdentity>();
         }
 
         register_serialization_pass(manager);
@@ -392,10 +377,8 @@ private:
 };
 
 /**
- * @brief Class implementing the optimized serialization algorithm.
- * @details Weights will be stored either as metadata (memory location & size in bytes) or as whole buffers (just like
- * the legacy algorithm). The amount of weights that will be copied can be controlled by leveraging the
- * "intel_npu::serialization_weights_size_threshold" config option.
+ * @brief Class implementing the optimized model marshalling algorithm. Weights are not duplicated when using this
+ * solution.
  */
 class VCLSerializerWithoutWeightsCopy : public VCLSerializerBase {
 public:
@@ -464,17 +447,15 @@ private:
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          const ze_graph_compiler_version_info_t compilerVersion,
                          const uint32_t supportedOpsetVersion,
-                         const bool useBaseModelSerializer,
-                         const size_t weightsSizeThreshold) {
+                         const bool useBaseModelSerializer) {
     if (!useBaseModelSerializer) {
         // Non-constness required for adding & removing weights pointer attributes. The current instance is already a
         // clone (or should be one), we are not modifying the original model.
         const std::shared_ptr<ov::Model> nonConstantModel = std::const_pointer_cast<ov::Model>(model);
-        storeWeightsPointerAttribute(nonConstantModel, weightsSizeThreshold);
+        storeWeightsPointerAttribute(nonConstantModel);
 
         SerializedIR serializedIR =
             VCLSerializerWithoutWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
-        removeWeightsPointerAttribute(nonConstantModel);
         return serializedIR;
     }
     return VCLSerializerWithWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();

@@ -271,8 +271,7 @@ void OpSummary::saveReport() {
     char timeNow[80];
 
     time(&rawtime);
-    // cpplint require to use localtime_r instead which is not available in C++11
-    timeinfo = localtime(&rawtime);  // NOLINT
+    timeinfo = localtime(&rawtime);
 
     strftime(timeNow, sizeof(timeNow), "%d-%m-%Y %H:%M:%S", timeinfo);
 

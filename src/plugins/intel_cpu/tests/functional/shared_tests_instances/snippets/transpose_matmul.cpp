@@ -191,6 +191,7 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     }
     return prc;
 }
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ExplicitTransposeMatMul, ExplicitTransposeMatMul,
                          ::testing::Combine(
                                  ::testing::ValuesIn(SNIPPETS_TESTS_STATIC_SHAPES({{1, 2, 69, 43}, {2, 49, 2, 43}})),

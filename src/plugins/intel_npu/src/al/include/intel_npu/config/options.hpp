@@ -40,7 +40,7 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::CompileTime;
     }
 
     static ov::hint::PerformanceMode parse(std::string_view val) {
@@ -125,7 +125,7 @@ struct PERFORMANCE_HINT_NUM_REQUESTS final : OptionBase<PERFORMANCE_HINT_NUM_REQ
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::RunTime;
     }
 };
 
@@ -155,7 +155,7 @@ struct INFERENCE_PRECISION_HINT final : OptionBase<INFERENCE_PRECISION_HINT, ov:
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::CompileTime;
     }
 
     static ov::element::Type parse(std::string_view val) {
@@ -257,7 +257,7 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::CompileTime;
     }
 
     static ov::PropertyMutability mutability() {
@@ -287,7 +287,7 @@ struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::RunTime;
     }
 };
 
@@ -417,28 +417,6 @@ struct CACHING_PROPERTIES final : OptionBase<CACHING_PROPERTIES, std::string> {
 
     static OptionMode mode() {
         return OptionMode::RunTime;
-    }
-};
-
-struct INTERNAL_SUPPORTED_PROPERTIES final : OptionBase<INTERNAL_SUPPORTED_PROPERTIES, std::string> {
-    static std::string_view key() {
-        return ov::internal::supported_properties.name();
-    }
-
-    static std::string defaultValue() {
-        return {};
-    }
-
-    static bool isPublic() {
-        return false;
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
-    }
-
-    static OptionMode mode() {
-        return OptionMode::Both;
     }
 };
 
@@ -846,7 +824,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static ov::intel_npu::CompilerType parse(std::string_view val) {
-        if (val == "PLUGIN" || val == "MLIR") {
+        if (val == "PLUGIN") {
             return ov::intel_npu::CompilerType::PLUGIN;
         } else if (val == "DRIVER") {
             return ov::intel_npu::CompilerType::DRIVER;
@@ -1313,6 +1291,46 @@ struct DISABLE_VERSION_CHECK final : OptionBase<DISABLE_VERSION_CHECK, bool> {
     }
 };
 
+struct EXPORT_RAW_BLOB final : OptionBase<EXPORT_RAW_BLOB, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::export_raw_blob.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    static std::string_view envVar() {
+        return "OV_NPU_EXPORT_RAW_BLOB";
+    }
+#endif
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
+struct IMPORT_RAW_BLOB final : OptionBase<IMPORT_RAW_BLOB, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::import_raw_blob.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    static std::string_view envVar() {
+        return "OV_NPU_IMPORT_RAW_BLOB";
+    }
+#endif
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTINGS, std::string> {
     static std::string_view key() {
         return ov::intel_npu::batch_compiler_mode_settings.name();
@@ -1426,17 +1444,34 @@ struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, b
     }
 };
 
-struct SERIALIZATION_WEIGHTS_SIZE_THRESHOLD final : OptionBase<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD, size_t> {
+struct MODEL_SERIALIZER_VERSION final : OptionBase<MODEL_SERIALIZER_VERSION, ov::intel_npu::ModelSerializerVersion> {
     static std::string_view key() {
-        return ov::intel_npu::serialization_weights_size_threshold.name();
+        return ov::intel_npu::model_serializer_version.name();
     }
 
-    static size_t defaultValue() {
-        return 0;
+    static constexpr std::string_view getTypeName() {
+        return "ov::intel_npu::ModelSerializerVersion";
+    }
+
+    static ov::intel_npu::ModelSerializerVersion defaultValue() {
+        return ov::intel_npu::ModelSerializerVersion::AUTO;
+    }
+
+    static ov::intel_npu::ModelSerializerVersion parse(std::string_view val) {
+        std::istringstream stringStream = std::istringstream(std::string(val));
+        ov::intel_npu::ModelSerializerVersion version;
+        stringStream >> version;
+        return version;
+    }
+
+    static std::string toString(const ov::intel_npu::ModelSerializerVersion& val) {
+        std::stringstream strStream;
+        strStream << val;
+        return strStream.str();
     }
 
     static OptionMode mode() {
-        return OptionMode::RunTime;
+        return OptionMode::CompileTime;
     }
 };
 

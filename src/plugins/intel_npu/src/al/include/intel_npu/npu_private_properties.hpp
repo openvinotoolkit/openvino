@@ -89,7 +89,7 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
  * Type of NPU compiler to be used for compilation of a network
  * @note Configuration API v 2.0
  */
-enum class CompilerType { MLIR = 0, PLUGIN = MLIR, DRIVER = 1 };
+enum class CompilerType { PLUGIN, DRIVER };
 
 /**
  * @brief Prints a string representation of ov::intel_npu::CompilerType to a stream
@@ -184,6 +184,50 @@ inline std::istream& operator>>(std::istream& is, WSVersion& wsVersion) {
         wsVersion = WSVersion::ITERATIVE;
     } else {
         OPENVINO_THROW("Unsupported value for the weights separation version:", str);
+    }
+    return is;
+}
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Default is "AUTO".
+ * Switches between different implementations of the VCL serializer.
+ */
+enum class ModelSerializerVersion {
+    AUTO = 0,
+    ALL_WEIGHTS_COPY = 1,
+    NO_WEIGHTS_COPY = 2,
+};
+
+inline std::ostream& operator<<(std::ostream& out, const ModelSerializerVersion& modelSerializerVersion) {
+    switch (modelSerializerVersion) {
+    case ModelSerializerVersion::AUTO: {
+        out << "AUTO";
+    } break;
+    case ModelSerializerVersion::ALL_WEIGHTS_COPY: {
+        out << "ALL_WEIGHTS_COPY";
+    } break;
+    case ModelSerializerVersion::NO_WEIGHTS_COPY: {
+        out << "NO_WEIGHTS_COPY";
+    } break;
+    default: {
+        OPENVINO_THROW("Unsupported value for the model serializer version:", modelSerializerVersion);
+    }
+    }
+    return out;
+}
+
+inline std::istream& operator>>(std::istream& is, ModelSerializerVersion& modelSerializerVersion) {
+    std::string str;
+    is >> str;
+    if (str == "AUTO") {
+        modelSerializerVersion = ModelSerializerVersion::AUTO;
+    } else if (str == "ALL_WEIGHTS_COPY") {
+        modelSerializerVersion = ModelSerializerVersion::ALL_WEIGHTS_COPY;
+    } else if (str == "NO_WEIGHTS_COPY") {
+        modelSerializerVersion = ModelSerializerVersion::NO_WEIGHTS_COPY;
+    } else {
+        OPENVINO_THROW("Unsupported value for the model serializer version:", str);
     }
     return is;
 }
@@ -357,20 +401,25 @@ static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
  *
  * The base serializer is the OV implementation of the "XmlSerializer" without any extensions. All weights are copied in
  * a separate buffer. By turning this off, the NPU extension of the serializer is enabled. This allows optimizing the
- * process by reducing the amount of weights that will be copied in a separate buffer. However, this solution may be
+ * process by storing metadata (memory location & bytes size) instead of weights values. However, this solution may be
  * less reliable.
  */
 static constexpr ov::Property<bool> use_base_model_serializer{"NPU_USE_BASE_MODEL_SERIALIZER"};
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: size_t. Default is 0.
+ * Type: enum. Default is "AUTO".
  *
- * Effective only if "use_base_model_serializer" is set to false. All "ov::Constant" buffers smaller than this value
- * (byte size) will be copied in a separate buffer. The rest of the weights will be reconstructed at deserialization
- * time using buffer pointers.
+ * This config option concerns the algorithm used for serializing the "ov::Model" at compilation time in order to be
+ * passed through the driver.
+ *
+ * The value chosen for this option will impact memory usage, since some versions clone the values of the weights in a
+ * separate buffer. If this option is set to "AUTO", the plugin will use the latest version that is compatible with the
+ * current compiler.
+ *
+ * @note This feature is a work-in-progress and may not yet work as intended.
  */
-static constexpr ov::Property<size_t> serialization_weights_size_threshold{"NPU_SERIALIZATION_WEIGHTS_SIZE_THRESHOLD"};
+static constexpr ov::Property<ModelSerializerVersion> model_serializer_version{"NPU_MODEL_SERIALIZER_VERSION"};
 
 /**
  * @brief [Experimental, only for NPU Plugin]
@@ -441,8 +490,25 @@ static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKE
  * @brief [Only for NPU Plugin]
  * Type: boolean, default is false.
  * This option allows to skip the blob version check
+ * Will be dropped when blob compatibility with OV 25.4 will no longer be required
+ * Usage will exclusively be covered by NPU_IMPORT_RAW_BLOB property
  */
 static constexpr ov::Property<bool> disable_version_check{"NPU_DISABLE_VERSION_CHECK"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows to skip reading plugin metadata from the imported compiled model
+ * Mirrors usage of NPU_DISABLE_VERSION_CHECK
+ */
+static constexpr ov::Property<bool> import_raw_blob{"NPU_IMPORT_RAW_BLOB"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows to skip writing plugin metadata to compiled model when exporting it
+ */
+static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
 
 }  // namespace intel_npu
 }  // namespace ov

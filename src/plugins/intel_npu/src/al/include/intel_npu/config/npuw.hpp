@@ -117,7 +117,7 @@ DEFINE_OPT(NPUW_SPATIAL, bool, false, npuw::partitioning::spatial, RunTime);
 DEFINE_OPT(NPUW_F16IC, bool, true, npuw::partitioning::f16_interconnect, RunTime);
 DEFINE_OPT(NPUW_SPATIAL_NWAY, std::size_t, 128, npuw::partitioning::spatial_nway, RunTime);
 DEFINE_OPT(NPUW_SPATIAL_DYN, bool, true, npuw::partitioning::spatial_dyn, RunTime);
-DEFINE_OPT(NPUW_ATTN, bool, true, npuw::partitioning::attn, RunTime);
+DEFINE_OPT(NPUW_ATTN, std::string, "STATIC", npuw::partitioning::attn, RunTime);
 DEFINE_OPT(NPUW_ATTN_DYN, bool, true, npuw::partitioning::attn_dyn, RunTime);
 DEFINE_OPT(NPUW_ATTN_NO_COPY, bool, false, npuw::partitioning::attn_no_copy, RunTime);
 DEFINE_OPT(NPUW_DCOFF_TYPE, std::string, "", npuw::partitioning::dcoff_type, RunTime);
@@ -146,6 +146,7 @@ DEFINE_OPT(NPUW_LLM_MAX_GENERATION_TOKEN_LEN, uint32_t, 1, npuw::llm::max_genera
 DEFINE_OPT(NPUW_LLM_MIN_RESPONSE_LEN, uint32_t, 128, npuw::llm::min_response_len, RunTime);
 DEFINE_OPT(NPUW_LLM_OPTIMIZE_V_TENSORS, bool, true, npuw::llm::optimize_v_tensors, RunTime);
 DEFINE_OPT(NPUW_LLM_CACHE_ROPE, bool, true, npuw::llm::cache_rope, RunTime);
+DEFINE_OPT(NPUW_LLM_GENERATE_PYRAMID, bool, false, npuw::llm::generate_pyramid, RunTime);
 DEFINE_OPT(NPUW_LLM_PREFILL_CHUNK_SIZE, uint64_t, 1024, npuw::llm::prefill_chunk_size, RunTime);
 DEFINE_OPT(NPUW_LLM_SHARED_HEAD, bool, true, npuw::llm::shared_lm_head, RunTime);
 DEFINE_OPT(NPUW_LLM_MAX_LORA_RANK, uint32_t, 32, npuw::llm::max_lora_rank, RunTime);
@@ -153,6 +154,7 @@ DEFINE_OPT(NPUW_LLM_ENABLE_PREFIX_CACHING, bool, false, npuw::llm::enable_prefix
 DEFINE_OPT(NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE, uint64_t, 256, npuw::llm::prefix_caching_block_size, RunTime);
 DEFINE_OPT(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS, uint64_t, 128, npuw::llm::prefix_caching_max_num_blocks, RunTime);
 DEFINE_OPT(NPUW_WHISPER, bool, false, npuw::whisper::enabled, RunTime);
+DEFINE_OPT(NPUW_EAGLE, bool, false, npuw::eagle::enabled, RunTime);
 DEFINE_ANYMAP_OPT(NPUW_LLM_PREFILL_CONFIG, npuw::llm::prefill_config);
 DEFINE_ANYMAP_OPT(NPUW_LLM_ADDITIONAL_PREFILL_CONFIG, npuw::llm::additional_prefill_config);
 DEFINE_ANYMAP_OPT(NPUW_LLM_GENERATE_CONFIG, npuw::llm::generate_config);
@@ -164,7 +166,7 @@ namespace npuw {
 namespace llm {
 enum class PrefillHint { DYNAMIC, STATIC };
 enum class GenerateHint { FAST_COMPILE, BEST_PERF };
-enum class AttentionHint { DYNAMIC, STATIC, PYRAMID };
+enum class AttentionHint { DYNAMIC, STATIC, PYRAMID, HFA };
 }  // namespace llm
 }  // namespace npuw
 
@@ -228,6 +230,8 @@ struct ATTN_HINT_BASE : OptionBase<ATTN_HINT_BASE, ::intel_npu::npuw::llm::Atten
             return ::intel_npu::npuw::llm::AttentionHint::STATIC;
         } else if (val == "PYRAMID") {
             return ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
+        } else if (val == "HFA") {
+            return ::intel_npu::npuw::llm::AttentionHint::HFA;
         }
         OPENVINO_THROW("Unsupported attention hint provided: ", val);
         return {};
@@ -241,6 +245,8 @@ struct ATTN_HINT_BASE : OptionBase<ATTN_HINT_BASE, ::intel_npu::npuw::llm::Atten
             return "STATIC";
         case ::intel_npu::npuw::llm::AttentionHint::PYRAMID:
             return "PYRAMID";
+        case ::intel_npu::npuw::llm::AttentionHint::HFA:
+            return "HFA";
         default:
             OPENVINO_THROW("Can't convert provided attention hint : ", int(val), " to string.");
         }

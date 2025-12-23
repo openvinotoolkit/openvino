@@ -10,7 +10,8 @@
 namespace intel_npu {
 
 /**
- * @brief Nothing is stored. The weights are expected to be reconstruscted in some other way.
+ * @brief Writes nothing. The visitor pattern will be used to store weights metadata instead.
+ * @see WeightsPointerAttribute::visit_attributes()
  */
 class WeightlessWriter : public ov::util::ConstantWriter {
 public:
@@ -22,10 +23,7 @@ public:
 };
 
 /**
- * @brief Overriden in order to allow serializing models without copying weights.
- * @details Weights can be stored either as values (buffer copies, just like the parent algorithm), or as metadata
- * (memory location + buffer size in bytes). The amount of weights that are copied as values can be controlled by
- * configuring the "intel_npu::serialization_weights_size_threshold" option.
+ * @brief Overriden in order to allow marshalling models without copying weights.
  */
 class XmlSerializer : public ov::util::XmlSerializer {
 public:
@@ -70,11 +68,11 @@ private:
 
     /**
      * @brief The base OV writer, copies the weights in a dedicated buffer.
+     *
+     * @note Ideally, we would not require this writer at all. The current algorithm does not handle subgraphs properly,
+     * so falling back to copying a part of the weights is a temporary fix.
      */
     std::reference_wrapper<ov::util::ConstantWriter> m_base_constant_writer;
-    /**
-     * @brief Writes nothing. The visitor pattern will be used in order to store weights metadata instead.
-     */
     std::shared_ptr<WeightlessWriter> m_weightless_constant_writer = nullptr;
     bool m_use_weightless_writer = false;
 };
