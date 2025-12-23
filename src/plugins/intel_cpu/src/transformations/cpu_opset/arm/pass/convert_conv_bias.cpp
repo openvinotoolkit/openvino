@@ -15,6 +15,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/pass/matcher_pass.hpp"
@@ -43,16 +44,27 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
     });
     auto add_m = pattern::wrap_type<ov::op::v1::Add>({conv_m, bias_const_m});
     auto multiply_m = pattern::wrap_type<ov::op::v1::Multiply>({add_m, pattern::any_input()});
+    auto fakeQuantize = pattern::wrap_type<ov::op::v0::FakeQuantize>({multiply_m,
+                                                                      pass::pattern::any_input(),
+                                                                      pass::pattern::any_input(),
+                                                                      pass::pattern::any_input(),
+                                                                      pass::pattern::any_input()},
+                                                                      pattern::type_matches_any({element::i8, element::u8}));
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(m.get_match_root());
-        if (!mul) {
+        auto fakeQuantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(m.get_match_root());
+        if (!fakeQuantize) {
+            return false;
+        }
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto mul = pattern_map.at(multiply_m).get_node_shared_ptr();
+        auto conv = pattern_map.at(conv_m).get_node_shared_ptr();
+        if (fakeQuantize->get_output_element_type(0) != conv->get_input_element_type(0)) {
             return false;
         }
         // mark Multiply as dequantization node to avoid its conversion to PowerStatic
         ov::mark_as_dequantization_node(mul);
 
-        const auto& pattern_map = m.get_pattern_value_map();
         auto bias_const = pattern_map.at(bias_const_m).get_node_shared_ptr();
         auto round = std::make_shared<ov::op::v5::Round>(bias_const, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
         auto convert_to_i32 = std::make_shared<ov::op::v0::Convert>(round, ov::element::i32);
@@ -70,6 +82,6 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
         return true;
     };
 
-    auto matcher = std::make_shared<pattern::Matcher>(multiply_m, "ConvertConvolutionBias");
+    auto matcher = std::make_shared<pattern::Matcher>(fakeQuantize, "ConvertConvolutionBias");
     register_matcher(matcher, callback);
 }
