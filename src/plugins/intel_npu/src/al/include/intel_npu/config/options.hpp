@@ -1475,4 +1475,18 @@ struct MODEL_SERIALIZER_VERSION final : OptionBase<MODEL_SERIALIZER_VERSION, ov:
     }
 };
 
+struct ENABLE_STRIDES_FOR final : OptionBase<ENABLE_STRIDES_FOR, std::string> {
+    static std::string_view key() {
+        return ov::intel_npu::enable_strides_for.name();
+    }
+
+    static std::string defaultValue() {
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
 }  // namespace intel_npu
