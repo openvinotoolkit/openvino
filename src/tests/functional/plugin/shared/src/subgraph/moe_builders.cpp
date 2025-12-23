@@ -105,6 +105,7 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
     const size_t intermediate_size = moe_params.intermediate_size;
     const size_t topk = moe_params.topk;
     const size_t number_of_experts = moe_params.number_of_experts;
+    bool with_gate_mul = moe_params.with_gate_mul;
 
     const auto expert_alpha = 1.625f;
     const auto expert_beta = 7.0f;
@@ -190,8 +191,13 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
                                               ov::op::v0::Constant::create(data_precision, ov::Shape{1}, {10.0f}));
     auto swish_beta = ov::op::v0::Constant::create(data_precision, ov::Shape{}, std::vector<float>{expert_alpha});
     auto swish = std::make_shared<ov::op::v4::Swish>(minimum1, swish_beta);
-
-    auto multiply2 = std::make_shared<ov::op::v1::Multiply>(add1, swish);
+    std::shared_ptr<ov::Node> mul2_input = swish;
+    if (with_gate_mul) {
+        auto mul1_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{number_of_experts, 1, intermediate_size}, {10.0f});
+        auto mul1 = std::make_shared<ov::op::v1::Multiply>(swish, mul1_const);
+        mul2_input = mul1;
+    }
+    auto multiply2 = std::make_shared<ov::op::v1::Multiply>(add1, mul2_input);
 
     // Down projection
     auto down_proj_weights = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},

@@ -64,6 +64,7 @@ public:
         result << "top_k_experts=" << moe_params.topk << "_";
         result << "total_experts=" << moe_params.number_of_experts << "_";
         result << "intermediate_size=" << moe_params.intermediate_size << "_";
+        result << "with_gate_mul=" << moe_params.with_gate_mul << "_";
         result << "moe_type=" << moe_type << "_";
 
         result << "config=(";
@@ -276,13 +277,47 @@ const std::vector<MoePatternParams> moe_params_smoke = {
                                                                     // seq_len=dynamic, hidden_size=256
         4,                                                          // topk
         8,                                                          // number_of_experts
-        512                                                         // intermediate_size
+        512,                                                        // intermediate_size
+        false
     },
     {
         {{-1, -1, 128}, {{1, 32, 128}, {1, 1, 128}, {1, 16, 128}}},  // Different seq length
         2,                                                           // topk
         4,                                                           // number_of_experts
-        256                                                          // intermediate_size
+        256,                                                         // intermediate_size
+        false
+    },
+};
+const std::vector<MoePatternParams> moe_params_full_smoke = {
+    {
+        {{-1, -1, 256}, {{2, 15, 256}, {2, 1, 256}, {3, 8, 256}}},  // data_shape,
+                                                                    // seq_len=dynamic, hidden_size=256
+        4,                                                          // topk
+        8,                                                          // number_of_experts
+        512,                                                        // intermediate_size
+        false
+    },
+    {
+        {{-1, -1, 128}, {{1, 32, 128}, {1, 1, 128}, {1, 16, 128}}},  // Different seq length
+        2,                                                           // topk
+        4,                                                           // number_of_experts
+        256,                                                         // intermediate_size
+        false
+    },
+    {
+        {{-1, -1, 256}, {{2, 15, 256}, {2, 1, 256}, {3, 8, 256}}},  // data_shape,
+                                                                    // seq_len=dynamic, hidden_size=256
+        4,                                                          // topk
+        8,                                                          // number_of_experts
+        512,                                                        // intermediate_size
+        true
+    },
+    {
+        {{-1, -1, 128}, {{1, 32, 128}, {1, 1, 128}, {1, 16, 128}}},  // Different seq length
+        2,                                                           // topk
+        4,                                                           // number_of_experts
+        256,                                                         // intermediate_size
+        true
     },
 };
 
@@ -296,10 +331,16 @@ std::vector<ov::AnyMap> generate_additional_config() {
 
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_basic,
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GeMMSubgraph_basic,
                          MoESubgraphTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
-                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEType::MoE3GeMM),
+                                            ::testing::ValuesIn(generate_additional_config())),
+                         MoESubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MoE2GeMMSubgraph_basic,
+                         MoESubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_full_smoke),
+                                            ::testing::Values(MoEType::MoE2GeMM),
                                             ::testing::ValuesIn(generate_additional_config())),
                          MoESubgraphTest::getTestCaseName);
 
@@ -309,10 +350,24 @@ const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
                                                                ov::element::u4,
                                                                ov::element::i4};
 
-INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights,
+INSTANTIATE_TEST_SUITE_P(smoke_Moe3GeMMCompressedWeights,
                          MoECompressedWeightsSubgraphTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
-                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEType::MoE3GeMM),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),  // reshape on decompression
+                                            ::testing::Values(16),     // decompression group size
+                                            ::testing::ValuesIn(generate_additional_config()),
+                                            ::testing::Values(true)),  // use_matmul_decompression_impl
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Moe2GeMMCompressedWeights,
+                         MoECompressedWeightsSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_full_smoke),
+                                            ::testing::Values(MoEType::MoE2GeMM),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(ov::element::f32),

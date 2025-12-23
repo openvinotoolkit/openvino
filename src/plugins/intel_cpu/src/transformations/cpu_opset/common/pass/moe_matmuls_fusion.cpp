@@ -88,7 +88,10 @@ ov::intel_cpu::MoE2GeMMFusion::MoE2GeMMFusion() {
         pattern::wrap_type<ov::op::v1::Minimum>({slice2, pattern::wrap_const()}, pattern::consumers_count(1));
     auto swish_beta = pattern::wrap_const();
     auto swish = pattern::wrap_type<ov::op::v4::Swish>({minimum1, swish_beta}, pattern::consumers_count(1));
-    auto mul1_const = pattern::wrap_const();
+    auto mul1_const_predicate = [](const ov::Output<ov::Node>& output) -> bool {
+        return pattern::rank_equals(3)(output) && output.get_shape()[1] == 1;
+    };
+    auto mul1_const = pattern::wrap_type<ov::op::v0::Constant>(mul1_const_predicate);
     auto multiply1 = pattern::optional<ov::op::v1::Multiply>({swish, mul1_const}, pattern::consumers_count(1));
 
     // Join: Multiply_2

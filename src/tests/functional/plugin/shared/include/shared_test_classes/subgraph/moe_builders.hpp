@@ -21,6 +21,7 @@ struct MoePatternParams {
     size_t topk;
     size_t number_of_experts;
     size_t intermediate_size;
+    bool with_gate_mul;  // whether add multiply on gate branch with constants, only applicale for MoE2GeMM.
 };
 
 std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(const MoePatternParams& moe_params,
