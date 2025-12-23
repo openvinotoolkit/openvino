@@ -8,8 +8,11 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
+#include "intel_npu/utils/logger/logger.hpp"
+#include "openvino/core/layout.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -19,34 +22,42 @@ class MetadataBase {
 public:
     MetadataBase(uint32_t version, uint64_t blobDataSize);
 
+    using uninitialized_source = void*;
+    using Source = std::
+        variant<uninitialized_source, std::reference_wrapper<std::istream>, std::reference_wrapper<const ov::Tensor>>;
+
     /**
      * @brief Reads metadata from a stream.
      */
-    virtual void read(std::istream& tensor) = 0;
+    void read(std::istream& tensor);
 
     /**
      * @brief Reads metadata from a ov::Tensor.
      */
-    virtual void read(const ov::Tensor& tensor) = 0;
+    void read(const ov::Tensor& tensor);
+
+    virtual void read() = 0;
 
     /**
      * @brief Writes metadata to a stream.
      */
     virtual void write(std::ostream& stream) = 0;
 
-    virtual bool is_compatible() = 0;
-
     virtual uint64_t get_blob_size() const;
 
     /**
      * @returns The sizes of the init schedules. Populated only if "weights separation" has been enabled.
      */
-    virtual std::optional<std::vector<uint64_t>> get_init_sizes() const = 0;
+    virtual std::optional<std::vector<uint64_t>> get_init_sizes() const;
+
+    virtual std::optional<std::vector<ov::Layout>> get_input_layouts() const;
+
+    virtual std::optional<std::vector<ov::Layout>> get_output_layouts() const;
 
     /**
      * @returns Batch size. Populated in case of plugin batching.
      */
-    virtual std::optional<int64_t> get_batch_size() const = 0;
+    virtual std::optional<int64_t> get_batch_size() const;
 
     virtual ~MetadataBase() = default;
 
@@ -84,6 +95,11 @@ public:
 
 protected:
     /**
+     * @brief Reads data from the source containing the metadata. The implementation depends on the type of source.
+     */
+    void read_data_from_source(char* destination, const size_t size);
+
+    /**
      * @brief Adds the size of the binary object and the magic string to the end of the stream.
      * @details This should be called after the "write" method in order to conclude writing the metadata into the given
      * stream.
@@ -94,6 +110,19 @@ protected:
 
     uint32_t _version;
     uint64_t _blobDataSize;
+    Logger _logger;
+
+    /**
+     * @brief Where the metadata is read from. The type can be a stream, an OpenVINO tensor or "uninitialized_source".
+     * @details Stored as attribute in order to avoid repeatedly passing the same arguments to some methods.
+     * "uninitialized_source" (void*) is the default type assigned upon creation.
+     */
+    Source _source;
+
+    /**
+     * @brief Used only when the source buffer is an OV tensor for managing the read coursor.
+     */
+    size_t _cursorOffset = 0;
 };
 
 /**
@@ -107,11 +136,12 @@ constexpr std::string_view MAGIC_BYTES = "OVNPU";
 constexpr uint32_t METADATA_VERSION_2_0{MetadataBase::make_version(2, 0)};
 constexpr uint32_t METADATA_VERSION_2_1{MetadataBase::make_version(2, 1)};
 constexpr uint32_t METADATA_VERSION_2_2{MetadataBase::make_version(2, 2)};
+constexpr uint32_t METADATA_VERSION_2_3{MetadataBase::make_version(2, 3)};
 
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_2};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_3};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
@@ -184,11 +214,9 @@ struct Metadata : public MetadataBase {};
 template <>
 class Metadata<METADATA_VERSION_2_0> : public MetadataBase {
 public:
-    Metadata(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion = std::nullopt);
+    Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion = std::nullopt);
 
-    void read(std::istream& tensor) override;
-
-    void read(const ov::Tensor& tensor) override;
+    void read() override;
 
     /**
      * @attention It's a must to first write metadata version in any metadata specialization.
@@ -198,25 +226,6 @@ public:
      * metadata section.
      */
     void write(std::ostream& stream) override;
-
-    /**
-     * @brief Checks if metadata is supported.
-     *
-     * @return Returns:
-     *              - false:
-     *                  - if blob metadata does not match current metadata.
-     *                  - if blob OpenVINO version does not match current one.
-     *
-     *              - true: if all versions match.
-     *
-     * @note The version check can be disabled if the "OV_NPU_DISABLE_VERSION_CHECK" environment variable is set to
-     * 'YES'.
-     */
-    bool is_compatible() override;
-
-    std::optional<std::vector<uint64_t>> get_init_sizes() const override;
-
-    std::optional<int64_t> get_batch_size() const override;
 
     size_t get_metadata_size() const override;
 
@@ -231,16 +240,14 @@ template <>
 class Metadata<METADATA_VERSION_2_1> : public Metadata<METADATA_VERSION_2_0> {
 public:
     Metadata(uint64_t blobSize,
-             std::optional<OpenvinoVersion> ovVersion = std::nullopt,
-             const std::optional<std::vector<uint64_t>> initSizes = std::nullopt);
+             const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
+             const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt);
 
     /**
      * @details The number of init schedules, along with the size of each init binary object are read in addition to the
      * information provided by the previous metadata versions.
      */
-    void read(std::istream& stream) override;
-
-    void read(const ov::Tensor& tensor) override;
+    void read() override;
 
     /**
      * @details The number of init schedules, along with the size of each init binary object are written in addition to
@@ -249,8 +256,6 @@ public:
     void write(std::ostream& stream) override;
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
-
-    std::optional<int64_t> get_batch_size() const override;
 
     size_t get_metadata_size() const override;
 
@@ -270,18 +275,8 @@ public:
              const std::optional<std::vector<uint64_t>> initSizes = std::nullopt,
              const std::optional<int64_t> batchSize = std::nullopt);
 
-    /**
-     * @details The number of init schedules, along with the size of each init binary object are read in addition to the
-     * information provided by the previous metadata versions.
-     */
-    void read(std::istream& stream) override;
+    void read() override;
 
-    void read(const ov::Tensor& tensor) override;
-
-    /**
-     * @details The number of init schedules, along with the size of each init binary object are written in addition to
-     * the information registered by the previous metadata versions.
-     */
     void write(std::ostream& stream) override;
 
     std::optional<int64_t> get_batch_size() const override;
@@ -290,6 +285,35 @@ public:
 
 private:
     std::optional<int64_t> _batchSize;
+};
+
+/**
+ * @brief Stores the layouts for all inputs and outputs (Parameter and Result nodes).
+ * @details The order used for recording the layouts follows the deterministic order in which OV parses the I/O.
+ */
+template <>
+class Metadata<METADATA_VERSION_2_3> : public Metadata<METADATA_VERSION_2_2> {
+public:
+    Metadata(uint64_t blobSize,
+             const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
+             const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
+             const std::optional<int64_t> batchSize = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt);
+
+    void read() override;
+
+    void write(std::ostream& stream) override;
+
+    size_t get_metadata_size() const override;
+
+    std::optional<std::vector<ov::Layout>> get_input_layouts() const override;
+
+    std::optional<std::vector<ov::Layout>> get_output_layouts() const override;
+
+private:
+    std::optional<std::vector<ov::Layout>> _inputLayouts;
+    std::optional<std::vector<ov::Layout>> _outputLayouts;
 };
 
 /**
@@ -305,6 +329,9 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
  *
  * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
  * MetadataBase object; otherwise, returns 'nullptr'.
+ *
+ * @note The read of metadata can be disabled if the "OV_NPU_IMPORT_RAW_BLOB" environment variable is set to
+ * 'YES'.
  */
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream);
 

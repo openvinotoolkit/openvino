@@ -29,7 +29,7 @@ public:
         for (auto& thread : threads) {
             thread = std::thread([&]() {
                 for (unsigned int i = 0; i < iterations; ++i) {
-                    func();
+                    OV_ASSERT_NO_THROW(func());
                 }
             });
         }
@@ -79,8 +79,8 @@ public:
     }
 
     void TearDown() override {
-        ov::test::utils::removeFilesWithExt(cache_path, "blob");
-        std::remove(cache_path.c_str());
+        ov::test::utils::removeFilesWithExt<ov::test::opt::FORCE>(cache_path, "blob");
+        ov::test::utils::removeDir(cache_path);
         APIBaseTest::TearDown();
     }
 

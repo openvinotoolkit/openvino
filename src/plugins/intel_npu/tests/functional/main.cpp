@@ -59,12 +59,46 @@ int main(int argc, char** argv, char** envp) {
         oss << *env << "; ";
     }
 
+    auto blobPaths = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH;
+    if (blobPaths.empty()) {
+        auto path = std::string_view(argv[0]);
+        const char slashDelimiter = '/';
+        const char backSlashDelimiter = '\\';
+        size_t pos = std::string::npos;
+        size_t lastSlashDelim = path.find_last_of(slashDelimiter);
+        size_t lastBackSlashDelim = path.find_last_of(backSlashDelimiter);
+        if (lastSlashDelim != std::string::npos && lastBackSlashDelim != std::string::npos) {
+            pos = std::max(lastSlashDelim, lastBackSlashDelim);
+        } else {
+            pos = path.find_last_of(backSlashDelimiter) != std::string_view::npos
+                      ? path.find_last_of(backSlashDelimiter)
+                      : path.find_last_of(slashDelimiter);
+        }
+        ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH =
+            pos != std::string_view::npos ? path.substr(0, pos + 1) : "";
+        ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH += "intel_npu_blobs/";
+    }
+
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new ov::test::utils::NpuTestReportEnvironment());
 
     const bool dryRun = ::testing::GTEST_FLAG(list_tests) || ::testing::internal::g_help_flag;
 
     if (!dryRun) {
+        // Check if device available, exit if not found.
+        std::vector<std::string> availableDevices;
+        const auto core = ov::test::utils::PluginCache::get().core();
+        if (core != nullptr) {
+            availableDevices = core->get_available_devices();
+            auto it = std::find(availableDevices.begin(), availableDevices.end(), "NPU");
+            if (it == availableDevices.end()) {
+                std::cerr << "Driver not found, exiting." << std::endl;
+                return -1;
+            }
+        } else {
+            std::cerr << "Failed to get OpenVINO Core from cache!" << std::endl;
+        }
+
         const std::string noFetch{"<not fetched>"};
         std::string backend{noFetch}, arch{noFetch}, full{noFetch};
         try {
@@ -91,16 +125,6 @@ int main(int argc, char** argv, char** envp) {
     ov::log::Level logLevel =
         level.empty() ? ov::log::Level::ERR : intel_npu::OptionParser<ov::log::Level>::parse(level.c_str());
     log.setLevel(logLevel);
-
-    auto blobPaths = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH;
-    if (blobPaths.empty()) {
-        auto path = std::string_view(argv[0]);
-        size_t pos =
-            path.find_last_of('\\') != std::string_view::npos ? path.find_last_of('\\') : path.find_last_of('/');
-        ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH =
-            pos != std::string_view::npos ? path.substr(0, pos + 1) : "";
-        ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH += "intel_npu_blobs/";
-    }
 
     return RUN_ALL_TESTS();
 }

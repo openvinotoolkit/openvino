@@ -1,8 +1,6 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-/* global BigInt */
-
 const { addon: ov } = require('openvino-node');
 const path = require('path');
 const { hrtime } = require('process');
@@ -38,7 +36,7 @@ async function main() {
     process.exit(1);
   }
   // Optimize for throughput.
-  const tput = {'PERFORMANCE_HINT': 'THROUGHPUT'};
+  const tput = { 'PERFORMANCE_HINT': 'THROUGHPUT' };
 
   const core = new ov.Core();
   // Reads and compiles the model with one input and one output.

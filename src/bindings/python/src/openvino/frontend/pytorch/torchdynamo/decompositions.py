@@ -29,12 +29,24 @@ def convolution_backward(
 
     # Compute the gradient of the input tensor
     grad_input = torch.nn.functional.conv_transpose2d(
-        grad_output, weight, stride=stride, padding=padding, dilation=dilation, groups=groups, output_padding=output_padding
+        grad_output,
+        weight,
+        stride=stride,
+        padding=padding,
+        dilation=dilation,
+        groups=groups,
+        output_padding=output_padding,
     )
 
     # Compute the gradient of the weight tensor
     grad_weight = torch.nn.functional.conv_transpose2d(
-        inp, weight.transpose(0, 1), stride=stride, padding=padding, dilation=dilation, groups=groups, output_padding=output_padding
+        inp,
+        weight.transpose(0, 1),
+        stride=stride,
+        padding=padding,
+        dilation=dilation,
+        groups=groups,
+        output_padding=output_padding,
     )
 
     # Compute the gradient of the bias tensor

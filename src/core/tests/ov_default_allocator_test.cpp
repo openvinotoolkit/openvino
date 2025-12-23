@@ -10,6 +10,8 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/allocator.hpp"
 
+namespace ov::test {
+using ::testing::_;
 using OVDefaultAllocatorTest = ::testing::Test;
 
 TEST_F(OVDefaultAllocatorTest, notThrowOnZeroSize) {
@@ -59,3 +61,12 @@ TEST_F(OVDefaultAllocatorTest, canAllocate10KMemory) {
     EXPECT_EQ(ptr[9999], 11);
     allocator.deallocate(handle);
 }
+
+TEST_F(OVDefaultAllocatorTest, compareIfImplIsNull) {
+    auto a1 = ov::Allocator();
+    auto a2 = std::move(a1);
+
+    EXPECT_FALSE(a2 == a1);
+    OV_EXPECT_THROW(std::ignore = (a1 == a2), ov::Exception, _);
+}
+}  // namespace ov::test

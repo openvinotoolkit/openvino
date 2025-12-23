@@ -320,7 +320,10 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
 
      // apply concatenation in place optimization
     for (auto& pred_layout : preds_layouts) {
-        auto input_length = pred_layout.get_dims()[concat_axis];
+        const auto& pshape = pred_layout.get_partial_shape();
+        OPENVINO_ASSERT(pshape[concat_axis].is_static(), "[GPU] Dynamic dimension is not allowed for the concat axis when updating padding");
+        auto input_length = pshape[concat_axis].get_length();
+
         // shrink upper pad so it points at the end of the input's buffer
         //
         //   |--- lower padd ---|                    |---------- upper padd -----------|
@@ -757,10 +760,10 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
 
                 user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, reshape_dyn_pad_mask);
             } else {
-                auto reshape_ps = user_info.second.get_partial_shape();
+                const auto reshape_ps = user_info.second.get_partial_shape();
                 auto output_pattern = reshape_desc->output_pattern;
 
-                auto reshape_axis = crop_axis;
+                int64_t reshape_axis = static_cast<int64_t>(crop_axis);
                 for (size_t i = 0; i < output_pattern.size(); i++) {
                     if (output_pattern[i] <= static_cast<int64_t>(reshape_axis)) {
                         reshape_axis += reshape_mode == reshape::reshape_mode::unsqueeze ? 1 : -1;

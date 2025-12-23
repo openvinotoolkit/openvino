@@ -96,7 +96,6 @@ This method provides the best performance available at the moment.
      -DCMAKE_INSTALL_PREFIX=<openvino_install_path> \
      -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/riscv64.linux.toolchain.cmake
    ```
-   > **NOTE**: By default OpenVINO is built with OpenMP support on RISC-V devices.
 
    Then run `make` to build the project:
    ```sh

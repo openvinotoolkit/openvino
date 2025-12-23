@@ -17,11 +17,12 @@ private:
     using parent = typed_program_node_base<paged_attention>;
 
 public:
-    using parent::parent;
+    typed_program_node(const std::shared_ptr<paged_attention> prim, program& prog);
 
     std::set<size_t> get_lockable_input_ids() const override {
         std::set<size_t> input_ports = { PagedAttentionInputIdx::PAST_LENS,
                                          PagedAttentionInputIdx::SUBSEQUENCE_BEGINS,
+                                         PagedAttentionInputIdx::XATTENTION_THRESHOLD,
                                          PagedAttentionInputIdx::MAX_CONTEXT_LEN };
 
         if (typed_desc()->has_score_aggregation)
@@ -72,6 +73,10 @@ public:
     memory::ptr xattention_block_size_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE); }
     memory::ptr xattention_stride_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::XATTENTION_STRIDE); }
     memory::ptr sinks_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::SINKS); }
+    memory::ptr adaptive_rkv_start_size_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_START_SIZE); }
+    memory::ptr adaptive_rkv_evictable_sizes_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES); }
+    memory::ptr adaptive_rkv_diversity_block_set_indices_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES); }
+    memory::ptr adaptive_rkv_diversity_block_set_indices_begins_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS); }
 };
 
 using paged_attention_inst = typed_primitive_inst<paged_attention>;

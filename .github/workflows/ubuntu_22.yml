@@ -10,6 +10,11 @@ on:
         type: string
         required: false
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   merge_group:
   push:
     branches:
@@ -31,6 +36,7 @@ env:
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
@@ -110,7 +116,6 @@ jobs:
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'
-            -DENABLE_CPPLINT=OFF
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
@@ -245,7 +250,7 @@ jobs:
 
       - name: Upload Conformance Artifacts
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -260,6 +265,7 @@ jobs:
             -d=TEMPLATE \
             -t=${{ matrix.TEST_TYPE }} \
             -w=${CONFORMANCE_ARTIFACTS_DIR} \
+            -f=${CONFORMANCE_TOOLS_DIR}/github/skip_configs/TEMPLATE/expected_failures_${{ matrix.TEST_TYPE }}.csv \
             -sm=mandatory
 
       - name: Pack Conformance Artifacts
@@ -271,7 +277,7 @@ jobs:
 
       - name: Upload Conformance Artifacts
         if: ${{ matrix.TEST_TYPE == 'API' }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-TEMPLATE
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -408,7 +414,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-64gb'
+      runner: 'aks-linux-8-cores-32gb'
       model_scope: 'nightly_tf_hub'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
 
@@ -418,7 +424,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-64gb'
+      runner: 'aks-linux-8-cores-32gb'
       model_scope: 'nightly_hf'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
 
@@ -428,7 +434,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-64gb'
+      runner: 'aks-linux-8-cores-32gb'
       model_scope: 'precommit'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
 
@@ -474,7 +480,8 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_nvidia }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+        - /home/runner/secrets/:/secrets:ro
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
@@ -495,6 +502,14 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
 
     steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        shell: bash
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
       - name: Download OpenVINO package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
@@ -593,7 +608,7 @@ jobs:
       device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
       runner: "[ 'self-hosted', 'dgpu' ]"
-      image: ubuntu:22.04 
+      image: ubuntu:22.04
       options: "--group-add 109 --group-add 44 --device /dev/dri/card0:/dev/dri/card0 --device /dev/dri/renderD128:/dev/dri/renderD128"
     # if: ${{ github.event_name == 'schedule' }}
     if: ${{ 'false' }} # Ticket: 143677

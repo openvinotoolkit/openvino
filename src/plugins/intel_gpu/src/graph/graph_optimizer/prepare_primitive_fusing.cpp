@@ -233,7 +233,8 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
                 continue;
             GPU_DEBUG_TRACE_DETAIL << node->id() << " : fuse swiglu to " << fc_node.id() << std::endl;
             GPU_DEBUG_TRACE_DETAIL << " - split axis : " << swiglu_prim->axis << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << " - split length : " << swiglu_prim->split_lengths << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << " - glu stride : " << swiglu_prim->glu_stride << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << " - gate idx : " << swiglu_prim->gate_idx << std::endl;
             p.fuse_nodes(fc_node, *node, &fusing_history);
         }
     }
@@ -1303,6 +1304,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                             push_node_queue(user, current_node.second+1);
                     }
                 } while (node_queue.size() > 1);
+            } else if (supports_immad && fused_node->is_type<convolution>() && peer_node->get_output_layout().data_type != cldnn::data_types::f32) {
+                // For convolution, peer_node can be a parent of fused_node in case of skip connections
+                // For f32, fusing results in poorer performance
+                merge_allowed = fused_node->get_users().size() == 1;
             } else {
                 merge_allowed = fused_node->get_users().size() == 1;
                 for (auto& parent : fused_node->get_dependencies())

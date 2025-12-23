@@ -47,14 +47,6 @@ std::vector<bfloat16> bfloat16::from_float_vector(const std::vector<float>& v_f3
     return v_bf16;
 }
 
-std::string bfloat16::to_string() const {
-    return std::to_string(static_cast<float>(*this));
-}
-
-size_t bfloat16::size() const {
-    return sizeof(m_value);
-}
-
 #if defined __GNUC__ && __GNUC__ == 11
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wuninitialized"

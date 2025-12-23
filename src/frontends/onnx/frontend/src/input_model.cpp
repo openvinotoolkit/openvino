@@ -4,6 +4,8 @@
 
 #include "input_model.hpp"
 
+#include <utility>
+
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/util/file_util.hpp"
@@ -568,14 +570,11 @@ class InputModel::InputModelONNXImpl {
 public:
     InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                        const ov::frontend::InputModel& input_model,
-                       const bool enable_mmap);
-    InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
-                       const ov::frontend::InputModel& input_model,
                        const std::shared_ptr<TelemetryExtension>& telemetry,
                        const bool enable_mmap);
     InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                        const ov::frontend::InputModel& input_model,
-                       unify::InputModel* parent_model);
+                       unify::InputModel::Ptr parent_model);
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const;
@@ -607,6 +606,10 @@ public:
     void extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                           const std::vector<ov::frontend::Place::Ptr>& outputs);
 
+    std::map<std::string, std::string> get_metadata() const {
+        return m_metadata;
+    }
+
     std::shared_ptr<TelemetryExtension> get_telemetry_extension() const {
         return m_telemetry;
     }
@@ -636,6 +639,7 @@ private:
     std::shared_ptr<GraphIterator> m_graph_iterator;
     const ov::frontend::InputModel& m_input_model;
     std::vector<std::shared_ptr<ov::frontend::onnx::unify::InputModel>> m_subgraphs;
+    std::map<std::string, std::string> m_metadata;
     std::shared_ptr<TelemetryExtension> m_telemetry;
     bool m_enable_mmap;
 
@@ -643,6 +647,13 @@ private:
     detail::MappedMemoryHandles m_mmap_cache;
     // This is used for keeping a readed external data without MMAP
     detail::LocalStreamHandles m_stream_cache;
+
+    std::shared_ptr<TensorONNXPlace> register_tensor_place(const std::shared_ptr<TensorONNXPlace>& tensor_place);
+    std::shared_ptr<TensorONNXPlace> find_tensor_place(const TensorMetaInfo& tensor_meta_info) const;
+    std::shared_ptr<TensorONNXPlace> ensure_tensor_place(const TensorMetaInfo& tensor_meta_info);
+    void connect_inputs(const std::shared_ptr<OpPlace>& op_place, const std::shared_ptr<DecoderBaseOperation>& decoder);
+    void connect_outputs(const std::shared_ptr<OpPlace>& op_place,
+                         const std::shared_ptr<DecoderBaseOperation>& decoder);
 };
 
 namespace {
@@ -662,21 +673,6 @@ std::shared_ptr<ov::frontend::onnx::TensorONNXPlace> decode_tensor_place(
     return tensor_place;
 }
 
-std::shared_ptr<ov::frontend::onnx::TensorONNXPlace> decode_input_tensor(
-    const std::shared_ptr<ov::frontend::onnx::DecoderBaseOperation>& decoder,
-    size_t idx,
-    const ov::frontend::InputModel& model) {
-    const auto& tensor_meta_info = decoder->get_input_tensor_info(idx);
-    return decode_tensor_place(tensor_meta_info, model);
-}
-
-std::shared_ptr<ov::frontend::onnx::TensorONNXPlace> decode_output_tensor(
-    const std::shared_ptr<ov::frontend::onnx::DecoderBaseOperation>& decoder,
-    size_t idx,
-    const ov::frontend::InputModel& model) {
-    const auto& tensor_meta_info = decoder->get_output_tensor_info(idx);
-    return decode_tensor_place(tensor_meta_info, model);
-}
 }  // namespace
 
 void InputModel::InputModelONNXImpl::load_model() {
@@ -690,39 +686,40 @@ void InputModel::InputModelONNXImpl::load_model() {
             auto tensor_place = decode_tensor_place(tensor_decoder->get_tensor_info(), m_input_model);
             tensor_place->set_input_index(tensor_decoder->get_input_idx());
             tensor_place->set_output_index(tensor_decoder->get_output_idx());
+
             // Constant with data has been found
             if (tensor_place->get_data() != nullptr)
                 continue;
-            auto name = tensor_place->get_names()[0];
-            if (m_tensor_places.count(name) == 0) {
-                m_tensor_places[name] = tensor_place;
-                if (tensor_place->is_input())
-                    m_inputs.push_back(tensor_place);
-                if (tensor_place->is_output())
-                    m_outputs.push_back(tensor_place);
-            }
-            continue;
-        }
-        m_op_places.push_back(std::make_shared<OpPlace>(m_input_model, decoder));
 
-        if (m_telemetry) {
-            op_statistics[decoder->get_op_type()]++;
-        }
+            tensor_place = register_tensor_place(tensor_place);
+            if (!tensor_place)
+                continue;
 
-        auto operation_decoder = std::dynamic_pointer_cast<DecoderBaseOperation>(decoder);
-        FRONT_END_GENERAL_CHECK(operation_decoder, "Operation decoder is expected");
-        for (size_t i = 0; i < operation_decoder->get_input_size(); ++i) {
-            auto place = decode_input_tensor(operation_decoder, i, m_input_model);
-            auto name = place->get_names()[0];
-            if (m_tensor_places.count(name) == 0) {
-                m_tensor_places[name] = place;
+            if (tensor_place->is_input())
+                m_inputs.push_back(tensor_place);
+            if (tensor_place->is_output())
+                m_outputs.push_back(tensor_place);
+        } else {
+            auto op_place = std::make_shared<OpPlace>(m_input_model, decoder);
+            m_op_places.push_back(op_place);
+
+            auto operation_decoder = std::dynamic_pointer_cast<DecoderBaseOperation>(decoder);
+            FRONT_END_GENERAL_CHECK(operation_decoder, "Operation decoder is expected");
+
+            if (m_telemetry) {
+                std::string op_name =
+                    operation_decoder->get_op_type() + "-" +
+                    std::to_string(m_graph_iterator->get_opset_version(operation_decoder->get_domain()));
+                op_statistics[op_name]++;
             }
-        }
-        for (size_t i = 0; i < operation_decoder->get_output_size(); ++i) {
-            auto place = decode_output_tensor(operation_decoder, i, m_input_model);
-            auto name = place->get_names()[0];
-            if (m_tensor_places.count(name) == 0)
-                m_tensor_places[name] = place;
+
+            const auto& operation_name = operation_decoder->get_op_name();
+            if (!operation_name.empty()) {
+                m_op_places_map[operation_name] = op_place;
+            }
+
+            connect_inputs(op_place, operation_decoder);
+            connect_outputs(op_place, operation_decoder);
         }
     }
 
@@ -745,20 +742,99 @@ void InputModel::InputModelONNXImpl::load_model() {
             };
     };
     std::sort(m_inputs.begin(), m_inputs.end(), sorting_places_by_idx(true));
-    std::sort(m_outputs.begin(), m_outputs.end(), sorting_places_by_idx(false));
 
     if (m_telemetry) {
         for (const auto& op : op_statistics) {
             m_telemetry->send_event("op_count", "onnx_" + op.first, static_cast<int>(op.second));
         }
     }
+
+    m_metadata = m_graph_iterator->get_metadata();
+}
+
+std::shared_ptr<TensorONNXPlace> InputModel::InputModelONNXImpl::register_tensor_place(
+    const std::shared_ptr<TensorONNXPlace>& tensor_place) {
+    if (!tensor_place) {
+        return nullptr;
+    }
+
+    const auto& names = tensor_place->get_names();
+    if (names.empty()) {
+        return nullptr;
+    }
+
+    const auto& tensor_name = names.front();
+    const auto it = m_tensor_places.emplace(tensor_name, tensor_place).first;
+    return it->second;
+}
+
+std::shared_ptr<TensorONNXPlace> InputModel::InputModelONNXImpl::find_tensor_place(
+    const TensorMetaInfo& tensor_meta_info) const {
+    if (!tensor_meta_info.m_tensor_name || tensor_meta_info.m_tensor_name->empty()) {
+        return nullptr;
+    }
+
+    const auto it = m_tensor_places.find(*tensor_meta_info.m_tensor_name);
+    if (it == m_tensor_places.end()) {
+        return nullptr;
+    }
+    return it->second;
+}
+
+std::shared_ptr<TensorONNXPlace> InputModel::InputModelONNXImpl::ensure_tensor_place(
+    const TensorMetaInfo& tensor_meta_info) {
+    if (auto existing = find_tensor_place(tensor_meta_info)) {
+        return existing;
+    }
+    return register_tensor_place(decode_tensor_place(tensor_meta_info, m_input_model));
+}
+
+void InputModel::InputModelONNXImpl::connect_inputs(const std::shared_ptr<OpPlace>& op_place,
+                                                    const std::shared_ptr<DecoderBaseOperation>& decoder) {
+    const auto input_count = decoder->get_input_size();
+    for (size_t i = 0; i < input_count; ++i) {
+        auto tensor_place = ensure_tensor_place(decoder->get_input_tensor_info(i));
+        if (!tensor_place) {
+            continue;
+        }
+
+        auto in_port = std::make_shared<InPortPlace>(m_input_model);
+        tensor_place->add_consuming_port(in_port);
+        in_port->set_source_tensor(tensor_place);
+        in_port->set_op(op_place);
+
+        std::string port_name = decoder->get_input_tensor_name(i);
+        if (port_name.empty()) {
+            port_name = "input_" + std::to_string(i);
+        }
+        op_place->add_in_port(in_port, port_name);
+    }
+}
+
+void InputModel::InputModelONNXImpl::connect_outputs(const std::shared_ptr<OpPlace>& op_place,
+                                                     const std::shared_ptr<DecoderBaseOperation>& decoder) {
+    const auto output_count = decoder->get_output_size();
+    for (size_t i = 0; i < output_count; ++i) {
+        auto tensor_place = ensure_tensor_place(decoder->get_output_tensor_info(i));
+        if (!tensor_place) {
+            continue;
+        }
+
+        auto out_port = std::make_shared<OutPortPlace>(m_input_model);
+        tensor_place->add_producing_port(out_port);
+        out_port->set_target_tensor(tensor_place);
+        out_port->set_op(op_place);
+        op_place->add_out_port(out_port, static_cast<int>(i));
+    }
 }
 
 InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                                                    const ov::frontend::InputModel& input_model,
+                                                   const std::shared_ptr<TelemetryExtension>& telemetry,
                                                    const bool enable_mmap)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
+      m_telemetry(telemetry),
       m_enable_mmap(enable_mmap) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     if (m_enable_mmap) {
@@ -773,18 +849,10 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
 
 InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                                                    const ov::frontend::InputModel& input_model,
-                                                   const std::shared_ptr<TelemetryExtension>& telemetry,
-                                                   const bool enable_mmap)
-    : InputModelONNXImpl(graph_iterator, input_model, enable_mmap) {
-    m_telemetry = telemetry;
-}
-
-InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
-                                                   const ov::frontend::InputModel& input_model,
-                                                   unify::InputModel* parent_model)
+                                                   unify::InputModel::Ptr parent_model)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
-      m_telemetry(parent_model->_impl->get_telemetry_extension()),
+      m_telemetry(parent_model->get_telemetry_extension()),
       m_enable_mmap(parent_model->is_enabled_mmap()),
       m_mmap_cache(parent_model->_impl->m_mmap_cache),
       m_stream_cache(parent_model->_impl->m_stream_cache) {
@@ -860,6 +928,19 @@ void InputModel::InputModelONNXImpl::set_name_for_operation(const Place::Ptr& op
 }
 
 void InputModel::InputModelONNXImpl::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
+    // Only support the case when new inputs are same as before
+    bool is_same_as_existing_inputs = true;
+    for (const auto& input : inputs) {
+        if (!std::any_of(m_inputs.begin(), m_inputs.end(), [&input](const auto& existing_input) {
+                return input->is_equal(existing_input);
+            })) {
+            is_same_as_existing_inputs = false;
+            break;
+        }
+    }
+    if (is_same_as_existing_inputs) {
+        return;
+    }
     FRONT_END_NOT_IMPLEMENTED(override_all_inputs);
 }
 
@@ -879,7 +960,8 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        const std::shared_ptr<TelemetryExtension>& telemetry)
     : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, telemetry, enable_mmap)} {}
 
-InputModel::InputModel(const GraphIterator::Ptr& graph_iterator, InputModel* parent_model)
+InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
+                       ov::frontend::onnx::unify::InputModel::Ptr parent_model)
     : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, parent_model)} {}
 
 std::vector<std::shared_ptr<ov::frontend::onnx::OpPlace>> InputModel::get_op_places() const {
@@ -949,6 +1031,10 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
 void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                                   const std::vector<ov::frontend::Place::Ptr>& outputs) {
     _impl->extract_subgraph(inputs, outputs);
+}
+
+std::map<std::string, std::string> InputModel::get_metadata() const {
+    return _impl->get_metadata();
 }
 
 std::shared_ptr<TelemetryExtension> InputModel::get_telemetry_extension() {
