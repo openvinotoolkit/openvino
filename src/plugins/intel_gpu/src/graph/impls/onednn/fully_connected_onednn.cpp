@@ -22,7 +22,6 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
     using parent::parent;
     static constexpr int COMMON = 0;
     static constexpr int PER_OC = 2;
-    static constexpr int PER_TENSOR = 7;
     static constexpr int GROUPED = 3;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::fully_connected_onednn)
@@ -32,17 +31,9 @@ private:
     dnnl::memory::data_type _ds_data_type;
     dnnl::memory::data_type _dzp_data_type;
 
-    static int get_grouped_mask(size_t input_size, int64_t weight_rank) {
-        auto shift_size = std::max<size_t>(input_size - 2, 0);
-        if (weight_rank == 3) {
-            return PER_TENSOR << (shift_size > 0 ? shift_size - 1 : 0);
-        } else {
-            return GROUPED << shift_size;
-        }
-    }
-
-    static int get_act_grouped_mask(size_t input_size) {
-        return GROUPED | (1 << (input_size - 1));
+    static int get_grouped_mask(size_t shift_size) {
+        uint32_t mask = ((1 << shift_size) - 1) << 2;
+        return GROUPED | mask;
     }
 
 protected:
@@ -276,13 +267,11 @@ public:
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto prim = impl_params->typed_desc<fully_connected>();
         auto weights_layout = impl_params->get_input_layout(1);
-        auto weight_shape = weights_layout.get_partial_shape();
-        auto weight_rank = std::count_if(weight_shape.begin(), weight_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
         auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
         auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
         int idx = !arg.bias_term() ? 1 : 2;
         int per_oc = PER_OC << shift_size;
-        int grouped = get_grouped_mask(prim->input_size, weight_rank);
+        int grouped = get_grouped_mask(shift_size);
 
         bool has_decompression_scale = prim->decompression_scale.is_valid();
         if (has_decompression_scale) {
@@ -327,19 +316,18 @@ public:
             auto& src_scale_shape = impl_params->input_layouts[src_scale_idx].get_partial_shape();
             int src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
             int src_group_size = innermost_len / src_scale_ngroups;
-            int act_grouped = get_act_grouped_mask(prim->input_size);
 
             auto act_scale_data_type = convert_data_type(impl_params->get_input_layout(src_scale_idx).data_type);
-            _attrs->set_scales(DNNL_ARG_SRC, act_grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
+            _attrs->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
             if (dynamic_quantized_activation_zp) {
                 idx++;
-                _attrs->set_zero_points(DNNL_ARG_SRC, act_grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
+                _attrs->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
             }
 
             if (prim->dynamic_quantized_precomputed_reduction) {
                 auto activation_precomputed_reduction_idx = ++idx;
                 auto act_precomputed_reduction_data_type = convert_data_type(impl_params->get_input_layout(activation_precomputed_reduction_idx).data_type);
-                _attrs->set_precomputed_reductions(DNNL_ARG_SRC, act_grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
+                _attrs->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
                 // FIXME: implementation for serialization
             }
         }
@@ -381,8 +369,7 @@ public:
             OPENVINO_ASSERT(weight_rank <= 3, "Currently only weights with equal to or less than 3D is supported");
             auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
             int per_oc = PER_OC << shift_size;
-            int grouped = get_grouped_mask(prim->input_size, weight_rank);
-
+            int grouped = get_grouped_mask(shift_size);
 
             if (prim->decompression_scale.is_valid()) {
                 auto decompression_scale_idx = ++idx;
@@ -432,21 +419,20 @@ public:
                 auto& src_scale_shape = impl_params.input_layouts[src_scale_idx].get_partial_shape();
                 int src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
                 int src_group_size = innermost_len / src_scale_ngroups;
-                int act_grouped = get_act_grouped_mask(prim->input_size);
 
                 auto act_scale_data_type = convert_data_type(impl_params.input_layouts[src_scale_idx].data_type);
-                attr->set_scales(DNNL_ARG_SRC, act_grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
+                attr->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
 
                 if (prim->activation_zero_point.is_valid()) {
                     idx++;
-                    attr->set_zero_points(DNNL_ARG_SRC, act_grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
+                    attr->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
                 }
 
                 if (prim->dynamic_quantized_precomputed_reduction) {
                     OPENVINO_ASSERT(!prim->activation_zero_point.is_valid(), "Activation zero-point is not supported for precomputed_reduction case");
                     auto activation_precomputed_reduction_idx = ++idx;
                     auto act_precomputed_reduction_data_type = convert_data_type(impl_params.input_layouts[activation_precomputed_reduction_idx].data_type);
-                    attr->set_precomputed_reductions(DNNL_ARG_SRC, act_grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
+                    attr->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
                 }
             }
 
