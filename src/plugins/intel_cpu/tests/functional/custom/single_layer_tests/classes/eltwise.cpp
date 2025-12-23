@@ -292,6 +292,12 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
         return "jit";
     }
 #endif
+    if (eltwise_type == utils::EltwiseTypes::BITWISE_AND ||
+        eltwise_type == utils::EltwiseTypes::BITWISE_OR ||
+        eltwise_type == utils::EltwiseTypes::BITWISE_XOR ||
+        eltwise_type == utils::EltwiseTypes::BITWISE_NOT) {
+        return "ref";
+    }
     if (eltwise_type == utils::EltwiseTypes::FLOOR_MOD ||
         eltwise_type == utils::EltwiseTypes::MOD) {
         return "ref";
