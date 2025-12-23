@@ -5,6 +5,7 @@
 #include "just_sync_infer_request.hpp"
 
 #include <algorithm>
+#include <fstream>
 #include <future>
 #include <map>
 #include <memory>
@@ -303,6 +304,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 const auto& device = *proto_comp_model_desc.device_it;
                 m_moe_relayouted_output = allocMem(ov::element::f16, target_shape, device);
 
+                ov::Shape target_shape2 = {32, 1, num_tokens, embed_dim};
+                m_moe_all_experts_output = allocMem(ov::element::f16, target_shape2, device);
                 std::cout << "Pre-allocated MoE relayouted_output tensor: shape=" << target_shape
                           << " device=" << device << std::endl;
             }  // if(moe_experts)
@@ -747,43 +750,18 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                     // MoE downstream: set the relayouted expert outputs as input
                     // Verify this is the correct parameter that should receive expert outputs
                     if (i == func_desc.moe_experts_downstream->expert_output_param_idx) {
-                        if (m_moe_relayouted_output) {
-                            std::cout << "  -> Setting MoE downstream expert output parameter (idx=" << i << ")"
-                                      << std::endl;
-                            auto shape = m_moe_relayouted_output->get_shape();
-                            std::cout << "     Input shape from relayouted_output: [";
-                            for (size_t j = 0; j < shape.size(); ++j) {
-                                std::cout << shape[j];
-                                if (j < shape.size() - 1)
-                                    std::cout << ", ";
-                            }
-                            std::cout << "]" << std::endl;
-
-                            // Print first few values for debugging
-                            if (m_moe_relayouted_output->get_element_type() == ov::element::f16) {
-                                auto* data_ptr = static_cast<ov::float16*>(m_moe_relayouted_output->data());
-                                std::cout << "     First 5 input values: [";
-                                for (size_t j = 0; j < std::min(size_t(5), m_moe_relayouted_output->get_size()); ++j) {
-                                    std::cout << float(data_ptr[j]);
-                                    if (j < 4)
-                                        std::cout << ", ";
-                                }
-                                std::cout << "]" << std::endl;
-                            }
-
-                            m_subrequests[real_idx]->set_tensor(iport, m_moe_relayouted_output);
-                        } else {
-                            NPUW_ASSERT(
-                                false &&
-                                "MoE downstream expert output parameter requested but no relayouted output available");
+                        if (m_moe_all_experts_output == nullptr) {
+                            OPENVINO_THROW("MoE all_experts_output tensor is not allocated");
                         }
+                        m_subrequests[real_idx]->set_tensor(iport, m_moe_all_experts_output);
                     } else {
                         // Other MoE downstream parameters should use normal tensor binding
                         std::cout << "  -> Setting MoE downstream non-expert parameter (idx=" << i << ")" << std::endl;
                         m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                     }
+                } else {
+                    NPUW_ASSERT(false && "MoE info missing in function description");
                 }
-
             } else {
                 // Default case
                 m_subrequests[real_idx]->set_tensor(iport, i_tensor);
@@ -1608,14 +1586,12 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
             // Loop over experts, for each expert process all tokens that selected it
             std::cout << "\n[PREFILL] Processing " << input_token_count << " tokens" << std::endl;
 
-            // CRITICAL: Clear/zero the relayouted output buffer before accumulating expert outputs
-            std::cout << "  Clearing m_moe_relayouted_output buffer..." << std::endl;
-            if (m_moe_relayouted_output) {
-                std::memset(m_moe_relayouted_output->data(), 0, m_moe_relayouted_output->get_byte_size());
-                std::cout << "  Buffer cleared: size=" << m_moe_relayouted_output->get_byte_size() << " bytes"
-                          << std::endl;
+            if (m_moe_all_experts_output) {
+                std::memset(m_moe_all_experts_output->data(), 0, m_moe_all_experts_output->get_byte_size());
+                std::cout << "  m_moe_all_experts_output buffer cleared: size="
+                          << m_moe_all_experts_output->get_byte_size() << " bytes" << std::endl;
             } else {
-                LOG_ERROR("m_moe_relayouted_output is null!");
+                LOG_ERROR("m_moe_all_experts_output is null!");
             }
 
             for (size_t expert_id : selected_experts) {
@@ -1656,6 +1632,48 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
                 r->infer();
                 std::cout << "    Expert inference completed" << std::endl;
 
+                // Dump expert inputs and outputs to binary files
+                {
+                    const auto& input_ports = comp_model_desc.compiled_model->inputs();
+                    const auto& output_ports = comp_model_desc.compiled_model->outputs();
+                    
+                    // Dump inputs
+                    for (size_t inp_idx = 0; inp_idx < input_ports.size(); ++inp_idx) {
+                        auto input_tensor = r->get_tensor(input_ports[inp_idx]);
+                        std::string filename = "moe_sub" + std::to_string(idx) + 
+                                              "_expert" + std::to_string(expert_id) + 
+                                              "_input" + std::to_string(inp_idx) + ".bin";
+                        
+                        std::ofstream ofs(filename, std::ios::binary);
+                        if (ofs) {
+                            ofs.write(static_cast<const char*>(input_tensor->data()), 
+                                     input_tensor->get_byte_size());
+                            std::cout << "    Saved input[" << inp_idx << "] to " << filename 
+                                     << " (" << input_tensor->get_byte_size() << " bytes)" << std::endl;
+                        } else {
+                            std::cout << "    Failed to save input[" << inp_idx << "] to " << filename << std::endl;
+                        }
+                    }
+                    
+                    // Dump outputs
+                    for (size_t out_idx = 0; out_idx < output_ports.size(); ++out_idx) {
+                        auto output_tensor = r->get_tensor(output_ports[out_idx]);
+                        std::string filename = "moe_sub" + std::to_string(idx) + 
+                                              "_expert" + std::to_string(expert_id) + 
+                                              "_output" + std::to_string(out_idx) + ".bin";
+                        
+                        std::ofstream ofs(filename, std::ios::binary);
+                        if (ofs) {
+                            ofs.write(static_cast<const char*>(output_tensor->data()), 
+                                     output_tensor->get_byte_size());
+                            std::cout << "    Saved output[" << out_idx << "] to " << filename 
+                                     << " (" << output_tensor->get_byte_size() << " bytes)" << std::endl;
+                        } else {
+                            std::cout << "    Failed to save output[" << out_idx << "] to " << filename << std::endl;
+                        }
+                    }
+                }
+
                 // Get expert output
                 auto expert_output_tensor = r->get_tensor(oport);
                 auto shape = expert_output_tensor->get_shape();
@@ -1686,77 +1704,32 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
                               << std::endl;
                 }
 
-                // In prefill mode, relayout based on token_to_experts mapping
-                std::cout << "    Relayouting expert output to global buffer..." << std::endl;
-                relayout_single_expert_output(expert_id,
-                                              expert_output_tensor,
-                                              m_moe_relayouted_output,
-                                              token_to_experts,
-                                              num_tokens,
-                                              embed_dim);
+                // Copy expert output to m_moe_all_experts_output[expert_id, :, :, :]
+                std::cout << "    Copying expert output to m_moe_all_experts_output[" << expert_id << ", :, :, :]..."
+                          << std::endl;
+                if (m_moe_all_experts_output && m_moe_all_experts_output->get_element_type() == ov::element::f16) {
+                    // Source: expert_output_tensor [1, 1, num_tokens, embed_dim]
+                    // Dest: m_moe_all_experts_output [num_experts, 1, num_tokens, embed_dim]
+                    const size_t expert_output_size = num_tokens * embed_dim;  // Elements per expert (flattened)
+                    const size_t expert_offset = expert_id * expert_output_size;
 
-                std::cout << "    Expert[" << expert_id << "] output relayouted successfully" << std::endl;
-            }
+                    auto* src = static_cast<ov::float16*>(expert_output_tensor->data());
+                    auto* dst = static_cast<ov::float16*>(m_moe_all_experts_output->data()) + expert_offset;
 
-            // Debug: Check final relayouted output
-            std::cout << "\n  Verifying final relayouted output..." << std::endl;
-            if (m_moe_relayouted_output) {
-                auto final_shape = m_moe_relayouted_output->get_shape();
-                std::cout << "  Final relayouted_output shape: [";
-                for (size_t i = 0; i < final_shape.size(); ++i) {
-                    std::cout << final_shape[i];
-                    if (i < final_shape.size() - 1)
-                        std::cout << ", ";
-                }
-                std::cout << "]" << std::endl;
-
-                // Print first few values and statistics
-                if (m_moe_relayouted_output->get_element_type() == ov::element::f16) {
-                    auto* data_ptr = static_cast<ov::float16*>(m_moe_relayouted_output->data());
-                    std::cout << "  First 10 values: [";
-                    for (size_t i = 0; i < std::min(size_t(10), m_moe_relayouted_output->get_size()); ++i) {
-                        std::cout << float(data_ptr[i]);
-                        if (i < 9)
-                            std::cout << ", ";
-                    }
-                    std::cout << "]" << std::endl;
-
-                    // Calculate statistics
-                    float min_val = 1e10, max_val = -1e10, sum_val = 0.0f;
-                    size_t zero_count = 0, nan_count = 0;
-                    size_t total = m_moe_relayouted_output->get_size();
-
-                    for (size_t i = 0; i < total; ++i) {
-                        float val = float(data_ptr[i]);
-                        if (val == 0.0f)
-                            zero_count++;
-                        if (std::isnan(val))
-                            nan_count++;
-                        if (!std::isnan(val)) {
-                            min_val = std::min(min_val, val);
-                            max_val = std::max(max_val, val);
-                            sum_val += val;
-                        }
-                    }
-
-                    std::cout << "  Relayouted output stats:" << std::endl;
-                    std::cout << "    Total elements: " << total << std::endl;
-                    std::cout << "    Min: " << min_val << ", Max: " << max_val << ", Mean: " << (sum_val / total)
+                    std::memcpy(dst, src, expert_output_size * sizeof(ov::float16));
+                    std::cout << "    Copied " << expert_output_size << " elements to offset " << expert_offset
                               << std::endl;
-                    std::cout << "    Zeros: " << zero_count << " (" << (100.0 * zero_count / total) << "%)"
-                              << std::endl;
-                    std::cout << "    NaNs: " << nan_count << std::endl;
-
-                    if (zero_count == total) {
-                        std::cout << "  ⚠️  ERROR: Relayouted output is ALL ZERO!" << std::endl;
-                    } else if (nan_count > 0) {
-                        std::cout << "  ⚠️  WARNING: Relayouted output contains NaN values!" << std::endl;
-                    } else {
-                        std::cout << "  ✓ Relayouted output appears valid" << std::endl;
-                    }
+                } else if (!m_moe_all_experts_output) {
+                    LOG_ERROR("m_moe_all_experts_output is null!");
+                    NPUW_ASSERT(false && "m_moe_all_experts_output is null");
+                } else {
+                    LOG_ERROR("m_moe_all_experts_output has unsupported element type: "
+                              << m_moe_all_experts_output->get_element_type());
+                    NPUW_ASSERT(false && "m_moe_all_experts_output has unsupported element type");
                 }
-            } else {
-                std::cout << "  ⚠️  ERROR: m_moe_relayouted_output is null!" << std::endl;
+
+                std::cout << "    Expert[" << expert_id << "] output saved to m_moe_all_experts_output successfully"
+                          << std::endl;
             }
 
             std::cout << "  [PREFILL] All experts processed" << std::endl;

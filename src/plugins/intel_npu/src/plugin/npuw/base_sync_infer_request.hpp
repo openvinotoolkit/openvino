@@ -163,6 +163,8 @@ protected:
     // Shape: [active_experts, 1, num_tokens, embed_dim]
     ov::SoPtr<ov::ITensor> m_moe_relayouted_output;
 
+    ov::SoPtr<ov::ITensor> m_moe_all_experts_output;
+
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
     // Represents spatial run-time info
