@@ -165,31 +165,19 @@ const element::Type expectedConvPrecBySignedFQRange = element::f32;
 const element::Type expectedConvPrecByUnsignedFQRange = element::f32;
 #endif
 
-std::vector<QuantizationParams> perTensorQuantizationParams{
+std::vector<QuantizationParams> quantizationParams{
     {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, false},
     {{{0.f}, {2.55f}, {0.f}, {2.55f}}, {}, expectedConvPrecByUnsignedFQRange, false},
-};
-
-std::vector<QuantizationParams> perChannelQuantizationParams{
     {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, true},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU_PerTensor,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU,
                          ConvAndFQ,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::Values(element::f32),
-                                            ::testing::ValuesIn(perTensorQuantizationParams),
+                                            ::testing::ValuesIn(quantizationParams),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU_PerChannel,
-                         ConvAndFQ,
-                         ::testing::Combine(::testing::ValuesIn(inputShapes),
-                                            ::testing::Values(element::f32),
-                                            ::testing::ValuesIn(perChannelQuantizationParams),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                         ConvAndFQ::getTestCaseName);
-
 }  // namespace
 }  // namespace test
 }  // namespace ov
