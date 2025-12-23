@@ -1322,7 +1322,7 @@ void Transformations::MainSnippets() {
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
 #elif defined(OPENVINO_ARCH_ARM64)
     const auto is_infer_prc_supported_by_brgemm =
-        any_of(config.inferencePrecision, ov::element::f32, ov::element::dynamic);
+        any_of(config.inferencePrecision, ov::element::f32, ov::element::f16, ov::element::dynamic);
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
 #else
     const bool isMHASupported = false;

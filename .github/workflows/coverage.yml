@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "Ubuntu gcc", os: ubuntu-latest-16-cores, cc: "gcc", cxx: "g++" }
+          - { name: "Ubuntu-gcc", os: ubuntu-latest-16-cores, cc: "gcc", cxx: "g++" }
 
     steps:
       - name: Setup python
@@ -67,6 +67,10 @@ jobs:
             -DENABLE_OV_ONNX_FRONTEND=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_COVERAGE=ON
+            -DCMAKE_C_FLAGS="-fprofile-update=atomic"
+            -DCMAKE_CXX_FLAGS="-fprofile-update=atomic"
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage"
+            -DCMAKE_SHARED_LINKER_FLAGS="--coverage"
             -DCMAKE_C_COMPILER_LAUNCHER=ccache
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
             -DCMAKE_C_LINKER_LAUNCHER=ccache
@@ -103,42 +107,84 @@ jobs:
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_onnx_frontend_tests --gtest_filter=-*IE_GPU*
         continue-on-error: true
 
-      #- name: Run Paddle frontend unit tests
-      #  run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/paddle_tests --gtest_filter=-*IE_GPU*
-      #  continue-on-error: true
+      # - name: Run Paddle frontend unit tests
+      #   run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/paddle_tests --gtest_filter=-*IE_GPU*
+      #   continue-on-error: true
 
       - name: Run TensorFlow frontend unit tests
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_tensorflow_frontend_tests --gtest_filter=-*IE_GPU*
         continue-on-error: true
 
-      - name: Build coverage with CMake
-        uses: ashutoshvarma/action-cmake-build@ade188313bc7eaa6f14349569a64d8bc716342ff # master
-        with:
-          build-dir: ${{ github.workspace }}/coverage
-          cc: ${{ matrix.config.cc }}
-          cxx: ${{ matrix.config.cxx }}
-          target: ov_coverage
-          configure-options: >
-            -DCMAKE_VERBOSE_MAKEFILE=ON
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-            -DCMAKE_C_LINKER_LAUNCHER=ccache
-            -DCMAKE_CXX_LINKER_LAUNCHER=ccache
-
-
       - name: Print info
         run: |
           ls -laR
           pwd
+
       - name: Generate raport
         run: |
-          lcov --capture --directory ${{ github.workspace }}/build \
-            --output-file coverage.info \
-            --ignore-errors mismatch,source
+          set -euo pipefail
+
+          SRC_DIR="${{ github.workspace }}"
+          BUILD_DIR="${{ github.workspace }}/build"
+          REPORT_DIR="${{ github.workspace }}/coverage-report"
+
+          echo "Capturing coverage from $BUILD_DIR (base=$SRC_DIR)..."
+          lcov --capture \
+               --directory "$BUILD_DIR" \
+               --base-directory "$SRC_DIR" \
+               --output-file coverage.info \
+               --no-external \
+               --rc geninfo_unexecuted_blocks=1 \
+               --ignore-errors mismatch,negative,unused
+
+          echo "Applying exclude patterns (tests, thirdparty, protobuf generated)..."
+          lcov --remove coverage.info \
+               "${SRC_DIR}/*.pb.cc" \
+               "${SRC_DIR}/*.pb.h" \
+               "${SRC_DIR}/*/tests/*" \
+               "${SRC_DIR}/thirdparty/*" \
+               -o coverage.info
+
+          mkdir -p "$REPORT_DIR"
           genhtml coverage.info \
-            --output-directory coverage-report \
-            --ignore-errors source \
-            --synthesize-missing
+                  --output-directory "$REPORT_DIR" \
+                  --prefix "$SRC_DIR" \
+                  --synthesize-missing
+
+      - name: Coverage summary
+        run: |
+          echo "## Code coverage (lcov)" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f coverage.info ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            lcov --summary coverage.info >> "$GITHUB_STEP_SUMMARY" || true
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "coverage.info not found (coverage generation likely failed earlier)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Package coverage report
+        run: |
+          set -euo pipefail
+          if [ -d "${{ github.workspace }}/coverage-report" ] && [ -f coverage.info ]; then
+            tar -czf coverage-report.tgz coverage-report coverage.info
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Artifact: \`coverage-report.tgz\` (download from Actions → Artifacts, then extract and open \`coverage-report/index.html\`)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "coverage-report/ or coverage.info missing → skipping artifact packaging." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-report-${{ matrix.config.name }}
+          path: coverage-report.tgz
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 0
+
       - name: Collect coverage
         uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         with:

@@ -54,7 +54,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             break;
         case AttributeProto_AttributeType::AttributeProto_AttributeType_TENSOR:
             return static_cast<ov::frontend::onnx::DecoderBase::Ptr>(
-                std::make_shared<DecoderProtoTensor>(&attr.t(), m_parent, 0, 0));
+                std::make_shared<DecoderProtoTensor>(&attr.t(), m_parent));
         case AttributeProto_AttributeType::AttributeProto_AttributeType_SPARSE_TENSOR: {
             ov::frontend::onnx::SparseTensorInfo sparse_tensor_info{};
             auto& sparse_tensor = attr.sparse_tensor();
@@ -62,11 +62,11 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 ov::PartialShape{std::vector<int64_t>(sparse_tensor.dims().begin(), sparse_tensor.dims().end())};
             if (sparse_tensor.has_values()) {
                 sparse_tensor_info.m_values = static_cast<ov::frontend::onnx::DecoderBase::Ptr>(
-                    std::make_shared<DecoderProtoTensor>(&sparse_tensor.values(), m_parent, 0, 0));
+                    std::make_shared<DecoderProtoTensor>(&sparse_tensor.values(), m_parent));
             }
             if (sparse_tensor.has_indices()) {
                 sparse_tensor_info.m_indices = static_cast<ov::frontend::onnx::DecoderBase::Ptr>(
-                    std::make_shared<DecoderProtoTensor>(&sparse_tensor.indices(), m_parent, 0, 0));
+                    std::make_shared<DecoderProtoTensor>(&sparse_tensor.indices(), m_parent));
             }
             return sparse_tensor_info;
         }

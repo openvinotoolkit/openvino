@@ -14,6 +14,7 @@
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/weights_pointer_attribute.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
@@ -152,32 +153,18 @@ std::string rankToLegacyLayoutString(const size_t rank) {
  */
 void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
     for (auto&& node : model->get_ops()) {
-        if (!ov::is_type<ov::op::v0::Constant>(node)) {
+        if (auto subgraphNode = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
+            // "Models within models"
+            for (const std::shared_ptr<ov::Model>& submodel : subgraphNode->get_functions()) {
+                storeWeightsPointerAttribute(submodel);
+            }
             continue;
         }
 
-        auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
-        ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
-        runtimeInfoMap[intel_npu::WeightsPointerAttribute::get_type_info_static()] =
-            intel_npu::WeightsPointerAttribute(constantNode->get_data_ptr(), constantNode->get_byte_size());
-    }
-}
-
-/**
- * @brief Removes the attributes stored by "storeWeightsPointerAttribute" in order to restore the model to its original
- * state.
- * @see storeWeightsPointerAttribute for details.
- */
-void removeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
-    for (auto&& node : model->get_ops()) {
-        if (!ov::is_type<ov::op::v0::Constant>(node)) {
-            continue;
-        }
-
-        ov::RTMap& runtimeInfoMap = node->get_rt_info();
-        const auto& resultIt = runtimeInfoMap.find(intel_npu::WeightsPointerAttribute::get_type_info_static());
-        if (resultIt != runtimeInfoMap.end()) {
-            runtimeInfoMap.erase(resultIt);
+        if (auto constantNode = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
+            ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
+            runtimeInfoMap[intel_npu::WeightsPointerAttribute::get_type_info_static()] =
+                intel_npu::WeightsPointerAttribute(constantNode->get_data_ptr(), constantNode->get_byte_size());
         }
     }
 }
@@ -469,7 +456,6 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
 
         SerializedIR serializedIR =
             VCLSerializerWithoutWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
-        removeWeightsPointerAttribute(nonConstantModel);
         return serializedIR;
     }
     return VCLSerializerWithWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();

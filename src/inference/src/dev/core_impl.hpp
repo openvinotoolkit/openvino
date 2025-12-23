@@ -28,10 +28,10 @@ public:
     CoreConfig& operator=(const CoreConfig&) = delete;
 
     struct CacheConfig {
-        std::string m_cache_dir;
+        std::filesystem::path m_cache_dir;
         std::shared_ptr<ov::ICacheManager> m_cache_manager;
 
-        static CacheConfig create(const std::string& dir);
+        static CacheConfig create(const std::filesystem::path& dir);
     };
 
     void set(const ov::AnyMap& config, const std::string& device_name);
@@ -43,7 +43,7 @@ public:
      */
     void set_and_update(ov::AnyMap& config, const std::string& device_name);
 
-    std::string get_cache_dir() const;
+    std::filesystem::path get_cache_dir() const;
 
     bool get_enable_mmap() const;
 
@@ -148,13 +148,13 @@ private:
     struct CacheContent {
         explicit CacheContent(const std::shared_ptr<ov::ICacheManager>& cache_manager,
                               bool mmap_enabled = false,
-                              const std::string model_path = {})
+                              const std::filesystem::path model_path = {})
             : m_cache_manager(cache_manager),
               m_model_path(model_path),
               m_mmap_enabled{mmap_enabled} {}
         std::shared_ptr<ov::ICacheManager> m_cache_manager{};
         std::string m_blob_id{};
-        std::string m_model_path{};
+        std::filesystem::path m_model_path{};
         std::shared_ptr<const ov::Model> model{};
         bool m_mmap_enabled{};
     };
