@@ -510,5 +510,14 @@ static constexpr ov::Property<bool> import_raw_blob{"NPU_IMPORT_RAW_BLOB"};
  */
 static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
 
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: std::string, default is empty
+ * Enables custom stride support for specified input/output tensors by name. This allows working with non-contiguous
+ * memory layouts without copying data. The plugin automatically maps these names to the appropriate input/output
+ * indices for the compiler.
+ */
+static constexpr ov::Property<std::string> enable_strides_for("NPU_ENABLE_STRIDES_FOR");
+
 }  // namespace intel_npu
 }  // namespace ov

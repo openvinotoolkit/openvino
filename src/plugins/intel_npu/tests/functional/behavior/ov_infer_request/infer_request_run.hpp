@@ -1318,7 +1318,7 @@ TEST_P(ROITensorInference, InferenceROITensor) {
 
     OV_EXPECT_THROW_HAS_SUBSTRING(req.set_tensor(tensor_name, m_param.m_input_tensor),
                                   ov::Exception,
-                                  "The tensor is not continuous");
+                                  "tensor has a non-contiguous memory");
 }
 
 using SetShapeInferRunTests = InferRequestRunTests;

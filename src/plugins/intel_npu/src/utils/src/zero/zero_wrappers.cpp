@@ -129,15 +129,57 @@ CommandList::~CommandList() {
 
     _handle = nullptr;
 }
-void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_value) const {
-    ze_mutable_graph_argument_exp_desc_t desc = {
-        (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
-            ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
-            : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED),
-        nullptr,
-        _command_id,
-        arg_index,
-        arg_value};
+void CommandList::updateMutableCommandList(uint32_t index, const void* data) const {
+    ze_mutable_graph_argument_exp_desc_t desc = {};
+
+    desc.stype = (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
+                     ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
+                     : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
+    desc.commandId = _command_id;
+    desc.argIndex = index;
+    desc.pArgValue = data;
+
+    ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
+                                                                  &desc,
+                                                                  0};
+
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListUpdateMutableCommandsExp",
+                                zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
+}
+void CommandList::updateMutableCommandListWithStrides(uint32_t index,
+                                                      const void* data,
+                                                      const std::vector<size_t>& strides) const {
+    ze_mutable_graph_argument_exp_desc_t desc = {};
+
+    desc.stype = (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
+                     ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
+                     : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
+    desc.commandId = _command_id;
+    desc.argIndex = index;
+    desc.pArgValue = data;
+
+    ze_graph_argument_value_strides_t strides_value = {};
+    if (!strides.empty()) {
+        if (_init_structs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 15)) {
+            OPENVINO_THROW("Strides are not supported by the current driver version.");
+        }
+
+        if (strides.size() > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
+            OPENVINO_THROW("The driver does not support strides with more than",
+                           ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE,
+                           "dimensions.");
+        }
+
+        strides_value.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_STRIDES;
+        for (size_t i = 0; i < strides.size(); ++i) {
+            if (strides[i] > std::numeric_limits<uint32_t>::max()) {
+                OPENVINO_THROW("Stride value exceeds uint32_t range supported by the driver");
+            }
+            strides_value.userStrides[i] = static_cast<uint32_t>(strides[i]);
+        }
+
+        desc.pNext = &strides_value;
+    }
 
     ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
                                                                   &desc,
