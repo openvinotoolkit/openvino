@@ -679,7 +679,7 @@ def test_tensor_from_pillow(numpy_dtype, shape):
 def test_pack_unpack_u3_numerical():
     """Test u3 packing/unpacking with known numerical values."""
     # 8 values packed into 3 bytes
-    # Values: [0, 1, 2, 3, 4, 5, 6, 7]
+    # Decimal values: [0, 1, 2, 3, 4, 5, 6, 7]
     # In binary: [000, 001, 010, 011, 100, 101, 110, 111]
     data = np.array([0, 1, 2, 3, 4, 5, 6, 7], dtype=np.uint8)
 
@@ -690,7 +690,7 @@ def test_pack_unpack_u3_numerical():
     # Byte 1: bits[1:0] of values 4-7 = [00, 01, 10, 11] = 0x1B
     # Byte 2: bits[2] of all 8 values = [0,0,0,0,1,1,1,1] = 0x0F
     expected = np.array([0x1B, 0x1B, 0x0F], dtype=np.uint8)
-    
+
     assert len(packed) == 3
     assert np.array_equal(packed, expected), f"Expected {expected.tolist()}, got {packed.tolist()}"
 
@@ -717,7 +717,7 @@ def test_pack_unpack_u3_edge_cases():
 
 def test_pack_unpack_u6_numerical():
     # 4 values packed into 3 bytes
-    # Values: [0, 15, 48, 63]
+    # Decimal values: [0, 15, 48, 63]
     # In binary: [000000, 001111, 110000, 111111]
     data = np.array([0, 15, 48, 63], dtype=np.uint8)
     packed = pack_data(data, ov.Type.u6)

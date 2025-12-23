@@ -109,35 +109,34 @@ def unpack_data(array: np.ndarray, type: Type, shape: Union[list, Shape]) -> np.
 
 def _pack_u3(array: np.ndarray) -> np.ndarray:
     """Pack u3 values using transposed packing scheme.
-    
+
     8 values (each 3 bits) are packed into 3 bytes:
-    - Byte 0: bits [1:0] of values 0-3 (4 values × 2 bits = 8 bits)
-    - Byte 1: bits [1:0] of values 4-7 (4 values × 2 bits = 8 bits)
-    - Byte 2: bits [2] of all 8 values (8 values × 1 bit = 8 bits)
+    - Byte 0: bits [1:0] of values 0-3 (4 values * 2 bits = 8 bits)
+    - Byte 1: bits [1:0] of values 4-7 (4 values * 2 bits = 8 bits)
+    - Byte 2: bits [2] of all 8 values (8 values * 1 bit = 8 bits)
     """
     array = array.astype(np.uint8, casting="unsafe").flatten()
     # Pad to multiple of 8
     pad = (-len(array)) % 8
     if pad:
         array = np.concatenate([array, np.zeros(pad, dtype=np.uint8)])
-    
-    # Reshape into groups of 8 values
+
     groups = array.reshape(-1, 8)
     result = []
-    
+
     for group in groups:
         # Extract lower 2 bits and MSB for each value
         lower_bits = group & 0x03  # bits [1:0]
         msb = (group >> 2) & 0x01  # bit [2]
-        
+
         # Pack into 3 bytes
         byte0 = (lower_bits[0] << 6) | (lower_bits[1] << 4) | (lower_bits[2] << 2) | lower_bits[3]
         byte1 = (lower_bits[4] << 6) | (lower_bits[5] << 4) | (lower_bits[6] << 2) | lower_bits[7]
         byte2 = (msb[0] << 7) | (msb[1] << 6) | (msb[2] << 5) | (msb[3] << 4) | \
                 (msb[4] << 3) | (msb[5] << 2) | (msb[6] << 1) | msb[7]
-        
+
         result.extend([byte0, byte1, byte2])
-    
+
     return np.array(result, dtype=np.uint8)
 
 
@@ -148,15 +147,14 @@ def _unpack_u3(array: np.ndarray, shape: Union[list, Shape]) -> np.ndarray:
     """
     array = array.view(np.uint8)
     shape = list(shape)
-    num_values = int(np.prod(shape))
-    
+
     # Process 3 bytes at a time
     result = []
     for i in range(0, len(array), 3):
         if i + 2 >= len(array):
             break
         byte0, byte1, byte2 = array[i:i+3]
-        
+
         # Unpack lower 2 bits from first two bytes
         val0 = (byte0 >> 6) & 0x03
         val1 = (byte0 >> 4) & 0x03
@@ -166,7 +164,7 @@ def _unpack_u3(array: np.ndarray, shape: Union[list, Shape]) -> np.ndarray:
         val5 = (byte1 >> 4) & 0x03
         val6 = (byte1 >> 2) & 0x03
         val7 = byte1 & 0x03
-        
+
         # Unpack MSBs from third byte
         msb0 = (byte2 >> 7) & 0x01
         msb1 = (byte2 >> 6) & 0x01
@@ -176,47 +174,45 @@ def _unpack_u3(array: np.ndarray, shape: Union[list, Shape]) -> np.ndarray:
         msb5 = (byte2 >> 2) & 0x01
         msb6 = (byte2 >> 1) & 0x01
         msb7 = byte2 & 0x01
-        
+
         # Combine to form 3-bit values
         result.extend([
             val0 | (msb0 << 2), val1 | (msb1 << 2), val2 | (msb2 << 2), val3 | (msb3 << 2),
             val4 | (msb4 << 2), val5 | (msb5 << 2), val6 | (msb6 << 2), val7 | (msb7 << 2)
         ])
-    
+
     result = np.array(result, dtype=np.uint8)
     return np.resize(result, shape)
 
 
 def _pack_u6(array: np.ndarray) -> np.ndarray:
     """Pack u6 values using transposed packing scheme.
-    
+
     4 values (each 6 bits) are packed into 3 bytes:
-    - Byte 0: bits [3:0] of values 0-1 (2 values × 4 bits = 8 bits)
-    - Byte 1: bits [3:0] of values 2-3 (2 values × 4 bits = 8 bits)
-    - Byte 2: bits [5:4] of all 4 values (4 values × 2 bits = 8 bits)
+    - Byte 0: bits [3:0] of values 0-1 (2 values * 4 bits = 8 bits)
+    - Byte 1: bits [3:0] of values 2-3 (2 values * 4 bits = 8 bits)
+    - Byte 2: bits [5:4] of all 4 values (4 values * 2 bits = 8 bits)
     """
     array = array.astype(np.uint8, casting="unsafe").flatten()
     # Pad to multiple of 4
     pad = (-len(array)) % 4
     if pad:
         array = np.concatenate([array, np.zeros(pad, dtype=np.uint8)])
-    
-    # Reshape into groups of 4 values
+
     groups = array.reshape(-1, 4)
     result = []
-    
+
     for group in groups:
-        # Extract lower 4 bits and upper 2 bits for each value
         lower_bits = group & 0x0F  # bits [3:0]
         upper_bits = (group >> 4) & 0x03  # bits [5:4]
-        
+
         # Pack into 3 bytes
         byte0 = (lower_bits[0] << 4) | lower_bits[1]
         byte1 = (lower_bits[2] << 4) | lower_bits[3]
         byte2 = (upper_bits[0] << 6) | (upper_bits[1] << 4) | (upper_bits[2] << 2) | upper_bits[3]
-        
+
         result.extend([byte0, byte1, byte2])
-    
+
     return np.array(result, dtype=np.uint8)
 
 
