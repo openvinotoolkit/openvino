@@ -40,6 +40,21 @@ JitConstants RandomUniformKernelRef::GetJitConstants(const random_uniform_params
         jit.AddConstant(MakeJitConstant("GLOBAL_SEED", params.global_seed));
     }
 
+    const auto& output = params.outputs[0];
+    if (output.is_dynamic()) {
+        DimensionAccessHelperJit dims(output);
+        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({dims.x(),
+                                                                                              dims.y(),
+                                                                                              dims.z(),
+                                                                                              dims.w(),
+                                                                                              dims.u(),
+                                                                                              dims.v(),
+                                                                                              dims.f(),
+                                                                                              dims.b()})));
+    } else {
+        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", params.outputs[0].LogicalSize()));
+    }
+
     jit.AddConstant(MakeJitConstant("OP_SEED", params.op_seed));
     jit.AddConstant(MakeJitConstant("OUTPUT_STEP", getStep(params)));
     return jit;
@@ -54,14 +69,16 @@ KernelsData RandomUniformKernelRef::GetKernelsData(const Params &params) const {
     KernelData kernel_data = KernelData::Default<random_uniform_params>(params);
     const random_uniform_params &new_params = dynamic_cast<const random_uniform_params &>(*kernel_data.params.get());
 
-    auto dispatch_data = SetDefault(new_params);
     auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
-
     auto random_uniform_specific_jit = GetJitConstants(new_params);
     auto jit = CreateJit(kernelName, random_uniform_specific_jit, entry_point);
 
+    auto dispatch_data = SetDefault(new_params);
+    GetUpdateDispatchDataFunc(kernel_data);
+
     FillCLKernelData(kernel_data.kernels[0], dispatch_data, params.engineInfo, kernelName, jit, entry_point, "", false,
-                     false, 3);
+                     false, static_cast<int>(new_params.inputs.size()), static_cast<uint32_t>(new_params.fused_ops.size()),
+                     static_cast<int>(new_params.outputs.size()), new_params.is_shape_agnostic);
 
     KernelsData kernelsData;
     kernelsData.push_back(std::move(kernel_data));
@@ -84,10 +101,26 @@ ParamsKey RandomUniformKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableDifferentTypes();
-    k.EnableAllInputLayout();
-    k.EnableAllOutputLayout();
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::bfwzyx);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfwzyx);
     k.EnableBatching();
+    k.EnableDynamicShapesSupport();
     return k;
+}
+
+void RandomUniformKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const random_uniform_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
 }
 
 bool RandomUniformKernelRef::Validate(const Params &params) const {

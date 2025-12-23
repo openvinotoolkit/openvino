@@ -104,6 +104,33 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensorsBase) {
     }
 }
 
+TEST_P(OVInferRequestBatchedTests, SetReadOnlyInputTensorsBase) {
+    size_t batch = 4;
+    auto one_shape = Shape{1, 2, 2, 2};
+    auto batch_shape = Shape{batch, 2, 2, 2};
+    auto one_shape_size = ov::shape_size(one_shape);
+    auto model = OVInferRequestBatchedTests::create_n_inputs(2, element::f32, batch_shape, "N...");
+    // Allocate 8 chunks, set 'user tensors' to 0, 2, 4, 6 chunks
+    const std::vector<float> buffer(one_shape_size * batch * 2, 5.f);
+    auto execNet = ie->compile_model(model, target_device);
+    // Create InferRequest
+    ov::InferRequest req;
+    req = execNet.create_infer_request();
+    std::vector<ov::Tensor> tensors;
+    for (auto i = 0; i < batch; ++i) {
+        // non contiguous memory (i*2)
+        auto tensor = ov::Tensor(element::f32, one_shape, &std::as_const(buffer)[(i * 2) * one_shape_size]);
+        tensors.push_back(std::move(tensor));
+    }
+    req.set_tensors("tensor_input0", tensors);
+    const auto actual_tensor = req.get_tensor("tensor_output0");
+    auto* actual = actual_tensor.data<float>();
+    req.infer();  // Adds '1' to each element
+    for (auto j = 0; j < one_shape_size * batch; ++j) {
+        EXPECT_NEAR(actual[j], 6.f, 1e-5) << "Expected=6, actual=" << actual[j] << " for index " << j;
+    }
+}
+
 TEST_P(OVInferRequestBatchedTests, SetInputTensorsAsync) {
     size_t batch = 4;
     auto one_shape = Shape{1, 2, 2, 2};

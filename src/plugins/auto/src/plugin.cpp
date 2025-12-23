@@ -766,10 +766,9 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                 std::string blobId;
 
                 if (model)
-                    blobId = ov::ModelCache::compute_hash(std::const_pointer_cast<const ov::Model>(model),
-                                                          dev_properties);
+                    blobId = ov::ModelCache::compute_hash(model, dev_properties);
                 else
-                    blobId = ov::ModelCache::compute_hash(model_path, dev_properties);
+                    blobId = ov::ModelCache::compute_hash(util::make_path(model_path), dev_properties);
                 const auto cached_model_path = ov::util::make_path(cache_dir) / (blobId + ".blob");
                 bool is_blob_file_exist = ov::util::file_exists(cached_model_path);
                 num_blob_files += is_blob_file_exist;

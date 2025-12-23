@@ -298,9 +298,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
-    ov::Tensor mainBlob,
+    const ov::Tensor& mainBlob,
     const FilteredConfig& config,
-    std::optional<std::vector<ov::Tensor>> initBlobs,
+    const std::optional<std::vector<ov::Tensor>>& initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
@@ -332,7 +332,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
                                        _zeroInitStruct,
                                        mainGraphDesc,
                                        std::move(mainNetworkMetadata),
-                                       std::move(mainBlob),
+                                       mainBlob,
                                        config,
                                        blobIsPersistent,
                                        _compiler);
@@ -358,10 +358,10 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
                                              _zeroInitStruct,
                                              mainGraphDesc,
                                              std::move(mainNetworkMetadata),
-                                             std::move(mainBlob),
+                                             mainBlob,
                                              initGraphDescriptors,
                                              std::move(initNetworkMetadata),
-                                             std::move(initBlobs),
+                                             initBlobs,
                                              model.value(),
                                              config,
                                              blobIsPersistent,

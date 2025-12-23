@@ -11,6 +11,11 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(paged_attention)
 
+paged_attention_node::typed_program_node(const std::shared_ptr<paged_attention> prim, program& prog)
+    : parent(prim, prog) {
+    can_share_internal_buffer(false);
+}
+
 layout paged_attention_inst::calc_output_layout(const paged_attention_node& /*node*/, kernel_impl_params const& impl_param) {
     auto out_layout = impl_param.get_input_layout(0);
 
@@ -81,6 +86,27 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
             output_layouts.push_back(layout{ov::PartialShape{total_size}, output_dt, format::bfyx});
         } else {
             output_layouts.push_back(layout{ov::PartialShape::dynamic(1), output_dt, format::bfyx});
+        }
+        if (desc->has_adaptive_rkv) {
+            // expecting 3 outputs, 2nd as above, 3rd - Adaptive R-KV block diversity
+            const auto evictable_sizes_idx = cldnn::paged_attention::PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES;
+            const auto output_dt = data_layout.data_type;
+            if (impl_param.get_input_layout(past_lens_idx).is_static()) {
+                size_t num_elements_in_output = 0;
+                const auto& memory_deps = impl_param.memory_deps;
+                const auto evictable_sizes_mem = memory_deps.at(evictable_sizes_idx);
+                mem_lock<int32_t, mem_lock_type::read> evictable_sizes_mem_lock(evictable_sizes_mem, *impl_param.strm);
+
+                for (size_t i = 0; i < evictable_sizes_mem_lock.size(); i++) {
+                    size_t evictable_size = evictable_sizes_mem_lock[i];
+                    num_elements_in_output += evictable_size * evictable_size / desc->block_size;
+                }
+
+                output_layouts.push_back(layout{ov::PartialShape{static_cast<long int>(num_elements_in_output)}, output_dt, format::bfyx});
+
+            } else {
+                output_layouts.push_back(layout{ov::PartialShape::dynamic(1), output_dt, format::bfyx});
+            }
         }
     }
 

@@ -151,6 +151,14 @@ public:
             sinks = std::static_pointer_cast<ov::op::v0::Constant>(ov::test::utils::make_constant(data_type, Shape{0}));
         }
 
+        auto adaptive_rkv_start_size =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+        auto adaptive_rkv_evictable_sizes =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto adaptive_rkv_diversity_block_set_indices =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto adaptive_rkv_diversity_block_set_indices_begins =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         OutputVector paged_attn_inputs = {q,
@@ -172,12 +180,15 @@ public:
                                           rotation_trig_lut,
                                           xattention_threshold,
                                           xattention_block_size,
-                                          xattention_stride};
-
-        // Always add sinks to satisfy PagedAttentionExtension's requirement of 21 inputs
-        paged_attn_inputs.push_back(sinks);
+                                          xattention_stride,
+                                          sinks,
+                                          adaptive_rkv_start_size,
+                                          adaptive_rkv_evictable_sizes,
+                                          adaptive_rkv_diversity_block_set_indices,
+                                          adaptive_rkv_diversity_block_set_indices_begins};
 
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(paged_attn_inputs);
+
         paged_attn->get_rt_info()["num_k_heads"] = head_num;
         paged_attn->get_rt_info()["k_head_size"] = head_size;
         paged_attn->get_rt_info()["num_v_heads"] = head_num;

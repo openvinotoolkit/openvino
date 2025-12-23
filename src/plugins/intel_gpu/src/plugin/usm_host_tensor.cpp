@@ -23,6 +23,14 @@ void* USMHostTensor::data(const element::Type&) {
     return m_impl->get_original_memory_buf_ptr();
 }
 
+void* USMHostTensor::data_rw() {
+    return m_impl->get_original_memory_buf_ptr();
+}
+
+void* USMHostTensor::data_rw(const element::Type&) {
+    return m_impl->get_original_memory_buf_ptr();
+}
+
 const void* USMHostTensor::data() const {
     return m_impl->get_original_memory_buf_ptr();
 }

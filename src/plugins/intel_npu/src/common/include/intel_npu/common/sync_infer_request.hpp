@@ -124,7 +124,9 @@ protected:
      * @param port Input/Output port
      * @param tensor Input/Output tensor
      */
-    void check_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) const;
+    void check_tensor(const ov::Output<const ov::Node>& port,
+                      const ov::SoPtr<ov::ITensor>& tensor,
+                      const bool support_strides) const;
 
     /**
      * @brief Basic checks for input tensors
@@ -133,7 +135,8 @@ protected:
      * @param tensors Input tensors
      */
     void check_batched_tensors(const ov::Output<const ov::Node>& port,
-                               const std::vector<ov::SoPtr<ov::ITensor>>& tensors) const;
+                               const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                               const bool support_strides) const;
 
     /**
      * @brief Check that all tensors are valid. Throws an exception if it's not.

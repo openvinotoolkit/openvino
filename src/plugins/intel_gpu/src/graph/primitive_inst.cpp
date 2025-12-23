@@ -2259,6 +2259,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _fused_mem_offset((_fused_mem_count > 0 && node.get_first_fused_dep_idx() > 0) ? static_cast<uint64_t>(node.get_first_fused_dep_idx()) : 0)
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
+    , _can_share_internal_buffer(node.can_share_internal_buffer())
     , _is_constant(node.is_constant())
     , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
     // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
@@ -2387,8 +2388,6 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
     }
     GPU_DEBUG_LOG << "=> allocate to " << alloc_type << std::endl;
 
-    // Reuse intermediate buffer like output buffer.
-    bool reuse_internal_buf = true;
     auto ret_mem =
         get_memory_from_pool(get_network().get_engine(),
                              get_network_id(),
@@ -2396,7 +2395,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
                              *_node,
                              layout,
                              alloc_type,
-                             reuse_internal_buf,
+                             can_share_internal_buffer(),
                              _runtime_memory_dependencies,
                              reset,
                              _intermediates_memory.size() > idx ? _intermediates_memory[idx].get() : nullptr);

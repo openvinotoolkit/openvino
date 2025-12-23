@@ -76,10 +76,10 @@ jobs:
       image: ${{ inputs.image }}
       volumes:
         - /mount:/mount
+        - /home/runner/secrets/:/secrets:ro
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
       options: >-
         -e SCCACHE_AZURE_BLOB_CONTAINER
-        -e SCCACHE_AZURE_CONNECTION_STRING
     defaults:
       run:
         shell: bash
@@ -105,6 +105,14 @@ jobs:
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
     steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        shell: bash
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
       - name: Clone OpenVINO (with trace)
         if: ${{ inputs.os == 'fedora_29' }} # to debug ticket 160901
         env:

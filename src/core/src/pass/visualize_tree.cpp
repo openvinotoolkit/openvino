@@ -167,16 +167,15 @@ static std::string get_attribute_values(const std::map<std::string, ov::Any>& at
     return ss.str();
 }
 
-static std::string name_of_subgraph_file(const std::shared_ptr<ov::Node> op,
-                                         const std::string& current_file_name,
-                                         const size_t& i) {
+static std::filesystem::path name_of_subgraph_file(const std::shared_ptr<ov::Node> op,
+                                                   const std::filesystem::path& current_file_name,
+                                                   const size_t i) {
     // friendly is never empty it is either friendly (set by user) or unique (auto-generated) name
     auto node_name = op->get_friendly_name();
     std::replace(node_name.begin(), node_name.end(), '/', '-');
-    auto postfix = "_node_" + node_name + "_subgraph_#" + std::to_string(i);
+
     auto file_name = current_file_name;
-    auto insert_pos = file_name.find_last_of('.');
-    file_name.insert(insert_pos, postfix);
+    file_name.replace_extension("._node_" + node_name + "_subgraph_#" + std::to_string(i));
     return file_name;
 }
 
@@ -279,7 +278,10 @@ bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) 
 }
 
 ov::pass::VisualizeTree::VisualizeTree(const std::string& file_name, node_modifiers_t nm, bool dot_only)
-    : m_name{file_name},
+    : VisualizeTree(ov::util::make_path(file_name), std::move(nm), dot_only) {}
+
+ov::pass::VisualizeTree::VisualizeTree(std::filesystem::path file_name, node_modifiers_t nm, bool dot_only)
+    : m_name{std::move(file_name)},
       m_node_modifiers{std::move(nm)},
       m_dot_only{dot_only} {}
 
@@ -674,26 +676,27 @@ std::string ov::pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
 }
 
 void ov::pass::VisualizeTree::render() const {
-    std::string ext = ov::util::get_file_ext(m_name);
-    std::string output_format = ext.substr(1);
-    std::string dot_file = m_name;
-    if (ov::util::to_lower(ext) != ".dot") {
-        dot_file += ".dot";
+    constexpr auto dot_ext = ".dot";
+    const auto ext = m_name.extension();
+    auto dot_file = m_name;
+    if (ext != dot_ext) {
+        dot_file += dot_ext;
     }
-    std::ofstream out(dot_file);
-    if (out) {
+
+    if (std::ofstream out(dot_file); out) {
         out << "digraph \n{\n";
         out << m_ss.str();
         out << "}\n";
         out.close();
 
-        if (!m_dot_only && ov::util::to_lower(ext) != ".dot") {
+        if (!m_dot_only && ext != dot_ext) {
 #if defined(ENABLE_OPENVINO_DEBUG) && !defined(_WIN32)
             std::stringstream ss;
             if (system("command -v dot > /dev/null 2>&1") != 0) {
                 OPENVINO_THROW("Graphviz 'dot' command not found in PATH");
             }
-            ss << "dot -T" << output_format << " " << dot_file << " -o" << m_name;
+            ss << "dot -T" << ext.string().substr(1) << " " << ov::util::path_to_string(dot_file) << " -o"
+               << ov::util::path_to_string(m_name);
             auto cmd = ss.str();
             auto stream = popen(cmd.c_str(), "r");
             if (stream) {
