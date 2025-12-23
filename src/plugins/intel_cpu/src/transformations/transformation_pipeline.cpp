@@ -976,16 +976,14 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
             // Run the transformation for convolution bias only on ARM
             // Convolution bias is handled in ConvertConvolutionBias transformation
             auto node_input = (node->get_input_size() > 0) ? node->get_input_node_shared_ptr(0) : nullptr;
-            auto node_input_input = (node_input && node_input->get_input_size() > 0)
-                                       ? node_input->get_input_node_shared_ptr(0)
-                                       : nullptr;
+            auto node_input_input =
+                (node_input && node_input->get_input_size() > 0) ? node_input->get_input_node_shared_ptr(0) : nullptr;
             if (!node_input || !node_input_input) {
                 return ov::marked_as_bias(node);
             }
 
-            return ov::marked_as_bias(node) &&
-                   (!ov::is_type<ov::op::v1::Multiply>(node_input) ||
-                    !ov::is_type<ov::op::v1::Convolution>(node_input_input));
+            return ov::marked_as_bias(node) && (!ov::is_type<ov::op::v1::Multiply>(node_input) ||
+                                                !ov::is_type<ov::op::v1::Convolution>(node_input_input));
         },
         AddTransformation);
     CPU_SET_CALLBACK_X64(
