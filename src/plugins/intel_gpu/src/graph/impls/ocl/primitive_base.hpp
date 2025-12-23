@@ -244,11 +244,7 @@ protected:
                             typed_primitive_inst<PType>& instance) override {
         stream& stream = instance.get_network().get_stream();
         if (instance.can_be_optimized()) {
-            if (instance.needs_completion_event()) {
-                stream.wait_for_events(events);
-                return instance.is_output() ? stream.create_user_event(true) : nullptr;
-            }
-            return stream.aggregate_events(events, false, instance.is_output());
+            return stream.aggregate_events(events, events.size() > 1, instance.is_output());
         }
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
