@@ -71,7 +71,15 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
             jit.make("STATIC_SCALAR_ATTN_MASK_VALUE", desc->attn_mask_val.value());
             jit.make("HAS_ATTN_MASK_INPUT", 0);
         } else {
-            jit.make("HAS_ATTN_MASK_INPUT", data_inputs_num > attn_mask_idx);
+            const bool has_attn_mask_input = data_inputs_num > attn_mask_idx;
+            jit.make("HAS_ATTN_MASK_INPUT", has_attn_mask_input ? 1 : 0);
+            if (has_attn_mask_input) {
+                const auto& attn_mask_layout = params.get_input_layout(attn_mask_idx);
+                // Enable clamping only if attn_mask dtype differs from softmax_accumulator_type(f32)
+                if (attn_mask_layout.data_type != data_types::f32) {
+                    jit.make("CLAMP_ATTN_MASK_INPUT", 1);
+                }
+            }
         }
         size_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
         if ((data_inputs_num > scale_idx) && (!desc->scale_val.has_value())) {

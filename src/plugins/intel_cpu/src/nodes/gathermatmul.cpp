@@ -300,7 +300,7 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
                                                   [[maybe_unused]] size_t OC,
                                                   [[maybe_unused]] size_t G,
                                                   [[maybe_unused]] const Config& config) noexcept {
-#if defined(OPENVINO_ARCH_X86_64)
+#ifdef OPENVINO_ARCH_X86_64
     // copy paste from FullyConnected
     try {
         std::string errorMessage;
@@ -350,7 +350,7 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
 ov::element::TypeVector GatherMatmul::getSupportedCompressedWeightsTypes([[maybe_unused]] bool apply_fp8) {
     using ov::element::Type_t;
 
-#if defined(OPENVINO_ARCH_X86_64)
+#ifdef OPENVINO_ARCH_X86_64
     return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4};
 #else
     return {};
@@ -581,19 +581,13 @@ void GatherMatmul::prepareParams() {
     auto dstMem = getDstMemoryAtPort(0);
     const auto& dstShape = dstMem->getStaticDims();
 
-    auto srcInterimDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, srcShape[2]}));
-    auto dstInterimDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, dstShape[2]}));
+    m_tmpInputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, srcShape[2]}));
+    m_tmpOutputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, dstShape[2]}));
 
-    const size_t srcSize = rnd_up(srcInterimDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
-    const size_t totalSize = srcSize + dstInterimDesc->getCurrentMemSize();
-
+    const size_t srcSize = rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
+    const size_t totalSize = srcSize + m_tmpOutputDesc->getCurrentMemSize();
     auto scratchPadDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::u8, Shape({totalSize}));
     m_tmpInpBuffer = getScratchPadMem(scratchPadDesc);
-
-    auto* scratchPadRawPtr = m_tmpInpBuffer->getDataAs<uint8_t>();
-
-    m_tmpInput = std::make_shared<StaticMemory>(getEngine(), srcInterimDesc, scratchPadRawPtr);
-    m_tmpOutput = std::make_shared<StaticMemory>(getEngine(), dstInterimDesc, scratchPadRawPtr + srcSize);
 
     CPU_NODE_ASSERT(gemv_impl, "GEMV implementation is not created");
 
@@ -647,8 +641,13 @@ public:
         if (nullptr == mem || mem->getDesc().empty()) {
             return {nullptr, empty_dims, broadcast_mask, 0};
         }
-        auto* base_ptr = static_cast<uint8_t*>(mem->getData());
-        auto desc = mem->getDescWithType<BlockedMemoryDesc>();
+        return createOffsetHelper(*mem);
+    }
+
+    static OffsetHelper createOffsetHelper(const IMemory& mem) {
+        std::bitset<2> broadcast_mask;
+        auto* base_ptr = static_cast<uint8_t*>(mem.getData());
+        auto desc = mem.getDescWithType<BlockedMemoryDesc>();
         const auto& strides = desc->getStrides();
         const auto prc = desc->getPrecision();
         const auto& shape = desc->getShape().getStaticDims();
@@ -757,16 +756,24 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
             // first we pack all the tokens corresponding to a specific expert into a temporary buffer
             // then we call GEMM for that expert on that temporary buffer
             // and finally scatter the results to result memory
-            CPU_NODE_ASSERT(m_tmpInput, "Temporary input memory is not created");
+            CPU_NODE_ASSERT(m_tmpInpBuffer, "Temporary input/output memory is not created");
+            CPU_NODE_ASSERT(m_tmpInputDesc, "Temporary input memory desc is not created");
+            CPU_NODE_ASSERT(m_tmpOutputDesc, "Temporary output memory desc is not created");
 
-            auto tmp_input_offset = OffsetHelper::createOffsetHelper(m_tmpInput);
-
-            const auto element_size = m_tmpInput->getPrecision().size();
-            const auto K_size = m_tmpInput->getStaticDims()[1];
-            const auto M_size = m_tmpInput->getStaticDims()[0];
+            const auto element_size = m_tmpInputDesc->getPrecision().size();
+            const auto K_size = m_tmpInputDesc->getShape().getStaticDims()[1];
+            const auto M_size = m_tmpInputDesc->getShape().getStaticDims()[0];
             const auto N_size = dstMem->getStaticDims()[2];
 
-            auto tmp_dst_offset = OffsetHelper::createOffsetHelper(m_tmpOutput);
+            auto* input_ptr = m_tmpInpBuffer->getDataAs<uint8_t>();
+            auto* output_ptr =
+                input_ptr + rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
+
+            Memory tmpInput(getEngine(), m_tmpInputDesc, input_ptr);
+            Memory tmpOutput(getEngine(), m_tmpOutputDesc, output_ptr);
+
+            auto tmp_input_offset = OffsetHelper::createOffsetHelper(tmpInput);
+            auto tmp_dst_offset = OffsetHelper::createOffsetHelper(tmpOutput);
 
             CPU_NODE_ASSERT(gemm_impl, "GEMM implementation is not created");
             for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {

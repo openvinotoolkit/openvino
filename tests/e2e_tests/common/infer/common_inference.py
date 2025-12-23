@@ -20,7 +20,7 @@ try:
 except ImportError:
     mem_info_available = False
 
-from openvino.runtime import Core
+from openvino import Core
 from openvino.inference_engine import get_version as ie_get_version
 from e2e_tests.common.multiprocessing_utils import multiprocessing_run
 

@@ -15,9 +15,10 @@ if(THREADING STREQUAL "OMP")
     find_package(OpenMP)
 
     if(NOT OpenMP_CXX_FOUND)
-        message(WARNING "Compiler does not support OpenMP standard. Falling back to SEQ threading")
-        set(THREADING "SEQ")
         set(ENABLE_INTEL_OPENMP OFF)
+        message(DEPRECATION "Support for automatically falling back to SEQ threading when OpenMP is unavailable is deprecated and will be removed in a future release. "
+            "CMake configuration now fails if the compiler does not support OpenMP. "
+            "Please explicitly set -DTHREADING=SEQ to continue without OpenMP.")
     endif()
 
     if(ENABLE_INTEL_OPENMP)
@@ -161,6 +162,13 @@ function(ov_download_tbb)
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "fb4be1dd03044a97475c45a0cf4576e502b4b64048e98e019520b0720fc255aa"
+                USE_NEW_LOCATION TRUE)
+    elseif(RISCV64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_LIN "oneapi-tbb-2022.3.0-lin-riscv-release.tgz"
+                TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "ead39877d182dc6ce6bcdc92fa000def79fa9fc19f78979e4faab5d6f560a434"
                 USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")

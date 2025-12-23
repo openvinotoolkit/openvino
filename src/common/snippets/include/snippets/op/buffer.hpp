@@ -100,7 +100,7 @@ private:
     // The buffers with this implementation mustn't have source (parents)
     class NewMemoryImpl : public BaseImpl {
     public:
-        explicit NewMemoryImpl(ov::Shape shape, ov::element::Type element_type);
+        explicit NewMemoryImpl(const ov::Shape& shape, ov::element::Type element_type);
 
         [[nodiscard]] size_t get_allocation_size() const override;
         [[nodiscard]] std::shared_ptr<BaseImpl> clone() const override;
@@ -115,7 +115,7 @@ private:
             ov::Shape m_shape;
 
         public:
-            explicit ShapeInfer(ov::Shape shape);
+            explicit ShapeInfer(const ov::Shape& shape);
             Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
         };
 

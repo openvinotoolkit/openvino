@@ -10,8 +10,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
@@ -22,11 +21,11 @@ class VisualizeTreeTest : public testing::Test {
 protected:
     void TearDown() override {
         if (util::file_exists(vt_svg_file_path)) {
-            std::remove(vt_svg_file_path.c_str());
+            std::filesystem::remove(vt_svg_file_path);
         }
 
         if (util::file_exists(dot_file_path)) {
-            std::remove(dot_file_path.c_str());
+            std::filesystem::remove(dot_file_path);
         }
     }
 
@@ -38,9 +37,9 @@ protected:
         return std::make_shared<Model>(ResultVector{output}, ParameterVector{input});
     }
 
-    const std::string vt_svg_file_path =
-        util::path_join({utils::getExecutableDirectory(), utils::generateTestFilePrefix() + "_tree.svg"}).string();
-    const std::string dot_file_path = vt_svg_file_path + ".dot";
+    const std::filesystem::path vt_svg_file_path =
+        ov::util::make_path(utils::getExecutableDirectory()) / (utils::generateTestFilePrefix() + "_tree.svg");
+    const std::filesystem::path dot_file_path = vt_svg_file_path.string() + ".dot";
 };
 
 TEST_F(VisualizeTreeTest, model_has_constant_with_inf) {
@@ -62,5 +61,4 @@ TEST_F(VisualizeTreeTest, model_has_constant_with_no_inf) {
     OV_ASSERT_NO_THROW(vt.run_on_model(model));
     ASSERT_TRUE(util::file_exists(dot_file_path)) << dot_file_path;
 }
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

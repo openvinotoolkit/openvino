@@ -24,6 +24,7 @@
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
+#include "low_precision/qdq_stripping.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
@@ -77,7 +78,6 @@
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/convert_moe_to_compressed.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
-#include "plugin/transformations/convert_weight_compressed_conv1x1_to_matmul.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
@@ -167,6 +167,7 @@
 #include "transformations/op_conversions/convert_subtract.hpp"
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
+#include "transformations/op_conversions/convert_weight_compressed_conv1x1_to_matmul.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/group_normalization_decomposition.hpp"
@@ -356,6 +357,24 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     bool enableInt8;
     ov::element::Type infer_precision = ov::element::dynamic;
     bool unroll_loop = config.get_enable_loop_unrolling();
+    auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+    {
+        using namespace ov::pass::low_precision;
+        const auto enableQDQStripping = LowPrecision::isFunctionQuantized(func, std::set<levels>{levels::int16});
+        if (enableQDQStripping) {
+            ov::pass::Manager qdq_stripping_manager("Plugin:GPU:QDQ_Stripping");
+            using namespace ov::element;
+            // QDQ stripping pipeline
+            // 1. Fuse FQ->Convert->DQ to a single FQ
+            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32}, true);
+            // 2. Strip FQ layers with unsupported levels
+            qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
+            qdq_stripping_manager.run_passes(func);
+            is_model_quantized = LowPrecision::isFunctionQuantized(func);
+        }
+    }
+    enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
+
     {
         ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
@@ -395,9 +414,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::enable_constant_folding(node);
             ov::disable_keep_const_precision(node);
         }
-
-        auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
-        enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
 
         manager.register_pass<ov::pass::MarkDequantization>(
             std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
@@ -523,7 +539,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
         manager.register_pass<ov::pass::RMSFusion>(false, true);
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
-
+        manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
         const bool store_original_precision_as_rt_attribute = true;
@@ -1319,7 +1335,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
 
-        manager.register_pass<ov::intel_gpu::ConvertWeightCompressedConv1x1ToMatmul>();
+        manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
