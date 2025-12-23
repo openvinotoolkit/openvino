@@ -132,50 +132,50 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
             half z1 = convert_half(Z[zp_offset + 1]);
 
 #    if SUBGROUP_SIZE == 32
-            half2 sum0;
-            half2 sum1;
+            float2 sum0;
+            float2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1)), 0);
-            sum0.s0 = fma(a.s2, (convert_half(b.s2)), sum0.s0);
-            sum0.s1 = fma(a.s3, (convert_half(b.s3)), sum0.s1);
+            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
+            sum0.s0 = fma((float)a.s2, (float)(convert_half(b.s2)), sum0.s0);
+            sum0.s1 = fma((float)a.s3, (float)(convert_half(b.s3)), sum0.s1);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1)), 0);
-            sum1.s0 = fma(a.s2, (convert_half(b2.s2)), sum1.s0);
-            sum1.s1 = fma(a.s3, (convert_half(b2.s3)), sum1.s1);
+            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
+            sum1.s0 = fma((float)a.s2, (float)(convert_half(b2.s2)), sum1.s0);
+            sum1.s1 = fma((float)a.s3, (float)(convert_half(b2.s3)), sum1.s1);
 
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z1) * s1;
 #    else
-            half4 sum0;
-            half4 sum1;
+            float4 sum0;
+            float4 sum1;
             half8 a = as_half8(intel_sub_group_block_read_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar8 b = intel_sub_group_block_read_uc8((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar8 b2 = intel_sub_group_block_read_uc8((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1)), 0);
-            sum0.s2 = fma(a.s2, (convert_half(b.s2)), 0);
-            sum0.s3 = fma(a.s3, (convert_half(b.s3)), 0);
+            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
+            sum0.s2 = fma((float)a.s2, (float)(convert_half(b.s2)), 0.0f);
+            sum0.s3 = fma((float)a.s3, (float)(convert_half(b.s3)), 0.0f);
 
-            sum0.s0 = fma(a.s4, (convert_half(b.s4)), sum0.s0);
-            sum0.s1 = fma(a.s5, (convert_half(b.s5)), sum0.s1);
-            sum0.s2 = fma(a.s6, (convert_half(b.s6)), sum0.s2);
-            sum0.s3 = fma(a.s7, (convert_half(b.s7)), sum0.s3);
+            sum0.s0 = fma((float)a.s4, (float)(convert_half(b.s4)), sum0.s0);
+            sum0.s1 = fma((float)a.s5, (float)(convert_half(b.s5)), sum0.s1);
+            sum0.s2 = fma((float)a.s6, (float)(convert_half(b.s6)), sum0.s2);
+            sum0.s3 = fma((float)a.s7, (float)(convert_half(b.s7)), sum0.s3);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1)), 0);
-            sum1.s2 = fma(a.s2, (convert_half(b2.s2)), 0);
-            sum1.s3 = fma(a.s3, (convert_half(b2.s3)), 0);
+            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
+            sum1.s2 = fma((float)a.s2, (float)(convert_half(b2.s2)), 0.0f);
+            sum1.s3 = fma((float)a.s3, (float)(convert_half(b2.s3)), 0.0f);
 
-            sum1.s0 = fma(a.s4, (convert_half(b2.s4)), sum1.s0);
-            sum1.s1 = fma(a.s5, (convert_half(b2.s5)), sum1.s1);
-            sum1.s2 = fma(a.s6, (convert_half(b2.s6)), sum1.s2);
-            sum1.s3 = fma(a.s7, (convert_half(b2.s7)), sum1.s3);
+            sum1.s0 = fma((float)a.s4, (float)(convert_half(b2.s4)), sum1.s0);
+            sum1.s1 = fma((float)a.s5, (float)(convert_half(b2.s5)), sum1.s1);
+            sum1.s2 = fma((float)a.s6, (float)(convert_half(b2.s6)), sum1.s2);
+            sum1.s3 = fma((float)a.s7, (float)(convert_half(b2.s7)), sum1.s3);
 
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z1) * s1;
@@ -494,50 +494,50 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
             half z1 = convert_half(Z[zp_offset + 1]);
 
 #    if SUBGROUP_SIZE == 32
-            half2 sum0;
-            half2 sum1;
+            float2 sum0;
+            float2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)B + K + gk * FAKE_GROUP_SIZE);
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1)), 0);
-            sum0.s0 = fma(a.s2, (convert_half(b.s2)), sum0.s0);
-            sum0.s1 = fma(a.s3, (convert_half(b.s3)), sum0.s1);
+            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
+            sum0.s0 = fma((float)a.s2, (float)(convert_half(b.s2)), sum0.s0);
+            sum0.s1 = fma((float)a.s3, (float)(convert_half(b.s3)), sum0.s1);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1)), 0);
-            sum1.s0 = fma(a.s2, (convert_half(b2.s2)), sum1.s0);
-            sum1.s1 = fma(a.s3, (convert_half(b2.s3)), sum1.s1);
+            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
+            sum1.s0 = fma((float)a.s2, (float)(convert_half(b2.s2)), sum1.s0);
+            sum1.s1 = fma((float)a.s3, (float)(convert_half(b2.s3)), sum1.s1);
 
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z1) * s1;
 #    else
-            half4 sum0;
-            half4 sum1;
+            float4 sum0;
+            float4 sum1;
             half8 a = as_half8(intel_sub_group_block_read_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar8 b = intel_sub_group_block_read_uc8((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar8 b2 = intel_sub_group_block_read_uc8((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
-            sum0.s0 = fma(a.s0, (convert_half(b.s0)), 0);
-            sum0.s1 = fma(a.s1, (convert_half(b.s1)), 0);
-            sum0.s2 = fma(a.s2, (convert_half(b.s2)), 0);
-            sum0.s3 = fma(a.s3, (convert_half(b.s3)), 0);
+            sum0.s0 = fma((float)a.s0, (float)(convert_half(b.s0)), 0.0f);
+            sum0.s1 = fma((float)a.s1, (float)(convert_half(b.s1)), 0.0f);
+            sum0.s2 = fma((float)a.s2, (float)(convert_half(b.s2)), 0.0f);
+            sum0.s3 = fma((float)a.s3, (float)(convert_half(b.s3)), 0.0f);
 
-            sum0.s0 = fma(a.s4, (convert_half(b.s4)), sum0.s0);
-            sum0.s1 = fma(a.s5, (convert_half(b.s5)), sum0.s1);
-            sum0.s2 = fma(a.s6, (convert_half(b.s6)), sum0.s2);
-            sum0.s3 = fma(a.s7, (convert_half(b.s7)), sum0.s3);
+            sum0.s0 = fma((float)a.s4, (float)(convert_half(b.s4)), sum0.s0);
+            sum0.s1 = fma((float)a.s5, (float)(convert_half(b.s5)), sum0.s1);
+            sum0.s2 = fma((float)a.s6, (float)(convert_half(b.s6)), sum0.s2);
+            sum0.s3 = fma((float)a.s7, (float)(convert_half(b.s7)), sum0.s3);
 
-            sum1.s0 = fma(a.s0, (convert_half(b2.s0)), 0);
-            sum1.s1 = fma(a.s1, (convert_half(b2.s1)), 0);
-            sum1.s2 = fma(a.s2, (convert_half(b2.s2)), 0);
-            sum1.s3 = fma(a.s3, (convert_half(b2.s3)), 0);
+            sum1.s0 = fma((float)a.s0, (float)(convert_half(b2.s0)), 0.0f);
+            sum1.s1 = fma((float)a.s1, (float)(convert_half(b2.s1)), 0.0f);
+            sum1.s2 = fma((float)a.s2, (float)(convert_half(b2.s2)), 0.0f);
+            sum1.s3 = fma((float)a.s3, (float)(convert_half(b2.s3)), 0.0f);
 
-            sum1.s0 = fma(a.s4, (convert_half(b2.s4)), sum1.s0);
-            sum1.s1 = fma(a.s5, (convert_half(b2.s5)), sum1.s1);
-            sum1.s2 = fma(a.s6, (convert_half(b2.s6)), sum1.s2);
-            sum1.s3 = fma(a.s7, (convert_half(b2.s7)), sum1.s3);
+            sum1.s0 = fma((float)a.s4, (float)(convert_half(b2.s4)), sum1.s0);
+            sum1.s1 = fma((float)a.s5, (float)(convert_half(b2.s5)), sum1.s1);
+            sum1.s2 = fma((float)a.s6, (float)(convert_half(b2.s6)), sum1.s2);
+            sum1.s3 = fma((float)a.s7, (float)(convert_half(b2.s7)), sum1.s3);
 
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z0) * s0;
             sum_all1 += (sum1[0] + sum1[1] + sum1[2] + sum1[3] - xg_sum[gk] * z1) * s1;
