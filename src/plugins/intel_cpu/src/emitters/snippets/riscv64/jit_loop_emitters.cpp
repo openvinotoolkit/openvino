@@ -36,8 +36,11 @@ using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 static constexpr ptrdiff_t btype_min_disp = -(1 << 12);
 static constexpr ptrdiff_t btype_max_disp = (1 << 12) - 2;
 
-static bool is_valid_btype_disp(ptrdiff_t disp) {
-    return (disp & 1) == 0 && disp >= btype_min_disp && disp <= btype_max_disp;
+// RISC-V B-type branches encode a signed 12-bit immediate with 2-byte granularity, i.e. valid target offsets are
+// even and fall within [-4096, +4094]. Use this helper to decide whether we can emit a short branch or need a long jump
+// sequence when the loop body grows too large.
+static bool is_valid_btype_offset(ptrdiff_t offset) {
+    return (offset & 1) == 0 && offset >= btype_min_disp && offset <= btype_max_disp;
 }
 
 /* ================== jit_loop_begin_emitter ====================== */
@@ -239,8 +242,8 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
         // if reg_work_amount >= wa_increment -> loop
         const auto* from = h->getCurr();
         const auto* to = loop_begin_label->getAddress();
-        const ptrdiff_t disp = to - from;
-        if (is_valid_btype_disp(disp)) {
+        const ptrdiff_t offset = to - from;
+        if (is_valid_btype_offset(offset)) {
             h->bge(reg_work_amount, reg_inc, *loop_begin_label);
         } else {
             // Use a long jump for the backward edge to avoid B-type range limitations when the loop body is large.
