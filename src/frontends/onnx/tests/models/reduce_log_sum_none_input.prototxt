@@ -1,0 +1,49 @@
+ir_version: 12
+producer_name: "ort_ep_utils::OrtGraphToProto"
+graph {
+  name: "ovep_execute_graph"
+  node {
+    input: "datain"
+    input: "axes"
+    output: "reduceLogSumExpOutput_0"
+    name: "ReduceLogSumExpNode"
+    op_type: "ReduceLogSumExp"
+    attribute {
+      name: "keepdims"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "noop_with_empty_axes"
+      i: 1
+      type: INT
+    }
+    domain: ""
+  }
+  initializer {
+    dims: 0
+    data_type: 7
+    name: "axes"
+    raw_data: ""
+    data_location: DEFAULT
+  }
+  initializer {
+    data_type: 1
+    name: "datain"
+    float_data: 0.7971231937408447
+    data_location: DEFAULT
+  }
+  output {
+    name: "reduceLogSumExpOutput_0"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 18
+}

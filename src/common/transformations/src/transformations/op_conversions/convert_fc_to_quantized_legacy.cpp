@@ -45,7 +45,7 @@ ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
         const auto& multiply_output_shape = multiply.get_partial_shape();
 
         if (*fc_output_shape.rbegin() != *multiply_output_shape.rbegin() ||
-            !ov::op::util::is_on_constant_path(weights)) {
+            !ov::op::util::is_on_path<ov::op::v0::Constant>(weights)) {
             return false;
         }
 

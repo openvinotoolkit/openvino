@@ -413,7 +413,7 @@ Example:
 
     <!-- E###### -->
     <skip_config>
-        <message>Other devices than NPU doesn't allow to set NPU properties with OV1.0 and CACHE_DIR + MLIR is not supported</message>
+        <message>Other devices than NPU doesn't allow to set NPU properties with OV1.0 and CACHE_DIR + PLUGIN is not supported</message>
         <filters>
             <filter>.*smoke_AutoBatch_BehaviorTests/CorrectConfigTests.*</filter>
         </filters>
@@ -608,12 +608,11 @@ Example:
 
     <!-- E#112064 -->
     <skip_config>
-        <message>Failing common core threading tests</message>
+        <message>INFERENCE_PRECISION_HINT = FP32 not supported on NPU</message>
         <enable_rules>
             <backend>LEVEL0</backend>
         </enable_rules>
         <filters>
-            <!-- INFERENCE_PRECISION_HINT = FP32 not supported on NPU -->
             <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_SingleCore.*</filter>
             <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_MultipleCores.*</filter>
         </filters>
@@ -788,18 +787,7 @@ Example:
         <message>Only "developer built" compilers support weights separation</message>
         <filters>
             <filter>.*WeightsSeparationTests.*</filter>
-            <filter>.*WeightsSeparationNotSupportedTests.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- C#165445 -->
-    <skip_config>
-        <message>OVBlobCompatibilityNPU tests designed for NPU3720</message>
-        <enable_rules>
-            <device>!3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*OVBlobCompatibilityNPU.*</filter>
+            <filter>.*WeightsSeparationIterativeTests.*</filter>
         </filters>
     </skip_config>
 

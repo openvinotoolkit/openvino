@@ -183,7 +183,7 @@ inline void scale_add_reduce_max(float* a, const float scale, const float* b, co
 #endif
 }
 
-template <bool has_alibi, bool has_attn_mask, bool has_causal_mask, typename T>
+template <bool has_alibi, bool has_attn_mask, bool has_causal_mask, bool has_sparse_mask, typename T>
 inline void scale_add2_reduce_max(float* a,
                                   float scale,
                                   const float* alibi_lookup,
@@ -192,7 +192,24 @@ inline void scale_add2_reduce_max(float* a,
                                   bool select_nfltmax_at_0,  // true:  0 in mask set -FLT_MAX
                                   size_t size,
                                   float alibi_slope,
-                                  float& max) {
+                                  float& max,
+                                  const uint8_t* sparse_mask,
+                                  size_t sparse_block_size) {
+    // Check sparse_block_size is a multiple of vector length for correct sparse_mask indexing
+#if defined(HAVE_AVX512F)
+    constexpr size_t vec_len = vec_len_f32_avx512;
+#elif defined(HAVE_AVX2)
+    constexpr size_t vec_len = vec_len_f32_avx2;
+#elif defined(OPENVINO_ARCH_ARM64)
+    constexpr size_t vec_len = vec_len_f32_neon;
+#else
+    constexpr size_t vec_len = 1;
+#endif
+    if (has_sparse_mask && (sparse_block_size % vec_len != 0)) {
+        OPENVINO_THROW("sparse_block_size must be a multiple of vector length (",
+                       vec_len,
+                       ") for correct sparse_mask indexing");
+    }
     OPENVINO_ASSERT(ov::intel_cpu::implication(has_alibi, alibi_lookup), "CPU: alibi_lookup should not be nullptr.");
     OPENVINO_ASSERT(ov::intel_cpu::implication(has_attn_mask, attn_mask), "CPU: attn_mask should not be nullptr.");
     OPENVINO_ASSERT(ov::intel_cpu::implication(has_causal_mask, causal_mask),
@@ -222,6 +239,12 @@ inline void scale_add2_reduce_max(float* a,
         if (has_attn_mask) {                                                                                 \
             auto v_mask = mm512_uni_loadu_ps(attn_mask + i + n * vec_len_f32_avx512);                        \
             v_a = _mm512_add_ps(v_a, v_mask);                                                                \
+        }                                                                                                    \
+        if (has_sparse_mask) {                                                                               \
+            size_t mask_idx = (i + n * vec_len_f32_avx512) / sparse_block_size;                              \
+            uint8_t mask_val = sparse_mask[mask_idx];                                                        \
+            __m512 v_mask_block = _mm512_set1_ps(mask_val ? 0.f : -FLT_MAX);                                 \
+            v_a = _mm512_add_ps(v_a, v_mask_block);                                                          \
         }                                                                                                    \
         if (has_causal_mask) {                                                                               \
             auto v_maski8 =                                                                                  \
@@ -254,6 +277,13 @@ inline void scale_add2_reduce_max(float* a,
             v_a = _mm512_add_ps(v_a, v_mask);
         }
 
+        if (has_sparse_mask) {
+            size_t mask_idx = i / sparse_block_size;
+            uint8_t mask_val = sparse_mask[mask_idx];
+            __m512 v_mask_block = _mm512_set1_ps(mask_val ? 0.f : -FLT_MAX);
+            v_a = _mm512_add_ps(v_a, v_mask_block);
+        }
+
         if (has_causal_mask) {
             auto v_maski8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(causal_mask + i));
             auto v_maski32 = _mm512_cvtepi8_epi32(v_maski8);
@@ -280,6 +310,13 @@ inline void scale_add2_reduce_max(float* a,
         if (has_attn_mask) {
             auto v_mask = mm512_uni_loadu_tail_ps(attn_mask + i, size - i);
             v_a = _mm512_add_ps(v_a, v_mask);
+        }
+
+        if (has_sparse_mask) {
+            size_t mask_idx = i / sparse_block_size;
+            uint8_t mask_val = sparse_mask[mask_idx];
+            __m512 v_mask_block = _mm512_set1_ps(mask_val ? 0.f : -FLT_MAX);
+            v_a = _mm512_add_ps(v_a, v_mask_block);
         }
 
         if (has_causal_mask) {
@@ -324,6 +361,12 @@ inline void scale_add2_reduce_max(float* a,
             auto v_mask = mm256_uni_loadu_ps(attn_mask + i + n * vec_len_f32_avx2);                                    \
             v_a = _mm256_add_ps(v_a, v_mask);                                                                          \
         }                                                                                                              \
+        if (has_sparse_mask) {                                                                                         \
+            size_t mask_idx = (i + n * vec_len_f32_avx2) / sparse_block_size;                                          \
+            uint8_t mask_val = sparse_mask[mask_idx];                                                                  \
+            __m256 v_mask_block = _mm256_set1_ps(mask_val ? 0.f : -FLT_MAX);                                           \
+            v_a = _mm256_add_ps(v_a, v_mask_block);                                                                    \
+        }                                                                                                              \
         if (has_causal_mask) {                                                                                         \
             auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i + n * vec_len_f32_avx2)); \
             auto v_maski32 = _mm256_cvtepi8_epi32(v_maski8);                                                           \
@@ -355,6 +398,13 @@ inline void scale_add2_reduce_max(float* a,
             v_a = _mm256_add_ps(v_a, v_mask);
         }
 
+        if (has_sparse_mask) {
+            size_t mask_idx = i / sparse_block_size;
+            uint8_t mask_val = sparse_mask[mask_idx];
+            __m256 v_mask_block = _mm256_set1_ps(mask_val ? 0.f : -FLT_MAX);
+            v_a = _mm256_add_ps(v_a, v_mask_block);
+        }
+
         if (has_causal_mask) {
             auto v_maski8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(causal_mask + i));
             auto v_maski32 = _mm256_cvtepi8_epi32(v_maski8);
@@ -382,6 +432,13 @@ inline void scale_add2_reduce_max(float* a,
         if (has_attn_mask) {
             auto v_mask = mm256_uni_loadu_tail_ps(attn_mask + i, size - i);
             v_a = _mm256_add_ps(v_a, v_mask);
+        }
+
+        if (has_sparse_mask) {
+            size_t mask_idx = i / sparse_block_size;
+            uint8_t mask_val = sparse_mask[mask_idx];
+            __m256 v_mask_block = _mm256_set1_ps(mask_val ? 0.f : -FLT_MAX);
+            v_a = _mm256_add_ps(v_a, v_mask_block);
         }
 
         if (has_causal_mask) {
@@ -425,6 +482,13 @@ inline void scale_add2_reduce_max(float* a,
             v_a = vaddq_f32(v_a, v_mask);
         }
 
+        if (has_sparse_mask) {
+            size_t mask_idx = i / sparse_block_size;
+            uint8_t mask_val = sparse_mask[mask_idx];
+            float32x4_t v_mask_block = vdupq_n_f32(mask_val ? 0.f : -FLT_MAX);
+            v_a = vaddq_f32(v_a, v_mask_block);
+        }
+
         if (has_causal_mask) {
             uint8x16_t v_maski8 = vld1q_u8(causal_mask + i);
             uint16x8_t v_maski16 = vmovl_u8(vget_low_u8(v_maski8));
@@ -452,6 +516,12 @@ inline void scale_add2_reduce_max(float* a,
 
         if (has_attn_mask) {
             a[i] += attn_mask[i];
+        }
+
+        if (has_sparse_mask) {
+            size_t mask_idx = i / sparse_block_size;
+            uint8_t mask_val = sparse_mask[mask_idx];
+            a[i] += (mask_val ? 0.f : -FLT_MAX);
         }
 
         if (has_causal_mask) {
@@ -1074,8 +1144,9 @@ inline void attn_softmax_kernel(T* a,
                                 ov::element::Type attn_mask_prec,
                                 ov::element::Type dst_precision,
                                 const float* sink,
-                                float alibi_slope = 0);
-
+                                float alibi_slope = 0,
+                                uint8_t* sparse_mask = nullptr,
+                                size_t sparse_block_size = 1);
 template <>
 inline void attn_softmax_kernel<float>(float* a,
                                        void* a_dst,
@@ -1089,38 +1160,92 @@ inline void attn_softmax_kernel<float>(float* a,
                                        ov::element::Type attn_mask_prec,
                                        ov::element::Type dst_precision,
                                        const float* sink,
-                                       float alibi_slope) {
-    using func_fp32_type =
-        void (*)(float*, float, const float*, const float*, const uint8_t*, bool, size_t, float, float&);
-    using func_bf16_type =
-        void (*)(float*, float, const float*, const ov::bfloat16*, const uint8_t*, bool, size_t, float, float&);
-    using func_f16_type =
-        void (*)(float*, float, const float*, const ov::float16*, const uint8_t*, bool, size_t, float, float&);
-    static constexpr func_fp32_type funcs_fp32[] = {scale_add2_reduce_max<false, false, false>,
-                                                    scale_add2_reduce_max<false, false, true>,
-                                                    scale_add2_reduce_max<false, true, false>,
-                                                    scale_add2_reduce_max<false, true, true>,
-                                                    scale_add2_reduce_max<true, false, false>,
-                                                    scale_add2_reduce_max<true, false, true>,
-                                                    scale_add2_reduce_max<true, true, false>,
-                                                    scale_add2_reduce_max<true, true, true>};
-    static constexpr func_bf16_type funcs_bf16[] = {scale_add2_reduce_max<false, false, false>,
-                                                    scale_add2_reduce_max<false, false, true>,
-                                                    scale_add2_reduce_max<false, true, false>,
-                                                    scale_add2_reduce_max<false, true, true>,
-                                                    scale_add2_reduce_max<true, false, false>,
-                                                    scale_add2_reduce_max<true, false, true>,
-                                                    scale_add2_reduce_max<true, true, false>,
-                                                    scale_add2_reduce_max<true, true, true>};
-    static constexpr func_f16_type funcs_f16[] = {scale_add2_reduce_max<false, false, false>,
-                                                  scale_add2_reduce_max<false, false, true>,
-                                                  scale_add2_reduce_max<false, true, false>,
-                                                  scale_add2_reduce_max<false, true, true>,
-                                                  scale_add2_reduce_max<true, false, false>,
-                                                  scale_add2_reduce_max<true, false, true>,
-                                                  scale_add2_reduce_max<true, true, false>,
-                                                  scale_add2_reduce_max<true, true, true>};
-    int dispatch = (alibi ? 0b100 : 0) | (attn_mask ? 0b010 : 0) | (causal_mask ? 0b001 : 0);
+                                       float alibi_slope,
+                                       uint8_t* sparse_mask,
+                                       size_t sparse_block_size) {
+    using func_fp32_type = void (*)(float*,
+                                    float,
+                                    const float*,
+                                    const float*,
+                                    const uint8_t*,
+                                    bool,
+                                    size_t,
+                                    float,
+                                    float&,
+                                    const uint8_t*,
+                                    size_t);
+    using func_bf16_type = void (*)(float*,
+                                    float,
+                                    const float*,
+                                    const ov::bfloat16*,
+                                    const uint8_t*,
+                                    bool,
+                                    size_t,
+                                    float,
+                                    float&,
+                                    const uint8_t*,
+                                    size_t);
+    using func_f16_type = void (*)(float*,
+                                   float,
+                                   const float*,
+                                   const ov::float16*,
+                                   const uint8_t*,
+                                   bool,
+                                   size_t,
+                                   float,
+                                   float&,
+                                   const uint8_t*,
+                                   size_t);
+    static constexpr func_fp32_type funcs_fp32[] = {scale_add2_reduce_max<false, false, false, false>,
+                                                    scale_add2_reduce_max<false, false, true, false>,
+                                                    scale_add2_reduce_max<false, true, false, false>,
+                                                    scale_add2_reduce_max<false, true, true, false>,
+                                                    scale_add2_reduce_max<true, false, false, false>,
+                                                    scale_add2_reduce_max<true, false, true, false>,
+                                                    scale_add2_reduce_max<true, true, false, false>,
+                                                    scale_add2_reduce_max<true, true, true, false>,
+                                                    scale_add2_reduce_max<false, false, false, true>,
+                                                    scale_add2_reduce_max<false, false, true, true>,
+                                                    scale_add2_reduce_max<false, true, false, true>,
+                                                    scale_add2_reduce_max<false, true, true, true>,
+                                                    scale_add2_reduce_max<true, false, false, true>,
+                                                    scale_add2_reduce_max<true, false, true, true>,
+                                                    scale_add2_reduce_max<true, true, false, true>,
+                                                    scale_add2_reduce_max<true, true, true, true>};
+    static constexpr func_bf16_type funcs_bf16[] = {scale_add2_reduce_max<false, false, false, false>,
+                                                    scale_add2_reduce_max<false, false, true, false>,
+                                                    scale_add2_reduce_max<false, true, false, false>,
+                                                    scale_add2_reduce_max<false, true, true, false>,
+                                                    scale_add2_reduce_max<true, false, false, false>,
+                                                    scale_add2_reduce_max<true, false, true, false>,
+                                                    scale_add2_reduce_max<true, true, false, false>,
+                                                    scale_add2_reduce_max<true, true, true, false>,
+                                                    scale_add2_reduce_max<false, false, false, true>,
+                                                    scale_add2_reduce_max<false, false, true, true>,
+                                                    scale_add2_reduce_max<false, true, false, true>,
+                                                    scale_add2_reduce_max<false, true, true, true>,
+                                                    scale_add2_reduce_max<true, false, false, true>,
+                                                    scale_add2_reduce_max<true, false, true, true>,
+                                                    scale_add2_reduce_max<true, true, false, true>,
+                                                    scale_add2_reduce_max<true, true, true, true>};
+    static constexpr func_f16_type funcs_f16[] = {scale_add2_reduce_max<false, false, false, false>,
+                                                  scale_add2_reduce_max<false, false, true, false>,
+                                                  scale_add2_reduce_max<false, true, false, false>,
+                                                  scale_add2_reduce_max<false, true, true, false>,
+                                                  scale_add2_reduce_max<true, false, false, false>,
+                                                  scale_add2_reduce_max<true, false, true, false>,
+                                                  scale_add2_reduce_max<true, true, false, false>,
+                                                  scale_add2_reduce_max<true, true, true, false>,
+                                                  scale_add2_reduce_max<false, false, false, true>,
+                                                  scale_add2_reduce_max<false, false, true, true>,
+                                                  scale_add2_reduce_max<false, true, false, true>,
+                                                  scale_add2_reduce_max<false, true, true, true>,
+                                                  scale_add2_reduce_max<true, false, false, true>,
+                                                  scale_add2_reduce_max<true, false, true, true>,
+                                                  scale_add2_reduce_max<true, true, false, true>,
+                                                  scale_add2_reduce_max<true, true, true, true>};
+    int dispatch =
+        (alibi ? 0b100 : 0) | (attn_mask ? 0b010 : 0) | (causal_mask ? 0b001 : 0) | (sparse_mask ? 0b1000 : 0);
     float max = std::numeric_limits<float>::lowest();
     if (attn_mask_prec == ov::element::f32) {
         funcs_fp32[dispatch](a,
@@ -1131,7 +1256,9 @@ inline void attn_softmax_kernel<float>(float* a,
                              select_nfltmax_at_0,
                              len,
                              alibi_slope,
-                             max);
+                             max,
+                             sparse_mask,
+                             sparse_block_size);
     } else if (attn_mask_prec == ov::element::bf16) {
         funcs_bf16[dispatch](a,
                              scale,
@@ -1141,7 +1268,9 @@ inline void attn_softmax_kernel<float>(float* a,
                              select_nfltmax_at_0,
                              len,
                              alibi_slope,
-                             max);
+                             max,
+                             sparse_mask,
+                             sparse_block_size);
     } else {
         funcs_f16[dispatch](a,
                             scale,
@@ -1151,7 +1280,9 @@ inline void attn_softmax_kernel<float>(float* a,
                             select_nfltmax_at_0,
                             len,
                             alibi_slope,
-                            max);
+                            max,
+                            sparse_mask,
+                            sparse_block_size);
     }
 
     float sum = 0.0f;
@@ -1199,7 +1330,9 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                              ov::element::Type attn_mask_prec,
                                              ov::element::Type dst_precision,
                                              const float* sink,
-                                             float alibi_slope) {
+                                             float alibi_slope,
+                                             [[maybe_unused]] uint8_t* sparse_mask,
+                                             [[maybe_unused]] size_t sparse_block_size) {
     using func_fp32_type = void (*)(ov::float16*,
                                     float,
                                     const ov::float16*,

@@ -12,6 +12,7 @@ namespace ov {
 namespace test {
 
 namespace {
+using namespace ov::test::utils;
 
 const ov::AnyMap enable_dyn_quant_config_kleidiai = {ov::hint::dynamic_quantization_group_size(UINT64_MAX)};
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};

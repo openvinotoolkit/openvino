@@ -548,7 +548,7 @@ class Core:
     """
     openvino.Core class represents OpenVINO runtime Core entity. User applications can create several Core class instances, but in this case, the underlying plugins are created multiple times and not shared between several Core instances. The recommended way is to have a single Core instance per application.
     """
-    def __init__(self, xml_config_file: str = '') -> None:
+    def __init__(self, xml_config_file: typing.Any = '') -> None:
         ...
     def __repr__(self) -> str:
         ...
@@ -766,6 +766,24 @@ class Core:
                         :return: Plugin version information.
                         :rtype: dict[str, openvino.Version]
         """
+    @typing.overload
+    def import_model(self, tensor: Tensor, device_name: str, properties: collections.abc.Mapping[str, typing.Any]) -> CompiledModel:
+        """
+                    Imports a compiled model from a previously exported one.
+        
+                    GIL is released while running this function.
+        
+                    :param compiled_blob: ov::Tensor input blob containing a model previously exported using the ov::CompiledModel::export_model method.
+                    :type compiled_blob: openvino.Tensor
+                    :param device_name: Name of device to which compiled model is imported.
+                                        Note: if device_name is not used to compile the original model, an exception is thrown.
+                    :type device_name: str
+                    :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
+                    :type properties: dict[str, typing.Any], optional
+                    :return: A compiled model.
+                    :rtype: openvino.CompiledModel
+        """
+    @typing.overload
     def import_model(self, model_stream: typing.Any, device_name: str, properties: collections.abc.Mapping[str, typing.Any]) -> CompiledModel:
         """
                     Imports a compiled model from a previously exported one.
@@ -887,41 +905,27 @@ class Core:
                     :return: A model.
                     :rtype: openvino.Model
         """
-    @typing.overload
-    def register_plugin(self, plugin_name: str, device_name: str) -> None:
+    def register_plugin(self, plugin: typing.Any, device_name: str, config: collections.abc.Mapping[str, typing.Any] = {}) -> None:
         """
                         Register a new device and plugin which enable this device inside OpenVINO Runtime.
         
-                        :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
+                        :param plugin: A path (absolute or relative) or name of a plugin. Depending on platform,
                                             `plugin_name` is wrapped with shared library suffix and prefix to identify
                                             library full name E.g. on Linux platform plugin name specified as `plugin_name`
                                             will be wrapped as `libplugin_name.so`.
-                        :type plugin_name: str
-                        :param device_name: A device name to register plugin for.
-                        :type device_name: str
-        """
-    @typing.overload
-    def register_plugin(self, plugin_name: str, device_name: str, config: collections.abc.Mapping[str, typing.Any]) -> None:
-        """
-                        Register a new device and plugin which enable this device inside OpenVINO Runtime.
-        
-                        :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
-                                            `plugin_name` is wrapped with shared library suffix and prefix to identify
-                                            library full name E.g. on Linux platform plugin name specified as `plugin_name`
-                                            will be wrapped as `libplugin_name.so`.
-                        :type plugin_name: str
+                        :type plugin: Union[str, bytes, pathlib.Path]
                         :param device_name: A device name to register plugin for.
                         :type device_name: str
                         :param config: Plugin default configuration
                         :type config: dict[str, typing.Any], optional
         """
-    def register_plugins(self, xml_config_file: str) -> None:
+    def register_plugins(self, xml_config_file: typing.Any) -> None:
         """
                         Registers a device plugin to OpenVINO Runtime Core instance using XML configuration
                         file with plugins description.
         
                         :param xml_config_file: A path to .xml file with plugins to register.
-                        :type xml_config_file: str
+                        :type xml_config_file: Union[str, bytes, pathlib.Path]
         """
     @typing.overload
     def set_property(self, properties: collections.abc.Mapping[str, typing.Any]) -> None:
@@ -5012,7 +5016,6 @@ class Type:
     u4: typing.ClassVar[Type]  # value = <Type: 'uint4_t'>
     u64: typing.ClassVar[Type]  # value = <Type: 'uint64_t'>
     u8: typing.ClassVar[Type]  # value = <Type: 'uint8_t'>
-    undefined: typing.ClassVar[Type]  # value = <Type: 'dynamic'>
     def __eq__(self, arg0: Type) -> bool:
         ...
     def __hash__(self) -> int:

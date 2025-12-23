@@ -218,6 +218,7 @@ Data as of OpenVINO 2024.4, 18 Oct. 2024.
        ScatterElements
        ScatterND
        Selu
+       SequenceAt
        Shape
        Shrink
        Sigmoid
@@ -231,6 +232,7 @@ Data as of OpenVINO 2024.4, 18 Oct. 2024.
        Softsign
        SpaceToDepth
        Split
+       SplitToSequence
        Sqrt
        Squeeze
        STFT

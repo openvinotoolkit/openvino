@@ -52,6 +52,11 @@ public:
      */
     void set_property(const ov::AnyMap& properties);
 
+    /**
+     * @brief Checks whether a property was registered by its name
+     */
+    bool isPropertyRegistered(const std::string& propertyName) const;
+
 private:
     PropertiesType _pType;
     FilteredConfig& _config;
@@ -91,6 +96,7 @@ private:
         ov::intel_npu::npuw::partitioning::online::min_size.name(),
         ov::intel_npu::npuw::partitioning::online::keep_blocks.name(),
         ov::intel_npu::npuw::partitioning::online::keep_block_size.name(),
+        ov::intel_npu::npuw::partitioning::attn.name(),
         ov::intel_npu::npuw::partitioning::fold.name(),
         ov::intel_npu::npuw::partitioning::cwai.name(),
         ov::intel_npu::npuw::partitioning::dyn_quant.name(),
@@ -116,6 +122,7 @@ private:
         ov::intel_npu::npuw::llm::min_response_len.name(),
         ov::intel_npu::npuw::llm::optimize_v_tensors.name(),
         ov::intel_npu::npuw::llm::cache_rope.name(),
+        ov::intel_npu::npuw::llm::generate_pyramid.name(),
         ov::intel_npu::npuw::llm::prefill_chunk_size.name(),
         ov::intel_npu::npuw::llm::shared_lm_head.name(),
         ov::intel_npu::npuw::llm::max_lora_rank.name(),
@@ -131,7 +138,8 @@ private:
         ov::intel_npu::npuw::llm::additional_generate_config.name(),
         ov::intel_npu::npuw::llm::generate_attn_hint.name(),
         ov::intel_npu::npuw::llm::shared_lm_head_config.name(),
-        ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name()};
+        ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name(),
+        ov::intel_npu::npuw::eagle::enabled.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name(),

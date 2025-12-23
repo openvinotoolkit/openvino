@@ -82,7 +82,7 @@ def make_custom_op_class(func: Callable,
     global global_counter_id
 
     class InlinedCustomOp(ov.Op):  # type: ignore
-        class_type_info = ov.runtime.DiscreteTypeInfo(
+        class_type_info = ov.DiscreteTypeInfo(
             "InlinedCustomOp", "extension")
 
         def __init__(self, *args: Any) -> None:

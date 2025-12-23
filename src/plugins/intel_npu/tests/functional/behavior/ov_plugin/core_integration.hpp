@@ -16,6 +16,7 @@
 #include "common_test_utils/subgraph_builders/kso_func.hpp"
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
@@ -265,6 +266,41 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeSameAfterDestroyCom
                                core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
         deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
         ASSERT_EQ(deviceAllocMemSize, deviceAllocMemSizeFinal) << " at iteration " << i;
+    }
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeSameAfterDestroyCompiledModelWithTurboAndSeqRun) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getCommandQueueDdiTable().version() >
+        ZE_MAKE_VERSION(1, 0)) {
+        ov::Core core;
+        ov::Any deviceAllocMemSizeAny;
+        ov::AnyMap configuration;
+
+        configuration[intel_npu::turbo.name()] = true;
+        configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+
+        auto model = createModelWithLargeSize();
+
+        OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                               core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+        uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
+        uint64_t deviceAllocMemSizeFinal;
+
+        for (size_t i = 0; i < 10; ++i) {
+            ov::CompiledModel compiledModel;
+            OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device, configuration));
+
+            compiledModel = {};
+
+            OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                                   core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+            deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
+            ASSERT_EQ(deviceAllocMemSize, deviceAllocMemSizeFinal) << " at iteration " << i;
+        }
+    } else {
+        GTEST_SKIP() << "Test is skipped due to driver version";
     }
 }
 

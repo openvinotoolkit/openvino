@@ -89,10 +89,16 @@ void jit_rotary_kernel<isa>::rotary_half(size_t step) {
     vfmsub231ps(vmm_dst0, vmm_cos, vmm_src0);
     store(reg_dst, vmm_dst0, m_jcp.dst_prc, step);
 
-    // cos[i + halfRotaryNdims]
-    load(vmm_cos, reg_cos, ov::element::f32, step, false, half_rotary_ndims * sizeof(float));
-    // sin[i + halfRotaryNdims]
-    load(vmm_sin, reg_sin, ov::element::f32, step, false, half_rotary_ndims * sizeof(float));
+    // cos[i + sin_cos_offset]
+    // if con/sin table is not same size with input, it is reused for both halves.
+    const bool shift_cos_sin = m_jcp.cos_sin_ndims != half_rotary_ndims;
+    if (shift_cos_sin) {
+        load(vmm_cos, reg_cos, ov::element::f32, step, false, half_rotary_ndims * sizeof(float));
+    }
+    // sin[i + sin_cos_offset]
+    if (shift_cos_sin) {
+        load(vmm_sin, reg_sin, ov::element::f32, step, false, half_rotary_ndims * sizeof(float));
+    }
     // cos[i + half_rotary_dims] * src1
     uni_vmulps(vmm_dst0, vmm_cos, vmm_src1);
     // cos[i + half_rotary_dims] * src1 + sin[i + half_rotary_dims] * src0

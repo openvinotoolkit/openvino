@@ -348,7 +348,7 @@ std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::st
     if (m_tensors.count(name) == 0) {
         if (name == empty_name) {
             *owner = this;
-            const auto& tensor_decoder = std::make_shared<DecoderProtoTensor>(empty_name, this, -1, -1);
+            const auto& tensor_decoder = std::make_shared<DecoderProtoTensor>(empty_name, this);
             m_tensors[empty_name] = tensor_decoder;
             return tensor_decoder;
         }
@@ -374,8 +374,19 @@ void GraphIteratorProto::reset() {
         return;
     m_decoders.reserve(m_graph->initializer_size() + m_graph->input_size() + m_graph->output_size() +
                        m_graph->node_size());
+    int64_t index = 0;
     for (const auto& value : m_graph->input()) {
-        auto tensor = std::make_shared<DecoderProtoTensor>(&value, this, 0, -1);
+        const auto& initializer = std::find_if(m_graph->initializer().begin(),
+                                               m_graph->initializer().end(),
+                                               [&value](const TensorProto& tensor) {
+                                                   return tensor.has_name() && tensor.name() == value.name();
+                                               });
+        std::shared_ptr<DecoderProtoTensor> tensor;
+        if (initializer == m_graph->initializer().end()) {
+            tensor = std::make_shared<DecoderProtoTensor>(&value, this, index++, -1);
+        } else {
+            tensor = std::make_shared<DecoderProtoTensor>(&*initializer, this);
+        }
         m_decoders.push_back(tensor);
         const auto& t_name = *tensor->get_tensor_info().m_tensor_name;
         if (m_tensors.count(t_name) > 0) {
@@ -383,8 +394,9 @@ void GraphIteratorProto::reset() {
         }
         m_tensors.emplace(t_name, tensor);
     }
+    index = 0;
     for (const auto& value : m_graph->output()) {
-        auto tensor = std::make_shared<DecoderProtoTensor>(&value, this, -1, 0);
+        auto tensor = std::make_shared<DecoderProtoTensor>(&value, this, -1, index++);
         m_decoders.push_back(tensor);
         const auto& t_name = *tensor->get_tensor_info().m_tensor_name;
         if (m_tensors.count(t_name) == 0) {
@@ -500,6 +512,20 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
     }
 
     return -1;
+}
+
+std::map<std::string, std::string> GraphIteratorProto::get_metadata() const {
+    std::map<std::string, std::string> metadata;
+
+    if (!m_model) {
+        return metadata;
+    }
+
+    const auto& model_metadata = m_model->metadata_props();
+    for (const auto& prop : model_metadata) {
+        metadata.emplace(prop.key(), prop.value());
+    }
+    return metadata;
 }
 
 namespace detail {
