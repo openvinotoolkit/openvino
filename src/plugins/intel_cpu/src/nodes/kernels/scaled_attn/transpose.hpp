@@ -77,16 +77,16 @@ template <typename T,
           typename std::enable_if<any_of(SRC_PREC, ov::element::bf16, ov::element::f16) &&
                                       (SRC_PREC == precision_of<T>::value),
                                   bool>::type = true>
-static void transpose_16NxK(T* dst,
-                            T* src,
-                            T* tmp,
-                            const size_t N,
-                            const size_t K,
-                            const size_t block_size,
-                            const size_t dst_stride,
-                            const size_t src_stride,
-                            const size_t group_size,
-                            const bool quant_key_bychannel) {
+void transpose_16NxK(T* dst,
+                     T* src,
+                     T* tmp,
+                     const size_t N,
+                     const size_t K,
+                     const size_t block_size,
+                     const size_t dst_stride,
+                     const size_t src_stride,
+                     const size_t group_size,
+                     const bool quant_key_bychannel) {
     // will treat as uint32_t transpose
     auto s = reinterpret_cast<uint32_t*>(src);
     auto d = reinterpret_cast<uint32_t*>(dst);
