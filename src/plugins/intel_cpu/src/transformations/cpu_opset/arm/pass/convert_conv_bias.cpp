@@ -44,12 +44,13 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
     });
     auto add_m = pattern::wrap_type<ov::op::v1::Add>({conv_m, bias_const_m});
     auto multiply_m = pattern::wrap_type<ov::op::v1::Multiply>({add_m, pattern::any_input()});
-    auto fakeQuantize = pattern::wrap_type<ov::op::v0::FakeQuantize>({multiply_m,
-                                                                      pass::pattern::any_input(),
-                                                                      pass::pattern::any_input(),
-                                                                      pass::pattern::any_input(),
-                                                                      pass::pattern::any_input()},
-                                                                      pattern::type_matches_any({element::i8, element::u8}));
+    auto fakeQuantize =
+        pattern::wrap_type<ov::op::v0::FakeQuantize>({multiply_m,
+                                                      pass::pattern::any_input(),
+                                                      pass::pattern::any_input(),
+                                                      pass::pattern::any_input(),
+                                                      pass::pattern::any_input()},
+                                                     pattern::type_matches_any({element::i8, element::u8}));
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto fakeQuantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(m.get_match_root());

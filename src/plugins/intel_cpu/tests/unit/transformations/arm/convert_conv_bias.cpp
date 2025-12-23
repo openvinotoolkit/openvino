@@ -13,6 +13,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/round.hpp"
@@ -62,10 +63,28 @@ static std::shared_ptr<ov::Node> createAdd(const ov::Output<ov::Node>& input1,
     }
 }
 
-// Pattern: Input -> Convolution -> Add(bias) -> Multiply -> Result
+static std::shared_ptr<ov::op::v0::FakeQuantize> createFakeQuantize(const ov::Output<ov::Node>& input,
+                                                                    ov::element::Type input_type,
+                                                                    size_t levels = 256) {
+    auto ranges = input_type == ov::element::i8 ? std::vector<float>{-128.0f, 127.0f, -128.0f, 127.0f}
+                                        : std::vector<float>{0.0f, 255.0f, 0.0f, 255.0f};
+    auto input_low = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, ranges[0]);
+    auto input_high = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, ranges[1]);
+    auto output_low = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, ranges[2]);
+    auto output_high = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, ranges[3]);
+    return std::make_shared<ov::op::v0::FakeQuantize>(input,
+                                                      input_low,
+                                                      input_high,
+                                                      output_low,
+                                                      output_high,
+                                                      levels);
+}
+
+// Pattern: Input -> Convolution -> Add(bias) -> Multiply -> FQ -> Result
 static std::shared_ptr<ov::Model> createInitGraph(ov::element::Type input_type,
                                                   ov::element::Type weights_type,
-                                                  ov::element::Type bias_type) {
+                                                  ov::element::Type bias_type,
+                                                  bool keep_fq_output_precision = false) {
     std::shared_ptr<ov::op::v0::Parameter> input;
     auto conv = createConvolution(input_type, weights_type, input);
 
@@ -75,10 +94,13 @@ static std::shared_ptr<ov::Model> createInitGraph(ov::element::Type input_type,
     auto dequant_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5f});
     auto multiply = std::make_shared<ov::op::v1::Multiply>(add, dequant_scale);
 
-    return std::make_shared<ov::Model>(ov::OutputVector{multiply}, ov::ParameterVector{input});
+    auto fq = createFakeQuantize(multiply, input_type, 256);
+    fq->set_output_type(0, keep_fq_output_precision ? ov::element::f32 : input_type, fq->get_output_shape(0));
+
+    return std::make_shared<ov::Model>(ov::OutputVector{fq}, ov::ParameterVector{input});
 }
 
-// Pattern: Input -> Convolution -> Add(Round(bias)->Convert(i32)) -> Multiply -> Result
+// Pattern: Input -> Convolution -> Add(Round(bias)->Convert(i32)) -> Multiply -> FQ -> Result
 static std::shared_ptr<ov::Model> createRefGraph(ov::element::Type input_type,
                                                  ov::element::Type weights_type,
                                                  ov::element::Type bias_type) {
@@ -95,7 +117,9 @@ static std::shared_ptr<ov::Model> createRefGraph(ov::element::Type input_type,
     auto dequant_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5f});
     auto multiply = std::make_shared<ov::op::v1::Multiply>(add, dequant_scale);
 
-    return std::make_shared<ov::Model>(ov::OutputVector{multiply}, ov::ParameterVector{input});
+    auto fq = createFakeQuantize(multiply, input_type, 256);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{fq}, ov::ParameterVector{input});
 }
 
 // u8 input, i8 weights, f32 bias -> transformation should be applied
@@ -128,5 +152,11 @@ TEST_F(TransformationTestsF, ConvertConvolutionBias_BiasAlreadyI32_NotApplied) {
 // f32 input, f32 weights -> transformation should NOT be applied (not quantized case)
 TEST_F(TransformationTestsF, ConvertConvolutionBias_F32Input_F32Weights_NotApplied) {
     model = createInitGraph(ov::element::f32, ov::element::f32, ov::element::f32);
+    manager.register_pass<ConvertConvolutionBias>();
+}
+
+// fq output does not match activation precision -> transformation should NOT be applied
+TEST_F(TransformationTestsF, ConvertConvolutionBias_FqOutputDoesNotMatchActivationPrecision_NotApplied) {
+    model = createInitGraph(ov::element::i8, ov::element::i8, ov::element::f32, true);
     manager.register_pass<ConvertConvolutionBias>();
 }

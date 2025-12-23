@@ -7,7 +7,7 @@
 
 /*
  * Description:
- *     ConvertConvolutionBias detects specific quantized Convolution patterns followed by Multiply and Add
+ *     ConvertConvolutionBias detects specific quantized Convolution patterns followed by Multiply, Add and FQ
  *     and inserts a Convert to i32 between the constant bias and the Add node.
  *     Convert to i32 is neccessary because ACL supports i32 bias only.
  *
@@ -29,13 +29,17 @@
  *                  |              | Constant     |
  *                  |              +--+-----------+
  *                  |                 |
- *             +----v--------+--------v----+
+ *             +----v--------+--------v---+
  *             |           Add            |
  *             +------------+-------------+
  *                          |
  *                   +------v------+
  *                   |   Multiply  |
  *                   +------+------+
+ *                          |
+ *                   +------v-------+
+ *                   | FakeQuantize |
+ *                   +------+-------+
  *                          |
  *                  +-------v--------+
  *                  |     Result     |
@@ -70,6 +74,10 @@
  *                   +------v------+
  *                   |   Multiply  |
  *                   +------+------+
+ *                          |
+ *                   +------v-------+
+ *                   | FakeQuantize |
+ *                   +------+-------+
  *                          |
  *                  +-------v--------+
  *                  |     Result     |
