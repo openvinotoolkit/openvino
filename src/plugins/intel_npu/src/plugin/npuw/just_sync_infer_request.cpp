@@ -305,12 +305,11 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 m_moe_io[i].inputs.resize(proto_comp_model_desc.param_base);
                 m_moe_io[i].outputs.resize(num_outputs);
 
-                // Pre-allocate relayouted_output tensor with hardcoded shape
-                // Hardcoded: 4 active experts, 1024 tokens, 2880 embed_dim
-                // TODO: Get these values from model metadata or make configurable
-                const size_t active_experts = 4;
-                const size_t num_tokens = 128;
-                const size_t embed_dim = 2880;
+                // Pre-allocate relayouted_output tensor with hardcoded precision
+                // TODO: Get precision from model metadata or make configurable
+                const size_t active_experts = proto_comp_model_desc.moe_experts->num_active_experts;
+                const size_t num_tokens = proto_comp_model_desc.moe_experts->input_token_count;
+                const size_t embed_dim = proto_comp_model_desc.moe_experts->expert_hidden_dim;
                 ov::Shape target_shape = {active_experts, 1, num_tokens, embed_dim};
 
                 // Use f16 as default, will be adjusted at runtime if needed

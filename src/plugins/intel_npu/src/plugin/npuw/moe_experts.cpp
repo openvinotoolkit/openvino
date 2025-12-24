@@ -16,6 +16,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/tile.hpp"
+#include "openvino/op/topk.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
@@ -26,8 +27,38 @@ namespace ov {
 namespace npuw {
 namespace function {
 
+// Helper function to extract K value from TopK node in router model
+static std::optional<size_t> extract_k_from_router(const std::shared_ptr<ov::Model>& router_model) {
+    if (!router_model) {
+        LOG_ERROR("Router model is null, cannot extract K from TopK");
+        return std::nullopt;
+    }
+
+    LOG_DEBUG("Searching for TopK node in router model: " << router_model->get_friendly_name());
+
+    for (const auto& node : router_model->get_ordered_ops()) {
+        if (auto topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(node)) {
+            LOG_DEBUG("Found TopK node: " << topk->get_friendly_name());
+
+            // K is the second input to TopK
+            auto k_input = topk->input_value(1);
+            if (auto k_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(k_input.get_node_shared_ptr())) {
+                auto k_data = k_const->cast_vector<int64_t>();
+                if (!k_data.empty()) {
+                    size_t k_value = static_cast<size_t>(k_data[0]);
+                    LOG_INFO("Extracted K=" << k_value << " from TopK node in router model");
+                    return k_value;
+                }
+            }
+        }
+    }
+
+    LOG_DEBUG("TopK node not found in router model");
+    return std::nullopt;
+}
+
 std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shared_ptr<ov::Model>& model,
-                                                                 size_t active_experts_num_config) {
+                                                                 size_t active_experts_num) {
     LOG_DEBUG("Validating MoE expert model...");
     LOG_BLOCK();
 
@@ -53,8 +84,8 @@ std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shar
                         return std::nullopt;
                     }
 
-                    result.expert_hidden_dim = tile_output_shape[0] / result.num_experts;
                     result.input_token_count = tile->input_value(0).get_shape()[0];
+                    result.expert_hidden_dim = tile->input_value(0).get_shape()[1];
 
                     LOG_DEBUG("Found Tile: num_experts=" << result.num_experts
                                                          << ", expert_hidden_dim=" << result.expert_hidden_dim
@@ -75,7 +106,7 @@ std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shar
     // Decoding: token_count == 1, Prefill: token_count > 1
     if (result.input_token_count == 1) {
         result.is_decoding_stage = true;
-        result.detected_active_experts = active_experts_num_config;
+        result.detected_active_experts = active_experts_num;
         LOG_DEBUG("Detected DECODING stage (input_token_count=1), K=" << result.detected_active_experts);
 
         // Check for ReduceSum in output path (decoding only)
@@ -196,27 +227,12 @@ std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shar
 
                 LOG_DEBUG("  Modifying parameter shape from " << shape << " to " << new_shape);
                 LOG_DEBUG("  Parameter name: " << target_param->get_friendly_name());
-                std::cout << "  Before modification - parameter: " << target_param->get_friendly_name() << " shape: ["
-                          << target_param->get_shape()[0] << ", " << target_param->get_shape()[1] << ", "
-                          << target_param->get_shape()[2] << ", " << target_param->get_shape()[3] << "]" << std::endl;
-                std::cout << "  Modifying parameter shape from [" << shape[0] << ", " << shape[1] << ", " << shape[2]
-                          << ", " << shape[3] << "] to [" << new_shape[0] << ", " << new_shape[1] << ", "
-                          << new_shape[2] << ", " << new_shape[3] << "]" << std::endl;
 
                 target_param->set_partial_shape(ov::PartialShape(new_shape));
                 target_param->validate_and_infer_types();
 
-                std::cout << "  After set_partial_shape - parameter: " << target_param->get_friendly_name()
-                          << " shape: [" << target_param->get_shape()[0] << ", " << target_param->get_shape()[1] << ", "
-                          << target_param->get_shape()[2] << ", " << target_param->get_shape()[3] << "]" << std::endl;
-
                 // Validate the entire model after parameter shape change
                 modified_model->validate_nodes_and_infer_types();
-
-                // Verify the shape is still correct after model validation
-                std::cout << "  After validate_nodes_and_infer_types - parameter: " << target_param->get_friendly_name()
-                          << " shape: [" << target_param->get_shape()[0] << ", " << target_param->get_shape()[1] << ", "
-                          << target_param->get_shape()[2] << ", " << target_param->get_shape()[3] << "]" << std::endl;
 
                 // Store the modified model in result
                 result.modified_model = modified_model;
@@ -226,10 +242,8 @@ std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shar
                     std::string debug_path = "moe_downstream_model.xml";
                     ov::serialize(modified_model, debug_path);
                     LOG_INFO("Saved downstream model to: " << debug_path);
-                    std::cout << "Saved modified downstream model to: " << debug_path << std::endl;
                 } catch (const std::exception& e) {
                     LOG_WARN("Failed to save downstream model: " << e.what());
-                    std::cout << "Failed to save downstream model: " << e.what() << std::endl;
                 }
 
                 LOG_INFO("Successfully detected and transformed MoE downstream pattern");
@@ -248,15 +262,25 @@ std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shar
     return std::nullopt;
 }
 
-std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Model>& model, size_t active_experts_num) {
+std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Model>& model,
+                                                   const std::shared_ptr<ov::Model>& router_model) {
     LOG_DEBUG("Creating MoEDownstream from model: " << model->get_friendly_name());
     LOG_BLOCK();
-    std::cout << "Creating MoEDownstream from model: " << model->get_friendly_name() << std::endl;
 
-    if (active_experts_num == 0) {
-        LOG_WARN("active_experts_num not provided for downstream pattern detection");
+    // Extract K from router model (required)
+    if (!router_model) {
+        LOG_ERROR("Router model is required to extract K from TopK node");
         return std::nullopt;
     }
+
+    auto k_from_router = extract_k_from_router(router_model);
+    if (!k_from_router.has_value()) {
+        LOG_ERROR("Failed to extract K from router model for downstream");
+        return std::nullopt;
+    }
+
+    size_t active_experts_num = k_from_router.value();
+    LOG_INFO("Extracted K=" << active_experts_num << " from router model for downstream");
 
     auto downstream_info = detect_and_transform_moe_downstream(model, active_experts_num);
     if (downstream_info && downstream_info->is_valid()) {
@@ -265,9 +289,6 @@ std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Mod
         LOG_INFO("  - Active experts: " << downstream_info->active_experts_num);
         LOG_INFO("  - Expert output parameter index: " << downstream_info->expert_output_param_idx);
         LOG_INFO("  - Modified model: " << downstream_info->modified_model->get_friendly_name());
-
-        std::cout << "Successfully created MoEDownstream with " << downstream_info->total_experts_num
-                  << " total experts and " << downstream_info->active_experts_num << " active experts." << std::endl;
 
         return downstream_info;
     }
@@ -585,13 +606,28 @@ std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model
     return model;
 }
 
-std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& model, size_t active_experts_num_config) {
+std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& model,
+                                           const std::shared_ptr<ov::Model>& router_model) {
     LOG_DEBUG("Creating MoEExperts from model: " << model->get_friendly_name());
     LOG_BLOCK();
-    std::cout << "Creating MoEExperts from model: " << model->get_friendly_name() << std::endl;
+
+    // Step 0: Extract actual K from router model (required)
+    if (!router_model) {
+        LOG_ERROR("Router model is required to extract K from TopK node");
+        return std::nullopt;
+    }
+
+    auto k_from_router = extract_k_from_router(router_model);
+    if (!k_from_router.has_value()) {
+        LOG_ERROR("Failed to extract K from router model");
+        return std::nullopt;
+    }
+
+    size_t actual_active_experts_num = k_from_router.value();
+    LOG_INFO("Extracted K=" << actual_active_experts_num << " from router model");
 
     // Step 1: Validate the model and extract expert information (including stage detection)
-    auto validation_result = validate_and_setup_moe_expert(model, active_experts_num_config);
+    auto validation_result = validate_and_setup_moe_expert(model, actual_active_experts_num);
     if (!validation_result || !validation_result->is_valid()) {
         LOG_WARN("Model validation failed for MoE expert pattern");
         return std::nullopt;
@@ -628,7 +664,10 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     moe_experts._expert_hidden_dim = validation_result->expert_hidden_dim;
     moe_experts._input_token_count = validation_result->input_token_count;
     moe_experts._mode = mode;
-    moe_experts._num_active_experts = num_target_experts;
+    // Store the actual active expert number (K from router)
+    // For prefill: model is transformed to 1 expert, but _num_active_experts stores actual K
+    // For decoding: model is transformed to K experts, _num_active_experts also stores K
+    moe_experts._num_active_experts = actual_active_experts_num;
     moe_experts._single_expert_model = transformed_model;
     moe_experts._original_model = model;
     moe_experts._tile_op = validation_result->tile_node;
@@ -636,6 +675,10 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     moe_experts._single_expert_shape = ov::Shape{num_target_experts, validation_result->expert_hidden_dim};
     moe_experts._router_param_idx = validation_result->router_param_idx;
     moe_experts._has_reduce_sum = has_reduce_sum;
+
+    std::cout << "_num_experts: " << moe_experts._num_experts << std::endl;
+    std::cout << "_expert_hidden_dim: " << moe_experts._expert_hidden_dim << std::endl;
+    std::cout << "_input_token_count: " << moe_experts._input_token_count << std::endl;
 
     // Step 6: Extract input/output information
     LOG_DEBUG("Extracting I/O information...");

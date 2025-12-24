@@ -242,14 +242,6 @@ static constexpr ov::Property<std::size_t> spatial_nway{"NPUW_SPATIAL_NWAY"};
 
 /**
  * @brief
- * Type: std::size_t.
- * Number of active experts for MoE decoding stage.
- * Default value: 4
- */
-static constexpr ov::Property<std::size_t> moe_active_experts_num{"NPUW_MOE_ACTIVE_EXPERTS_NUM"};
-
-/**
- * @brief
  * Type: boolean.
  * Enable dynamic submission for spatial subgraphs. Requires SPATIAL pipeline to be selected.
  * Default value: true
