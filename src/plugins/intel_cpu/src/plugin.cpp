@@ -311,7 +311,11 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
 }
 
 static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
-    if (op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) ||
+    if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+         && !model->get_variables().empty()
+#endif
+             ) ||
         op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
         return Config::ModelType::LLM;
     }
