@@ -109,11 +109,10 @@ ov::Output<ov::Node> create_new_mask(std::shared_ptr<ov::Model> model,
 class AddKVCacheNodes : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::AddKVCacheNodes");
-    explicit AddKVCacheNodes(std::shared_ptr<ov::Model> model,
-                             uint32_t seq_len_dim,
-                             std::vector<NodePair>& node_pair,
+    explicit AddKVCacheNodes(std::vector<NodePair>& node_pair,
                              ov::ParameterVector& new_params,
-                             ov::ResultVector& new_results) {
+                             ov::ResultVector& new_results,
+                             uint32_t seq_len_dim) {
         const auto unsqueeze_axes = opp::wrap_type<ov::op::v0::Constant>();
         const auto transpose_order = opp::wrap_type<ov::op::v0::Constant>();
         const std::regex layer_id_convertion = std::regex(R"(layers\.(\d+)\.self_attn)");
@@ -192,9 +191,7 @@ public:
 class AddPositionIdsNode : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::AddPositionIdsNode");
-    explicit AddPositionIdsNode(std::shared_ptr<ov::Model> model,
-                                std::vector<NodePair>& node_pair,
-                                ov::ParameterVector& new_params) {
+    explicit AddPositionIdsNode(std::vector<NodePair>& node_pair, ov::ParameterVector& new_params) {
         auto range = opp::wrap_type<ov::op::v4::Range>();
         auto unsqueeze_axes = opp::wrap_type<ov::op::v0::Constant>();
         auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({range, unsqueeze_axes});
@@ -258,11 +255,14 @@ public:
         for (const auto& op : model->get_ops()) {
             if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op)) {
                 auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op);
-                m_sdpa_vector.push_back(sdpa);
 
                 // Check all SDPA nodes share the same attention mask input
-                if (m_sdpa_vector.front() != sdpa &&
-                    m_sdpa_vector.front()->input(3).get_source_output() != sdpa->input(3).get_source_output()) {
+                if (!m_sdpa_front.has_value()) {
+                    m_sdpa_front = sdpa;
+                }
+
+                if (m_sdpa_front.value() != sdpa &&
+                    m_sdpa_front.value()->input(3).get_source_output() != sdpa->input(3).get_source_output()) {
                     return false;
                 }
 
@@ -301,13 +301,15 @@ public:
     }
 
     bool update_sdpa_nodes(const std::shared_ptr<ov::Model>& model) {
+        if (!m_sdpa_front.has_value()) {
+            return false;
+        }
+
+        // Replace attention mask input with new mask
         auto mask_node = model->input("attention_mask");
         auto new_mask = create_new_mask(model);
-
-        for (auto& sdpa : m_sdpa_vector) {
-            // Replace attention mask input with new mask
-            sdpa->input(3).replace_source_output(new_mask);
-        }
+        auto old_mask = m_sdpa_front.value()->input(3).get_source_output().get_node_shared_ptr();
+        ov::replace_node(old_mask, new_mask.get_node_shared_ptr());
 
         return update_kv_concat_shape(mask_node);
     }
@@ -328,12 +330,8 @@ public:
         OPENVINO_ASSERT(check_sdpa_nodes(model), "Failed to check SDPA nodes");
 
         ov::pass::Manager manager("construct-embedding");
-        manager.register_pass<AddPositionIdsNode>(model, m_node_pair_vector, m_new_parameters);
-        manager.register_pass<AddKVCacheNodes>(model,
-                                               m_seq_len_dim,
-                                               m_node_pair_vector,
-                                               m_new_parameters,
-                                               m_new_results);
+        manager.register_pass<AddPositionIdsNode>(m_node_pair_vector, m_new_parameters);
+        manager.register_pass<AddKVCacheNodes>(m_node_pair_vector, m_new_parameters, m_new_results, m_seq_len_dim);
         OPENVINO_ASSERT(manager.run_passes(model), "Failed to add position_ids or kv cache nodes");
 
         update_model(model);
@@ -345,9 +343,9 @@ public:
 private:
     uint32_t m_seq_len_dim;
     std::optional<std::shared_ptr<ov::Node>> m_kv_concat;
+    std::optional<std::shared_ptr<ov::Node>> m_sdpa_front;
     ov::ParameterVector m_new_parameters;
     ov::ResultVector m_new_results;
-    std::vector<std::shared_ptr<ov::op::v13::ScaledDotProductAttention>> m_sdpa_vector;
     std::vector<NodePair> m_node_pair_vector;
 };
 
