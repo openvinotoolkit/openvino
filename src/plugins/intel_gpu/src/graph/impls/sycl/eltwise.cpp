@@ -249,6 +249,24 @@ template<typename DType, int Dim, typename Allocator, typename OpFunc>
     });
 }
 
+// for sycl::usm
+template<typename DType, typename OpFunc>
+::sycl::event run_eltwise(::sycl::queue& queue, std::vector<::sycl::event> const& events,
+                          DType* in0, DType* in1, DType* out,
+                          const ov::Shape& in0_shape, const ov::Shape& in1_shape, const ov::Shape& out_shape,
+                          OpFunc op) {
+    auto num_elements = ov::shape_size(out_shape);
+    size_t in1_stride = ov::shape_size(in1_shape) > 1 ? 1 : 0;
+
+    return queue.submit([&](::sycl::handler& cgh) {
+        cgh.depends_on(events);
+
+        cgh.parallel_for(::sycl::range<1>(num_elements), [=](::sycl::item<1> index) {
+            eltwise_kernel(index, in0, in1, out, in1_stride, op);
+        });
+    });
+}
+
 /**
  * @brief Get the appropriate operation function object based on eltwise_mode
  *
@@ -343,32 +361,60 @@ struct eltwise_sycl : typed_primitive_sycl_impl<eltwise> {
             }
         }
 
+        auto use_sycl_buffer = input0->get_allocation_type() == cldnn::allocation_type::sycl_buffer;
 
-        if (out_t == ov::element::f32) {
-            OPENVINO_ASSERT(input0->get_allocation_type() == cldnn::allocation_type::sycl_buffer);
-            auto buf_in0 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input0)->get_buffer().reinterpret<float>();
-            auto buf_in1 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input1)->get_buffer().reinterpret<float>();
-            auto buf_out = std::dynamic_pointer_cast<sycl::gpu_buffer>(output)->get_buffer().reinterpret<float>();
+        if (use_sycl_buffer) {
+            if (out_t == ov::element::f32) {
+                OPENVINO_ASSERT(input0->get_allocation_type() == cldnn::allocation_type::sycl_buffer);
+                auto buf_in0 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input0)->get_buffer().reinterpret<float>();
+                auto buf_in1 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input1)->get_buffer().reinterpret<float>();
+                auto buf_out = std::dynamic_pointer_cast<sycl::gpu_buffer>(output)->get_buffer().reinterpret<float>();
 
-            auto op = get_eltwise_operator(desc->mode);
-            auto ev = std::visit([&](auto&& operation) {
-                return run_eltwise(sycl_queue, sycl_events, buf_in0, buf_in1, buf_out, in0_shape, in1_shape, out_shape, operation);
-            }, op);
-            return stream.create_base_event(ev);
-        } else if (out_t == ov::element::f16) {
-            OPENVINO_ASSERT(input0->get_allocation_type() == cldnn::allocation_type::sycl_buffer);
-            auto buf_in0 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input0)->get_buffer().reinterpret<::sycl::half>();
-            auto buf_in1 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input1)->get_buffer().reinterpret<::sycl::half>();
-            auto buf_out = std::dynamic_pointer_cast<sycl::gpu_buffer>(output)->get_buffer().reinterpret<::sycl::half>();
+                auto op = get_eltwise_operator(desc->mode);
+                auto ev = std::visit([&](auto&& operation) {
+                    return run_eltwise(sycl_queue, sycl_events, buf_in0, buf_in1, buf_out, in0_shape, in1_shape, out_shape, operation);
+                }, op);
+                return stream.create_base_event(ev);
+            } else if (out_t == ov::element::f16) {
+                OPENVINO_ASSERT(input0->get_allocation_type() == cldnn::allocation_type::sycl_buffer);
+                auto buf_in0 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input0)->get_buffer().reinterpret<::sycl::half>();
+                auto buf_in1 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input1)->get_buffer().reinterpret<::sycl::half>();
+                auto buf_out = std::dynamic_pointer_cast<sycl::gpu_buffer>(output)->get_buffer().reinterpret<::sycl::half>();
 
-            auto op = get_eltwise_operator(desc->mode);
-            auto ev = std::visit([&](auto&& operation) {
-                return run_eltwise(sycl_queue, sycl_events, buf_in0, buf_in1, buf_out, in0_shape, in1_shape, out_shape, operation);
-            }, op);
-            return stream.create_base_event(ev);
+                auto op = get_eltwise_operator(desc->mode);
+                auto ev = std::visit([&](auto&& operation) {
+                    return run_eltwise(sycl_queue, sycl_events, buf_in0, buf_in1, buf_out, in0_shape, in1_shape, out_shape, operation);
+                }, op);
+                return stream.create_base_event(ev);
+            } else {
+                OPENVINO_THROW("No instance for given types found: ", out_t);
+            }
         } else {
-            OPENVINO_THROW("No instance for given types found: ", out_t);
+            if (out_t == ov::element::f32) {
+                auto in0_ptr = static_cast<float*>(std::dynamic_pointer_cast<sycl::gpu_usm>(input0)->get_buffer().get());
+                auto in1_ptr = static_cast<float*>(std::dynamic_pointer_cast<sycl::gpu_usm>(input1)->get_buffer().get());
+                auto out_ptr = static_cast<float*>(std::dynamic_pointer_cast<sycl::gpu_usm>(output)->get_buffer().get());
+
+                auto op = get_eltwise_operator(desc->mode);
+                auto ev = std::visit([&](auto&& operation) {
+                    return run_eltwise(sycl_queue, sycl_events, in0_ptr, in1_ptr, out_ptr, in0_shape, in1_shape, out_shape, operation);
+                }, op);
+                return stream.create_base_event(ev);
+            } else if (out_t == ov::element::f16) {
+                auto in0_ptr = static_cast<::sycl::half*>(std::dynamic_pointer_cast<sycl::gpu_usm>(input0)->get_buffer().get());
+                auto in1_ptr = static_cast<::sycl::half*>(std::dynamic_pointer_cast<sycl::gpu_usm>(input1)->get_buffer().get());
+                auto out_ptr = static_cast<::sycl::half*>(std::dynamic_pointer_cast<sycl::gpu_usm>(output)->get_buffer().get());
+
+                auto op = get_eltwise_operator(desc->mode);
+                auto ev = std::visit([&](auto&& operation) {
+                    return run_eltwise(sycl_queue, sycl_events, in0_ptr, in1_ptr, out_ptr, in0_shape, in1_shape, out_shape, operation);
+                }, op);
+                return stream.create_base_event(ev);
+            } else {
+                OPENVINO_THROW("No instance for given types found: ", out_t);
+            }
         }
+
     }
 
     static std::unique_ptr<primitive_impl> create(const eltwise_node& arg, const kernel_impl_params& impl_params) {

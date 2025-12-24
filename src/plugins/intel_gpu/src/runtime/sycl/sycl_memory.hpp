@@ -17,6 +17,7 @@
 #include <memory>
 #include <variant>
 
+
 namespace cldnn {
 namespace sycl {
 struct lockable_gpu_mem {
@@ -77,7 +78,48 @@ protected:
     host_accessor_variant _host_accessor;
 };
 
-// TODO: add gpu_image2d class and gpu_usm class
+// TODO: add gpu_image2d class
 
+
+struct gpu_usm : public lockable_gpu_mem, public memory {
+    gpu_usm(sycl_engine* engine, const layout& new_layout, const ::sycl::UsmMemory& usm_buffer,
+            allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_usm(sycl_engine* engine, const layout& new_layout, const ::sycl::UsmMemory& usm_buffer, std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_usm(sycl_engine* engine, const layout& layout, allocation_type type);
+
+    void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
+    void unlock(const stream& stream) override;
+    const ::sycl::UsmMemory& get_buffer() const { return _buffer; }
+    ::sycl::UsmMemory& get_buffer() { return _buffer; }
+    void* buffer_ptr() const override { return _buffer.get(); }
+
+    event::ptr fill(stream& stream, unsigned char pattern, bool blocking = true) override;
+    event::ptr fill(stream& stream, bool blocking = true) override;
+    shared_mem_params get_internal_params() const override;
+
+    event::ptr copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;
+    event::ptr copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;
+    event::ptr copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const override;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) const override;
+#endif
+
+    static allocation_type detect_allocation_type(const sycl_engine* engine, const void* mem_ptr);
+
+protected:
+    ::sycl::UsmMemory _buffer;
+    ::sycl::UsmMemory _host_buffer;
+
+    static allocation_type detect_allocation_type(const sycl_engine* engine, const ::sycl::UsmMemory& buffer);
+};
+
+struct sycl_surfaces_lock : public surfaces_lock {
+    sycl_surfaces_lock(std::vector<memory::ptr> mem, const stream& stream);
+
+    ~sycl_surfaces_lock() = default;
+private:
+    std::vector<::sycl::buffer<std::byte, 1>> get_handles(std::vector<memory::ptr> mem) const;
+};
 }  // namespace sycl
 }  // namespace cldnn
