@@ -37,6 +37,10 @@ bool ZeroEngineBackend::isLUIDExtSupported() const {
     return _initStruct->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME), ZE_MAKE_VERSION(1, 0));
 }
 
+bool ZeroEngineBackend::isContextExtSupported() const {
+    return _initStruct->isExtensionSupported(std::string(ZE_CONTEXT_NPU_EXT_NAME), ZE_MAKE_VERSION(1, 0));
+}
+
 const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
     if (_devices.empty()) {
         _logger.debug("ZeroEngineBackend - getDevice() returning empty list");
@@ -130,11 +134,20 @@ void* ZeroEngineBackend::getContext() const {
     return _initStruct->getContext();
 }
 
-void ZeroEngineBackend::updateInfo(const Config& config) {
-    _logger.setLevel(config.get<LOG_LEVEL>());
+void ZeroEngineBackend::updateInfo(const ov::AnyMap& properties, const Config& config) {
+    if (properties.count(std::string(LOG_LEVEL::key())) != 0) {
+        _logger.setLevel(config.get<LOG_LEVEL>());
+    }
+
+    if (properties.count(std::string(DISABLE_IDLE_MEMORY_PRUNING::key())) != 0) {
+        if (config.get<DISABLE_IDLE_MEMORY_PRUNING>()) {
+            _initStruct->setContextOptions(ZE_NPU_CONTEXT_OPTION_IDLE_OPTIMIZATIONS);
+        }
+    }
+
     if (_devices.size() > 0) {
         for (auto& dev : _devices) {
-            dev.second->updateInfo(config);
+            dev.second->updateInfo(properties, config);
         }
     }
 }

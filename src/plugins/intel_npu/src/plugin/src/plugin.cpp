@@ -330,6 +330,9 @@ void Plugin::init_options() {
         if (_backend->isCommandQueueExtSupported()) {
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
+        if (_backend->isContextExtSupported()) {
+            REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
+        }
         // register backend options
         _backend->registerOptions(*_options);
     }
@@ -607,7 +610,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     }
     // Init backends if needed
     if (_backend != nullptr) {
-        _backend->updateInfo(_globalConfig);
+        _backend->updateInfo(properties, _globalConfig);
     }
 }
 
