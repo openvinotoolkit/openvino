@@ -6,7 +6,6 @@
 
 #include "infer_request_utils.hpp"
 #include "logging.hpp"
-#include "openvino/runtime/iasync_infer_request.hpp"
 #include "util.hpp"
 
 ov::SoPtr<ov::ITensor> ov::npuw::EmbeddingInferRequest::create_prefill_output_tensor() {
@@ -24,7 +23,6 @@ ov::npuw::EmbeddingInferRequest::EmbeddingInferRequest(const std::shared_ptr<LLM
     init_ports();
 
     m_prefill_request = m_npuw_llm_compiled_model->m_prefill_compiled->create_infer_request();
-
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
         m_prefill_in_ports.emplace(input_port.get_any_name(), input_port);
         // Cache past_key_values ports for efficient clearing
@@ -51,12 +49,6 @@ void ov::npuw::EmbeddingInferRequest::prepare_for_new_conversation() {
         uu::fill_tensor<int64_t>(m_pos_ids_in_tensor, 0);
     }
 
-    if (auto type_ids_port = m_prefill_in_ports.find(layer_names::token_type_ids);
-        type_ids_port != m_prefill_in_ports.end()) {
-        m_type_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::token_type_ids));
-        uu::fill_tensor_bytes(m_type_ids_in_tensor, 0);
-    }
-
     uu::fill_tensor_bytes(m_input_ids_in_tensor, 0u);
     uu::fill_tensor<int64_t>(m_attn_mask_in_tensor, 0);
     uu::fill_tensor_bytes(m_prefill_output, 0u);
@@ -71,7 +63,7 @@ void ov::npuw::EmbeddingInferRequest::prepare_for_new_conversation() {
 
 void ov::npuw::EmbeddingInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                                             ov::SoPtr<ov::ITensor> attention_mask) {
-    LOG_DEBUG("Calling chunked inference for prefill model.");
+    LOG_DEBUG("Calling embedding chunked inference for prefill model.");
     LOG_BLOCK();
 
     const auto input_prompt_len = input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM];
@@ -172,9 +164,8 @@ void ov::npuw::EmbeddingInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITenso
 }
 
 void ov::npuw::EmbeddingInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
-                                                          ov::SoPtr<ov::ITensor> attention_mask,
-                                                          ov::SoPtr<ov::ITensor> token_type_ids) {
-    LOG_DEBUG("Calling inference for prefill model in a single launch.");
+                                                          ov::SoPtr<ov::ITensor> attention_mask) {
+    LOG_DEBUG("Calling inference for embedding prefill model in a single launch.");
     LOG_BLOCK();
 
     std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()),
@@ -187,11 +178,8 @@ void ov::npuw::EmbeddingInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor>
         attention_mask->get_size(),
         m_attn_mask_in_tensor->data<int64_t>() + m_attn_mask_in_tensor->get_size() - attention_mask->get_size());
 
-    if (token_type_ids != nullptr && m_type_ids_in_tensor != nullptr) {
-        util::copy_to_right(token_type_ids, m_type_ids_in_tensor);
-    }
-
     m_prefill_request->infer();
+
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     kvcache_desc.num_stored_tokens += static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
 
@@ -212,9 +200,8 @@ void ov::npuw::EmbeddingInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor>
 }
 
 void ov::npuw::EmbeddingInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
-                                                    ov::SoPtr<ov::ITensor> attention_mask,
-                                                    ov::SoPtr<ov::ITensor> token_type_ids) {
-    LOG_DEBUG("Calling inference for prefill model...");
+                                                    ov::SoPtr<ov::ITensor> attention_mask) {
+    LOG_DEBUG("Calling inference for embedding prefill model...");
     LOG_BLOCK();
 
     const auto prompt_length = input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM];
@@ -232,7 +219,7 @@ void ov::npuw::EmbeddingInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input
     if (use_chunk_prefill) {
         infer_chunked_prefill(input_ids, attention_mask);
     } else {
-        infer_whole_prefill(input_ids, attention_mask, token_type_ids);
+        infer_whole_prefill(input_ids, attention_mask);
     }
 
     LOG_DEBUG("Done");
@@ -244,16 +231,10 @@ void ov::npuw::EmbeddingInferRequest::infer() {
     auto input_ids = get_tensor(ov::npuw::util::find_port_by_name(inputs, layer_names::input_ids).value());
     auto attention_mask = get_tensor(ov::npuw::util::find_port_by_name(inputs, layer_names::attention_mask).value());
 
-    auto token_type_ids = ov::npuw::util::TensorPtr();
-    if (auto type_ids_port = ov::npuw::util::find_port_by_name(inputs, layer_names::token_type_ids);
-        type_ids_port.has_value()) {
-        token_type_ids = get_tensor(type_ids_port.value());
-    }
-
     OPENVINO_ASSERT(ov::element::i64 == input_ids->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
 
-    infer_prefill(input_ids, attention_mask, token_type_ids);
+    infer_prefill(input_ids, attention_mask);
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::EmbeddingInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {

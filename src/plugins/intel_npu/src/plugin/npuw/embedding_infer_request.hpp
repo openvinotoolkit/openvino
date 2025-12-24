@@ -25,13 +25,9 @@ protected:
 
     void infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids, ov::SoPtr<ov::ITensor> attention_mask);
 
-    void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
-                             ov::SoPtr<ov::ITensor> attention_mask,
-                             ov::SoPtr<ov::ITensor> input_token_ids);
+    void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids, ov::SoPtr<ov::ITensor> attention_mask);
 
-    void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
-                       ov::SoPtr<ov::ITensor> attention_mask,
-                       ov::SoPtr<ov::ITensor> input_token_ids);
+    void infer_prefill(ov::SoPtr<ov::ITensor> input_ids, ov::SoPtr<ov::ITensor> attention_mask);
 
 private:
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
@@ -43,7 +39,6 @@ private:
     ov::SoPtr<ov::ITensor> m_input_ids_in_tensor;
     ov::SoPtr<ov::ITensor> m_attn_mask_in_tensor;
     ov::SoPtr<ov::ITensor> m_pos_ids_in_tensor;
-    ov::SoPtr<ov::ITensor> m_type_ids_in_tensor;
 
     ov::SoPtr<ov::ITensor> m_prefill_output;
 };
