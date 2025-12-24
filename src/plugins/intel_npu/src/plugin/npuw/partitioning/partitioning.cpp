@@ -335,6 +335,7 @@ public:
     void matchRepeatedSubgraphs(const std::string& func_name);
     void spatial(const std::string& func_name);
     void attention(const std::string& func_name);
+    void moe(const std::string& func_name);
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
@@ -1942,6 +1943,38 @@ void Partitioner::attention(const std::string& func_name) {
     }
 }
 
+void Partitioner::moe(const std::string& func_name) {
+    ov::npuw::Function& f = P.functions.at(func_name);
+
+    // Handle expert tag
+    if (f.gettag() == "expert") {
+        LOG_INFO("Transform " << func_name << " into MoE expert block in model " << model->get_friendly_name()
+                              << "...");
+        // Use the factory method to create MoEExperts from the function model
+        // The factory will auto-detect whether this is prefill or decoding stage
+        const size_t active_experts_num = cfg.get<::intel_npu::NPUW_MOE_ACTIVE_EXPERTS_NUM>();
+        f._moe_experts = ov::npuw::function::MoEExperts::from(f._model, active_experts_num);
+
+        if (f._moe_experts) {
+            LOG_INFO("Successfully created MoE expert model");
+            f._moe_experts->log_info();
+            LOG_VERB("MoE transformation completed");
+        } else {
+            LOG_WARN("Failed to create MoE expert model from " << func_name);
+        }
+    }
+
+    // Try downstream pattern for non-expert functions
+    const size_t active_experts_num = cfg.get<::intel_npu::NPUW_MOE_ACTIVE_EXPERTS_NUM>();
+    f._moe_experts_downstream = ov::npuw::function::create_moe_downstream(f._model, active_experts_num);
+    if (f._moe_experts_downstream) {
+        LOG_INFO("Successfully created MoE downstream model");
+        LOG_VERB("MoE downstream transformation completed");
+    } else {
+        LOG_WARN("Failed to create MoE downstream model from " << func_name);
+    }
+}
+
 void Partitioner::optimize(const std::string& func_name) {
     using namespace ov::npuw::weights;
 
@@ -2538,6 +2571,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.matchRepeatedSubgraphs(func_group);
                 p.spatial(func_group);
                 p.attention(func_group);
+                p.moe(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
