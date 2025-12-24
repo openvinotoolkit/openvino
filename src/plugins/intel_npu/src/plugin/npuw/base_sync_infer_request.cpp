@@ -301,7 +301,6 @@ void ov::npuw::IBaseInferRequest::infer() {
         }
         subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
-        std::cout << "Running subrequest[" << idx << "] on device " << profile_tag(idx) << "...\n";
         m_profile[profile_tag(idx)].record([&]() {
             run_subrequest_for_success(idx, failover);
         });
