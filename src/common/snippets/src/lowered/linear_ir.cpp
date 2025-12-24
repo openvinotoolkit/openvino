@@ -443,6 +443,7 @@ LinearIR::exprIt LinearIR::replace_with_node(const std::vector<ExpressionPtr>& o
     OPENVINO_ASSERT(
         new_node->get_output_size() == old_exprs.back()->get_output_count(),
         "Failed to replace node: node output port count is not equal to output count of last old expression");
+
     std::vector<PortConnectorPtr> new_inputs(new_node->get_input_size());
     for (size_t i = 0; i < new_node->get_input_size(); ++i) {
         const auto& source = new_node->get_input_source_output(i);
