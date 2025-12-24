@@ -605,7 +605,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 
     // 4. Extra hooks
     // Update log level if it was provided
-    if (properties.count(std::string(LOG_LEVEL::key())) != 0) {
+    if (properties.count(ov::log::level.name()) != 0) {
         Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
     }
     // Init backends if needed

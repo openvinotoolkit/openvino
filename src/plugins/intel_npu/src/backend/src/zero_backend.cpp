@@ -135,11 +135,11 @@ void* ZeroEngineBackend::getContext() const {
 }
 
 void ZeroEngineBackend::updateInfo(const ov::AnyMap& properties, const Config& config) {
-    if (properties.count(std::string(LOG_LEVEL::key())) != 0) {
+    if (properties.count(ov::log::level.name()) != 0) {
         _logger.setLevel(config.get<LOG_LEVEL>());
     }
 
-    if (properties.count(std::string(DISABLE_IDLE_MEMORY_PRUNING::key())) != 0) {
+    if (properties.count(ov::intel_npu::disable_idle_memory_prunning.name()) != 0) {
         if (config.get<DISABLE_IDLE_MEMORY_PRUNING>()) {
             _initStruct->setContextOptions(ZE_NPU_CONTEXT_OPTION_IDLE_OPTIMIZATIONS);
         }

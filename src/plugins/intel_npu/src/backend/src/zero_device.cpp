@@ -176,7 +176,7 @@ std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
 }
 
 void ZeroDevice::updateInfo(const ov::AnyMap& properties, const Config& config) {
-    if (properties.count(std::string(LOG_LEVEL::key())) != 0) {
+    if (properties.count(ov::log::level.name()) != 0) {
         _log.setLevel(config.get<LOG_LEVEL>());
     }
 }
