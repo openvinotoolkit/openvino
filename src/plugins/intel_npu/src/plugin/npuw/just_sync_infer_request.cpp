@@ -5,6 +5,7 @@
 #include "just_sync_infer_request.hpp"
 
 #include <algorithm>
+#include <fstream>
 #include <memory>
 #include <string>
 
@@ -199,6 +200,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     m_spatial_io.resize(m_num_submodels);
     m_attention_io.resize(m_num_submodels);
     m_hfa_io.resize(m_num_submodels);
+    m_moe_io.resize(m_num_submodels);
 
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
@@ -207,9 +209,11 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     bool has_dynamic = false;
     bool has_pyramid = false;
     bool has_hfa = false;
+    bool has_moe = false;
     std::size_t dynamic_sub_idx = -1;
     std::size_t pyramid_sub_idx = -1;
     std::size_t hfa_sub_idx = -1;
+    std::size_t moe_sub_idx = -1;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -289,6 +293,33 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                     proto_comp_model_desc.host_flash_attention.value()._compiled_final_tile_model->outputs().size();
                 m_hfa_io[i].outputs.resize(num_outputs);
             }  // if(hfa)
+
+            // Initialize the MoE IO placeholders, if required
+            if (proto_comp_model_desc.moe_experts) {
+                // Sanity check first
+                if (has_moe && moe_sub_idx != real_idx) {
+                    OPENVINO_THROW("Only single MoE type is permitted for model");
+                }
+                has_moe = true;
+                moe_sub_idx = real_idx;
+                m_moe_io[i].inputs.resize(proto_comp_model_desc.param_base);
+                m_moe_io[i].outputs.resize(num_outputs);
+
+                // Pre-allocate relayouted_output tensor with hardcoded shape
+                // Hardcoded: 4 active experts, 1024 tokens, 2880 embed_dim
+                // TODO: Get these values from model metadata or make configurable
+                const size_t active_experts = 4;
+                const size_t num_tokens = 128;
+                const size_t embed_dim = 2880;
+                ov::Shape target_shape = {active_experts, 1, num_tokens, embed_dim};
+
+                // Use f16 as default, will be adjusted at runtime if needed
+                const auto& device = *proto_comp_model_desc.device_it;
+                m_moe_relayouted_output = allocMem(ov::element::f16, target_shape, device);
+
+                std::cout << "Pre-allocated MoE relayouted_output tensor: shape=" << target_shape
+                          << " device=" << device << std::endl;
+            }  // if(moe_experts)
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto from = LinkFrom{i, out_idx};
@@ -566,6 +597,8 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Preparing to infer...");
     LOG_BLOCK();
 
+    std::cout << "Preparing to infer..." << std::endl;
+
     if (m_pyramid_selector) {
         m_pyramid_selector->prepare(get_history_size());
 
@@ -584,12 +617,14 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     }
 
     // Submit global parameters (if needed) for the first subgraph
+    std::cout << "Binding global parameters for first subgraph..." << std::endl;
     bind_global_parameters(next(0));
 
     // If funcall pipelining is enabled, prefill the function "heads"
     // with constant arguments. The list of heads is empty otherwise.
     for (auto&& id : m_funcall_heads) {
         LOG_DEBUG("Pre-initializing weights for subgraph[" << id << "]");
+        std::cout << "Pre-initializing weights for subgraph[" << id << "]" << std::endl;
         unpack_closure(id, m_subrequests[id]);
     }
 
@@ -679,6 +714,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     const bool is_dynamic = func_desc.attention.has_value();
     const bool is_pyramid = func_desc.pyramid_attention.has_value();
     const bool is_hfa = func_desc.host_flash_attention.has_value();
+    const bool is_moe = func_desc.moe_experts.has_value() || func_desc.moe_experts_downstream.has_value();
 
     // Generalized: check if input is neither param nor mask
     auto is_non_param_mask = [](const auto& info, std::size_t in_idx) {
@@ -738,6 +774,42 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             } else if (is_hfa) {
                 // Host Flash Attention case - defer, use dedicated HFA I/O structure
                 m_hfa_io[idx].inputs.at(i) = i_tensor;
+            } else if (is_moe) {
+                // MoE case - register input for later processing
+
+                if (func_desc.moe_experts) {
+                    // Check if this is the router output parameter
+                    bool is_router_output = func_desc.moe_experts->_router_param_idx.has_value() &&
+                                            i == func_desc.moe_experts->_router_param_idx.value();
+                    if (is_router_output) {
+                        m_moe_io[idx].router_output = i_tensor;
+                    } else {
+                        // CRITICAL: Always set the input tensor to the infer request
+                        // Otherwise the expert model will receive uninitialized/zero input
+                        std::cout << "  -> Setting MoE expert input parameter (idx=" << i << ")" << std::endl;
+                        m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                    }
+                } else if (func_desc.moe_experts_downstream) {
+                    // MoE downstream: set the relayouted expert outputs as input
+                    // Verify this is the correct parameter that should receive expert outputs
+                    if (i == func_desc.moe_experts_downstream->expert_output_param_idx) {
+                        if (m_moe_relayouted_output) {
+                            std::cout << "  -> Setting MoE downstream expert output parameter (idx=" << i << ")"
+                                      << std::endl;
+                            m_subrequests[real_idx]->set_tensor(iport, m_moe_relayouted_output);
+                        } else {
+                            NPUW_ASSERT(
+                                false &&
+                                "MoE downstream expert output parameter requested but no relayouted output available");
+                        }
+                    } else {
+                        // Other MoE downstream parameters should use normal tensor binding
+                        std::cout << "  -> Setting MoE downstream non-expert parameter (idx=" << i << ")" << std::endl;
+                        m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                    }
+                } else {
+                    NPUW_ASSERT(false && "MoE info missing in function description");
+                }
             } else {
                 // Default case
                 m_subrequests[real_idx]->set_tensor(iport, i_tensor);
@@ -776,7 +848,33 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         LOG_DEBUG("Binding result[" << i << "]...");
         auto& oport = func_desc.compiled_model->outputs()[i];
         auto o_tensor = m_funcall_result.at({idx, i});
-        if (is_hfa) {
+
+        // Debug output tensor assignment
+        std::cout << "  Binding output[" << i << "] for Subgraph[" << idx << "]:" << std::endl;
+        std::cout << "    o_tensor address: " << o_tensor->data() << std::endl;
+        std::cout << "    o_tensor shape: [";
+        auto o_shape = o_tensor->get_shape();
+        for (size_t j = 0; j < o_shape.size(); ++j) {
+            std::cout << o_shape[j];
+            if (j < o_shape.size() - 1)
+                std::cout << ", ";
+        }
+        std::cout << "]" << std::endl;
+
+        if (func_desc.moe_experts) {
+            // Need it??
+            // MoE case - register output for later processing
+            m_moe_io[idx].outputs.at(i) = o_tensor;
+            // Set tensor immediately so that decoding infer request can output to it
+            // Prefill phase does not use MoE outputs
+            std::cout << "    Setting as MoE expert output tensor" << std::endl;
+            m_subrequests[real_idx]->set_tensor(oport, o_tensor);
+
+            // Verify the setting
+            auto verify_tensor = m_subrequests[real_idx]->get_tensor(oport);
+            std::cout << "    Verification - get_tensor() returns: " << verify_tensor->data() << std::endl;
+            std::cout << "    Match? " << (verify_tensor->data() == o_tensor->data() ? "YES ✓" : "NO ✗") << std::endl;
+        } else if (is_hfa) {
             // HFA case - defer, store in dedicated HFA I/O structure
             m_hfa_io[idx].outputs.at(i) = o_tensor;
         } else if (!is_spatial) {
@@ -1308,7 +1406,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
 void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t idx, const std::function<void()>& f) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
-    if (!comp_model_desc.spatial && !comp_model_desc.host_flash_attention.has_value()) {
+    if (!comp_model_desc.spatial && !comp_model_desc.host_flash_attention.has_value() && !comp_model_desc.moe_experts) {
         // Normal: trigger request asynchronously, run `f` in this context
         // FIXME: dynamic could hit here too, but it has special logic
         // around execution which makes it harder to run than a plain start_async()
@@ -1780,6 +1878,387 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
         unsafe_infer_spatial(real_idx, idx);
     } else if (comp_model_desc.host_flash_attention) {
         run_hfa_tiled_inference(real_idx, idx);
+    } else if (comp_model_desc.moe_experts.has_value()) {
+        // MoE expert inference
+        std::cout << "\n========== MoE Expert Inference [Subgraph " << idx << "] ==========" << std::endl;
+
+        const auto& moe_experts = comp_model_desc.moe_experts.value();
+        const auto num_experts = moe_experts.num_experts;
+        const auto num_active_experts = moe_experts.num_active_experts;
+        const auto input_token_count = moe_experts.input_token_count;
+        const bool is_decoding = (input_token_count == 1);
+
+        std::cout << "MoE Config: num_experts=" << num_experts << ", num_active_experts=" << num_active_experts
+                  << ", input_token_count=" << input_token_count << ", mode=" << (is_decoding ? "DECODING" : "PREFILL")
+                  << std::endl;
+
+        // Step 1: Parse router output to get selected experts
+        if (!m_moe_io[idx].router_output) {
+            LOG_ERROR("Router output not available for MoE expert execution");
+            OPENVINO_THROW("MoE: Router output is required but not available");
+        }
+
+        auto router_shape = m_moe_io[idx].router_output->get_shape();
+        std::cout << "Router output shape: [";
+        for (size_t i = 0; i < router_shape.size(); ++i) {
+            std::cout << router_shape[i];
+            if (i < router_shape.size() - 1)
+                std::cout << ", ";
+        }
+        std::cout << "]" << std::endl;
+        // token_to_experts is a temporary mapping generated from router output each time
+        std::map<size_t, std::vector<size_t>> token_to_experts;
+        auto selected_experts =
+            parse_selected_experts_from_router(m_moe_io[idx].router_output, num_experts, token_to_experts);
+
+        if (selected_experts.empty()) {
+            LOG_ERROR("No experts selected by router!");
+            NPUW_ASSERT(false && "No experts selected by router");
+        }
+
+        std::cout << "Selected experts (" << selected_experts.size() << "): [";
+        for (size_t i = 0; i < selected_experts.size(); ++i) {
+            std::cout << selected_experts[i];
+            if (i < selected_experts.size() - 1)
+                std::cout << ", ";
+        }
+        std::cout << "]" << std::endl;
+
+        // Debug: Print token_to_experts mapping
+        std::cout << "Token to experts mapping:" << std::endl;
+        for (const auto& [token_id, expert_ids] : token_to_experts) {
+            std::cout << "  Token[" << token_id << "] -> Experts[";
+            for (size_t i = 0; i < expert_ids.size(); ++i) {
+                std::cout << expert_ids[i];
+                if (i < expert_ids.size() - 1)
+                    std::cout << ", ";
+            }
+            std::cout << "]" << std::endl;
+        }
+
+        const auto& oport = comp_model_desc.compiled_model->outputs()[0];  // Assume single output
+
+        if (is_decoding) {
+            // DECODING MODE: 1 token selects N experts (K active experts)
+            // The model is already transformed to handle K experts in one shot
+            // Unpack all K experts' weights at once and run inference once
+            std::cout << "\n[DECODING] Processing single token with " << selected_experts.size() << " experts"
+                      << std::endl;
+
+            // Validate: in decoding, one token should select exactly num_active_experts
+            if (selected_experts.size() != num_active_experts) {
+                LOG_ERROR("Decoding: expected " << num_active_experts << " experts, but got "
+                                                << selected_experts.size());
+                NPUW_ASSERT(false && "Decoding stage: number of selected experts does not match num_active_experts");
+            }
+            // Unpack closures for all K selected experts at once
+            std::cout << "  Unpacking batch expert closures for experts: [";
+            for (size_t k = 0; k < selected_experts.size(); ++k) {
+                std::cout << selected_experts[k];
+                if (k < selected_experts.size() - 1)
+                    std::cout << ", ";
+            }
+            std::cout << "]" << std::endl;
+            unpack_moe_batch_expert_closure(idx, r, selected_experts);
+            std::cout << "  Batch expert closures unpacked successfully" << std::endl;
+            // Set router_output input tensor for expert model
+            // Decoding: router_output shape is [num_experts, 1, 1, 1]
+            // Expert expects [num_active_experts, 1, 1, 1]
+            // We need to gather the selected experts' router outputs
+            if (moe_experts._router_param_idx.has_value()) {
+                const auto router_input_idx = moe_experts._router_param_idx.value();
+                const auto& router_iport = comp_model_desc.compiled_model->inputs()[router_input_idx];
+
+                // Get the expected shape for expert's router input
+                auto expert_router_tensor = r->get_tensor(router_iport);
+                auto expected_shape = expert_router_tensor->get_shape();  // [num_active_experts, 1, 1, 1]
+                std::cout << "  Setting router output input (param_idx=" << router_input_idx << ")" << std::endl;
+                std::cout << "    Expected shape: [";
+                for (size_t i = 0; i < expected_shape.size(); ++i) {
+                    std::cout << expected_shape[i];
+                    if (i < expected_shape.size() - 1)
+                        std::cout << ", ";
+                }
+                std::cout << "]" << std::endl;
+
+                // Verify shape matches (static tensors cannot be reshaped)
+                if (expected_shape[0] != num_active_experts || expected_shape.size() != 4 || expected_shape[1] != 1 ||
+                    expected_shape[2] != 1 || expected_shape[3] != 1) {
+                    std::cout << "    ⚠️  ERROR: Expert router tensor shape mismatch!" << std::endl;
+                    std::cout << "    Expected: [" << num_active_experts << ", 1, 1, 1]" << std::endl;
+                    std::cout << "    Got: [" << expected_shape[0] << ", " << expected_shape[1] << ", "
+                              << expected_shape[2] << ", " << expected_shape[3] << "]" << std::endl;
+                    NPUW_ASSERT(false && "Router input tensor shape does not match num_active_experts");
+                }
+
+                // Copy selected experts' router outputs
+                // router_output: [num_experts, 1, 1, 1], need to extract selected_experts indices
+                if (m_moe_io[idx].router_output->get_element_type() == ov::element::f16) {
+                    auto* src = static_cast<ov::float16*>(m_moe_io[idx].router_output->data());
+                    auto* dst = static_cast<ov::float16*>(expert_router_tensor->data());
+
+                    // Copy each selected expert's router output value
+                    for (size_t k = 0; k < selected_experts.size(); ++k) {
+                        dst[k] = src[selected_experts[k]];  // Copy from [expert_id, 0, 0, 0]
+                    }
+
+                    std::cout << "    Copied " << selected_experts.size() << " router values: [";
+                    float min_val = 1e10, max_val = -1e10, sum_val = 0.0f;
+                    for (size_t k = 0; k < selected_experts.size(); ++k) {
+                        float val = float(dst[k]);
+                        std::cout << val;
+                        if (k < selected_experts.size() - 1)
+                            std::cout << ", ";
+                        min_val = std::min(min_val, val);
+                        max_val = std::max(max_val, val);
+                        sum_val += val;
+                    }
+                    std::cout << "]" << std::endl;
+                    std::cout << "    Router values stats - min: " << min_val << ", max: " << max_val
+                              << ", mean: " << (sum_val / selected_experts.size()) << std::endl;
+                } else {
+                    NPUW_ASSERT(false && "Unsupported router output element type for gathering");
+                }
+            } else {
+                NPUW_ASSERT(false && "Router input parameter index not specified for MoE expert model");
+            }
+
+            // Debug: Check inputs before inference
+            std::cout << "  Checking inputs before inference:" << std::endl;
+            const auto& input_ports = comp_model_desc.compiled_model->inputs();
+            for (size_t inp_idx = 0; inp_idx < std::min(size_t(2), input_ports.size()); ++inp_idx) {
+                auto inp_tensor = r->get_tensor(input_ports[inp_idx]);
+                auto inp_shape = inp_tensor->get_shape();
+                std::cout << "    Input[" << inp_idx << "] shape: [";
+                for (size_t i = 0; i < inp_shape.size(); ++i) {
+                    std::cout << inp_shape[i];
+                    if (i < inp_shape.size() - 1)
+                        std::cout << ", ";
+                }
+                std::cout << "], type=" << inp_tensor->get_element_type() << std::endl;
+
+                // Print first few values
+                if (inp_tensor->get_element_type() == ov::element::f16) {
+                    auto* data_ptr = static_cast<ov::float16*>(inp_tensor->data());
+                    std::cout << "      First 5 values: [";
+                    for (size_t i = 0; i < std::min(size_t(5), inp_tensor->get_size()); ++i) {
+                        std::cout << float(data_ptr[i]);
+                        if (i < 4)
+                            std::cout << ", ";
+                    }
+                    std::cout << "]" << std::endl;
+                }
+            }
+            // Check output tensor BEFORE inference
+            std::cout << "  Checking output tensor BEFORE inference:" << std::endl;
+            auto output_tensor_before = r->get_tensor(oport);
+            std::cout << "    Output tensor address: " << output_tensor_before->data() << std::endl;
+            std::cout << "    Output tensor from m_moe_io: " << m_moe_io[idx].outputs.at(0)->data() << std::endl;
+            std::cout << "    Are they same? "
+                      << (output_tensor_before->data() == m_moe_io[idx].outputs.at(0)->data() ? "YES" : "NO")
+                      << std::endl;
+
+            // Execute inference ONCE for all K experts
+            // The output tensor (o_tensor from m_funcall_result) was already set via set_tensor() in function_prologue
+            // so the inference result will be directly written to o_tensor, no copy needed
+            std::cout << "  Executing inference for all " << num_active_experts << " experts at once..." << std::endl;
+            r->infer();
+            std::cout << "  Inference completed." << std::endl;
+
+            // Debug: Check output shape and print some values AFTER inference
+            auto output_tensor = r->get_tensor(oport);
+            auto output_shape = output_tensor->get_shape();
+            std::cout << "  Output shape: [";
+            for (size_t i = 0; i < output_shape.size(); ++i) {
+                std::cout << output_shape[i];
+                if (i < output_shape.size() - 1)
+                    std::cout << ", ";
+            }
+            std::cout << "]" << std::endl;
+            std::cout << "  Output tensor address AFTER: " << output_tensor->data() << std::endl;
+
+            // Print first few output values for debugging
+            if (output_tensor->get_element_type() == ov::element::f16) {
+                auto* data_ptr = static_cast<ov::float16*>(output_tensor->data());
+                std::cout << "  First 10 output values: [";
+                for (size_t i = 0; i < std::min(size_t(10), output_tensor->get_size()); ++i) {
+                    std::cout << float(data_ptr[i]);
+                    if (i < 9)
+                        std::cout << ", ";
+                }
+                std::cout << "]" << std::endl;
+
+                // Calculate statistics
+                float min_val = 1e10, max_val = -1e10, sum_val = 0.0f;
+                size_t zero_count = 0, nan_count = 0, inf_count = 0;
+                size_t check_size = std::min(size_t(1000), output_tensor->get_size());
+
+                for (size_t i = 0; i < check_size; ++i) {
+                    float val = float(data_ptr[i]);
+                    if (val == 0.0f)
+                        zero_count++;
+                    if (std::isnan(val))
+                        nan_count++;
+                    if (std::isinf(val))
+                        inf_count++;
+                    if (!std::isnan(val) && !std::isinf(val)) {
+                        min_val = std::min(min_val, val);
+                        max_val = std::max(max_val, val);
+                        sum_val += val;
+                    }
+                }
+
+                std::cout << "  Output statistics (first " << check_size << " values):" << std::endl;
+                std::cout << "    Min: " << min_val << ", Max: " << max_val << ", Mean: " << (sum_val / check_size)
+                          << std::endl;
+                std::cout << "    Zeros: " << zero_count << ", NaNs: " << nan_count << ", Infs: " << inf_count
+                          << std::endl;
+
+                if (zero_count == check_size) {
+                    std::cout << "  ⚠️  WARNING: Output is ALL ZERO!" << std::endl;
+                } else if (nan_count > 0 || inf_count > 0) {
+                    std::cout << "  ⚠️  WARNING: Output contains NaN or Inf values!" << std::endl;
+                } else {
+                    std::cout << "  ✓ Output appears valid (non-zero, finite values)" << std::endl;
+                }
+            }
+
+            std::cout << "  [DECODING] All " << num_active_experts << " experts processed successfully" << std::endl;
+
+        } else {
+            // PREFILL MODE: N tokens, each token selects 1 expert
+            // Loop over experts, for each expert process all tokens that selected it
+            std::cout << "\n[PREFILL] Processing " << input_token_count << " tokens" << std::endl;
+
+            // CRITICAL: Clear/zero the relayouted output buffer before accumulating expert outputs
+            std::cout << "  Clearing m_moe_relayouted_output buffer..." << std::endl;
+            if (m_moe_relayouted_output) {
+                std::memset(m_moe_relayouted_output->data(), 0, m_moe_relayouted_output->get_byte_size());
+                std::cout << "  Buffer cleared: size=" << m_moe_relayouted_output->get_byte_size() << " bytes"
+                          << std::endl;
+            } else {
+                LOG_ERROR("m_moe_relayouted_output is null!");
+            }
+
+            for (size_t expert_id : selected_experts) {
+                std::cout << "\n  Processing Expert[" << expert_id << "]..." << std::endl;
+
+                // Unpack closure for this specific expert
+                std::cout << "    Unpacking expert closure..." << std::endl;
+                unpack_moe_expert_closure(idx, r, expert_id);
+                std::cout << "    Expert closure unpacked" << std::endl;
+
+                // Set router_output input tensor for this expert
+                // Prefill: router_output shape is [num_experts, 1, token_num, 1]
+                // Expert expects [1, 1, token_num, 1] - slice from router_output[expert_id, :, :, :]
+                if (moe_experts._router_param_idx.has_value()) {
+                    const auto router_input_idx = moe_experts._router_param_idx.value();
+                    const auto& router_iport = comp_model_desc.compiled_model->inputs()[router_input_idx];
+
+                    // Create a view/slice of router_output for this expert
+                    // router_output: [num_experts, 1, token_num, 1]
+                    // We need: [1, 1, token_num, 1] from position [expert_id, :, :, :]
+                    auto router_view = ov::npuw::util::view(m_moe_io[idx].router_output, 0, expert_id, 1);
+                    r->set_tensor(router_iport, router_view);
+                    auto view_shape = router_view->get_shape();
+                    std::cout << "    Set router_output slice for expert[" << expert_id << "], shape: [";
+                    for (size_t i = 0; i < view_shape.size(); ++i) {
+                        std::cout << view_shape[i];
+                        if (i < view_shape.size() - 1)
+                            std::cout << ", ";
+                    }
+                    std::cout << "]" << std::endl;
+                } else {
+                    NPUW_ASSERT(false && "Router input parameter index not specified for MoE expert model");
+                }
+
+                // Execute the single expert inference
+                std::cout << "    Running expert inference..." << std::endl;
+                r->infer();
+                std::cout << "    Expert inference completed" << std::endl;
+
+                // Dump expert inputs and outputs to binary files
+                {
+                    const auto& input_ports = comp_model_desc.compiled_model->inputs();
+                    const auto& output_ports = comp_model_desc.compiled_model->outputs();
+
+                    // Dump inputs
+                    for (size_t inp_idx = 0; inp_idx < input_ports.size(); ++inp_idx) {
+                        auto input_tensor = r->get_tensor(input_ports[inp_idx]);
+                        std::string filename = "moe_sub" + std::to_string(idx) + "_expert" + std::to_string(expert_id) +
+                                               "_input" + std::to_string(inp_idx) + ".bin";
+                        std::ofstream ofs(filename, std::ios::binary);
+                        if (ofs) {
+                            ofs.write(static_cast<const char*>(input_tensor->data()), input_tensor->get_byte_size());
+                            std::cout << "    Saved input[" << inp_idx << "] to " << filename << " ("
+                                      << input_tensor->get_byte_size() << " bytes)" << std::endl;
+                        } else {
+                            std::cout << "    Failed to save input[" << inp_idx << "] to " << filename << std::endl;
+                        }
+                    }
+
+                    // Dump outputs
+                    for (size_t out_idx = 0; out_idx < output_ports.size(); ++out_idx) {
+                        auto output_tensor = r->get_tensor(output_ports[out_idx]);
+                        std::string filename = "moe_sub" + std::to_string(idx) + "_expert" + std::to_string(expert_id) +
+                                               "_output" + std::to_string(out_idx) + ".bin";
+
+                        std::ofstream ofs(filename, std::ios::binary);
+                        if (ofs) {
+                            ofs.write(static_cast<const char*>(output_tensor->data()), output_tensor->get_byte_size());
+                            std::cout << "    Saved output[" << out_idx << "] to " << filename << " ("
+                                      << output_tensor->get_byte_size() << " bytes)" << std::endl;
+                        } else {
+                            std::cout << "    Failed to save output[" << out_idx << "] to " << filename << std::endl;
+                        }
+                    }
+                }
+
+                // Get expert output
+                auto expert_output_tensor = r->get_tensor(oport);
+                auto shape = expert_output_tensor->get_shape();
+                size_t num_tokens = shape[2];  // [1, 1, num_tokens, embed_dim]
+                size_t embed_dim = shape[3];
+                std::cout << "    Expert output shape: [" << shape[0] << ", " << shape[1] << ", " << num_tokens << ", "
+                          << embed_dim << "]" << std::endl;
+
+                // Check expert output statistics
+                if (expert_output_tensor->get_element_type() == ov::element::f16) {
+                    auto* data_ptr = static_cast<ov::float16*>(expert_output_tensor->data());
+                    float min_val = 1e10, max_val = -1e10, sum_val = 0.0f;
+                    size_t zero_count = 0;
+                    size_t total = expert_output_tensor->get_size();
+
+                    for (size_t i = 0; i < total; ++i) {
+                        float val = float(data_ptr[i]);
+                        if (val == 0.0f)
+                            zero_count++;
+                        min_val = std::min(min_val, val);
+                        max_val = std::max(max_val, val);
+                        sum_val += val;
+                    }
+
+                    std::cout << "    Expert output stats - min: " << min_val << ", max: " << max_val
+                              << ", mean: " << (sum_val / total) << ", zeros: " << zero_count << "/" << total
+                              << std::endl;
+                }
+
+                // In prefill mode, relayout based on token_to_experts mapping
+                std::cout << "    Relayouting expert output to global buffer..." << std::endl;
+                relayout_single_expert_output(expert_id,
+                                              expert_output_tensor,
+                                              m_moe_relayouted_output,
+                                              token_to_experts,
+                                              num_tokens,
+                                              embed_dim);
+
+                std::cout << "    Expert[" << expert_id << "] output relayouted successfully" << std::endl;
+            }
+
+            std::cout << "  [PREFILL] All experts processed" << std::endl;
+        }
+
+        std::cout << "========== MoE Expert Inference Completed ==========\n" << std::endl;
     } else {
         r->infer();  // Run normally
     }
