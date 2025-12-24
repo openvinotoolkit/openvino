@@ -57,8 +57,10 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
     auto a_m =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_activations_m, reshape_activations_m});
 
-    auto weights_const_m = wrap_type<ov::op::v0::Constant>(rank_equals(4) && has_static_rank() && filter1x1_path);
-    auto weights_param_m = wrap_type<ov::op::v0::Parameter>(rank_equals(4) && has_static_rank() && filter1x1_path);
+    auto weights_const_m =
+        wrap_type<ov::op::v0::Constant>((rank_equals(4) || rank_equals(5)) && has_static_rank() && filter1x1_path);
+    auto weights_param_m =
+        wrap_type<ov::op::v0::Parameter>((rank_equals(4) || rank_equals(5)) && has_static_rank() && filter1x1_path);
     auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m});
     auto weight_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_m});
     auto weights_scales_m = ov::pass::pattern::any_input();
@@ -70,7 +72,10 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
     auto weight_dequantized_m =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weight_convert_m, weight_subtract_m});
     auto weight_mult_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({weight_dequantized_m, weights_scales_m});
-    auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({a_m, weight_mult_m});
+    auto weight_reshape_m =
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({weight_mult_m, ov::pass::pattern::any_input()});
+    auto weight_input_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weight_mult_m, weight_reshape_m});
+    auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({a_m, weight_input_m});
 
     // Optional bias
     auto bias_const_m = wrap_type<ov::op::v0::Constant>(rank_equals(4) && has_static_rank() && bias_path);
@@ -95,6 +100,9 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
                               ? pattern_map.at(weight_subtract_m).get_node_shared_ptr()
                               : nullptr;
         auto weight_mult = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(weight_mult_m).get_node_shared_ptr());
+        auto weight_reshape = (pattern_map.count(weight_reshape_m) > 0)
+                                  ? pattern_map.at(weight_reshape_m).get_node_shared_ptr()
+                                  : nullptr;
         auto bias_out = (pattern_map.count(bias_m) > 0) ? pattern_map.at(bias_m).get_node_shared_ptr() : nullptr;
         auto bias_const =
             (pattern_map.count(bias_const_m) > 0) ? pattern_map.at(bias_const_m).get_node_shared_ptr() : nullptr;
@@ -127,11 +135,20 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
 
                 ov::copy_weightless_cache_attr(constant, new_constant);
                 return new_constant;
-            } else {
-                OPENVINO_ASSERT(current_shape.size() == 4);
+            } else if (current_shape.size() == 4) {
                 OPENVINO_ASSERT(current_shape[2] == 1 && current_shape[3] == 1);
 
                 auto new_shape = ov::Shape{current_shape[0], current_shape[1]};
+
+                auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
+
+                ov::copy_weightless_cache_attr(constant, new_constant);
+                return new_constant;
+            } else {
+                OPENVINO_ASSERT(current_shape.size() == 5);
+                OPENVINO_ASSERT(current_shape[3] == 1 && current_shape[4] == 1);
+
+                auto new_shape = ov::Shape{current_shape[0], current_shape[1], current_shape[2]};
 
                 auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
 
@@ -159,7 +176,8 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
                     values_reshape_b.push_back(static_cast<int>(shape_b.to_shape()[i]));
                 }
 
-            auto reshape_weight_const = ov::op::v0::Constant::create(element::i32, Shape{2}, values_reshape_b);
+            auto reshape_weight_const =
+                ov::op::v0::Constant::create(element::i32, Shape{values_reshape_b.size()}, values_reshape_b);
             auto Reshape_weight = std::make_shared<ov::op::v1::Reshape>(param, reshape_weight_const, false);
             MatcherPass::register_new_node(Reshape_weight);
             Reshape_weight->set_friendly_name(param->get_friendly_name() + "_Reshape_weight");
@@ -194,6 +212,19 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         }
         ov::copy_runtime_info(weight_mult, scaled_weight);
         ov::disable_constant_folding(scaled_weight);
+
+        if (weight_reshape) {
+            const auto& shape = scaled_weight->get_output_partial_shape(0);
+            OPENVINO_ASSERT(shape.rank().get_length() == 3, "Expected 3 Dim weights for block quantization case");
+            auto shape_const = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i64,
+                ov::Shape{2},
+                std::vector<int64_t>{shape[0].get_length(), shape[1].get_length() * shape[2].get_length()});
+            auto final_weight_reshape = std::make_shared<ov::op::v1::Reshape>(scaled_weight, shape_const, false);
+            ov::copy_runtime_info(weight_reshape, final_weight_reshape);
+            final_weight_reshape->set_friendly_name(weight_reshape->get_friendly_name() + "_reshape_weight");
+            scaled_weight = final_weight_reshape;
+        }
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(activation, scaled_weight, false, true);
         ov::copy_runtime_info(conv1x1, matmul);
