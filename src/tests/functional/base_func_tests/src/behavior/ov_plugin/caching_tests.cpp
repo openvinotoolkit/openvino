@@ -359,12 +359,8 @@ TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutException) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicodePath) {
-    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    auto hash = std::hash<std::string>()(test_name);
-    std::stringstream ss;
-    ss << std::this_thread::get_id();
     std::string cache_path = ov::test::utils::getCurrentWorkingDir() + ov::util::FileTraits<char>::file_separator +
-                             "compiledModel_" + std::to_string(hash) + "_" + ss.str() + "_" + GetTimestamp() + "_cache";
+                             "compiledModel_" + utils::generateTestFilePrefix() + "_cache";
     std::wstring postfix = L"_" + ov::test::utils::test_unicode_postfix_vector[0];
     std::wstring cache_path_w = ov::util::string_to_wstring(cache_path) + postfix;
     auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
@@ -405,10 +401,7 @@ TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicode
     } catch (std::exception& ex) {
         // Cleanup in case of any exception
         if (ov::util::directory_exists(cache_path_w)) {
-            // Check that folder contains cache files and remove them
-            ASSERT_GT(
-                ov::test::utils::removeFilesWithExt<opt::FORCE>(cache_path_w, ov::util::string_to_wstring("blob")),
-                0);
+            ov::test::utils::removeFilesWithExt<opt::FORCE>(cache_path_w, ov::util::string_to_wstring("blob"));
             ov::test::utils::removeFile(model_xml_path_w);
             ov::test::utils::removeFile(model_bin_path_w);
             ov::test::utils::removeDir(cache_path_w);
