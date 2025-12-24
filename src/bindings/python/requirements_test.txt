@@ -5,7 +5,7 @@ black
 flake8<=7.3.0
 flake8-annotations-complexity<=0.1.0
 flake8-broken-line<=1.0.0
-flake8-bugbear<=24.12.12
+flake8-bugbear<=25.11.29
 flake8-class-attributes-order<=0.3.0
 flake8-comprehensions<=3.16.0
 flake8-debugger<=4.1.2
