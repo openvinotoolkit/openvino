@@ -336,6 +336,7 @@ public:
     void spatial(const std::string& func_name);
     void attention(const std::string& func_name);
     void moe(const std::string& func_name);
+    void moeDownstream(const std::string& func_name);
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
@@ -1947,14 +1948,30 @@ void Partitioner::attention(const std::string& func_name) {
 void Partitioner::moe(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
 
-    // Handle expert tag
+    // Find and store router model from P.functions
+    if (P.router_model == nullptr) {
+        for (const auto& [name, func] : P.functions) {
+            if (func.gettag() == "router") {
+                P.router_model = func._model;
+                LOG_INFO("Found router model: " << name);
+                break;
+            }
+        }
+    }
+
+    if (!P.router_model) {
+        LOG_DEBUG("Router model not found yet");
+        return;
+    }
+
+    // Handle expert tag - create MoE experts transformation
     if (f.gettag() == "expert") {
         LOG_INFO("Transform " << func_name << " into MoE expert block in model " << model->get_friendly_name()
                               << "...");
+
         // Use the factory method to create MoEExperts from the function model
-        // The factory will auto-detect whether this is prefill or decoding stage
-        const size_t active_experts_num = cfg.get<::intel_npu::NPUW_MOE_ACTIVE_EXPERTS_NUM>();
-        f._moe_experts = ov::npuw::function::MoEExperts::from(f._model, active_experts_num);
+        // K will be auto-extracted from router model's TopK node
+        f._moe_experts = ov::npuw::function::MoEExperts::from(f._model, P.router_model);
 
         if (f._moe_experts) {
             LOG_INFO("Successfully created MoE expert model");
@@ -1964,15 +1981,20 @@ void Partitioner::moe(const std::string& func_name) {
             LOG_WARN("Failed to create MoE expert model from " << func_name);
         }
     }
+}
 
-    // Try downstream pattern for non-expert functions
-    const size_t active_experts_num = cfg.get<::intel_npu::NPUW_MOE_ACTIVE_EXPERTS_NUM>();
-    f._moe_experts_downstream = ov::npuw::function::create_moe_downstream(f._model, active_experts_num);
+void Partitioner::moeDownstream(const std::string& func_name) {
+    ov::npuw::Function& f = P.functions.at(func_name);
+
+    if (!P.router_model) {
+        LOG_DEBUG("Router model not found, skipping MoE downstream transformation for " << func_name);
+        return;
+    }
+
+    // Try downstream pattern for all functions (using the cached router_model)
+    f._moe_experts_downstream = ov::npuw::function::create_moe_downstream(f._model, P.router_model);
     if (f._moe_experts_downstream) {
-        LOG_INFO("Successfully created MoE downstream model");
-        LOG_VERB("MoE downstream transformation completed");
-    } else {
-        LOG_WARN("Failed to create MoE downstream model from " << func_name);
+        LOG_INFO("Successfully created MoE downstream model for " << func_name);
     }
 }
 
@@ -2572,9 +2594,13 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.matchRepeatedSubgraphs(func_group);
                 p.spatial(func_group);
                 p.attention(func_group);
-                p.moe(func_group);
+                p.moe(func_group);  // First pass: find router and create experts
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
+            }
+            for (auto&& func_group : all_functions) {
+                p.moeDownstream(
+                    func_group);  // Second pass: create downstream for all functions (after router is found)
             }
         } else if (cfg.get<::intel_npu::NPUW_CWAI>()) {
             // Less brutal version - just transform repeated blocks
