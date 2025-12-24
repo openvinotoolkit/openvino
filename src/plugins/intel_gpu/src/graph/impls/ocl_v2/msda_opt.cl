@@ -117,7 +117,7 @@ KERNEL(multi_scale_deformable_attn)(
         const INPUT0_TYPE w_im = loc_w * spatial_w - 0.5;
 
         if (h_im > -1 && w_im > -1 && h_im < spatial_h && w_im < spatial_w) {
-          col += ms_deform_attn_im2col_bilinear(data_value_ptr, spatial_h,
+          col += FUNC_CALL(ms_deform_attn_im2col_bilinear)(data_value_ptr, spatial_h,
                                                 spatial_w, NUM_HEADS, EMBED_DIMS,
                                                 h_im, w_im, m_col, c_col) *
                  weight;
