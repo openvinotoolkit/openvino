@@ -44,6 +44,10 @@ class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmul_ActNotTran;
  *     | Reshape     |           | Multiply |<--------------+
  *     +-------------+           +----------+
  *           |                        |
+ *           |                  *-----------+
+ *           |                  | Reshape   | (optional)
+ *           |                  +-----------+
+ *           |                        |
  *           |                        v
  *           |                  +-----------+
  *           +----------------->|Convolution|
@@ -91,6 +95,11 @@ class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmul_ActNotTran;
  *           |                    v                    |
  *           |              +----------+               |
  *           |              | Multiply |<--------------+
+ *           |              +----------+
+ *           |                   |
+ *           |                   v
+ *           |              *----------+
+ *           |              | Reshape  | (optional)
  *           |              +----------+
  *           |                   |
  *           |                   v
