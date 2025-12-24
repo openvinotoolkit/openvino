@@ -63,7 +63,7 @@ struct MoEDownstream {
 
 // Helper function to validate MoE expert model and extract necessary information
 std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shared_ptr<ov::Model>& model,
-                                                                 size_t active_experts_num_config = 4);
+                                                                 size_t active_experts_num);
 
 // Expert transformation mode
 enum class ExpertMode {
@@ -181,14 +181,15 @@ struct MoEExperts {
     }
 
     // Factory method to create MoEExperts from a model (for expert pattern only)
-    // For prefill stage: active_experts_num = 0 or 1 (default), mode = SINGLE_EXPERT
-    // For decoding stage: active_experts_num = K, mode = ACTIVE_EXPERTS
+    // router_model: Router model to extract actual K from TopK node (required)
     static std::optional<MoEExperts> from(const std::shared_ptr<ov::Model>& model,
-                                          size_t active_experts_num_config = 4);
+                                          const std::shared_ptr<ov::Model>& router_model);
 };
 
 // Factory method to create MoEDownstream from a model (for downstream pattern)
-std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Model>& model, size_t active_experts_num);
+// router_model: Router model to extract actual K from TopK node (required)
+std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Model>& model,
+                                                   const std::shared_ptr<ov::Model>& router_model);
 
 }  // namespace function
 
