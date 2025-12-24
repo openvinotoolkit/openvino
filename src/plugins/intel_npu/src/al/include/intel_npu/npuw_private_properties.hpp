@@ -241,6 +241,14 @@ static constexpr ov::Property<std::size_t> spatial_nway{"NPUW_SPATIAL_NWAY"};
 
 /**
  * @brief
+ * Type: std::size_t.
+ * Number of active experts for MoE decoding stage.
+ * Default value: 4
+ */
+static constexpr ov::Property<std::size_t> moe_active_experts_num{"NPUW_MOE_ACTIVE_EXPERTS_NUM"};
+
+/**
+ * @brief
  * Type: boolean.
  * Enable dynamic submission for spatial subgraphs. Requires SPATIAL pipeline to be selected.
  * Default value: true
@@ -509,6 +517,22 @@ static constexpr ov::Property<bool> optimize_v_tensors{"NPUW_LLM_OPTIMIZE_V_TENS
  * Default value: true.
  */
 static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
+
+/**
+ * @brief
+ * Type: boolean
+ * Enable MoE (Mixture of Experts) architecture optimizations for prefill stage
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> prefill_enable_moe{"NPUW_LLM_PREFILL_ENABLE_MOE"};
+
+/**
+ * @brief
+ * Type: boolean
+ * Enable MoE (Mixture of Experts) architecture optimizations for generate stage
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> generate_enable_moe{"NPUW_LLM_GENERATE_ENABLE_MOE"};
 
 /**
  * @brief
