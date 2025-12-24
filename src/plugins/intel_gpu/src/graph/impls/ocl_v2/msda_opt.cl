@@ -23,7 +23,7 @@
 #define NUM_QUERY INPUT3_FEATURE_NUM
 #define NUM_POINT INPUT3_SIZE_Y 
 
-INPUT0_TYPE FUNC(ms_deform_attn_im2col_bilinear)(
+inline INPUT0_TYPE FUNC(ms_deform_attn_im2col_bilinear)(
     __global const INPUT0_TYPE *bottom_data, const int height, const int width,
     const int nheads, const int ed, const INPUT0_TYPE h,
     const INPUT0_TYPE w, const int m, const int c) {
