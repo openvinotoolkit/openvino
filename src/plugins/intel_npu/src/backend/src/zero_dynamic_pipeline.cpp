@@ -287,16 +287,18 @@ void DynamicPipeline::push() {
                         graphArguments._outputs[i].sizes[j],
                         outputPros[i].sizes[j]);
                     shapeChanged = true;
-                    break;
+                    graphArguments._outputs[i].sizes[j] = outputPros[i].sizes[j];
                 }
             }
             if (shapeChanged) {
-                break;
+                graphArguments._outputs[i].updateStride();
             }
         }
         if (!shapeChanged) {
             _logger.debug("No output shape changed detected");
-        }
+        } else {
+            _logger.warning("Use predicted shape to replace the real tensor shape and update its strides");
+	}
 
         dynamic_cast<IRGraph*>(_graph.get())
             ->execute(_init_structs,
