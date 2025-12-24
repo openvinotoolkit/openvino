@@ -567,9 +567,9 @@ void Subgraph::control_flow_transformations(
 
     lowered::pass::PassPipeline gen_pipeline(lowered_pass_config);
     // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
-    //    1. InsertSpecificIterations must be called after AssignRegisters since tail loop expressions must have the
-    //    same
-    //       assigned registers as the corresponding ops in the main body.
+    //    1. AssignRegisters must be called after InsertSpecificIterations since specific loops maybe have
+    //       different expressions and connections each other. AssignRegisters should be performed on the expanded
+    //       loops.
     //    2. CleanupLoopOffsets must be called after InsertSpecificIterations to avoid violating the proportionality of
     //    the pointer increments
     //       (this might happen if tail loop and main loop have different increments)

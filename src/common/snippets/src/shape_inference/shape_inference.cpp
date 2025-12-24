@@ -5,7 +5,6 @@
 
 #include <memory>
 #include <openvino/op/parameter.hpp>
-#include <openvino/op/result.hpp>
 #include <openvino/op/util/binary_elementwise_arithmetic.hpp>
 #include <openvino/op/util/binary_elementwise_comparison.hpp>
 #include <openvino/op/util/binary_elementwise_logical.hpp>
@@ -109,7 +108,6 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
     SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::ReduceMax, ReduceShapeInfer),
     SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::ReduceSum, ReduceShapeInfer),
     // Note that Result has no output PortConnectors, so the shape must be empty
-    SHAPE_INFER_PREDEFINED(ov::op::v0::Result, EmptyShapeInfer),
     SHAPE_INFER_PREDEFINED(op::Result, EmptyShapeInfer),
     //
     SHAPE_INFER_OP_SPECIFIC(op::LoadReorder),
