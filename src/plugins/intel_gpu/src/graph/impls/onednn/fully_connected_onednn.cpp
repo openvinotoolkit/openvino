@@ -270,7 +270,6 @@ public:
         auto prim = impl_params->typed_desc<fully_connected>();
         auto weights_layout = impl_params->get_input_layout(1);
         auto weight_shape = weights_layout.get_partial_shape();
-        auto weight_rank = std::count_if(weight_shape.begin(), weight_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
         auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
         auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
         int idx = !arg.bias_term() ? 1 : 2;
@@ -331,7 +330,7 @@ public:
             if (dynamic_quantized_precomputed_reduction) {
                 auto activation_precomputed_reduction_idx = ++idx;
                 auto act_precomputed_reduction_data_type = convert_data_type(impl_params->get_input_layout(activation_precomputed_reduction_idx).data_type);
-                _attrs->set_precomputed_reductions(DNNL_ARG_SRC, act_grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
+                _attrs->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
                 // FIXME: implementation for serialization
             }
         }
