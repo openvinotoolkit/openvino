@@ -12,12 +12,12 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "openvino/op/op.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov::snippets::op {
 
-Result::Result(const OutputVector& arguments) : Op(arguments) {
+Result::Result(const OutputVector& arguments) {
+    set_arguments(arguments);
     constructor_validate_and_infer_types();
 }
 

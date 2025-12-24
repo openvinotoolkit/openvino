@@ -13,14 +13,18 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::op {
 
-// Result op in snippets has multiple inputs connected to specific loops' output.
-class Result : public ov::op::Op {
+// Snippets result is used only in snippets lowering pipeline as output of subgraph.
+// This op is needed becuase there could be multiple loop bodies(such as first, main and tail) in LIR,
+// all need write to the same output but at different offsets. Then snippets result should has
+// multiple inputs connected to all loops. The correct and full connections are needed in passes like AssignRegisters.
+class Result : public ov::op::v0::Result {
 public:
-    OPENVINO_OP("Result", "SnippetsOpset");
+    OPENVINO_OP("Result", "SnippetsOpset", ov::op::v0::Result);
     Result() = default;
     explicit Result(const OutputVector& arguments);
 
