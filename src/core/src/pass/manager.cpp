@@ -248,8 +248,8 @@ public:
         static size_t viz_index = 0;
         if (m_visualize.is_enabled()) {
             const auto& _visualize = [&]() {
-                const auto& file_name = gen_file_name(model->get_name(), pass_name, viz_index++);
-                ov::pass::VisualizeTree vt(file_name + ".svg");
+                auto file_name = gen_file_name(model->get_name(), pass_name, viz_index++);
+                ov::pass::VisualizeTree vt(file_name.concat(".svg"));
                 vt.run_on_model(model);
             };
 
@@ -271,8 +271,8 @@ public:
         static size_t serialize_index = 0;
         if (m_serialize.is_enabled()) {
             const auto& _serialize = [&]() {
-                const auto& file_name = gen_file_name(model->get_name(), pass_name, serialize_index++);
-                ov::pass::Serialize serialize(file_name + ".xml", file_name + ".bin");
+                auto file_name = gen_file_name(model->get_name(), pass_name, serialize_index++);
+                ov::pass::Serialize serialize(file_name.concat(".xml"), {});
                 serialize.run_on_model(model);
             };
 
@@ -291,15 +291,17 @@ public:
     }
 
 private:
-    static std::string gen_file_name(const std::string& model_name, const std::string& pass_name, const size_t idx) {
-        std::stringstream name;
+    static std::filesystem::path gen_file_name(const std::string& model_name,
+                                               const std::string& pass_name,
+                                               const size_t idx) {
         // visualizations and serializations will be named after the outermost function
         std::string index_str = std::to_string(idx);
         const size_t num_digits_in_pass_index = index_str.length() > 2LU ? 0LU : (3LU - index_str.length());
         index_str = std::string(num_digits_in_pass_index, '0') + index_str;
 
-        name << model_name << std::string("_") << index_str << std::string("_") << pass_name;
-        return name.str();
+        std::filesystem::path file_name{model_name};
+        file_name += "_" + index_str + "_" + pass_name;
+        return file_name;
     }
 
     std::unordered_map<std::string, stopwatch> stopwatches;
