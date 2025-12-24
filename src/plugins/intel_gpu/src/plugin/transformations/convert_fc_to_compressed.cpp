@@ -15,8 +15,10 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -102,8 +104,27 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             return result;
         };
 
+        // Squeeze inputs
+        // from [bs, 1, seqlen, feature] or [bs, seqlen, 1, feature]
+        // to   [bs, seqlen, feature]
+        int64_t squeeze_index = 0;
+        auto squeeze_input = [&](ov::Output<Node> node) {
+            auto pshape = node.get_partial_shape();
+            if (pshape.rank().is_static() && pshape.rank().get_length() == 4) {
+                squeeze_index = pshape[1].is_static() && pshape[1].get_length() == 1 ? 1 : 0;
+                squeeze_index = pshape[2].is_static() && pshape[2].get_length() == 1 ? 2 : squeeze_index;
+                if (squeeze_index) {
+                    auto squeeze_index_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{squeeze_index});
+                    auto squeeze = std::make_shared<ov::op::v0::Squeeze>(node, squeeze_index_const);
+                    ov::copy_runtime_info(node.get_node_shared_ptr(), squeeze_index_const);
+                    ov::copy_runtime_info(node.get_node_shared_ptr(), squeeze);
+                    return squeeze->output(0);
+                }
+            }
+            return node;
+        };
 
-        const ov::Output<Node>& fc_input_a = fc->input(0).get_source_output();
+        const ov::Output<Node>& fc_input_a = squeeze_input(fc->input(0).get_source_output());
         const auto& scale = reshape_const(pattern_map.at(mul_const_m).get_node_shared_ptr());
         std::shared_ptr<ov::Node> optional_zero_point = nullptr;
 
@@ -165,6 +186,15 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         result_nodes.push_back(new_fc);
         new_fc->set_friendly_name(fc->get_friendly_name());
+
+        // Unsqueeze inputs
+        // from [bs, seqlen, feature]
+        // to   [bs, 1, seqlen, feature] or [bs, seqlen, 1, feature]
+        if (squeeze_index) {
+            auto unsqueeze_index_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{squeeze_index});
+            new_fc = std::make_shared<ov::op::v0::Unsqueeze>(new_fc, unsqueeze_index_const);
+            result_nodes.push_back(new_fc);
+        }
         ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);
         ov::replace_node(fc, new_fc);
 
