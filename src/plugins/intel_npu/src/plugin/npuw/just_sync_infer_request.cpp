@@ -1853,7 +1853,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
         run_hfa_tiled_inference(real_idx, idx);
     } else if (comp_model_desc.moe_experts.has_value()) {
         // MoE expert inference
-        std::cout << "\n========== MoE Expert Inference [Subgraph " << idx << "] ==========" << std::endl;
+        LOG_DEBUG("\n========== MoE Expert Inference [Subgraph " << idx << "] ==========");
 
         const auto& moe_experts = comp_model_desc.moe_experts.value();
         const auto num_experts = moe_experts.num_experts;
@@ -1861,9 +1861,9 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
         const auto input_token_count = moe_experts.input_token_count;
         const bool is_decoding = (input_token_count == 1);
 
-        std::cout << "MoE Config: num_experts=" << num_experts << ", num_active_experts=" << num_active_experts
-                  << ", input_token_count=" << input_token_count << ", mode=" << (is_decoding ? "DECODING" : "PREFILL")
-                  << std::endl;
+        LOG_DEBUG("MoE Config: num_experts=" << num_experts << ", num_active_experts=" << num_active_experts
+                                             << ", input_token_count=" << input_token_count
+                                             << ", mode=" << (is_decoding ? "DECODING" : "PREFILL"));
 
         // Step 1: Parse router output to get selected experts
         if (!m_moe_io[idx].router_output) {
@@ -1879,24 +1879,28 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
             NPUW_ASSERT(false && "No experts selected by router");
         }
 
-        std::cout << "Selected experts (" << selected_experts.size() << "): [";
+        std::ostringstream oss;
+        oss << "Selected experts (" << selected_experts.size() << "): [";
         for (size_t i = 0; i < selected_experts.size(); ++i) {
-            std::cout << selected_experts[i];
+            oss << selected_experts[i];
             if (i < selected_experts.size() - 1)
-                std::cout << ", ";
+                oss << ", ";
         }
-        std::cout << "]" << std::endl;
+        oss << "]";
+        LOG_DEBUG(oss.str());
 
         // Debug: Print token_to_experts mapping
-        std::cout << "Token to experts mapping:" << std::endl;
+        LOG_DEBUG("Token to experts mapping:");
         for (const auto& [token_id, expert_ids] : token_to_experts) {
-            std::cout << "  Token[" << token_id << "] -> Experts[";
+            std::ostringstream oss;
+            oss << "  Token[" << token_id << "] -> Experts[";
             for (size_t i = 0; i < expert_ids.size(); ++i) {
-                std::cout << expert_ids[i];
+                oss << expert_ids[i];
                 if (i < expert_ids.size() - 1)
-                    std::cout << ", ";
+                    oss << ", ";
             }
-            std::cout << "]" << std::endl;
+            oss << "]";
+            LOG_DEBUG(oss.str());
         }
 
         const auto& oport = comp_model_desc.compiled_model->outputs()[0];  // Assume single output
@@ -1905,8 +1909,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
             // DECODING MODE: 1 token selects N experts (K active experts)
             // The model is already transformed to handle K experts in one shot
             // Unpack all K experts' weights at once and run inference once
-            std::cout << "\n[DECODING] Processing single token with " << selected_experts.size() << " experts"
-                      << std::endl;
+            LOG_DEBUG("\n[DECODING] Processing single token with " << selected_experts.size() << " experts");
 
             // Validate: in decoding, one token should select exactly num_active_experts
             if (selected_experts.size() != num_active_experts) {
@@ -1929,10 +1932,10 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
                 // Verify shape matches (static tensors cannot be reshaped)
                 if (expected_shape[0] != num_active_experts || expected_shape.size() != 4 || expected_shape[1] != 1 ||
                     expected_shape[2] != 1 || expected_shape[3] != 1) {
-                    std::cout << "    ⚠️  ERROR: Expert router tensor shape mismatch!" << std::endl;
-                    std::cout << "    Expected: [" << num_active_experts << ", 1, 1, 1]" << std::endl;
-                    std::cout << "    Got: [" << expected_shape[0] << ", " << expected_shape[1] << ", "
-                              << expected_shape[2] << ", " << expected_shape[3] << "]" << std::endl;
+                    LOG_ERROR("    ⚠️  ERROR: Expert router tensor shape mismatch!");
+                    LOG_ERROR("    Expected: [" << num_active_experts << ", 1, 1, 1]");
+                    LOG_ERROR("    Got: [" << expected_shape[0] << ", " << expected_shape[1] << ", "
+                                           << expected_shape[2] << ", " << expected_shape[3] << "]");
                     NPUW_ASSERT(false && "Router input tensor shape does not match num_active_experts");
                 }
 
@@ -1960,7 +1963,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
         } else {
             // PREFILL MODE: N tokens, each token selects 1 expert
             // Loop over experts, for each expert process all tokens that selected it
-            std::cout << "\n[PREFILL] Processing " << input_token_count << " tokens" << std::endl;
+            LOG_DEBUG("\n[PREFILL] Processing " << input_token_count << " tokens");
 
             // CRITICAL: Clear/zero the relayouted output buffer before accumulating expert outputs
             if (m_moe_relayouted_output) {
@@ -1970,7 +1973,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
             }
 
             for (size_t expert_id : selected_experts) {
-                std::cout << "\n  Processing Expert[" << expert_id << "]..." << std::endl;
+                LOG_DEBUG("\n  Processing Expert[" << expert_id << "]...");
 
                 // Unpack closure for this specific expert
                 unpack_moe_expert_closure(idx, r, expert_id);
@@ -1994,6 +1997,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
                 // Execute the single expert inference
                 r->infer();
 
+#if 0
                 // Dump expert inputs and outputs to binary files
                 {
                     const auto& input_ports = comp_model_desc.compiled_model->inputs();
@@ -2007,10 +2011,10 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
                         std::ofstream ofs(filename, std::ios::binary);
                         if (ofs) {
                             ofs.write(static_cast<const char*>(input_tensor->data()), input_tensor->get_byte_size());
-                            std::cout << "    Saved input[" << inp_idx << "] to " << filename << " ("
-                                      << input_tensor->get_byte_size() << " bytes)" << std::endl;
+                            LOG_DEBUG("    Saved input[" << inp_idx << "] to " << filename << " ("
+                                      << input_tensor->get_byte_size() << " bytes)");
                         } else {
-                            std::cout << "    Failed to save input[" << inp_idx << "] to " << filename << std::endl;
+                            LOG_WARN("    Failed to save input[" << inp_idx << "] to " << filename);
                         }
                     }
 
@@ -2023,13 +2027,14 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
                         std::ofstream ofs(filename, std::ios::binary);
                         if (ofs) {
                             ofs.write(static_cast<const char*>(output_tensor->data()), output_tensor->get_byte_size());
-                            std::cout << "    Saved output[" << out_idx << "] to " << filename << " ("
-                                      << output_tensor->get_byte_size() << " bytes)" << std::endl;
+                            LOG_DEBUG("    Saved output[" << out_idx << "] to " << filename << " ("
+                                      << output_tensor->get_byte_size() << " bytes)");
                         } else {
-                            std::cout << "    Failed to save output[" << out_idx << "] to " << filename << std::endl;
+                            LOG_WARN("    Failed to save output[" << out_idx << "] to " << filename);
                         }
                     }
                 }
+#endif
 
                 // Get expert output
                 auto expert_output_tensor = r->get_tensor(oport);
@@ -2038,7 +2043,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
                 size_t embed_dim = shape[3];
 
                 // In prefill mode, relayout based on token_to_experts mapping
-                std::cout << "    Relayouting expert output to global buffer..." << std::endl;
+                LOG_DEBUG("    Relayouting expert output to global buffer...");
                 relayout_single_expert_output(expert_id,
                                               expert_output_tensor,
                                               m_moe_relayouted_output,
@@ -2046,13 +2051,13 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
                                               num_tokens,
                                               embed_dim);
 
-                std::cout << "    Expert[" << expert_id << "] output relayouted successfully" << std::endl;
+                LOG_DEBUG("    Expert[" << expert_id << "] output relayouted successfully");
             }
 
-            std::cout << "  [PREFILL] All experts processed" << std::endl;
+            LOG_DEBUG("  [PREFILL] All experts processed");
         }
 
-        std::cout << "========== MoE Expert Inference Completed ==========\n" << std::endl;
+        LOG_DEBUG("========== MoE Expert Inference Completed ==========");
     } else {
         r->infer();  // Run normally
     }
