@@ -300,9 +300,11 @@ std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Mod
 std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model>& original_model,
                                                  MoEValidationResult& validation_result,
                                                  size_t num_target_experts,
-                                                 ExpertMode mode) {
+                                                 ExpertMode mode,
+                                                 size_t prefill_chunk_size) {
     LOG_DEBUG("Transforming MoE model to " << num_target_experts << " expert(s), mode: "
-                                           << (mode == ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS"));
+                                           << (mode == ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS")
+                                           << ", prefill_chunk_size: " << prefill_chunk_size);
     LOG_BLOCK();
 
     auto model = original_model->clone();
@@ -355,6 +357,12 @@ std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model
         auto matmul_input_shape = node_before_matmul.get_shape();
         ov::Shape target_expert_shape = matmul_input_shape;
         target_expert_shape[0] = num_target_experts;
+
+        // For prefill mode, update token dimension to use chunk size
+        if (mode == ExpertMode::SINGLE_EXPERT && target_expert_shape.size() >= 2) {
+            target_expert_shape[1] = prefill_chunk_size;
+            LOG_DEBUG("Prefill mode: updating target shape token dimension to " << prefill_chunk_size);
+        }
 
         LOG_DEBUG("Original MatMul input shape: " << matmul_input_shape);
         LOG_DEBUG("Target expert shape (" << num_target_experts << " experts): " << target_expert_shape);
@@ -565,6 +573,154 @@ std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model
         }
     };
 
+    // Lambda: Fix token count for prefill mode - trace from Tile to Parameter and update
+    auto fix_token_count_for_prefill = [&]() {
+        if (mode != ExpertMode::SINGLE_EXPERT) {
+            return;  // Only apply to prefill mode
+        }
+
+        LOG_DEBUG("Fixing token count from " << validation_result.input_token_count << " to " << prefill_chunk_size
+                                             << " for prefill mode...");
+
+        // Find the Tile node
+        auto tile_node = find_tile_node();
+        if (!tile_node) {
+            LOG_WARN("Cannot find Tile node for token count fixing");
+            return;
+        }
+
+        // Trace back from Tile input to find Parameters
+        std::set<std::shared_ptr<ov::op::v0::Parameter>> params_to_fix;
+        std::function<void(const ov::Output<ov::Node>&)> trace_to_params;
+        trace_to_params = [&](const ov::Output<ov::Node>& output) {
+            auto node = output.get_node_shared_ptr();
+
+            if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node)) {
+                params_to_fix.insert(param);
+                return;
+            }
+
+            // Skip Convert nodes during tracing
+            if (auto convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(node)) {
+                LOG_DEBUG("  Skipping Convert node during trace: " << convert->get_friendly_name());
+            }
+
+            // Recursively trace inputs
+            for (size_t i = 0; i < node->get_input_size(); ++i) {
+                trace_to_params(node->input_value(i));
+            }
+        };
+
+        trace_to_params(tile_node->input_value(0));
+
+        // Also find router parameter from Result -> [Convert] -> Multiply
+        LOG_DEBUG("Finding router parameter from output path...");
+        for (const auto& result_node : model->get_results()) {
+            auto current = result_node->input_value(0).get_node_shared_ptr();
+
+            // Skip Convert if present
+            if (auto convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(current)) {
+                LOG_DEBUG("  Skipping Convert in output path");
+                current = convert->input_value(0).get_node_shared_ptr();
+            }
+
+            // Skip ReduceSum if present
+            if (auto reduce_sum = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(current)) {
+                LOG_DEBUG("  Skipping ReduceSum in output path");
+                current = reduce_sum->input_value(0).get_node_shared_ptr();
+            }
+
+            // Find Multiply node
+            if (auto multiply = std::dynamic_pointer_cast<ov::op::v1::Multiply>(current)) {
+                LOG_DEBUG("  Found Multiply node in output path: " << multiply->get_friendly_name());
+
+                // Check both inputs, one should be the router parameter
+                for (size_t i = 0; i < 2; ++i) {
+                    auto multiply_input = multiply->input_value(i).get_node_shared_ptr();
+
+                    // Skip Reshape input (that's the expert output)
+                    if (std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input)) {
+                        continue;
+                    }
+
+                    // Trace to parameter
+                    trace_to_params(multiply->input_value(i));
+                }
+            }
+        }
+
+        if (params_to_fix.empty()) {
+            NPUW_ASSERT(false && "No Parameters found to fix token count");
+        }
+
+        std::cout << "Fixing token count dimension in " << params_to_fix.size() << " Parameter(s)..." << std::endl;
+
+        // Fix Parameter shapes
+        size_t original_token_count = validation_result.input_token_count;
+        for (const auto& param : params_to_fix) {
+            auto param_shape = param->get_partial_shape();
+            if (param_shape.rank().is_static() && param_shape.rank().get_length() >= 2) {
+                auto shape = param_shape.to_shape();
+
+                // Find dimension with original token count
+                for (size_t i = 0; i < shape.size(); ++i) {
+                    if (shape[i] == original_token_count) {
+                        LOG_DEBUG("  Updating Parameter '" << param->get_friendly_name() << "' shape[" << i << "] from "
+                                                           << original_token_count << " to " << prefill_chunk_size);
+                        std::cout << "  Updating Parameter '" << param->get_friendly_name() << "' shape[" << i
+                                  << "] from " << original_token_count << " to " << prefill_chunk_size << std::endl;
+                        shape[i] = prefill_chunk_size;
+                    }
+                }
+
+                param->set_partial_shape(ov::PartialShape(shape));
+                param->validate_and_infer_types();
+            }
+        }
+
+        // Fix Reshape Constants that contain old token count
+        LOG_DEBUG("Fixing Reshape constant shapes...");
+        std::cout << "Fixing Reshape constant shapes..." << std::endl;
+        for (const auto& node : model->get_ordered_ops()) {
+            if (auto reshape = std::dynamic_pointer_cast<ov::op::v1::Reshape>(node)) {
+                std::cout << "Got reshape" << std::endl;
+                auto shape_input = reshape->input_value(1);
+                if (auto shape_const =
+                        std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_input.get_node_shared_ptr())) {
+                    std::cout << "Got reshape constant" << std::endl;
+                    auto shape_data = shape_const->cast_vector<int64_t>();
+                    bool modified = false;
+
+                    for (size_t i = 0; i < shape_data.size(); ++i) {
+                        std::cout << "Checking shape_data[" << i << "] = " << shape_data[i] << std::endl;
+                        if (shape_data[i] == static_cast<int64_t>(original_token_count)) {
+                            LOG_DEBUG("  Updating Reshape '" << reshape->get_friendly_name() << "' constant shape[" << i
+                                                             << "] from " << original_token_count << " to "
+                                                             << prefill_chunk_size);
+                            std::cout << "  Updating Reshape '" << reshape->get_friendly_name() << "' constant shape["
+                                      << i << "] from " << original_token_count << " to " << prefill_chunk_size
+                                      << std::endl;
+                            shape_data[i] = static_cast<int64_t>(prefill_chunk_size);
+                            modified = true;
+                        }
+                    }
+
+                    if (modified) {
+                        auto new_const = std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(),
+                                                                                shape_const->get_shape(),
+                                                                                shape_data);
+                        ov::replace_node(shape_const, new_const);
+                    }
+                }
+            }
+        }
+
+        // Trigger shape inference to propagate changes through the model
+        LOG_DEBUG("Triggering shape inference after token count changes...");
+        std::cout << "Triggering shape inference after token count changes..." << std::endl;
+        model->validate_nodes_and_infer_types();
+    };
+
     // Lambda: Save model for debugging
     auto save_debug_model = [&]() {
         try {
@@ -592,6 +748,7 @@ std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model
         return nullptr;
     }
 
+    fix_token_count_for_prefill();  // Fix token count BEFORE replacing Tile (Tile will be replaced)
     replace_tile_with_new_tile(tile_input, node_before_matmul, tile_op->get_friendly_name());
     fix_output_reshapes(validation_result);
     fix_parameters_with_num_experts();
@@ -649,7 +806,10 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     std::cout << "  Target num experts: " << num_target_experts << std::endl;
 
     // Step 3: Transform the model to target number of experts
-    auto transformed_model = transform_moe_experts(model, *validation_result, num_target_experts, mode);
+    // Use chunk size of 128 for prefill mode (will be made configurable later)
+    const size_t prefill_chunk_size = 128;
+    auto transformed_model =
+        transform_moe_experts(model, *validation_result, num_target_experts, mode, prefill_chunk_size);
     if (!transformed_model) {
         LOG_WARN("Failed to transform model to " << num_target_experts << " expert(s)");
         return std::nullopt;
@@ -662,7 +822,8 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     MoEExperts moe_experts;
     moe_experts._num_experts = validation_result->num_experts;
     moe_experts._expert_hidden_dim = validation_result->expert_hidden_dim;
-    moe_experts._input_token_count = validation_result->input_token_count;
+    moe_experts._input_token_count = validation_result->input_token_count;  // Keep original token count
+    moe_experts._chunk_token_count = is_decoding ? 0 : prefill_chunk_size;  // Set chunk size for prefill
     moe_experts._mode = mode;
     // Store the actual active expert number (K from router)
     // For prefill: model is transformed to 1 expert, but _num_active_experts stores actual K
@@ -679,6 +840,7 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     std::cout << "_num_experts: " << moe_experts._num_experts << std::endl;
     std::cout << "_expert_hidden_dim: " << moe_experts._expert_hidden_dim << std::endl;
     std::cout << "_input_token_count: " << moe_experts._input_token_count << std::endl;
+    std::cout << "_chunk_token_count: " << moe_experts._chunk_token_count << std::endl;
 
     // Step 6: Extract input/output information
     LOG_DEBUG("Extracting I/O information...");
@@ -734,6 +896,7 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     expert_hidden_dim = func_moe._expert_hidden_dim;
     num_active_experts = func_moe._num_active_experts;
     input_token_count = func_moe._input_token_count;
+    chunk_token_count = func_moe._chunk_token_count;
     mode = func_moe._mode;
     has_reduce_sum = func_moe._has_reduce_sum;
     _model_to_compile = func_moe._single_expert_model;
@@ -743,6 +906,8 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     LOG_DEBUG("  Mode: " << (mode == function::ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS"));
     LOG_DEBUG("  Total experts: " << num_experts);
     LOG_DEBUG("  Active experts: " << num_active_experts);
+    LOG_DEBUG("  Input token count: " << input_token_count);
+    LOG_DEBUG("  Chunk token count: " << chunk_token_count);
     LOG_DEBUG("  Has ReduceSum: " << (has_reduce_sum ? "Yes" : "No"));
     if (_router_param_idx.has_value()) {
         LOG_DEBUG("  Router parameter index: " << _router_param_idx.value());
