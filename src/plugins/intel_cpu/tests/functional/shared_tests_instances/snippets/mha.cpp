@@ -82,12 +82,9 @@ std::vector<std::vector<InputShape>> transposedShape_2D(bool with_dynamic = true
     return shapes;
 }
 
-// Transpose is moved outside of Subgraph on ARM64
-#if defined(OPENVINO_ARCH_ARM64)
-static constexpr size_t expected_nodes_mha_4d_f32 = 4;
-#else
 static constexpr size_t expected_nodes_mha_4d_f32 = 2;
-#endif
+static constexpr size_t expected_nodes_mha_fp16_static = 3;
+static constexpr size_t expected_nodes_mha_fp16_dynamic = 4;
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D,
                          MHA,
@@ -202,7 +199,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_FP16_4D_Without_Multiply,
                                             ::testing::Values(ov::element::f16),
                                             ::testing::ValuesIn({false}),
                                             ::testing::Values(MHA::default_thread_count),
-                                            ::testing::Values(3),
+                                            ::testing::Values(expected_nodes_mha_fp16_static),
                                             ::testing::Values(2),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
@@ -214,7 +211,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_FP16_4D_With_Multiply_Static,
                                             ::testing::Values(ov::element::f16),
                                             ::testing::ValuesIn({true}),
                                             ::testing::Values(MHA::default_thread_count),
-                                            ::testing::Values(3),
+                                            ::testing::Values(expected_nodes_mha_fp16_static),
                                             ::testing::Values(2),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
@@ -227,7 +224,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_FP16_4D_With_Multiply_Dynamic,
                                             ::testing::Values(ov::element::f16),
                                             ::testing::ValuesIn({true}),
                                             ::testing::Values(MHA::default_thread_count),
-                                            ::testing::Values(4),
+                                            ::testing::Values(expected_nodes_mha_fp16_dynamic),
                                             ::testing::Values(2),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
@@ -240,7 +237,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAEnforceFP16_Without_Multiply,
                                             ::testing::Values(ov::element::f16),
                                             ::testing::ValuesIn({false}),
                                             ::testing::Values(MHA::default_thread_count),
-                                            ::testing::Values(3),
+                                            ::testing::Values(expected_nodes_mha_fp16_static),
                                             ::testing::Values(2),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::cpu_f16_plugin_config)),
@@ -252,7 +249,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAEnforceFP16_With_Multiply_Static,
                                             ::testing::Values(ov::element::f16),
                                             ::testing::ValuesIn({true}),
                                             ::testing::Values(MHA::default_thread_count),
-                                            ::testing::Values(3),
+                                            ::testing::Values(expected_nodes_mha_fp16_static),
                                             ::testing::Values(2),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::cpu_f16_plugin_config)),
@@ -264,7 +261,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAEnforceFP16_With_Multiply_Dynamic,
                                             ::testing::Values(ov::element::f16),
                                             ::testing::ValuesIn({true}),
                                             ::testing::Values(MHA::default_thread_count),
-                                            ::testing::Values(4),
+                                            ::testing::Values(expected_nodes_mha_fp16_dynamic),
                                             ::testing::Values(2),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::cpu_f16_plugin_config)),
