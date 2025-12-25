@@ -72,13 +72,13 @@ enum class ExpertMode {
 };
 
 // Helper function to transform MoE expert model from batched to target number of experts
-// For prefill: num_target_experts = 1 (SINGLE_EXPERT mode), token_count = prefill_chunk_size
+// For prefill: num_target_experts = 1 (SINGLE_EXPERT mode), token_count = chunk_size
 // For decoding: num_target_experts = K (ACTIVE_EXPERTS mode), token_count = 1
 std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model>& original_model,
                                                  MoEValidationResult& validation_result,
-                                                 size_t num_target_experts = 1,
-                                                 ExpertMode mode = ExpertMode::SINGLE_EXPERT,
-                                                 size_t prefill_chunk_size = 128);
+                                                 size_t num_target_experts,
+                                                 ExpertMode mode,
+                                                 size_t prefill_chunk_size = 0);
 
 // Helper function to detect and transform MoE downstream pattern
 // Looks for: Parameter -> Convert -> ReduceSum pattern
@@ -184,8 +184,10 @@ struct MoEExperts {
 
     // Factory method to create MoEExperts from a model (for expert pattern only)
     // router_model: Router model to extract actual K from TopK node (required)
+    // chunk_size: Token chunk size for prefill processing (default: 128)
     static std::optional<MoEExperts> from(const std::shared_ptr<ov::Model>& model,
-                                          const std::shared_ptr<ov::Model>& router_model);
+                                          const std::shared_ptr<ov::Model>& router_model,
+                                          size_t prefill_chunk_size);
 };
 
 // Factory method to create MoEDownstream from a model (for downstream pattern)
