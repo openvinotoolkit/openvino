@@ -5,8 +5,10 @@
 #include "just_sync_infer_request.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include "compiled_model.hpp"
@@ -486,6 +488,34 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found.");
         }
         LOG_VERB("Done");
+    }
+}
+
+ov::npuw::JustInferRequest::~JustInferRequest() {
+    // Print MoE prefill performance statistics if any were collected
+    if (m_moe_prefill_stats.total_prefill.count > 0) {
+        auto print_step = [](const std::string& name, const MoEPrefillStats::StepStats& stats) {
+            if (stats.count > 0) {
+                double avg_ms = stats.total_ms / stats.count;
+                std::cout << "  " << name << ":" << std::endl;
+                std::cout << "    Count: " << stats.count << std::endl;
+                std::cout << "    Total: " << stats.total_ms << " ms" << std::endl;
+                std::cout << "    Avg: " << avg_ms << " ms" << std::endl;
+                std::cout << "    Min: " << stats.min_ms << " ms" << std::endl;
+                std::cout << "    Max: " << stats.max_ms << " ms" << std::endl;
+            }
+        };
+
+        std::cout << "========== MoE Prefill Performance Statistics ==========" << std::endl;
+        print_step("Parse Router Output", m_moe_prefill_stats.parse_router);
+        print_step("Unpack Expert Closure", m_moe_prefill_stats.unpack_closure);
+        print_step("Set Router Input", m_moe_prefill_stats.set_router_input);
+        print_step("Expert Inference", m_moe_prefill_stats.expert_inference);
+        print_step("Dump Tensors", m_moe_prefill_stats.dump_tensors);
+        print_step("Relayout Output", m_moe_prefill_stats.relayout_output);
+        print_step("Total Per Expert", m_moe_prefill_stats.total_per_expert);
+        print_step("Total Prefill", m_moe_prefill_stats.total_prefill);
+        std::cout << "=========================================================" << std::endl;
     }
 }
 
@@ -1871,8 +1901,21 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
 
         // token_to_experts is a temporary mapping generated from router output each time
         std::map<size_t, std::vector<size_t>> token_to_experts;
+        auto parse_start = std::chrono::high_resolution_clock::now();
         auto selected_experts =
             parse_selected_experts_from_router(m_moe_io[idx].router_output, num_experts, token_to_experts);
+        auto parse_end = std::chrono::high_resolution_clock::now();
+        double parse_ms = std::chrono::duration<double, std::milli>(parse_end - parse_start).count();
+        if (!is_decoding) {
+            // Only record parse time for prefill
+            auto record_time = [](MoEPrefillStats::StepStats& stats, double ms) {
+                stats.count++;
+                stats.total_ms += ms;
+                stats.min_ms = std::min(stats.min_ms, ms);
+                stats.max_ms = std::max(stats.max_ms, ms);
+            };
+            record_time(m_moe_prefill_stats.parse_router, parse_ms);
+        }
 
         if (selected_experts.empty()) {
             NPUW_ASSERT(false && "No experts selected by router");
@@ -1964,6 +2007,8 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
             // Loop over experts, for each expert process all tokens that selected it
             LOG_DEBUG("\n[PREFILL] Processing " << input_token_count << " tokens");
 
+            auto prefill_start = std::chrono::high_resolution_clock::now();
+
             // CRITICAL: Clear/zero the relayouted output buffer before accumulating expert outputs
             if (m_moe_relayouted_output) {
                 std::memset(m_moe_relayouted_output->data(), 0, m_moe_relayouted_output->get_byte_size());
@@ -1971,15 +2016,30 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
                 NPUW_ASSERT(false && "MoE relayouted output buffer is null");
             }
 
+            // Helper lambda to record timing
+            auto record_time = [](MoEPrefillStats::StepStats& stats, double ms) {
+                stats.count++;
+                stats.total_ms += ms;
+                stats.min_ms = std::min(stats.min_ms, ms);
+                stats.max_ms = std::max(stats.max_ms, ms);
+            };
+
             for (size_t expert_id : selected_experts) {
                 LOG_DEBUG("\n  Processing Expert[" << expert_id << "]...");
 
+                auto expert_start = std::chrono::high_resolution_clock::now();
+
                 // Unpack closure for this specific expert
+                auto step_start = std::chrono::high_resolution_clock::now();
                 unpack_moe_expert_closure(idx, r, expert_id);
+                auto step_end = std::chrono::high_resolution_clock::now();
+                double unpack_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
+                record_time(m_moe_prefill_stats.unpack_closure, unpack_ms);
 
                 // Set router_output input tensor for this expert
                 // Prefill: router_output shape is [num_experts, 1, token_num, 1]
                 // Expert expects [1, 1, token_num, 1] - slice from router_output[expert_id, :, :, :]
+                step_start = std::chrono::high_resolution_clock::now();
                 if (moe_experts._router_param_idx.has_value()) {
                     const auto router_input_idx = moe_experts._router_param_idx.value();
                     const auto& router_iport = comp_model_desc.compiled_model->inputs()[router_input_idx];
@@ -1992,9 +2052,16 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
                 } else {
                     NPUW_ASSERT(false && "Router input parameter index not specified for MoE expert model");
                 }
+                step_end = std::chrono::high_resolution_clock::now();
+                double set_router_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
+                record_time(m_moe_prefill_stats.set_router_input, set_router_ms);
 
                 // Execute the single expert inference
+                step_start = std::chrono::high_resolution_clock::now();
                 r->infer();
+                step_end = std::chrono::high_resolution_clock::now();
+                double infer_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
+                record_time(m_moe_prefill_stats.expert_inference, infer_ms);
 
 #if 0
                 // Dump expert inputs and outputs to binary files
@@ -2043,17 +2110,38 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
 
                 // In prefill mode, relayout based on token_to_experts mapping
                 LOG_DEBUG("    Relayouting expert output to global buffer...");
+                step_start = std::chrono::high_resolution_clock::now();
                 relayout_single_expert_output(expert_id,
                                               expert_output_tensor,
                                               m_moe_relayouted_output,
                                               token_to_experts,
                                               num_tokens,
                                               embed_dim);
+                step_end = std::chrono::high_resolution_clock::now();
+                double relayout_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
+                record_time(m_moe_prefill_stats.relayout_output, relayout_ms);
 
                 LOG_DEBUG("    Expert[" << expert_id << "] output relayouted successfully");
+
+                // Record total time for this expert
+                auto expert_end = std::chrono::high_resolution_clock::now();
+                double expert_total_ms = std::chrono::duration<double, std::milli>(expert_end - expert_start).count();
+                record_time(m_moe_prefill_stats.total_per_expert, expert_total_ms);
             }
 
             LOG_DEBUG("  [PREFILL] All experts processed");
+
+            // Record total prefill time
+            auto prefill_end = std::chrono::high_resolution_clock::now();
+            double prefill_total_ms = std::chrono::duration<double, std::milli>(prefill_end - prefill_start).count();
+            auto record_time_final = [](MoEPrefillStats::StepStats& stats, double ms) {
+                stats.count++;
+                stats.total_ms += ms;
+                stats.min_ms = std::min(stats.min_ms, ms);
+                stats.max_ms = std::max(stats.max_ms, ms);
+            };
+            record_time_final(m_moe_prefill_stats.total_prefill, prefill_total_ms);
+            LOG_DEBUG("  [PREFILL] Total time: " << prefill_total_ms << " ms");
         }
 
         LOG_DEBUG("========== MoE Expert Inference Completed ==========");
