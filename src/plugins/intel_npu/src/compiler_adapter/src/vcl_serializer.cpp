@@ -6,7 +6,6 @@
 
 #include <cstdint>
 #include <istream>
-#include <mutex>
 #include <regex>
 #include <streambuf>
 
