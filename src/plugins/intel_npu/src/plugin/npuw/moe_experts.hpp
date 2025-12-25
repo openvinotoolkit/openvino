@@ -72,12 +72,13 @@ enum class ExpertMode {
 };
 
 // Helper function to transform MoE expert model from batched to target number of experts
-// For prefill: num_target_experts = 1 (SINGLE_EXPERT mode)
-// For decoding: num_target_experts = K (ACTIVE_EXPERTS mode)
+// For prefill: num_target_experts = 1 (SINGLE_EXPERT mode), token_count = prefill_chunk_size
+// For decoding: num_target_experts = K (ACTIVE_EXPERTS mode), token_count = 1
 std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model>& original_model,
                                                  MoEValidationResult& validation_result,
                                                  size_t num_target_experts = 1,
-                                                 ExpertMode mode = ExpertMode::SINGLE_EXPERT);
+                                                 ExpertMode mode = ExpertMode::SINGLE_EXPERT,
+                                                 size_t prefill_chunk_size = 128);
 
 // Helper function to detect and transform MoE downstream pattern
 // Looks for: Parameter -> Convert -> ReduceSum pattern
@@ -90,7 +91,8 @@ struct MoEExperts {
     // Basic information about the expert model
     size_t _num_experts = 0;        // Total number of experts in the model
     size_t _expert_hidden_dim = 0;  // Hidden dimension for a single expert
-    size_t _input_token_count = 0;  // Number of input tokens
+    size_t _input_token_count = 0;  // Number of input tokens (original total token count)
+    size_t _chunk_token_count = 0;  // Chunk size for prefill mode (0 for decoding mode)
 
     // Transformation mode and target expert count
     ExpertMode _mode = ExpertMode::SINGLE_EXPERT;  // Transformation mode
@@ -200,7 +202,8 @@ struct MoEExperts {
     size_t num_experts = 0;
     size_t expert_hidden_dim = 0;
     size_t num_active_experts = 1;  // Number of active experts (1 for prefill, K for decoding)
-    size_t input_token_count = 0;   // Number of input tokens (1 for decoding, >1 for prefill)
+    size_t input_token_count = 0;   // Number of input tokens (original total token count)
+    size_t chunk_token_count = 0;   // Chunk size for prefill mode (0 for decoding mode)
     function::ExpertMode mode = function::ExpertMode::SINGLE_EXPERT;
     bool has_reduce_sum = false;  // Whether ReduceSum is included
 
