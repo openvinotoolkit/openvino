@@ -314,8 +314,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 const size_t embed_dim = proto_comp_model_desc.moe_experts->expert_hidden_dim;
                 ov::Shape target_shape = {active_experts, 1, num_tokens, embed_dim};
 
-                std::cout << "m_moe_relayouted_output shape: " << ov::Shape(target_shape).to_string() << std::endl;
-
                 // Use f16 as default, will be adjusted at runtime if needed
                 const auto& device = *proto_comp_model_desc.device_it;
                 m_moe_relayouted_output = allocMem(ov::element::f16, target_shape, device);
@@ -808,10 +806,25 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                     if (is_router_output) {
                         m_moe_io[idx].router_output = i_tensor;
                     } else {
-                        // CRITICAL: Always set the input tensor to the infer request
-                        // Otherwise the expert model will receive uninitialized/zero input
-                        // m_subrequests[real_idx]->set_tensor(iport, i_tensor);
-                        m_moe_io[idx].inputs.at(i) = i_tensor;
+                        // CRITICAL FIX: Distinguish between decoding and prefill modes
+                        //
+                        // Root cause of previous accuracy issue:
+                        // - Old code only recorded tensor: m_moe_io[idx].inputs.at(i) = i_tensor
+                        // - This worked for chunk-based prefill because unsafe_run_this_moe_expert() would
+                        //   gather tokens from the recorded tensor before inference
+                        // - But for decoding OR non-chunk prefill, if tensor is only recorded without set_tensor(),
+                        //   the expert model receives uninitialized/zero input, causing incorrect results
+                        //
+                        // Correct solution:
+                        // - Decoding (input_token_count == 1): Always set_tensor() directly since no chunking
+                        // - Prefill (input_token_count > 1): Only record tensor, chunking code will handle gather+set
+                        const auto input_token_count = func_desc.moe_experts.value().input_token_count;
+                        const bool is_decoding = (input_token_count == 1);
+                        if (is_decoding) {
+                            m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                        } else {
+                            m_moe_io[idx].inputs.at(i) = i_tensor;
+                        }
                     }
                 } else if (func_desc.moe_experts_downstream) {
                     // MoE downstream: set the relayouted expert outputs as input
@@ -2084,8 +2097,6 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
 
                     LOG_DEBUG("      Chunk[" << chunk_idx << "]: processing " << current_chunk_size << " tokens");
 
-                    LOG_DEBUG("      Chunk[" << chunk_idx << "]: processing " << current_chunk_size << " tokens");
-
                     // Step 1: Gather router values for this chunk
                     // 将tokens_for_expert[chunk_start...chunk_end)这些稀疏的tokens的router值gather到连续内存
                     step_start = std::chrono::high_resolution_clock::now();
@@ -2183,47 +2194,13 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
                     double infer_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
                     record_time(m_moe_prefill_stats.expert_inference, infer_ms);
 
-                    // Dump inputs and outputs for debugging
-                    {
-                        const auto& input_ports = comp_model_desc.compiled_model->inputs();
-                        const auto& output_ports = comp_model_desc.compiled_model->outputs();
-
-                        // Dump inputs
-                        for (size_t inp_idx = 0; inp_idx < input_ports.size(); ++inp_idx) {
-                            auto input_tensor = r->get_tensor(input_ports[inp_idx]);
-                            std::string filename = "moe_sub" + std::to_string(idx) + "_expert" +
-                                                   std::to_string(expert_id) + "_chunk" + std::to_string(chunk_idx) +
-                                                   "_input" + std::to_string(inp_idx) + ".bin";
-                            std::ofstream ofs(filename, std::ios::binary);
-                            if (ofs) {
-                                ofs.write(static_cast<const char*>(input_tensor->data()),
-                                          input_tensor->get_byte_size());
-                                LOG_DEBUG("        Saved input[" << inp_idx << "] to " << filename << " ("
-                                                                 << input_tensor->get_byte_size() << " bytes)");
-                            }
-                        }
-
-                        // Dump outputs
-                        for (size_t out_idx = 0; out_idx < output_ports.size(); ++out_idx) {
-                            auto output_tensor = r->get_tensor(output_ports[out_idx]);
-                            std::string filename = "moe_sub" + std::to_string(idx) + "_expert" +
-                                                   std::to_string(expert_id) + "_chunk" + std::to_string(chunk_idx) +
-                                                   "_output" + std::to_string(out_idx) + ".bin";
-                            std::ofstream ofs(filename, std::ios::binary);
-                            if (ofs) {
-                                ofs.write(static_cast<const char*>(output_tensor->data()),
-                                          output_tensor->get_byte_size());
-                                LOG_DEBUG("        Saved output[" << out_idx << "] to " << filename << " ("
-                                                                  << output_tensor->get_byte_size() << " bytes)");
-                            }
-                        }
-                    }
-
                     // Step 4: Scatter chunk output back to global buffer
                     // 将连续的expert output scatter回到原始的稀疏位置
                     step_start = std::chrono::high_resolution_clock::now();
                     {
                         auto elem_type = m_moe_relayouted_output->get_element_type();
+
+                        LOG_DEBUG("      Scattering " << current_chunk_size << " tokens back to global buffer");
 
                         for (size_t i = 0; i < current_chunk_size; ++i) {
                             size_t original_token_id = tokens_for_expert[chunk_start + i];  // 原始稀疏位置
@@ -2235,6 +2212,14 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
                                 continue;  // Should not happen
                             }
                             size_t expert_slot = std::distance(expert_ids.begin(), it);
+
+                            if (i < 3) {  // Log first 3 tokens for debugging
+                                LOG_DEBUG("        Token " << i << ": original_token_id=" << original_token_id
+                                                           << ", expert_slot=" << expert_slot
+                                                           << ", src_offset=" << (i * embed_dim) << ", dst_offset="
+                                                           << (expert_slot * input_token_count * embed_dim +
+                                                               original_token_id * embed_dim));
+                            }
 
                             // Scatter: 从连续的expert output位置i scatter到原始token位置
                             // Source: expert_output_tensor[i * embed_dim]  (连续位置)
