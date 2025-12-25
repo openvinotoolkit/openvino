@@ -764,7 +764,8 @@ std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model
 }
 
 std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& model,
-                                           const std::shared_ptr<ov::Model>& router_model) {
+                                           const std::shared_ptr<ov::Model>& router_model,
+                                           size_t prefill_chunk_size) {
     LOG_DEBUG("Creating MoEExperts from model: " << model->get_friendly_name());
     LOG_BLOCK();
 
@@ -805,9 +806,7 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     std::cout << "  Mode: " << (mode == ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS") << std::endl;
     std::cout << "  Target num experts: " << num_target_experts << std::endl;
 
-    // Step 3: Transform the model to target number of experts
-    // Use chunk size of 128 for prefill mode (will be made configurable later)
-    const size_t prefill_chunk_size = 128;
+    // Step 3: Transform the model to target number of experts using configured chunk size
     auto transformed_model =
         transform_moe_experts(model, *validation_result, num_target_experts, mode, prefill_chunk_size);
     if (!transformed_model) {

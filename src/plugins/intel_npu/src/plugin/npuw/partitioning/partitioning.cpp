@@ -1969,12 +1969,15 @@ void Partitioner::moe(const std::string& func_name) {
         LOG_INFO("Transform " << func_name << " into MoE expert block in model " << model->get_friendly_name()
                               << "...");
 
+        // Get MoE token chunk size from config (default: 128)
+        const auto moe_chunk_size = cfg.get<::intel_npu::NPUW_MOE_TOKEN_CHUNK_SIZE>();
+
         // Use the factory method to create MoEExperts from the function model
         // K will be auto-extracted from router model's TopK node
-        f._moe_experts = ov::npuw::function::MoEExperts::from(f._model, P.router_model);
+        f._moe_experts = ov::npuw::function::MoEExperts::from(f._model, P.router_model, moe_chunk_size);
 
         if (f._moe_experts) {
-            LOG_INFO("Successfully created MoE expert model");
+            LOG_INFO("Successfully created MoE expert model with chunk size: " << moe_chunk_size);
             f._moe_experts->log_info();
             LOG_VERB("MoE transformation completed");
         } else {
