@@ -636,8 +636,11 @@ ov::Tensor ov::npuw::IBaseInferRequest::slice_batch_expert_weights(const ov::Ten
 std::vector<size_t> ov::npuw::IBaseInferRequest::parse_selected_experts_from_router(
     const ov::SoPtr<ov::ITensor>& router_output,
     size_t num_experts,
-    std::map<size_t, std::vector<size_t>>& token_to_experts) {
-    std::set<size_t> selected_experts_set;
+    std::map<size_t, std::vector<size_t>>& token_to_experts,
+    std::map<size_t, std::vector<size_t>>& expert_to_tokens) {
+    // Clear input maps
+    token_to_experts.clear();
+    expert_to_tokens.clear();
 
     if (!router_output) {
         LOG_WARN("Router output is null, selecting all experts");
@@ -674,7 +677,7 @@ std::vector<size_t> ov::npuw::IBaseInferRequest::parse_selected_experts_from_rou
                 if (value > 1e-6f) {
                     // This token selected this expert
                     token_to_experts[token_id].push_back(expert_id);
-                    selected_experts_set.insert(expert_id);
+                    expert_to_tokens[expert_id].push_back(token_id);
                 }
             }
         }
@@ -693,8 +696,13 @@ std::vector<size_t> ov::npuw::IBaseInferRequest::parse_selected_experts_from_rou
         return all_experts;
     }
 
-    // Convert set to vector (sorted order)
-    std::vector<size_t> selected_experts(selected_experts_set.begin(), selected_experts_set.end());
+    // Convert expert_to_tokens keys to vector (sorted order)
+    std::vector<size_t> selected_experts;
+    selected_experts.reserve(expert_to_tokens.size());
+    for (const auto& [expert_id, tokens] : expert_to_tokens) {
+        selected_experts.push_back(expert_id);
+    }
+
     return selected_experts;
 }
 

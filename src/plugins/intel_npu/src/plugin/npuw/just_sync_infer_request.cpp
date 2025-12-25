@@ -314,6 +314,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 const size_t embed_dim = proto_comp_model_desc.moe_experts->expert_hidden_dim;
                 ov::Shape target_shape = {active_experts, 1, num_tokens, embed_dim};
 
+                std::cout << "m_moe_relayouted_output shape: " << ov::Shape(target_shape).to_string() << std::endl;
+
                 // Use f16 as default, will be adjusted at runtime if needed
                 const auto& device = *proto_comp_model_desc.device_it;
                 m_moe_relayouted_output = allocMem(ov::element::f16, target_shape, device);
@@ -808,7 +810,8 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                     } else {
                         // CRITICAL: Always set the input tensor to the infer request
                         // Otherwise the expert model will receive uninitialized/zero input
-                        m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                        // m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                        m_moe_io[idx].inputs.at(i) = i_tensor;
                     }
                 } else if (func_desc.moe_experts_downstream) {
                     // MoE downstream: set the relayouted expert outputs as input
@@ -1901,9 +1904,12 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
 
         // token_to_experts is a temporary mapping generated from router output each time
         std::map<size_t, std::vector<size_t>> token_to_experts;
+        std::map<size_t, std::vector<size_t>> expert_to_tokens;
         auto parse_start = std::chrono::high_resolution_clock::now();
-        auto selected_experts =
-            parse_selected_experts_from_router(m_moe_io[idx].router_output, num_experts, token_to_experts);
+        auto selected_experts = parse_selected_experts_from_router(m_moe_io[idx].router_output,
+                                                                   num_experts,
+                                                                   token_to_experts,
+                                                                   expert_to_tokens);
         auto parse_end = std::chrono::high_resolution_clock::now();
         double parse_ms = std::chrono::duration<double, std::milli>(parse_end - parse_start).count();
         if (!is_decoding) {
@@ -2006,7 +2012,6 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
             // PREFILL MODE: N tokens, each token selects 1 expert
             // Loop over experts, for each expert process all tokens that selected it
             LOG_DEBUG("\n[PREFILL] Processing " << input_token_count << " tokens");
-
             auto prefill_start = std::chrono::high_resolution_clock::now();
 
             // CRITICAL: Clear/zero the relayouted output buffer before accumulating expert outputs
@@ -2036,92 +2041,233 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
                 double unpack_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
                 record_time(m_moe_prefill_stats.unpack_closure, unpack_ms);
 
-                // Set router_output input tensor for this expert
-                // Prefill: router_output shape is [num_experts, 1, token_num, 1]
-                // Expert expects [1, 1, token_num, 1] - slice from router_output[expert_id, :, :, :]
-                step_start = std::chrono::high_resolution_clock::now();
-                if (moe_experts._router_param_idx.has_value()) {
-                    const auto router_input_idx = moe_experts._router_param_idx.value();
-                    const auto& router_iport = comp_model_desc.compiled_model->inputs()[router_input_idx];
+                // Get tokens that selected this expert
+                const auto& tokens_for_expert = expert_to_tokens.at(expert_id);
+                const size_t total_tokens_for_expert = tokens_for_expert.size();
+                const size_t chunk_size = moe_experts.chunk_token_count;
 
-                    // Create a view/slice of router_output for this expert
-                    // router_output: [num_experts, 1, token_num, 1]
-                    // We need: [1, 1, token_num, 1] from position [expert_id, :, :, :]
-                    auto router_view = ov::npuw::util::view(m_moe_io[idx].router_output, 0, expert_id, 1);
-                    r->set_tensor(router_iport, router_view);
-                } else {
-                    NPUW_ASSERT(false && "Router input parameter index not specified for MoE expert model");
-                }
-                step_end = std::chrono::high_resolution_clock::now();
-                double set_router_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
-                record_time(m_moe_prefill_stats.set_router_input, set_router_ms);
+                LOG_DEBUG("    Expert[" << expert_id << "] has " << total_tokens_for_expert
+                                        << " tokens, chunk_size=" << chunk_size);
 
-                // Execute the single expert inference
-                step_start = std::chrono::high_resolution_clock::now();
-                r->infer();
-                step_end = std::chrono::high_resolution_clock::now();
-                double infer_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
-                record_time(m_moe_prefill_stats.expert_inference, infer_ms);
+                // Get input tensors
+                NPUW_ASSERT(moe_experts._router_param_idx.has_value());
+                const auto router_input_idx = moe_experts._router_param_idx.value();
+                const auto& router_iport = comp_model_desc.compiled_model->inputs()[router_input_idx];
 
-#if 0
-                // Dump expert inputs and outputs to binary files
-                {
-                    const auto& input_ports = comp_model_desc.compiled_model->inputs();
-                    const auto& output_ports = comp_model_desc.compiled_model->outputs();
+                // Find the main input parameter (not the router parameter)
+                // Assuming there are 2 inputs: one for router, one for tokens
+                size_t main_input_idx = (router_input_idx == 0) ? 1 : 0;
+                const auto& main_iport = comp_model_desc.compiled_model->inputs()[main_input_idx];
 
-                    // Dump inputs
-                    for (size_t inp_idx = 0; inp_idx < input_ports.size(); ++inp_idx) {
-                        auto input_tensor = r->get_tensor(input_ports[inp_idx]);
-                        std::string filename = "moe_sub" + std::to_string(idx) + "_expert" + std::to_string(expert_id) +
-                                               "_input" + std::to_string(inp_idx) + ".bin";
-                        std::ofstream ofs(filename, std::ios::binary);
-                        if (ofs) {
-                            ofs.write(static_cast<const char*>(input_tensor->data()), input_tensor->get_byte_size());
-                            LOG_DEBUG("    Saved input[" << inp_idx << "] to " << filename << " ("
-                                      << input_tensor->get_byte_size() << " bytes)");
-                        } else {
-                            LOG_WARN("    Failed to save input[" << inp_idx << "] to " << filename);
-                        }
-                    }
+                // Get source tensors for gathering
+                auto router_source = m_moe_io[idx].router_output;
+                auto main_input_source = m_moe_io[idx].inputs.at(main_input_idx);
 
-                    // Dump outputs
-                    for (size_t out_idx = 0; out_idx < output_ports.size(); ++out_idx) {
-                        auto output_tensor = r->get_tensor(output_ports[out_idx]);
-                        std::string filename = "moe_sub" + std::to_string(idx) + "_expert" + std::to_string(expert_id) +
-                                               "_output" + std::to_string(out_idx) + ".bin";
+                // Get destination tensors (expert model inputs)
+                auto router_dest = r->get_tensor(router_iport);
+                auto main_input_dest = r->get_tensor(main_iport);
 
-                        std::ofstream ofs(filename, std::ios::binary);
-                        if (ofs) {
-                            ofs.write(static_cast<const char*>(output_tensor->data()), output_tensor->get_byte_size());
-                            LOG_DEBUG("    Saved output[" << out_idx << "] to " << filename << " ("
-                                      << output_tensor->get_byte_size() << " bytes)");
-                        } else {
-                            LOG_WARN("    Failed to save output[" << out_idx << "] to " << filename);
-                        }
-                    }
-                }
-#endif
-
-                // Get expert output
+                // Get output tensor
                 auto expert_output_tensor = r->get_tensor(oport);
-                auto shape = expert_output_tensor->get_shape();
-                size_t num_tokens = shape[2];  // [1, 1, num_tokens, embed_dim]
-                size_t embed_dim = shape[3];
+                auto output_shape = expert_output_tensor->get_shape();
+                size_t embed_dim = (output_shape.size() == 4) ? output_shape[3] : output_shape[1];
 
-                // In prefill mode, relayout based on token_to_experts mapping
-                LOG_DEBUG("    Relayouting expert output to global buffer...");
-                step_start = std::chrono::high_resolution_clock::now();
-                relayout_single_expert_output(expert_id,
-                                              expert_output_tensor,
-                                              m_moe_relayouted_output,
-                                              token_to_experts,
-                                              num_tokens,
-                                              embed_dim);
-                step_end = std::chrono::high_resolution_clock::now();
-                double relayout_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
-                record_time(m_moe_prefill_stats.relayout_output, relayout_ms);
+                // Process tokens in chunks
+                // 将选中该expert的tokens分成多个chunk处理
+                size_t num_chunks = (total_tokens_for_expert + chunk_size - 1) / chunk_size;
+                LOG_DEBUG("    Processing " << num_chunks << " chunks");
 
-                LOG_DEBUG("    Expert[" << expert_id << "] output relayouted successfully");
+                for (size_t chunk_idx = 0; chunk_idx < num_chunks; ++chunk_idx) {
+                    size_t chunk_start = chunk_idx * chunk_size;
+                    size_t chunk_end = std::min(chunk_start + chunk_size, total_tokens_for_expert);
+                    size_t current_chunk_size = chunk_end - chunk_start;
+
+                    LOG_DEBUG("      Chunk[" << chunk_idx << "]: processing " << current_chunk_size << " tokens");
+
+                    LOG_DEBUG("      Chunk[" << chunk_idx << "]: processing " << current_chunk_size << " tokens");
+
+                    // Step 1: Gather router values for this chunk
+                    // 将tokens_for_expert[chunk_start...chunk_end)这些稀疏的tokens的router值gather到连续内存
+                    step_start = std::chrono::high_resolution_clock::now();
+                    {
+                        auto router_source_shape =
+                            router_source->get_shape();  // [num_experts, 1, token_num, 1] or [num_experts, token_num]
+
+                        // 计算router source中该expert的起始位置
+                        size_t expert_offset;
+                        if (router_source_shape.size() == 4) {
+                            expert_offset = expert_id * router_source_shape[2];  // [num_experts, 1, token_num, 1]
+                        } else if (router_source_shape.size() == 2) {
+                            expert_offset = expert_id * router_source_shape[1];  // [num_experts, token_num]
+                        } else {
+                            NPUW_ASSERT(false && "Unexpected router source shape");
+                        }
+
+                        if (router_source->get_element_type() == ov::element::f16) {
+                            const auto* src_base = router_source->data<ov::float16>() + expert_offset;
+                            auto* dst_base = router_dest->data<ov::float16>();
+
+                            for (size_t i = 0; i < current_chunk_size; ++i) {
+                                size_t token_id = tokens_for_expert[chunk_start + i];  // 原始token ID (稀疏的)
+                                dst_base[i] = src_base[token_id];                      // gather到连续位置i
+                            }
+                        } else if (router_source->get_element_type() == ov::element::f32) {
+                            const auto* src_base = router_source->data<float>() + expert_offset;
+                            auto* dst_base = router_dest->data<float>();
+
+                            for (size_t i = 0; i < current_chunk_size; ++i) {
+                                size_t token_id = tokens_for_expert[chunk_start + i];
+                                dst_base[i] = src_base[token_id];
+                            }
+                        } else {
+                            NPUW_ASSERT(false && "Unsupported router element type for gathering");
+                        }
+                    }
+                    step_end = std::chrono::high_resolution_clock::now();
+                    double gather_router_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
+                    record_time(m_moe_prefill_stats.set_router_input, gather_router_ms);
+
+                    // Step 2: Gather main input tokens for this chunk
+                    // 将tokens_for_expert[chunk_start...chunk_end)这些稀疏tokens的embeddings gather到连续内存
+                    step_start = std::chrono::high_resolution_clock::now();
+                    {
+                        auto main_source_shape =
+                            main_input_source->get_shape();  // [token_num, hidden_dim] or [1, 1, token_num, hidden_dim]
+
+                        // Determine dimensions
+                        size_t hidden_dim;
+                        size_t token_stride;
+
+                        if (main_source_shape.size() == 2) {
+                            hidden_dim = main_source_shape[1];
+                            token_stride = hidden_dim;
+                        } else if (main_source_shape.size() == 4) {
+                            hidden_dim = main_source_shape[3];
+                            token_stride = hidden_dim;
+                        } else {
+                            NPUW_ASSERT(false && "Unexpected main input tensor shape");
+                        }
+
+                        if (main_input_source->get_element_type() == ov::element::f16) {
+                            const auto* src_base = main_input_source->data<ov::float16>();
+                            auto* dst_base = main_input_dest->data<ov::float16>();
+
+                            for (size_t i = 0; i < current_chunk_size; ++i) {
+                                size_t token_id = tokens_for_expert[chunk_start + i];  // 原始token ID (稀疏的)
+                                const auto* src_token = src_base + token_id * token_stride;
+                                auto* dst_token = dst_base + i * hidden_dim;  // gather到连续位置i
+                                std::memcpy(dst_token, src_token, hidden_dim * sizeof(ov::float16));
+                            }
+                        } else if (main_input_source->get_element_type() == ov::element::f32) {
+                            const auto* src_base = main_input_source->data<float>();
+                            auto* dst_base = main_input_dest->data<float>();
+
+                            for (size_t i = 0; i < current_chunk_size; ++i) {
+                                size_t token_id = tokens_for_expert[chunk_start + i];
+                                const auto* src_token = src_base + token_id * token_stride;
+                                auto* dst_token = dst_base + i * hidden_dim;
+                                std::memcpy(dst_token, src_token, hidden_dim * sizeof(float));
+                            }
+                        } else {
+                            NPUW_ASSERT(false && "Unsupported main input element type for gathering");
+                        }
+                    }
+                    step_end = std::chrono::high_resolution_clock::now();
+                    double gather_input_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
+                    LOG_DEBUG("      Gathered input tokens in " << gather_input_ms << " ms");
+
+                    // Step 3: Execute chunk inference
+                    step_start = std::chrono::high_resolution_clock::now();
+                    r->infer();
+                    step_end = std::chrono::high_resolution_clock::now();
+                    double infer_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
+                    record_time(m_moe_prefill_stats.expert_inference, infer_ms);
+
+                    // Dump inputs and outputs for debugging
+                    {
+                        const auto& input_ports = comp_model_desc.compiled_model->inputs();
+                        const auto& output_ports = comp_model_desc.compiled_model->outputs();
+
+                        // Dump inputs
+                        for (size_t inp_idx = 0; inp_idx < input_ports.size(); ++inp_idx) {
+                            auto input_tensor = r->get_tensor(input_ports[inp_idx]);
+                            std::string filename = "moe_sub" + std::to_string(idx) + "_expert" +
+                                                   std::to_string(expert_id) + "_chunk" + std::to_string(chunk_idx) +
+                                                   "_input" + std::to_string(inp_idx) + ".bin";
+                            std::ofstream ofs(filename, std::ios::binary);
+                            if (ofs) {
+                                ofs.write(static_cast<const char*>(input_tensor->data()),
+                                          input_tensor->get_byte_size());
+                                LOG_DEBUG("        Saved input[" << inp_idx << "] to " << filename << " ("
+                                                                 << input_tensor->get_byte_size() << " bytes)");
+                            }
+                        }
+
+                        // Dump outputs
+                        for (size_t out_idx = 0; out_idx < output_ports.size(); ++out_idx) {
+                            auto output_tensor = r->get_tensor(output_ports[out_idx]);
+                            std::string filename = "moe_sub" + std::to_string(idx) + "_expert" +
+                                                   std::to_string(expert_id) + "_chunk" + std::to_string(chunk_idx) +
+                                                   "_output" + std::to_string(out_idx) + ".bin";
+                            std::ofstream ofs(filename, std::ios::binary);
+                            if (ofs) {
+                                ofs.write(static_cast<const char*>(output_tensor->data()),
+                                          output_tensor->get_byte_size());
+                                LOG_DEBUG("        Saved output[" << out_idx << "] to " << filename << " ("
+                                                                  << output_tensor->get_byte_size() << " bytes)");
+                            }
+                        }
+                    }
+
+                    // Step 4: Scatter chunk output back to global buffer
+                    // 将连续的expert output scatter回到原始的稀疏位置
+                    step_start = std::chrono::high_resolution_clock::now();
+                    {
+                        auto elem_type = m_moe_relayouted_output->get_element_type();
+
+                        for (size_t i = 0; i < current_chunk_size; ++i) {
+                            size_t original_token_id = tokens_for_expert[chunk_start + i];  // 原始稀疏位置
+
+                            // Get expert slot for this token
+                            const auto& expert_ids = token_to_experts.at(original_token_id);
+                            auto it = std::find(expert_ids.begin(), expert_ids.end(), expert_id);
+                            if (it == expert_ids.end()) {
+                                continue;  // Should not happen
+                            }
+                            size_t expert_slot = std::distance(expert_ids.begin(), it);
+
+                            // Scatter: 从连续的expert output位置i scatter到原始token位置
+                            // Source: expert_output_tensor[i * embed_dim]  (连续位置)
+                            // Target: m_moe_relayouted_output[expert_slot, 0, original_token_id, :]  (稀疏位置)
+
+                            if (elem_type == ov::element::f32) {
+                                const float* src = expert_output_tensor->data<float>() + i * embed_dim;
+                                float* dst =
+                                    m_moe_relayouted_output->data<float>() +
+                                    (expert_slot * input_token_count * embed_dim + original_token_id * embed_dim);
+                                std::memcpy(dst, src, embed_dim * sizeof(float));
+
+                            } else if (elem_type == ov::element::f16) {
+                                const ov::float16* src = expert_output_tensor->data<ov::float16>() + i * embed_dim;
+                                ov::float16* dst =
+                                    m_moe_relayouted_output->data<ov::float16>() +
+                                    (expert_slot * input_token_count * embed_dim + original_token_id * embed_dim);
+                                std::memcpy(dst, src, embed_dim * sizeof(ov::float16));
+
+                            } else {
+                                LOG_ERROR("Unsupported element type for MoE chunk output relayout: " << elem_type);
+                                OPENVINO_THROW("MoE: Unsupported element type for chunk output relayout");
+                            }
+                        }
+                    }
+                    step_end = std::chrono::high_resolution_clock::now();
+                    double relayout_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
+                    record_time(m_moe_prefill_stats.relayout_output, relayout_ms);
+
+                    LOG_DEBUG("      Chunk[" << chunk_idx << "] processed in " << (infer_ms + relayout_ms) << " ms");
+                }
+
+                LOG_DEBUG("    Expert[" << expert_id << "] completed all chunks");
 
                 // Record total time for this expert
                 auto expert_end = std::chrono::high_resolution_clock::now();

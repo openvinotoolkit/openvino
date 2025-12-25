@@ -218,7 +218,8 @@ protected:
                                           size_t num_experts) const;
     std::vector<size_t> parse_selected_experts_from_router(const ov::SoPtr<ov::ITensor>& router_output,
                                                            size_t num_experts,
-                                                           std::map<size_t, std::vector<size_t>>& token_to_experts);
+                                                           std::map<size_t, std::vector<size_t>>& token_to_experts,
+                                                           std::map<size_t, std::vector<size_t>>& expert_to_tokens);
     void relayout_single_expert_output(size_t expert_id,
                                        const ov::SoPtr<ov::ITensor>& expert_output,
                                        const ov::SoPtr<ov::ITensor>& target_tensor,
