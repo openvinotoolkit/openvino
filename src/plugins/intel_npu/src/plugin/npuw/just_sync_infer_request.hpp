@@ -185,6 +185,23 @@ protected:
         StepStats total_prefill;     // Total prefill time
     };
     MoEPrefillStats m_moe_prefill_stats;
+
+    // MoE decoding performance statistics
+    struct MoEDecodingStats {
+        struct StepStats {
+            size_t count = 0;
+            double total_ms = 0.0;
+            double min_ms = std::numeric_limits<double>::max();
+            double max_ms = 0.0;
+        };
+
+        StepStats parse_router;      // Parse router output
+        StepStats unpack_closure;    // Unpack batch expert weights
+        StepStats set_router_input;  // Set router input tensor
+        StepStats expert_inference;  // Expert inference execution
+        StepStats total_decoding;    // Total decoding time
+    };
+    MoEDecodingStats m_moe_decoding_stats;
 };
 
 }  // namespace npuw
