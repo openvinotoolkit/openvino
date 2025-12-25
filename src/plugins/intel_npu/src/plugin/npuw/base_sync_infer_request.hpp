@@ -163,9 +163,6 @@ protected:
         // Runtime state for MoE expert execution
         std::vector<size_t> selected_experts;  // Indices of experts to execute (from router output)
         size_t current_expert_idx = 0;         // Current expert being processed
-        std::map<std::pair<size_t, size_t>, ov::Tensor>
-            expert_weights_cache_per_expert;  // Cache for sliced expert weights [(closure_idx, expert_id) ->
-                                              // sliced_weight]
     };
     std::vector<MoEIO> m_moe_io;
 

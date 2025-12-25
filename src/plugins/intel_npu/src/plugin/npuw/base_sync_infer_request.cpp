@@ -763,16 +763,8 @@ void ov::npuw::IBaseInferRequest::unpack_moe_expert_closure(std::size_t idx, RqP
         bool needs_slicing = !closure_shape.empty() && closure_shape[0] == num_experts;
 
         if (needs_slicing) {
-            // Check cache first - use (cidx, expert_id) as key to cache each expert separately
-            auto cache_key = std::make_pair(cidx, expert_id);
-            if (m_moe_io[idx].expert_weights_cache_per_expert.find(cache_key) ==
-                m_moe_io[idx].expert_weights_cache_per_expert.end()) {
-                // Not in cache, slice it
-                ov::Tensor sliced = slice_expert_weight(closure, expert_id, num_experts);
-                m_moe_io[idx].expert_weights_cache_per_expert[cache_key] = sliced;
-            }
-
-            auto& sliced_weight = m_moe_io[idx].expert_weights_cache_per_expert[cache_key];
+            // Slice expert weight using copy
+            ov::Tensor sliced_weight = slice_expert_weight(closure, expert_id, num_experts);
 
             // Handle unpacking if needed
             if (m_npuw_model->unpack_required(idx, cidx)) {
