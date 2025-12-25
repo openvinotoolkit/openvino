@@ -250,6 +250,18 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 
 /**
  * @brief
+ * Type: uint64_t.
+ * Token chunk size for MoE expert model processing during prefill stage.
+ * When MoE optimization is enabled, expert models are transformed to process tokens in chunks
+ * of this size instead of the full sequence length. This allows better hardware utilization
+ * and memory efficiency. The chunk size should be a power of two.
+ * Note: This is different from prefill_chunk_size which controls the overall prompt chunking.
+ * Default value: 128.
+ */
+static constexpr ov::Property<uint64_t> moe_token_chunk_size{"NPUW_MOE_TOKEN_CHUNK_SIZE"};
+
+/**
+ * @brief
  * Type: std::string.
  * Select attention optimization mode when attention block detected.
  * Possible values: "DYNAMIC", "STATIC", "PYRAMID", "HFA"
