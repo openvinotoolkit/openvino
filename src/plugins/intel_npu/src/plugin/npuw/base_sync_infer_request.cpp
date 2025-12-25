@@ -511,25 +511,41 @@ ov::Tensor ov::npuw::IBaseInferRequest::slice_expert_weight(const ov::Tensor& ba
         return batched_weight;  // Return original if not batched
     }
 
-    // Calculate the slice
-    ov::Shape single_expert_shape = shape;
-    single_expert_shape[0] = 1;
+    auto elem_type = batched_weight.get_element_type();
 
-    // Create new tensor for single expert
-    ov::Tensor sliced_weight(batched_weight.get_element_type(), single_expert_shape);
+    // Calculate new shape: replace first dimension with 1
+    ov::Shape view_shape = shape;
+    view_shape[0] = 1;
 
-    // Calculate byte offset for the expert_id
-    size_t expert_size = batched_weight.get_byte_size() / num_experts;
-    size_t offset = expert_id * expert_size;
+    // Check if element type is sub-byte (4-bit types)
+    // For sub-byte types, we can't use strides, but we can create a zero-copy view
+    // by wrapping the data pointer at the correct byte offset
+    if (elem_type == ov::element::nf4 || elem_type == ov::element::u4 || elem_type == ov::element::i4) {
+        // Calculate byte-level offset for this expert
+        size_t total_byte_size = batched_weight.get_byte_size();
+        size_t expert_byte_size = total_byte_size / num_experts;
 
-    // Copy data for this expert
-    const uint8_t* src = static_cast<const uint8_t*>(batched_weight.data()) + offset;
-    uint8_t* dst = static_cast<uint8_t*>(sliced_weight.data());
-    std::memcpy(dst, src, expert_size);
+        // Get pointer to this expert's data
+        const uint8_t* base_ptr = static_cast<const uint8_t*>(batched_weight.data());
+        void* expert_ptr = const_cast<uint8_t*>(base_ptr + expert_id * expert_byte_size);
 
-    LOG_DEBUG("Sliced expert " << expert_id << " weight: " << shape << " -> " << single_expert_shape);
+        // Create zero-copy tensor wrapping the expert's data slice
+        ov::Tensor expert_tensor(elem_type, view_shape, expert_ptr);
 
-    return sliced_weight;
+        LOG_DEBUG("Sliced expert " << expert_id << " weight (4-bit, zero-copy): " << shape << " -> " << view_shape);
+        return expert_tensor;
+    }
+
+    // For >= 8-bit types, use util::view to create zero-copy strided view
+    // Note: util::view has a lifetime bug (creates local tensor and returns impl pointer)
+    // We wrap the result in a new ov::Tensor to ensure proper lifetime management
+    auto view_impl = ov::npuw::util::view(ov::get_tensor_impl(batched_weight), 0, expert_id, 1);
+    ov::Tensor view_tensor = ov::make_tensor(view_impl);
+
+    LOG_DEBUG("Sliced expert " << expert_id << " weight using util::view: " << shape << " -> "
+                               << view_tensor.get_shape());
+
+    return view_tensor;
 }
 
 ov::Tensor ov::npuw::IBaseInferRequest::slice_batch_expert_weights(const ov::Tensor& batched_weight,
@@ -763,8 +779,11 @@ void ov::npuw::IBaseInferRequest::unpack_moe_expert_closure(std::size_t idx, RqP
         bool needs_slicing = !closure_shape.empty() && closure_shape[0] == num_experts;
 
         if (needs_slicing) {
-            // Slice expert weight using copy
-            ov::Tensor sliced_weight = slice_expert_weight(closure, expert_id, num_experts);
+            // Slice expert weight using view (no copy) - returns ov::Tensor object
+            auto sliced_weight_tensor = slice_expert_weight(closure, expert_id, num_experts);
+
+            // Get impl pointer for use in unpacking/setting
+            auto sliced_weight = ov::get_tensor_impl(sliced_weight_tensor);
 
             // Handle unpacking if needed
             if (m_npuw_model->unpack_required(idx, cidx)) {
@@ -772,20 +791,18 @@ void ov::npuw::IBaseInferRequest::unpack_moe_expert_closure(std::size_t idx, RqP
 
                 if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx] && comp_model_desc.zerops[cidx]) {
                     // TODO: May need to slice scales/zerops as well if they're batched
-                    ov::npuw::util::unpack(ov::get_tensor_impl(sliced_weight),
+                    ov::npuw::util::unpack(sliced_weight,
                                            ov::get_tensor_impl(comp_model_desc.zerops[cidx]),
                                            ov::get_tensor_impl(comp_model_desc.scales[cidx]),
                                            clparam);
                 } else if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx]) {
-                    ov::npuw::util::unpack(ov::get_tensor_impl(sliced_weight),
-                                           ov::get_tensor_impl(comp_model_desc.scales[cidx]),
-                                           clparam);
+                    ov::npuw::util::unpack(sliced_weight, ov::get_tensor_impl(comp_model_desc.scales[cidx]), clparam);
                 } else {
-                    ov::npuw::util::unpack(ov::get_tensor_impl(sliced_weight), clparam);
+                    ov::npuw::util::unpack(sliced_weight, clparam);
                 }
             } else {
                 // Direct set (no unpacking needed)
-                request->set_tensor(iport, ov::get_tensor_impl(sliced_weight));
+                request->set_tensor(iport, sliced_weight);
             }
         } else {
             // This closure parameter doesn't need slicing, use original logic
