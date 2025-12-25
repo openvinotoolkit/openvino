@@ -235,6 +235,31 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckPluginHashIgnoresOnlyNonde
     ASSERT_FALSE(hashNoAttribute == serializedModel.hash.value());
 }
 
+/**
+ * @brief The plugin should produce the same hash for the same model, different instances.
+ */
+TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckSameModelDifferentInstancesSamePluginHash) {
+    auto model = createModelWithLargeWeights();
+    const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
+
+    ::intel_npu::SerializedIR serializedModel;
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::driver_compiler_utils::serializeIR(model,
+                                                                        dummyCompilerVersion,
+                                                                        10,  // Triggers an additional pass
+                                                                        false,
+                                                                        true,
+                                                                        false));
+    ASSERT_TRUE(serializedModel.hash.has_value());
+    const uint64_t hashFirstInstance = serializedModel.hash.value();
+
+    model = createModelWithLargeWeights();
+    EXPECT_NO_THROW(
+        serializedModel =
+            ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 10, false, true, false));
+    ASSERT_TRUE(hashFirstInstance == serializedModel.hash.value());
+}
+
 const std::vector<ov::AnyMap> configs = {
     {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}},
 };
