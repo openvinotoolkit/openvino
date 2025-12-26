@@ -902,11 +902,16 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     const auto& iodesc = m_subrequests_gio.at(idx);
 
     const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+
+    if (proto_comp_model_desc.moe_experts.has_value()) {
+        // Expert submodel does not have global parameters to bind
+        return;
+    }
+
     const bool is_spatial = proto_comp_model_desc.spatial.has_value();
     const bool is_attention = proto_comp_model_desc.attention.has_value();
     const bool is_pyramid_attention = proto_comp_model_desc.pyramid_attention.has_value();
     const bool is_hfa_attention = proto_comp_model_desc.host_flash_attention.has_value();
-    const bool is_moe = proto_comp_model_desc.moe_experts.has_value();
 
     // a list of ports to copy tensors, if needed: FROM -> TO
     std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
@@ -984,10 +989,6 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         } else if (is_hfa_attn_param(sub_in_idx)) {
             // Register for future use
             m_hfa_io[idx].inputs.at(sub_in_idx) = g_tnsr;
-        } else if (is_moe) {
-            // Register MoE input for future use - will be processed in function_prologue
-            LOG_DEBUG("Registering MoE global param " << param_idx << " -> " << sub_in_idx);
-            m_moe_io[idx].inputs.at(sub_in_idx) = g_tnsr;
         } else {
             // Lock mutex just in case. m_input_allocated might be altered in parallel in get_tensor()
             std::unique_lock lock(m_io_storages_mutex);
