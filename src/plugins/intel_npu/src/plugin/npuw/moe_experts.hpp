@@ -3,12 +3,7 @@
 
 #pragma once
 
-#include <cstddef>
-#include <map>
-#include <memory>
 #include <optional>
-#include <string>
-#include <vector>
 
 #include "logging.hpp"
 #include "openvino/core/model.hpp"
@@ -16,6 +11,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
@@ -28,23 +24,43 @@ namespace npuw {
 
 namespace function {
 
-// Helper struct to hold validation results for MoE expert model
-struct MoEValidationResult {
-    size_t num_experts = 0;                                 // Total number of experts
-    size_t expert_hidden_dim = 0;                           // Hidden dimension of single expert
-    size_t input_token_count = 0;                           // Number of input tokens
-    std::shared_ptr<ov::op::v0::Tile> tile_node = nullptr;  // The Tile operation node
-    std::optional<size_t> router_scores_idx;       // Parameter index for router scores (from Multiply in output path)
+// Complete structure analysis result (immutable after analysis)
+struct MoEStructureInfo {
+    // Expert configuration
+    size_t num_experts = 0;        // Total number of experts in the model
+    size_t expert_hidden_dim = 0;  // Hidden dimension of single expert
+    size_t input_token_count = 0;  // Number of input tokens
+
+    // Key nodes in the graph
+    std::shared_ptr<ov::op::v0::Tile> expert_input_tile_node = nullptr;  // Tile node for replicating expert inputs
+    std::shared_ptr<ov::op::v1::Multiply> router_scores_multiply_node =
+        nullptr;  // Multiply node in output path (expert_output * router_scores)
+
+    // Parameter indices (detected once during analysis)
     std::optional<size_t> expert_input_param_idx;  // Parameter index for expert's input (token embeddings)
+    std::optional<size_t> router_scores_idx;       // Parameter index for router scores (from Multiply in output path)
 
-    // Stage detection (based on output shape analysis)
-    bool is_decoding_stage = false;      // True if detected as decoding (token_count == 1)
-    size_t detected_active_experts = 1;  // Detected number of active experts (1 for prefill, K for decoding)
+    // Stage inference
+    bool is_decoding_stage = false;  // True if decoding (token_count == 1), false if prefill (token_count > 1)
 
-    // Validation helper
     bool is_valid() const {
-        return num_experts > 0 && expert_hidden_dim > 0 && tile_node != nullptr;
+        return num_experts > 0 && expert_hidden_dim > 0 && expert_input_tile_node != nullptr &&
+               router_scores_multiply_node != nullptr && expert_input_param_idx.has_value() &&
+               router_scores_idx.has_value();
     }
+};
+
+// Expert transformation mode
+enum class ExpertMode {
+    SINGLE_EXPERT,  // Transform to 1 expert (prefill stage)
+    ACTIVE_EXPERTS  // Transform to K active experts (decoding stage)
+};
+
+// Transformation configuration (clear decision parameters)
+struct MoETransformConfig {
+    ExpertMode mode;            // SINGLE_EXPERT for prefill, ACTIVE_EXPERTS for decoding
+    size_t num_target_experts;  // Number of experts in transformed model (1 for prefill, K for decoding)
+    size_t chunk_size;          // Token chunk size for prefill (0 for decoding)
 };
 
 // Structure to hold MoE downstream processing information (ReduceSum + QKV + attention postproc + downstream layers)
@@ -60,24 +76,20 @@ struct MoEDownstream {
     }
 };
 
-// Helper function to validate MoE expert model and extract necessary information
-std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shared_ptr<ov::Model>& model,
-                                                                 size_t active_experts_num);
+// Analyze MoE model structure and detect all necessary information
+// This function is pure analysis - no modification to input model
+std::optional<MoEStructureInfo> analyze_moe_structure(const std::shared_ptr<ov::Model>& model);
 
-// Expert transformation mode
-enum class ExpertMode {
-    SINGLE_EXPERT,  // Transform to 1 expert (prefill stage)
-    ACTIVE_EXPERTS  // Transform to K active experts (decoding stage)
-};
+// Determine transformation parameters based on structure info and K from router
+MoETransformConfig determine_transformation_params(const MoEStructureInfo& structure_info,
+                                                   size_t k_from_router,
+                                                   size_t prefill_chunk_size);
 
-// Helper function to transform MoE expert model from batched to target number of experts
-// For prefill: num_target_experts = 1 (SINGLE_EXPERT mode), token_count = chunk_size
-// For decoding: num_target_experts = K (ACTIVE_EXPERTS mode), token_count = 1
-std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model>& original_model,
-                                                 MoEValidationResult& validation_result,
-                                                 size_t num_target_experts,
-                                                 ExpertMode mode,
-                                                 size_t prefill_chunk_size = 0);
+// Transform MoE expert model based on configuration (pure function, no side effects)
+// Returns transformed model, does not modify any input parameters
+std::shared_ptr<ov::Model> transform_moe_model(const std::shared_ptr<ov::Model>& original_model,
+                                               const MoEStructureInfo& structure_info,
+                                               const MoETransformConfig& config);
 
 // Helper function to detect and transform MoE downstream pattern
 // Looks for: Parameter -> Convert -> ReduceSum pattern
