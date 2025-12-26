@@ -649,12 +649,6 @@ std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model
             }
         }
 
-        if (params_to_fix.empty()) {
-            NPUW_ASSERT(false && "No Parameters found to fix token count");
-        }
-
-        std::cout << "Fixing token count dimension in " << params_to_fix.size() << " Parameter(s)..." << std::endl;
-
         // Fix Parameter shapes
         size_t original_token_count = validation_result.input_token_count;
         for (const auto& param : params_to_fix) {
@@ -678,46 +672,8 @@ std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model
             }
         }
 
-        // Fix Reshape Constants that contain old token count
-        LOG_DEBUG("Fixing Reshape constant shapes...");
-        std::cout << "Fixing Reshape constant shapes..." << std::endl;
-        for (const auto& node : model->get_ordered_ops()) {
-            if (auto reshape = std::dynamic_pointer_cast<ov::op::v1::Reshape>(node)) {
-                std::cout << "Got reshape" << std::endl;
-                auto shape_input = reshape->input_value(1);
-                if (auto shape_const =
-                        std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_input.get_node_shared_ptr())) {
-                    std::cout << "Got reshape constant" << std::endl;
-                    auto shape_data = shape_const->cast_vector<int64_t>();
-                    bool modified = false;
-
-                    for (size_t i = 0; i < shape_data.size(); ++i) {
-                        std::cout << "Checking shape_data[" << i << "] = " << shape_data[i] << std::endl;
-                        if (shape_data[i] == static_cast<int64_t>(original_token_count)) {
-                            LOG_DEBUG("  Updating Reshape '" << reshape->get_friendly_name() << "' constant shape[" << i
-                                                             << "] from " << original_token_count << " to "
-                                                             << prefill_chunk_size);
-                            std::cout << "  Updating Reshape '" << reshape->get_friendly_name() << "' constant shape["
-                                      << i << "] from " << original_token_count << " to " << prefill_chunk_size
-                                      << std::endl;
-                            shape_data[i] = static_cast<int64_t>(prefill_chunk_size);
-                            modified = true;
-                        }
-                    }
-
-                    if (modified) {
-                        auto new_const = std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(),
-                                                                                shape_const->get_shape(),
-                                                                                shape_data);
-                        ov::replace_node(shape_const, new_const);
-                    }
-                }
-            }
-        }
-
         // Trigger shape inference to propagate changes through the model
         LOG_DEBUG("Triggering shape inference after token count changes...");
-        std::cout << "Triggering shape inference after token count changes..." << std::endl;
         model->validate_nodes_and_infer_types();
     };
 
@@ -801,11 +757,6 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     LOG_INFO("  Mode: " << (mode == ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS"));
     LOG_INFO("  Target num experts: " << num_target_experts);
 
-    std::cout << "Auto-detected MoE configuration:" << std::endl;
-    std::cout << "  Stage: " << (is_decoding ? "DECODING" : "PREFILL") << std::endl;
-    std::cout << "  Mode: " << (mode == ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS") << std::endl;
-    std::cout << "  Target num experts: " << num_target_experts << std::endl;
-
     // Step 3: Transform the model to target number of experts using configured chunk size
     auto transformed_model =
         transform_moe_experts(model, *validation_result, num_target_experts, mode, prefill_chunk_size);
@@ -835,11 +786,6 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     moe_experts._single_expert_shape = ov::Shape{num_target_experts, validation_result->expert_hidden_dim};
     moe_experts._router_param_idx = validation_result->router_param_idx;
     moe_experts._has_reduce_sum = has_reduce_sum;
-
-    std::cout << "_num_experts: " << moe_experts._num_experts << std::endl;
-    std::cout << "_expert_hidden_dim: " << moe_experts._expert_hidden_dim << std::endl;
-    std::cout << "_input_token_count: " << moe_experts._input_token_count << std::endl;
-    std::cout << "_chunk_token_count: " << moe_experts._chunk_token_count << std::endl;
 
     // Step 6: Extract input/output information
     LOG_DEBUG("Extracting I/O information...");
@@ -874,14 +820,6 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     LOG_INFO("  - Expert hidden dim: " << moe_experts._expert_hidden_dim);
     LOG_INFO("  - Has ReduceSum: " << (has_reduce_sum ? "Yes" : "No"));
     LOG_INFO("  - Transformed model: " << transformed_model->get_friendly_name());
-
-    std::cout << "Successfully created MoEExperts:" << std::endl;
-    std::cout << "  Total experts: " << moe_experts._num_experts << std::endl;
-    std::cout << "  Active experts: " << moe_experts._num_active_experts << std::endl;
-    std::cout << "  Has ReduceSum: " << (has_reduce_sum ? "Yes" : "No") << std::endl;
-    if (moe_experts._router_param_idx.has_value()) {
-        std::cout << "  Router parameter index: " << moe_experts._router_param_idx.value() << std::endl;
-    }
 
     return moe_experts;
 }

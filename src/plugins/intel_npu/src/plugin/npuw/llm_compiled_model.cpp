@@ -1321,15 +1321,12 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
     const ov::AnyMap& generate_config) {
     // Compile multiple generate model variants with different sizes
     LOG_INFO("Compiling " << m_kvcache_sizes.size() << " generate model variants...");
-    std::cout << "Compiling KV CACHE model..." << std::endl;
     m_generate_compiled_variants.reserve(m_kvcache_sizes.size());
 
     for (size_t i = 0; i < m_kvcache_sizes.size(); ++i) {
         const uint32_t kv_size = m_kvcache_sizes[i];
         LOG_DEBUG("Compiling generate variant " << (i + 1) << "/" << m_kvcache_sizes.size()
                                                 << " with size: " << kv_size);
-        std::cout << "  - Variant " << (i + 1) << "/" << m_kvcache_sizes.size() << " with KV size: " << kv_size
-                  << std::endl;
 
         // Use the already prepared variant model
         auto& generate_variant = generate_model_variants[i];
@@ -1341,7 +1338,6 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
 
         m_generate_compiled_variants.push_back(compiled_variant);
         LOG_DEBUG("Successfully compiled generate variant with size: " << kv_size);
-        std::cout << "Successfully compiled generate variant with size: " << kv_size << std::endl;
     }
 
     // Keep the original compiled model for backward compatibility (using the largest size)
@@ -1516,7 +1512,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     LOG_DEBUG("Make prefill model with static shapes");
-    std::cout << "Reshaping prefill model to static shapes..." << std::endl;
     m_max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
     if (m_use_chunk_prefill) {
         reshape_to_static(prefill_model,
@@ -1533,14 +1528,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                           whisper_lhs_seq_size);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
-    std::cout << "Reshaping kvcache model to static shapes..." << std::endl;
 
     // Create generate model variants with different sizes
     auto generate_model_variants = create_generate_model_variants(kvcache_model, axes, whisper_lhs_seq_size);
 
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
-        std::cout << "Slicing prefill model output for LM head..." << std::endl;
         // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
         // so only apply slice to the Prefill model:
         slice_out_embeds(prefill_model, axes.batch, m_kvcache_desc.max_generation_token_len);
@@ -1687,7 +1680,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const bool prefill_enable_moe = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ENABLE_MOE>();
     if (prefill_enable_moe) {
         LOG_INFO("MoE architecture optimization for PREFILL stage is ENABLED");
-        std::cout << "MoE architecture optimization for PREFILL stage is ENABLED" << std::endl;
         merge_config_with(prefill_config, expert_opts);
     } else {
         LOG_INFO("MoE architecture optimization for PREFILL stage is DISABLED");
@@ -1697,7 +1689,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const bool generate_enable_moe = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_ENABLE_MOE>();
     if (generate_enable_moe) {
         LOG_INFO("MoE architecture optimization for GENERATE stage is ENABLED");
-        std::cout << "MoE architecture optimization for GENERATE stage is ENABLED" << std::endl;
         merge_config_with(generate_config, expert_opts);
     } else {
         LOG_INFO("MoE architecture optimization for GENERATE stage is DISABLED");
@@ -1774,7 +1765,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Compile multiple generate model variants with different sizes
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
-    std::cout << "Compiling prefill model..." << std::endl;
     m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
@@ -1787,7 +1777,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         merge_config_with(lm_head_config, lm_head_config_addition_value);
 
         apply_weights_bank_name(lm_head_config, weights_bank_name);
-        std::cout << "Compiling LM head model..." << std::endl;
         m_lm_head_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
             ov::npuw::ICompiledModel::create(lm_head_model, plugin, lm_head_config));
         NPUW_ASSERT(m_lm_head_compiled);
