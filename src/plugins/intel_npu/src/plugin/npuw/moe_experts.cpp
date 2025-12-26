@@ -11,10 +11,12 @@
 #include "openvino/op/tile.hpp"
 #include "openvino/op/topk.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "passes/moe_unroll_patterns.hpp"
 
 namespace ov {
 namespace npuw {
@@ -418,6 +420,30 @@ std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Mod
 
     LOG_WARN("Failed to create MoEDownstream - downstream pattern not found");
     return std::nullopt;
+}
+
+// Unroll MoE expert model on expert dimension using GraphRewrite patterns
+std::shared_ptr<ov::Model> unroll_expert_dimension(const std::shared_ptr<ov::Model>& model,
+                                                   const MoEStructureInfo& structure_info,
+                                                   size_t num_experts) {
+    LOG_INFO("Unrolling expert dimension for " << num_experts << " experts using GraphRewrite");
+    LOG_BLOCK();
+
+    try {
+        auto unrolled_model = model->clone();
+
+        ov::pass::Manager manager;
+        manager.register_pass<ov::npuw::pass::MoEExpertUnrolling>(num_experts, unrolled_model);
+        manager.run_passes(unrolled_model);
+
+        unrolled_model->validate_nodes_and_infer_types();
+        LOG_INFO("Successfully unrolled and validated model for " << num_experts << " experts");
+
+        return unrolled_model;
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to unroll expert dimension: " << e.what());
+        return nullptr;
+    }
 }
 
 // Transform MoE model based on configuration (pure function, no side effects)
