@@ -211,6 +211,27 @@ public:
 };
 
 // =============================================================================
+// RemoveUnusedParameters: Clean up unused parameters after unrolling
+// =============================================================================
+/**
+ * @brief Removes parameters that have no consumers after MoE unrolling
+ *
+ * After unrolling batched parameters into per-expert parameters,
+ * the original batched parameters may become unused. This pass removes them.
+ *
+ * @param model Model to clean up
+ */
+
+class RemoveUnusedParameters : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::pass::RemoveUnusedParameters");
+    explicit RemoveUnusedParameters(std::shared_ptr<ov::Model> model);
+
+private:
+    std::shared_ptr<ov::Model> model_;
+};
+
+// =============================================================================
 // Main transformation: Combine all MoE unrolling patterns
 // =============================================================================
 /**
@@ -253,6 +274,7 @@ public:
         add_matcher<PushMultiplyBeforeConcat>();
         add_matcher<PushReshapeBeforeConcat>();
         add_matcher<FuseConcatReduceSum>();
+        add_matcher<RemoveUnusedParameters>(model);
     }
 };
 

@@ -46,6 +46,7 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
             return false;
 
         LOG_INFO("UnrollBatchedMatMul: Checking MatMul " << matmul->get_friendly_name());
+        std::cout << "UnrollBatchedMatMul: Checking MatMul " << matmul->get_friendly_name() << std::endl;
 
         auto matmul_input0 = matmul->input_value(0);
         auto matmul_input1 = matmul->input_value(1);
@@ -69,6 +70,8 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
 
         if (!reshape_node) {
             LOG_DEBUG("  Input0 is not Reshape, skipping");
+            std::cout << "  Input0 is not Reshape, skipping" << std::endl;
+            std::cout << " Input0 type: " << matmul_input0.get_node_shared_ptr()->get_type_name() << std::endl;
             return false;
         }
 
@@ -77,6 +80,7 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
             std::dynamic_pointer_cast<ov::opset1::Tile>(reshape_node->input_value(0).get_node_shared_ptr());
         if (!tile_node) {
             LOG_DEBUG("  Reshape input is not Tile, skipping");
+            std::cout << "  Reshape input is not Tile, skipping" << std::endl;
             return false;
         }
 
@@ -84,6 +88,7 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
             std::dynamic_pointer_cast<ov::opset1::Convert>(tile_node->input_value(0).get_node_shared_ptr());
         if (!convert_input_node) {
             LOG_DEBUG("  Tile input is not Convert, skipping");
+            std::cout << "  Tile input is not Convert, skipping" << std::endl;
             return false;
         }
 
@@ -102,6 +107,7 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
 
         if (!multiply_weights_node) {
             LOG_DEBUG("  Input1 is not Multiply, skipping");
+            std::cout << "  Input1 is not Multiply, skipping" << std::endl;
             return false;
         }
 
@@ -150,6 +156,9 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
         LOG_INFO("  Found pattern: input_param → convert → tile → reshape");
         LOG_INFO("                  scale_param + weights_param → multiply → MatMul");
         LOG_INFO("  Creating " << num_experts_ << " expert branches...");
+        std::cout << "  Found pattern: input_param → convert → tile → reshape" << std::endl;
+        std::cout << "                  scale_param + weights_param → multiply → MatMul" << std::endl;
+        std::cout << "  Creating " << num_experts_ << " expert branches..." << std::endl;
 
         // Helper: Extract Parameter node, skipping intermediate Convert if present
         auto get_param_node = [](ov::Output<ov::Node> out) -> std::shared_ptr<ov::op::v0::Parameter> {
@@ -1270,6 +1279,55 @@ UnrollExpertReshape::UnrollExpertReshape(size_t num_experts) : num_experts_(num_
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_pattern, matcher_name);
+    register_matcher(m, callback);
+}
+
+// =============================================================================
+// RemoveUnusedParameters: Clean up parameters that have no consumers
+// =============================================================================
+
+RemoveUnusedParameters::RemoveUnusedParameters(std::shared_ptr<ov::Model> model) : model_(model) {
+    MATCHER_SCOPE(RemoveUnusedParameters);
+
+    // Match any Result node to trigger cleanup after all other patterns
+    auto result_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Result>();
+
+    auto callback = [this](ov::pass::pattern::Matcher& m) {
+        LOG_INFO("RemoveUnusedParameters: Scanning for unused parameters");
+
+        auto params = model_->get_parameters();
+        ov::ParameterVector unused_params;
+
+        for (const auto& param : params) {
+            bool has_consumers = false;
+
+            // Check if parameter output has any target inputs
+            for (const auto& output : param->outputs()) {
+                if (!output.get_target_inputs().empty()) {
+                    has_consumers = true;
+                    break;
+                }
+            }
+
+            if (!has_consumers) {
+                unused_params.push_back(param);
+                LOG_INFO("  Found unused parameter: " << param->get_friendly_name());
+            }
+        }
+
+        if (!unused_params.empty()) {
+            LOG_INFO("  Removing " << unused_params.size() << " unused parameters");
+            for (const auto& param : unused_params) {
+                model_->remove_parameter(param);
+            }
+            return true;  // Model was modified
+        } else {
+            LOG_INFO("  No unused parameters found");
+            return false;  // Model was not modified
+        }
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(result_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
