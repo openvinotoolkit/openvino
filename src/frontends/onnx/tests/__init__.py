@@ -52,7 +52,6 @@ xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "Axes input must be constant")
 skip_bitwise_ui64 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_99950 = xfail_test(reason="CenterCropPad func is not supported")
-xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported")
 xfail_issue_99954 = xfail_test(reason="Constant Pad - RuntimeError: Shape inference of Reference node with name y failed")
 xfail_issue_99955 = xfail_test(reason="GroupNorm is not supported")
 xfail_issue_99957 = xfail_test(reason="LayerNorm - RuntimeError: While validating node '<Node(Reshape): Mean>'")
