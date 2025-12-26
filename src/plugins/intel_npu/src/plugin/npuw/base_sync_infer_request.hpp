@@ -159,10 +159,6 @@ protected:
         std::vector<ov::SoPtr<ov::ITensor>> inputs;   // # of elements - # of graph-side inputs
         std::vector<ov::SoPtr<ov::ITensor>> outputs;  // # of elements - # of subgraph outputs
         ov::SoPtr<ov::ITensor> router_output;         // Router output tensor (weights for expert selection)
-
-        // Runtime state for MoE expert execution
-        std::vector<size_t> selected_experts;  // Indices of experts to execute (from router output)
-        size_t current_expert_idx = 0;         // Current expert being processed
     };
     std::vector<MoEIO> m_moe_io;
 
