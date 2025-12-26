@@ -10,6 +10,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/maximum.hpp"
@@ -19,6 +20,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -54,8 +56,8 @@ ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
         for (size_t input_index = 0; input_index < eltwise_inputs_size; ++input_index) {
             const auto input_node = eltwise->get_input_node_shared_ptr(input_index);
             // check that we will able to fuse propagated squeeze in NopElimination pass
-            if (!is_type<ov::op::v0::Constant>(input_node) && !is_type<ov::op::v0::Unsqueeze>(input_node) &&
-                !is_type<ov::op::v1::Reshape>(input_node)) {
+            if (!ov::is_type<ov::op::v0::Constant>(input_node) && !ov::is_type<ov::op::v0::Unsqueeze>(input_node) &&
+                !ov::is_type<ov::op::v1::Reshape>(input_node)) {
                 return false;
             }
         }
@@ -65,8 +67,8 @@ ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
             const auto eltwise_input = eltwise->input_value(input_index);
             const auto new_input_node = ov::op::util::clone_try_fold(squeeze, {eltwise_input, squeeze->input_value(1)});
 
-            if (!is_type<ov::op::v0::Constant>(new_input_node))
-                register_new_node(as_type_ptr<ov::op::v0::Squeeze>(new_input_node));
+            if (!ov::is_type<ov::op::v0::Constant>(new_input_node))
+                register_new_node(ov::as_type_ptr<ov::op::v0::Squeeze>(new_input_node));
 
             ov::copy_runtime_info(squeeze, new_input_node);
             eltwise_inputs.push_back(new_input_node);
@@ -95,14 +97,29 @@ ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto concat = as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_pattern).get_node_shared_ptr());
-        auto reduce = as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(
+        auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_pattern).get_node_shared_ptr());
+        auto reduce = ov::as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(
             pattern_map.at(reduce_pattern).get_node_shared_ptr());
         if (!reduce || !concat)
             return false;
 
         const auto& reduction_axes = reduce->get_reduction_axes();
         if (reduction_axes.size() != 1 || concat->get_axis() != static_cast<int64_t>(*reduction_axes.begin())) {
+            return false;
+        }
+
+        // Check that inputs have compatible shapes for this optimization
+        // The transformation Concat([A, B], axis) -> ReduceMax(axis) into Maximum(A, B) -> Squeeze
+        // is only valid when A and B have the same shape. If they have different shapes,
+        // Maximum will broadcast them incorrectly, producing wrong results.
+        const auto input0_shape = concat->input_value(0).get_partial_shape();
+        const auto input1_shape = concat->input_value(1).get_partial_shape();
+
+        // Require inputs to have exactly the same static shape for this optimization to be valid
+        // This prevents incorrect transformations when inputs have different shapes
+        // (e.g., (21,) and (1,) which would incorrectly produce (21,) instead of scalar)
+        if (!input0_shape.is_static() || !input1_shape.is_static() ||
+            input0_shape.to_shape() != input1_shape.to_shape()) {
             return false;
         }
 

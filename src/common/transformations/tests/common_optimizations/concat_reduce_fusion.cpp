@@ -324,3 +324,42 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseSqueezeEliminationDynamicR
         model_ref = std::make_shared<Model>(OutputVector{add}, ParameterVector{left_input, right_input});
     }
 }
+
+TEST_F(TransformationTestsF, ConcatReduceMaxFusionDifferentShapes1D) {
+    // Test case for GitHub issue #33374
+    // Concat of 1D tensors with different shapes followed by ReduceMax should NOT be optimized
+    // Input A: (21,), Input B: (1,), Concat -> (22,), ReduceMax(axis=0) -> scalar ()
+    // The transformation should be skipped because inputs have different shapes
+    PartialShape shape_a{21};
+    PartialShape shape_b{1};
+    std::int64_t concat_axis = 0;
+    std::int64_t reduce_axis = 0;
+    {
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(element::f64, shape_a);
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(element::f64, shape_b);
+
+        auto concat = std::make_shared<ov::op::v0::Concat>(NodeVector{input_a, input_b}, concat_axis);
+
+        auto reduce_max = std::make_shared<ov::op::v1::ReduceMax>(
+            concat,
+            ov::op::v0::Constant::create(element::i64, Shape{1}, {reduce_axis}),
+            false);
+
+        model = std::make_shared<Model>(OutputVector{reduce_max}, ParameterVector{input_a, input_b});
+        manager.register_pass<ov::pass::ConcatReduceFusion>();
+    }
+    {
+        // Model should remain unchanged because inputs have different shapes
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(element::f64, shape_a);
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(element::f64, shape_b);
+
+        auto concat = std::make_shared<ov::op::v0::Concat>(NodeVector{input_a, input_b}, concat_axis);
+
+        auto reduce_max = std::make_shared<ov::op::v1::ReduceMax>(
+            concat,
+            ov::op::v0::Constant::create(element::i64, Shape{1}, {reduce_axis}),
+            false);
+
+        model_ref = std::make_shared<Model>(OutputVector{reduce_max}, ParameterVector{input_a, input_b});
+    }
+}
