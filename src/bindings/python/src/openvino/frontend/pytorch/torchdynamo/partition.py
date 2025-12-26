@@ -143,6 +143,16 @@ class Partitioner:
         partitions = partitioner.propose_partitions()
         self.add_get_attr_inputs(partitions)
         fused_graph_module = partitioner.fuse_partitions(partitions)
+        
+        # Log partitioning summary
+        num_partitions = len(partitions)
+        if num_partitions > 0:
+            logger.info(f"OpenVINO backend: Created {num_partitions} subgraph partition(s) for OpenVINO execution")
+            for idx, partition in enumerate(partitions):
+                logger.debug(f"  Partition {idx + 1}: {len(partition.nodes)} nodes")
+        else:
+            logger.warning("OpenVINO backend: No partitions created - model may not be suitable for OpenVINO")
+        
         logger.debug(f"Graph module after partitioning {fused_graph_module}")
 
         return fused_graph_module

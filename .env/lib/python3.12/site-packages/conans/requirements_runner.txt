@@ -1,0 +1,2 @@
+paramiko
+docker>=7.1.0

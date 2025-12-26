@@ -131,9 +131,11 @@ class OpenVINOGraphModule(torch.nn.Module):
                                     "model_hash_str": model_hash_str}
         self.perm_fallback = False
         self.options = options
+        logger.debug(f"OpenVINO backend: Created OpenVINOGraphModule for partition {partition_id}")
 
     def __call__(self, *args):
         if self.perm_fallback:
+            logger.debug(f"OpenVINO backend: Partition {self.partition_id} using PyTorch fallback")
             return self.gm(*args)
 
         try:
@@ -144,10 +146,13 @@ class OpenVINOGraphModule(torch.nn.Module):
                 partition_id=self.partition_id,
                 options=self.options,
             )
-            logger.debug("OpenVINO graph execution successful")
+            logger.debug(f"OpenVINO backend: Partition {self.partition_id} executed successfully on OpenVINO")
         except Exception as e:
-            logger.debug(
-                f"OpenVINO execution failed with {e}. Falling back to native PyTorch execution."
+            logger.warning(
+                f"OpenVINO backend: Partition {self.partition_id} execution failed with error: {e}"
+            )
+            logger.warning(
+                f"OpenVINO backend: Partition {self.partition_id} falling back to native PyTorch execution"
             )
             self.perm_fallback = True
             return self.gm(*args)
@@ -158,6 +163,7 @@ class OpenVINOGraphModule(torch.nn.Module):
 def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_str: str = None, options=None):
     global max_openvino_partitions
     partition_id = max_openvino_partitions
+    fused_count = 0
     for node in gm.graph.nodes:
         # TODO: use a better way to identify fused submodule
         if node.op == "call_module" and "fused_" in node.name:
@@ -169,7 +175,11 @@ def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_s
                                     model_hash_str=model_hash_str, options=options),
             )
             partition_id = partition_id + 1
+            fused_count += 1
 
+    if fused_count > 0:
+        logger.info(f"OpenVINO backend: {fused_count} fused subgraph(s) delegated to OpenVINO")
+    
     max_openvino_partitions = partition_id
 
     return gm

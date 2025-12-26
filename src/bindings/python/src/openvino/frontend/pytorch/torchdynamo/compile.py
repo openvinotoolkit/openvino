@@ -91,8 +91,10 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     file_name = cached_model_name(model_hash_str, device, args, cache_root)
 
     if file_name is not None and os.path.isfile(file_name + ".xml") and os.path.isfile(file_name + ".bin"):
+        logger.debug(f"OpenVINO backend: Loading cached model from {file_name}")
         om = core.read_model(file_name + ".xml")
     else:
+        logger.debug("OpenVINO backend: Converting PyTorch FX graph to OpenVINO IR")
         fe_manager = FrontEndManager()
         fe = fe_manager.load_by_framework("pytorch")
 
@@ -143,6 +145,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
             config["CACHE_DIR"] = cache_root
 
     compiled = core.compile_model(om, device, config)
-    logger.debug(f"OpenVINO graph compile successful on device {device}")
+    logger.info(f"OpenVINO backend: Successfully compiled model for device '{device}'")
+    logger.debug(f"OpenVINO backend: Model has {len(om.inputs)} inputs and {len(om.outputs)} outputs")
 
     return compiled
