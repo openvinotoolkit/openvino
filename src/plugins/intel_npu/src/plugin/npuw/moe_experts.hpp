@@ -91,6 +91,12 @@ std::shared_ptr<ov::Model> transform_moe_model(const std::shared_ptr<ov::Model>&
                                                const MoEStructureInfo& structure_info,
                                                const MoETransformConfig& config);
 
+// Unroll the MoE expert model on the expert dimension using GraphRewrite patterns
+// This creates separate computation branches for each expert
+std::shared_ptr<ov::Model> unroll_expert_dimension(const std::shared_ptr<ov::Model>& model,
+                                                   const MoEStructureInfo& structure_info,
+                                                   size_t num_experts);
+
 // Helper function to detect and transform MoE downstream pattern
 // Looks for: Parameter -> Convert -> ReduceSum pattern
 // If found, modifies input shape from [total_experts, 1, H, W] to [active_experts, 1, H, W]
