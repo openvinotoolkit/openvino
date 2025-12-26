@@ -35,7 +35,8 @@ struct MoEValidationResult {
     size_t input_token_count = 0;                           // Number of input tokens
     std::shared_ptr<ov::op::v0::Tile> tile_node = nullptr;  // The Tile operation node
     std::shared_ptr<ov::Node> input_node = nullptr;         // Input to Tile operation
-    std::optional<size_t> router_param_idx;  // Parameter index for router output (from Multiply in output path)
+    std::optional<size_t> router_scores_idx;       // Parameter index for router scores (from Multiply in output path)
+    std::optional<size_t> expert_input_param_idx;  // Parameter index for expert's input (token embeddings)
 
     // Stage detection (based on output shape analysis)
     bool is_decoding_stage = false;      // True if detected as decoding (token_count == 1)
@@ -106,10 +107,11 @@ struct MoEExperts {
 
     // Tile operation information
     std::shared_ptr<ov::op::v0::Tile> _tile_op = nullptr;
-    ov::Shape _original_tile_output_shape;    // Shape before transformation
-    ov::Shape _single_expert_shape;           // Shape after transformation (single or K experts)
-    std::optional<size_t> _router_param_idx;  // Parameter index for router output
-    bool _has_reduce_sum = false;             // Whether ReduceSum is included (decoding stage)
+    ov::Shape _original_tile_output_shape;          // Shape before transformation
+    ov::Shape _single_expert_shape;                 // Shape after transformation (single or K experts)
+    std::optional<size_t> _router_scores_idx;       // Parameter index for router scores
+    std::optional<size_t> _expert_input_param_idx;  // Parameter index for expert's input (token embeddings)
+    bool _has_reduce_sum = false;                   // Whether ReduceSum is included (decoding stage)
 
     // Input/output information for the expert subgraph
     struct ExpertIO {
@@ -123,7 +125,7 @@ struct MoEExperts {
     // Validation helpers
     bool is_valid() const {
         return _num_experts > 0 && _expert_hidden_dim > 0 && _single_expert_model != nullptr &&
-               _router_param_idx.has_value();
+               _router_scores_idx.has_value();
     }
 
     size_t num_experts() const {
@@ -154,8 +156,12 @@ struct MoEExperts {
         return _original_model;
     }
 
-    std::optional<size_t> router_param_idx() const {
-        return _router_param_idx;
+    std::optional<size_t> router_scores_idx() const {
+        return _router_scores_idx;
+    }
+
+    std::optional<size_t> expert_input_param_idx() const {
+        return _expert_input_param_idx;
     }
 
     // Log MoE expert information for debugging
@@ -215,8 +221,10 @@ struct MoEExperts {
     // Store model temporarily for compilation
     std::shared_ptr<ov::Model> _model_to_compile;
 
-    // Router parameter index (from Multiply in output path)
-    std::optional<size_t> _router_param_idx;
+    // Router scores parameter index (from Multiply in output path)
+    std::optional<size_t> _router_scores_idx;
+    // Expert input parameter index (token embeddings)
+    std::optional<size_t> _expert_input_param_idx;
 
     MoEExperts() = default;
 
