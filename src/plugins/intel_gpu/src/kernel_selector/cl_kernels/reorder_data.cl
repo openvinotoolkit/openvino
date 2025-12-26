@@ -149,10 +149,10 @@ KERNEL (reorder_data)(
         CALC_TYPE res = TO_CALC_TYPE(_convert_as_bfloat16_float(input[input_idx]));
     #elif defined INT4_INPUT
         const uint uint4_idx = input_idx >> 1;
-        OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(convert_as_int4_float(input[uint4_idx], input_idx));
+        float res = convert_as_int4_float(input[uint4_idx], input_idx);
     #elif defined UINT4_INPUT
         const uint uint4_idx = input_idx >> 1;
-        OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(convert_as_uint4_float(input[uint4_idx], input_idx));
+        float res = convert_as_uint4_float(input[uint4_idx], input_idx);
     #else
         CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
     #endif
@@ -231,6 +231,30 @@ KERNEL (reorder_data)(
         res = __TO_OUTPUT_REORDER_TYPE(res);
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
+    #elif defined(INT4_OUTPUT)
+        #if INPUT0_IS_FP && CONVERT_TRUNCATE
+            uchar val = convert_char(res);
+        #else
+            uchar val = convert_char_sat(res);
+        #endif
+        const uint output_uint4_idx = output_idx >> 1;
+        if (output_idx % 2 == 0) {
+            atomic_or(&output[output_uint4_idx], (val & 0x0F));
+        } else {
+            atomic_or(&output[output_uint4_idx], (val << 4));
+        }
+    #elif defined(UINT4_OUTPUT)
+        #if INPUT0_IS_FP && CONVERT_TRUNCATE
+            uchar val = convert_uchar(res);
+        #else
+            uchar val = convert_uchar_sat(res);
+        #endif
+        const uint output_uint4_idx = output_idx >> 1;
+        if (output_idx % 2 == 0) {
+            atomic_or(&output[output_uint4_idx], (val & 0x0F));
+        } else {
+            atomic_or(&output[output_uint4_idx], (val << 4));
+        }
     #else
         output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, __TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
     #endif
