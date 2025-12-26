@@ -90,6 +90,36 @@ std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shar
                     LOG_DEBUG("Found Tile: num_experts=" << result.num_experts
                                                          << ", expert_hidden_dim=" << result.expert_hidden_dim
                                                          << ", input_token_count=" << result.input_token_count);
+
+                    // Find the parameter index for Tile's input
+                    auto tile_input_node = tile->input_value(0).get_node_shared_ptr();
+                    std::shared_ptr<ov::Node> current_node = tile_input_node;
+
+                    // Trace back through single-input operations to find the Parameter
+                    while (current_node) {
+                        if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(current_node)) {
+                            // Found the parameter, get its index
+                            const auto& params = model->get_parameters();
+                            for (size_t idx = 0; idx < params.size(); ++idx) {
+                                if (params[idx]->get_friendly_name() == param->get_friendly_name()) {
+                                    result.expert_input_param_idx = idx;
+                                    LOG_DEBUG("  Found expert input parameter at index " << idx << ": "
+                                                                                         << param->get_friendly_name());
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+
+                        // Move up the graph (single input ops like Convert, Reshape, etc.)
+                        if (current_node->get_input_size() == 1) {
+                            current_node = current_node->input_value(0).get_node_shared_ptr();
+                        } else {
+                            // Multi-input operation, cannot trace further
+                            break;
+                        }
+                    }
+
                     break;
                 }
             }
@@ -433,7 +463,7 @@ std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model
                 LOG_DEBUG("  Found Multiply node before Result");
 
                 // Detect router parameter from Multiply inputs
-                if (!validation_result.router_param_idx.has_value()) {
+                if (!validation_result.router_scores_idx.has_value()) {
                     for (size_t i = 0; i < 2; ++i) {
                         auto multiply_input = multiply_node->input_value(i).get_node_shared_ptr();
 
@@ -450,9 +480,9 @@ std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model
                                 const auto& params = original_model->get_parameters();
                                 for (size_t idx = 0; idx < params.size(); ++idx) {
                                     if (params[idx]->get_friendly_name() == param->get_friendly_name()) {
-                                        validation_result.router_param_idx = idx;
-                                        LOG_DEBUG("  Found router parameter at index " << idx << ": "
-                                                                                       << param->get_friendly_name());
+                                        validation_result.router_scores_idx = idx;
+                                        LOG_DEBUG("  Found router scores parameter at index "
+                                                  << idx << ": " << param->get_friendly_name());
                                         break;
                                     }
                                 }
@@ -467,7 +497,7 @@ std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model
                             }
                         }
 
-                        if (validation_result.router_param_idx.has_value()) {
+                        if (validation_result.router_scores_idx.has_value()) {
                             break;
                         }
                     }
@@ -784,7 +814,8 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     moe_experts._tile_op = validation_result->tile_node;
     moe_experts._original_tile_output_shape = validation_result->tile_node->output(0).get_shape();
     moe_experts._single_expert_shape = ov::Shape{num_target_experts, validation_result->expert_hidden_dim};
-    moe_experts._router_param_idx = validation_result->router_param_idx;
+    moe_experts._router_scores_idx = validation_result->router_scores_idx;
+    moe_experts._expert_input_param_idx = validation_result->expert_input_param_idx;
     moe_experts._has_reduce_sum = has_reduce_sum;
 
     // Step 6: Extract input/output information
@@ -837,7 +868,8 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     mode = func_moe._mode;
     has_reduce_sum = func_moe._has_reduce_sum;
     _model_to_compile = func_moe._single_expert_model;
-    _router_param_idx = func_moe._router_param_idx;
+    _router_scores_idx = func_moe._router_scores_idx;
+    _expert_input_param_idx = func_moe._expert_input_param_idx;
 
     LOG_DEBUG("Created compiled::MoEExperts:");
     LOG_DEBUG("  Mode: " << (mode == function::ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS"));
@@ -846,8 +878,11 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     LOG_DEBUG("  Input token count: " << input_token_count);
     LOG_DEBUG("  Chunk token count: " << chunk_token_count);
     LOG_DEBUG("  Has ReduceSum: " << (has_reduce_sum ? "Yes" : "No"));
-    if (_router_param_idx.has_value()) {
-        LOG_DEBUG("  Router parameter index: " << _router_param_idx.value());
+    if (_router_scores_idx.has_value()) {
+        LOG_DEBUG("  Router scores parameter index: " << _router_scores_idx.value());
+    }
+    if (_expert_input_param_idx.has_value()) {
+        LOG_DEBUG("  Expert input parameter index: " << _expert_input_param_idx.value());
     }
 }
 
