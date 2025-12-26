@@ -75,7 +75,6 @@ std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shar
                 if (!repeats_data.empty() && repeats_data[0] > 1) {
                     result.num_experts = static_cast<size_t>(repeats_data[0]);
                     result.tile_node = tile;
-                    result.input_node = tile->input_value(0).get_node_shared_ptr();
 
                     // Extract shape information
                     auto tile_output_shape = tile->output(0).get_shape();
@@ -138,23 +137,6 @@ std::optional<MoEValidationResult> validate_and_setup_moe_expert(const std::shar
         result.is_decoding_stage = true;
         result.detected_active_experts = active_experts_num;
         LOG_DEBUG("Detected DECODING stage (input_token_count=1), K=" << result.detected_active_experts);
-
-        // Check for ReduceSum in output path (decoding only)
-        for (const auto& output_node : model->get_results()) {
-            auto current_node = output_node->input_value(0).get_node_shared_ptr();
-
-            // Skip Convert if present
-            if (auto convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(current_node)) {
-                current_node = convert->input_value(0).get_node_shared_ptr();
-            }
-
-            // Check for ReduceSum
-            if (std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(current_node)) {
-                result.has_reduce_sum = true;
-                LOG_DEBUG("ReduceSum detected in output path");
-                break;
-            }
-        }
     } else if (result.input_token_count > 1) {
         result.is_decoding_stage = false;
         result.detected_active_experts = 1;
@@ -447,14 +429,11 @@ std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model
                 result_input_node = result_input.get_node_shared_ptr();
             }
 
-            // Skip ReduceSum node if present (Result <- [Convert] <- ReduceSum) - only for decoding stage with
-            // ReduceSum
-            if (validation_result.has_reduce_sum) {
-                if (auto reduce_sum_node = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(result_input_node)) {
-                    LOG_DEBUG("  Skipping ReduceSum node before Result (decoding stage)");
-                    result_input = reduce_sum_node->input_value(0);
-                    result_input_node = result_input.get_node_shared_ptr();
-                }
+            // Skip ReduceSum node if present (Result <- [Convert] <- ReduceSum)
+            if (auto reduce_sum_node = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(result_input_node)) {
+                LOG_DEBUG("  Skipping ReduceSum node before Result");
+                result_input = reduce_sum_node->input_value(0);
+                result_input_node = result_input.get_node_shared_ptr();
             }
 
             // Check for Multiply node (Result <- [Convert] <- [ReduceSum] <- Multiply)
@@ -691,8 +670,6 @@ std::shared_ptr<ov::Model> transform_moe_experts(const std::shared_ptr<ov::Model
                     if (shape[i] == original_token_count) {
                         LOG_DEBUG("  Updating Parameter '" << param->get_friendly_name() << "' shape[" << i << "] from "
                                                            << original_token_count << " to " << prefill_chunk_size);
-                        std::cout << "  Updating Parameter '" << param->get_friendly_name() << "' shape[" << i
-                                  << "] from " << original_token_count << " to " << prefill_chunk_size << std::endl;
                         shape[i] = prefill_chunk_size;
                     }
                 }
@@ -795,9 +772,6 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
         return std::nullopt;
     }
 
-    // Step 4: Use has_reduce_sum from validation_result (already detected in validate_and_setup_moe_expert)
-    bool has_reduce_sum = validation_result->has_reduce_sum;
-
     // Step 5: Populate MoEExperts structure
     MoEExperts moe_experts;
     moe_experts._num_experts = validation_result->num_experts;
@@ -809,36 +783,11 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     // For prefill: model is transformed to 1 expert, but _num_active_experts stores actual K
     // For decoding: model is transformed to K experts, _num_active_experts also stores K
     moe_experts._num_active_experts = actual_active_experts_num;
-    moe_experts._single_expert_model = transformed_model;
-    moe_experts._original_model = model;
-    moe_experts._tile_op = validation_result->tile_node;
-    moe_experts._original_tile_output_shape = validation_result->tile_node->output(0).get_shape();
-    moe_experts._single_expert_shape = ov::Shape{num_target_experts, validation_result->expert_hidden_dim};
+    moe_experts._transformed_model = transformed_model;
     moe_experts._router_scores_idx = validation_result->router_scores_idx;
     moe_experts._expert_input_param_idx = validation_result->expert_input_param_idx;
-    moe_experts._has_reduce_sum = has_reduce_sum;
 
     // Step 6: Extract input/output information
-    LOG_DEBUG("Extracting I/O information...");
-    for (const auto& input : transformed_model->inputs()) {
-        MoEExperts::ExpertIO io_info;
-        io_info.name = input.get_any_name();
-        io_info.element_type = input.get_element_type();
-        io_info.shape = input.get_partial_shape();
-        moe_experts._inputs.push_back(io_info);
-        LOG_DEBUG("  Input: " << io_info.name << " [" << io_info.element_type << ", " << io_info.shape << "]");
-    }
-
-    for (const auto& output : transformed_model->outputs()) {
-        MoEExperts::ExpertIO io_info;
-        io_info.name = output.get_any_name();
-        io_info.element_type = output.get_element_type();
-        io_info.shape = output.get_partial_shape();
-        moe_experts._outputs.push_back(io_info);
-        LOG_DEBUG("  Output: " << io_info.name << " [" << io_info.element_type << ", " << io_info.shape << "]");
-    }
-
-    // Validation
     if (!moe_experts.is_valid()) {
         LOG_WARN("Created MoEExperts structure is invalid");
         return std::nullopt;
@@ -849,7 +798,6 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     LOG_INFO("  - Total number of experts: " << moe_experts._num_experts);
     LOG_INFO("  - Num active experts: " << moe_experts._num_active_experts);
     LOG_INFO("  - Expert hidden dim: " << moe_experts._expert_hidden_dim);
-    LOG_INFO("  - Has ReduceSum: " << (has_reduce_sum ? "Yes" : "No"));
     LOG_INFO("  - Transformed model: " << transformed_model->get_friendly_name());
 
     return moe_experts;
@@ -866,8 +814,7 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     input_token_count = func_moe._input_token_count;
     chunk_token_count = func_moe._chunk_token_count;
     mode = func_moe._mode;
-    has_reduce_sum = func_moe._has_reduce_sum;
-    _model_to_compile = func_moe._single_expert_model;
+    _model_to_compile = func_moe._transformed_model;
     _router_scores_idx = func_moe._router_scores_idx;
     _expert_input_param_idx = func_moe._expert_input_param_idx;
 
@@ -877,7 +824,6 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     LOG_DEBUG("  Active experts: " << num_active_experts);
     LOG_DEBUG("  Input token count: " << input_token_count);
     LOG_DEBUG("  Chunk token count: " << chunk_token_count);
-    LOG_DEBUG("  Has ReduceSum: " << (has_reduce_sum ? "Yes" : "No"));
     if (_router_scores_idx.has_value()) {
         LOG_DEBUG("  Router scores parameter index: " << _router_scores_idx.value());
     }

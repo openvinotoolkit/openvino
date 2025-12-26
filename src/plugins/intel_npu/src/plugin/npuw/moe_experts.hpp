@@ -34,14 +34,12 @@ struct MoEValidationResult {
     size_t expert_hidden_dim = 0;                           // Hidden dimension of single expert
     size_t input_token_count = 0;                           // Number of input tokens
     std::shared_ptr<ov::op::v0::Tile> tile_node = nullptr;  // The Tile operation node
-    std::shared_ptr<ov::Node> input_node = nullptr;         // Input to Tile operation
     std::optional<size_t> router_scores_idx;       // Parameter index for router scores (from Multiply in output path)
     std::optional<size_t> expert_input_param_idx;  // Parameter index for expert's input (token embeddings)
 
     // Stage detection (based on output shape analysis)
     bool is_decoding_stage = false;      // True if detected as decoding (token_count == 1)
     size_t detected_active_experts = 1;  // Detected number of active experts (1 for prefill, K for decoding)
-    bool has_reduce_sum = false;         // True if ReduceSum is present in output path (decoding stage)
 
     // Validation helper
     bool is_valid() const {
@@ -99,32 +97,16 @@ struct MoEExperts {
     ExpertMode _mode = ExpertMode::SINGLE_EXPERT;  // Transformation mode
     size_t _num_active_experts = 1;  // Number of active experts (1 for SINGLE_EXPERT, K for ACTIVE_EXPERTS)
 
-    // The transformed expert model (single expert or K active experts)
-    std::shared_ptr<ov::Model> _single_expert_model = nullptr;
+    // The transformed expert model (1 expert for prefill, K experts for decoding)
+    std::shared_ptr<ov::Model> _transformed_model = nullptr;
 
-    // Original batched model (for reference)
-    std::shared_ptr<ov::Model> _original_model = nullptr;
-
-    // Tile operation information
-    std::shared_ptr<ov::op::v0::Tile> _tile_op = nullptr;
-    ov::Shape _original_tile_output_shape;          // Shape before transformation
-    ov::Shape _single_expert_shape;                 // Shape after transformation (single or K experts)
+    // Parameter indices
     std::optional<size_t> _router_scores_idx;       // Parameter index for router scores
     std::optional<size_t> _expert_input_param_idx;  // Parameter index for expert's input (token embeddings)
-    bool _has_reduce_sum = false;                   // Whether ReduceSum is included (decoding stage)
-
-    // Input/output information for the expert subgraph
-    struct ExpertIO {
-        std::string name;
-        ov::element::Type element_type;
-        ov::PartialShape shape;
-    };
-    std::vector<ExpertIO> _inputs;
-    std::vector<ExpertIO> _outputs;
 
     // Validation helpers
     bool is_valid() const {
-        return _num_experts > 0 && _expert_hidden_dim > 0 && _single_expert_model != nullptr &&
+        return _num_experts > 0 && _expert_hidden_dim > 0 && _transformed_model != nullptr &&
                _router_scores_idx.has_value();
     }
 
@@ -144,16 +126,8 @@ struct MoEExperts {
         return _mode;
     }
 
-    bool has_reduce_sum() const {
-        return _has_reduce_sum;
-    }
-
-    const std::shared_ptr<ov::Model>& single_expert_model() const {
-        return _single_expert_model;
-    }
-
-    const std::shared_ptr<ov::Model>& original_model() const {
-        return _original_model;
+    const std::shared_ptr<ov::Model>& transformed_model() const {
+        return _transformed_model;
     }
 
     std::optional<size_t> router_scores_idx() const {
@@ -173,19 +147,7 @@ struct MoEExperts {
         std::cout << "  Number of active experts: " << _num_active_experts << std::endl;
         std::cout << "  Expert hidden dimension: " << _expert_hidden_dim << std::endl;
         std::cout << "  Input token count: " << _input_token_count << std::endl;
-        std::cout << "  Has ReduceSum: " << (_has_reduce_sum ? "Yes" : "No") << std::endl;
-        std::cout << "  Original tile output shape: " << _original_tile_output_shape << std::endl;
-        std::cout << "  Transformed expert shape: " << _single_expert_shape << std::endl;
-        std::cout << "  Inputs: " << _inputs.size() << std::endl;
-        for (const auto& input : _inputs) {
-            std::cout << "    - " << input.name << " [" << input.element_type << ", " << input.shape << "]"
-                      << std::endl;
-        }
-        std::cout << "  Outputs: " << _outputs.size() << std::endl;
-        for (const auto& output : _outputs) {
-            std::cout << "    - " << output.name << " [" << output.element_type << ", " << output.shape << "]"
-                      << std::endl;
-        }
+        std::cout << "  Chunk token count: " << _chunk_token_count << std::endl;
     }
 
     // Factory method to create MoEExperts from a model (for expert pattern only)
@@ -213,7 +175,6 @@ struct MoEExperts {
     size_t input_token_count = 0;   // Number of input tokens (original total token count)
     size_t chunk_token_count = 0;   // Chunk size for prefill mode (0 for decoding mode)
     function::ExpertMode mode = function::ExpertMode::SINGLE_EXPERT;
-    bool has_reduce_sum = false;  // Whether ReduceSum is included
 
     // Compiled expert model (single expert or K active experts)
     ov::SoPtr<ov::ICompiledModel> _compiled_model;
