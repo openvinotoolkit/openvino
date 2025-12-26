@@ -30,7 +30,6 @@ from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, 
 from openvino import Core, Type, PartialShape
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 """
     This is a preview feature in OpenVINO. This feature
@@ -67,11 +66,14 @@ if "openvino" not in torch.compiler.list_backends():
 
 def fx_openvino(subgraph, example_inputs, options=None):
     try:
+        logger.info("OpenVINO backend: Starting compilation of PyTorch model subgraph")
+        logger.debug(f"Subgraph code:\n{subgraph.code}")
         if len(openvino_options) != 0:
             options = openvino_options
         executor_parameters = None
         inputs_reversed = False
         openvino_model_caching = _get_model_caching(options)
+        logger.debug(f"Model caching enabled: {openvino_model_caching}")
         if openvino_model_caching is not None and openvino_model_caching:
             # Create a hash to be used for caching
             model_hash_str = sha256(subgraph.code.encode("utf-8")).hexdigest()
@@ -82,6 +84,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
             maybe_fs_cached_name = cached_model_name(model_hash_str + "_fs", _get_device(options), example_inputs, _get_cache_dir(options))
             if os.path.isfile(maybe_fs_cached_name + ".xml") and os.path.isfile(maybe_fs_cached_name + ".bin"):
                 # Model is fully supported and already cached. Run the cached OV model directly.
+                logger.info(f"OpenVINO backend: Loading cached model from {maybe_fs_cached_name}")
                 compiled_model = openvino_compile_cached_model(maybe_fs_cached_name, options, *example_inputs)
 
                 def _call(*args):
@@ -113,6 +116,11 @@ def fx_openvino(subgraph, example_inputs, options=None):
                 model.eval()
         partitioner = Partitioner(options)
         compiled_model = partitioner.make_partitions(model, options)
+        fully_supported = partitioner.check_fully_supported(compiled_model)
+        if fully_supported:
+            logger.info("OpenVINO backend: Model is fully supported - all operations will run on OpenVINO")
+        else:
+            logger.info("OpenVINO backend: Model is partially supported - some operations may fall back to PyTorch")
 
         if executor_parameters is not None and "model_hash_str" in executor_parameters:
             # Check if the model is fully supported.
@@ -132,7 +140,8 @@ def fx_openvino(subgraph, example_inputs, options=None):
             _call._boxed_call = True  # type: ignore[attr-defined]
         return _call
     except Exception as e:
-        logger.debug(f"Failed in OpenVINO execution: {e}")
+        logger.warning(f"OpenVINO backend: Compilation failed with error: {e}")
+        logger.warning("OpenVINO backend: Falling back to native PyTorch execution")
         return compile_fx(subgraph, example_inputs)
 
 

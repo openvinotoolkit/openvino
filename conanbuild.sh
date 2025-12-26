@@ -1,0 +1,1 @@
+. "/home/vyomesh/gsoc_Proj/openvino/conanbuildenv-release-x86_64.sh"

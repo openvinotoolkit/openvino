@@ -1,0 +1,4 @@
+# Server
+bottle>=0.12.8, < 0.14
+pluginbase>=0.5
+PyJWT>=2.4.0, <3.0.0

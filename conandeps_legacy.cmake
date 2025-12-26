@@ -1,0 +1,16 @@
+message(STATUS "Conan: Using CMakeDeps conandeps_legacy.cmake aggregator via include()")
+message(STATUS "Conan: It is recommended to use explicit find_package() per dependency instead")
+
+find_package(TBB)
+find_package(pugixml)
+find_package(ittapi)
+find_package(OpenCLICDLoader)
+find_package(RapidJSON)
+find_package(xbyak)
+find_package(Snappy)
+find_package(ONNX)
+find_package(protobuf)
+find_package(pybind11)
+find_package(flatbuffers)
+
+set(CONANDEPS_LEGACY  onetbb::onetbb  pugixml::pugixml  ittapi::ittapi  OpenCL::OpenCL  rapidjson  xbyak::xbyak  Snappy::snappy  onnx::onnx  protobuf::protobuf  pybind11_all_do_not_use  flatbuffers::flatbuffers )

@@ -1,0 +1,143 @@
+Metadata-Version: 2.4
+Name: fasteners
+Version: 0.20
+Summary: A python package that provides useful locks
+Author: Joshua Harlow
+Maintainer: Paulius Šarka
+License-Expression: Apache-2.0
+Project-URL: Homepage, https://github.com/harlowja/fasteners
+Keywords: lock,thread,process,fasteners
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Operating System :: Microsoft :: Windows
+Classifier: Operating System :: MacOS
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Programming Language :: Python :: Implementation :: PyPy
+Classifier: Topic :: Utilities
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown; charset=UTF-8
+License-File: LICENSE
+Dynamic: license-file
+
+Fasteners
+=========
+
+[![Documentation status](https://readthedocs.org/projects/fasteners/badge/?version=latest)](https://readthedocs.org/projects/fasteners/?badge=latest)
+[![Latest version](https://img.shields.io/pypi/v/fasteners.svg)](https://pypi.python.org/pypi/fasteners/)
+
+Cross-platform locks for threads and processes.
+
+🔩 Install
+----------
+
+```
+pip install fasteners
+```
+
+🔩 Usage
+--------
+Lock for processes has the same API as the 
+[threading.Lock](https://docs.python.org/3/library/threading.html#threading.Lock)
+for threads:
+```python
+import fasteners
+import threading
+
+lock = threading.Lock()                                 # for threads
+lock = fasteners.InterProcessLock('path/to/lock.file')  # for processes
+
+with lock:
+    ... # exclusive access
+
+# or alternatively    
+
+lock.acquire()
+... # exclusive access
+lock.release()
+```
+
+Reader Writer lock has a similar API, which is the same for threads or processes:
+
+```python
+import fasteners
+
+rw_lock = fasteners.ReaderWriterLock()                                 # for threads
+rw_lock = fasteners.InterProcessReaderWriterLock('path/to/lock.file')  # for processes
+
+with rw_lock.write_lock():
+    ... # write access
+
+with rw_lock.read_lock():
+    ... # read access
+
+# or alternatively
+
+rw_lock.acquire_read_lock()
+... # read access
+rw_lock.release_read_lock()
+
+rw_lock.acquire_write_lock()
+... # write access
+rw_lock.release_write_lock()
+```
+
+🔩 Overview
+-----------
+
+Python standard library provides a lock for threads (both a reentrant one, and a
+non-reentrant one, see below). Fasteners extends this, and provides a lock for
+processes, as well as Reader Writer locks for both threads and processes.
+Definitions of terms used in this overview can be found in the
+[glossary](https://fasteners.readthedocs.io/en/latest/guide/glossary/).
+
+The specifics of the locks are as follows:
+
+### Process locks
+
+The `fasteners.InterProcessLock` uses [fcntl](https://man7.org/linux/man-pages/man2/fcntl.2.html) on Unix-like systems and 
+msvc [_locking](https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/locking?view=msvc-160) on Windows. 
+As a result, if used cross-platform it guarantees an intersection of their features:
+
+| lock | reentrant | mandatory |
+|------|-----------|-----------|
+| fcntl                        | ✘ | ✘ |
+| _locking                     | ✔ | ✔ |
+| fasteners.InterProcessLock   | ✘ | ✘ |
+
+
+The `fasteners.InterProcessReaderWriterLock` also uses fcntl on Unix-like systems and 
+[LockFileEx](https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex) on Windows. Their 
+features are as follows:
+
+| lock | reentrant | mandatory | upgradable | preference | 
+|------|-----------|-----------|------------|------------|
+| fcntl                                    | ✘ | ✘ | ✔ | reader |
+| LockFileEx                               | ✔ | ✔ | ✘ | reader |
+| fasteners.InterProcessReaderWriterLock   | ✘ | ✘ | ✘ | reader |
+
+
+### Thread locks
+
+Fasteners does not provide a simple thread lock, but for the sake of comparison note that the `threading` module
+provides both a reentrant and non-reentrant locks:
+
+| lock | reentrant | mandatory |
+|------|-----------|-----------|
+| threading.Lock  | ✘ | ✘ |
+| threading.RLock | ✔ | ✘ |
+
+
+The `fasteners.ReaderWriterLock` at the moment is as follows:
+
+| lock | reentrant | mandatory | upgradable | preference | 
+|------|-----------|-----------|-------------|------------|
+| fasteners.ReaderWriterLock | ✔ | ✘ | ✘ | writer |
+
+If your threads are created by some other means than the standard library `threading`
+module (for example `eventlet`), you may need to provide the corresponding thread
+identification and synchronisation functions to the `ReaderWriterLock`.

@@ -1,0 +1,54 @@
+{
+    "version": 3,
+    "vendor": {
+        "conan": {}
+    },
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 15,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "conan-release",
+            "displayName": "'conan-release' config",
+            "description": "'conan-release' configure using 'Unix Makefiles' generator",
+            "generator": "Unix Makefiles",
+            "cacheVariables": {
+                "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
+                "CMAKE_BUILD_TYPE": "Release"
+            },
+            "environment": {
+                "PATH": "/home/vyomesh/.conan2/p/b/flatb8c4702139cc3e/p/bin:/home/vyomesh/.conan2/p/b/protoa8c96a7fd1a77/p/bin:/home/vyomesh/.conan2/p/patch7e697dcc93fe0/p/bin:/home/vyomesh/.conan2/p/pkgcoa08771b75b56d/p/bin:/home/vyomesh/.conan2/p/cmake9d32db761075c/p/bin:$penv{PATH}",
+                "LD_LIBRARY_PATH": "/home/vyomesh/.conan2/p/b/flatb8c4702139cc3e/p/lib:/home/vyomesh/.conan2/p/b/protoa8c96a7fd1a77/p/lib:$penv{LD_LIBRARY_PATH}",
+                "DYLD_LIBRARY_PATH": "/home/vyomesh/.conan2/p/b/flatb8c4702139cc3e/p/lib:/home/vyomesh/.conan2/p/b/protoa8c96a7fd1a77/p/lib:$penv{DYLD_LIBRARY_PATH}",
+                "PKG_CONFIG": "/home/vyomesh/.conan2/p/pkgcoa08771b75b56d/p/bin/pkgconf",
+                "ACLOCAL_PATH": "/home/vyomesh/.conan2/p/pkgcoa08771b75b56d/p/bin/aclocal:$penv{ACLOCAL_PATH}",
+                "AUTOMAKE_CONAN_INCLUDES": "/home/vyomesh/.conan2/p/pkgcoa08771b75b56d/p/bin/aclocal:$penv{AUTOMAKE_CONAN_INCLUDES}"
+            },
+            "cmakeExecutable": "/home/vyomesh/.conan2/p/cmake9d32db761075c/p/bin/cmake",
+            "toolchainFile": "conan_toolchain.cmake",
+            "binaryDir": "/home/vyomesh/gsoc_Proj/openvino"
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "conan-release",
+            "configurePreset": "conan-release",
+            "jobs": 12
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "conan-release",
+            "configurePreset": "conan-release",
+            "execution": {
+                "jobs": 12
+            },
+            "environment": {
+                "LD_LIBRARY_PATH": "/home/vyomesh/.conan2/p/b/onetb3727ded68a9f8/p/lib:$penv{LD_LIBRARY_PATH}",
+                "DYLD_LIBRARY_PATH": "/home/vyomesh/.conan2/p/b/onetb3727ded68a9f8/p/lib:$penv{DYLD_LIBRARY_PATH}"
+            }
+        }
+    ]
+}

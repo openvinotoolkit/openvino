@@ -16,7 +16,6 @@ from torch.fx.passes.tools_common import CALLABLE_NODE_OPS
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_disabled_ops
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
 class OperatorSupport(OpSupport):
@@ -301,4 +300,7 @@ class OperatorSupport(OpSupport):
         if node.name in self.enabled_op_names:
             return True
 
-        return super().is_node_supported(submodules, node)
+        is_supported = super().is_node_supported(submodules, node)
+        if not is_supported:
+            logger.debug(f"OpenVINO backend: Operation '{node.target}' is not supported, will use PyTorch")
+        return is_supported
