@@ -609,20 +609,16 @@ int get_model_prefer_threads(const int num_streams,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config) {
     bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
+    bool is_LLM = config.modelType == Config::ModelType::LLM;
 
     auto default_prefer_threads_latency = [&]() {
-        bool llm_related = ov::op::util::is_large_language_model(*model);
         const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
         const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
-        // By default the latency case uses (faster) Big cores only, depending on the compute ratio
-        // But on MTL detected by ov::get_number_of_blocked_cores(), use Big and Little cores together in Big
-        // cores only cases except LLM.
-        bool use_all_cores =
-            proc_type_table[0][MAIN_CORE_PROC] <= (proc_type_table[0][EFFICIENT_CORE_PROC] /
-                                                   (int8_intensive || llm_related ? int8_threshold : fp32_threshold));
-        bool use_big_and_little = !llm_related && (ov::get_number_of_blocked_cores() != 0);
 
-        if (use_all_cores || use_big_and_little) {
+        bool use_all_cores = proc_type_table[0][MAIN_CORE_PROC] <= (proc_type_table[0][EFFICIENT_CORE_PROC] /
+                                                                    (int8_intensive ? int8_threshold : fp32_threshold));
+
+        if (use_all_cores && !is_LLM) {
             config.modelPreferThreadsLatency =
                 proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
         } else {
@@ -720,7 +716,7 @@ int get_model_prefer_threads(const int num_streams,
             if ((proc_type_table[0][MAIN_CORE_PROC] < config.threads || config.threads == 0) &&
                 (ov::get_number_of_blocked_cores() || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) &&
                 proc_type_table[0][EFFICIENT_CORE_PROC] <= 2 * proc_type_table[0][MAIN_CORE_PROC]) {
-                if (ov::op::util::is_large_language_model(*model)) {
+                if (is_LLM) {
                     config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC];
                 } else {
                     config.modelPreferThreadsLatency =

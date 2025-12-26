@@ -21,12 +21,7 @@ const auto& inputShapeSelect = SNIPPETS_TESTS_STATIC_SHAPES(
     {{2, 52, 6, 102}, {2, 52, 6, 102}, {1, 6, 52, 52}, {1, 6, 1, 1}, {1, 6, 1, 1}, {2, 52, 6, 102}}
 );
 
-// Transpose is moved outside of Subgraph on ARM64
-#if defined(OPENVINO_ARCH_ARM64)
-static constexpr size_t expected_nodes_mha_select = 5;
-#else
 static constexpr size_t expected_nodes_mha_select = 3;
-#endif
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHA,

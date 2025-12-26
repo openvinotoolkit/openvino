@@ -9,6 +9,8 @@ add_subdirectory(utils)
 
 add_subdirectory(al)
 
+add_subdirectory(ops)
+
 if (ENABLE_NPU_PLUGIN_ENGINE)
     add_subdirectory(common)
     add_subdirectory(compiler_adapter)

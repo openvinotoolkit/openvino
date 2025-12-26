@@ -58,6 +58,26 @@ struct paged_attention : public primitive_base<paged_attention> {
         return num_outputs >= 2;
     }
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, k_head_size);
+        seed = hash_combine(seed, v_head_size);
+        seed = hash_combine(seed, heads_num);
+        seed = hash_combine(seed, kv_heads_num);
+        seed = hash_combine(seed, has_alibi);
+        seed = hash_combine(seed, has_rotated_blocks);
+        seed = hash_combine(seed, sliding_window);
+        seed = hash_combine(seed, has_score_aggregation);
+        seed = hash_combine(seed, has_xattention);
+        seed = hash_combine(seed, has_sink_input);
+        if (scale_val.has_value()) {
+            seed = hash_combine(seed, scale_val.value());
+        }
+        seed = hash_combine(seed, is_key_by_channel);
+
+        return seed;
+    }
+
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))
             return false;
@@ -82,7 +102,6 @@ struct paged_attention : public primitive_base<paged_attention> {
         ob << heads_num;
         ob << kv_heads_num;
         ob << has_alibi;
-        ob << has_score_aggregation;
         ob << has_rotated_blocks;
         ob << sliding_window;
         ob << has_score_aggregation;
@@ -106,7 +125,6 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> heads_num;
         ib >> kv_heads_num;
         ib >> has_alibi;
-        ib >> has_score_aggregation;
         ib >> has_rotated_blocks;
         ib >> sliding_window;
         ib >> has_score_aggregation;

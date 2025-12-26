@@ -35,6 +35,7 @@ from tests.utils.helpers import generate_image, generate_relu_compiled_model
         (ov.Type.u64, np.uint64),
         (ov.Type.boolean, bool),
         (ov.Type.u1, np.uint8),
+        (ov.Type.u2, np.uint8),
         (ov.Type.u4, np.uint8),
         (ov.Type.i4, np.int8),
     ],
@@ -372,6 +373,7 @@ def test_can_set_shape_other_dims():
     "ov_type",
     [
         (ov.Type.u1),
+        (ov.Type.u2),
         (ov.Type.u4),
         (ov.Type.i4),
     ],
@@ -387,6 +389,7 @@ def test_cannot_create_roi_from_packed_tensor(ov_type):
     "ov_type",
     [
         (ov.Type.u1),
+        (ov.Type.u2),
         (ov.Type.u4),
         (ov.Type.i4),
     ],
@@ -412,6 +415,7 @@ def test_cannot_get_strides_for_packed_tensor(ov_type):
     "ov_type",
     [
         (ov.Type.u1),
+        (ov.Type.u2),
         (ov.Type.u4),
         (ov.Type.i4),
     ],
@@ -438,6 +442,7 @@ def test_init_with_packed_buffer(dtype, ov_type):
     ("low", "high", "ov_type", "dtype"),
     [
         (0, 2, ov.Type.u1, np.uint8),
+        (0, 4, ov.Type.u2, np.uint8),
         (0, 16, ov.Type.u4, np.uint8),
         (-8, 7, ov.Type.i4, np.int8),
         (0, 16, ov.Type.nf4, np.uint8),

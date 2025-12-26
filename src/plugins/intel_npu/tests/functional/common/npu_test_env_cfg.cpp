@@ -175,6 +175,10 @@ std::string getDeviceNameID(const std::string& str) {
     return parser.get_device_id();
 }
 
+std::string getTestPlatform() {
+    return ov::intel_npu::Platform::standardize(NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM);
+}
+
 }  // namespace ov::test::utils
 
 namespace InferRequestParamsAnyMapTestName {

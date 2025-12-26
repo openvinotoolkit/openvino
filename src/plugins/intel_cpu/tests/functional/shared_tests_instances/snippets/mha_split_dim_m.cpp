@@ -72,12 +72,7 @@ std::vector<std::vector<ov::test::InputShape>> splitm_dynamic_shapes_4d = {
     },
 };
 
-// Transpose is moved outside of Subgraph on ARM64
-#if defined(OPENVINO_ARCH_ARM64)
-static constexpr size_t expected_nodes_mha_splitm_4d_dyn = 4;
-#else
 static constexpr size_t expected_nodes_mha_splitm_4d_dyn = 2;
-#endif
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHA_4D_SplitDimensionM_dynamic,

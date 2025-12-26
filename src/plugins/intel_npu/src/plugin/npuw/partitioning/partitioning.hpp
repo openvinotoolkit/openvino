@@ -10,10 +10,12 @@
 #include <vector>
 
 #include "../attention.hpp"
+#include "../host_flash_attention.hpp"
 #include "../lazy_tensor.hpp"
 #include "../pyramid_attention.hpp"
 #include "../spatial.hpp"
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
 
 namespace ov {
@@ -99,6 +101,8 @@ struct Function {
     std::optional<ov::npuw::function::Attention> _attention;
     // Multiple attention graphs with different shapes
     std::optional<ov::npuw::function::PyramidAttention> _pyramid_attention;
+    // Host Flash Attention
+    std::optional<ov::npuw::function::HostFlashAttention> _host_flash_attention;
     // FIXME: They should exclude each other (introduce a hierarchy, finally?)
     // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
     std::set<std::size_t> _idx_lazy_unpack;

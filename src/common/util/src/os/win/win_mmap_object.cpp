@@ -77,6 +77,10 @@ public:
     }
 #endif
 
+    void set_from_handle(HANDLE h) {
+        map("<external_handle>", h);
+    }
+
     char* data() noexcept override {
         return static_cast<char*>(m_data);
     }
@@ -131,6 +135,18 @@ private:
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path) {
     auto holder = std::make_shared<MapHolder>();
     holder->set(path);
+    return holder;
+}
+
+std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle) {
+    // On Windows, FileHandle is void* (HANDLE)
+    HANDLE h = static_cast<HANDLE>(handle);
+    if (h == INVALID_HANDLE_VALUE || h == nullptr) {
+        throw std::runtime_error("Invalid handle provided to load_mmap_object");
+    }
+
+    auto holder = std::make_shared<MapHolder>();
+    holder->set_from_handle(h);
     return holder;
 }
 

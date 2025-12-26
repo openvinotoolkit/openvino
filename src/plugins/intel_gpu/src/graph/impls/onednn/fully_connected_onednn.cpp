@@ -69,14 +69,14 @@ protected:
             if (prim->decompression_scale.is_valid()) {
                 auto decompression_scale_idx = idx++;
                 auto scale_mem = instance.dep_memory_ptr(decompression_scale_idx);
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(scale_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(scale_mem->get_layout(), dnnl::memory::format_tag::a);
                 args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem->get_onednn_memory(desc)});
             }
 
             if (prim->decompression_zero_point.is_valid()) {
                 auto decompression_zp_idx = idx++;
                 auto zp_mem = instance.dep_memory_ptr(decompression_zp_idx);
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(zp_mem->get_layout(), dnnl::memory::format_tag::a);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
             }
             bool is_dyn_quan_input = instance.get_input_layout(0).data_type == data_types::i8 || instance.get_input_layout(0).data_type == data_types::u8;
@@ -84,22 +84,21 @@ protected:
             if (is_dyn_quan_input && prim->activation_scale.is_valid()) {
                 auto activation_scale_idx = idx++;
                 auto act_scale_mem = instance.dep_memory_ptr(activation_scale_idx);
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_scale_mem->get_layout(), dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(act_scale_mem->get_layout(), dnnl::memory::format_tag::ab);
                 args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC_0, act_scale_mem->get_onednn_memory(desc)});
             }
 
             if (is_dyn_quan_input && prim->activation_zero_point.is_valid()) {
                 auto activation_zp_idx = idx++;
                 auto act_zp_mem = instance.dep_memory_ptr(activation_zp_idx);
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_zp_mem->get_layout(), dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(act_zp_mem->get_layout(), dnnl::memory::format_tag::ab);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC_0, act_zp_mem->get_onednn_memory(desc)});
             }
 
             if (is_dyn_quan_input && prim->activation_precomputed_reduction.is_valid()) {
                 auto activation_precomputed_reduction_idx = idx++;
                 auto act_precomputed_reduction_mem = instance.dep_memory_ptr(activation_precomputed_reduction_idx);
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_precomputed_reduction_mem->get_layout(),
-                                                                        dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(act_precomputed_reduction_mem->get_layout(), dnnl::memory::format_tag::ab);
                 args.insert({DNNL_ARG_ATTR_PRECOMPUTED_REDUCTIONS | DNNL_ARG_SRC_0, act_precomputed_reduction_mem->get_onednn_memory(desc)});
             }
         }
@@ -197,13 +196,16 @@ protected:
             weights_layout.format = input_layout.format;
         }
 
-        auto use_strides_for_weight_md = (weights_layout.data_padding
-                                         && format::is_default_format(weights_layout.format)
-                                         && (weights_layout.data_type == data_types::i4 || weights_layout.data_type == data_types::u4)) ?
-                                         onednn::mem_flags::use_strides : onednn::mem_flags::None;
+        dnnl::memory::desc weights_md;
+        if (weights_layout.data_padding
+            && format::is_default_format(weights_layout.format)
+            && (weights_layout.data_type == data_types::i4 || weights_layout.data_type == data_types::u4)) {
+            weights_md = onednn::layout_to_memory_desc_strides(weights_layout, weights_fmt);
+        } else {
+            weights_md = onednn::layout_to_memory_desc(weights_layout, weights_fmt);
+        }
 
         dnnl::memory::desc input_md = onednn::layout_to_memory_desc(input_layout, target_fmt);
-        dnnl::memory::desc weights_md = onednn::layout_to_memory_desc(weights_layout, weights_fmt, use_strides_for_weight_md);
         dnnl::memory::desc output_md = onednn::layout_to_memory_desc(output_layout, target_fmt);
 
         if (has_bias) {

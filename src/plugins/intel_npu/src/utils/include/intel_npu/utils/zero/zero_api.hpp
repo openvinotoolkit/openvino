@@ -65,7 +65,8 @@ namespace intel_npu {
 #define weak_symbols_list()                                   \
     symbol_statement(zeCommandListGetNextCommandIdExp)        \
     symbol_statement(zeCommandListUpdateMutableCommandsExp)   \
-    symbol_statement(zeInitDrivers)
+    symbol_statement(zeInitDrivers)                           \
+    symbol_statement(zelGetLoaderVersion)
 // clang-format on
 
 class ZeroApi {
