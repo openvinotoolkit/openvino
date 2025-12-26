@@ -156,9 +156,9 @@ protected:
     std::vector<HostFlashAttentionIO> m_hfa_io;
 
     struct MoEIO {
-        std::vector<ov::SoPtr<ov::ITensor>> inputs;   // # of elements - # of graph-side inputs
         std::vector<ov::SoPtr<ov::ITensor>> outputs;  // # of elements - # of subgraph outputs
-        ov::SoPtr<ov::ITensor> router_output;         // Router output tensor (weights for expert selection)
+        ov::SoPtr<ov::ITensor> router_scores;         // Router scores for expert selection (per-expert weights)
+        ov::SoPtr<ov::ITensor> expert_input;          // Expert's input tensor (token embeddings)
     };
     std::vector<MoEIO> m_moe_io;
 
