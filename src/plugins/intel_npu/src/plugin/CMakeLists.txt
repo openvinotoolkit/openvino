@@ -55,30 +55,3 @@ cross_compiled_file(${TARGET_NAME}
 )
 
 ov_add_api_validator_post_build_step(TARGET ${NPU_PLUGIN_TARGET})
-
-#
-# MoE Unroll Test
-#
-
-# Simple test without GraphRewrite passes - just use basic API
-add_executable(test_moe_unroll
-    ${CMAKE_SOURCE_DIR}/tests/test_moe_unroll.cpp
-    npuw/moe_experts.cpp
-    npuw/logging.cpp
-    npuw/passes/moe_unroll_patterns.cpp
-)
-
-target_link_libraries(test_moe_unroll
-    PRIVATE
-        openvino::runtime
-        openvino::core::dev
-)
-
-target_include_directories(test_moe_unroll
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/
-        ${CMAKE_SOURCE_DIR}/src/core/dev_api
-        ${CMAKE_SOURCE_DIR}/src/inference/dev_api
-        ${CMAKE_SOURCE_DIR}/src/common/util/include
-)
