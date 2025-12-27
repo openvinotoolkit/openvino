@@ -756,12 +756,10 @@ void ov::npuw::IBaseInferRequest::unpack_moe_batch_expert_closure(std::size_t id
      *   - Each parameter receives data for one specific expert
      *
      * Flow:
-     *   1. Build closure parameter index set (exclude router scores)
-     *   2. For each unrolled closure parameter:
-     *      a. Find its original batched parameter
-     *      b. Determine which expert it corresponds to
-     *      c. Slice that expert's weight from batched tensor
-     *      d. Unpack (if dtype mismatch) or direct set (if dtype match)
+     *   1. Iterate over original closure parameters
+     *   2. For each closure parameter, process its K unrolled variants
+     *   3. Slice expert weight from batched tensor
+     *   4. Unpack (if dtype mismatch) or direct set (if dtype match)
      */
 
     // ========== Step 1: Get model descriptors and validate MoE structure ==========
@@ -782,136 +780,96 @@ void ov::npuw::IBaseInferRequest::unpack_moe_batch_expert_closure(std::size_t id
     LOG_DEBUG("Unpacking MoE batch expert closure for " << K << " experts: [" << expert_ids[0] << ", " << expert_ids[1]
                                                         << ", " << expert_ids[2] << ", " << expert_ids[3] << "]");
 
-    // ========== Step 2: Build closure parameter index set ==========
-    // We only process CLOSURE parameters (orig_idx >= param_base)
-    // Router scores (orig_idx < param_base) are global parameters, handled elsewhere
+    const auto& compiled_inputs = func_desc.compiled_model->inputs();
 
-    const size_t total_params = func_desc.compiled_model->inputs().size();
-    std::set<size_t> unrolled_closure_indices;
-
-    for (const auto& [orig_idx, unrolled_indices] : param_mapping) {
-        if (orig_idx >= comp_model_desc.param_base) {
-            // This is a closure parameter - add all its unrolled indices
-            unrolled_closure_indices.insert(unrolled_indices.begin(), unrolled_indices.end());
-        }
-    }
-
-    LOG_DEBUG("Total parameters in unrolled model: " << total_params);
-    LOG_DEBUG("Number of unrolled closure parameters: " << unrolled_closure_indices.size());
-
-    // ========== Step 3: Process each unrolled closure parameter ==========
-    for (std::size_t param_idx = 0; param_idx < total_params; param_idx++) {
-        // Skip non-closure parameters (global params, router scores)
-        if (unrolled_closure_indices.find(param_idx) == unrolled_closure_indices.end()) {
-            continue;
-        }
-
-        auto& iport = func_desc.compiled_model->inputs()[param_idx];
-        LOG_DEBUG("Processing parameter[" << param_idx << "]: " << iport);
-
-        // -------- Step 3.1: Find original parameter index --------
-        size_t original_param_idx = 0;
-        bool found_original = false;
-
-        for (const auto& [orig_idx, unrolled_indices] : param_mapping) {
-            if (std::find(unrolled_indices.begin(), unrolled_indices.end(), param_idx) != unrolled_indices.end()) {
-                original_param_idx = orig_idx;
-                found_original = true;
-                LOG_DEBUG("  Mapped from original_param[" << original_param_idx << "]");
-                break;
-            }
-        }
-
-        if (!found_original) {
-            OPENVINO_THROW("MoE: Failed to find original parameter index for param[", param_idx, "]");
-        }
-
-        // -------- Step 3.2: Get original batched closure --------
-        NPUW_ASSERT(original_param_idx >= comp_model_desc.param_base);
-        size_t original_closure_idx = original_param_idx - comp_model_desc.param_base;
-
+    // ========== Step 2: Process each original closure parameter ==========
+    // Iterate over closure parameters, then process their K unrolled variants
+    for (std::size_t closure_idx = 0; closure_idx < desc_closure.size(); ++closure_idx) {
         // Skip gather closures (dummy tensors, not real weights)
-        if (m_npuw_model->is_gather_closure(idx, original_closure_idx)) {
-            LOG_DEBUG("  Skipping gather closure");
+        if (m_npuw_model->is_gather_closure(idx, closure_idx)) {
             continue;
         }
 
-        if (original_closure_idx >= desc_closure.size()) {
-            OPENVINO_THROW("MoE: Closure index ",
-                           original_closure_idx,
-                           " out of bounds (size: ",
-                           desc_closure.size(),
-                           ")");
+        // Calculate original parameter index in the model
+        const size_t original_param_idx = comp_model_desc.param_base + closure_idx;
+
+        // Check if this parameter has unrolled variants (is in param_mapping)
+        auto mapping_it = param_mapping.find(original_param_idx);
+        if (mapping_it == param_mapping.end()) {
+            continue;  // Not unrolled
         }
 
-        auto& original_batched_closure = desc_closure[original_closure_idx];
-        auto closure_shape = original_batched_closure.get_shape();
-        LOG_DEBUG("  Batched closure[" << original_closure_idx << "] shape: " << closure_shape);
+        const auto& unrolled_indices = mapping_it->second;
+        NPUW_ASSERT(unrolled_indices.size() == K);
 
-        // Verify batched shape [num_experts, ...]
-        if (closure_shape.empty() || closure_shape[0] != num_experts) {
-            OPENVINO_THROW("MoE: Expected batched shape [", num_experts, ", ...] but got ", closure_shape);
-        }
+        auto& batched_closure = desc_closure[closure_idx];
+        const auto& closure_shape = batched_closure.get_shape();
 
-        // -------- Step 3.3: Determine which expert this parameter corresponds to --------
-        // Each unrolled parameter corresponds to one position in expert_ids array
-        const auto& unrolled_indices = param_mapping.at(original_param_idx);
-        auto param_iter = std::find(unrolled_indices.begin(), unrolled_indices.end(), param_idx);
-        NPUW_ASSERT(param_iter != unrolled_indices.end());
+        // Verify this is a batched parameter [num_experts, ...]
+        const bool is_batched = !closure_shape.empty() && closure_shape[0] == num_experts;
+        if (!is_batched) {
+            // Shared parameter path - all K unrolled parameters share same weight
+            const bool do_copy = needs_copy(idx, closure_idx);
+            auto batched_impl = ov::get_tensor_impl(batched_closure);
 
-        size_t unrolled_position = std::distance(unrolled_indices.begin(), param_iter);  // 0 to K-1
-        NPUW_ASSERT(unrolled_position < expert_ids.size());
-        size_t expert_id = expert_ids[unrolled_position];  // Actual expert ID (0 to num_experts-1)
-
-        LOG_DEBUG("  Position " << unrolled_position << " -> expert_id=" << expert_id);
-
-        // -------- Step 3.4: Slice expert weight --------
-        // Slice from [num_experts, ...] to [1, ...] (zero-copy view)
-        ov::Tensor sliced_expert = slice_expert_weight(original_batched_closure, expert_id, num_experts);
-        LOG_DEBUG("  Sliced shape: " << sliced_expert.get_shape());
-
-        // -------- Step 3.5: Unpack or direct set --------
-        auto clparam = request->get_tensor(iport);
-
-        // Check if unpacking needed (dtype mismatch: e.g., i4 -> f32)
-        // NOTE: Cannot use m_npuw_model->unpack_required(idx, original_closure_idx) here:
-        //       That function calculates closure_param_id = param_base + cidx (e.g., 2+2=4)
-        //       and uses it to index func_desc.compiled_model->inputs()[closure_param_id].
-        //       However, in unrolled models, parameter indices are remapped via param_mapping,
-        //       so parameter[4] in the unrolled model is NOT the same as parameter[4] in the original.
-        //       This causes incorrect dtype comparison (comparing against wrong parameter's dtype).
-        //       Solution: Use direct dtype comparison with the correct iport we already have in context.
-        bool unpack_req = (sliced_expert.get_element_type() != clparam->get_element_type());
-
-        if (unpack_req) {
-            // Dtype mismatch - unpack with scales/zerops if available
-            auto sliced_impl = ov::get_tensor_impl(sliced_expert);
-
-            if (!comp_model_desc.scales.empty() && comp_model_desc.scales[original_closure_idx]) {
-                auto scales = ov::get_tensor_impl(comp_model_desc.scales[original_closure_idx]);
-
-                if (!comp_model_desc.zerops.empty() && comp_model_desc.zerops[original_closure_idx]) {
-                    // Unpack with both scales and zerops
-                    auto zerops = ov::get_tensor_impl(comp_model_desc.zerops[original_closure_idx]);
-                    ov::npuw::util::unpack(sliced_impl, zerops, scales, clparam);
+            for (size_t position = 0; position < K; ++position) {
+                const auto& iport = compiled_inputs[unrolled_indices[position]];
+                if (do_copy) {
+                    batched_impl->copy_to(request->get_tensor(iport)._ptr);
                 } else {
-                    // Unpack with scales only
-                    ov::npuw::util::unpack(sliced_impl, scales, clparam);
+                    request->set_tensor(iport, batched_impl);
                 }
-            } else if (!comp_model_desc.zerops.empty() && comp_model_desc.zerops[original_closure_idx]) {
-                // Unpack with zerops only (unusual case)
-                auto zerops = ov::get_tensor_impl(comp_model_desc.zerops[original_closure_idx]);
-                ov::npuw::util::unpack(sliced_impl, zerops, clparam);
-            } else {
-                // No scales/zerops available - plain unpack (unusual for quantized models)
-                LOG_WARN("MoE: dtype mismatch but no scales/zerops for closure[" << original_closure_idx << "]");
-                ov::npuw::util::unpack(sliced_impl, clparam);
             }
-        } else {
-            // Dtype match - direct set (zero-copy, no conversion needed)
-            request->set_tensor(iport, ov::get_tensor_impl(sliced_expert));
+            continue;
         }
-    }  // for each parameter
+
+        // ========== Step 3: Process batched parameters (K experts) ==========
+
+        // Pre-determine unpack configuration (same for all K experts)
+        const auto batched_elem_type = batched_closure.get_element_type();
+        const auto target_elem_type = request->get_tensor(compiled_inputs[unrolled_indices[0]])->get_element_type();
+        const bool needs_unpack = (batched_elem_type != target_elem_type);
+
+        ov::SoPtr<ov::ITensor> scales_impl, zerops_impl;
+        if (needs_unpack) {
+            if (!comp_model_desc.scales.empty() && comp_model_desc.scales[closure_idx]) {
+                scales_impl = ov::get_tensor_impl(comp_model_desc.scales[closure_idx]);
+            }
+            if (!comp_model_desc.zerops.empty() && comp_model_desc.zerops[closure_idx]) {
+                zerops_impl = ov::get_tensor_impl(comp_model_desc.zerops[closure_idx]);
+            }
+        }
+
+        // Process K experts
+        for (size_t position = 0; position < K; ++position) {
+            const size_t expert_id = expert_ids[position];
+            const auto& iport = compiled_inputs[unrolled_indices[position]];
+
+            // Slice expert weight (zero-copy view)
+            ov::Tensor sliced_expert = slice_expert_weight(batched_closure, expert_id, num_experts);
+
+            if (needs_unpack) {
+                // Unpack path (dtype mismatch)
+                auto sliced_impl = ov::get_tensor_impl(sliced_expert);
+                auto clparam = request->get_tensor(iport);
+
+                if (scales_impl && zerops_impl) {
+                    ov::npuw::util::unpack(sliced_impl, zerops_impl, scales_impl, clparam);
+                } else if (scales_impl) {
+                    ov::npuw::util::unpack(sliced_impl, scales_impl, clparam);
+                } else if (zerops_impl) {
+                    ov::npuw::util::unpack(sliced_impl, zerops_impl, clparam);
+                } else {
+                    ov::npuw::util::unpack(sliced_impl, clparam);
+                }
+            } else {
+                // Direct set path (dtype match, zero-copy)
+                request->set_tensor(iport, ov::get_tensor_impl(sliced_expert));
+            }
+        }  // for each expert
+    }  // for each closure parameter
+
+    LOG_DEBUG("Done unpacking MoE batch expert closure");
 }
 
 void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr request) {
