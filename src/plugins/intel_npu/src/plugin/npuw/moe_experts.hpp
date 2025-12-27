@@ -122,6 +122,10 @@ struct MoEExperts {
     std::optional<size_t> _router_scores_idx;       // Parameter index for router scores
     std::optional<size_t> _expert_input_param_idx;  // Parameter index for expert's input (token embeddings)
 
+    // Parameter mapping: original_param_idx -> vector of unrolled_param_indices
+    // Example: original param at index 5 is unrolled to [10, 11, 12, 13] for 4 experts
+    std::map<size_t, std::vector<size_t>> _param_mapping;
+
     // Validation helpers
     bool is_valid() const {
         return _num_experts > 0 && _expert_hidden_dim > 0 && _transformed_model != nullptr &&
@@ -154,6 +158,10 @@ struct MoEExperts {
 
     std::optional<size_t> expert_input_param_idx() const {
         return _expert_input_param_idx;
+    }
+
+    const std::map<size_t, std::vector<size_t>>& param_mapping() const {
+        return _param_mapping;
     }
 
     // Log MoE expert information for debugging
@@ -204,6 +212,9 @@ struct MoEExperts {
     std::optional<size_t> _router_scores_idx;
     // Expert input parameter index (token embeddings)
     std::optional<size_t> _expert_input_param_idx;
+
+    // Parameter mapping: original_param_idx -> [unrolled_param_indices]
+    std::map<size_t, std::vector<size_t>> _param_mapping;
 
     MoEExperts() = default;
 
