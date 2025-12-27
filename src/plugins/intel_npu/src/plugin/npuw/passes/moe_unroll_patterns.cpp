@@ -245,6 +245,10 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
                                                                            ov::PartialShape(scale_new_shape));
             new_scale_param->set_friendly_name(scale_param->get_friendly_name() + "/expert_" +
                                                std::to_string(expert_idx));
+            // Add RTInfo for parameter mapping
+            new_scale_param->get_rt_info()["moe_original_param"] = scale_param->get_friendly_name();
+            new_scale_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(expert_idx);
+            new_scale_param->get_rt_info()["moe_num_experts"] = static_cast<int64_t>(num_experts_);
             new_params.push_back(new_scale_param);
 
             // 4. Create new weights parameter
@@ -252,6 +256,10 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
                                                                              ov::PartialShape(weights_new_shape));
             new_weights_param->set_friendly_name(weights_param->get_friendly_name() + "/expert_" +
                                                  std::to_string(expert_idx));
+            // Add RTInfo for parameter mapping
+            new_weights_param->get_rt_info()["moe_original_param"] = weights_param->get_friendly_name();
+            new_weights_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(expert_idx);
+            new_weights_param->get_rt_info()["moe_num_experts"] = static_cast<int64_t>(num_experts_);
             new_params.push_back(new_weights_param);
 
             // 5. Apply Convert to weights if needed
@@ -412,6 +420,10 @@ PushElementwiseBeforeConcat::PushElementwiseBeforeConcat(std::shared_ptr<ov::Mod
             auto new_param = std::make_shared<ov::op::v0::Parameter>(param_node->get_element_type(),
                                                                      ov::PartialShape(new_param_shape));
             new_param->set_friendly_name(param_node->get_friendly_name() + "/branch_" + std::to_string(i));
+            // Add RTInfo for parameter mapping
+            new_param->get_rt_info()["moe_original_param"] = param_node->get_friendly_name();
+            new_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(i);
+            new_param->get_rt_info()["moe_num_experts"] = static_cast<int64_t>(num_branches);
             new_params.push_back(new_param);
 
             // Apply Convert if original had one
@@ -936,6 +948,10 @@ UnrollConcatMatMul::UnrollConcatMatMul(std::shared_ptr<ov::Model> model) : model
                                                                            ov::PartialShape(scale_new_shape));
             new_scale_param->set_friendly_name(scale_param->get_friendly_name() + "/expert_" +
                                                std::to_string(expert_idx));
+            // Add RTInfo for parameter mapping
+            new_scale_param->get_rt_info()["moe_original_param"] = scale_param->get_friendly_name();
+            new_scale_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(expert_idx);
+            new_scale_param->get_rt_info()["moe_num_experts"] = static_cast<int64_t>(num_branches);
             new_params.push_back(new_scale_param);
 
             // 3. Create new weights parameter
@@ -943,6 +959,10 @@ UnrollConcatMatMul::UnrollConcatMatMul(std::shared_ptr<ov::Model> model) : model
                                                                              ov::PartialShape(weights_new_shape));
             new_weights_param->set_friendly_name(weights_param->get_friendly_name() + "/expert_" +
                                                  std::to_string(expert_idx));
+            // Add RTInfo for parameter mapping
+            new_weights_param->get_rt_info()["moe_original_param"] = weights_param->get_friendly_name();
+            new_weights_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(expert_idx);
+            new_weights_param->get_rt_info()["moe_num_experts"] = static_cast<int64_t>(num_branches);
             new_params.push_back(new_weights_param);
 
             // 4. Apply Convert to weights if needed
