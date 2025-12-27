@@ -46,7 +46,6 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
             return false;
 
         LOG_INFO("UnrollBatchedMatMul: Checking MatMul " << matmul->get_friendly_name());
-        std::cout << "UnrollBatchedMatMul: Checking MatMul " << matmul->get_friendly_name() << std::endl;
 
         auto matmul_input0 = matmul->input_value(0);
         auto matmul_input1 = matmul->input_value(1);
@@ -70,8 +69,6 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
 
         if (!reshape_node) {
             LOG_DEBUG("  Input0 is not Reshape, skipping");
-            std::cout << "  Input0 is not Reshape, skipping" << std::endl;
-            std::cout << " Input0 type: " << matmul_input0.get_node_shared_ptr()->get_type_name() << std::endl;
             return false;
         }
 
@@ -80,7 +77,6 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
             std::dynamic_pointer_cast<ov::opset1::Tile>(reshape_node->input_value(0).get_node_shared_ptr());
         if (!tile_node) {
             LOG_DEBUG("  Reshape input is not Tile, skipping");
-            std::cout << "  Reshape input is not Tile, skipping" << std::endl;
             return false;
         }
 
@@ -88,7 +84,6 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
             std::dynamic_pointer_cast<ov::opset1::Convert>(tile_node->input_value(0).get_node_shared_ptr());
         if (!convert_input_node) {
             LOG_DEBUG("  Tile input is not Convert, skipping");
-            std::cout << "  Tile input is not Convert, skipping" << std::endl;
             return false;
         }
 
@@ -107,7 +102,6 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
 
         if (!multiply_weights_node) {
             LOG_DEBUG("  Input1 is not Multiply, skipping");
-            std::cout << "  Input1 is not Multiply, skipping" << std::endl;
             return false;
         }
 
@@ -156,9 +150,6 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
         LOG_INFO("  Found pattern: input_param → convert → tile → reshape");
         LOG_INFO("                  scale_param + weights_param → multiply → MatMul");
         LOG_INFO("  Creating " << num_experts_ << " expert branches...");
-        std::cout << "  Found pattern: input_param → convert → tile → reshape" << std::endl;
-        std::cout << "                  scale_param + weights_param → multiply → MatMul" << std::endl;
-        std::cout << "  Creating " << num_experts_ << " expert branches..." << std::endl;
 
         // Helper: Extract Parameter node, skipping intermediate Convert if present
         auto get_param_node = [](ov::Output<ov::Node> out) -> std::shared_ptr<ov::op::v0::Parameter> {
@@ -248,7 +239,6 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
             // Add RTInfo for parameter mapping
             new_scale_param->get_rt_info()["moe_original_param"] = scale_param->get_friendly_name();
             new_scale_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(expert_idx);
-            new_scale_param->get_rt_info()["moe_num_experts"] = static_cast<int64_t>(num_experts_);
             new_params.push_back(new_scale_param);
 
             // 4. Create new weights parameter
@@ -259,7 +249,6 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
             // Add RTInfo for parameter mapping
             new_weights_param->get_rt_info()["moe_original_param"] = weights_param->get_friendly_name();
             new_weights_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(expert_idx);
-            new_weights_param->get_rt_info()["moe_num_experts"] = static_cast<int64_t>(num_experts_);
             new_params.push_back(new_weights_param);
 
             // 5. Apply Convert to weights if needed
@@ -423,7 +412,6 @@ PushElementwiseBeforeConcat::PushElementwiseBeforeConcat(std::shared_ptr<ov::Mod
             // Add RTInfo for parameter mapping
             new_param->get_rt_info()["moe_original_param"] = param_node->get_friendly_name();
             new_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(i);
-            new_param->get_rt_info()["moe_num_experts"] = static_cast<int64_t>(num_branches);
             new_params.push_back(new_param);
 
             // Apply Convert if original had one
@@ -951,7 +939,6 @@ UnrollConcatMatMul::UnrollConcatMatMul(std::shared_ptr<ov::Model> model) : model
             // Add RTInfo for parameter mapping
             new_scale_param->get_rt_info()["moe_original_param"] = scale_param->get_friendly_name();
             new_scale_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(expert_idx);
-            new_scale_param->get_rt_info()["moe_num_experts"] = static_cast<int64_t>(num_branches);
             new_params.push_back(new_scale_param);
 
             // 3. Create new weights parameter
@@ -962,7 +949,6 @@ UnrollConcatMatMul::UnrollConcatMatMul(std::shared_ptr<ov::Model> model) : model
             // Add RTInfo for parameter mapping
             new_weights_param->get_rt_info()["moe_original_param"] = weights_param->get_friendly_name();
             new_weights_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(expert_idx);
-            new_weights_param->get_rt_info()["moe_num_experts"] = static_cast<int64_t>(num_branches);
             new_params.push_back(new_weights_param);
 
             // 4. Apply Convert to weights if needed

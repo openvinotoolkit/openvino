@@ -52,6 +52,59 @@ static std::optional<size_t> extract_k_from_router(const std::shared_ptr<ov::Mod
     return std::nullopt;
 }
 
+// Helper function to build parameter mapping from RTInfo metadata
+static std::map<size_t, std::vector<size_t>> build_parameter_mapping_from_rtinfo(
+    const std::shared_ptr<ov::Model>& original_model,
+    const std::shared_ptr<ov::Model>& transformed_model) {
+    std::map<size_t, std::vector<size_t>> param_mapping;
+    LOG_DEBUG("Building parameter mapping from RTInfo...");
+
+    // Get original model parameters for index lookup
+    const auto& original_params = original_model->get_parameters();
+    const auto& transformed_params = transformed_model->get_parameters();
+
+    // Walk through transformed model parameters and extract RTInfo
+    for (size_t new_param_idx = 0; new_param_idx < transformed_params.size(); ++new_param_idx) {
+        const auto& param = transformed_params[new_param_idx];
+        const auto& rt_info = param->get_rt_info();
+
+        // Check if this parameter has MoE RTInfo metadata
+        if (rt_info.count("moe_original_param") > 0 && rt_info.count("moe_expert_index") > 0) {
+            std::string original_param_name = rt_info.at("moe_original_param").as<std::string>();
+            int64_t expert_idx = rt_info.at("moe_expert_index").as<int64_t>();
+
+            // Find the original parameter index by name
+            size_t original_param_idx = 0;
+            bool found = false;
+            for (size_t i = 0; i < original_params.size(); ++i) {
+                if (original_params[i]->get_friendly_name() == original_param_name) {
+                    original_param_idx = i;
+                    found = true;
+                    break;
+                }
+            }
+
+            if (found) {
+                // Add to mapping: original_idx -> [unrolled_indices]
+                param_mapping[original_param_idx].push_back(new_param_idx);
+
+                LOG_DEBUG("  Mapped: original param[" << original_param_idx << "] '" << original_param_name
+                                                      << "' -> transformed param[" << new_param_idx << "] (expert "
+                                                      << expert_idx << ")");
+            } else {
+                LOG_WARN("  Could not find original parameter '" << original_param_name << "' in original model");
+            }
+        }
+    }
+
+    LOG_INFO("Parameter mapping built: " << param_mapping.size() << " original parameters unrolled");
+    for (const auto& entry : param_mapping) {
+        LOG_DEBUG("  Original param[" << entry.first << "] -> " << entry.second.size() << " unrolled params");
+    }
+
+    return param_mapping;
+}
+
 // Analyze MoE model structure - comprehensive single-pass analysis
 std::optional<MoEStructureInfo> analyze_moe_structure(const std::shared_ptr<ov::Model>& model) {
     LOG_DEBUG("Analyzing MoE model structure...");
@@ -804,7 +857,10 @@ std::shared_ptr<ov::Model> transform_moe_model(const std::shared_ptr<ov::Model>&
 
     model->validate_nodes_and_infer_types();
     LOG_DEBUG("Successfully transformed to " << num_target_experts << " expert(s) model");
-    std::cout << "Successfully transformed to " << num_target_experts << " expert(s) model." << std::endl;
+
+    if (structure_info.is_decoding_stage) {
+        model = unroll_expert_dimension(model, structure_info, num_target_experts);
+    }
 
     save_debug_model();
 
@@ -854,7 +910,10 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
         return std::nullopt;
     }
 
-    // Step 5: Populate MoEExperts structure
+    // Step 5: Build parameter mapping from RTInfo
+    auto param_mapping = build_parameter_mapping_from_rtinfo(model, transformed_model);
+
+    // Step 6: Populate MoEExperts structure
     MoEExperts moe_experts;
     moe_experts._num_experts = structure_info->num_experts;
     moe_experts._expert_hidden_dim = structure_info->expert_hidden_dim;
@@ -865,6 +924,7 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     moe_experts._transformed_model = transformed_model;
     moe_experts._router_scores_idx = structure_info->router_scores_idx;
     moe_experts._expert_input_param_idx = structure_info->expert_input_param_idx;
+    moe_experts._param_mapping = std::move(param_mapping);  // Store the parameter mapping
 
     // Validation
     if (!moe_experts.is_valid()) {
@@ -896,6 +956,7 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     _model_to_compile = func_moe._transformed_model;
     _router_scores_idx = func_moe._router_scores_idx;
     _expert_input_param_idx = func_moe._expert_input_param_idx;
+    _param_mapping = func_moe._param_mapping;
 
     LOG_DEBUG("Created compiled::MoEExperts:");
     LOG_DEBUG("  Mode: " << (mode == function::ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS"));
