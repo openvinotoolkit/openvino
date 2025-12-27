@@ -787,7 +787,6 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                               ov::SoPtr<ov::ITensor> token_type_ids) {
     LOG_DEBUG("Calling inference for prefill model...");
     LOG_BLOCK();
-    std::cout << "Calling inference for prefill model..." << std::endl;
 
     const auto prompt_length = input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM];
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
@@ -824,18 +823,14 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     m_generate_initialized = false;
 
-    std::cout << "Prefill done." << std::endl;
-
     LOG_DEBUG("Done");
 }
 
-size_t gen_cnt = 0;
 void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> attention_mask,
                                                ov::SoPtr<ov::ITensor> position_ids,
                                                ov::SoPtr<ov::ITensor> token_type_ids) {
     LOG_DEBUG("Calling inference for generate model...");
-    std::cout << "Calling inference for generate model..." << std::endl;
     LOG_BLOCK();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     uint32_t input_tokens_len = static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
@@ -943,8 +938,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         m_eagle3_ext.update_last_hidden_state(m_kvcache_request, m_kvcache_out_ports);
     }
 
-    std::cout << "Generate done... " << gen_cnt << std::endl;
-    gen_cnt++;
     LOG_DEBUG("Done");
 }
 
