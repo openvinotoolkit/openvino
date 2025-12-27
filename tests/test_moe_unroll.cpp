@@ -294,28 +294,24 @@ int main() {
       continue;
     }
 
-    // Check for expert/branch suffix
-    size_t expert_pos = param_name.find("/expert_");
-    size_t branch_pos = param_name.find("/branch_");
+    // Check RTInfo for MoE parameter mapping
+    auto &rt_info = param->get_rt_info();
+    if (rt_info.count("moe_original_param")) {
+      // This is an unrolled MoE parameter
+      std::string original_name =
+          rt_info["moe_original_param"].as<std::string>();
+      size_t expert_idx = rt_info["moe_expert_index"].as<int64_t>();
+      size_t num_experts = rt_info["moe_num_experts"].as<int64_t>();
 
-    if (expert_pos != std::string::npos || branch_pos != std::string::npos) {
-      // Extract from batched parameter
-      size_t split_pos =
-          (expert_pos != std::string::npos) ? expert_pos : branch_pos;
-      std::string base_name = param_name.substr(0, split_pos);
-      size_t idx_start = split_pos + 8;
-      size_t expert_idx = std::stoul(param_name.substr(idx_start));
-
-      auto it = original_inputs.find(base_name);
+      auto it = original_inputs.find(original_name);
       if (it != original_inputs.end()) {
         const ov::Tensor &orig_tensor = it->second;
         auto orig_shape = orig_tensor.get_shape();
 
-        if (orig_shape[0] == structure_info->num_experts) {
+        if (orig_shape[0] == num_experts) {
           ov::Tensor expert_tensor(element_type, shape.to_shape());
 
-          size_t bytes_per_expert =
-              orig_tensor.get_byte_size() / structure_info->num_experts;
+          size_t bytes_per_expert = orig_tensor.get_byte_size() / num_experts;
           const uint8_t *src_data =
               reinterpret_cast<const uint8_t *>(orig_tensor.data());
           uint8_t *dst_data = reinterpret_cast<uint8_t *>(expert_tensor.data());
