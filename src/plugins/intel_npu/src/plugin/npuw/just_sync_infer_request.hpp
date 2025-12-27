@@ -110,6 +110,15 @@ protected:
 
     void run_hfa_tiled_inference(std::size_t real_idx, std::size_t idx);
 
+    // MoE inference functions
+    void run_moe_infer(std::size_t real_idx, std::size_t idx);
+    void run_moe_decoding_inference(std::size_t idx, std::size_t real_idx, const std::vector<size_t>& selected_experts);
+    void run_moe_prefill_inference(std::size_t idx,
+                                   std::size_t real_idx,
+                                   const std::vector<size_t>& selected_experts,
+                                   const std::map<size_t, std::vector<size_t>>& token_to_experts,
+                                   const std::map<size_t, std::vector<size_t>>& expert_to_tokens);
+
     // HFA helper functions
     static void hfa_extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
                                           const ov::SoPtr<ov::ITensor>& dest_tensor,
