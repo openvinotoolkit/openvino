@@ -2065,41 +2065,66 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
             double unpack_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
             record_time(m_moe_decoding_stats.unpack_closure, unpack_ms);
 
-            // Set router scores input tensor for expert model
-            // Decoding: router_scores shape is [num_experts, 1, 1, 1]
-            // Expert expects [num_active_experts, 1, 1, 1]
-            // We need to gather the selected experts' router scores
+            // Set router scores for each expert
+            // After unrolling, router scores are split into K independent parameters
+            // Use param_mapping to find the unrolled router score parameters and set each one
             step_start = std::chrono::high_resolution_clock::now();
             if (moe_experts._router_scores_idx.has_value()) {
-                const auto router_input_idx = moe_experts._router_scores_idx.value();
-                const auto& router_iport = comp_model_desc.compiled_model->inputs()[router_input_idx];
+                const auto& param_mapping = moe_experts._param_mapping;
+                const auto original_router_idx = moe_experts._router_scores_idx.value();
 
-                // Get the expected shape for expert's router input
-                auto expert_router_tensor = r->get_tensor(router_iport);
-                auto expected_shape = expert_router_tensor->get_shape();  // [num_active_experts, 1, 1, 1]
+                // Find the unrolled router score parameters in the mapping
+                auto mapping_it = param_mapping.find(original_router_idx);
+                if (mapping_it != param_mapping.end()) {
+                    const auto& unrolled_router_indices = mapping_it->second;
 
-                // Verify shape matches (static tensors cannot be reshaped)
-                if (expected_shape[0] != num_active_experts || expected_shape.size() != 4 || expected_shape[1] != 1 ||
-                    expected_shape[2] != 1 || expected_shape[3] != 1) {
-                    LOG_ERROR("    ⚠️  ERROR: Expert router tensor shape mismatch!");
-                    LOG_ERROR("    Expected: [" << num_active_experts << ", 1, 1, 1]");
-                    LOG_ERROR("    Got: [" << expected_shape[0] << ", " << expected_shape[1] << ", "
-                                           << expected_shape[2] << ", " << expected_shape[3] << "]");
-                    NPUW_ASSERT(false && "Router input tensor shape does not match num_active_experts");
-                }
+                    LOG_DEBUG("  Setting " << unrolled_router_indices.size() << " router score parameters");
 
-                // Copy selected experts' router scores
-                // router_scores: [num_experts, 1, 1, 1], need to extract selected_experts indices
-                if (m_moe_io[idx].router_scores->get_element_type() == ov::element::f16) {
-                    auto* src = static_cast<ov::float16*>(m_moe_io[idx].router_scores->data());
-                    auto* dst = static_cast<ov::float16*>(expert_router_tensor->data());
+                    // Verify we have the right number of unrolled parameters
+                    if (unrolled_router_indices.size() != num_active_experts) {
+                        LOG_ERROR("    ⚠️  ERROR: Router parameter count mismatch!");
+                        LOG_ERROR("    Expected: " << num_active_experts << " unrolled params");
+                        LOG_ERROR("    Got: " << unrolled_router_indices.size() << " unrolled params");
+                        NPUW_ASSERT(false && "Router parameter unroll count mismatch");
+                    }
 
-                    // Copy each selected expert's router score value
-                    for (size_t k = 0; k < selected_experts.size(); ++k) {
-                        dst[k] = src[selected_experts[k]];  // Copy from [expert_id, 0, 0, 0]
+                    // Set each router score parameter individually
+                    // router_scores source: [num_experts, 1, 1, 1]
+                    // Each unrolled param expects: [1, 1, 1, 1]
+                    // Note: unrolled_router_indices[k] corresponds to position k in selected_experts
+                    for (size_t k = 0; k < num_active_experts; ++k) {
+                        size_t expert_id = selected_experts[k];
+                        size_t unrolled_param_idx = unrolled_router_indices[k];
+
+                        const auto& router_iport = comp_model_desc.compiled_model->inputs()[unrolled_param_idx];
+                        auto router_tensor = r->get_tensor(router_iport);
+
+                        // Verify shape is [1, 1, 1, 1]
+                        auto shape = router_tensor->get_shape();
+                        if (shape.size() != 4 || shape[0] != 1 || shape[1] != 1 || shape[2] != 1 || shape[3] != 1) {
+                            LOG_ERROR("    ⚠️  ERROR: Unrolled router param[" << k
+                                                                             << "] has unexpected shape: " << shape);
+                        }
+
+                        // Copy router score for the selected expert
+                        // Source index: expert_id (the actual expert ID, e.g., 3, 7, 15, 20)
+                        // Destination: position 0 in the [1,1,1,1] tensor
+                        if (m_moe_io[idx].router_scores->get_element_type() == ov::element::f16) {
+                            auto* src = static_cast<ov::float16*>(m_moe_io[idx].router_scores->data());
+                            auto* dst = static_cast<ov::float16*>(router_tensor->data());
+                            dst[0] = src[expert_id];  // Copy from [expert_id, 0, 0, 0] to [0, 0, 0, 0]
+                        } else if (m_moe_io[idx].router_scores->get_element_type() == ov::element::f32) {
+                            auto* src = static_cast<float*>(m_moe_io[idx].router_scores->data());
+                            auto* dst = static_cast<float*>(router_tensor->data());
+                            dst[0] = src[expert_id];
+                        } else {
+                            NPUW_ASSERT(false && "Unsupported router scores element type");
+                        }
                     }
                 } else {
-                    NPUW_ASSERT(false && "Unsupported router scores element type for gathering");
+                    // Router parameter was not unrolled (shouldn't happen for decoding mode)
+                    LOG_WARN("  Router parameter index " << original_router_idx << " not found in param_mapping");
+                    NPUW_ASSERT(false && "Router parameter not in mapping - unexpected for decoding mode");
                 }
             } else {
                 NPUW_ASSERT(false && "Router input parameter index not specified for MoE expert model");
