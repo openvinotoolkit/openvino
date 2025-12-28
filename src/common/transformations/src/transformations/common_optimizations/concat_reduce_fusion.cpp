@@ -106,6 +106,28 @@ ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
             return false;
         }
 
+        // Fusing Concat+Reduce into Max/Min is only valid if the operation matches element-wise Max/Min.
+        // This requires that the concatenation only merged "single" elements along that axis,
+        // so that Max(A, B) is equivalent to ReduceMax(Concat(A, B)).
+        // If inputs have dimension > 1 along the concat axis, ReduceMax performs a reduction within A and within B,
+        // which Average/Max/Min(A, B) does not capture (it broadcasts).
+        int64_t concat_axis = concat->get_axis();
+        for (const auto& input : concat->inputs()) {
+            const auto& p_shape = input.get_partial_shape();
+            if (p_shape.rank().is_dynamic()) {
+                return false;
+            }
+            int64_t rank = p_shape.rank().get_length();
+            int64_t norm_axis = concat_axis < 0 ? concat_axis + rank : concat_axis;
+            
+            if (norm_axis < 0 || norm_axis >= rank) {
+                 return false; 
+            }
+            if (p_shape[norm_axis].is_dynamic() || p_shape[norm_axis].get_length() != 1) {
+                return false;
+            }
+        }
+
         ReduceType reduce_type = get_reduce_type(reduce);
         std::shared_ptr<ov::Node> result_node;
         switch (reduce_type) {
