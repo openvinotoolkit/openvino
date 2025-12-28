@@ -260,6 +260,18 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 static constexpr ov::Property<uint64_t> moe_token_chunk_size{"NPUW_MOE_TOKEN_CHUNK_SIZE"};
 
 /**
+ * @brief Enable asynchronous pipeline-based MoE prefill inference.
+ * Type: bool.
+ * When enabled, uses run_moe_prefill_pipeline_inference with multi-stage pipeline (preproc/infer/postproc)
+ * for prefill stage (input_token_count > 1).
+ * When disabled, uses run_moe_prefill_inference with sequential expert processing.
+ * Note: This option only affects prefill stage. Decoding stage (input_token_count == 1) always uses
+ * sequential processing and does not create the pipeline regardless of this setting.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> moe_prefill_async{"NPUW_MOE_PREFILL_ASYNC"};
+
+/**
  * @brief
  * Type: std::string.
  * Select attention optimization mode when attention block detected.

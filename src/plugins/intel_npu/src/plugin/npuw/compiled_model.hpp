@@ -76,6 +76,7 @@ private:
     friend class FuncMemMgr;
     friend class LLMCompiledModel;
     friend class LLMInferRequest;
+    friend class MoEPrefillPipeline;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
