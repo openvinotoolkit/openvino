@@ -2006,14 +2006,14 @@ void ov::npuw::JustInferRequest::run_moe_infer(std::size_t real_idx, std::size_t
         OPENVINO_THROW("MoE: Router scores are required but not available");
     }
 
-    // token_to_experts is a temporary mapping generated from router scores each time
-    std::map<size_t, std::vector<size_t>> token_to_experts;
-    std::map<size_t, std::vector<size_t>> expert_to_tokens;
+    // Clear and reuse member variables to avoid stack allocation overhead
+    m_moe_token_to_experts.clear();
+    m_moe_expert_to_tokens.clear();
     auto parse_start = std::chrono::high_resolution_clock::now();
     auto selected_experts = parse_selected_experts_from_router(m_moe_io[idx].router_scores,
                                                                num_experts,
-                                                               token_to_experts,
-                                                               expert_to_tokens);
+                                                               m_moe_token_to_experts,
+                                                               m_moe_expert_to_tokens);
     auto parse_end = std::chrono::high_resolution_clock::now();
     double parse_ms = std::chrono::duration<double, std::milli>(parse_end - parse_start).count();
 
@@ -2040,7 +2040,7 @@ void ov::npuw::JustInferRequest::run_moe_infer(std::size_t real_idx, std::size_t
 
     // Debug: Print token_to_experts mapping
     LOG_DEBUG("Token to experts mapping:");
-    for (const auto& [token_id, expert_ids] : token_to_experts) {
+    for (const auto& [token_id, expert_ids] : m_moe_token_to_experts) {
         std::ostringstream oss;
         oss << "  Token[" << token_id << "] -> Experts[";
         for (size_t i = 0; i < expert_ids.size(); ++i) {
@@ -2056,7 +2056,7 @@ void ov::npuw::JustInferRequest::run_moe_infer(std::size_t real_idx, std::size_t
     if (is_decoding) {
         run_moe_decoding_inference(idx, real_idx, selected_experts);
     } else {
-        run_moe_prefill_inference(idx, real_idx, selected_experts, token_to_experts, expert_to_tokens);
+        run_moe_prefill_inference(idx, real_idx, selected_experts, m_moe_token_to_experts, m_moe_expert_to_tokens);
     }
 
     LOG_DEBUG("========== MoE Expert Inference Completed ==========");
