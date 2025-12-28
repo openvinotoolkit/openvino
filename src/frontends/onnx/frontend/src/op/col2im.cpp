@@ -23,10 +23,11 @@ ov::OutputVector col2im(const ov::frontend::onnx::Node& node) {
 
     // 2. get attributes
     size_t spatial_rank = 2; // Determine Spatial Rank dynamically
-    if (auto constant_kernel = ov::util::get_constant_from_source(kernel_shape)) {
-        spatial_rank = constant_kernel->cast_vector<int64_t>().size();
+    const auto& kernel_shape_ps = kernel_shape.get_partial_shape();
+    if (kernel_shape_ps.rank().is_static() && kernel_shape_ps[0].is_static()) {
+        spatial_rank = kernel_shape_ps[0].get_length();
     }
-
+    
     std::vector<size_t> default_attr_vals(spatial_rank, 1);
     auto dilations = node.get_attribute_value<std::vector<size_t>>("dilations", default_attr_vals);
     auto strides = node.get_attribute_value<std::vector<size_t>>("strides", default_attr_vals);
