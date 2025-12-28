@@ -22,10 +22,15 @@ ov::OutputVector col2im(const ov::frontend::onnx::Node& node) {
     const auto& kernel_shape = inputs[2]; // block_shape
 
     // 2. get attributes
-    size_t spatial_rank = 2; // Determine Spatial Rank dynamically
+    size_t spatial_rank; // Determine Spatial Rank dynamically
     const auto& kernel_shape_ps = kernel_shape.get_partial_shape();
+    const auto& output_shape_ps = output_shape.get_partial_shape();
     if (kernel_shape_ps.rank().is_static() && kernel_shape_ps[0].is_static()) {
         spatial_rank = kernel_shape_ps[0].get_length();
+    } else if (output_shape_ps.rank().is_static() && output_shape_ps[0].is_static()) {
+        spatial_rank = output_shape_ps[0].get_length();
+    } else {
+        spatial_rank = 2;
     }
     
     std::vector<size_t> default_attr_vals(spatial_rank, 1);
