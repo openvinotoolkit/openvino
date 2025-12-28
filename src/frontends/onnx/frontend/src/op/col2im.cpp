@@ -36,14 +36,12 @@ ov::OutputVector col2im(const ov::frontend::onnx::Node& node) {
     std::vector<size_t> pads_begin;
     std::vector<size_t> pads_end;
 
-    if (!pads.empty()) {
-        const auto half_size = pads.size() / 2;
-        pads_begin.assign(pads.begin(), pads.begin() + half_size);
-        pads_end.assign(pads.begin() + half_size, pads.end());
-    }
+    const auto half_size = pads.size() / 2;
+    pads_begin.assign(pads.begin(), pads.begin() + half_size);
+    pads_end.assign(pads.begin() + half_size, pads.end());
 
     // 3. return Col2Im
-    return {std::make_shared<Col2Im>(
+    return {std::make_shared<ov::op::v15::Col2Im>(
         data,
         output_shape,
         kernel_shape,
