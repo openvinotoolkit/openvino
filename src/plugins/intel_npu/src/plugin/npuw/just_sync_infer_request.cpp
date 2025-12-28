@@ -2062,7 +2062,131 @@ void ov::npuw::JustInferRequest::run_moe_infer(std::size_t real_idx, std::size_t
     LOG_DEBUG("========== MoE Expert Inference Completed ==========");
 }
 
-void ov::npuw::JustInferRequest::run_moe_decoding_inference(std::size_t idx,
+// ====================================================================================================
+// MoE Helper Functions
+// ====================================================================================================
+
+void ov::npuw::JustInferRequest::gather_router_scores(const ov::SoPtr<ov::ITensor>& router_source,
+                                                      const ov::SoPtr<ov::ITensor>& router_dest,
+                                                      size_t expert_id,
+                                                      const std::vector<size_t>& token_ids,
+                                                      size_t chunk_start,
+                                                      size_t chunk_size) {
+    auto router_source_shape = router_source->get_shape();
+
+    // Calculate expert offset in source tensor
+    size_t expert_offset;
+    if (router_source_shape.size() == 4) {
+        expert_offset = expert_id * router_source_shape[2];  // [num_experts, 1, token_num, 1]
+    } else if (router_source_shape.size() == 2) {
+        expert_offset = expert_id * router_source_shape[1];  // [num_experts, token_num]
+    } else {
+        NPUW_ASSERT(false && "Unexpected router source shape");
+    }
+
+    // Gather router scores for chunk tokens
+    if (router_source->get_element_type() == ov::element::f16) {
+        const auto* src_base = router_source->data<ov::float16>() + expert_offset;
+        auto* dst_base = router_dest->data<ov::float16>();
+        for (size_t i = 0; i < chunk_size; ++i) {
+            dst_base[i] = src_base[token_ids[chunk_start + i]];
+        }
+    } else if (router_source->get_element_type() == ov::element::f32) {
+        const auto* src_base = router_source->data<float>() + expert_offset;
+        auto* dst_base = router_dest->data<float>();
+        for (size_t i = 0; i < chunk_size; ++i) {
+            dst_base[i] = src_base[token_ids[chunk_start + i]];
+        }
+    } else {
+        NPUW_ASSERT(false && "Unsupported router element type for gathering");
+    }
+}
+
+void ov::npuw::JustInferRequest::gather_expert_inputs(const ov::SoPtr<ov::ITensor>& input_source,
+                                                      const ov::SoPtr<ov::ITensor>& input_dest,
+                                                      const std::vector<size_t>& token_ids,
+                                                      size_t chunk_start,
+                                                      size_t chunk_size) {
+    auto input_shape = input_source->get_shape();
+
+    // Determine dimensions
+    size_t hidden_dim;
+    size_t token_stride;
+    if (input_shape.size() == 2) {
+        hidden_dim = input_shape[1];
+        token_stride = hidden_dim;
+    } else if (input_shape.size() == 4) {
+        hidden_dim = input_shape[3];
+        token_stride = hidden_dim;
+    } else {
+        NPUW_ASSERT(false && "Unexpected expert input tensor shape");
+    }
+
+    // Gather input embeddings for chunk tokens
+    if (input_source->get_element_type() == ov::element::f16) {
+        const auto* src_base = input_source->data<ov::float16>();
+        auto* dst_base = input_dest->data<ov::float16>();
+        for (size_t i = 0; i < chunk_size; ++i) {
+            size_t token_id = token_ids[chunk_start + i];
+            const auto* src_token = src_base + token_id * token_stride;
+            auto* dst_token = dst_base + i * hidden_dim;
+            std::memcpy(dst_token, src_token, hidden_dim * sizeof(ov::float16));
+        }
+    } else if (input_source->get_element_type() == ov::element::f32) {
+        const auto* src_base = input_source->data<float>();
+        auto* dst_base = input_dest->data<float>();
+        for (size_t i = 0; i < chunk_size; ++i) {
+            size_t token_id = token_ids[chunk_start + i];
+            const auto* src_token = src_base + token_id * token_stride;
+            auto* dst_token = dst_base + i * hidden_dim;
+            std::memcpy(dst_token, src_token, hidden_dim * sizeof(float));
+        }
+    } else {
+        NPUW_ASSERT(false && "Unsupported expert input element type for gathering");
+    }
+}
+
+void ov::npuw::JustInferRequest::scatter_expert_outputs(const ov::SoPtr<ov::ITensor>& expert_output,
+                                                        const std::vector<size_t>& token_ids,
+                                                        size_t chunk_start,
+                                                        size_t chunk_size,
+                                                        size_t expert_id,
+                                                        size_t embed_dim,
+                                                        size_t input_token_count,
+                                                        const std::map<size_t, std::vector<size_t>>& token_to_experts) {
+    auto elem_type = m_moe_relayouted_output->get_element_type();
+
+    for (size_t i = 0; i < chunk_size; ++i) {
+        size_t original_token_id = token_ids[chunk_start + i];
+
+        // Find expert slot for this token
+        const auto& expert_ids = token_to_experts.at(original_token_id);
+        auto it = std::find(expert_ids.begin(), expert_ids.end(), expert_id);
+        if (it == expert_ids.end()) {
+            continue;  // Should not happen
+        }
+        size_t expert_slot = std::distance(expert_ids.begin(), it);
+
+        // Calculate offsets
+        size_t src_offset = i * embed_dim;
+        size_t dst_offset = expert_slot * input_token_count * embed_dim + original_token_id * embed_dim;
+
+        // Scatter output to global buffer
+        if (elem_type == ov::element::f32) {
+            const float* src = expert_output->data<float>() + src_offset;
+            float* dst = m_moe_relayouted_output->data<float>() + dst_offset;
+            std::memcpy(dst, src, embed_dim * sizeof(float));
+        } else if (elem_type == ov::element::f16) {
+            const ov::float16* src = expert_output->data<ov::float16>() + src_offset;
+            ov::float16* dst = m_moe_relayouted_output->data<ov::float16>() + dst_offset;
+            std::memcpy(dst, src, embed_dim * sizeof(ov::float16));
+        } else {
+            OPENVINO_THROW("MoE: Unsupported element type for chunk output relayout: ", elem_type);
+        }
+    }
+}
+
+void ov::npuw::JustInferRequest::set_unrolled_router_scores(std::size_t idx,
                                                             std::size_t real_idx,
                                                             const std::vector<size_t>& selected_experts) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
@@ -2070,107 +2194,110 @@ void ov::npuw::JustInferRequest::run_moe_decoding_inference(std::size_t idx,
     const auto& moe_experts = comp_model_desc.moe_experts.value();
     const auto num_active_experts = moe_experts.num_active_experts;
 
-    // DECODING MODE: 1 token selects N experts (K active experts)
-    // The model is already transformed to handle K experts in one shot
-    // Unpack all K experts' weights at once and run inference once
-    LOG_DEBUG("\n[DECODING] Processing single token with " << selected_experts.size() << " experts");
+    // Validate router scores index is provided
+    if (!moe_experts._router_scores_idx.has_value()) {
+        NPUW_ASSERT(false && "Router input parameter index not specified for MoE expert model");
+    }
 
+    const auto original_router_idx = moe_experts._router_scores_idx.value();
+    const auto& param_mapping = moe_experts._param_mapping;
+
+    // Find unrolled router score parameters
+    auto mapping_it = param_mapping.find(original_router_idx);
+    if (mapping_it == param_mapping.end()) {
+        LOG_WARN("Router parameter index " << original_router_idx << " not found in param_mapping");
+        NPUW_ASSERT(false && "Router parameter not in mapping - unexpected for decoding mode");
+    }
+
+    const auto& unrolled_router_indices = mapping_it->second;
+    LOG_DEBUG("  Setting " << unrolled_router_indices.size() << " router score parameters");
+
+    // Validate unrolled parameter count
+    if (unrolled_router_indices.size() != num_active_experts) {
+        LOG_ERROR("Router parameter count mismatch: expected " << num_active_experts << ", got "
+                                                               << unrolled_router_indices.size());
+        NPUW_ASSERT(false && "Router parameter unroll count mismatch");
+    }
+
+    // Get router scores source tensor and element type
+    auto router_scores_source = m_moe_io[idx].router_scores;
+    auto elem_type = router_scores_source->get_element_type();
+
+    // Set each unrolled router score parameter
+    for (size_t k = 0; k < num_active_experts; ++k) {
+        size_t expert_id = selected_experts[k];
+        size_t unrolled_param_idx = unrolled_router_indices[k];
+
+        const auto& router_iport = comp_model_desc.compiled_model->inputs()[unrolled_param_idx];
+        auto router_tensor = r->get_tensor(router_iport);
+
+        // Copy router score from source[expert_id] to dest[0]
+        if (elem_type == ov::element::f16) {
+            auto* src = router_scores_source->data<ov::float16>();
+            auto* dst = router_tensor->data<ov::float16>();
+            dst[0] = src[expert_id];
+        } else if (elem_type == ov::element::f32) {
+            auto* src = router_scores_source->data<float>();
+            auto* dst = router_tensor->data<float>();
+            dst[0] = src[expert_id];
+        } else {
+            OPENVINO_THROW("Unsupported router scores element type: ", elem_type);
+        }
+    }
+}
+
+// ====================================================================================================
+// MoE Decoding Inference
+// ====================================================================================================
+
+void ov::npuw::JustInferRequest::run_moe_decoding_inference(std::size_t idx,
+                                                            std::size_t real_idx,
+                                                            const std::vector<size_t>& selected_experts) {
+    LOG_DEBUG("\n[DECODING] Processing single token with " << selected_experts.size() << " experts");
     auto decoding_start = std::chrono::high_resolution_clock::now();
 
-    // Validate: in decoding, one token should select exactly num_active_experts
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    auto& r = m_subrequests[real_idx];
+    const auto& moe_experts = comp_model_desc.moe_experts.value();
+    const auto num_active_experts = moe_experts.num_active_experts;
+
+    // Validate expert count
     if (selected_experts.size() != num_active_experts) {
         NPUW_ASSERT(false && "Decoding stage: number of selected experts does not match num_active_experts");
     }
 
-    // Unpack closures for all K selected experts at once
+    // Step 1: Unpack all K expert weights at once
     auto step_start = std::chrono::high_resolution_clock::now();
     unpack_moe_batch_expert_closure(idx, r, selected_experts);
     auto step_end = std::chrono::high_resolution_clock::now();
-    double unpack_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
-    record_time(m_moe_decoding_stats.unpack_closure, unpack_ms);
+    record_time(m_moe_decoding_stats.unpack_closure,
+                std::chrono::duration<double, std::milli>(step_end - step_start).count());
 
-    // Set router scores for each expert
-    // After unrolling, router scores are split into K independent parameters
-    // Use param_mapping to find the unrolled router score parameters and set each one
+    // Step 2: Set unrolled router scores for each expert
     step_start = std::chrono::high_resolution_clock::now();
-    if (moe_experts._router_scores_idx.has_value()) {
-        const auto& param_mapping = moe_experts._param_mapping;
-        const auto original_router_idx = moe_experts._router_scores_idx.value();
-
-        // Find the unrolled router score parameters in the mapping
-        auto mapping_it = param_mapping.find(original_router_idx);
-        if (mapping_it != param_mapping.end()) {
-            const auto& unrolled_router_indices = mapping_it->second;
-
-            LOG_DEBUG("  Setting " << unrolled_router_indices.size() << " router score parameters");
-
-            // Verify we have the right number of unrolled parameters
-            if (unrolled_router_indices.size() != num_active_experts) {
-                LOG_ERROR("    ⚠️  ERROR: Router parameter count mismatch!");
-                LOG_ERROR("    Expected: " << num_active_experts << " unrolled params");
-                LOG_ERROR("    Got: " << unrolled_router_indices.size() << " unrolled params");
-                NPUW_ASSERT(false && "Router parameter unroll count mismatch");
-            }
-
-            // Set each router score parameter individually
-            // router_scores source: [num_experts, 1, 1, 1]
-            // Each unrolled param expects: [1, 1, 1, 1]
-            // Note: unrolled_router_indices[k] corresponds to position k in selected_experts
-            for (size_t k = 0; k < num_active_experts; ++k) {
-                size_t expert_id = selected_experts[k];
-                size_t unrolled_param_idx = unrolled_router_indices[k];
-
-                const auto& router_iport = comp_model_desc.compiled_model->inputs()[unrolled_param_idx];
-                auto router_tensor = r->get_tensor(router_iport);
-
-                // Verify shape is [1, 1, 1, 1]
-                auto shape = router_tensor->get_shape();
-                if (shape.size() != 4 || shape[0] != 1 || shape[1] != 1 || shape[2] != 1 || shape[3] != 1) {
-                    LOG_ERROR("    ⚠️  ERROR: Unrolled router param[" << k << "] has unexpected shape: " << shape);
-                }
-
-                // Copy router score for the selected expert
-                // Source index: expert_id (the actual expert ID, e.g., 3, 7, 15, 20)
-                // Destination: position 0 in the [1,1,1,1] tensor
-                if (m_moe_io[idx].router_scores->get_element_type() == ov::element::f16) {
-                    auto* src = static_cast<ov::float16*>(m_moe_io[idx].router_scores->data());
-                    auto* dst = static_cast<ov::float16*>(router_tensor->data());
-                    dst[0] = src[expert_id];  // Copy from [expert_id, 0, 0, 0] to [0, 0, 0, 0]
-                } else if (m_moe_io[idx].router_scores->get_element_type() == ov::element::f32) {
-                    auto* src = static_cast<float*>(m_moe_io[idx].router_scores->data());
-                    auto* dst = static_cast<float*>(router_tensor->data());
-                    dst[0] = src[expert_id];
-                } else {
-                    NPUW_ASSERT(false && "Unsupported router scores element type");
-                }
-            }
-        } else {
-            // Router parameter was not unrolled (shouldn't happen for decoding mode)
-            LOG_WARN("  Router parameter index " << original_router_idx << " not found in param_mapping");
-            NPUW_ASSERT(false && "Router parameter not in mapping - unexpected for decoding mode");
-        }
-    } else {
-        NPUW_ASSERT(false && "Router input parameter index not specified for MoE expert model");
-    }
+    set_unrolled_router_scores(idx, real_idx, selected_experts);
     step_end = std::chrono::high_resolution_clock::now();
-    double set_router_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
-    record_time(m_moe_decoding_stats.set_router_input, set_router_ms);
+    record_time(m_moe_decoding_stats.set_router_input,
+                std::chrono::duration<double, std::milli>(step_end - step_start).count());
 
-    // Execute inference ONCE for all K experts
-    // The output tensor (o_tensor from m_funcall_result) was already set via set_tensor() in function_prologue
-    // so the inference result will be directly written to o_tensor, no copy needed
+    // Step 3: Execute inference once for all K experts
     step_start = std::chrono::high_resolution_clock::now();
     r->infer();
     step_end = std::chrono::high_resolution_clock::now();
-    double infer_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
-    record_time(m_moe_decoding_stats.expert_inference, infer_ms);
+    record_time(m_moe_decoding_stats.expert_inference,
+                std::chrono::duration<double, std::milli>(step_end - step_start).count());
 
+    // Record total time
     auto decoding_end = std::chrono::high_resolution_clock::now();
     double decoding_total_ms = std::chrono::duration<double, std::milli>(decoding_end - decoding_start).count();
     record_time(m_moe_decoding_stats.total_decoding, decoding_total_ms);
 
-    LOG_DEBUG("[DECODING] Total time: " << decoding_total_ms << " ms");
+    LOG_DEBUG("[DECODING] Completed in " << decoding_total_ms << " ms");
 }
+
+// ====================================================================================================
+// MoE Prefill Inference
+// ====================================================================================================
 
 void ov::npuw::JustInferRequest::run_moe_prefill_inference(
     std::size_t idx,
@@ -2178,247 +2305,125 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
     const std::vector<size_t>& selected_experts,
     const std::map<size_t, std::vector<size_t>>& token_to_experts,
     const std::map<size_t, std::vector<size_t>>& expert_to_tokens) {
+    LOG_DEBUG("\n[PREFILL] Processing MoE inference for multiple tokens");
+    auto prefill_start = std::chrono::high_resolution_clock::now();
+
+    // Get references
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     auto& r = m_subrequests[real_idx];
     const auto& moe_experts = comp_model_desc.moe_experts.value();
     const auto input_token_count = moe_experts.input_token_count;
-    const auto& oport = comp_model_desc.compiled_model->outputs()[0];  // Assume single output
+    const size_t chunk_size = moe_experts.chunk_token_count;
 
-    // PREFILL MODE: N tokens, each token selects 1 expert
-    // Loop over experts, for each expert process all tokens that selected it
-    LOG_DEBUG("\n[PREFILL] Processing " << input_token_count << " tokens");
-    auto prefill_start = std::chrono::high_resolution_clock::now();
-
-    // CRITICAL: Clear/zero the relayouted output buffer before accumulating expert outputs
-    if (m_moe_relayouted_output) {
-        std::memset(m_moe_relayouted_output->data(), 0, m_moe_relayouted_output->get_byte_size());
-    } else {
+    // Clear output buffer before accumulating
+    if (!m_moe_relayouted_output) {
         NPUW_ASSERT(false && "MoE relayouted output buffer is null");
     }
+    std::memset(m_moe_relayouted_output->data(), 0, m_moe_relayouted_output->get_byte_size());
 
+    // Get tensor references (constant across all experts)
+    NPUW_ASSERT(moe_experts._router_scores_idx.has_value());
+    NPUW_ASSERT(moe_experts._expert_input_param_idx.has_value());
+
+    const auto& oport = comp_model_desc.compiled_model->outputs()[0];
+    const auto& router_iport = comp_model_desc.compiled_model->inputs()[moe_experts._router_scores_idx.value()];
+    const auto& expert_input_iport =
+        comp_model_desc.compiled_model->inputs()[moe_experts._expert_input_param_idx.value()];
+
+    auto router_source = m_moe_io[idx].router_scores;
+    auto expert_input_source = m_moe_io[idx].expert_input;
+    auto router_dest = r->get_tensor(router_iport);
+    auto expert_input_dest = r->get_tensor(expert_input_iport);
+    auto expert_output = r->get_tensor(oport);
+
+    // Calculate output embedding dimension
+    auto output_shape = expert_output->get_shape();
+    size_t embed_dim = (output_shape.size() == 4) ? output_shape[3] : output_shape[1];
+
+    // Process each expert sequentially
     for (size_t expert_id : selected_experts) {
         LOG_DEBUG("\n  Processing Expert[" << expert_id << "]...");
-
         auto expert_start = std::chrono::high_resolution_clock::now();
 
-        // Unpack closure for this specific expert
+        // Step 1: Unpack expert weights
         auto step_start = std::chrono::high_resolution_clock::now();
         unpack_moe_expert_closure(idx, r, expert_id);
         auto step_end = std::chrono::high_resolution_clock::now();
-        double unpack_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
-        record_time(m_moe_prefill_stats.unpack_closure, unpack_ms);
+        record_time(m_moe_prefill_stats.unpack_closure,
+                    std::chrono::duration<double, std::milli>(step_end - step_start).count());
 
-        // Get tokens that selected this expert
+        // Step 2: Get tokens assigned to this expert
         const auto& tokens_for_expert = expert_to_tokens.at(expert_id);
-        const size_t total_tokens_for_expert = tokens_for_expert.size();
-        const size_t chunk_size = moe_experts.chunk_token_count;
+        const size_t total_tokens = tokens_for_expert.size();
+        const size_t num_chunks = (total_tokens + chunk_size - 1) / chunk_size;
 
-        LOG_DEBUG("    Expert[" << expert_id << "] has " << total_tokens_for_expert
-                                << " tokens, chunk_size=" << chunk_size);
+        LOG_DEBUG("    Expert[" << expert_id << "] processing " << total_tokens << " tokens in " << num_chunks
+                                << " chunks");
 
-        // Get input tensors
-        NPUW_ASSERT(moe_experts._router_scores_idx.has_value());
-        const auto router_input_idx = moe_experts._router_scores_idx.value();
-        const auto& router_iport = comp_model_desc.compiled_model->inputs()[router_input_idx];
-
-        // Get expert input parameter index from recorded metadata
-        NPUW_ASSERT(moe_experts._expert_input_param_idx.has_value());
-        const auto expert_input_idx = moe_experts._expert_input_param_idx.value();
-        const auto& expert_input_iport = comp_model_desc.compiled_model->inputs()[expert_input_idx];
-
-        // Get source tensors for gathering
-        auto router_source = m_moe_io[idx].router_scores;
-        auto expert_input_source = m_moe_io[idx].expert_input;
-
-        // Get destination tensors (expert model inputs)
-        auto router_dest = r->get_tensor(router_iport);
-        auto expert_input_dest = r->get_tensor(expert_input_iport);
-
-        // Get output tensor
-        auto expert_output_tensor = r->get_tensor(oport);
-        auto output_shape = expert_output_tensor->get_shape();
-        size_t embed_dim = (output_shape.size() == 4) ? output_shape[3] : output_shape[1];
-
-        // Process tokens in chunks
-        // 将选中该expert的tokens分成多个chunk处理
-        size_t num_chunks = (total_tokens_for_expert + chunk_size - 1) / chunk_size;
-        LOG_DEBUG("    Processing " << num_chunks << " chunks");
-
+        // Step 3: Process tokens in chunks
         for (size_t chunk_idx = 0; chunk_idx < num_chunks; ++chunk_idx) {
-            size_t chunk_start = chunk_idx * chunk_size;
-            size_t chunk_end = std::min(chunk_start + chunk_size, total_tokens_for_expert);
-            size_t current_chunk_size = chunk_end - chunk_start;
+            size_t chunk_start_idx = chunk_idx * chunk_size;
+            size_t chunk_end_idx = std::min(chunk_start_idx + chunk_size, total_tokens);
+            size_t current_chunk_size = chunk_end_idx - chunk_start_idx;
 
-            LOG_DEBUG("      Chunk[" << chunk_idx << "]: processing " << current_chunk_size << " tokens");
+            LOG_DEBUG("      Chunk[" << chunk_idx << "]: " << current_chunk_size << " tokens");
 
-            // Step 1: Gather router values for this chunk
-            // 将tokens_for_expert[chunk_start...chunk_end)这些稀疏的tokens的router值gather到连续内存
+            // 3.1: Gather router scores
             step_start = std::chrono::high_resolution_clock::now();
-            {
-                auto router_source_shape =
-                    router_source->get_shape();  // [num_experts, 1, token_num, 1] or [num_experts, token_num]
-
-                // 计算router source中该expert的起始位置
-                size_t expert_offset;
-                if (router_source_shape.size() == 4) {
-                    expert_offset = expert_id * router_source_shape[2];  // [num_experts, 1, token_num, 1]
-                } else if (router_source_shape.size() == 2) {
-                    expert_offset = expert_id * router_source_shape[1];  // [num_experts, token_num]
-                } else {
-                    NPUW_ASSERT(false && "Unexpected router source shape");
-                }
-
-                if (router_source->get_element_type() == ov::element::f16) {
-                    const auto* src_base = router_source->data<ov::float16>() + expert_offset;
-                    auto* dst_base = router_dest->data<ov::float16>();
-
-                    for (size_t i = 0; i < current_chunk_size; ++i) {
-                        size_t token_id = tokens_for_expert[chunk_start + i];  // 原始token ID (稀疏的)
-                        dst_base[i] = src_base[token_id];                      // gather到连续位置i
-                    }
-                } else if (router_source->get_element_type() == ov::element::f32) {
-                    const auto* src_base = router_source->data<float>() + expert_offset;
-                    auto* dst_base = router_dest->data<float>();
-
-                    for (size_t i = 0; i < current_chunk_size; ++i) {
-                        size_t token_id = tokens_for_expert[chunk_start + i];
-                        dst_base[i] = src_base[token_id];
-                    }
-                } else {
-                    NPUW_ASSERT(false && "Unsupported router element type for gathering");
-                }
-            }
+            gather_router_scores(router_source,
+                                 router_dest,
+                                 expert_id,
+                                 tokens_for_expert,
+                                 chunk_start_idx,
+                                 current_chunk_size);
             step_end = std::chrono::high_resolution_clock::now();
-            double gather_router_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
-            record_time(m_moe_prefill_stats.set_router_input, gather_router_ms);
+            record_time(m_moe_prefill_stats.set_router_input,
+                        std::chrono::duration<double, std::milli>(step_end - step_start).count());
 
-            // Step 2: Gather main input tokens for this chunk
-            // 将tokens_for_expert[chunk_start...chunk_end)这些稀疏tokens的embeddings gather到连续内存
+            // 3.2: Gather expert inputs
             step_start = std::chrono::high_resolution_clock::now();
-            {
-                auto expert_input_shape =
-                    expert_input_source->get_shape();  // [token_num, hidden_dim] or [1, 1, token_num, hidden_dim]
-
-                // Determine dimensions
-                size_t hidden_dim;
-                size_t token_stride;
-
-                if (expert_input_shape.size() == 2) {
-                    hidden_dim = expert_input_shape[1];
-                    token_stride = hidden_dim;
-                } else if (expert_input_shape.size() == 4) {
-                    hidden_dim = expert_input_shape[3];
-                    token_stride = hidden_dim;
-                } else {
-                    NPUW_ASSERT(false && "Unexpected expert input tensor shape");
-                }
-
-                if (expert_input_source->get_element_type() == ov::element::f16) {
-                    const auto* src_base = expert_input_source->data<ov::float16>();
-                    auto* dst_base = expert_input_dest->data<ov::float16>();
-
-                    for (size_t i = 0; i < current_chunk_size; ++i) {
-                        size_t token_id = tokens_for_expert[chunk_start + i];  // 原始token ID (稀疏的)
-                        const auto* src_token = src_base + token_id * token_stride;
-                        auto* dst_token = dst_base + i * hidden_dim;  // gather到连续位置i
-                        std::memcpy(dst_token, src_token, hidden_dim * sizeof(ov::float16));
-                    }
-                } else if (expert_input_source->get_element_type() == ov::element::f32) {
-                    const auto* src_base = expert_input_source->data<float>();
-                    auto* dst_base = expert_input_dest->data<float>();
-
-                    for (size_t i = 0; i < current_chunk_size; ++i) {
-                        size_t token_id = tokens_for_expert[chunk_start + i];
-                        const auto* src_token = src_base + token_id * token_stride;
-                        auto* dst_token = dst_base + i * hidden_dim;
-                        std::memcpy(dst_token, src_token, hidden_dim * sizeof(float));
-                    }
-                } else {
-                    NPUW_ASSERT(false && "Unsupported expert input element type for gathering");
-                }
-            }
+            gather_expert_inputs(expert_input_source,
+                                 expert_input_dest,
+                                 tokens_for_expert,
+                                 chunk_start_idx,
+                                 current_chunk_size);
             step_end = std::chrono::high_resolution_clock::now();
-            double gather_input_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
-            LOG_DEBUG("      Gathered input tokens in " << gather_input_ms << " ms");
 
-            // Step 3: Execute chunk inference
+            // 3.3: Execute expert inference
             step_start = std::chrono::high_resolution_clock::now();
             r->infer();
             step_end = std::chrono::high_resolution_clock::now();
-            double infer_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
-            record_time(m_moe_prefill_stats.expert_inference, infer_ms);
+            record_time(m_moe_prefill_stats.expert_inference,
+                        std::chrono::duration<double, std::milli>(step_end - step_start).count());
 
-            // Step 4: Scatter chunk output back to global buffer
-            // 将连续的expert output scatter回到原始的稀疏位置
+            // 3.4: Scatter expert outputs back to global buffer
             step_start = std::chrono::high_resolution_clock::now();
-            {
-                auto elem_type = m_moe_relayouted_output->get_element_type();
-
-                LOG_DEBUG("      Scattering " << current_chunk_size << " tokens back to global buffer");
-
-                for (size_t i = 0; i < current_chunk_size; ++i) {
-                    size_t original_token_id = tokens_for_expert[chunk_start + i];  // 原始稀疏位置
-
-                    // Get expert slot for this token
-                    const auto& expert_ids = token_to_experts.at(original_token_id);
-                    auto it = std::find(expert_ids.begin(), expert_ids.end(), expert_id);
-                    if (it == expert_ids.end()) {
-                        continue;  // Should not happen
-                    }
-                    size_t expert_slot = std::distance(expert_ids.begin(), it);
-
-                    if (i < 3) {  // Log first 3 tokens for debugging
-                        LOG_DEBUG("        Token "
-                                  << i << ": original_token_id=" << original_token_id << ", expert_slot=" << expert_slot
-                                  << ", src_offset=" << (i * embed_dim) << ", dst_offset="
-                                  << (expert_slot * input_token_count * embed_dim + original_token_id * embed_dim));
-                    }
-
-                    // Scatter: 从连续的expert output位置i scatter到原始token位置
-                    // Source: expert_output_tensor[i * embed_dim]  (连续位置)
-                    // Target: m_moe_relayouted_output[expert_slot, 0, original_token_id, :]  (稀疏位置)
-
-                    if (elem_type == ov::element::f32) {
-                        const float* src = expert_output_tensor->data<float>() + i * embed_dim;
-                        float* dst = m_moe_relayouted_output->data<float>() +
-                                     (expert_slot * input_token_count * embed_dim + original_token_id * embed_dim);
-                        std::memcpy(dst, src, embed_dim * sizeof(float));
-
-                    } else if (elem_type == ov::element::f16) {
-                        const ov::float16* src = expert_output_tensor->data<ov::float16>() + i * embed_dim;
-                        ov::float16* dst =
-                            m_moe_relayouted_output->data<ov::float16>() +
-                            (expert_slot * input_token_count * embed_dim + original_token_id * embed_dim);
-                        std::memcpy(dst, src, embed_dim * sizeof(ov::float16));
-
-                    } else {
-                        LOG_ERROR("Unsupported element type for MoE chunk output relayout: " << elem_type);
-                        OPENVINO_THROW("MoE: Unsupported element type for chunk output relayout");
-                    }
-                }
-            }
+            scatter_expert_outputs(expert_output,
+                                   tokens_for_expert,
+                                   chunk_start_idx,
+                                   current_chunk_size,
+                                   expert_id,
+                                   embed_dim,
+                                   input_token_count,
+                                   token_to_experts);
             step_end = std::chrono::high_resolution_clock::now();
-            double relayout_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
-            record_time(m_moe_prefill_stats.relayout_output, relayout_ms);
-
-            LOG_DEBUG("      Chunk[" << chunk_idx << "] processed in " << (infer_ms + relayout_ms) << " ms");
+            record_time(m_moe_prefill_stats.relayout_output,
+                        std::chrono::duration<double, std::milli>(step_end - step_start).count());
         }
 
-        LOG_DEBUG("    Expert[" << expert_id << "] completed all chunks");
-
-        // Record total time for this expert
+        // Record expert completion time
         auto expert_end = std::chrono::high_resolution_clock::now();
-        double expert_total_ms = std::chrono::duration<double, std::milli>(expert_end - expert_start).count();
-        record_time(m_moe_prefill_stats.total_per_expert, expert_total_ms);
+        record_time(m_moe_prefill_stats.total_per_expert,
+                    std::chrono::duration<double, std::milli>(expert_end - expert_start).count());
+        LOG_DEBUG("    Expert[" << expert_id << "] completed");
     }
-
-    LOG_DEBUG("  [PREFILL] All experts processed");
 
     // Record total prefill time
     auto prefill_end = std::chrono::high_resolution_clock::now();
     double prefill_total_ms = std::chrono::duration<double, std::milli>(prefill_end - prefill_start).count();
     record_time(m_moe_prefill_stats.total_prefill, prefill_total_ms);
-    LOG_DEBUG("  [PREFILL] Total time: " << prefill_total_ms << " ms");
+
+    LOG_DEBUG("[PREFILL] Completed all " << selected_experts.size() << " experts in " << prefill_total_ms << " ms");
 }
 
 void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared) {
