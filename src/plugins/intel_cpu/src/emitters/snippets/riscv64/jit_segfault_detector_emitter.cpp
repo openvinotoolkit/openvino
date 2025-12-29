@@ -50,7 +50,6 @@ const jit_emitter* jit_uni_segfault_detector_emitter::get_target_emitter() const
     return m_target_emitter;
 }
 
-
 void jit_uni_segfault_detector_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                                   const std::vector<size_t>& out_vec_idxs) const {
     save_target_emitter();
