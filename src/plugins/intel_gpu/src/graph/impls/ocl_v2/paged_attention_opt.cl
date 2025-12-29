@@ -3,9 +3,17 @@
 //
 
 #include "include/batch_headers/common.cl"
+#include "include/batch_headers/int4_utils.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
+
+// [TEMP]
+#define INT4_RANGE 15
+#define INT4_MAX 7
+#define INT4_MIN (-8)
+#define PACK_SIZE 2
+#define ENABLE_DEBUG 0
 
 #define SUBGROUPS_PER_WG ((V_HEAD_SIZE / SUBGROUP_SIZE) * SG_SCALE_FACTOR)
 #define PAGED_ATTENTION_BLOCKS_PER_PARTITION (SEQ_LEN_PARTITION_SIZE / PAGED_ATTENTION_BLOCK_SIZE)
@@ -142,6 +150,14 @@ KERNEL(pa_sdpa_opt)(
 
     const uint total_blocks_num = CEIL_DIV(seq_len, PAGED_ATTENTION_BLOCK_SIZE);
 
+    #if ENABLE_DEBUG && 0
+    if ((uint)get_global_id(0) == 0 && (uint)get_global_id(1) == 0/* && (uint)get_global_id(2) == 0*/
+        && sgid < 4 && sglid < 4 && partition_idx == 0) {
+        printf(">>>> sglid(%u), sgid(%u), total_partitions_num(%u), partition_idx(%u), head_size_idx(%u), total_blocks_num(%u)\n",
+                sglid, sgid, total_partitions_num, partition_idx, head_size_idx, total_blocks_num);
+    }
+    #endif
+
 #ifdef STORE_QUERY_TO_SLM
     // SLM buffer for query inputs
     __local INPUT0_TYPE slm_query[K_HEAD_SIZE * QUERIES_PER_WI];
@@ -186,6 +202,7 @@ KERNEL(pa_sdpa_opt)(
 
         barrier(CLK_LOCAL_MEM_FENCE);
 #else // !STORE_QUERY_TO_SLM
+
         INPUT0_TYPE q_val[K_HEAD_SIZE / SUBGROUP_SIZE];
         unroll_for (uint i = 0; i < K_HEAD_SIZE / SUBGROUP_SIZE; i++) {
             const uint query_idx = INPUT0_OFFSET +
@@ -220,15 +237,15 @@ KERNEL(pa_sdpa_opt)(
             #define KEY_BLOCK MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_VEC_SIZE)
 #if IS_KV_COMPRESSED
     #ifdef IS_KEY_BY_CHANNEL
-            const uint head_stride = ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+            const uint head_stride = PACKED_ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
             const uint block_stride = KV_HEADS_NUM * head_stride;
             const uint key_block_offset = block_indice * block_stride + head_idx * head_stride;
             const uint hidden_stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
     #else
-            const uint block_offset = block_indice * ADJUSTED_K_HEAD_SIZE * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * ADJUSTED_K_HEAD_SIZE * SUBGROUP_SIZE;
+            const uint block_offset = block_indice * PACKED_ADJUSTED_K_HEAD_SIZE * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * PACKED_ADJUSTED_K_HEAD_SIZE * SUBGROUP_SIZE;
             const uint key_block_offset = block_offset;
             const uint hidden_stride = SUBGROUP_SIZE;
-            const uint key_comp_offset = key_block_offset + K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+            const uint key_comp_offset = key_block_offset + PACKED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
             INPUT0_TYPE comp_scale = key_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = key_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
@@ -237,35 +254,184 @@ KERNEL(pa_sdpa_opt)(
             const uint block_offset = block_indice * ADJUSTED_K_HEAD_SIZE * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * ADJUSTED_K_HEAD_SIZE * SUBGROUP_SIZE;
 #endif
 
+            // Loop for qk_index
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
+            MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_VEC_SIZE) k_vals[K_HEAD_SIZE / KEY_VEC_SIZE];
+
+            unroll_for (uint qk_idx = 0; qk_idx < (K_HEAD_SIZE / KEY_VEC_SIZE); qk_idx+=PACK_SIZE) {
+                #ifdef IS_KEY_BY_CHANNEL
+                    INPUT0_TYPE comp_scale[PACK_SIZE] = {0, };
+                    INPUT0_TYPE comp_zp[PACK_SIZE] = {0, };
+
+                    uint key_comp_offset = key_block_offset + (qk_idx / PACK_SIZE) * SUBGROUP_SIZE * hidden_stride + sglid * hidden_stride + PAGED_ATTENTION_BLOCK_SIZE;
+                    INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
+                    comp_scale[0] = key_comp_ptr[0];
+                    comp_zp[0] = key_comp_ptr[1];
+                    // unroll_for (uint i = 0; i < PACK_SIZE; i++) {
+                    {
+                        // const uint key_comp_offset = key_block_offset + (qk_idx+i) * SUBGROUP_SIZE * hidden_stride + sglid * hidden_stride + PAGED_ATTENTION_BLOCK_SIZE;
+                        // INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
+                        comp_scale[1] = key_comp_ptr[2];
+                        comp_zp[1] = key_comp_ptr[3];
+                    }
+                #endif
+
+                ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                // #ifdef IS_KEY_BY_CHANNEL
+                //     const uint key_comp_offset = key_block_offset + qk_idx * SUBGROUP_SIZE * hidden_stride + sglid * hidden_stride + PAGED_ATTENTION_BLOCK_SIZE;
+                //     INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
+                //     INPUT0_TYPE comp_scale = key_comp_ptr[0];
+                //     INPUT0_TYPE comp_zp = key_comp_ptr[1];
+                // #endif
+                // for (uint qk_idx=0 ; qk_idx < (80 / 16); qk_idx++){
+                //     half16 k_vals;
+                //     for (uint i=0; i<16; i++){
+                //         k_vals[i]=as_char(_sub_group_block_read_uc((const __global uchar*)(key_cache)+(key_block_offset + qk_idx * hidden_stride * 16 + i * hidden_stride)));
+
+                // #ifdef IS_KEY_BY_CHANNEL
+                //     INPUT0_TYPE key_orig = k_vals[i];
+                //     k_vals[i] = (k_vals[i] - _sub_group_shuffle(comp_zp, i)) * _sub_group_shuffle(comp_scale, i);
+                // #else
+                //     half key_orig = k_vals[i];
+                //     k_vals[i] = (k_vals[i] - comp_zp) * comp_scale;
+                // #endif
+
+                //         half key_orig=k_vals[i];
+                //         k_vals[i]=(k_vals[i]-comp_zp) * comp_scale;
+                //     }
+                //     for (uint q_idx=0; q_idx < 1; q_idx++){
+                //         for (uint i=0;i<16;i++){
+                //             qk_acc=mad(convert_float(sub_group_broadcast(q_val[qk_idx],i)),convert_float(k_vals[i]),qk_acc);
+                //         }
+                //     }
+                // }
+                ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                // uint init_index = key_block_offset + (qk_idx/2) * hidden_stride * KEY_VEC_SIZE + 0 * hidden_stride;
+                uint init_index = key_block_offset + 0 * hidden_stride * KEY_VEC_SIZE;
+                unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
+                    uint index = key_block_offset + (qk_idx/PACK_SIZE) * hidden_stride * KEY_VEC_SIZE + i * hidden_stride;
+
+                    // k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, index);
+                    char temp = BLOCK_READN(INPUT1_TYPE, 1, key_cache, index);
+                    MAKE_VECTOR_TYPE(char, PACK_SIZE) buff = unpack_to_char(*(int4x2_t *)&temp);
+
+                    half key_orig = buff.s0;
+                    #ifdef IS_KEY_BY_CHANNEL
+                        float prev_scale = sub_group_shuffle(comp_scale[0], i);
+                        float temp_scale = sub_group_shuffle(comp_scale[1], i);
+                        char prev_zp = sub_group_shuffle(comp_zp[0], i);
+                        char temp_zp = sub_group_shuffle(comp_zp[1], i);
+                        k_vals[qk_idx][i] = (key_orig - prev_zp) * prev_scale;
+                        if (qk_idx + 1 < (K_HEAD_SIZE / KEY_VEC_SIZE)) {
+                            key_orig = buff.s1;
+                            k_vals[qk_idx+1][i] = (key_orig - temp_zp) * temp_scale;
+                        }
+                    #else
+                        k_vals[qk_idx][i] = (key_orig - comp_zp) * comp_scale;
+                        if (qk_idx + 1 < (K_HEAD_SIZE / KEY_VEC_SIZE)) {
+                            key_orig = buff.s1;
+                            k_vals[qk_idx+1][i] = (key_orig - comp_zp) * comp_scale;
+                        }
+                    #endif
+
+                    #if ENABLE_DEBUG
+                    {
+                        #ifdef IS_KEY_BY_CHANNEL
+                            // float temp_scale = sub_group_shuffle(comp_scale[1], i);
+                            // float prev_scale = sub_group_shuffle(comp_scale[0], i);
+                            // char temp_zp = sub_group_shuffle(comp_zp[1]. i);
+                            // char prev_zp = sub_group_shuffle(comp_zp[0], i);
+                        #else
+                            float temp_scale = comp_scale;
+                            float prev_scale = comp_scale;
+                            char temp_zp = comp_zp;
+                            char prev_zp = comp_zp;
+                        #endif
+                        if (get_global_id(2) < 4 && qk_idx < 2 && i < 2 && get_global_id(0) == 0 && get_global_id(0) == 0 && index < 41000) {
+                            // if ((init_index == 40960 || index == 40960) && i == 0) {
+                                printf("\t\t\t>>>>check value i(%u) qk_idx(%u) sglid(%d) index(%u) => value(%d)(%d) scale(%.3f:%.3f) zp(%.3f:%.3f)\n",
+                                    i, qk_idx, sglid, index, (int)buff.s0, (int)buff.s1,
+                                    (float)prev_scale, (float)temp_scale, (float)prev_zp, (float)temp_zp);
+                            // }
+                        }
+                    }
+                    #endif
+                }
+            }
+
+            #if STORE_QUERY_TO_SLM
+                unroll_for (uint qk_idx = 0; qk_idx < K_HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
+                    unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
+                        SOFTMAX_ACCUMULATOR_TYPE q_val = slm_query[q_idx * K_HEAD_SIZE + qk_idx * KEY_VEC_SIZE + sglid];
+                        unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
+                            GET_VECTOR_ELEMENT(qk_acc, q_idx) = mad(sub_group_broadcast(q_val, i), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[qk_idx][i]), GET_VECTOR_ELEMENT(qk_acc, q_idx));
+                        }
+                    }
+                }
+            #else
+                unroll_for (uint qk_idx = 0; qk_idx < K_HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
+                    unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
+                        unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
+                            qk_acc = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(q_val[qk_idx], i)), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[qk_idx][i]), qk_acc);
+                        }
+                    }
+                }
+            #endif
+
+#else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
             unroll_for (uint qk_idx = 0; qk_idx < K_HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
                 #define KEY_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_VEC_SIZE)
                 #define TO_KEY_BLOCK_UNCOMPRESSED_TYPE(val) CAT(convert_, KEY_BLOCK_UNCOMPRESSED)(val)
 
 #if IS_KV_COMPRESSED
-                 #ifdef IS_KEY_BY_CHANNEL
-                const uint key_comp_offset = key_block_offset + qk_idx * SUBGROUP_SIZE * hidden_stride + sglid * hidden_stride + PAGED_ATTENTION_BLOCK_SIZE;
-                INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
-                INPUT0_TYPE comp_scale = key_comp_ptr[0];
-                INPUT0_TYPE comp_zp = key_comp_ptr[1];
+                #ifdef IS_KEY_BY_CHANNEL
+                    const uint key_comp_offset = key_block_offset + qk_idx * SUBGROUP_SIZE * hidden_stride + sglid * hidden_stride + PAGED_ATTENTION_BLOCK_SIZE;
+                    INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
+                    INPUT0_TYPE comp_scale = key_comp_ptr[0];
+                    INPUT0_TYPE comp_zp = key_comp_ptr[1];
                 #endif
 
                 KEY_BLOCK_UNCOMPRESSED k_vals;
+                uint init_index = key_block_offset + 0 * hidden_stride * KEY_VEC_SIZE;
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
-                    k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, key_block_offset + qk_idx * hidden_stride * KEY_VEC_SIZE + i * hidden_stride);
-                 #ifdef IS_KEY_BY_CHANNEL
+                    uint index = key_block_offset + qk_idx * hidden_stride * KEY_VEC_SIZE + i * hidden_stride;
+                    k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, index);
+                #ifdef IS_KEY_BY_CHANNEL
                     INPUT0_TYPE key_orig = k_vals[i];
                     k_vals[i] = (k_vals[i] - _sub_group_shuffle(comp_zp, i)) * _sub_group_shuffle(comp_scale, i);
                 #else
                     half key_orig = k_vals[i];
                     k_vals[i] = (k_vals[i] - comp_zp) * comp_scale;
                 #endif
+
+                    #ifdef IS_KEY_BY_CHANNEL
+                        float temp_scale = sub_group_shuffle(comp_scale, i);
+                        float prev_scale = sub_group_shuffle(comp_scale, i);
+                        char temp_zp = sub_group_shuffle(comp_zp, i);
+                        char prev_zp = sub_group_shuffle(comp_zp, i);
+                    #else
+                        float temp_scale = comp_scale;
+                        float prev_scale = comp_scale;
+                        char temp_zp = comp_zp;
+                        char prev_zp = comp_zp;
+                    #endif
+
+                    #if ENABLE_DEBUG
+                    if (/*sglid*/get_global_id(2) < 4 && qk_idx < 2 && i < 2 && get_global_id(0) == 0 && get_global_id(0) == 0 && index < 41000) {
+                        // if (init_index == 20480/* || init_index == 40960*/) {
+                            printf("\t\t\t>>>>check value i(%u) qk_idx(%u) sglid(%d) index(%u) => value(%d) scale(%.3f) zp(%.3f)\n",
+                                i, qk_idx, sglid, index, (int)key_orig,
+                                (float)temp_scale, (float)temp_zp);
+                        // }
+                    }
+                    #endif
                 }
-#else
+#else  //  !IS_KV_COMPRESSED
                 KEY_BLOCK k_vals = 0;
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
                     k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, block_offset + qk_idx * SUBGROUP_SIZE * KEY_VEC_SIZE + i * SUBGROUP_SIZE);
                 }
-#endif
+#endif  // !IS_KV_COMPRESSED
 
 #if XE2_QK_MULTIPLICATION
 #if STORE_QUERY_TO_SLM
@@ -297,6 +463,7 @@ KERNEL(pa_sdpa_opt)(
                 }
 #endif // XE2_QK_MULTIPLICATION
             }
+#endif  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
 
             const uint token_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + block_num * SUBGROUPS_PER_WG * SUBGROUP_SIZE + sgid * SUBGROUP_SIZE + sglid;
 
@@ -513,14 +680,24 @@ KERNEL(pa_sdpa_opt)(
 
         for (uint block_num = block_start_idx; block_num < block_end_idx; block_num++) {
             const uint head_idx = head_num_idx / KV_HEADS_GROUP_SIZE;
+            // const uint block_offset = block_indices[start_block_idx+block_num] * 32 * 84 * 16 + head_idx * 84 * 16;
             const uint block_offset = block_indices[start_block_idx + block_num] * KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + head_idx * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
-            const uint value_offset = block_offset + head_size_idx;
+
+            const uint value_offset = block_offset + head_size_idx;  // head_size_idx = lid = (get_local_id(2) % 80)
 
 #if IS_KV_COMPRESSED
-            const uint value_comp_offset = block_offset + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+            const uint packed_block_offset = block_indices[start_block_idx + block_num] * KV_HEADS_NUM * PACKED_ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE
+                                                + head_idx * PACKED_ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+            const uint head_size_offset = (head_size_idx / (SUBGROUP_SIZE * PACK_SIZE)) * SUBGROUP_SIZE + head_size_idx % SUBGROUP_SIZE;
+            const uint packed_value_offset = packed_block_offset + head_size_offset;
+            const uint value_comp_offset = packed_block_offset + PACKED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
+
+            // if ((uint)get_global_id(0) == 0 && (uint)get_global_id(1) == 0 && (uint)get_global_id(2) == 0) {
+            //     printf(" ")
+            // }
 #endif
 
             #define VALUE_VEC_SIZE SUBGROUP_SIZE
@@ -529,10 +706,126 @@ KERNEL(pa_sdpa_opt)(
             #define VALUE_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(INPUT0_TYPE, VALUE_VEC_SIZE)
             #define TO_VALUE_UNCOMPRESSED_TYPE(val) CAT(convert_, VALUE_UNCOMPRESSED)(val)
 
-            VALUE_BLOCK v_vals_packed;
-            unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
-                v_vals_packed[i] = BLOCK_READN(INPUT2_TYPE, 1, value_cache, value_offset + i * V_HEAD_SIZE);
+
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && 1
+            //////////////////////////////////////////////////////////////////////////////////////
+            // INT4 compression for value-cache
+            //////////////////////////////////////////////////////////////////////////////////////
+            const uint idx_packed = (head_size_idx / SUBGROUP_SIZE) % PACK_SIZE;
+            // const uint packed_value_offset = block_offset + (sgid / PACK_SIZE) * SUBGROUP_SIZE + sglid;
+            // [DEBUG]
+            #if ENABLE_DEBUG
+            {
+                if ((uint)get_global_id(0) == 0 && (uint)get_global_id(1) == 0/* && (uint)get_global_id(2) == 0*/
+                    && sgid < 2 && sglid < 2 && block_num == 0) {
+                    printf("\t\t---- sglid(%u), sgid(%u), block_num(%u) head_size_idx(%u) : value_offset(%u) packed_value_offset(%u) PACKED_V_HEAD_SIZE(%u) comp_scale(%.3f)\n",
+                            sglid, sgid, block_num, head_size_idx,
+                            value_offset, packed_value_offset, (uint)packed_valueV_HEAD_SIZE, (float)comp_scale);
+                }
             }
+            #endif
+            #if ENABLE_DEBUG || 0
+                if ((uint)get_global_id(0) == 0 && (uint)get_global_id(1) == 0/* && (uint)get_global_id(2) == 0*/
+                    && sgid < 4 && sglid == 0 && leftovers == 0 && block_num < 2) {
+                // if (packed_block_offset == 1364160) {
+                    printf("\t==== block_num(%u) SG_SCALE_FACTOR(%u) leftovers(%u) sgid(%u) sglid(%u) lid(%u) gid_2(%u) block_idx(%u to %u), head_size_idx(%u), partition_seq_len(%u) PACKED_V_HEAD_SIZE(%u <= %u) => value_offset(%u+%u) packed_value_offset(%u+%u)\n",
+                            block_num, (uint)SG_SCALE_FACTOR, leftovers, sgid, sglid, get_local_id(2), get_global_id(2), block_start_idx, block_end_idx, head_size_idx, partition_seq_len, PACKED_V_HEAD_SIZE, V_HEAD_SIZE,
+                            block_offset, head_size_idx, packed_block_offset, head_size_offset);
+                }
+            #endif
+
+            VALUE_BLOCK v_vals_packed;
+            uint index[VALUE_VEC_SIZE] = {0, };
+
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // VALUE_BLOCK v_vals_packed;
+            // uint orig_index[VALUE_VEC_SIZE] = {0, };
+            // unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
+            //     orig_index[i] = value_offset + i * V_HEAD_SIZE;  // [DEBUG]
+            //     v_vals_packed[i] = BLOCK_READN(INPUT2_TYPE, 1, value_cache, value_offset + i * V_HEAD_SIZE);
+            //     // v_vals_packed[i]=as_char(_sub_group_block_read_uc((const __global uchar*)(value_cache)+(value_offset + i * 80)));
+            // }
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////
+            unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
+                index[i] = packed_value_offset + i * PACKED_V_HEAD_SIZE;  // [DEBUG]
+                char packed_value = BLOCK_READN(INPUT2_TYPE, 1, value_cache, index[i]);
+                MAKE_VECTOR_TYPE(char, PACK_SIZE) buff = unpack_to_char(*(int4x2_t *)&packed_value);
+
+                // v_vals_packed[i]=as_char(_sub_group_block_read_uc((const __global uchar*)(value_cache)+(value_offset + i * 80)));
+                if (idx_packed == 0) {
+                    v_vals_packed[i] = buff.s0;
+                } else {
+                    v_vals_packed[i] = buff.s1;
+                }
+            }
+
+            // [DEBUG]
+            #if ENABLE_DEBUG
+            {
+                for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
+                    if (sglid == 0 && sgid < 4 && (uint)get_global_id(0) < 20/* && (uint)get_global_id(1) == 0*/) {
+                        if (index[i] == 2500608 || index[i] == 2500624) {
+                            // printf("\t\t>>>>check value sglid(%d) idx(%u) orig_idx(%u) => orig(%d)(%d)(%d)(%d) => (%d)(%d)(%d)(%d) \n",
+                            //     (int)sglid, index[i], orig_index[i],
+                            //     (int)orig_v_vals_packed[0], (int)orig_v_vals_packed[1], (int)orig_v_vals_packed[2], (int)orig_v_vals_packed[3],
+                            //     (int)v_vals_packed[0], (int)v_vals_packed[1], (int)v_vals_packed[2], (int)v_vals_packed[3]);
+                            printf("\t\t\t>>>> i(%u) sglid(%u) sgid(%u) block_num(%u) (%u,%u) : index(%u,%u,%u,%u) => v_vals_packed[0](%d), [1](%d), [2](%d), [3](%d) scale(%.3f)\n",
+                                i, sglid, sgid, block_num, get_global_id(0), get_global_id(1),
+                                index[0], index[1], index[2], index[3], (int)v_vals_packed[0], (int)v_vals_packed[1], (int)v_vals_packed[2], (int)v_vals_packed[3], comp_scale);
+                            break;
+                        }
+                    }
+                }
+            }
+            #endif
+
+            // [DEBUG]
+            #if ENABLE_DEBUG
+            if ((uint)get_global_id(0) == 0 && (uint)get_global_id(1) == 0/* && (uint)get_global_id(2) == 0*/
+                && sgid < 4 && sglid == 0 && block_num == 0) {
+                printf("\t\t\t---- sglid(%u) sgid(%u) block_num(%u) : index(%u,%u,%u,%u) => v_vals_packed[0](%d), [1](%d), [2](%d), [3](%d)\n",
+                sglid, sgid, block_num, index[0], index[1], index[2], index[3], (int)v_vals_packed[0], (int)v_vals_packed[1], (int)v_vals_packed[2], (int)v_vals_packed[3]);
+            }
+            #endif
+
+#else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
+            VALUE_BLOCK v_vals_packed;
+            uint index[VALUE_VEC_SIZE] = {0, };  // [DEBUG]
+            unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
+                index[i] = value_offset + i * V_HEAD_SIZE;  // [DEBUG]
+                v_vals_packed[i] = BLOCK_READN(INPUT2_TYPE, 1, value_cache, value_offset + i * V_HEAD_SIZE);
+                // v_vals_packed[i]=as_char(_sub_group_block_read_uc((const __global uchar*)(value_cache)+(value_offset + i * 80)));
+            }
+
+            // [DEBUG]
+            #if ENABLE_DEBUG && 0
+            {
+                for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
+                    if (sglid == 0 && sgid < 4 && (uint)get_global_id(0) < 20/* && (uint)get_global_id(1) == 0*/) {
+                        if (index[i] == 2500608 || index[i] == 2500624) {
+                            // printf("\t\t>>>>check value sglid(%d) idx(%u) orig_idx(%u) => orig(%d)(%d)(%d)(%d) => (%d)(%d)(%d)(%d) \n",
+                            //     (int)sglid, index[i], orig_index[i],
+                            //     (int)orig_v_vals_packed[0], (int)orig_v_vals_packed[1], (int)orig_v_vals_packed[2], (int)orig_v_vals_packed[3],
+                            //     (int)v_vals_packed[0], (int)v_vals_packed[1], (int)v_vals_packed[2], (int)v_vals_packed[3]);
+                            printf("\t\t\t>>>> i(%u) sglid(%u) sgid(%u) block_num(%u) (%u,%u) : index(%u,%u,%u,%u) => v_vals_packed[0](%d), [1](%d), [2](%d), [3](%d) scale(%.3f)\n",
+                                i, sglid, sgid, block_num, get_global_id(0), get_global_id(1),
+                                index[0], index[1], index[2], index[3], (int)v_vals_packed[0], (int)v_vals_packed[1], (int)v_vals_packed[2], (int)v_vals_packed[3], comp_scale);
+                            break;
+                        }
+                    }
+                }
+            }
+            #endif
+
+            // [DEBUG]
+            #if ENABLE_DEBUG && 0
+            if ((uint)get_global_id(0) == 0 && (uint)get_global_id(1) == 0/* && (uint)get_global_id(2) == 0*/
+                && sgid < 4 && sglid == 0 && block_num == 0) {
+                printf("\t\t\t---- sglid(%u) sgid(%u) block_num(%u) : index(%u,%u,%u,%u) => v_vals_packed[0](%d), [1](%d), [2](%d), [3](%d)\n",
+                sglid, sgid, block_num, index[0], index[1], index[2], index[3], (int)v_vals_packed[0], (int)v_vals_packed[1], (int)v_vals_packed[2], (int)v_vals_packed[3]);
+            }
+            #endif
+#endif
 
 #if IS_KV_COMPRESSED
             VALUE_BLOCK_UNCOMPRESSED value_vals;
@@ -562,10 +855,25 @@ KERNEL(pa_sdpa_opt)(
             const uint value_offset = block_offset + head_size_idx;
 
 #if IS_KV_COMPRESSED
-            const uint value_comp_offset = block_offset + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
-            INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
+            #if IS_INT4_COMPRESSED
+                const uint packed_block_offset = block_indices[last_block_idx] * KV_HEADS_NUM * PACKED_ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE
+                                                    + head_idx * PACKED_ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+                const uint head_size_offset = (head_size_idx / (SUBGROUP_SIZE * PACK_SIZE)) * SUBGROUP_SIZE + head_size_idx % SUBGROUP_SIZE;
+                const uint packed_value_offset = packed_block_offset + head_size_offset;
+
+                const uint value_comp_offset = packed_block_offset + PACKED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+                INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
+            #else
+                const uint value_comp_offset = block_offset + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+                INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
+            #endif
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
+#endif
+
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
+            const uint idx_packed = (head_size_idx / SUBGROUP_SIZE) % PACK_SIZE;
+            uint index[PAGED_ATTENTION_BLOCK_SIZE] = {0, };
 #endif
 
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, QUERIES_PER_WI) qk_val;
@@ -573,7 +881,49 @@ KERNEL(pa_sdpa_opt)(
                 GET_VECTOR_ELEMENT(qk_val, q_idx) = slm_qk_vals[q_idx * SEQ_LEN_PARTITION_SIZE + blocks_num_per_partition * PAGED_ATTENTION_BLOCK_SIZE + sglid];
             }
             for (uint i = 0; i < leftovers; i++) {
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && 1
+                INPUT2_TYPE value_packed = 0;
+                index[i] = packed_value_offset + i * PACKED_V_HEAD_SIZE;  // [DEBUG]
+                char packed_value = BLOCK_READN(INPUT2_TYPE, 1, value_cache, index[i]);
+                MAKE_VECTOR_TYPE(char, PACK_SIZE) buff = unpack_to_char(*(int4x2_t *)&packed_value);
+
+                // v_vals_packed[i]=as_char(_sub_group_block_read_uc((const __global uchar*)(value_cache)+(value_offset + i * 80)));
+                if (idx_packed == 0) {
+                    value_packed = buff.s0;
+                } else {
+                    value_packed = buff.s1;
+                }
+
+                // [DEBUG]
+                #if ENABLE_DEBUG || 0
+                    // if ((uint)get_global_id(0) == 0 && (uint)get_global_id(1) == 0/* && (uint)get_global_id(2) == 0*/) {
+                    //     printf("\t\t\t==== sglid(%u) sgid(%u) leftovers(%u) i(%u) head_size_idx(%u) : index(%u) orgi_index(%u) => value_packed(%d)\n",
+                    //     sglid, sgid, leftovers, i, head_size_idx,
+                    //     index[i], (value_offset + i * V_HEAD_SIZE), (int)value_packed);
+                    // }
+                    if ((uint)get_global_id(0) == 0 && (uint)get_global_id(1) == 0/* && (uint)get_global_id(2) == 0*/
+                        && sgid < 12 && sglid < 4 && i == 0) {
+                    // if (packed_block_offset == 1364160) {
+                        printf("\t==== leftover: SG_SCALE_FACTOR(%u) leftovers(%u) sgid(%u) sglid(%u) lid(%u) gid_2(%u) head_size_idx(%u), idx_packed(%u) PACKED_V_HEAD_SIZE(%u <= %u) => value_offset(%u+%u) packed_value_offset(%u+%u) => idx_packed(%d) : value(%d/%d) scale(%.3f) zp(%.3f)\n",
+                                (uint)SG_SCALE_FACTOR, leftovers, sgid, sglid, get_local_id(2), get_global_id(2), head_size_idx, idx_packed, PACKED_V_HEAD_SIZE, V_HEAD_SIZE,
+                                block_offset, head_size_idx, packed_block_offset, head_size_offset,
+                                idx_packed, buff.s0, buff.s1, sub_group_broadcast(comp_scale, i), sub_group_broadcast(comp_zp, i));
+                    }
+                #endif
+
+#else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
                 INPUT2_TYPE value_packed = BLOCK_READN(INPUT2_TYPE, 1, value_cache, value_offset + i * V_HEAD_SIZE);
+
+                // [DEBUG]
+                #if ENABLE_DEBUG && 0
+                if ((uint)get_global_id(0) == 0 && (uint)get_global_id(1) == 0/* && (uint)get_global_id(2) == 0*/) {
+                    printf("\t\t\t==== original : sglid(%u) sgid(%u) leftovers(%u) i(%u) head_size_idx(%u) : index(%u) orgi_index(%u) => value_packed(%d)\n",
+                    sglid, sgid, leftovers, i, head_size_idx,
+                    index[i], (value_offset + i * V_HEAD_SIZE), (int)value_packed);
+                }
+                #endif
+#endif  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
+
 #if IS_KV_COMPRESSED
                 #define VALUE_UNCOMPRESSED INPUT0_TYPE
                 #define TO_VALUE_UNCOMPRESSED_TYPE(val) CAT(convert_, VALUE_UNCOMPRESSED)(val)

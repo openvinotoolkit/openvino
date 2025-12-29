@@ -141,10 +141,10 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
                                                     : ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
 
     bool combine_scales_and_zp = output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
-    GPU_DEBUG_LOG << "KV-cache compression configuration: "
-                  << "dt=" << compression_dt << ", "
-                  << "asym=" << (quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) << ", "
-                  << "single_buffer_for_scales_and_zp=" << combine_scales_and_zp << "\n";
+    // std::cout << " >>>> KV-cache compression configuration: "
+    //               << "dt=" << compression_dt << ", "
+    //               << "asym=" << (quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) << ", "
+    //               << "single_buffer_for_scales_and_zp=" << combine_scales_and_zp << "\n";
 
     auto query = any_input();
 
@@ -168,8 +168,13 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
         wrap_type<ov::intel_gpu::op::IndirectSDPA>({ query, key_cache, value_cache, input_attn_mask, input_scale, input_beam_table });
 
     auto sdpa = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m});
+    std::cout << " -- KV-cache compression configuration: " << sdpa->get_friendly_name()
+                  << " dt=" << compression_dt << ", "
+                  << " asym=" << (quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) << ", "
+                  << " single_buffer_for_scales_and_zp=" << combine_scales_and_zp << "\n";
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        // std::cout << " >>>> KVCacheCompression Start --------------------------------- " << std::endl;
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
@@ -274,6 +279,7 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
         ov::copy_runtime_info(sdpa_node, new_sdpa);
 
         ov::replace_node(sdpa_node, new_sdpa);
+        std::cout << "  >> KVCacheCompression Selected for SDPA : " << new_sdpa->get_friendly_name() << std::endl;
         return true;
     };
 
