@@ -250,9 +250,6 @@ protected:
     // MoE prefill pipeline (defined in moe_prefill_pipeline.hpp)
     std::unique_ptr<MoEPrefillPipeline> m_moe_prefill_pipeline;
 
-    // MoE prefill double-buffering: second infer request for overlapping unpack and inference
-    RqPtr m_moe_prefill_second_request;
-
     // Grant pipeline access to protected members
     friend class MoEPrefillPipeline;
 };
