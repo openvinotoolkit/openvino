@@ -30,19 +30,6 @@ public:
                         const std::vector<size_t>& pool_vec_idxs,
                         const std::vector<size_t>& pool_gpr_idxs) const override;
 
-    ov::element::Type get_src_prc() const {
-        return src_prc;
-    }
-    ov::element::Type get_dst_prc() const {
-        return dst_prc;
-    }
-    size_t get_count() const {
-        return count;
-    }
-    size_t get_compiled_byte_offset() const {
-        return compiled_byte_offset;
-    }
-
 protected:
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
@@ -51,6 +38,10 @@ protected:
     size_t compiled_byte_offset = 0;
     size_t buffer_cluster_id = 0;
     bool is_offset_runtime = false;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend std::string init_info_jit_memory_emitter(const jit_memory_emitter* emitter);
+#endif
 };
 
 class jit_load_memory_emitter : public jit_memory_emitter {

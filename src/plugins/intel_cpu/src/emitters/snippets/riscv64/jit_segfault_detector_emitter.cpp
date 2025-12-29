@@ -51,19 +51,6 @@ const jit_emitter* jit_uni_segfault_detector_emitter::get_target_emitter() const
     return m_target_emitter;
 }
 
-std::string jit_uni_segfault_detector_emitter::get_debug_info() const {
-    std::stringstream ss;
-    ss << "Node_name:" << m_target_node_name << " use_load_emitter:" << is_target_use_load_emitter
-       << " use_store_emitter:" << is_target_use_store_emitter;
-    if (is_target_use_load_emitter || is_target_use_store_emitter) {
-        ss << " start_address:" << start_address << " current_address:" << current_address << " iteration:" << iteration
-           << " ";
-    }
-    if (const auto* target_e = get_target_emitter()) {
-        ss << target_e->info();
-    }
-    return ss.str();
-}
 
 void jit_uni_segfault_detector_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                                   const std::vector<size_t>& out_vec_idxs) const {
