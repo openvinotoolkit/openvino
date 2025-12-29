@@ -46,5 +46,5 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-serializinghtml==2.0.0
 toml==0.10.2
-urllib3==2.6.0
+urllib3==2.6.2
 zipp==3.23.0
