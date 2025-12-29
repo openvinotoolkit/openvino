@@ -94,6 +94,7 @@ public:
     }
 
     friend std::ostream& operator<<(std::ostream& os, const metric<U>& m) {
+        const auto original_flags = os.flags();
         const char* units = U::name;
         os << std::left << std::setw(20) << (m.name.empty() ? std::string("<unnamed timer>") : m.name);
         if (m.enabled) {
@@ -107,6 +108,7 @@ public:
         } else {
             os << "[ disabled ]";
         }
+        os.flags(original_flags);
         return os;
     }
 };
@@ -140,6 +142,7 @@ public:
     }
 
     friend std::ostream& operator<<(std::ostream& os, const counter<U>& c) {
+        const auto original_flags = os.flags();
         const char* units = U::name;
         os << std::left << std::setw(20) << (c.name.empty() ? std::string("<unnamed counter>") : c.name);
         if (c.enabled) {
@@ -148,6 +151,7 @@ public:
         } else {
             os << "[ disabled ]";
         }
+        os.flags(original_flags);
         return os;
     }
 };
@@ -172,6 +176,7 @@ struct Profile {
         if (metrics.empty()) {
             return;
         }
+        const auto original_flags = std::cout.flags();
         if (!area.empty()) {
             std::cout << area << ":" << std::endl;
         } else {
@@ -180,6 +185,7 @@ struct Profile {
         for (auto&& m : metrics) {
             std::cout << "  " << m.second << std::endl;
         }
+        std::cout.flags(original_flags);
     }
 
     ~Profile() {
