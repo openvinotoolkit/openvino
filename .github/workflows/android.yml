@@ -107,7 +107,8 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_android }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+        - /home/runner/secrets/:/secrets:ro
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER
     env:
       TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
@@ -138,6 +139,14 @@ jobs:
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_android_${{ matrix.arch }}_release
     steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        shell: bash
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
@@ -240,6 +249,7 @@ jobs:
             -DENABLE_INTEL_NPU=ON \
             -DENABLE_TEMPLATE=ON \
             -DENABLE_PYTHON=OFF \
+            -DENABLE_SAMPLES=OFF \
             -DCMAKE_EXE_LINKER_FLAGS="-Wl,-z,max-page-size=16384" \
             -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-z,max-page-size=16384" \
             -S ${OPENVINO_REPO} \
@@ -287,7 +297,7 @@ jobs:
           # Add TBB and libc++ shared to runtime package
           find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} ${INSTALL_DIR}/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
           cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" ${INSTALL_DIR}/lib/ || echo "libc++_shared.so not found"
-      
+
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR }}
@@ -309,7 +319,7 @@ jobs:
           name: ov_android_package_${{ matrix.arch }}
           path: ${{ env.INSTALL_DIR }}/
           if-no-files-found: 'error'
-      
+
       - name: Store artifacts to a shared drive
         id: store_artifacts
         if: ${{ github.event_name != 'merge_group' }}
