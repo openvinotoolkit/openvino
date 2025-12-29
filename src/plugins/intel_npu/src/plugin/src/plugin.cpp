@@ -324,6 +324,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(USE_BASE_MODEL_SERIALIZER);
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
+    REGISTER_OPTION(ENABLE_STRIDES_FOR);
 
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
@@ -674,8 +675,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
 
-    const auto set_cache_dir = localConfig.get<CACHE_DIR>();
-    if (!set_cache_dir.empty()) {
+    const auto setCacheDir = localConfig.get<CACHE_DIR>();
+    if (!setCacheDir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
         if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
             OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
@@ -727,6 +728,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         // Process batching
         std::tie(batchedModel, successfullyDebatched) =
             intel_npu::batch_helpers::handlePluginBatching(model, localConfig, updateBatchMode, originalBatch, _logger);
+    }
+
+    if (localConfig.has(ov::intel_npu::enable_strides_for.name())) {
+        if (model->is_dynamic()) {
+            OPENVINO_ASSERT(
+                !intel_npu::batch_helpers::checkModelDynamicDims(model),
+                "Dynamic shape tensors are not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
+
+            OPENVINO_ASSERT(successfullyDebatched || !localConfig.isAvailable(ov::intel_npu::batch_mode.name()) ||
+                                localConfig.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER,
+                            "Dynamic batching is not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
+        }
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
