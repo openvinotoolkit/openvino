@@ -221,7 +221,28 @@ Subgraph Node::Impl::get_attribute_value(const std::string& name) const {
 
 template <>
 ov::Any Node::get_attribute_value(const std::string& name) const {
-    return get_attribute(name).get_any();
+    if (m_pimpl != nullptr) {
+        return get_attribute(name).get_any();
+    } else if (m_decoder != nullptr) {
+        if (!m_decoder->has_attribute(name)) {
+            throw error::node::UnknownAttribute{this->get_name(), name};
+        }
+        auto attribute_value = m_decoder->get_attribute(name);
+        // We do upcast for decoder-provided floats here to align behavior of OpExtension with legacy approach and keep
+        // both code paths identical.
+        if (attribute_value.is<float>()) {
+            return static_cast<double>(attribute_value.as<float>());
+        } else if (attribute_value.is<std::vector<float>>()) {
+            const auto& float_values = attribute_value.as<std::vector<float>>();
+            std::vector<double> double_values(float_values.size());
+            std::transform(float_values.begin(), float_values.end(), double_values.begin(), [](float v) {
+                return static_cast<double>(v);
+            });
+            return double_values;
+        }
+        return attribute_value;
+    }
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
