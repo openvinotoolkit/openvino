@@ -65,8 +65,7 @@ CM_INLINE void find(uint slm, int m_block,
     , svmptr_t kq_sum
 #endif
 ) {
-    constexpr int SG_SIZE = 16;
-#ifndef BLOCK_SG_M
+#ifndef BLOCK_SHARE_MAX
     #define BLOCK_SG_M  64
     #define BLOCK_SG_N  32
     #define SG_M  2
@@ -139,12 +138,7 @@ CM_INLINE void find(uint slm, int m_block,
 #endif
 #else
 //xe1
-#if CUR_TYPE == IS_float
-        cm_load_2d(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, 0), kq_exp_partial_sum, off_sum, pitch_sum, valid_m);
-        cm_load_2d(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, TOKEN_SHARE_MAX / 2), kq_exp_partial_sum, off_sum + 16*sizeof(SOFTMAX_TYPE), pitch_sum, valid_m);
-#else
-        cm_load_2d(data.select<data, kq_exp_partial_sum, off_sum, pitch_sum, valid_m);
-#endif
+        cm_load_2d(data, kq_exp_partial_sum, off_sum, pitch_sum, valid_m);
 #endif
         for (int i = 0; i < TOKEN_IN_BLOCK; i++) {
             if (i < valid_m) {
@@ -161,12 +155,7 @@ CM_INLINE void find(uint slm, int m_block,
 #endif
 #else
 //xe1
-#if CUR_TYPE == IS_float
-        cm_store_2d(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, 0), kq_exp_partial_sum, off_sum, pitch_sum, valid_m);
-        cm_store_2d(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, TOKEN_SHARE_MAX / 2), kq_exp_partial_sum, off_sum + 16*sizeof(SOFTMAX_TYPE), pitch_sum, valid_m);
-#else
         cm_store_2d(data, kq_exp_partial_sum, off_sum, pitch_sum, valid_m);
-#endif
 #endif
 #ifdef CM_HAS_LSC_UNTYPED_2D
         desc_sum.set_block_x(desc_sum.get_block_x() + TOKEN_SHARE_MAX);
@@ -206,12 +195,7 @@ CM_INLINE void find(uint slm, int m_block,
 #else
 
 //xe1
-#if CUR_TYPE == IS_float
-        cm_load_2d(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, 0), kq_exp_partial_sum, off_sum, pitch_sum, valid_m);
-        cm_load_2d(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, TOKEN_SHARE_MAX / 2), kq_exp_partial_sum, off_sum + 16*sizeof(SOFTMAX_TYPE), pitch_sum, valid_m);
-#else
-        cm_load_2d(data.select<data, kq_exp_partial_sum, off_sum, pitch_sum, valid_m);
-#endif
+        cm_load_2d(data, kq_exp_partial_sum, off_sum, pitch_sum, valid_m);
 
 #endif
         data.row(0) *= inv_sum_v[0];
