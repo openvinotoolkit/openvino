@@ -539,11 +539,6 @@ void regclass_graph_Model(py::module m) {
                 throw std::runtime_error("Shapes list cannot be empty.");
             }
 
-            // Determine if multi-input format or flat shape
-            // Logic:
-            // - If ANY element is a list → multi-input (lists are shapes, not dimensions)
-            // - If only tuples and no ints → multi-input (all shapes)
-            // - If mix of ints and tuples → flat shape (tuples are dimension ranges)
             bool is_multi_input_format = false;
             bool has_list = false;
             bool has_int = false;
@@ -559,13 +554,9 @@ void regclass_graph_Model(py::module m) {
                 }
             }
 
-            if (has_list) {
-                // Has at least one list → multi-input
+            if (has_list) {                
                 is_multi_input_format = true;
             } else {
-                // No lists, only tuples and/or ints
-                // All tuples (no ints) → multi-input
-                // Mix of ints and tuples → flat shape
                 is_multi_input_format = !has_int;
             }
 
