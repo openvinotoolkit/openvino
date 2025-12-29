@@ -111,14 +111,26 @@ jobs:
       # Tests
       #
 
-      - name: Python ONNX operators tests
+      - name: Python ONNX operators tests (GraphIterator default)
         if: (fromJSON(inputs.affected-components).Python_API.test ||
              fromJSON(inputs.affected-components).ONNX_FE.test) &&
              runner.arch != 'ARM64' # Ticket: 123325
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.graph_iterator_enabled.xml \
+            --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
+
+      - name: Python ONNX operators tests (ONNX_ITERATOR=0)
+        if: (fromJSON(inputs.affected-components).Python_API.test ||
+             fromJSON(inputs.affected-components).ONNX_FE.test) &&
+             runner.arch != 'ARM64' # Ticket: 123325
+        env:
+          ONNX_ITERATOR: "0"
+        run: |
+          # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.graph_iterator_disabled.xml \
             --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
 
       - name: OVC unit tests
