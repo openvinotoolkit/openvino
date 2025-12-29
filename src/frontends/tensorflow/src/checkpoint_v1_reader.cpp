@@ -25,7 +25,6 @@ std::vector<std::string> list_files_in_dir(const std::string& directory_path) {
             [&res](const std::filesystem::path& file_path) {
                 res.push_back(ov::util::path_to_string(file_path.filename()));
             },
-            false,
             true);
     } catch (...) {
         // Ignore exceptions

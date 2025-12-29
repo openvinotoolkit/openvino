@@ -173,13 +173,23 @@ std::wstring path_join_w(std::initializer_list<std::wstring>&& paths);
  *
  * @param path Root directory path to iterate files from.
  * @param func Function to apply to each file found.
- * @param recurse Whether to recurse into subdirectories.
  * @param include_links Whether to include symbolic links.
  */
 void iterate_files(const std::filesystem::path& path,
                    const std::function<void(const std::filesystem::path& file)>& func,
-                   bool recurse = false,
                    bool include_links = false);
+
+/**
+ * @brief Recusive iterates over files in given directory and applies provided function to each file found.
+ *
+ * @param path Root directory path to iterate files from.
+ * @param func Function to apply to each file found.
+ * @param recurse Whether to recurse into subdirectories.
+ * @param include_links Whether to include symbolic links.
+ */
+void recursive_iterate_files(const std::filesystem::path& path,
+                             const std::function<void(const std::filesystem::path& file)>& func,
+                             bool include_links = false);
 
 /**
  * @brief   Gets a path to OpenVINO libraries.

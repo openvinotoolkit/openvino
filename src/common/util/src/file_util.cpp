@@ -56,50 +56,51 @@ std::wstring ov::util::path_join_w(std::initializer_list<std::wstring>&& paths) 
     return ::path_join<>(std::move(paths)).wstring();
 }
 
+namespace {
+void process_dir_entry(const std::filesystem::directory_entry& dir_entry,
+                       const std::function<void(const std::filesystem::path& file)>& func) {
+    const auto& status = dir_entry.status();
+    if (!std::filesystem::is_directory(status) && !std::filesystem::is_symlink(status)) {
+        func(dir_entry.path());
+    }
+}
+
+void process_dir_entry_include_links(const std::filesystem::directory_entry& dir_entry,
+                                     const std::function<void(const std::filesystem::path& file)>& func) {
+    const auto& status = dir_entry.status();
+    if (!std::filesystem::is_directory(status)) {
+        func(dir_entry.path());
+    }
+}
+}  // namespace
+
 void ov::util::iterate_files(const std::filesystem::path& path,
                              const std::function<void(const std::filesystem::path& file)>& func,
-                             bool recurse,
                              bool include_links) {
-    const auto process_dir_entry = [include_links, &func](const std::filesystem::directory_entry& dir_entry) {
-        const auto& status = dir_entry.status();
-        if (!std::filesystem::is_directory(status)) {
-            if (include_links || !std::filesystem::is_symlink(status)) {
-                try {
-                    func(dir_entry.path());
-                } catch (...) {
-                    std::exception_ptr p = std::current_exception();
-                    std::rethrow_exception(std::move(p));
-                }
-            }
-        }
-    };
+    std::error_code ec;
+    const auto dir_iter = std::filesystem::directory_iterator(path, ec);
+    if (ec) {
+        throw std::runtime_error("error enumerating file " + path_to_string(path) + ", err: " + ec.message());
+    }
 
-    const auto recursive_dir_iter = [&] {
-        std::error_code ec;
-        if (auto dir_iter = std::filesystem::recursive_directory_iterator(path, ec); ec) {
-            throw std::runtime_error("error enumerating file " + path_to_string(path) + ", err: " + ec.message());
-        } else {
-            return dir_iter;
-        }
-    };
+    const auto dir_entry_func = include_links ? process_dir_entry_include_links : process_dir_entry;
+    for (const auto& dir_entry : dir_iter) {
+        dir_entry_func(dir_entry, func);
+    }
+}
 
-    const auto dir_iter = [&] {
-        std::error_code ec;
-        if (auto dir_iter = std::filesystem::directory_iterator(path, ec); ec) {
-            throw std::runtime_error("error enumerating file " + path_to_string(path) + ", err: " + ec.message());
-        } else {
-            return dir_iter;
-        }
-    };
+void ov::util::recursive_iterate_files(const std::filesystem::path& path,
+                                       const std::function<void(const std::filesystem::path& file)>& func,
+                                       bool include_links) {
+    std::error_code ec;
+    const auto dir_iter = std::filesystem::recursive_directory_iterator(path, ec);
+    if (ec) {
+        throw std::runtime_error("error enumerating file " + path_to_string(path) + ", err: " + ec.message());
+    }
 
-    if (recurse) {
-        for (const auto& dir_entry : recursive_dir_iter()) {
-            process_dir_entry(dir_entry);
-        }
-    } else {
-        for (const auto& dir_entry : dir_iter()) {
-            process_dir_entry(dir_entry);
-        }
+    const auto dir_entry_func = include_links ? process_dir_entry_include_links : process_dir_entry;
+    for (const auto& dir_entry : dir_iter) {
+        dir_entry_func(dir_entry, func);
     }
 }
 
