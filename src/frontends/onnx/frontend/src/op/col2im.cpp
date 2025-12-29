@@ -6,6 +6,7 @@
 #include "utils/common.hpp"
 #include "core/operator_set.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "exceptions.hpp"
 using namespace ov::op::v15;
 
 namespace ov {
@@ -22,17 +23,8 @@ ov::OutputVector col2im(const ov::frontend::onnx::Node& node) {
     const auto& kernel_size = inputs[2]; // block_shape
 
     // 2. get attributes
-    size_t spatial_rank; // Determine Spatial Rank dynamically
-    const auto& kernel_size_ps = kernel_size.get_partial_shape();
-    const auto& output_size_ps = output_size.get_partial_shape();
-    if (kernel_size_ps.rank().is_static() && kernel_size_ps[0].is_static()) {
-        spatial_rank = kernel_size_ps[0].get_length();
-    } else if (output_size_ps.rank().is_static() && output_size_ps[0].is_static()) {
-        spatial_rank = output_size_ps[0].get_length();
-    } else {
-        spatial_rank = 2;
-    }
-    
+    const size_t spatial_rank = 2;
+
     std::vector<size_t> default_attr_vals(spatial_rank, 1);
     auto dilations = node.get_attribute_value<std::vector<size_t>>("dilations", default_attr_vals);
     auto strides = node.get_attribute_value<std::vector<size_t>>("strides", default_attr_vals);
@@ -41,6 +33,20 @@ ov::OutputVector col2im(const ov::frontend::onnx::Node& node) {
     auto pads = node.get_attribute_value<std::vector<size_t>>("pads", default_pads);
     std::vector<size_t> pads_begin;
     std::vector<size_t> pads_end;
+
+    // ov::op::v15::Col2Im only supports 2D spatial dimensions
+    CHECK_VALID_NODE(
+        node,
+        dilations.size() == spatial_rank, 
+        "Col2Im 'dilations' attribute must have size [2]. Got: ", dilations.size());
+    CHECK_VALID_NODE(
+        node,
+        strides.size() == spatial_rank,
+        "Col2Im 'strides' attribute must have size [2]. Got: ", strides.size());
+    CHECK_VALID_NODE(
+        node,
+        pads.size() == spatial_rank * 2,
+        "Col2Im 'pads' attribute must have size [4]. Got: ", pads.size());
 
     const auto half_size = pads.size() / 2;
     pads_begin.assign(pads.begin(), pads.begin() + half_size);
