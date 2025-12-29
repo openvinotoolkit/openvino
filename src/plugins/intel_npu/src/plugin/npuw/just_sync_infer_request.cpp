@@ -395,6 +395,9 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 std::make_unique<MoEPrefillPipeline>(this, proto_comp_model_desc.compiled_model, num_pipeline_requests);
         } else if (is_prefill) {
             LOG_INFO("MoE prefill pipeline disabled - using sequential inference for prefill");
+            // Create second infer request for double-buffering (parallel unpack and inference)
+            LOG_INFO("Creating second infer request for MoE prefill double-buffering...");
+            m_moe_prefill_second_request = proto_comp_model_desc.compiled_model->create_infer_request();
         } else {
             LOG_INFO("MoE decoding mode (single token) - no pipeline needed");
         }
@@ -2340,7 +2343,6 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
 
     // Get references
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    auto& r = m_subrequests[real_idx];
     const auto& moe_experts = comp_model_desc.moe_experts.value();
     const auto input_token_count = moe_experts.input_token_count;
     const size_t chunk_size = moe_experts.chunk_token_count;
@@ -2362,25 +2364,48 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
 
     auto router_source = m_moe_io[idx].router_scores;
     auto expert_input_source = m_moe_io[idx].expert_input;
-    auto router_dest = r->get_tensor(router_iport);
-    auto expert_input_dest = r->get_tensor(expert_input_iport);
-    auto expert_output = r->get_tensor(oport);
 
     // Calculate output embedding dimension
-    auto output_shape = expert_output->get_shape();
-    size_t embed_dim = (output_shape.size() == 4) ? output_shape[3] : output_shape[1];
+    auto output_shape_ref = comp_model_desc.compiled_model->outputs()[0].get_shape();
+    size_t embed_dim = (output_shape_ref.size() == 4) ? output_shape_ref[3] : output_shape_ref[1];
 
-    // Process each expert sequentially
-    for (size_t expert_id : selected_experts) {
+    // Use pre-created double-buffering infer requests for parallel unpack and inference
+    // Request 0: For current expert inference (main request)
+    // Request 1: For next expert unpacking (pre-created in constructor, overlapped with current inference)
+    auto& r0 = m_subrequests[real_idx];
+    RqPtr& r1 = m_moe_prefill_second_request;
+
+    // Process each expert with double-buffering
+    for (size_t expert_idx = 0; expert_idx < selected_experts.size(); ++expert_idx) {
+        size_t expert_id = selected_experts[expert_idx];
         LOG_DEBUG("\n  Processing Expert[" << expert_id << "]...");
         auto expert_start = std::chrono::high_resolution_clock::now();
 
-        // Step 1: Unpack expert weights
+        // Use alternating requests: r0 and r1
+        RqPtr& current_request = (expert_idx % 2 == 0) ? r0 : r1;
+        RqPtr& next_request = (expert_idx % 2 == 0) ? r1 : r0;
+
+        // Use r0 if r1 is null (single expert case)
+        if (!current_request) {
+            current_request = r0;
+        }
+
+        // Step 1: Unpack current expert weights to current request (if not already done)
+        // For expert_idx > 0, this may have been done during previous expert's inference
+        bool already_unpacked = (expert_idx > 0 && next_request != nullptr);
+
         auto step_start = std::chrono::high_resolution_clock::now();
-        unpack_moe_expert_closure(idx, r, expert_id);
         auto step_end = std::chrono::high_resolution_clock::now();
-        record_time(m_moe_prefill_stats.unpack_closure,
-                    std::chrono::duration<double, std::milli>(step_end - step_start).count());
+
+        if (!already_unpacked) {
+            step_start = std::chrono::high_resolution_clock::now();
+            unpack_moe_expert_closure(idx, current_request, expert_id);
+            step_end = std::chrono::high_resolution_clock::now();
+            record_time(m_moe_prefill_stats.unpack_closure,
+                        std::chrono::duration<double, std::milli>(step_end - step_start).count());
+        } else {
+            LOG_DEBUG("    Expert[" << expert_id << "] already unpacked during previous inference");
+        }
 
         // Step 2: Get tokens assigned to this expert
         const auto& tokens_for_expert = expert_to_tokens.at(expert_id);
@@ -2390,7 +2415,12 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
         LOG_DEBUG("    Expert[" << expert_id << "] processing " << total_tokens << " tokens in " << num_chunks
                                 << " chunks");
 
-        // Step 3: Process tokens in chunks
+        // Get tensors from current request
+        auto router_dest = current_request->get_tensor(router_iport);
+        auto expert_input_dest = current_request->get_tensor(expert_input_iport);
+        auto expert_output = current_request->get_tensor(oport);
+
+        // Step 3: Process tokens in chunks with parallel unpack of next expert
         for (size_t chunk_idx = 0; chunk_idx < num_chunks; ++chunk_idx) {
             size_t chunk_start_idx = chunk_idx * chunk_size;
             size_t chunk_end_idx = std::min(chunk_start_idx + chunk_size, total_tokens);
@@ -2419,9 +2449,29 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
                                  current_chunk_size);
             step_end = std::chrono::high_resolution_clock::now();
 
-            // 3.3: Execute expert inference
+            // 3.3: Start async inference for current expert chunk
             step_start = std::chrono::high_resolution_clock::now();
-            r->infer();
+            current_request->start_async();
+
+            // PARALLEL OPTIMIZATION: While current chunk is inferring, unpack next expert to next request
+            // This overlaps CPU unpack time with NPU inference time
+            const bool is_last_chunk = (chunk_idx == num_chunks - 1);
+            const bool has_next_expert = (expert_idx + 1 < selected_experts.size());
+
+            if (is_last_chunk && has_next_expert && next_request) {
+                // Unpack next expert weights while current inference is running
+                size_t next_expert_id = selected_experts[expert_idx + 1];
+                LOG_DEBUG("      [PARALLEL] Unpacking next Expert[" << next_expert_id
+                                                                    << "] while current chunk is inferring...");
+                auto unpack_start = std::chrono::high_resolution_clock::now();
+                unpack_moe_expert_closure(idx, next_request, next_expert_id);
+                auto unpack_end = std::chrono::high_resolution_clock::now();
+                record_time(m_moe_prefill_stats.unpack_closure,
+                            std::chrono::duration<double, std::milli>(unpack_end - unpack_start).count());
+            }
+
+            // Wait for current inference to complete
+            current_request->wait();
             step_end = std::chrono::high_resolution_clock::now();
             record_time(m_moe_prefill_stats.expert_inference,
                         std::chrono::duration<double, std::milli>(step_end - step_start).count());
