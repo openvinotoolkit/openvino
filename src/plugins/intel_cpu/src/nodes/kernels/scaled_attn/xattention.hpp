@@ -219,24 +219,28 @@ struct Xattn {
 #    if defined(HAVE_AVX512F)
                         transpose_16NxK<bfloat16, ov::element::bf16>(reinterpret_cast<bfloat16*>(dst),  // dst
                                                                      reinterpret_cast<bfloat16*>(src),  // src
-                                                                     N,                                 // N
-                                                                     S,                                 // K
-                                                                     _n_block_size,                     // block size
-                                                                     _n_block_size,                     // dst stride
-                                                                     (S * stride * K_H)                 // src stride
-                        );
+                                                                     nullptr,
+                                                                     N,                   // N
+                                                                     S,                   // K
+                                                                     _n_block_size,       // block size
+                                                                     _n_block_size,       // dst stride
+                                                                     (S * stride * K_H),  // src stride
+                                                                     0,
+                                                                     false);
 #    else
                     OPENVINO_THROW("xattention: bf16 needs avx512+ hardware");
 #    endif
                     } else if (in_type == ov::element::f32) {
                         transpose_16NxK<float, ov::element::f32>(reinterpret_cast<float*>(dst),  // dst
                                                                  src,                            // src
-                                                                 N,                              // N
-                                                                 S,                              // K
-                                                                 _n_block_size,                  // block size
-                                                                 _n_block_size,                  // dst stride
-                                                                 (S * stride * K_H)              // src stride
-                        );
+                                                                 nullptr,
+                                                                 N,                   // N
+                                                                 S,                   // K
+                                                                 _n_block_size,       // block size
+                                                                 _n_block_size,       // dst stride
+                                                                 (S * stride * K_H),  // src stride
+                                                                 0,
+                                                                 false);
                     } else {
                         OPENVINO_THROW("xattention: unsupported precision: ", in_type);
                     }
