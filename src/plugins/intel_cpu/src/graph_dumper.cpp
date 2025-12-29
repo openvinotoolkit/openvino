@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <ios>
@@ -40,7 +41,7 @@
 namespace ov::intel_cpu {
 
 void serializeToCout(const Graph& graph);
-void serializeToXML(const Graph& graph, const std::string& path);
+void serializeToXML(const Graph& graph, const std::filesystem::path& path);
 
 namespace {
 
@@ -236,24 +237,25 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
 
 #ifdef CPU_DEBUG_CAPS
 void serialize(const Graph& graph) {
-    const std::string& path = graph.getConfig().debugCaps.execGraphPath;
+    const std::string& pathStr = graph.getConfig().debugCaps.execGraphPath;
 
-    if (path.empty()) {
+    if (pathStr.empty()) {
         return;
     }
 
-    if (path == "cout") {
+    if (pathStr == "cout") {
         serializeToCout(graph);
-    } else if (!path.compare(path.size() - 4, 4, ".xml")) {
+    } else if (std::filesystem::path p{pathStr}; p.extension() == ".xml") {
         static int g_idx = 0;
-        std::string xmlPath = std::string(path, 0, path.size() - 4) + "_" + std::to_string(g_idx++) + ".xml";
+        const auto xmlPath =
+            p.parent_path() / (p.stem().string() + "_" + std::to_string(g_idx++) + p.extension().string());
         serializeToXML(graph, xmlPath);
     } else {
-        OPENVINO_THROW("Unknown serialize format. Should be either 'cout' or '*.xml'. Got ", path);
+        OPENVINO_THROW("Unknown serialize format. Should be either 'cout' or '*.xml'. Got ", pathStr);
     }
 }
 
-void serializeToXML(const Graph& graph, const std::string& path) {
+void serializeToXML(const Graph& graph, const std::filesystem::path& path) {
     if (path.empty()) {
         return;
     }
@@ -393,10 +395,9 @@ void average_counters(const Graph& graph) {
     }
 
     static int graphIndex = 0;
-    std::string fileName = path + "_" + std::to_string(graphIndex++) + ".csv";
-
-    std::ofstream file;
-    file.open(fileName);
+    std::filesystem::path fileName{path};
+    fileName += "_" + std::to_string(graphIndex++) + ".csv";
+    std::ofstream file(fileName);
 
     // table structure is identical to the benchmark_app average_counters report
     const std::string header = "layerName;execStatus;layerType;execType;realTime (ms);cpuTime (ms);";
