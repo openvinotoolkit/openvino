@@ -58,7 +58,7 @@ void SubgraphExecutor::segfault_detector() const {
         __sighandler_t signal_handler = []([[maybe_unused]] int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);
             if (auto* segfault_detector_emitter = ov::intel_cpu::riscv64::g_custom_segfault_handler->local()) {
-                std::cout << segfault_detector_emitter->get_debug_info() << '\n';
+                std::cout << segfault_detector_emitter->info() << '\n';
             }
             auto tid = parallel_get_thread_num();
             OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " +
