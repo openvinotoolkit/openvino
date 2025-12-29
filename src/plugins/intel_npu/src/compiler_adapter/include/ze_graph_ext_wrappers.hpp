@@ -48,6 +48,12 @@ public:
     bool isOptionSupported(std::string optName, std::optional<std::string> optValue = std::nullopt) const;
     bool isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const;
 
+    /**
+     * @brief Tells us whether or not the driver is able to receive and take into account a hash of the model instead of
+     * computing its own within the UMD.
+     */
+    bool isPluginModelHashSupported() const;
+
     void getGraphBinary(const GraphDescriptor& graphDescriptor,
                         std::vector<uint8_t>& blob,
                         const uint8_t*& blobPtr,
