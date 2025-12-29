@@ -314,8 +314,8 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(SerializedIR seri
         _graphExtVersion < ZE_MAKE_VERSION(1, 16) ? ZE_STRUCTURE_TYPE_GRAPH_DESC : ZE_STRUCTURE_TYPE_GRAPH_DESC_2,
         nullptr,
         ZE_GRAPH_FORMAT_NGRAPH_LITE,
-        serializedIR.first,
-        serializedIR.second.get(),
+        serializedIR.size,
+        serializedIR.buffer.get(),
         buildFlags.c_str(),
         ZE_GRAPH_FLAG_NONE};
 
@@ -376,6 +376,12 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
                                                        const std::string& buildFlags,
                                                        const bool bypassUmdCache) const {
     ze_graph_handle_t graphHandle = nullptr;
+    void* pNext = nullptr;
+    ze_graph_input_hash_t modelHash;
+    if (serializedIR.hash.has_value()) {
+        modelHash = {ZE_STRUCTURE_TYPE_GRAPH_INPUT_HASH, nullptr, serializedIR.hash.value()};
+        pNext = &modelHash;
+    }
 
     uint32_t flags = ZE_GRAPH_FLAG_NONE;
     if (bypassUmdCache) {
@@ -384,10 +390,10 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
     }
 
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_2,
-                              nullptr,
+                              pNext,
                               ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                              serializedIR.first,
-                              serializedIR.second.get(),
+                              serializedIR.size,
+                              serializedIR.buffer.get(),
                               buildFlags.c_str(),
                               flags};
 
@@ -665,6 +671,10 @@ bool ZeGraphExtWrappers::isTurboOptionSupported(const ze_graph_compiler_version_
     }
 
     return is_supported;
+}
+
+bool ZeGraphExtWrappers::isPluginModelHashSupported() const {
+    return _graphExtVersion > ZE_MAKE_VERSION(1, 13);
 }
 
 }  // namespace intel_npu

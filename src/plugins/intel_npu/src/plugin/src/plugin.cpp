@@ -1070,7 +1070,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ov::SupportedOpsMap supportedOpsMap;
     try {
-        supportedOpsMap = compiler->query(model, localConfig);
+        supportedOpsMap = compiler->query(model->clone(), localConfig);
     } catch (const std::runtime_error& e) {
         OPENVINO_THROW(e.what());
     } catch (...) {
