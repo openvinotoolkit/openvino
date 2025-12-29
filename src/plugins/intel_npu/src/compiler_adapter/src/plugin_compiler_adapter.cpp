@@ -87,7 +87,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
         std::string baseName = "npu_mlir_compiler";
         auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
         try {
-            _compiler = load_compiler(libPath);
+            _compiler = load_compiler(ov::util::path_to_string(libPath));
             if (!_compiler) {
                 throw std::runtime_error("MLIR compiler load returned nullptr");
             } else {
