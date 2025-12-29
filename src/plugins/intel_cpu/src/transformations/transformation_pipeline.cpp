@@ -555,7 +555,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         [](const_node_ptr& node) -> bool {
             const auto consumers = node->get_output_target_inputs(0);
             return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
-                return !ov::is_type<ov::op::v0::MatMul>(consumer.get_node());
+                // @todo cover RNN type of ops as well
+                return !is_type_any_of<ov::op::v0::MatMul,
+                                       ov::op::v1::Convolution,
+                                       ov::op::v1::GroupConvolution,
+                                       ov::op::v1::ConvolutionBackpropData,
+                                       ov::op::v1::GroupConvolutionBackpropData>(consumer.get_node());
             });
         },
         ov::pass::KeepConstAndDecompression);
@@ -1232,12 +1237,9 @@ void Transformations::MainSnippets() {
     // Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
     CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     common_optimizations_config.set_transpose_support_callback(
         ov::snippets::utils::make_transpose_support_callback(true));
-#elif defined(OPENVINO_ARCH_ARM64)
-    common_optimizations_config.set_transpose_support_callback(
-        ov::snippets::utils::make_transpose_support_callback(false));
 #else
     common_optimizations_config.set_transpose_support_callback([](const std::shared_ptr<const ov::Node>&) -> bool {
         return false;
@@ -1317,7 +1319,7 @@ void Transformations::MainSnippets() {
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
 #elif defined(OPENVINO_ARCH_ARM64)
     const auto is_infer_prc_supported_by_brgemm =
-        any_of(config.inferencePrecision, ov::element::f32, ov::element::dynamic);
+        any_of(config.inferencePrecision, ov::element::f32, ov::element::f16, ov::element::dynamic);
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
 #else
     const bool isMHASupported = false;
