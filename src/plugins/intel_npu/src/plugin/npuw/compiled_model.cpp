@@ -8,6 +8,7 @@
 #include <string>
 
 #include "accuracy/comparator.hpp"
+#include "pipelines/kokoro/kokoro_compiled_model.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
@@ -139,21 +140,24 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     LOG_BLOCK();
     std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
+
+    // Drop CACHE_DIR from the config
+    // If it's present we will be utilizing *CompiledModel's import
+    // and not the underlying models and submodels
+    auto config = properties;
+    config.erase(ov::cache_dir.name());
+
     if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
-        // Drop CACHE_DIR from the config
-        // If it's present we will be utilizing LLMCompiledModel's import
-        // and not the underlying models and submodels
-        auto config = properties;
-        config.erase(ov::cache_dir.name());
         compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
+    // FIXME Temporary stub to detect kokoro models, will be replaced with pattern \ config option later
+    #if defined(NPU_PLUGIN_DEVELOPER_BUILD) || !defined(NDEBUG)
+    } else if (KokoroCompiledModel::is_kokoro_monolithic_model(model)) {
+        LOG_INFO("ov::npuw::KokoroCompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::KokoroCompiledModel>(model, plugin, config);
+    #endif
     } else {
         LOG_INFO("ov::npuw::CompiledModel will be created.");
-        // Drop CACHE_DIR from the config
-        // If it's present we will be utilizing LLMCompiledModel's import
-        // and not the underlying models and submodels
-        auto config = properties;
-        config.erase(ov::cache_dir.name());
         compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, config);
     }
     LOG_INFO("Done");
