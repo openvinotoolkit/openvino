@@ -63,7 +63,11 @@ public:
 
     ~jit_snippet() override = default;
 
-    jit_snippet() = default;
+    // Xbyak_riscv uses a fixed-size code buffer; the default limit can be too small for complex snippets
+    // (especially with debug instrumentation enabled), so allocate a larger buffer to avoid JIT failures.
+    static constexpr size_t max_code_size_bytes = 64 * 1024;
+
+    jit_snippet() : jit_generator_t(max_code_size_bytes) {}
 
     void generate() override {}
 };
