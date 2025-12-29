@@ -17,7 +17,6 @@ ov_add_test_target(
             funcSharedTests
         DEPENDENCIES
             openvino_auto_batch_plugin
-        ADD_CPPLINT
         LABELS
             OV AUTO_BATCH
 )

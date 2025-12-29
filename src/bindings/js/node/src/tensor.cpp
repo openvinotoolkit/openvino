@@ -3,6 +3,8 @@
 
 #include "node/include/tensor.hpp"
 
+#include <memory>
+
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
@@ -15,7 +17,17 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
     }
     try {
         OPENVINO_ASSERT(info.Length() <= 3, "Invalid number of arguments for Tensor constructor.");
-        if (info.Length() == 1 && info[0].IsArray()) {
+        if (info.Length() == 1 && info[0].IsExternal()) {
+            // Cross-addon interoperability: Create from Napi::External<ov::Tensor>
+            // This allows sharing tensor data between different native Node.js addons
+            // The External contains a pointer to an ov::Tensor object
+            auto external = info[0].As<Napi::External<ov::Tensor>>();
+            auto tensor_ptr = external.Data();
+            OPENVINO_ASSERT(tensor_ptr, "External tensor pointer is null.");
+            // Copy the ov::Tensor - this is lightweight as it only copies the wrapper
+            // The actual tensor data is shared via ov::Tensor's internal shared_ptr
+            this->_tensor = *tensor_ptr;
+        } else if (info.Length() == 1 && info[0].IsArray()) {
             this->_tensor = cast_to_tensor(info[0].As<Napi::Array>());
         } else {
             const auto type = js_to_cpp<ov::element::Type_t>(info, 0);
@@ -45,7 +57,8 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
                         InstanceMethod("getSize", &TensorWrap::get_size),
                         InstanceMethod("isContinuous", &TensorWrap::is_continuous),
-                        InstanceMethod("setShape", &TensorWrap::set_shape)});
+                        InstanceMethod("setShape", &TensorWrap::set_shape),
+                        InstanceMethod("__getExternalTensor", &TensorWrap::get_external_tensor)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -205,4 +218,18 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
         return env.Undefined();
     }
     return Napi::Boolean::New(env, _tensor.is_continuous());
+}
+
+Napi::Value TensorWrap::get_external_tensor(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() > 0) {
+        reportError(env, "__getExternalTensor() does not accept any arguments.");
+        return env.Undefined();
+    }
+    // Return a pointer to the ov::Tensor object wrapped in Napi::External
+    // This is a service method for cross-addon interoperability
+    // Since ov::Tensor already contains shared_ptr internally, we don't need an extra shared_ptr wrapper
+    return Napi::External<ov::Tensor>::New(env, new ov::Tensor(_tensor), [](Napi::Env /*env*/, ov::Tensor* ov_tensor) {
+        delete ov_tensor;
+    });
 }

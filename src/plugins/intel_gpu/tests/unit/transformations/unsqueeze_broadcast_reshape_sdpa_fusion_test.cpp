@@ -4,6 +4,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 
+#include "ov_ops/rotary_positional_embeddings.hpp"
+
 #include "openvino/core/model.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/op/abs.hpp"
@@ -11,6 +13,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
 #include "intel_gpu/op/sdpa.hpp"
@@ -220,6 +223,96 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion4) {
         auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(inputs, is_causal, in0_order, in1_order, in2_order, out_order);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, key_token_param, value_token_param, beam_idx});
+        manager.register_pass<UnsqueezeBroadcastReshapeSDPAFusion>();
+    }
+    {
+        model_ref = model->clone();
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+}
+
+TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion5) {
+    std::vector<int64_t> in0_order = {0, 1, 2, 3};
+    std::vector<int64_t> in1_order = {0, 1, 2, 3};
+    std::vector<int64_t> in2_order = {0, 1, 2, 3};
+    std::vector<int64_t> out_order = {0, 1, 2, 3};
+    std::vector<int32_t> shape_val = {1, 8, 1, 256, 128};
+    std::vector<int32_t> pattern_shape = {0, 16, -1, 128};
+    std::vector<int32_t> target_shape_kv = {1, 8, 2, 256, 128};
+    const bool is_causal = true;
+    {
+        auto input_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 16, 256, 128});
+        auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 256, 8, 128});
+        auto cos = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 256, 128});
+        auto sin = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 256, 128});
+        auto key_rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos, sin}, ov::op::internal::RoPE::Config());
+        auto transpose_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 256, 8, 128});
+        auto value_transpose = std::make_shared<ov::op::v1::Transpose>(transpose_input, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3}));
+        auto shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, shape_val);
+        auto key_pre_reshape = std::make_shared<ov::op::v1::Reshape>(key_rope, shape, false);
+        auto value_pre_reshape = std::make_shared<ov::op::v1::Reshape>(value_transpose, shape, false);
+        auto broadcast_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, target_shape_kv);
+        auto key_broadcast = std::make_shared<ov::op::v3::Broadcast>(key_pre_reshape, broadcast_const, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto value_broadcast = std::make_shared<ov::op::v3::Broadcast>(value_pre_reshape, broadcast_const, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto pattern = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, pattern_shape);
+        auto key_reshape = std::make_shared<ov::op::v1::Reshape>(key_broadcast, pattern, true);
+        auto value_reshape = std::make_shared<ov::op::v1::Reshape>(value_broadcast, pattern, true);
+        auto inputs = ov::OutputVector{input_q, key_reshape, value_reshape};
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(inputs, is_causal, in0_order, in1_order, in2_order, out_order);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, rope_input, cos, sin, transpose_input});
+        manager.register_pass<UnsqueezeBroadcastReshapeSDPAFusion>();
+    }
+    {
+        auto input_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 16, 256, 128});
+        auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 256, 8, 128});
+        auto cos = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 256, 128});
+        auto sin = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 256, 128});
+        auto input_k = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos, sin}, ov::op::internal::RoPE::Config());
+        auto transpose_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 256, 8, 128});
+        auto input_v = std::make_shared<ov::op::v1::Transpose>(transpose_input, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3}));
+        auto inputs = ov::OutputVector{input_q, input_k, input_v};
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(inputs, is_causal, in0_order, in1_order, in2_order, out_order);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, rope_input, cos, sin, transpose_input});
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+}
+
+TEST_F(TransformationTestsF, UnsqueezeBroadReshapeSDPAFusion6) {
+    std::vector<int64_t> in0_order = {0, 1, 2, 3};
+    std::vector<int64_t> in1_order = {0, 1, 2, 3};
+    std::vector<int64_t> in2_order = {0, 1, 2, 3};
+    std::vector<int64_t> out_order = {0, 1, 2, 3};
+    std::vector<int32_t> shape_k_val = {1, 8, 1, 256, 128};
+    std::vector<int32_t> shape_v_val = {1, 1, 8, 256, 128};
+    std::vector<int32_t> pattern_shape = {0, 16, -1, 128};
+    std::vector<int32_t> target_shape_k = {1, 8, 2, 256, 128};
+    std::vector<int32_t> target_shape_v = {1, 2, 8, 256, 128};
+    const bool is_causal = true;
+    {
+        auto input_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 16, 256, 128});
+        auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 256, 8, 128});
+        auto cos = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 256, 128});
+        auto sin = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 256, 128});
+        auto key_rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos, sin}, ov::op::internal::RoPE::Config());
+        auto transpose_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 256, 8, 128});
+        auto value_transpose = std::make_shared<ov::op::v1::Transpose>(transpose_input, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3}));
+        auto shape_k = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, shape_k_val);
+        auto key_pre_reshape = std::make_shared<ov::op::v1::Reshape>(key_rope, shape_k, false);
+        auto shape_v = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, shape_v_val);
+        auto value_pre_reshape = std::make_shared<ov::op::v1::Reshape>(value_transpose, shape_v, false);
+        auto broadcast_k_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, target_shape_k);
+        auto key_broadcast = std::make_shared<ov::op::v3::Broadcast>(key_pre_reshape, broadcast_k_const, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto broadcast_v_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, target_shape_v);
+        auto value_broadcast = std::make_shared<ov::op::v3::Broadcast>(value_pre_reshape, broadcast_v_const, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto pattern = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, pattern_shape);
+        auto key_reshape = std::make_shared<ov::op::v1::Reshape>(key_broadcast, pattern, true);
+        auto value_reshape = std::make_shared<ov::op::v1::Reshape>(value_broadcast, pattern, true);
+        auto inputs = ov::OutputVector{input_q, key_reshape, value_reshape};
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(inputs, is_causal, in0_order, in1_order, in2_order, out_order);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, rope_input, cos, sin, transpose_input});
         manager.register_pass<UnsqueezeBroadcastReshapeSDPAFusion>();
     }
     {

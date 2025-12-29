@@ -10,7 +10,6 @@ ov_add_test_target(
         INCLUDES
             PRIVATE
                 "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        ADD_CPPLINT
         LINK_LIBRARIES
             PUBLIC
                 conformance_shared

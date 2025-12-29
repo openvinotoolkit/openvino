@@ -30,6 +30,7 @@ struct DeconvolutionImplementationManager : public ImplementationManager {
             format::bfyx,
             format::bfzyx,
             format::byxf,
+            format::bzyxf,
             format::b_fs_yx_fsv8,
             format::b_fs_zyx_fsv8,
             format::b_fs_yx_fsv16,

@@ -6,7 +6,6 @@
 #ifdef CPU_DEBUG_CAPS
 #    include <node.h>
 
-#    include "openvino/util/file_util.hpp"
 #    include "utils/debug_caps_config.h"
 
 namespace ov::intel_cpu {
@@ -24,7 +23,6 @@ public:
         : node(_node),
           count(_count),
           config(_config) {
-        ov::util::create_directory_recursive(config.blobDumpDir);
         dumpInputBlobs(node, config, count);
     }
 

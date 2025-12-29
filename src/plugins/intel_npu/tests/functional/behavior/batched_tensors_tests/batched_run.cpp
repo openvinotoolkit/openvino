@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/batched_tensors_tests/batched_run.hpp"
+#include "batched_run.hpp"
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"

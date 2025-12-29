@@ -243,7 +243,8 @@ std::shared_ptr<ov::Model> KVCacheStaticQuantization::get_model_ref(ov::element:
         return std::make_shared<v0::Convert>(downconvert, low_precision);
     };
 
-    auto fake_convert_upconvert = [original_precision](const ov::Output<ov::Node>& input, float scale, float shift) {
+    auto fake_convert_upconvert =
+        [original_precision](const ov::Output<ov::Node>& input, float scale, float shift) -> std::shared_ptr<ov::Node> {
         auto upconvert = input;
         upconvert = std::make_shared<v0::Convert>(input, original_precision);
         if (shift != 0.f) {
@@ -255,7 +256,7 @@ std::shared_ptr<ov::Model> KVCacheStaticQuantization::get_model_ref(ov::element:
     };
 
     // Create upconvert→downconvert ("reverse" fake convert: low precision on input-output, fp32 inside)
-    auto create_reverse_build_convert = [&](std::shared_ptr<ov::Node> rearranged_input) {
+    auto create_reverse_fake_convert = [&](std::shared_ptr<ov::Node> rearranged_input) -> std::shared_ptr<ov::Node> {
         auto upconvert_result = fake_convert_upconvert(rearranged_input, 1.0f / scale, -shift);
         return fake_convert_downconvert(upconvert_result, scale, shift, true);
     };
@@ -270,8 +271,8 @@ std::shared_ptr<ov::Model> KVCacheStaticQuantization::get_model_ref(ov::element:
         auto rearranged_k = make_kv_rearrange(params[1], in_beam_idx, qkv_order[0]);
         auto rearranged_v = make_kv_rearrange(params[2], in_beam_idx, qkv_order[0]);
 
-        auto concat_k_input = create_reverse_build_convert(rearranged_k);
-        auto concat_v_input = create_reverse_build_convert(rearranged_v);
+        auto concat_k_input = create_reverse_fake_convert(rearranged_k);
+        auto concat_v_input = create_reverse_fake_convert(rearranged_v);
         // In case of stateful model, the whole KV cache subgraph has low precision after LPT,
         // so no fownconvert subgraph is needed.
         concat_k_inputs = {concat_k_input, fake_convert_downconvert(params[3], scale, shift)};
@@ -286,27 +287,19 @@ std::shared_ptr<ov::Model> KVCacheStaticQuantization::get_model_ref(ov::element:
     auto concat_k = std::make_shared<v0::Concat>(concat_k_inputs, concat_axis);
     auto concat_v = std::make_shared<v0::Concat>(concat_v_inputs, concat_axis);
 
-    std::shared_ptr<ov::Node> result_input_k = concat_k;
-    std::shared_ptr<ov::Node> result_input_v = concat_v;
-    if (stateful) {
-        // Add reverse fake convert before assign
-        result_input_k = create_reverse_build_convert(concat_k);
-        result_input_v = create_reverse_build_convert(concat_v);
-    }
-
-    // Note: upconvert part contains opposite scale and shift
-    auto upconvert_k = fake_convert_upconvert(result_input_k, 1.f / scale, -shift);
-    auto upconvert_v = fake_convert_upconvert(result_input_v, 1.f / scale, -shift);
-
-    auto present_k = std::make_shared<v0::Result>(stateful ? result_input_k : upconvert_k);
+    auto present_k = std::make_shared<v0::Result>(stateful ? create_reverse_fake_convert(concat_k)
+                                                           // Note: upconvert part contains opposite scale and shift
+                                                           : fake_convert_upconvert(concat_k, 1.f / scale, -shift));
     present_k->set_friendly_name("present_k");
 
-    auto present_v = std::make_shared<v0::Result>(stateful ? result_input_v : upconvert_v);
+    auto present_v = std::make_shared<v0::Result>(stateful ? create_reverse_fake_convert(concat_v)
+                                                           // Note: upconvert part contains opposite scale and shift
+                                                           : fake_convert_upconvert(concat_v, 1.f / scale, -shift));
     present_v->set_friendly_name("present_v");
 
     std::shared_ptr<ov::Node> q = params[0];
-    std::shared_ptr<ov::Node> k = upconvert_k;
-    std::shared_ptr<ov::Node> v = upconvert_v;
+    std::shared_ptr<ov::Node> k = fake_convert_upconvert(concat_k, 1.f / scale, -shift);
+    std::shared_ptr<ov::Node> v = fake_convert_upconvert(concat_v, 1.f / scale, -shift);
 
     if (num_groups > 1) {
         k = make_gqa(k, num_groups, n_heads, k_features, qkv_order);
@@ -354,7 +347,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_KVCacheStaticQuantization,
                          ::testing::Combine(::testing::Values(ov::element::f32),
                                             ::testing::ValuesIn(low_precision_types),
                                             ::testing::ValuesIn(sdpa_types),
-                                            ::testing::Values(3),
+                                            ::testing::Values(1, 3),
                                             ::testing::Values(true, false),
                                             ::testing::ValuesIn(scales),
                                             ::testing::ValuesIn(shifts)),

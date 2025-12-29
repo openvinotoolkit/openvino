@@ -43,21 +43,31 @@ OutputVector translate_cat_common(const NodeContext& context,
         list_elems.size() > 1 || !ov::as_type_ptr<v0::Parameter>(first_node),
         "<aten/quantized>::cat is located inside body while inputs are located outside of the body. "
         "This case is not supported.");
-    if (list_elems.size() == 1 &&
-        !ov::as_type_ptr<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr()) && !is_fx) {
+
+    if (list_elems.size() == 1 && !is_fx) {
         // Case when list was merged into tensor. // This case doesn't work with torchfx
         auto tensor = list_elems[0];
-        auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));
-        auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-        auto neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-        auto axis_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {axis}));
-        auto one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
-        auto int_max =
-            context.mark_node(v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>().max()}));
-        auto shape_sliced = context.mark_node(std::make_shared<v8::Slice>(shape, one, int_max, one));
-        auto new_shape =
-            context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(shape_sliced, axis_const, neg_1, zero));
-        return {context.mark_node(std::make_shared<v1::Reshape>(tensor, new_shape, false))};
+
+        auto complex = as_type_ptr<ComplexTypeMark>(tensor.get_node_shared_ptr());
+        bool is_complex = complex != nullptr;
+
+        if (is_complex) {
+            return {tensor};
+        } else if (!ov::as_type_ptr<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr())) {
+            auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));
+            auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+            auto neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+            auto axis_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {axis}));
+            auto one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+            auto int_max =
+                context.mark_node(v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>().max()}));
+            auto shape_sliced = context.mark_node(std::make_shared<v8::Slice>(shape, one, int_max, one));
+            auto new_shape =
+                context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(shape_sliced, axis_const, neg_1, zero));
+
+            auto result = context.mark_node(std::make_shared<v1::Reshape>(tensor, new_shape, false));
+            return {result};
+        }
     }
 
     // Resolve complex types
@@ -66,6 +76,7 @@ OutputVector translate_cat_common(const NodeContext& context,
         std::any_of(std::next(list_elems.begin()), list_elems.end(), [](const ov::Output<ov::Node>& input) {
             return ov::as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr()) != nullptr;
         });
+
     if (is_complex) {
         // axis that couts from end, needs to be increased by 1 dimension
         if (axis < 0)

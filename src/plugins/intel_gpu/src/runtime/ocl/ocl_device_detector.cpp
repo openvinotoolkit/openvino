@@ -166,7 +166,9 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
         // Additionally, for Intel GPUs, there may be cases where device is not clearly identifiable due to
         // driver issues - to maintain compatibility, initialize them immediately
         // For other vendors, allow deferred initialization to optimize power consumption
-        if (user_context != nullptr || user_device != nullptr || dptr->get_info().vendor_id == cldnn::INTEL_VENDOR_ID) {
+
+        bool is_intel_gpu = dptr->get_info().vendor_id == cldnn::INTEL_VENDOR_ID;
+        if (user_context != nullptr || user_device != nullptr || is_intel_gpu) {
             initialize_device = true;
         }
 
@@ -176,7 +178,7 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
         auto map_id = std::to_string(idx++);
         ret[map_id] = std::make_shared<ocl_device>(root_device, initialize_device);
 
-        OPENVINO_ASSERT(root_device->is_initialized(), "[GPU] Device is not initialized");
+        OPENVINO_ASSERT(root_device->is_initialized() || !is_intel_gpu, "[GPU] Device is not initialized");
 
         auto sub_devices = getSubDevices(root_device->get_device());
         if (!sub_devices.empty()) {
@@ -219,7 +221,12 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
             for (auto& device : devices) {
                 if (!does_device_match_config(device))
                     continue;
-                supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), platform));
+
+                if (device.getInfo<CL_DEVICE_VENDOR_ID>() == cldnn::INTEL_VENDOR_ID) {
+                    supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), platform));
+                } else {
+                    supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(), platform, false));
+                }
             }
         } catch (std::exception& ex) {
             GPU_DEBUG_LOG << "Devices query/creation failed for " << platform.getInfo<CL_PLATFORM_NAME>() << ": " << ex.what() << std::endl;

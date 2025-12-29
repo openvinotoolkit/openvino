@@ -820,10 +820,10 @@ inline std::istream& operator>>(std::istream& is, CacheMode& mode) {
 /** @endcond */
 
 /**
- * @brief Read-write property to select the cache mode between optimize_size and optimize_speed.
- * If optimize_speed is selected (default), loading time will decrease but the cache file size will increase.
- * If optimize_size is selected, smaller cache files will be created.
- * Only the GPU and NPU plugins support this for now.
+ * @brief Read-write property to select the cache mode between OPTIMIZE_SIZE and OPTIMIZE_SPEED.
+ * If OPTIMIZE_SPEED is selected (default), loading time will decrease but the cache file size will increase.
+ * If OPTIMIZE_SIZE is selected, smaller cache files will be created.
+ * The cache model default behaviour can be overridden by ENABLE_WEIGHTLESS property.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_MODE"};
@@ -834,13 +834,17 @@ struct EncryptionCallbacks {
 };
 
 /**
+ * @brief Read-write property to enable/disable weightless cache.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_weightless{"ENABLE_WEIGHTLESS"};
+
+/**
  * @brief Write-only property to set encryption/decryption function for saving/loading model cache.
  * If cache_encryption_callbacks is set, the model topology will be encrypted when saving to the cache and decrypted
  * when loading from the cache. This property is set in core.compile_model only.
  * - First value of the struct is encryption function.
  * - Second value of the struct is decryption function.
- * @note GPU Plugin: encrypts whole blob, not only model structure. Only used when ov::cache_mode property is set to
- * "OPTIMIZE_SIZE".
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<EncryptionCallbacks, PropertyMutability::WO> cache_encryption_callbacks{

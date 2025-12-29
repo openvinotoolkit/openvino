@@ -13,8 +13,6 @@ namespace ov::util {
 // * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
 // * https://stackoverflow.com/questions/58521857/cross-platform-way-to-handle-stdstring-stdwstring-with-stdfilesystempath
 // Working compiler versions has been designated with godbolt.
-using Path = std::filesystem::path;
-
 #if !defined(__GNUC__) || (__GNUC__ > 12 || __GNUC__ == 12 && __GNUC_MINOR__ >= 3)
 #    define GCC_NOT_USED_OR_VER_AT_LEAST_12_3
 #endif
@@ -36,6 +34,6 @@ using Path = std::filesystem::path;
 #if defined(GCC_VER_LESS_THAN_12_3) || defined(CLANG_VER_LESS_THAN_17)
 
 template <>
-ov::util::Path::path(const std::wstring& source, ov::util::Path::format fmt);
+std::filesystem::path::path(const std::wstring& source, std::filesystem::path::format fmt);
 
 #endif

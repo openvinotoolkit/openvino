@@ -33,6 +33,11 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
     auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
     if (weightless_cache_attr != rt_info.end()) {
         m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+    } else {
+        // See the comment in serialize() for more details
+        LOG_WARN("Some pattern introduced a new Constant node not present in the original weights file. We need to "
+                 "keep it in case export occurs. This will increase memory consumption.");
+        m_copied_if_not_in_model = ov::npuw::util::copy_tensor_from_const(m_node);
     }
 }
 
@@ -56,8 +61,17 @@ ov::Tensor Const::eval() const {
     }
 
     // Weightless import case. Mmmap CPU weight on demand to avoid allocating all weights at once.
-    if (!m_weights_path.empty()) {
-        auto mapped_memory = ov::load_mmap_object(m_weights_path);
+    if (!m_weights_path.empty() || m_handle_provider) {
+        NPUW_ASSERT(!m_read_from_bin &&
+                    "Trying to read weight from weights file, but the weight has been already deserialized!");
+        std::shared_ptr<ov::MappedMemory> mapped_memory;
+        // Use handle_provider if available, otherwise use default mmap
+        if (m_handle_provider) {
+            ov::FileHandle handle = m_handle_provider();
+            mapped_memory = ov::load_mmap_object(handle);
+        } else {
+            mapped_memory = ov::load_mmap_object(m_weights_path);
+        }
         m_mmaped_weights =
             std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(), mapped_memory->size(), mapped_memory);
         return ov::Tensor(m_cached_type, m_cached_shape, m_mmaped_weights->get_ptr(m_offset));
@@ -73,7 +87,7 @@ LazyTensor::Meta Const::eval_meta() const {
     }
 
     // Weightless import case
-    if (!m_weights_path.empty()) {
+    if (!m_weights_path.empty() || m_handle_provider) {
         return {m_cached_shape, m_cached_type};
     }
 
@@ -84,6 +98,10 @@ LazyTensor::Meta Const::eval_meta() const {
 void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     NPUW_ASSERT(!m_node &&
                 "LazyTensor can only read weight when it's being deserialized and not created from a Constant!");
+    if (m_read_from_bin) {
+        // already deserialized, see the comment in serialize() for more details
+        return;
+    }
     if (ctx.weights) {
         if (ctx.bf16_consts.find({m_offset, m_byte_size}) != ctx.bf16_consts.end()) {
             NPUW_ASSERT(m_cached_type == ov::element::f16);
@@ -104,9 +122,11 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
             // It doesn't introduce extra allocation, however it allows to gradually 1 by 1
             // read mmaped CPU weights and allocate them on device without loading all the weights first.
             // Thus the memory consumption during import is greatly reduced but at the slight cost of performance.
-            NPUW_ASSERT(!ctx.weights_path.empty());
+            NPUW_ASSERT(!ctx.weights_path.empty() || ctx.handle_provider);
             // Just save weights_path for the eval() to call the actual mmap.
             m_weights_path = ctx.weights_path;
+            // Also save handle_provider if available
+            m_handle_provider = ctx.handle_provider;
         }
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});
@@ -129,6 +149,24 @@ void Const::serialize(std::ostream& stream) const {
     write(stream, m_cached_shape);
     write(stream, m_offset);
     write(stream, m_byte_size);
+
+    // FIXME: handle a special case:
+    // 1) We added a Constant to the model before compilation (e.g. int RoPE patterns)
+    // 2) This Constant became a parameter during folding
+    // 3) Thus it became a LazyTensor, but there is no original data in weights file,
+    // so it will fail in read_weight() during weightless deserialization.
+    // In this case we need to include Constant's data into the blob.
+    if (m_copied_if_not_in_model) {
+        LOG_WARN("Some pattern introduced a new Constant node not present in the original weights file. This will "
+                 "increase the blob size by "
+                 << m_byte_size << " bytes.");
+        write(stream, true);
+        write(stream, m_copied_if_not_in_model);
+        // detach the tensor
+        m_copied_if_not_in_model = ov::Tensor();
+    } else {
+        write(stream, false);
+    }
 }
 
 Const Const::deserialize(std::istream& stream) {
@@ -140,6 +178,12 @@ Const Const::deserialize(std::istream& stream) {
     read(stream, c.m_cached_shape);
     read(stream, c.m_offset);
     read(stream, c.m_byte_size);
+
+    bool contains_weight = false;
+    read(stream, contains_weight);
+    if (contains_weight) {
+        read(stream, c.m_read_from_bin);
+    }
 
     return c;
 }
@@ -371,7 +415,7 @@ std::size_t Gather::hash() const {
     auto ttype = t.get_element_type();
     NPUW_ASSERT(ttype == ov::element::f8e4m3 || ttype == ov::element::f8e5m2 || ttype == ov::element::f8e8m0);
     std::vector<uint8_t> t_data(t.get_size());
-    std::memcpy(t_data.data(), static_cast<uint8_t*>(t.data()), t.get_size());
+    std::memcpy(t_data.data(), static_cast<const uint8_t*>(t.data()), t.get_size());
     seed ^= t_data.size();
     for (const auto& el : t_data) {
         seed ^= std::hash<uint8_t>()(el) + 0x9e3779b9;
@@ -387,13 +431,13 @@ bool Gather::operator==(const Gather& other) const {
     auto ttype = t.get_element_type();
     NPUW_ASSERT(ttype == ov::element::f8e4m3 || ttype == ov::element::f8e5m2 || ttype == ov::element::f8e8m0);
     std::vector<uint8_t> t_data(t.get_size());
-    std::memcpy(t_data.data(), static_cast<uint8_t*>(t.data()), t.get_size());
+    std::memcpy(t_data.data(), static_cast<const uint8_t*>(t.data()), t.get_size());
 
     auto ttype_other = other.t.get_element_type();
     NPUW_ASSERT(ttype_other == ov::element::f8e4m3 || ttype_other == ov::element::f8e5m2 ||
                 ttype_other == ov::element::f8e8m0);
     std::vector<uint8_t> t_other_data(other.t.get_size());
-    std::memcpy(t_other_data.data(), static_cast<uint8_t*>(other.t.data()), other.t.get_size());
+    std::memcpy(t_other_data.data(), static_cast<const uint8_t*>(other.t.data()), other.t.get_size());
 
     return (w == other.w && t.get_element_type() == other.t.get_element_type() &&
             t.get_shape() == other.t.get_shape() && t_data == t_other_data && dst_type == other.dst_type &&

@@ -39,6 +39,7 @@ By default, the environment variable `OV_NPU_TESTS_SKIP_CONFIG_FILE` is set to f
             <backend></backend> (empty brackets denote no backend)
             <device>3720</device>
             <device>!4000</device> (using "!" to negate rule)
+            <driver_version>9999</driver_version>
             <operating_system>windows</operating_system>
             <operating_system>linux</operating_system>
         </enable_rules>
@@ -51,6 +52,39 @@ By default, the environment variable `OV_NPU_TESTS_SKIP_CONFIG_FILE` is set to f
 </skip_configs>
 ```
 
-Skip filters can be enabled/disabled according to rules defining the device, backend or operating system, depending on where tests are supposed to run.
+Skip filters can be enabled/disabled according to rules defining the device, backend, driver version or operating system, depending on where tests are supposed to run.
 Rules are optional, multiple rules can be chained together. Users can negate a rule by using "!".
-When determining if a skip filter is active, rules across different categories (backend, device, operating_system) are combined using an AND operation. While multiple entries of the same category will use an OR operation.
+When determining if a skip filter is active, rules across different categories (backend, device, driver_version, operating_system) are combined using an AND operation. While multiple entries of the same category will be evaluated using the OR operation.
+
+## Folder structure
+
+### Behavior
+The folder structure of the `behavior` directory follows the folder structure of the OpenVINO base tests.
+
+The OpenVINO convention requires the tests to be organized in at least three directories: `compiled_model`, `ov_infer_request`, and `ov_plugin`. If the scope of NPU Plugin tests becomes broader, additional directories may be created.
+
+The E2E tests reside here.
+
+### Common
+The place of utility functions and `getTestCaseName` base implementations.
+
+### Internal
+The folder structure is mirrored from the one in the `intel_npu/src` directory.
+
+The NPU implementations of test classes and their corresponding tests are located here.
+
+### Shared tests instances
+OpenVINO test instantiations using NPU Plugin's own arguments.
+
+## Test developing convention
+
+Any test should be split into a `.hpp` and `.cpp` file, with the exception of the tests from `shared_tests_instances`, which don't need `.hpp` files. A test's `.hpp` file should be located in the same directory as its `.cpp` file.
+
+The `.hpp` file should have the entirety of its contents wrapped around the `ov::test::behavior` namespace.
+The contents are:
+- class declarations
+- methods/functions definitions
+- test definitions
+- aliases
+
+The `.cpp` file contains the test instantiations and the variables passed as arguments. The contents should be wrapped around an anonymous/unnamed namespace.

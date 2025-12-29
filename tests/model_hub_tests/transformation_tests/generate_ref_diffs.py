@@ -38,17 +38,18 @@ for generating the same map, but utilizing cache-eviction.
 
 import os
 import sys
+from huggingface_hub import snapshot_download
 from pathlib import Path
 import models_hub_common.utils as utils
 from openvino._offline_transformations import paged_attention_transformation
 from openvino._pyopenvino.op import _PagedAttentionExtension, Parameter, Result
-from optimum.intel import OVModelForCausalLM
+from optimum.intel import OVModelForCausalLM, OVModelForSeq2SeqLM
 from optimum.intel.openvino import OVModelForVisualCausalLM
 from typing import Union
 
 nodes_to_compare = ("ScaledDotProductAttention", "PagedAttentionExtension", "Parameter", "ReadValue", "Assign")
 
-def get_models_list_type(file_name: str, cls: Union[type[OVModelForCausalLM], type[OVModelForVisualCausalLM]]):
+def get_models_list_type(file_name: str, cls: Union[type[OVModelForCausalLM], type[OVModelForVisualCausalLM], type[OVModelForSeq2SeqLM]]):
     models = []
     for line_items in utils.parse_list_file(file_name):
         if len(line_items) == 2:
@@ -86,18 +87,27 @@ def main():
     with open(OUTPUT_FILE, 'w') as file:
         model_list = get_models_list_type(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit"), OVModelForCausalLM)
         model_list.extend(get_models_list_type(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-vl-models-precommit"), OVModelForVisualCausalLM))
+        model_list.extend(get_models_list_type(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-enc-dec-models-precommit"), OVModelForSeq2SeqLM))
         print(OUTPUT_FILE)
         print('ref_diff_map_optimizations = {' if use_optimizations else 'ref_diff_map = {', file=file)
 
         for model_id, _, _, _, cls in model_list:
             # wrapping in try/catch block to continue printing models even if one has failed
             try:
-                model = cls.from_pretrained(model_id, export=True, trust_remote_code=True)
+                model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+                model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)
             except:
                 print(f"Couldn't read {model_id}.")
                 continue
 
-            ov_model = model.model if cls is OVModelForCausalLM else model.lm_model
+            if cls is OVModelForCausalLM:
+                ov_model = model.model
+            elif cls is OVModelForVisualCausalLM:
+                ov_model = model.lm_model
+            elif cls is OVModelForSeq2SeqLM:
+                ov_model = model.decoder_with_past_model
+            else:
+                raise ValueError(f"Unsupported model class: {cls}")
 
             before_map = {}
             for op in ov_model.get_ordered_ops():
@@ -106,7 +116,7 @@ def main():
 
             # wrapping in try/catch block to continue printing models even if one has failed
             try:
-                paged_attention_transformation(ov_model, use_block_indices_inputs=use_optimizations, use_score_outputs=use_optimizations, allow_score_aggregation=use_optimizations, allow_cache_rotation=use_optimizations, allow_xattention=use_optimizations)
+                paged_attention_transformation(ov_model, use_block_indices_inputs=use_optimizations, use_score_outputs=use_optimizations, allow_score_aggregation=use_optimizations, allow_cache_rotation=use_optimizations, allow_xattention=use_optimizations, allow_adaptive_rkv=use_optimizations)
             except:
                 print(f"Couldn't run SDPAToPA transformation on {model_id} and generate diffs.")
                 continue

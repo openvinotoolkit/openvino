@@ -35,16 +35,6 @@ std::string ov::npuw::online::util::getMetaDesc(const std::shared_ptr<ov::Node>&
     return ss.str();
 }
 
-std::string ov::npuw::online::util::repeated_id(const std::shared_ptr<Repeated>& ptr) {
-    if (!ptr) {
-        OPENVINO_THROW("Online partitioning tried to convert nullptr Repeated to id!");
-    }
-    const void* address = static_cast<const void*>(ptr.get());
-    std::stringstream ss;
-    ss << address;
-    return ss.str();
-}
-
 std::tuple<ov::npuw::online::PatternType, std::string, std::string> ov::npuw::online::util::parse(
     const std::string& s) {
     auto pos_col = s.find(':');
@@ -227,7 +217,7 @@ std::vector<std::string> ov::npuw::online::util::getNoFolds(const std::string& n
     }
 
     std::vector<std::string> nofolds;
-    std::string s = std::move(nofolds_unparsed);
+    std::string s(nofolds_unparsed);
 
     size_t pos = 0;
     size_t start = 0;
