@@ -247,67 +247,20 @@ std::filesystem::path ov::util::get_plugin_path(const std::filesystem::path& plu
     }
 }
 
-std::vector<uint8_t> ov::util::load_binary(const std::string& path) {
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = ov::util::string_to_wstring(path);
-    const wchar_t* filename = widefilename.c_str();
-    FILE* fp = _wfopen(filename, L"rb");
-#else
-    const char* filename = path.c_str();
-    FILE* fp = fopen(filename, "rb");
-#endif
-
-    if (fp) {
-        fseek(fp, 0, SEEK_END);
-        auto sz = ftell(fp);
-        if (sz < 0) {
-            fclose(fp);
-            return {};
-        }
-        auto nsize = static_cast<size_t>(sz);
-
-        fseek(fp, 0, SEEK_SET);
-
-        std::vector<uint8_t> ret(nsize);
-
-        auto res = fread(ret.data(), sizeof(uint8_t), nsize, fp);
-        (void)res;
-        fclose(fp);
-        return ret;
-    }
-
-    return {};
+std::vector<uint8_t> ov::util::load_binary(const std::filesystem::path& path) {
     std::vector<uint8_t> buffer;
     if (auto input = std::ifstream(path, std::ios::binary); input.is_open()) {
-        buffer.reserve(file_size(path));
+        buffer.reserve(std::filesystem::file_size(path));
         input.read(reinterpret_cast<char*>(buffer.data()), buffer.capacity());
     }
     return buffer;
 }
 
-void ov::util::save_binary(const std::string& path, const std::vector<uint8_t>& binary) {
-    save_binary(path, reinterpret_cast<const char*>(&binary[0]), binary.size());
-    return;
-}
-
-void ov::util::save_binary(const std::string& path, const char* binary, size_t bin_size) {
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = ov::util::string_to_wstring(path);
-    const wchar_t* filename = widefilename.c_str();
-#else
-    const char* filename = path.c_str();
-#endif
-    std::ofstream out_file(filename, std::ios::out | std::ios::binary);
-    if (out_file.is_open()) {
-        out_file.write(binary, bin_size);
+void ov::util::save_binary(const std::filesystem::path& path, const void* binary, size_t bin_size) {
+    if (std::ofstream out_file(path, std::ios::binary); out_file.is_open()) {
+        out_file.write(reinterpret_cast<const char*>(binary), bin_size);
     } else {
-        throw std::runtime_error("Could not save binary to " + path);
-    }
-
-    if (auto output = std::ofstream(path, std::ios::binary); output.is_open()) {
-        output.write(binary, bin_size);
-    } else {
-        throw std::runtime_error("Could not save binary to " + path);
+        throw std::runtime_error("Could not save binary to " + path_to_string(path));
     }
 }
 

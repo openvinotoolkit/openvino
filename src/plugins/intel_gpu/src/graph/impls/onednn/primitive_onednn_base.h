@@ -354,7 +354,7 @@ private:
             std::vector<uint8_t> cache;
             {
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                cache = ov::util::load_binary(generate_cache_path_from_key(config, key));
+                cache = ov::util::load_binary(ov::util::make_path(generate_cache_path_from_key(config, key)));
             }
 
             if (cache.empty()) {

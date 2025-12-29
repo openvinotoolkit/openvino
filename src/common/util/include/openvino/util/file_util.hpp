@@ -237,14 +237,13 @@ std::filesystem::path get_plugin_path(const std::filesystem::path& plugin,
  * @param path - binary file path to load
  * @return binary vector
  */
-std::vector<uint8_t> load_binary(const std::string& path);
+std::vector<uint8_t> load_binary(const std::filesystem::path& path);
 
 /**
  * @brief save binary data to file
  * @param path - binary file path to store
  */
-void save_binary(const std::string& path, const std::vector<uint8_t>& binary);
-void save_binary(const std::string& path, const char* binary, size_t bin_size);
+void save_binary(const std::filesystem::path& path, const void* binary, size_t bin_size);
 
 /**
  * @brief Trim OpenVINO project file name path if OpenVINO project directory found.

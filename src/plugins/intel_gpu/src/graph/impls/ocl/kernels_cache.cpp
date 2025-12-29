@@ -371,7 +371,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
         std::vector<uint8_t> bin;
         {
             std::lock_guard<std::mutex> lock(cacheAccessMutex);
-            bin = ov::util::load_binary(cached_bin_name);
+            bin = ov::util::load_binary(ov::util::make_path(cached_bin_name));
         }
         if (!bin.empty()) {
             precompiled_kernels.push_back(bin);
