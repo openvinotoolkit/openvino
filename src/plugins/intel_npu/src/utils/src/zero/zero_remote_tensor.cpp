@@ -8,10 +8,201 @@
 
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 using namespace ov::intel_npu;
+
+namespace {
+
+/**
+ * @brief Validates that offset and ROI shape fit within the parent tensor
+ * @param owner_shape The shape of the owner tensor
+ * @param offset The byte offset from the start of parent tensor
+ * @param roi_shape The shape of the ROI
+ * @param owner_strides The strides of the owner tensor
+ * @param element_size Size of one element in bytes
+ * @return true if valid, throws otherwise
+ */
+void validate_src_roi_bounds(const ov::Shape& owner_shape,
+                             size_t offset,
+                             const ov::Shape& roi_shape,
+                             const ov::Strides& owner_strides,
+                             const ov::element::Type& type) {
+    OPENVINO_ASSERT(owner_shape.size() == roi_shape.size(), "ROI rank must match parent tensor rank");
+
+    size_t total_bytes = ov::util::get_memory_size(type, ov::shape_size(owner_shape));
+    size_t roi_bytes = intel_npu::zeroUtils::get_capacity_size(roi_shape, owner_strides);
+
+    OPENVINO_ASSERT(offset + roi_bytes <= total_bytes,
+                    "ROI with offset ",
+                    offset,
+                    " and size ",
+                    roi_bytes,
+                    " bytes exceeds parent tensor size of ",
+                    total_bytes,
+                    " bytes");
+}
+
+/**
+ * @brief Validates that offset and ROI shape fit within the dst tensor
+ * @param dst_shape The shape of the dst tensor
+ * @param offset The byte offset from the start of parent tensor
+ * @param roi_shape The shape of the ROI
+ * @param dst_strides The strides of the dst tensor
+ * @return true if valid, throws otherwise
+ */
+void validate_dst_roi_bounds(const ov::Shape& dst_shape,
+                             size_t offset,
+                             const ov::Shape& roi_shape,
+                             const ov::Strides& dst_strides) {
+    OPENVINO_ASSERT(dst_shape.size() == roi_shape.size(), "ROI rank must match parent tensor rank");
+
+    size_t roi_offset = 0;
+    for (auto i = dst_strides.size() - 1; i > 0; --i) {
+        roi_offset = offset % dst_strides[i];
+        auto check_dim = roi_offset / dst_strides[i - 1];
+        if (check_dim + roi_shape[i - 1] > dst_shape[i - 1]) {
+            OPENVINO_THROW("ROI with offset ", offset, " exceeds destination tensor shape.");
+        }
+    }
+}
+
+ov::Strides default_byte_strides(const ov::Shape& shape, const ov::element::Type& et) {
+    auto strides = ov::Strides(shape.size());
+    if (!strides.empty()) {
+        strides.back() = et.size();
+        std::transform(shape.crbegin(),
+                       shape.crend() - 1,
+                       strides.rbegin(),
+                       strides.rbegin() + 1,
+                       std::multiplies<size_t>());
+    }
+    return strides;
+}
+
+/**
+ * @brief Copies tensor data between source and destination, handling strided memory layouts
+ * @param src Source tensor
+ * @param dst Destination tensor
+ * @param roi_shape Shape of region of interest to copy
+ * @param shape Bigger shape
+ * @param src_data Pointer to source data (with offset applied)
+ * @param dst_data Pointer to destination data (with offset applied)
+ */
+void copy_data(const std::shared_ptr<const ov::ITensor>& src,
+               const std::shared_ptr<ov::ITensor>& dst,
+               const ov::Shape& roi_shape,
+               const ov::Shape& shape,
+               const uint8_t* src_data,
+               uint8_t* dst_data) {
+    const auto& is_scalar = [](const ov::Shape& shape) {
+        return shape.empty() || (shape.size() == 1 && shape[0] == 1);
+    };
+
+    ov::Strides src_strides{src->get_byte_size()};
+    ov::Strides dst_strides{dst->get_byte_size()};
+    ov::Shape cur_pos{0};
+    ov::Shape max_pos{1};
+
+    if (src->get_element_type().bitwidth() < 8 || (src->get_strides() == dst->get_strides() && src->is_continuous()) ||
+        (is_scalar(roi_shape) && is_scalar(shape))) {
+        // OpenVINO doesn't support strides for LP types
+        // or both tensors have default strides
+        // Strides and positions already initialized
+    } else {
+        // Tensors have default strides
+        const auto& type = src->get_element_type();
+        const auto shape_rank = roi_shape.size();
+        const auto default_strides = default_byte_strides(src->get_shape(), type);
+
+        src_strides = src->get_strides();
+        dst_strides = dst->get_strides();
+
+        ov::Strides src_str, dst_str;
+
+        // Calculate src and dst shapes
+        bool found_step = false;
+        for (size_t inverted_idx = shape_rank - 1; inverted_idx < shape_rank; --inverted_idx) {
+            if (!found_step) {
+                if (default_strides[inverted_idx] == src_strides[inverted_idx] &&
+                    src_strides[inverted_idx] == dst_strides[inverted_idx]) {
+                    continue;
+                } else {
+                    found_step = true;
+                    size_t strides_size = inverted_idx + 1;
+                    // Set right size
+                    src_str.resize(strides_size + 1);
+                    dst_str.resize(strides_size + 1);
+                    max_pos.resize(strides_size + 1);
+                    cur_pos.resize(strides_size + 1);
+                    // In case of default continuous strides we can copy several elements
+                    // In other case only one element
+                    size_t dim = 1;
+                    size_t strides = type.size();
+
+                    if (strides_size < default_strides.size()) {
+                        strides = default_strides[strides_size];
+                        dim = roi_shape[strides_size];
+                    }
+                    src_str[strides_size] = strides;
+                    dst_str[strides_size] = strides;
+                    max_pos[strides_size] = dim;
+                    cur_pos[strides_size] = 0;
+                }
+            }
+            src_str[inverted_idx] = src_strides[inverted_idx];
+            dst_str[inverted_idx] = dst_strides[inverted_idx];
+            max_pos[inverted_idx] = roi_shape[inverted_idx];
+            cur_pos[inverted_idx] = 0;
+        }
+        src_strides = std::move(src_str);
+        dst_strides = std::move(dst_str);
+    }
+
+    const auto update_index = [](const ov::Shape& pos, const ov::Strides& strides) {
+        return std::inner_product(pos.begin(), pos.end(), strides.begin(), static_cast<size_t>(0));
+    };
+
+    using copy_function_def = std::function<void(const uint8_t*, uint8_t*, size_t)>;
+    copy_function_def memcpy_based_copy = [](const uint8_t* src_data, uint8_t* dst_data, size_t bytes_size) {
+        memcpy(dst_data, src_data, bytes_size);
+    };
+    copy_function_def strings_copy = [](const uint8_t* src_data, uint8_t* dst_data, size_t bytes_size) {
+        // in case string tensors, it needs to copy of new values for std::string objects
+        // memcpy is not suitable
+        auto dst_string = reinterpret_cast<std::string*>(dst_data);
+        auto src_string = reinterpret_cast<const std::string*>(src_data);
+        size_t num_elements_stride = bytes_size / ov::element::string.size();
+        std::copy_n(src_string, num_elements_stride, dst_string);
+    };
+    copy_function_def copy_function =
+        (src->get_element_type() == ov::element::string) ? strings_copy : memcpy_based_copy;
+
+    bool finish = false;
+
+    for (size_t dst_idx = 0, src_idx = 0; !finish;) {
+        copy_function(src_data + src_idx, dst_data + dst_idx, src_strides[src_strides.size() - 1]);
+
+        // update indexes
+        for (size_t i = 0; i < cur_pos.size(); i++) {
+            size_t inverted_idx = cur_pos.size() - i - 1;
+            cur_pos[inverted_idx]++;
+            if (cur_pos[inverted_idx] != max_pos[inverted_idx]) {
+                break;
+            }
+            if (inverted_idx)
+                cur_pos[inverted_idx] = 0;
+            else
+                finish = true;
+        }
+        src_idx = update_index(cur_pos, src_strides);
+        dst_idx = update_index(cur_pos, dst_strides);
+    }
+}
+
+}  // namespace
 namespace intel_npu {
 
 ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
@@ -250,6 +441,90 @@ void* ZeroRemoteTensor::get_original_memory() const {
 
 ze_context_handle_t ZeroRemoteTensor::get_zero_context_handle() const {
     return _init_structs->getContext();
+}
+
+void ZeroRemoteTensor::copy_to(const std::shared_ptr<ov::ITensor>& dst,
+                               size_t src_offset,
+                               size_t dst_offset,
+                               const ov::Shape& roi_shape) const {
+    OPENVINO_ASSERT(dst, "Destination tensor was not initialized.");
+    OPENVINO_ASSERT(dst->get_element_type() == get_element_type(),
+                    "Tensor element types are not equal. (src: ",
+                    get_element_type(),
+                    " != dst: ",
+                    dst->get_element_type(),
+                    ")");
+
+    OPENVINO_ASSERT(roi_shape.empty() || get_element_type().bitwidth() >= 8,
+                    "ROI copy is not supported for bitwidth < 8.");
+
+    if (!roi_shape.empty()) {
+        validate_src_roi_bounds(get_shape(), src_offset, roi_shape, get_strides(), get_element_type());
+        validate_dst_roi_bounds(dst->get_shape(), dst_offset, roi_shape, dst->get_strides());
+    } else {
+        if (get_shape() != dst->get_shape()) {
+            dst->set_shape(get_shape());
+        }
+    }
+
+    const auto& src_shape = roi_shape.empty() ? get_shape() : roi_shape;
+    const auto& dst_shape = dst->get_shape();
+
+    auto dst_zero_remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(dst);
+    if (dst_zero_remote_tensor == nullptr) {
+        if (auto remote_tensor_dst = std::dynamic_pointer_cast<ov::IRemoteTensor>(dst)) {
+            OPENVINO_THROW("Copy to other remote tensor types is not supported.");
+        }
+    }
+
+    auto* src_data = static_cast<const uint8_t*>(get_original_memory()) + src_offset;
+    auto* dst_data = dst_zero_remote_tensor == nullptr
+                         ? static_cast<uint8_t*>(dst->data()) + dst_offset
+                         : static_cast<uint8_t*>(dst_zero_remote_tensor->get_original_memory()) + dst_offset;
+
+    copy_data(shared_from_this(), dst, src_shape, dst_shape, src_data, dst_data);
+}
+
+void ZeroRemoteTensor::copy_from(const std::shared_ptr<const ov::ITensor>& src,
+                                 size_t src_offset,
+                                 size_t dst_offset,
+                                 const ov::Shape& roi_shape) {
+    OPENVINO_ASSERT(src, "Destination tensor was not initialized.");
+    OPENVINO_ASSERT(src->get_element_type() == get_element_type(),
+                    "Tensor element types are not equal. (src: ",
+                    get_element_type(),
+                    " != dst: ",
+                    src->get_element_type(),
+                    ")");
+
+    OPENVINO_ASSERT(roi_shape.empty() || get_element_type().bitwidth() >= 8,
+                    "ROI copy is not supported for bitwidth < 8.");
+
+    if (!roi_shape.empty()) {
+        validate_src_roi_bounds(src->get_shape(), src_offset, roi_shape, src->get_strides(), get_element_type());
+        validate_dst_roi_bounds(get_shape(), dst_offset, roi_shape, get_strides());
+    } else {
+        if (src->get_shape() != get_shape()) {
+            set_shape(src->get_shape());
+        }
+    }
+
+    const auto& src_shape = src->get_shape();
+    const auto& dst_shape = roi_shape.empty() ? get_shape() : roi_shape;
+
+    auto src_zero_remote_tensor = std::dynamic_pointer_cast<const ZeroRemoteTensor>(src);
+    if (src_zero_remote_tensor == nullptr) {
+        if (auto remote_tensor_src = std::dynamic_pointer_cast<const ov::IRemoteTensor>(src)) {
+            OPENVINO_THROW("Copy from other remote tensor types is not supported.");
+        }
+    }
+
+    auto* src_data = src_zero_remote_tensor == nullptr
+                         ? static_cast<const uint8_t*>(src->data()) + src_offset
+                         : static_cast<const uint8_t*>(src_zero_remote_tensor->get_original_memory()) + src_offset;
+    auto* dst_data = static_cast<uint8_t*>(get_original_memory()) + dst_offset;
+
+    copy_data(src, shared_from_this(), dst_shape, src_shape, src_data, dst_data);
 }
 
 ZeroRemoteTensor::~ZeroRemoteTensor() {
