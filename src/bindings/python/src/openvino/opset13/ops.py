@@ -312,7 +312,7 @@ def constant(
                           Requires data to be C_CONTIGUOUS if `True`.
                           Disabled by default if:
                           - value is a scalar.
-                          - dtype is one of: Type.u1, Type.i4, Type.u4, Type.nf4, Type.bf16.
+                          - dtype is one of: Type.u1, Type.u2, Type.i4, Type.u4, Type.nf4, Type.bf16.
                           - dtype force conversion of data.
     :return: The Constant node initialized with provided data.
     """
@@ -332,7 +332,7 @@ def constant(
     # Handle type casting, when dtype is not None:
     if dtype:
         # Expect packed data, use different constructor to handle it correctly:
-        if dtype in [Type.u1, Type.i4, Type.u4, Type.nf4, Type.f4e2m1]:
+        if dtype in [Type.u1, Type.u2, Type.i4, Type.u4, Type.nf4, Type.f4e2m1]:
             display_shared_memory_warning(f"Constant initialized with packed type of {dtype}")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         elif dtype in [Type.bf16, Type.f8e8m0, Type.f8e4m3, Type.f8e5m2]:

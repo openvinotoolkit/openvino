@@ -57,7 +57,8 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
 
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
 
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>(true);
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>(false);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(4);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(3);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
@@ -86,22 +87,24 @@ static std::shared_ptr<ov::Node> gen_chatglm_const() {
     return wrap_type<v0::Constant>(pred);
 }
 
-ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
+ov::pass::RoPEFusionFlux::RoPEFusionFlux(bool num_heads_transposed) {
     MATCHER_SCOPE(RoPEFusionFlux);
-    // x[?,24,?,128]
-    // x1 = reshape(x, [?,24,?,64,2])
+    // x[?,24,?,128 | [?,?,24,128]]
+    // x1 = reshape(x, [?,24,?,64,2] | [?,?,24,64,2])
     // x1_0, x1_1 = split(x1, -1)
     // x2 = concat(x1_0, x1_1 * (-1), -1)
-    // x3 = reshape(x2, [?,24,?,128])
+    // x3 = reshape(x2, [?,24,?,128] | [?,?,24,128])
     // y1 = x * t_cos
     // y2 = x3 * t_sin
     // y = y1 + y2
-    auto x = pattern::any_input(pattern::rank_equals(4) && pattern::shape_matches("[PRESERVED_DIMS..., head_size]"));
+    std::string num_heads_pattern = num_heads_transposed ? "?, num_heads, ?" : "?, ?, num_heads";
+    auto x =
+        pattern::any_input(pattern::rank_equals(4) && pattern::shape_matches("[" + num_heads_pattern + ", head_size]"));
     auto t_cos = pattern::any_input(pattern::rank_equals(4));
     auto t_sin = pattern::any_input(pattern::rank_equals(4));
 
     auto x1 = pattern::wrap_type<opset1::Reshape>({x, pattern::any_input()},
-                                                  pattern::shape_matches("[PRESERVED_DIMS..., ?, 2]"));
+                                                  pattern::shape_matches("[" + num_heads_pattern + ", ?, 2]"));
     auto split = pattern::wrap_type<opset1::Split>({x1, -1}, {{"num_splits", 2}});
     split->set_output_size(2);
 
@@ -113,7 +116,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
 
     auto x2 = pattern::wrap_type<opset1::Concat>({opt_unsqueeze, split->output(0)}, {{"axis", -1}});
     auto x3 = pattern::wrap_type<opset1::Reshape>({x2, pattern::any_input()},
-                                                  pattern::shape_matches("[PRESERVED_DIMS..., head_size]"));
+                                                  pattern::shape_matches("[" + num_heads_pattern + ", head_size]"));
 
     auto y1 = pattern::wrap_type<opset1::Multiply>({x, t_cos}, {{"auto_broadcast", "numpy"}});
     auto y2 = pattern::wrap_type<opset1::Multiply>({x3, t_sin}, {{"auto_broadcast", "numpy"}});
@@ -125,7 +128,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
         auto root = m.get_match_root();
 
         auto symbols = m.get_symbols();
-        auto num_heads = symbols["PRESERVED_DIMS"].g()[1];
+        auto num_heads = symbols["num_heads"];
         auto head_size = symbols["head_size"];
         if (!num_heads.is_static() || !head_size.is_static()) {
             return false;
