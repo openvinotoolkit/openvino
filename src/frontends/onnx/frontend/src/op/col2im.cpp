@@ -18,17 +18,17 @@ ov::OutputVector col2im(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 3);
     const auto inputs = node.get_ov_inputs();
     const auto& data = inputs[0]; // input
-    const auto& output_shape = inputs[1]; // image_shape
-    const auto& kernel_shape = inputs[2]; // block_shape
+    const auto& output_size = inputs[1]; // image_shape
+    const auto& kernel_size = inputs[2]; // block_shape
 
     // 2. get attributes
     size_t spatial_rank; // Determine Spatial Rank dynamically
-    const auto& kernel_shape_ps = kernel_shape.get_partial_shape();
-    const auto& output_shape_ps = output_shape.get_partial_shape();
-    if (kernel_shape_ps.rank().is_static() && kernel_shape_ps[0].is_static()) {
-        spatial_rank = kernel_shape_ps[0].get_length();
-    } else if (output_shape_ps.rank().is_static() && output_shape_ps[0].is_static()) {
-        spatial_rank = output_shape_ps[0].get_length();
+    const auto& kernel_size_ps = kernel_size.get_partial_shape();
+    const auto& output_size_ps = output_size.get_partial_shape();
+    if (kernel_size_ps.rank().is_static() && kernel_size_ps[0].is_static()) {
+        spatial_rank = kernel_size_ps[0].get_length();
+    } else if (output_size_ps.rank().is_static() && output_size_ps[0].is_static()) {
+        spatial_rank = output_size_ps[0].get_length();
     } else {
         spatial_rank = 2;
     }
@@ -49,8 +49,8 @@ ov::OutputVector col2im(const ov::frontend::onnx::Node& node) {
     // 3. return Col2Im
     return {std::make_shared<ov::op::v15::Col2Im>(
         data,
-        output_shape,
-        kernel_shape,
+        output_size,
+        kernel_size,
         strides,
         dilations,
         pads_begin,
@@ -63,4 +63,3 @@ ONNX_OP("Col2Im", OPSET_SINCE(18), ai_onnx::opset_18::col2im);
 } // namespace onnx
 } // namespace frontend
 } // namespace ov
-
