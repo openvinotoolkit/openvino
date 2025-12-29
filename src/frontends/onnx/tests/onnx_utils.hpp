@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <stdlib.h>
-
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <string>
 
 #include "common_test_utils/test_constants.hpp"
@@ -46,6 +47,27 @@ InputModel::Ptr load_model(const std::string& model_path, ov::frontend::FrontEnd
 InputModel::Ptr load_model(const std::wstring& model_path, ov::frontend::FrontEnd::Ptr* return_front_end = nullptr);
 // Returns path to a manifest file
 std::string onnx_backend_manifest(const std::string& manifest);
+
+inline bool is_graph_iterator_enabled() {
+    const char* env_value = std::getenv("ONNX_ITERATOR");
+    if (env_value == nullptr) {
+        return true;
+    }
+
+    std::string value(env_value);
+    value.erase(std::remove_if(value.begin(), value.end(), [](unsigned char ch) {
+                    return std::isspace(ch) != 0;
+                }),
+                value.end());
+    std::transform(value.begin(),
+                   value.end(),
+                   value.begin(),
+                   [](unsigned char ch) {
+                       return static_cast<char>(std::tolower(ch));
+                   });
+
+    return !(value.empty() || value == "0" || value == "false" || value == "off" || value == "disable");
+}
 }  // namespace tests
 }  // namespace onnx
 }  // namespace frontend

@@ -17,8 +17,12 @@
 #    include <google/protobuf/stubs/logging.h>
 #endif
 
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <fstream>
 #include <sstream>
+#include <string>
 
 #include "core/graph_iterator_proto.hpp"
 #include "input_model.hpp"
@@ -48,6 +52,30 @@ using ::ONNX_NAMESPACE::ModelProto;
 using ::ONNX_NAMESPACE::Version;
 
 namespace {
+bool is_graph_iterator_disabled(const char* env_value) {
+    if (env_value == nullptr) {
+        return false;
+    }
+
+    std::string value(env_value);
+    value.erase(std::remove_if(value.begin(), value.end(), [](unsigned char ch) {
+                    return std::isspace(ch) != 0;
+                }),
+                value.end());
+    std::transform(value.begin(),
+                   value.end(),
+                   value.begin(),
+                   [](unsigned char ch) {
+                       return static_cast<char>(std::tolower(ch));
+                   });
+
+    return value.empty() || value == "0" || value == "false" || value == "off" || value == "disable";
+}
+
+bool is_graph_iterator_enabled() {
+    return !is_graph_iterator_disabled(std::getenv("ONNX_ITERATOR"));
+}
+
 // !!! Experimental feature, it may be changed or removed in the future !!!
 void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
     const auto& operations = model->get_ordered_ops();
@@ -84,7 +112,7 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    const bool gi_enabled = std::getenv("ONNX_ITERATOR") != nullptr;
+    const bool gi_enabled = is_graph_iterator_enabled();
     if (variants.empty()) {
         return nullptr;
     }
