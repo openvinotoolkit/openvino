@@ -43,6 +43,10 @@ ov::OutputVector col2im(const ov::frontend::onnx::Node& node) {
         node,
         strides.size() == spatial_rank,
         "Col2Im 'strides' attribute must have size [2]. Got: ", strides.size());
+    CHECK_VALID_NODE(
+        node,
+        pads.size() == spatial_rank * 2,
+        "Col2Im 'pads' attribute must have size [4]. Got: ", pads.size());
 
     const auto half_size = pads.size() / 2;
     pads_begin.assign(pads.begin(), pads.begin() + half_size);
