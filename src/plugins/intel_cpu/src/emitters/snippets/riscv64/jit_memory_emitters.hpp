@@ -30,6 +30,19 @@ public:
                         const std::vector<size_t>& pool_vec_idxs,
                         const std::vector<size_t>& pool_gpr_idxs) const override;
 
+    ov::element::Type get_src_prc() const {
+        return src_prc;
+    }
+    ov::element::Type get_dst_prc() const {
+        return dst_prc;
+    }
+    size_t get_count() const {
+        return count;
+    }
+    size_t get_compiled_byte_offset() const {
+        return compiled_byte_offset;
+    }
+
 protected:
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
