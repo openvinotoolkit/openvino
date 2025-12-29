@@ -35,6 +35,7 @@
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "openvino/xml_util/xml_deserialize_util.hpp"
