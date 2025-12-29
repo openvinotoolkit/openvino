@@ -36,7 +36,6 @@ public:
     size_t aux_gprs_count() const override;
 
     const jit_emitter* get_target_emitter() const;
-    std::string get_debug_info() const;
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;

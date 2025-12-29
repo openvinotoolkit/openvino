@@ -41,9 +41,8 @@ std::string get_emitter_type_name(const jit_emitter* emitter) {
 
 std::string init_info_jit_memory_emitter(const jit_memory_emitter* emitter) {
     std::stringstream ss;
-    ss << " src_precision:" << emitter->get_src_prc() << " dst_precision:" << emitter->get_dst_prc()
-       << " load/store_element_number:" << emitter->get_count()
-       << " byte_offset:" << emitter->get_compiled_byte_offset();
+    ss << " src_precision:" << emitter->src_prc << " dst_precision:" << emitter->dst_prc
+       << " load/store_element_number:" << emitter->count << " byte_offset:" << emitter->compiled_byte_offset;
     return ss.str();
 }
 
