@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base_sync_infer_request.hpp"
+#include "host_flash_attention.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -106,11 +107,33 @@ protected:
     void unsafe_infer_spatial(std::size_t real_idx, std::size_t idx);
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
+    void run_hfa_tiled_inference(std::size_t real_idx, std::size_t idx);
+
+    // HFA helper functions
+    static void hfa_extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
+                                          const ov::SoPtr<ov::ITensor>& dest_tensor,
+                                          uint32_t sequence_dim,
+                                          int64_t sequence_offset,
+                                          int64_t sequence_length,
+                                          const std::string& tensor_name);
+
+    static bool hfa_can_reuse_tensor_zero_copy(const ov::SoPtr<ov::ITensor>& source_tensor,
+                                               const ov::SoPtr<ov::ITensor>& dest_tensor,
+                                               uint32_t sequence_dim,
+                                               int64_t sequence_offset,
+                                               int64_t tile_length);
+
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
 
     // Helper function to setup pyramid attention infer requests
     void setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate);
+
+    // Helper function to setup host flash attention tile infer requests
+    void setup_hfa_infer_requests(std::size_t real_idx,
+                                  bool is_piped,
+                                  bool is_recreate,
+                                  bool enable_hfa_optimizations = true);
 
     FuncMemMgr m_func_mem_mgr;                       // Owns memory
     std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
@@ -138,6 +161,9 @@ protected:
 
     // Cached attention mask for SDPA operations to avoid recomputing
     ov::SoPtr<ov::ITensor> m_cached_attention_mask;
+
+    // HFA runtime context (holds cached masks, pre-allocated buffers, and state buffers)
+    std::optional<runtime::host_flash_attention::HFARuntimeContext> m_hfa_runtime_ctx;
 };
 
 }  // namespace npuw
