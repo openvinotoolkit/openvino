@@ -109,8 +109,8 @@ std::filesystem::path get_absolute_file_path(const std::filesystem::path& path);
  */
 void create_directory_recursive(const std::filesystem::path& path);
 
-template <class T>
-void create_directory_recursive(const std::basic_string<T>& path) {
+template <class Path>
+void create_directory_recursive(const Path& path) {
     return create_directory_recursive(make_path(path));
 }
 /** @} */
@@ -135,7 +135,7 @@ inline int64_t file_size(const std::filesystem::path& path) noexcept {
 }
 
 template <class Path>
-inline int64_t file_size(const std::basic_string<Path>& path) noexcept {
+inline int64_t file_size(const Path& path) noexcept {
     return ov::util::file_size(make_path(path));
 }
 /** @} */
@@ -157,8 +157,8 @@ inline bool file_exists(const std::filesystem::path& path) noexcept {
     return std::filesystem::exists(f_status) && !std::filesystem::is_directory(f_status);
 }
 
-template <class T>
-inline bool file_exists(const std::basic_string<T>& path) noexcept {
+template <class Path>
+inline bool file_exists(const Path& path) noexcept {
     return file_exists(make_path(path));
 }
 /** @} */
