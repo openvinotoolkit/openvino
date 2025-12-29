@@ -312,11 +312,7 @@ def constant(
                           Requires data to be C_CONTIGUOUS if `True`.
                           Disabled by default if:
                           - value is a scalar.
-<<<<<<< HEAD
-                          - dtype is one of: Type.u1, Type.u3, Type.i4, Type.u4, Type.u6, Type.nf4, Type.bf16.
-=======
-                          - dtype is one of: Type.u1, Type.u2, Type.i4, Type.u4, Type.nf4, Type.bf16.
->>>>>>> e4b65a0ab6c946c72d56240223620837e6d34bf8
+                          - dtype is one of: Type.u1, Type.u2, Type.u3, Type.i4, Type.u4, Type.u6, Type.nf4, Type.bf16.
                           - dtype force conversion of data.
     :return: The Constant node initialized with provided data.
     """
