@@ -2,42 +2,26 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import math
 import os
 import sys
-import numpy as np
-import pytest
-import math
+import tempfile
 from contextlib import nullcontext as does_not_raise
 from copy import copy
-import tempfile
+
+import numpy as np
+import pytest
+from tests.utils.helpers import (create_filenames_for_ir, generate_add_model,
+                                 generate_model_with_memory,
+                                 generate_multi_input_model,
+                                 generate_single_input_model,
+                                 generate_two_input_model)
 
 import openvino.opset13 as ops
-from openvino import (
-    Core,
-    Model,
-    Tensor,
-    Dimension,
-    Layout,
-    Type,
-    PartialShape,
-    Shape,
-    set_batch,
-    get_batch,
-    serialize,
-    save_model,
-    OVAny,
-)
-from openvino import Output
-from openvino.op.util import VariableInfo, Variable
-
-from tests.utils.helpers import (
-    generate_add_model,
-    generate_model_with_memory,
-    create_filenames_for_ir,
-    generate_single_input_model,
-    generate_multi_input_model,
-    generate_two_input_model,
-)
+from openvino import (Core, Dimension, Layout, Model, Output, OVAny,
+                      PartialShape, Shape, Tensor, Type, get_batch, save_model,
+                      serialize, set_batch)
+from openvino.op.util import Variable, VariableInfo
 
 
 def make_add_with_variable_model(shape, variable_id: str, dtype=np.float32) -> Model:
@@ -718,6 +702,25 @@ def test_reshape_single_element_shape():
     assert model.input("A").shape == (5,)
     assert model.input("B").shape == (10,)
     assert model.input("C").shape == (15,)
+
+
+def test_reshape_dynamic_dimensions_flat_shape():
+    """Single-input: flat shape with dynamic dimension tuples (CI example)."""
+    model = generate_single_input_model(input_shape=[1, 3, 224, 224])
+
+    model.reshape([(1, 8), 3, (112, 448), (112, 448)])
+
+    shape = model.input(0).get_partial_shape()
+    assert shape[0].is_dynamic
+    assert shape[0].get_min_length() == 1
+    assert shape[0].get_max_length() == 8
+    assert shape[1] == 3
+    assert shape[2].is_dynamic
+    assert shape[2].get_min_length() == 112
+    assert shape[2].get_max_length() == 448
+    assert shape[3].is_dynamic
+    assert shape[3].get_min_length() == 112
+    assert shape[3].get_max_length() == 448
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
