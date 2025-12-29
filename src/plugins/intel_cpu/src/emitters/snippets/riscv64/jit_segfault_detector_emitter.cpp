@@ -14,7 +14,6 @@
 #include "openvino/runtime/threading/thread_local.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#    include <sstream>
 #    include <utility>
 
 #    include "jit_segfault_detector_emitter.hpp"
