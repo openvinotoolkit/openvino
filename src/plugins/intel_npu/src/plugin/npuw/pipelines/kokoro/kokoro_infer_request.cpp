@@ -1,0 +1,325 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "kokoro_infer_request.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "npuw/infer_request_utils.hpp"
+#include "npuw/logging.hpp"
+#include "npuw/util.hpp"
+
+#include "openvino/runtime/make_tensor.hpp"
+
+
+namespace {
+std::string safe_any_name(const ov::Output<const ov::Node>& port) {
+    const auto& names = port.get_names();
+    for (const auto& name: names) {
+        std::cout << name << std::endl;
+    }
+    if (!names.empty()) {
+        return port.get_any_name();
+    }
+    return {};
+}
+
+void print_missing_ports(std::vector<std::string>& missing) {
+    if (!missing.empty()) {
+        std::stringstream ss;
+        ss << "Can't match ports: ";
+        for (std::size_t i = 0; i < missing.size(); ++i) {
+            if (i) ss << ", ";
+            ss << (missing[i].empty() ? "<unnamed>" : missing[i]);
+        }
+        OPENVINO_THROW(ss.str());
+    }
+}
+
+/**
+ * @brief Gathers elements from the last dimension of a 3D tensor based on provided indices.
+ *
+ * This function extracts specific elements from the last dimension (L) of a source tensor
+ * with shape [1, C, L] and places them into a destination buffer. The destination buffer
+ * is treated as having a shape of [1, C, block].
+ *
+ * The operation effectively performs:
+ * dst[0, c, t] = src[0, c, idx[t]]
+ * 
+ *  Source (L=3)       Indices (idx)        Destination (block=5)
+ * [ A | B | C ]   <-- [0, 0, 1, 2, 2] --> [ A | A | B | C | C ]
+ */
+template <typename T>
+void gather_3d_last_dim(const ov::SoPtr<ov::ITensor>& src, T* dst, const std::vector<int64_t>& idx, std::size_t block) {
+    // src: [1, C, L], dst: [1, C, block]
+    const auto& shape = src->get_shape();
+    OPENVINO_ASSERT(shape.size() == 3u);
+    OPENVINO_ASSERT(shape[0] == 1u);
+    const std::size_t channels = shape[1]; 
+    const std::size_t phonemes_number = shape[2]; 
+
+    OPENVINO_ASSERT(src->is_continuous());
+    const T* src_p = src->data<const T>();
+
+    // Zero fill destination buffer, as it might be not fully filled, remaining will be 0-padding.
+    std::fill(dst, dst + (channels * block), T{});
+    const std::size_t n = idx.size();
+
+    for (std::size_t c = 0; c < channels; ++c) {
+        const T* row = src_p + c * phonemes_number;
+        T* out = dst + c * block;
+        for (std::size_t t = 0; t < n; ++t) {
+            const auto it = idx[t];
+            OPENVINO_ASSERT(it >= 0);
+            OPENVINO_ASSERT(static_cast<std::size_t>(it) < phonemes_number);
+            out[t] = row[static_cast<std::size_t>(it)];
+        }
+    }
+}
+
+}  // namespace
+
+
+ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw::KokoroCompiledModel>& compiled_model) 
+    : ov::ISyncInferRequest(compiled_model),
+      m_kokoro_compiled_model(compiled_model) {
+
+    OPENVINO_ASSERT(m_kokoro_compiled_model->model_a(), "Kokoro: Model A is not compiled");
+    OPENVINO_ASSERT(m_kokoro_compiled_model->model_b(), "Kokoro: Model B is not compiled");
+    m_model_a_request = m_kokoro_compiled_model->model_a()->create_infer_request();
+    m_model_b_request = m_kokoro_compiled_model->model_b()->create_infer_request();
+}
+
+void ov::npuw::KokoroInferRequest::infer() {
+    LOG_INFO("Creating KokoroInferRequest");
+    OPENVINO_ASSERT(m_model_a_request);
+    OPENVINO_ASSERT(m_model_b_request);
+
+    const auto original_inputs = m_kokoro_compiled_model->inputs();
+    const auto original_outputs = m_kokoro_compiled_model->outputs();
+
+    // 1) Match inputs from original model to model a
+    {
+        const auto a_inputs = m_model_a_request->get_compiled_model()->inputs();
+        std::vector<std::string> missing;
+
+        for (const auto& a_in : a_inputs) {
+            auto original_port = ov::npuw::util::find_port_by_names(original_inputs, a_in.get_names());
+            if (!original_port.has_value()) {
+                missing.push_back(safe_any_name(a_in));
+                continue;
+            }
+            m_model_a_request->set_tensor(a_in, get_tensor(original_port.value()));
+        } 
+        print_missing_ports(missing);
+        m_model_a_request->infer();
+    }
+
+    // As part of decomposition should have pre-defined names
+    const auto a_outputs = m_model_a_request->get_compiled_model()->outputs();
+    auto pred_dur_port = ov::npuw::util::find_port_by_name(a_outputs, "pred_dur");
+    auto en_left_port = ov::npuw::util::find_port_by_name(a_outputs, "en_left");
+    auto asr_left_port = ov::npuw::util::find_port_by_name(a_outputs, "asr_left");
+    OPENVINO_ASSERT(pred_dur_port.has_value(), "Kokoro Model A output 'pred_dur' not found");
+    OPENVINO_ASSERT(en_left_port.has_value(), "Kokoro Model A output 'en_left' not found");
+    OPENVINO_ASSERT(asr_left_port.has_value(), "Kokoro Model A output 'asr_left' not found");
+
+    const auto pred_dur_tensor = m_model_a_request->get_tensor(pred_dur_port.value());
+    const auto en_left_tensor = m_model_a_request->get_tensor(en_left_port.value());
+    const auto asr_left_tensor = m_model_a_request->get_tensor(asr_left_port.value());
+    OPENVINO_ASSERT(pred_dur_tensor && en_left_tensor && asr_left_tensor);
+
+    auto orig_pred_dur = ov::npuw::util::find_port_by_name(original_outputs, "pred_dur");
+    set_tensor(orig_pred_dur.value(), pred_dur_tensor);
+
+    // 2) Build repeat-interleave indices
+    
+    std::vector<int64_t> pred;
+    pred.resize(pred_dur_tensor->get_size());
+
+    const auto et = pred_dur_tensor->get_element_type();
+    if (et == ov::element::i64) {
+        const auto* p = pred_dur_tensor->data<const int64_t>();
+        std::copy_n(p, pred.size(), pred.data());
+    }  else if (et == ov::element::i32) {
+        const auto* p = pred_dur_tensor->data<const int32_t>();
+        std::copy_n(p, pred.size(), pred.data());
+    } else {
+        OPENVINO_THROW("Unexpected element type from pred_dur data, expected i64 or i32, got: ", et.get_type_name());   
+    }
+    const std::size_t l_max = pred.size();
+
+    std::size_t total_frames = 0;
+    for (auto token_frames : pred) {
+        if (token_frames > 0) total_frames += static_cast<std::size_t>(token_frames);
+    }
+    if (total_frames == 0) {
+        OPENVINO_THROW("Sum(pred_dur) is zero; cannot generate audio");
+    }
+
+    std::vector<int64_t> idx_all;
+    idx_all.reserve(total_frames);
+    for (std::size_t i = 0; i < l_max; ++i) {
+        const auto reps = pred[i];
+        for (int64_t r = 0; r < reps; ++r) {
+            idx_all.push_back(static_cast<int64_t>(i));
+        }
+    }
+    OPENVINO_ASSERT(idx_all.size() == total_frames);
+
+    // 3) Prepare Model B
+    const auto b_model = m_model_b_request->get_compiled_model();
+    const auto b_inputs = b_model->inputs();
+    const auto b_outputs = b_model->outputs();
+
+    auto b_en_in = find_port_by_name(b_inputs, "en_block");
+    auto b_asr_in = find_port_by_name(b_inputs, "asr_block");
+    OPENVINO_ASSERT(b_en_in.has_value(), "Kokoro Model B input 'en_block' (or alias) not found");
+    OPENVINO_ASSERT(b_asr_in.has_value(), "Kokoro Model B input 'asr_block' (or alias) not found");
+
+    // Feed static Model B inputs once (wouldn't change between iterations)
+    {
+        std::vector<std::string> missing;
+
+        for (const auto& b_in : b_inputs) {
+            const auto port_names = b_in.get_names();
+            // Skip the dynamic blocks we handle in the loop
+            if (port_names.count("en_block") || port_names.count("asr_block")) {
+                continue;
+            }
+
+            auto original_port = ov::npuw::util::find_port_by_names(original_inputs, b_in.get_names());
+            if (!original_port.has_value()) {
+                missing.push_back(*port_names.begin());
+                continue;
+            }
+            m_model_b_request->set_tensor(b_in, get_tensor(original_port.value()));
+        } 
+        print_missing_ports(missing);
+    }
+    
+    // Pick audio output = first floating output (f16/f32)
+    std::optional<ov::Output<const ov::Node>> audio_out;
+    for (const auto& out : b_outputs) {
+        const auto et = out.get_element_type();
+        if (et == ov::element::f16 || et == ov::element::f32) {
+            audio_out = out;
+            break;
+        }
+    }
+    
+    if (!audio_out.has_value()) {
+        OPENVINO_THROW("Kokoro Model B: no floating-point outputs found");
+    }
+
+    const std::size_t block = static_cast<std::size_t>(m_kokoro_compiled_model->block_size());
+    const std::size_t num_blocks = (total_frames + block - 1) / block;
+
+    std::vector<uint8_t> audio_bytes;
+    std::size_t total_samples = 0;
+    double samples_per_frame = 0.0;
+    ov::Shape audio_shape0;
+    ov::element::Type audio_type0;
+
+    for (std::size_t blk = 0; blk < num_blocks; ++blk) {
+        const std::size_t t0 = blk * block;
+        const std::size_t t1 = std::min(t0 + block, total_frames);
+        const std::size_t valid_frames = t1 - t0;
+
+        std::vector<int64_t> idx_block(idx_all.begin() + t0,
+                                       idx_all.begin() + t1);
+
+        auto en_in_tensor = m_model_b_request->get_tensor(b_en_in.value());
+        auto asr_in_tensor = m_model_b_request->get_tensor(b_asr_in.value());
+        OPENVINO_ASSERT(en_in_tensor && asr_in_tensor);
+
+        // 3D tensor: [1, number_of_tokens, block_size]
+        OPENVINO_ASSERT(en_in_tensor->get_shape().size() == 3u);
+        OPENVINO_ASSERT(asr_in_tensor->get_shape().size() == 3u);
+        OPENVINO_ASSERT(en_in_tensor->get_shape().back() == block);
+        OPENVINO_ASSERT(asr_in_tensor->get_shape().back() == block);
+
+        const auto en_et = en_in_tensor->get_element_type();
+        const auto asr_et = asr_in_tensor->get_element_type();
+        OPENVINO_ASSERT(en_et == en_left_tensor->get_element_type(), "en_block dtype mismatch with en_left");
+        OPENVINO_ASSERT(asr_et == asr_left_tensor->get_element_type(), "asr_block dtype mismatch with asr_left");
+
+        // Using idx_block fill inputs for model b (aligned feature matrix)
+        if (en_et == ov::element::f16) {
+            gather_3d_last_dim<ov::float16>(en_left_tensor, en_in_tensor->data<ov::float16>(), idx_block, block);
+        } else if (en_et == ov::element::f32) {
+            gather_3d_last_dim<float>(en_left_tensor, en_in_tensor->data<float>(), idx_block, block);
+        } else {
+            OPENVINO_THROW("en_left has unsupported type: ", en_et);
+        }
+
+        if (asr_et == ov::element::f16) {
+            gather_3d_last_dim<ov::float16>(asr_left_tensor, asr_in_tensor->data<ov::float16>(), idx_block, block);
+        } else if (asr_et == ov::element::f32) {
+            gather_3d_last_dim<float>(asr_left_tensor, asr_in_tensor->data<float>(), idx_block, block);
+        } else {
+            OPENVINO_THROW("asr_left has unsupported type: ", asr_et);
+        }
+
+        m_model_b_request->infer();
+        auto audio_tensor = m_model_b_request->get_tensor(audio_out.value());
+        OPENVINO_ASSERT(audio_tensor);
+
+        if (blk == 0) {
+            audio_shape0 = audio_tensor->get_shape();
+            audio_type0 = audio_tensor->get_element_type();
+        }
+
+        OPENVINO_ASSERT(!audio_tensor->get_shape().empty());
+        const std::size_t block_samples = audio_tensor->get_shape().back();
+        if (samples_per_frame == 0.0) {
+            samples_per_frame = static_cast<double>(block_samples) / static_cast<double>(block);
+        }
+
+        std::size_t valid_samples = block_samples;
+        if (valid_frames < block) {
+            valid_samples = static_cast<std::size_t>(std::llround(samples_per_frame * static_cast<double>(valid_frames)));
+            valid_samples = std::min(valid_samples, block_samples);
+        }
+
+        const std::size_t elem_size = audio_tensor->get_element_type().size();
+        const std::size_t bytes_to_copy = valid_samples * elem_size;
+        const auto* src = static_cast<const uint8_t*>(audio_tensor->data());
+        audio_bytes.insert(audio_bytes.end(), src, src + bytes_to_copy);
+        total_samples += valid_samples;
+    }
+
+    if (original_outputs.empty()) {
+        return;
+    }
+    auto out_shape = audio_shape0;
+    if (!out_shape.empty()) {
+        out_shape.back() = total_samples;
+    } else {
+        out_shape = ov::Shape{total_samples};
+    }
+
+    auto out_tensor = ov::make_tensor(audio_type0, out_shape);
+    OPENVINO_ASSERT(out_tensor->get_byte_size() == audio_bytes.size());
+    std::memcpy(out_tensor->data(), audio_bytes.data(), audio_bytes.size());
+    set_tensor(original_outputs[0], out_tensor);
+}
+
+ov::SoPtr<ov::ITensor> ov::npuw::KokoroInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+    return ov::ISyncInferRequest::get_tensor(port);
+}
+
+std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::KokoroInferRequest::query_state() const {
+    // FIXME Not implemented
+    // OPENVINO_NOT_IMPLEMENTED;
+    return {};
+}
