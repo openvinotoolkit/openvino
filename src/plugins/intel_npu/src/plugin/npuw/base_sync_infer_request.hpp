@@ -27,7 +27,6 @@ namespace npuw {
 using namespace ov::npuw::util;
 
 class CompiledModel;
-class MoEPrefillPipeline;  // Forward declaration for friend access
 
 using LinkFrom = std::pair<std::size_t /* Subrequest index */
                            ,
@@ -261,9 +260,6 @@ protected:
 
     using now_t = std::optional<std::size_t>;
     now_t now_idx() const;
-
-    // Grant MoE pipeline access to protected members
-    friend class MoEPrefillPipeline;
 
 private:
     now_t m_now_idx;
