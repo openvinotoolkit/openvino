@@ -33,7 +33,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_SPATIAL>();
     desc.add<NPUW_SPATIAL_NWAY>();
     desc.add<NPUW_SPATIAL_DYN>();
-    desc.add<NPUW_MOE_TOKEN_CHUNK_SIZE>();
+    desc.add<NPUW_MOE_FIXED_TOKEN_CHUNK_SIZE>();
     desc.add<NPUW_ATTN>();
     desc.add<NPUW_ATTN_DYN>();
     desc.add<NPUW_ATTN_NO_COPY>();

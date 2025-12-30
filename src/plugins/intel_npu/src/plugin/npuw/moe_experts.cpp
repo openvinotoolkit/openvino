@@ -934,9 +934,18 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
 
     } else {
         // Prefill: Multiple models for different chunk sizes, each with 1 expert
-        LOG_INFO("Prefill mode: Creating models for different chunk sizes");
+        // Use prefill_chunk_size config to control compilation strategy:
+        // - If prefill_chunk_size == 0: compile multiple models for dynamic chunking
+        // - If prefill_chunk_size > 0: compile only single model with specified chunk size
+        std::vector<size_t> chunk_sizes;
+        if (prefill_chunk_size == 0) {
+            chunk_sizes = {16, 32, 64, 128, 256};
+            LOG_INFO("Prefill mode: Creating multiple models for dynamic chunking");
+        } else {
+            chunk_sizes = {prefill_chunk_size};
+            LOG_INFO("Prefill mode: Creating single model with chunk_size=" << prefill_chunk_size);
+        }
 
-        std::vector<size_t> chunk_sizes = {16, 32, 64, 128, 256};
         for (auto chunk_size : chunk_sizes) {
             // Re-analyze structure for each transformation to get fresh node pointers
             auto fresh_structure_info = analyze_moe_structure(model);
