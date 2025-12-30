@@ -241,9 +241,9 @@ std::string getCurrentWorkingDir();
 std::string getRelativePath(const std::string& from, const std::string& to);
 
 namespace {
-inline std::string get_mock_engine_path() {
+inline std::filesystem::path get_mock_engine_path() {
     std::string mockEngineName("mock_engine");
-    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+    return ov::util::make_plugin_library_name(ov::util::make_path(ov::test::utils::getExecutableDirectory()),
                                               mockEngineName + OV_BUILD_POSTFIX);
 }
 

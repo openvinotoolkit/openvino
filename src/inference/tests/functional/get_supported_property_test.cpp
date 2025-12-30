@@ -27,9 +27,10 @@ public:
     }
 
     void reg_plugin(ov::Core& core, std::shared_ptr<ov::IPlugin>& plugin) {
-        std::string libraryPath = ov::test::utils::get_mock_engine_path();
-        if (!m_so)
-            m_so = ov::util::load_shared_object(libraryPath.c_str());
+        if (!m_so) {
+            const auto libraryPath = ov::test::utils::get_mock_engine_path();
+            m_so = ov::util::load_shared_object(libraryPath);
+        }
         std::function<void(ov::IPlugin*)> injectProxyEngine =
             ov::test::utils::make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
 

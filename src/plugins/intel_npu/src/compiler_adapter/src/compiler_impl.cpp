@@ -180,16 +180,11 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
     }
 
 VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
-    const std::string baseName = "openvino_intel_npu_compiler";
+    const std::filesystem::path baseName = "openvino_intel_npu_compiler";
     try {
         auto libpath = ov::util::make_plugin_library_name({}, baseName);
         _logger.debug("Try to load openvino_intel_npu_compiler");
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        this->lib = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
-#else
-        this->lib = ov::util::load_shared_object(libpath.c_str());
-#endif
+        this->lib = ov::util::load_shared_object(libpath);
     } catch (const std::runtime_error& error) {
         _logger.debug("Failed to load openvino_intel_npu_compiler");
         OPENVINO_THROW(error.what());

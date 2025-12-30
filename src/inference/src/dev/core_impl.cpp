@@ -693,7 +693,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
             desc.m_plugin_create_func(plugin_impl);
             plugin = Plugin{plugin_impl, {}};
         } else {
-            so = ov::util::load_shared_object(desc.m_lib_location.c_str());
+            so = ov::util::load_shared_object(desc.m_lib_location);
             std::shared_ptr<ov::IPlugin> plugin_impl;
             reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
             const auto& plugin_name = plugin_impl->get_device_name();
