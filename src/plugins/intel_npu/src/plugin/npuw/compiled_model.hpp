@@ -211,6 +211,10 @@ private:
         // pipelining is enabled)
         std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_pipeline_requests;
 
+        // Infer requests for MoE expert models with different chunk sizes (if moe_experts is present)
+        // Map: chunk_size -> infer_request
+        std::map<size_t, ov::SoPtr<ov::IAsyncInferRequest>> moe_infer_requests;
+
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
         std::size_t param_base = 0;
