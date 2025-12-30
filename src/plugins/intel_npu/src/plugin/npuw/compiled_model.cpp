@@ -406,8 +406,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 if (fcn_template._moe_experts) {
                     m_compiled_submodels[id].moe_experts = compiled::MoEExperts(fcn_template._moe_experts.value());
 
-                    // Set the model to compile from MoEExperts
-                    m_compiled_submodels[id].model = m_compiled_submodels[id].moe_experts.value()._model_to_compile;
+                    // Reset the model to compile from MoEExperts
+                    m_compiled_submodels[id].model.reset();
                 }
 
                 if (fcn_template._moe_experts_downstream) {
@@ -452,7 +452,16 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 fill_empty_tensor_names(model);
             };
 
-            fix_tensor_names(m_compiled_submodels[real_id].model);
+            if (const auto& moe_experts = m_compiled_submodels[real_id].moe_experts) {
+                auto models_to_compile = moe_experts.value()._models_to_compile;
+                for (const auto& entry : models_to_compile) {
+                    auto chunk_size = entry.first;
+                    std::cout << "Fixing tensor names for MoE expert model chunk_size=" << chunk_size << std::endl;
+                    fix_tensor_names(entry.second);
+                }
+            } else {
+                fix_tensor_names(m_compiled_submodels[real_id].model);
+            }
 
             // Ensure all submodels (including pyramid attention) have consistent and valid tensor names
             // to avoid issues in downstream inference and model serialization.
@@ -522,18 +531,36 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             }
         }  // if(forced_device_opt)
 
-        LOG_INFO("Compiling Subgraph[" << id << "]: " << m_compiled_submodels[real_id].model->get_friendly_name()
-                                       << "...");
-        if (!compile_for_success(id)) {
-            OPENVINO_THROW("Failed to compile ",
-                           m_compiled_submodels[real_id].model->get_friendly_name(),
-                           " for all devices in [",
-                           dev_list_str,
-                           "]");
+        if (m_compiled_submodels[real_id].model != nullptr) {
+            LOG_INFO("Compiling Subgraph[" << id << "]: " << m_compiled_submodels[real_id].model->get_friendly_name()
+                                           << "...");
+        } else {
+            LOG_INFO("Compiling Subgraph[" << id << "] (function call): " << orderedSubgraphs[real_id]._funcall
+                                           << "...");
         }
 
+        if (!compile_for_success(id)) {
+            if (m_compiled_submodels[real_id].model != nullptr) {
+                OPENVINO_THROW("Failed to compile ",
+                               m_compiled_submodels[real_id].model->get_friendly_name(),
+                               " for all devices in [",
+                               dev_list_str,
+                               "]");
+            } else {
+                OPENVINO_THROW("Failed to compile Subgraph[",
+                               id,
+                               "] (function call): ",
+                               orderedSubgraphs[real_id]._funcall,
+                               " for all devices in [",
+                               dev_list_str,
+                               "]");
+            }
+        }
+
+        std::cout << "Done for Subgraph[" << id << "]" << std::endl;
+
         if (m_acc_check) {
-            if (submodel_device(real_id) != m_ref_device) {
+            if (submodel_device(real_id) != m_ref_device && m_compiled_submodels.at(real_id).model != nullptr) {
                 LOG_INFO("Compile Subgraph[" << real_id << "] for reference device: " << m_ref_device << ".");
                 LOG_BLOCK();
                 m_compiled_submodels.at(real_id).ref_compiled_model =
@@ -1653,7 +1680,7 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
         // Note: Ideally these should be eliminated via constant folding, but with offline partitioning
         // it is not possible + not clear what to do with dynamic shapes.
         // So for now, skip this case explicitly.
-        if (m_compiled_submodels[id].model->inputs().empty()) {
+        if (m_compiled_submodels[id].model && m_compiled_submodels[id].model->inputs().empty()) {
             LOG_INFO("Avoid compilation for " << device_to_try << " as the model should be constant-folded");
             dump_on_fail(id, device_to_try, "Avoided due to workaround");
             return false;
@@ -1675,20 +1702,57 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
 
     try {
         // WARNING: These requests can be issues in parallel, so timer should be thread-safe
-        m_profile["compile/" + device_to_try].record([&]() {
-            m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
-        });
 
+        // Handle MoE experts compilation - compile all models for different chunk sizes
         if (m_compiled_submodels[id].moe_experts.has_value()) {
-            // Set compiled model into MoE experts descriptor
-            m_compiled_submodels[id].moe_experts->set_compiled_model(
-                std::move(m_compiled_submodels[id].compiled_model));
-        }
+            LOG_INFO("Compiling MoE expert models for different chunk sizes...");
+            LOG_BLOCK();
 
-        if (m_compiled_submodels[id].moe_experts_downstream.has_value()) {
-            // Set compiled model into MoE downstream descriptor
+            auto& moe_experts = m_compiled_submodels[id].moe_experts.value();
+            const auto& models_to_compile = moe_experts._models_to_compile;
+
+            LOG_INFO("Total MoE models to compile: " << models_to_compile.size());
+            std::cout << "Total MoE models to compile: " << models_to_compile.size() << std::endl;
+
+            // Compile each chunk size model
+            for (const auto& entry : models_to_compile) {
+                const size_t chunk_size = entry.first;
+                const auto& model = entry.second;
+
+                LOG_INFO("Compiling MoE expert model for chunk_size=" << chunk_size);
+                std::cout << "Compiling MoE expert model for chunk_size=" << chunk_size << std::endl;
+
+                m_profile["compile/" + device_to_try + "/moe_chunk_" + std::to_string(chunk_size)].record([&]() {
+                    auto compiled = compile_submodel(model, device_to_try);
+                    moe_experts.set_compiled_model(chunk_size, std::move(compiled));
+                });
+
+                LOG_INFO("Successfully compiled MoE expert model for chunk_size=" << chunk_size);
+            }
+
+            if (m_compiled_submodels[id].moe_experts->input_token_count == 1) {
+                m_compiled_submodels[id].compiled_model = moe_experts.get_compiled_model(0);
+            } else {
+                m_compiled_submodels[id].compiled_model = moe_experts.get_compiled_model(128);
+            }
+
+            LOG_INFO("MoE expert compilation complete for Subgraph[" << id << "]");
+        } else if (m_compiled_submodels[id].moe_experts_downstream.has_value()) {
+            // Handle MoE downstream compilation (single model)
+            m_profile["compile/" + device_to_try].record([&]() {
+                m_compiled_submodels[id].compiled_model =
+                    compile_submodel(m_compiled_submodels[id].model, device_to_try);
+            });
+
             m_compiled_submodels[id].moe_experts_downstream->set_compiled_model(
                 std::move(m_compiled_submodels[id].compiled_model));
+        } else {
+            // Normal compilation for non-MoE models
+            std::cout << "Compiling normal model..." << std::endl;
+            m_profile["compile/" + device_to_try].record([&]() {
+                m_compiled_submodels[id].compiled_model =
+                    compile_submodel(m_compiled_submodels[id].model, device_to_try);
+            });
         }
 
         // Compile pyramid attention models if present
@@ -1884,7 +1948,35 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
     if (real_id != id) {
         LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]" << " as it is a function body for Subgraph[" << id << "]");
     }
+
+    // Dump MoE expert models if present
+    if (m_compiled_submodels[id].moe_experts) {
+        LOG_INFO("NOTE: Subgraph[" << id << "] has MoE experts mechanism.");
+        const auto& moe_models = m_compiled_submodels[id].moe_experts.value()._models_to_compile;
+
+        if (moe_models.empty()) {
+            LOG_WARN("MoE experts models are empty (already compiled and cleared)");
+        } else {
+            for (const auto& entry : moe_models) {
+                size_t chunk_size = entry.first;
+                const auto& moe_model = entry.second;
+
+                std::string moe_model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
+                                                  (funcall.empty() ? "" : "_" + funcall) + "_moe_chunk_" +
+                                                  std::to_string(chunk_size) + ".xml";
+                ov::save_model(moe_model, moe_model_dump_path);
+                LOG_INFO("Wrote " << moe_model_dump_path);
+            }
+        }
+        return;  // MoE experts don't have a single model to dump
+    }
+
     const auto model_to_dump = m_compiled_submodels[real_id].model;
+    if (!model_to_dump) {
+        LOG_WARN("Model is null, cannot dump Subgraph[" << id << "]");
+        return;
+    }
+
     std::string model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
                                   (funcall.empty() ? "" : "_" + funcall) + ".xml";
     ov::save_model(model_to_dump, model_dump_path);

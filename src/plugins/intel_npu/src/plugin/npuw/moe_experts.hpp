@@ -3,7 +3,9 @@
 
 #pragma once
 
+#include <map>
 #include <optional>
+#include <vector>
 
 #include "logging.hpp"
 #include "openvino/core/model.hpp"
@@ -115,20 +117,24 @@ struct MoEExperts {
     ExpertMode _mode = ExpertMode::SINGLE_EXPERT;  // Transformation mode
     size_t _num_active_experts = 1;  // Number of active experts (1 for SINGLE_EXPERT, K for ACTIVE_EXPERTS)
 
-    // The transformed expert model (1 expert for prefill, K experts for decoding)
-    std::shared_ptr<ov::Model> _transformed_model = nullptr;
+    // Transformed expert models for different chunk sizes (chunk_size -> model)
+    // For prefill: multiple models with different chunk sizes {32, 64, 128, 256, 512}
+    // For decoding: single model with chunk_size = 0 (no chunking, K active experts)
+    std::map<size_t, std::shared_ptr<ov::Model>> _transformed_models;
 
     // Parameter indices
     std::optional<size_t> _router_scores_idx;       // Parameter index for router scores
     std::optional<size_t> _expert_input_param_idx;  // Parameter index for expert's input (token embeddings)
 
-    // Parameter mapping: original_param_idx -> vector of unrolled_param_indices
-    // Example: original param at index 5 is unrolled to [10, 11, 12, 13] for 4 experts
+    // Parameter mapping: original_param_idx -> [unrolled_param_indices]
+    // For prefill (SINGLE_EXPERT): no unrolling, so this will be empty or identity mapping
+    // For decoding (ACTIVE_EXPERTS): maps original params to K unrolled params
+    // Same for all chunk sizes since unrolling only happens in decoding mode
     std::map<size_t, std::vector<size_t>> _param_mapping;
 
     // Validation helpers
     bool is_valid() const {
-        return _num_experts > 0 && _expert_hidden_dim > 0 && _transformed_model != nullptr &&
+        return _num_experts > 0 && _expert_hidden_dim > 0 && !_transformed_models.empty() &&
                _router_scores_idx.has_value();
     }
 
@@ -148,8 +154,17 @@ struct MoEExperts {
         return _mode;
     }
 
-    const std::shared_ptr<ov::Model>& transformed_model() const {
-        return _transformed_model;
+    const std::map<size_t, std::shared_ptr<ov::Model>>& transformed_models() const {
+        return _transformed_models;
+    }
+
+    // Get transformed model for a specific chunk size
+    std::shared_ptr<ov::Model> get_model_for_chunk_size(size_t chunk_size) const {
+        auto it = _transformed_models.find(chunk_size);
+        if (it != _transformed_models.end()) {
+            return it->second;
+        }
+        return nullptr;
     }
 
     std::optional<size_t> router_scores_idx() const {
@@ -173,7 +188,16 @@ struct MoEExperts {
         std::cout << "  Number of active experts: " << _num_active_experts << std::endl;
         std::cout << "  Expert hidden dimension: " << _expert_hidden_dim << std::endl;
         std::cout << "  Input token count: " << _input_token_count << std::endl;
-        std::cout << "  Chunk token count: " << _chunk_token_count << std::endl;
+
+        if (_mode == ExpertMode::ACTIVE_EXPERTS) {
+            std::cout << "  Decoding mode: no chunking" << std::endl;
+        } else {
+            std::cout << "  Prefill mode - Available chunk sizes: ";
+            for (const auto& entry : _transformed_models) {
+                std::cout << entry.first << " ";
+            }
+            std::cout << std::endl;
+        }
     }
 
     // Factory method to create MoEExperts from a model (for expert pattern only)
@@ -199,14 +223,13 @@ struct MoEExperts {
     size_t expert_hidden_dim = 0;
     size_t num_active_experts = 1;  // Number of active experts (1 for prefill, K for decoding)
     size_t input_token_count = 0;   // Number of input tokens (original total token count)
-    size_t chunk_token_count = 0;   // Chunk size for prefill mode (0 for decoding mode)
     function::ExpertMode mode = function::ExpertMode::SINGLE_EXPERT;
 
-    // Compiled expert model (single expert or K active experts)
-    ov::SoPtr<ov::ICompiledModel> _compiled_model;
+    // Compiled expert models for different chunk sizes (chunk_size -> compiled_model)
+    std::map<size_t, ov::SoPtr<ov::ICompiledModel>> _compiled_models;
 
-    // Store model temporarily for compilation
-    std::shared_ptr<ov::Model> _model_to_compile;
+    // Store models temporarily for compilation (chunk_size -> model)
+    std::map<size_t, std::shared_ptr<ov::Model>> _models_to_compile;
 
     // Router scores parameter index (from Multiply in output path)
     std::optional<size_t> _router_scores_idx;
@@ -214,6 +237,7 @@ struct MoEExperts {
     std::optional<size_t> _expert_input_param_idx;
 
     // Parameter mapping: original_param_idx -> [unrolled_param_indices]
+    // Same for all chunk sizes (unrolling only in decoding mode)
     std::map<size_t, std::vector<size_t>> _param_mapping;
 
     MoEExperts() = default;
@@ -221,12 +245,21 @@ struct MoEExperts {
     // Constructor that extracts metadata and stores model for compilation
     explicit MoEExperts(const function::MoEExperts& func_moe);
 
-    // Set compiled model after compilation completes
-    void set_compiled_model(ov::SoPtr<ov::ICompiledModel>&& compiled_model);
+    // Set compiled model for a specific chunk size after compilation completes
+    void set_compiled_model(size_t chunk_size, ov::SoPtr<ov::ICompiledModel>&& compiled_model);
+
+    // Get compiled model for a specific chunk size
+    ov::SoPtr<ov::ICompiledModel> get_compiled_model(size_t chunk_size) const {
+        auto it = _compiled_models.find(chunk_size);
+        if (it != _compiled_models.end()) {
+            return it->second;
+        }
+        return nullptr;
+    }
 
     // Validation
     bool is_valid() const {
-        return num_experts > 0 && expert_hidden_dim > 0 && _compiled_model != nullptr;
+        return num_experts > 0 && expert_hidden_dim > 0 && !_compiled_models.empty();
     }
 };
 
