@@ -10966,6 +10966,105 @@ TEST(convolution_gpu_onednn, support_activation_zero_points_for_i32) {
         }
 }
 
+TEST(convolution_gpu_onednn, eltw_and_bin_double_shift_in_blob_cache) {
+    auto& engine = get_test_engine();
+    auto stream_ptr = get_test_stream_ptr();
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    const float shift_init = 128.0f;
+    const float in_lo_v  = 0.0f;
+    const float in_hi_v  = 255.0f;
+    const float out_lo_v = -128.0f;
+    const float out_hi_v = 127.0f;
+    const int   levels   = 256;
+
+    auto run = [&](bool is_caching_test) -> float {
+        layout in_layout  { {1, 64, 56, 56}, data_types::u8,  format::bfyx };
+        layout w_layout   { {256, 64, 1, 1},  data_types::i8,  format::bfyx };
+        layout ch_layout  { {1, 256, 1, 1}, data_types::f32, format::bfyx };
+        layout sc_layout  { {1, 1, 1, 1}, data_types::f32, format::bfyx };
+
+        auto input_mem   = engine.allocate_memory(in_layout);
+        auto weights_mem = engine.allocate_memory(w_layout);
+        auto shift_mem   = engine.allocate_memory(ch_layout);
+        auto bin_in_mem  = engine.allocate_memory(ch_layout);
+
+        tests::random_generator rg(GET_SUITE_NAME);
+
+        auto input_value = rg.generate_random_4d<uint8_t>(1, 64, 56, 56, 0, 0);
+        auto weights_value = rg.generate_random_4d<int8_t>(256, 64, 1, 1, 1, 1);
+        auto shift_value = rg.generate_random_4d<float>(1, 256, 1, 1, shift_init, shift_init);
+        auto bin_in_value = rg.generate_random_4d<float>(1, 256, 1, 1, 0, 0);
+
+        set_values(input_mem, flatten_4d(format::bfyx, input_value));
+        set_values(weights_mem, flatten_4d(format::bfyx, weights_value));
+        set_values(shift_mem, flatten_4d(format::bfyx, shift_value));
+        set_values(bin_in_mem, flatten_4d(format::bfyx, bin_in_value));
+
+        auto in_lo_mem  = engine.allocate_memory(sc_layout);
+        auto in_hi_mem  = engine.allocate_memory(sc_layout);
+        auto out_lo_mem = engine.allocate_memory(ch_layout);
+        auto out_hi_mem = engine.allocate_memory(ch_layout);
+
+        set_values(in_lo_mem,  std::vector<float>{in_lo_v});
+        set_values(in_hi_mem,  std::vector<float>{in_hi_v});
+        set_values(out_lo_mem, std::vector<float>(256, out_lo_v));
+        set_values(out_hi_mem, std::vector<float>(256, out_hi_v));
+
+        topology topo;
+        topo.add(input_layout("input", in_layout));
+        topo.add(input_layout("binary_add_input", ch_layout));
+        topo.add(reorder("reorder_in", input_info("input"), format::b_fs_yx_fsv32, data_types::u8));
+        topo.add(data("weights", weights_mem));
+        topo.add(convolution("conv",
+                             input_info("reorder_in"),
+                             "weights",
+                             "" /*bias*/,
+                             1 /*groups*/,
+                             ov::Strides{1, 1},
+                             ov::Strides{1, 1},
+                             ov::CoordinateDiff{0, 0},
+                             ov::CoordinateDiff{0, 0},
+                             false /*transposed*/));
+        topo.add(eltwise("add_bin",
+                         { input_info("conv"), input_info("binary_add_input") },
+                         eltwise_mode::sum));
+        topo.add(data("fq_in_shift", shift_mem));
+        topo.add(eltwise("add_shift",
+                         { input_info("add_bin"), input_info("fq_in_shift") },
+                         eltwise_mode::sum));
+        topo.add(data("in_lo",  in_lo_mem));
+        topo.add(data("in_hi",  in_hi_mem));
+        topo.add(data("out_lo", out_lo_mem));
+        topo.add(data("out_hi", out_hi_mem));
+        topo.add(quantize("q",
+                          input_info("add_shift"),
+                          input_info("in_lo"),
+                          input_info("in_hi"),
+                          input_info("out_lo"),
+                          input_info("out_hi"),
+                          levels,
+                          data_types::i8));
+        topo.add(reorder("output", input_info("q"), format::bfyx, data_types::f32));
+
+        auto net = get_network(engine, topo, config, stream_ptr, is_caching_test);
+        net->set_input_data("input", input_mem);
+        net->set_input_data("binary_add_input", bin_in_mem);
+
+        auto outputs = net->execute();
+        auto out_vals = get_output_values_to_float(*net, outputs.at("output"), 1);
+
+        return out_vals[0];
+    };
+
+    auto result_no_cache = run(false);
+    auto result_cache = run(true);
+
+    EXPECT_NEAR(result_no_cache, result_cache, 1e-3f);
+}
+
 TEST(convolution_gpu_onednn, has_proper_synchronization) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
@@ -11944,6 +12043,45 @@ INSTANTIATE_TEST_SUITE_P(smoke, conv_dyn_test,
     { ov::Shape{1, 64, 16, 16}, ov::Shape{64, 1, 1, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 64 },
 }));
 
+TEST(convolution_gpu_imad_cache, convolution_gpu_b_fs_yx_fsv16_imad_1x1_cache) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_imad)
+        GTEST_SKIP() << "IMAD (dp4a) instructions are not supported on this device; the IMAD 1x1 kernel cannot be selected.";
+
+    const ov::Shape static_input_shape = {1, 64, 7, 7};
+    const ov::Shape weights_shape = {64, 64, 1, 1};
+
+    // The IMAD 1x1 kernel does not accept an undefined batch, so keep the input fully static
+    // to mirror the successful resnet50_int8 runtime selection on the same device.
+    ov::PartialShape dyn_input_shape = static_input_shape;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_vals = rg.generate_random_1d<uint8_t>(ov::shape_size(static_input_shape), 0, 5);
+    auto weights_vals = rg.generate_random_1d<int8_t>(ov::shape_size(weights_shape), -3, 3);
+
+    auto input_mem = engine.allocate_memory({static_input_shape, data_types::u8, format::b_fs_yx_fsv16});
+    auto weights_mem = engine.allocate_memory({weights_shape, data_types::i8, format::bfyx});
+    set_values(input_mem, input_vals);
+    set_values(weights_mem, weights_vals);
+
+    topology topology(
+        input_layout("input", {dyn_input_shape, data_types::u8, format::b_fs_yx_fsv16}),
+        data("weights", weights_mem),
+        convolution("conv", input_info("input"), "weights", no_bias, 1,
+                    ov::Strides{1, 1}, ov::Strides{1, 1},
+                    ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::b_fs_yx_fsv16, "convolution_gpu_b_fs_yx_fsv16_imad_1x1", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}}));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), true);
+    network->set_input_data("input", input_mem);
+
+    ASSERT_NO_THROW(network->execute());
+}
 
 struct conv_dyn_3d_test_params {
     ov::Shape in_shape;
