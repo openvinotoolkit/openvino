@@ -548,6 +548,29 @@ ov::Tensor ov::npuw::IBaseInferRequest::slice_expert_weight(const ov::Tensor& ba
     return view_tensor;
 }
 
+void set_tensor_optimized(ov::SoPtr<ov::IAsyncInferRequest> request,
+                          const ov::Output<const ov::Node>& iport,
+                          const ov::SoPtr<ov::ITensor>& tensor_impl) {
+    // Optimization: For small tensors, use copy instead of set_tensor to avoid overhead
+    // Threshold: 11520 bytes (~11.25KB, typically 5760 f16 elements or 2880 f32 elements)
+    // Empirically verified to have performance benefit for small tensors
+    // Typical shapes: 1x2880x1 (f16: 5760 bytes), 1x5760x1 (f16: 11520 bytes)
+    constexpr size_t SMALL_TENSOR_THRESHOLD_BYTES = 11520;
+
+    size_t tensor_bytes = tensor_impl->get_byte_size();
+
+    if (tensor_bytes <= SMALL_TENSOR_THRESHOLD_BYTES) {
+        // Small tensor: direct copy to avoid set_tensor overhead (~0.65ms per call)
+        // Copy is faster for small tensors due to avoiding NPU plugin overhead
+        auto clparam = request->get_tensor(iport);
+        tensor_impl->copy_to(clparam._ptr);
+        LOG_DEBUG("Using copy for small tensor (" << tensor_bytes << " bytes)");
+    } else {
+        // Large tensor: use set_tensor (zero-copy)
+        request->set_tensor(iport, tensor_impl);
+    }
+}
+
 std::vector<size_t> ov::npuw::IBaseInferRequest::parse_selected_experts_from_router(
     const ov::SoPtr<ov::ITensor>& router_output,
     size_t num_experts,
@@ -724,8 +747,8 @@ void ov::npuw::IBaseInferRequest::unpack_moe_expert_closure(std::size_t idx, RqP
                     ov::npuw::util::unpack(sliced_weight, clparam);
                 }
             } else {
-                // Direct set (no unpacking needed)
-                request->set_tensor(iport, sliced_weight);
+                // Direct set (no unpacking needed) - use optimized function
+                set_tensor_optimized(request, iport, sliced_weight);
             }
         } else {
             // This closure parameter doesn't need slicing, use original logic
@@ -863,8 +886,9 @@ void ov::npuw::IBaseInferRequest::unpack_moe_batch_expert_closure(std::size_t id
                     ov::npuw::util::unpack(sliced_impl, clparam);
                 }
             } else {
-                // Direct set path (dtype match, zero-copy)
-                request->set_tensor(iport, ov::get_tensor_impl(sliced_expert));
+                // Direct set (no unpacking needed) - use optimized function
+                auto sliced_impl = ov::get_tensor_impl(sliced_expert);
+                set_tensor_optimized(request, iport, sliced_impl);
             }
         }  // for each expert
     }  // for each closure parameter
