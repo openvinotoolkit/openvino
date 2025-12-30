@@ -12,11 +12,10 @@
 #include <sstream>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "emitters/utils.hpp"
-#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon.h"
-#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -90,23 +89,14 @@ void GemmCopyBKaiKernelExecutorBase::update_config_common(
 }
 
 template <typename CompiledKernelT>
-void GemmCopyBKaiKernelExecutorBase::ensure_kernel(std::shared_ptr<CompiledKernelT>& kernel, size_t bias_elem_size) {
-    const auto expected_bias_size = GemmCopyBKernelKaiConfig::get_N_blk() * bias_elem_size;
+void GemmCopyBKaiKernelExecutorBase::ensure_kernel(std::shared_ptr<CompiledKernelT>& kernel) {
     if (kernel == nullptr) {
         kernel = std::make_shared<CompiledKernelT>();
-        kernel->bias_buffer->assign(expected_bias_size, 0);
-    } else if (kernel->bias_buffer->size() != expected_bias_size) {
-        kernel->bias_buffer->assign(expected_bias_size, 0);
     }
 }
 
 template <auto rhs_pack_kxn, typename UkernelT>
-static void execute_copy_b_common(const GemmCopyBKernelKaiConfig& config,
-                                  const UkernelT& uk,
-                                  std::vector<uint8_t>& bias_buffer,
-                                  void* in0,
-                                  void* out0,
-                                  size_t elem_size) {
+static void execute_copy_b_common(const GemmCopyBKernelKaiConfig& config, const UkernelT& uk, void* in0, void* out0) {
     const auto K = config.get_K();
     const auto N = config.get_N();
     const auto copy_b_wei_stride = config.get_copy_b_wei_stride();
@@ -116,9 +106,6 @@ static void execute_copy_b_common(const GemmCopyBKernelKaiConfig& config,
     const size_t kr = uk.get_kr();
     const size_t sr = uk.get_sr();
     size_t n_blocks = ov::snippets::utils::div_up(N, n_blk_size);
-    if (bias_buffer.size() != GemmCopyBKernelKaiConfig::get_N_blk() * elem_size) {
-        bias_buffer.assign(GemmCopyBKernelKaiConfig::get_N_blk() * elem_size, 0);
-    }
     for (size_t n_block = 0; n_block < n_blocks; n_block++) {
         size_t n_start = n_block * n_blk_size;
         size_t n_end = std::min(n_start + n_blk_size, N);
@@ -127,19 +114,7 @@ static void execute_copy_b_common(const GemmCopyBKernelKaiConfig& config,
         auto* dst_base = static_cast<int8_t*>(out0);
         const size_t packed_off = uk.get_rhs_packed_offset(n_start, K);
         auto* dst_ptr = dst_base + packed_off;
-        rhs_pack_kxn(1,
-                     n_step,
-                     K,
-                     nr,
-                     kr,
-                     sr,
-                     copy_b_wei_stride,
-                     src_ptr,
-                     bias_buffer.data(),
-                     nullptr,
-                     dst_ptr,
-                     0,
-                     nullptr);
+        rhs_pack_kxn(1, n_step, K, nr, kr, sr, copy_b_wei_stride, src_ptr, nullptr, nullptr, dst_ptr, 0, nullptr);
     }
 }
 
@@ -148,7 +123,7 @@ GemmCopyBF32KaiKernelExecutor::GemmCopyBF32KaiKernelExecutor(GemmCopyBKernelKaiC
 
 void GemmCopyBF32KaiKernelExecutor::update_kernel([[maybe_unused]] const GemmCopyBKernelKaiConfig& config,
                                                   std::shared_ptr<GemmCopyBCompiledKernelF32>& kernel) const {
-    ensure_kernel(kernel, sizeof(float));
+    ensure_kernel(kernel);
 }
 
 void GemmCopyBF32KaiKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
@@ -163,12 +138,7 @@ void GemmCopyBF32KaiKernelExecutor::execute(const GemmCopyBF32KaiKernelExecutor*
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
     const auto& kernel = executor->get_kernel();
-    execute_copy_b_common<kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon>(config,
-                                                                            *kernel->copy_b_ukernel,
-                                                                            *kernel->bias_buffer,
-                                                                            in0,
-                                                                            out0,
-                                                                            sizeof(float));
+    execute_copy_b_common<kai_run_rhs_pack_kxn_x32p16x1b_x32_x32_neon>(config, *kernel->copy_b_ukernel, in0, out0);
 }
 
 GemmCopyBF16KaiKernelExecutor::GemmCopyBF16KaiKernelExecutor(GemmCopyBKernelKaiConfig config)
@@ -176,7 +146,7 @@ GemmCopyBF16KaiKernelExecutor::GemmCopyBF16KaiKernelExecutor(GemmCopyBKernelKaiC
 
 void GemmCopyBF16KaiKernelExecutor::update_kernel([[maybe_unused]] const GemmCopyBKernelKaiConfig& config,
                                                   std::shared_ptr<GemmCopyBCompiledKernelF16>& kernel) const {
-    ensure_kernel(kernel, sizeof(uint16_t));
+    ensure_kernel(kernel);
 }
 
 void GemmCopyBF16KaiKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
@@ -191,12 +161,7 @@ void GemmCopyBF16KaiKernelExecutor::execute(const GemmCopyBF16KaiKernelExecutor*
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
     const auto& kernel = executor->get_kernel();
-    execute_copy_b_common<kai_run_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon>(config,
-                                                                             *kernel->copy_b_ukernel,
-                                                                             *kernel->bias_buffer,
-                                                                             in0,
-                                                                             out0,
-                                                                             sizeof(uint16_t));
+    execute_copy_b_common<kai_run_rhs_pack_kxn_x16p32x1b_x16_x16_neon>(config, *kernel->copy_b_ukernel, in0, out0);
 }
 
 }  // namespace ov::intel_cpu::aarch64
