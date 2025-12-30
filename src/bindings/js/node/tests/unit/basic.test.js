@@ -400,11 +400,7 @@ describe("ov basic tests.", () => {
 
     it("Test importModelSync from Tensor", () => {
       const uint8Array = new Uint8Array(userStream);
-      const tensorFromBuffer = new ov.Tensor(
-        ov.element.u8,
-        [userStream.length],
-        uint8Array,
-      );
+      const tensorFromBuffer = new ov.Tensor(ov.element.u8, [userStream.length], uint8Array);
 
       const newCompiled = core.importModelSync(tensorFromBuffer, "CPU");
       assert.ok(newCompiled instanceof ov.CompiledModel);
@@ -417,11 +413,7 @@ describe("ov basic tests.", () => {
 
     it("Test importModelSync from Tensor with config", () => {
       const uint8Array = new Uint8Array(userStream);
-      const tensorFromBuffer = new ov.Tensor(
-        ov.element.u8,
-        [userStream.length],
-        uint8Array,
-      );
+      const tensorFromBuffer = new ov.Tensor(ov.element.u8, [userStream.length], uint8Array);
 
       const newCompiled = core.importModelSync(tensorFromBuffer, "CPU", {
         NUM_STREAMS: 1,
@@ -436,11 +428,7 @@ describe("ov basic tests.", () => {
 
     it("Test importModel from Tensor returns Promise", async () => {
       const uint8Array = new Uint8Array(userStream);
-      const tensorFromBuffer = new ov.Tensor(
-        ov.element.u8,
-        [userStream.length],
-        uint8Array,
-      );
+      const tensorFromBuffer = new ov.Tensor(ov.element.u8, [userStream.length], uint8Array);
 
       const promise = core.importModel(tensorFromBuffer, "CPU");
       assert.ok(promise instanceof Promise);
@@ -450,11 +438,7 @@ describe("ov basic tests.", () => {
 
     it("Test importModel from Tensor with config", async () => {
       const uint8Array = new Uint8Array(userStream);
-      const tensorFromBuffer = new ov.Tensor(
-        ov.element.u8,
-        [userStream.length],
-        uint8Array,
-      );
+      const tensorFromBuffer = new ov.Tensor(ov.element.u8, [userStream.length], uint8Array);
 
       const newCompiled = await core.importModel(tensorFromBuffer, "CPU", {
         NUM_STREAMS: 1,
