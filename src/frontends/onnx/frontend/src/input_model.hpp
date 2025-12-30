@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <editor.hpp>
 #include <fstream>
-#include <openvino/frontend/input_model.hpp>
 
 #include "core/place.hpp"
 #include "core/tensor.hpp"
+#include "editor.hpp"
 #include "openvino/frontend/extension/holder.hpp"
+#include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 
 using ::ONNX_NAMESPACE::ModelProto;

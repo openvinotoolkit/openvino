@@ -5,8 +5,8 @@
 #include <onnx/onnx_pb.h>
 
 #include <filesystem>
-#include <openvino/frontend/graph_iterator.hpp>
 
+#include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/onnx/decoder.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"

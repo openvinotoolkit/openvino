@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include <editor.hpp>
 #include <memory>
-#include <openvino/frontend/place.hpp>
 #include <sstream>
+
+#include "editor.hpp"
+#include "openvino/frontend/place.hpp"
 
 namespace ov {
 namespace frontend {

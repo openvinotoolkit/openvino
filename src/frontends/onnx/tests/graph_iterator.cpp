@@ -6,12 +6,12 @@
 #include <onnx/onnx_pb.h>
 
 #include <fstream>
-#include <openvino/frontend/graph_iterator.hpp>
-#include <openvino/openvino.hpp>
 
 #include "../frontend/src/core/graph_iterator_proto.hpp"
 #include "load_from.hpp"
 #include "onnx_utils.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
+#include "openvino/openvino.hpp"
 #include "utils.hpp"
 
 using ::ONNX_NAMESPACE::ModelProto;
