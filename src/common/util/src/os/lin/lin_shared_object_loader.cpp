@@ -25,7 +25,7 @@ std::shared_ptr<void> load_shared_object(const std::filesystem::path& path) {
                                                }};
     if (!shared_object) {
         std::stringstream ss;
-        ss << "Cannot load library '" << path << "'";
+        ss << "Cannot load library " << path;
         if (auto error = dlerror()) {
             ss << ": " << error;
         }
