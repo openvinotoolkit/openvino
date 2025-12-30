@@ -15,7 +15,6 @@
 #include "host_flash_attention.hpp"
 #include "infer_request_utils.hpp"  // to utilize copy_tensor_by_dim
 #include "logging.hpp"
-#include "moe_prefill_pipeline.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -415,20 +414,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         const auto& device = *proto_comp_model_desc.device_it;
         m_moe_relayouted_output = allocMem(ov::element::f16, target_shape, device);
 
-        // Conditionally create MoE prefill pipeline based on NPUW_MOE_PREFILL_ASYNC option
-        // Only create pipeline for prefill stage (input_token_count > 1), not for decoding (== 1)
-        const bool is_prefill = (num_tokens > 1);
-        const bool use_async_pipeline = m_npuw_model->m_cfg.get<::intel_npu::NPUW_MOE_PREFILL_ASYNC>();
-        if (is_prefill && use_async_pipeline) {
-            LOG_INFO("Creating MoE prefill pipeline (prefill mode)...");
-            size_t num_pipeline_requests = 8;
-            m_moe_prefill_pipeline =
-                std::make_unique<MoEPrefillPipeline>(this, proto_comp_model_desc.compiled_model, num_pipeline_requests);
-        } else if (is_prefill) {
-            LOG_INFO("MoE prefill pipeline disabled - using sequential inference for prefill");
-        } else {
-            LOG_INFO("MoE decoding mode (single token) - no pipeline needed");
-        }
+
     }
 
     // Identify connections for the funcall pipeline, if needed
@@ -2094,16 +2080,7 @@ void ov::npuw::JustInferRequest::run_moe_infer(std::size_t real_idx, std::size_t
     if (is_decoding) {
         run_moe_decoding_inference(idx, real_idx, selected_experts);
     } else {
-        // Use pipeline existence to determine inference flow
-        if (m_moe_prefill_pipeline) {
-            run_moe_prefill_pipeline_inference(idx,
-                                               real_idx,
-                                               selected_experts,
-                                               m_moe_token_to_experts,
-                                               m_moe_expert_to_tokens);
-        } else {
-            run_moe_prefill_inference(idx, real_idx, selected_experts, m_moe_token_to_experts, m_moe_expert_to_tokens);
-        }
+        run_moe_prefill_inference(idx, real_idx, selected_experts, m_moe_token_to_experts, m_moe_expert_to_tokens);
     }
 
     LOG_DEBUG("========== MoE Expert Inference Completed ==========");
@@ -2506,85 +2483,6 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
     record_time(m_moe_prefill_stats.total_prefill, prefill_total_ms);
 
     LOG_DEBUG("[PREFILL] Completed all " << selected_experts.size() << " experts in " << prefill_total_ms << " ms");
-}
-
-void ov::npuw::JustInferRequest::run_moe_prefill_pipeline_inference(
-    std::size_t idx,
-    std::size_t real_idx,
-    const std::vector<size_t>& selected_experts,
-    const std::map<size_t, std::vector<size_t>>& token_to_experts,
-    const std::map<size_t, std::vector<size_t>>& expert_to_tokens) {
-    auto prefill_start = std::chrono::high_resolution_clock::now();
-    LOG_DEBUG("[PIPELINE PREFILL] Processing " << selected_experts.size() << " experts");
-
-    // Pipeline should have been created in constructor
-    NPUW_ASSERT(m_moe_prefill_pipeline && "MoE prefill pipeline must be created during construction");
-
-    // Clear output buffer before accumulating
-    if (!m_moe_relayouted_output) {
-        NPUW_ASSERT(false && "MoE relayouted output buffer is null");
-    }
-    std::memset(m_moe_relayouted_output->data(), 0, m_moe_relayouted_output->get_byte_size());
-
-    // Enqueue all expert chunks with dynamic chunk size selection
-    size_t total_tasks = 0;
-    for (size_t expert_id : selected_experts) {
-        const auto& tokens_for_expert = expert_to_tokens.at(expert_id);
-        const size_t total_tokens = tokens_for_expert.size();
-
-        LOG_DEBUG("[PIPELINE PREFILL] Expert " << expert_id << ": " << total_tokens << " tokens");
-
-        // Process tokens in dynamic chunks based on available compiled models
-        size_t processed_tokens = 0;
-        while (processed_tokens < total_tokens) {
-            size_t remaining_tokens = total_tokens - processed_tokens;
-
-            // Select appropriate chunk_size based on remaining tokens
-            // Priority: 256 > 128 > 64 > 32
-            size_t selected_chunk_size;
-            if (remaining_tokens > 128) {
-                selected_chunk_size = 256;
-            } else if (remaining_tokens > 64) {
-                selected_chunk_size = 128;
-            } else if (remaining_tokens > 32) {
-                selected_chunk_size = 64;
-            } else {
-                selected_chunk_size = 32;
-            }
-
-            // Actual tokens to process in this iteration
-            size_t current_chunk_size = std::min(selected_chunk_size, remaining_tokens);
-
-            // Create chunk task
-            MoEPrefillChunkTask task;
-            task.idx = idx;            // Sublayer index for correct MoE I/O lookup
-            task.real_idx = real_idx;  // Real sublayer index for compiled model lookup
-            task.expert_id = expert_id;
-            task.chunk_size = selected_chunk_size;  // Model chunk size to use
-            task.chunk_start_idx = processed_tokens;
-            // task.actual_chunk_size = current_chunk_size;  // Actual tokens to process
-            task.token_ids = tokens_for_expert;  // Pass the full token list
-
-            // Enqueue task (tensors will be allocated in pipeline workers)
-            m_moe_prefill_pipeline->enqueue(task);
-            total_tasks++;
-
-            processed_tokens += current_chunk_size;
-        }
-    }
-
-    LOG_DEBUG("[PIPELINE PREFILL] Enqueued " << total_tasks << " chunk tasks");
-
-    // Wait for all tasks to complete
-    m_moe_prefill_pipeline->wait_all();
-
-    // Record total time
-    auto prefill_end = std::chrono::high_resolution_clock::now();
-    double prefill_total_ms = std::chrono::duration<double, std::milli>(prefill_end - prefill_start).count();
-    record_time(m_moe_prefill_stats.total_prefill, prefill_total_ms);
-
-    LOG_DEBUG("[PIPELINE PREFILL] Completed all " << selected_experts.size() << " experts in " << prefill_total_ms
-                                                  << " ms");
 }
 
 void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared) {

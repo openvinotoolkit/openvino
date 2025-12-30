@@ -119,12 +119,6 @@ protected:
                                    const std::map<size_t, std::vector<size_t>>& token_to_experts,
                                    const std::map<size_t, std::vector<size_t>>& expert_to_tokens);
 
-    void run_moe_prefill_pipeline_inference(std::size_t idx,
-                                            std::size_t real_idx,
-                                            const std::vector<size_t>& selected_experts,
-                                            const std::map<size_t, std::vector<size_t>>& token_to_experts,
-                                            const std::map<size_t, std::vector<size_t>>& expert_to_tokens);
-
     // HFA helper functions
     static void hfa_extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
                                           const ov::SoPtr<ov::ITensor>& dest_tensor,
@@ -246,12 +240,6 @@ protected:
     // MoE routing maps (reused across inferences to avoid stack allocation)
     std::map<size_t, std::vector<size_t>> m_moe_token_to_experts;
     std::map<size_t, std::vector<size_t>> m_moe_expert_to_tokens;
-
-    // MoE prefill pipeline (defined in moe_prefill_pipeline.hpp)
-    std::unique_ptr<MoEPrefillPipeline> m_moe_prefill_pipeline;
-
-    // Grant pipeline access to protected members
-    friend class MoEPrefillPipeline;
 };
 
 }  // namespace npuw
