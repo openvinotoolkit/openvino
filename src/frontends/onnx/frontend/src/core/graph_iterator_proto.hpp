@@ -4,6 +4,8 @@
 #pragma once
 #include <onnx/onnx_pb.h>
 
+#include <filesystem>
+
 #include <openvino/frontend/graph_iterator.hpp>
 
 #include "openvino/frontend/onnx/decoder.hpp"
@@ -150,6 +152,9 @@ protected:
     /// \param name Name of tensor
     /// \param owner Returns real owner of the tensor
     std::shared_ptr<DecoderProtoTensor> get_tensor(const std::string& name, GraphIteratorProto** owner);
+
+private:
+    void initialize_from_path(const std::filesystem::path& path);
 };
 
 }  // namespace onnx

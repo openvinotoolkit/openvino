@@ -312,11 +312,12 @@ GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphPr
     m_model = parent->m_model;
 }
 
-void GraphIteratorProto::initialize(const std::string& path) {
-    m_model_dir = std::make_shared<std::string>(ov::util::get_directory(path).string());
+void GraphIteratorProto::initialize_from_path(const std::filesystem::path& path) {
+    m_model_dir = std::make_shared<std::string>(ov::util::path_to_string(ov::util::get_directory(path)));
+    const auto path_string = ov::util::path_to_string(path);
     try {
         std::ifstream model_file(path, std::ios::binary | std::ios::in);
-        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path, "\"");
+        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path_string, "\"");
 
         m_model = std::make_shared<ModelProto>();
         FRONT_END_GENERAL_CHECK(m_model->ParseFromIstream(&model_file), "Model can't be parsed");
@@ -337,9 +338,13 @@ void GraphIteratorProto::initialize(const std::string& path) {
     }
 }
 
+void GraphIteratorProto::initialize(const std::string& path) {
+    initialize_from_path(ov::util::make_path(path));
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void GraphIteratorProto::initialize(const std::wstring& path) {
-    initialize(ov::util::wstring_to_string(path));
+    initialize_from_path(ov::util::make_path(path));
 }
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
