@@ -240,6 +240,9 @@ protected:
     // MoE routing maps (reused across inferences to avoid stack allocation)
     std::map<size_t, std::vector<size_t>> m_moe_token_to_experts;
     std::map<size_t, std::vector<size_t>> m_moe_expert_to_tokens;
+
+    // MoE chunk sizes (pre-sorted in descending order for greedy selection)
+    std::vector<size_t> m_moe_sorted_chunk_sizes;
 };
 
 }  // namespace npuw
