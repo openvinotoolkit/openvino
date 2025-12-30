@@ -718,7 +718,18 @@ std::shared_ptr<ov::Model> transform_moe_model(const std::shared_ptr<ov::Model>&
     auto fix_parameters_with_num_experts = [&]() {
         LOG_DEBUG("Fixing Parameter nodes with num_experts in shape to " << num_target_experts << " experts...");
 
-        for (const auto& param : model->get_parameters()) {
+        const auto& all_params = model->get_parameters();
+        for (size_t param_idx = 0; param_idx < all_params.size(); ++param_idx) {
+            const auto& param = all_params[param_idx];
+
+            // Skip the tile input parameter - it does not contain expert dimension
+            if (structure_info.expert_input_param_idx.has_value() &&
+                param_idx == structure_info.expert_input_param_idx.value()) {
+                LOG_DEBUG("  Skipping tile input parameter at index " << param_idx << ": "
+                                                                      << param->get_friendly_name());
+                continue;
+            }
+
             auto param_shape = param->get_partial_shape();
             if (param_shape.rank().is_static() && param_shape.rank().get_length() > 0) {
                 auto shape = param_shape.to_shape();
@@ -831,7 +842,8 @@ std::shared_ptr<ov::Model> transform_moe_model(const std::shared_ptr<ov::Model>&
     // Lambda: Save model for debugging
     auto save_debug_model = [&]() {
         try {
-            std::string debug_path = "moe_transformed_" + std::to_string(num_target_experts) + "_experts_model.xml";
+            std::string debug_path = "moe_transformed_" + std::to_string(num_target_experts) + "_" +
+                                     std::to_string(prefill_chunk_size) + "_experts_model.xml";
             ov::serialize(model, debug_path);
             LOG_INFO("Saved transformed expert model to: " << debug_path);
         } catch (const std::exception& e) {
@@ -903,15 +915,60 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     LOG_INFO("  Mode: " << (transform_config.mode == ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS"));
     LOG_INFO("  Target num experts: " << transform_config.num_target_experts);
 
-    // Step 4: Transform the model
-    auto transformed_model = transform_moe_model(model, *structure_info, transform_config);
-    if (!transformed_model) {
-        LOG_WARN("Failed to transform model to " << transform_config.num_target_experts << " expert(s)");
+    // Step 4: Transform models based on mode
+    std::map<size_t, std::shared_ptr<ov::Model>> transformed_models;
+
+    if (structure_info->is_decoding_stage) {
+        // Decoding: Only one model with K active experts, no chunking needed
+        LOG_INFO("Decoding mode: Creating single model with " << k_value << " active experts");
+
+        auto decoding_model = transform_moe_model(model, *structure_info, transform_config);
+        if (!decoding_model) {
+            LOG_WARN("Failed to transform model for decoding");
+            return std::nullopt;
+        }
+
+        // Store with chunk_size = 0 to indicate no chunking
+        transformed_models[0] = decoding_model;
+        LOG_INFO("Successfully transformed decoding model");
+
+    } else {
+        // Prefill: Multiple models for different chunk sizes, each with 1 expert
+        LOG_INFO("Prefill mode: Creating models for different chunk sizes");
+
+        std::vector<size_t> chunk_sizes = {32, 64, 128, 256, 512};
+        for (auto chunk_size : chunk_sizes) {
+            // Re-analyze structure for each transformation to get fresh node pointers
+            auto fresh_structure_info = analyze_moe_structure(model);
+            if (!fresh_structure_info || !fresh_structure_info->is_valid()) {
+                LOG_WARN("Failed to re-analyze structure for chunk_size=" << chunk_size);
+                continue;
+            }
+
+            auto config = determine_transformation_params(*fresh_structure_info, k_value, chunk_size);
+            auto temp_model = transform_moe_model(model, *fresh_structure_info, config);
+            if (!temp_model) {
+                LOG_WARN("Failed to transform model with chunk_size=" << chunk_size);
+                continue;
+            }
+
+            // Store the transformed model
+            transformed_models[chunk_size] = temp_model;
+
+            LOG_INFO("Successfully transformed model for chunk_size=" << chunk_size);
+        }
+    }
+
+    // Validate that we have at least one transformed model
+    if (transformed_models.empty()) {
+        LOG_WARN("Failed to transform any models");
         return std::nullopt;
     }
 
-    // Step 5: Build parameter mapping from RTInfo
-    auto param_mapping = build_parameter_mapping_from_rtinfo(model, transformed_model);
+    // Step 5: Build parameter mapping from any transformed model (all have same mapping)
+    // Note: For prefill (SINGLE_EXPERT), no unrolling happens, so mapping will be empty
+    //       For decoding (ACTIVE_EXPERTS), unrolling creates the same mapping structure
+    auto param_mapping = build_parameter_mapping_from_rtinfo(model, transformed_models.begin()->second);
 
     // Step 6: Populate MoEExperts structure
     MoEExperts moe_experts;
@@ -921,10 +978,10 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     moe_experts._chunk_token_count = structure_info->is_decoding_stage ? 0 : prefill_chunk_size;
     moe_experts._mode = transform_config.mode;
     moe_experts._num_active_experts = k_value;  // Store actual K from router
-    moe_experts._transformed_model = transformed_model;
+    moe_experts._transformed_models = std::move(transformed_models);
     moe_experts._router_scores_idx = structure_info->router_scores_idx;
     moe_experts._expert_input_param_idx = structure_info->expert_input_param_idx;
-    moe_experts._param_mapping = std::move(param_mapping);  // Store the parameter mapping
+    moe_experts._param_mapping = std::move(param_mapping);
 
     // Validation
     if (!moe_experts.is_valid()) {
@@ -937,7 +994,15 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     LOG_INFO("  - Total number of experts: " << moe_experts._num_experts);
     LOG_INFO("  - Num active experts: " << moe_experts._num_active_experts);
     LOG_INFO("  - Expert hidden dim: " << moe_experts._expert_hidden_dim);
-    LOG_INFO("  - Transformed model: " << transformed_model->get_friendly_name());
+    LOG_INFO("  - Number of transformed models: " << moe_experts._transformed_models.size());
+    if (structure_info->is_decoding_stage) {
+        LOG_INFO("    - Decoding model (no chunking)");
+    } else {
+        LOG_INFO("    - Prefill models with chunk sizes:");
+        for (const auto& entry : moe_experts._transformed_models) {
+            LOG_INFO("      * chunk_size=" << entry.first);
+        }
+    }
 
     return moe_experts;
 }
@@ -951,9 +1016,8 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     expert_hidden_dim = func_moe._expert_hidden_dim;
     num_active_experts = func_moe._num_active_experts;
     input_token_count = func_moe._input_token_count;
-    chunk_token_count = func_moe._chunk_token_count;
     mode = func_moe._mode;
-    _model_to_compile = func_moe._transformed_model;
+    _models_to_compile = func_moe._transformed_models;
     _router_scores_idx = func_moe._router_scores_idx;
     _expert_input_param_idx = func_moe._expert_input_param_idx;
     _param_mapping = func_moe._param_mapping;
@@ -963,7 +1027,10 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     LOG_DEBUG("  Total experts: " << num_experts);
     LOG_DEBUG("  Active experts: " << num_active_experts);
     LOG_DEBUG("  Input token count: " << input_token_count);
-    LOG_DEBUG("  Chunk token count: " << chunk_token_count);
+    LOG_DEBUG("  Number of models to compile: " << _models_to_compile.size());
+    for (const auto& entry : _models_to_compile) {
+        LOG_DEBUG("    Chunk size: " << entry.first);
+    }
     if (_router_scores_idx.has_value()) {
         LOG_DEBUG("  Router scores parameter index: " << _router_scores_idx.value());
     }
@@ -972,11 +1039,11 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     }
 }
 
-void MoEExperts::set_compiled_model(ov::SoPtr<ov::ICompiledModel>&& compiled_model) {
-    _compiled_model = std::move(compiled_model);
-    _model_to_compile.reset();  // Free memory after compilation
+void MoEExperts::set_compiled_model(size_t chunk_size, ov::SoPtr<ov::ICompiledModel>&& compiled_model) {
+    _compiled_models[chunk_size] = std::move(compiled_model);
+    _models_to_compile.erase(chunk_size);  // Free memory after compilation
 
-    LOG_DEBUG("Set compiled model for MoE experts");
+    LOG_DEBUG("Set compiled model for MoE experts, chunk_size=" << chunk_size);
 }
 
 MoEDownstream::MoEDownstream(const function::MoEDownstream& func_downstream) {

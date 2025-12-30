@@ -373,6 +373,37 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     if (has_moe) {
         auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[moe_sub_idx];
 
+        // Create infer requests for all compiled MoE chunk size models
+        // This must happen AFTER compilation is complete
+        if (proto_comp_model_desc.moe_experts.has_value()) {
+            LOG_INFO("Creating infer requests for MoE chunk size models...");
+            LOG_BLOCK();
+
+            const auto& moe_experts = proto_comp_model_desc.moe_experts.value();
+            const bool is_piped = is_pipelined(moe_sub_idx);
+
+            for (const auto& entry : moe_experts._compiled_models) {
+                const size_t chunk_size = entry.first;
+                const auto& compiled_model = entry.second;
+
+                if (!compiled_model) {
+                    LOG_WARN("Compiled model for chunk_size=" << chunk_size << " is null, skipping...");
+                    continue;
+                }
+
+                try {
+                    // Create main infer request
+                    auto infer_request = compiled_model->create_infer_request();
+                    proto_comp_model_desc.moe_infer_requests[chunk_size] = std::move(infer_request);
+                    LOG_INFO("Created infer request for MoE chunk_size=" << chunk_size);
+                } catch (const std::exception& ex) {
+                    LOG_ERROR("Failed to create infer request for MoE chunk_size=" << chunk_size << ": " << ex.what());
+                    OPENVINO_THROW("MoE infer request creation failed for chunk_size=", chunk_size, ": ", ex.what());
+                }
+            }
+            LOG_INFO("Created " << proto_comp_model_desc.moe_infer_requests.size() << " MoE infer requests");
+        }
+
         // Pre-allocate relayouted_output tensor with hardcoded precision
         // TODO: Get precision from model metadata or make configurable
         const size_t active_experts = proto_comp_model_desc.moe_experts->num_active_experts;
@@ -2059,20 +2090,6 @@ void ov::npuw::JustInferRequest::run_moe_infer(std::size_t real_idx, std::size_t
     oss << "]";
     LOG_DEBUG(oss.str());
 
-    // Debug: Print token_to_experts mapping
-    LOG_DEBUG("Token to experts mapping:");
-    for (const auto& [token_id, expert_ids] : m_moe_token_to_experts) {
-        std::ostringstream oss;
-        oss << "  Token[" << token_id << "] -> Experts[";
-        for (size_t i = 0; i < expert_ids.size(); ++i) {
-            oss << expert_ids[i];
-            if (i < expert_ids.size() - 1)
-                oss << ", ";
-        }
-        oss << "]";
-        LOG_DEBUG(oss.str());
-    }
-
     // Step 2: Dispatch to appropriate inference function
     if (is_decoding) {
         run_moe_decoding_inference(idx, real_idx, selected_experts);
@@ -2340,10 +2357,8 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
 
     // Get references
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    auto& r = m_subrequests[real_idx];
     const auto& moe_experts = comp_model_desc.moe_experts.value();
     const auto input_token_count = moe_experts.input_token_count;
-    const size_t chunk_size = moe_experts.chunk_token_count;
 
     // Clear output buffer before accumulating
     if (!m_moe_relayouted_output) {
@@ -2355,19 +2370,12 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
     NPUW_ASSERT(moe_experts._router_scores_idx.has_value());
     NPUW_ASSERT(moe_experts._expert_input_param_idx.has_value());
 
-    const auto& oport = comp_model_desc.compiled_model->outputs()[0];
-    const auto& router_iport = comp_model_desc.compiled_model->inputs()[moe_experts._router_scores_idx.value()];
-    const auto& expert_input_iport =
-        comp_model_desc.compiled_model->inputs()[moe_experts._expert_input_param_idx.value()];
-
     auto router_source = m_moe_io[idx].router_scores;
     auto expert_input_source = m_moe_io[idx].expert_input;
-    auto router_dest = r->get_tensor(router_iport);
-    auto expert_input_dest = r->get_tensor(expert_input_iport);
-    auto expert_output = r->get_tensor(oport);
 
-    // Calculate output embedding dimension
-    auto output_shape = expert_output->get_shape();
+    // Calculate output embedding dimension from any compiled model (all have same output shape)
+    auto any_compiled_model = moe_experts._compiled_models.begin()->second;
+    auto output_shape = any_compiled_model->outputs()[0].get_shape();
     size_t embed_dim = (output_shape.size() == 4) ? output_shape[3] : output_shape[1];
 
     // Process each expert sequentially
@@ -2375,62 +2383,103 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
         LOG_DEBUG("\n  Processing Expert[" << expert_id << "]...");
         auto expert_start = std::chrono::high_resolution_clock::now();
 
-        // Step 1: Unpack expert weights
-        auto step_start = std::chrono::high_resolution_clock::now();
-        unpack_moe_expert_closure(idx, r, expert_id);
-        auto step_end = std::chrono::high_resolution_clock::now();
-        record_time(m_moe_prefill_stats.unpack_closure,
-                    std::chrono::duration<double, std::milli>(step_end - step_start).count());
-
-        // Step 2: Get tokens assigned to this expert
+        // Get tokens assigned to this expert
         const auto& tokens_for_expert = expert_to_tokens.at(expert_id);
         const size_t total_tokens = tokens_for_expert.size();
-        const size_t num_chunks = (total_tokens + chunk_size - 1) / chunk_size;
 
-        LOG_DEBUG("    Expert[" << expert_id << "] processing " << total_tokens << " tokens in " << num_chunks
-                                << " chunks");
+        LOG_DEBUG("    Expert[" << expert_id << "] processing " << total_tokens << " tokens");
 
-        // Step 3: Process tokens in chunks
-        for (size_t chunk_idx = 0; chunk_idx < num_chunks; ++chunk_idx) {
-            size_t chunk_start_idx = chunk_idx * chunk_size;
-            size_t chunk_end_idx = std::min(chunk_start_idx + chunk_size, total_tokens);
-            size_t current_chunk_size = chunk_end_idx - chunk_start_idx;
+        // Process tokens in dynamic chunks based on available compiled models
+        // Priority: use largest possible chunk_size (256 > 128 > 64 > 32)
+        size_t processed_tokens = 0;
+        size_t last_chunk_size = 0;  // Track last used chunk_size to detect changes
+                                     // Note: When switching to a new expert, last_chunk_size resets to 0,
+                                     // ensuring weights are unpacked for the first chunk of each expert
+        while (processed_tokens < total_tokens) {
+            size_t remaining_tokens = total_tokens - processed_tokens;
 
-            LOG_DEBUG("      Chunk[" << chunk_idx << "]: " << current_chunk_size << " tokens");
+            // Select appropriate chunk_size based on remaining tokens
+            // Priority: 256 > 128 > 64 > 32
+            size_t selected_chunk_size;
+            if (remaining_tokens > 128) {
+                selected_chunk_size = 256;
+            } else if (remaining_tokens > 64) {
+                selected_chunk_size = 128;
+            } else if (remaining_tokens > 32) {
+                selected_chunk_size = 64;
+            } else {
+                selected_chunk_size = 32;
+            }
 
-            // 3.1: Gather router scores
-            step_start = std::chrono::high_resolution_clock::now();
+            // Actual tokens to process in this iteration
+            size_t current_chunk_size = std::min(selected_chunk_size, remaining_tokens);
+
+            LOG_DEBUG("      Processing tokens [" << processed_tokens << ", " << (processed_tokens + current_chunk_size)
+                                                  << ") with chunk_size=" << selected_chunk_size);
+
+            // Get selected infer request and compiled model from CompiledModelDesc
+            auto infer_request_it = comp_model_desc.moe_infer_requests.find(selected_chunk_size);
+            if (infer_request_it == comp_model_desc.moe_infer_requests.end()) {
+                OPENVINO_THROW("MoE: Infer request for chunk_size=", selected_chunk_size, " not found");
+            }
+            auto selected_infer_request = infer_request_it->second;
+
+            // Get input/output ports for selected infer request
+            auto selected_compiled_model = moe_experts.get_compiled_model(selected_chunk_size);
+            const auto& selected_router_iport =
+                selected_compiled_model->inputs()[moe_experts._router_scores_idx.value()];
+            const auto& selected_expert_input_iport =
+                selected_compiled_model->inputs()[moe_experts._expert_input_param_idx.value()];
+            const auto& selected_oport = selected_compiled_model->outputs()[0];
+
+            auto selected_router_dest = selected_infer_request->get_tensor(selected_router_iport);
+            auto selected_expert_input_dest = selected_infer_request->get_tensor(selected_expert_input_iport);
+            auto selected_expert_output = selected_infer_request->get_tensor(selected_oport);
+
+            // Step 1: Unpack expert weights when chunk_size changes (different infer request)
+            // This ensures each infer request has correct weights loaded
+            // Important: last_chunk_size is reset to 0 at the start of each expert loop,
+            // so the first chunk of a new expert will always trigger unpacking (0 != selected_chunk_size)
+            if (selected_chunk_size != last_chunk_size) {
+                auto step_start = std::chrono::high_resolution_clock::now();
+                unpack_moe_expert_closure(idx, selected_infer_request, expert_id);
+                auto step_end = std::chrono::high_resolution_clock::now();
+                record_time(m_moe_prefill_stats.unpack_closure,
+                            std::chrono::duration<double, std::milli>(step_end - step_start).count());
+                last_chunk_size = selected_chunk_size;
+            }
+
+            // Step 2: Gather router scores for this chunk
+            auto step_start = std::chrono::high_resolution_clock::now();
             gather_router_scores(router_source,
-                                 router_dest,
+                                 selected_router_dest,
                                  expert_id,
                                  tokens_for_expert,
-                                 chunk_start_idx,
+                                 processed_tokens,
                                  current_chunk_size);
-            step_end = std::chrono::high_resolution_clock::now();
+            auto step_end = std::chrono::high_resolution_clock::now();
             record_time(m_moe_prefill_stats.set_router_input,
                         std::chrono::duration<double, std::milli>(step_end - step_start).count());
 
-            // 3.2: Gather expert inputs
-            step_start = std::chrono::high_resolution_clock::now();
+            // Step 3: Gather expert inputs for this chunk
             gather_expert_inputs(expert_input_source,
-                                 expert_input_dest,
+                                 selected_expert_input_dest,
                                  tokens_for_expert,
-                                 chunk_start_idx,
+                                 processed_tokens,
                                  current_chunk_size);
-            step_end = std::chrono::high_resolution_clock::now();
 
-            // 3.3: Execute expert inference
+            // Step 4: Execute expert inference
             step_start = std::chrono::high_resolution_clock::now();
-            r->infer();
+            selected_infer_request->infer();
             step_end = std::chrono::high_resolution_clock::now();
             record_time(m_moe_prefill_stats.expert_inference,
                         std::chrono::duration<double, std::milli>(step_end - step_start).count());
 
-            // 3.4: Scatter expert outputs back to global buffer
+            // Step 5: Scatter expert outputs back to global buffer
             step_start = std::chrono::high_resolution_clock::now();
-            scatter_expert_outputs(expert_output,
+            scatter_expert_outputs(selected_expert_output,
                                    tokens_for_expert,
-                                   chunk_start_idx,
+                                   processed_tokens,
                                    current_chunk_size,
                                    expert_id,
                                    embed_dim,
@@ -2439,6 +2488,9 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
             step_end = std::chrono::high_resolution_clock::now();
             record_time(m_moe_prefill_stats.relayout_output,
                         std::chrono::duration<double, std::milli>(step_end - step_start).count());
+
+            // Move to next chunk
+            processed_tokens += current_chunk_size;
         }
 
         // Record expert completion time
@@ -2474,38 +2526,50 @@ void ov::npuw::JustInferRequest::run_moe_prefill_pipeline_inference(
     }
     std::memset(m_moe_relayouted_output->data(), 0, m_moe_relayouted_output->get_byte_size());
 
-    // Get chunk size from MoE configuration
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    const auto& moe_experts = comp_model_desc.moe_experts.value();
-    const size_t chunk_size = moe_experts.chunk_token_count;
-
-    // Enqueue all expert chunks
+    // Enqueue all expert chunks with dynamic chunk size selection
     size_t total_tasks = 0;
     for (size_t expert_id : selected_experts) {
         const auto& tokens_for_expert = expert_to_tokens.at(expert_id);
-        size_t total_tokens = tokens_for_expert.size();
-        size_t num_chunks = (total_tokens + chunk_size - 1) / chunk_size;
+        const size_t total_tokens = tokens_for_expert.size();
 
-        LOG_DEBUG("[PIPELINE PREFILL] Expert " << expert_id << ": " << total_tokens << " tokens, " << num_chunks
-                                               << " chunks");
+        LOG_DEBUG("[PIPELINE PREFILL] Expert " << expert_id << ": " << total_tokens << " tokens");
 
-        for (size_t chunk_idx = 0; chunk_idx < num_chunks; ++chunk_idx) {
-            size_t chunk_start_idx = chunk_idx * chunk_size;
-            size_t current_chunk_size = std::min(chunk_size, total_tokens - chunk_start_idx);
+        // Process tokens in dynamic chunks based on available compiled models
+        size_t processed_tokens = 0;
+        while (processed_tokens < total_tokens) {
+            size_t remaining_tokens = total_tokens - processed_tokens;
+
+            // Select appropriate chunk_size based on remaining tokens
+            // Priority: 256 > 128 > 64 > 32
+            size_t selected_chunk_size;
+            if (remaining_tokens > 128) {
+                selected_chunk_size = 256;
+            } else if (remaining_tokens > 64) {
+                selected_chunk_size = 128;
+            } else if (remaining_tokens > 32) {
+                selected_chunk_size = 64;
+            } else {
+                selected_chunk_size = 32;
+            }
+
+            // Actual tokens to process in this iteration
+            size_t current_chunk_size = std::min(selected_chunk_size, remaining_tokens);
 
             // Create chunk task
             MoEPrefillChunkTask task;
             task.idx = idx;            // Sublayer index for correct MoE I/O lookup
             task.real_idx = real_idx;  // Real sublayer index for compiled model lookup
             task.expert_id = expert_id;
-            task.chunk_idx = chunk_idx;
-            task.chunk_start_idx = chunk_start_idx;
-            task.chunk_size = current_chunk_size;
-            task.token_ids = tokens_for_expert;  // Pass the full token list, helper uses chunk_start_idx
+            task.chunk_size = selected_chunk_size;  // Model chunk size to use
+            task.chunk_start_idx = processed_tokens;
+            // task.actual_chunk_size = current_chunk_size;  // Actual tokens to process
+            task.token_ids = tokens_for_expert;  // Pass the full token list
 
             // Enqueue task (tensors will be allocated in pipeline workers)
             m_moe_prefill_pipeline->enqueue(task);
             total_tasks++;
+
+            processed_tokens += current_chunk_size;
         }
     }
 
