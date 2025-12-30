@@ -63,6 +63,7 @@ bool is_graph_iterator_disabled(const char* env_value) {
                                [](unsigned char ch) {
                                    return std::isspace(ch) != 0;
                                }),
+                value.end());
     std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
         return static_cast<char>(std::tolower(ch));
     });
