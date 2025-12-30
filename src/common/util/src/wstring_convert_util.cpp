@@ -18,7 +18,7 @@ constexpr auto codepoint_2nd_shift = 6U;
 constexpr auto codepoint_3rd_shift = 12U;
 constexpr auto codepoint_4th_shift = 18U;
 
-std::string wstring_to_string(const std::wstring& wstr) {
+std::string wstring_to_string(const std::wstring_view wstr) {
 #    ifdef _WIN32
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
     std::string strTo(size_needed, 0);
@@ -58,10 +58,10 @@ std::string wstring_to_string(const std::wstring& wstr) {
 #    endif
 }
 
-std::wstring string_to_wstring(const std::string& string) {
-    const char* str = string.c_str();
+std::wstring string_to_wstring(const std::string_view string) {
+    const char* str = string.data();
 #    ifdef _WIN32
-    int strSize = static_cast<int>(std::strlen(str));
+    int strSize = static_cast<int>(string.size());
     int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
     std::wstring wstrTo(size_needed, 0);
     MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
