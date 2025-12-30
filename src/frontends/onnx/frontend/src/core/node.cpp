@@ -228,8 +228,8 @@ ov::Any Node::get_attribute_value(const std::string& name) const {
             throw error::node::UnknownAttribute{this->get_name(), name};
         }
         auto attribute_value = m_decoder->get_attribute(name);
-        // We do upcast for decoder-provided floats here to align behavior of OpExtension with legacy approach and keep
-        // both code paths identical.
+        // We upcast decoder-provided floats here to align the behavior of OpExtension with the legacy approach and
+        // keep both code paths identical.
         if (attribute_value.is<float>()) {
             return static_cast<double>(attribute_value.as<float>());
         } else if (attribute_value.is<std::vector<float>>()) {

@@ -58,16 +58,14 @@ bool is_graph_iterator_disabled(const char* env_value) {
     }
 
     std::string value(env_value);
-    value.erase(std::remove_if(value.begin(), value.end(), [](unsigned char ch) {
-                    return std::isspace(ch) != 0;
-                }),
-                value.end());
-    std::transform(value.begin(),
-                   value.end(),
-                   value.begin(),
-                   [](unsigned char ch) {
-                       return static_cast<char>(std::tolower(ch));
-                   });
+    value.erase(std::remove_if(value.begin(),
+                               value.end(),
+                               [](unsigned char ch) {
+                                   return std::isspace(ch) != 0;
+                               }),
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
 
     return value.empty() || value == "0" || value == "false" || value == "off" || value == "disable";
 }

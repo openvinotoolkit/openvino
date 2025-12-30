@@ -13,7 +13,7 @@ namespace onnx {
 namespace tests {
 
 inline const char* editor_skip_message() {
-    return "ONNX Editor functionality is deprecated when the GraphIterator is enabled. Set ONNX_ITERATOR=0 to run this test.";
+    return "ONNX Editor functionality is not available when the GraphIterator is enabled. Set ONNX_ITERATOR=0 to run this test.";
 }
 
 }  // namespace tests
