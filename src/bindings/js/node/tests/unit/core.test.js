@@ -72,7 +72,7 @@ describe("ov.Core tests", () => {
   it('Core.addExtension("not_exists") with non-existed library', () => {
     const notExistsExt = "not_exists";
 
-    assert.throws(() => core.addExtension(notExistsExt), /Cannot load library 'not_exists'/);
+    assert.throws(() => core.addExtension(notExistsExt), /Cannot load library "not_exists"/);
   });
 
   it("Core.queryModel() with empty parameters should throw an error", () => {
