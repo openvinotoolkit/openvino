@@ -51,23 +51,6 @@ KVCache::KVCache(const Output<Node>& past,
 
 KVCache::KVCache(const Output<Node>& past,
                  const Output<Node>& new_token_data,
-                 const Output<Node>& beam_idx,
-                 const Output<Node>& past_seq_len,
-                 const Output<Node>& dst_idx,
-                 const Output<Node>& update_data,
-                 const std::shared_ptr<ov::op::util::Variable>& past_variable,
-                 int64_t concat_axis,
-                 int64_t gather_axis,
-                 const ov::element::Type output_type)
-    : KVCache({past, new_token_data, beam_idx, past_seq_len, dst_idx, update_data}, past_variable, true, concat_axis, gather_axis, output_type) {
-    m_update_kv = true;
-    if (m_indirect)
-        set_output_size(2);
-    validate_and_infer_types();
-}
-
-KVCache::KVCache(const Output<Node>& past,
-                 const Output<Node>& new_token_data,
                  const Output<Node>& past_seq_len,
                  const Output<Node>& dst_idx,
                  const Output<Node>& update_data,

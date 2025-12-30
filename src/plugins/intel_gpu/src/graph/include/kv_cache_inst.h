@@ -26,7 +26,7 @@ public:
         std::vector<size_t> vec;
         const auto desc = get_primitive();
         if (desc->update_kv) {
-            vec.push_back(desc->indirect ? 3 : 2); // past_seq_len
+            vec.push_back(2); // past_seq_len
         }
         return vec;
      }

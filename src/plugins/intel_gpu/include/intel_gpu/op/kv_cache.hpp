@@ -43,18 +43,6 @@ public:
             int64_t concat_axis,
             const ov::element::Type output_type = ov::element::dynamic);
 
-    /// KVcache(indirect) with reorder for tree-based speculative decoding
-    KVCache(const Output<Node>& past,
-            const Output<Node>& new_token_data,
-            const Output<Node>& beam_idx,
-            const Output<Node>& past_seq_len,
-            const Output<Node>& dst_idx,
-            const Output<Node>& update_data,
-            const std::shared_ptr<ov::op::util::Variable>& past_values,
-            int64_t concat_axis,
-            int64_t gather_axis,
-            const ov::element::Type output_type = ov::element::dynamic);
-
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;

@@ -46,8 +46,8 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
 
     std::optional<int64_t> kv_cache_trim_length;
     if (desc->update_kv) {
-        OPENVINO_ASSERT(!desc->compressed);  // update_kv does not support compressed kv
-        const size_t past_seq_len_idx = desc->indirect ? 3 : 2;
+        OPENVINO_ASSERT(!desc->compressed || !desc->indirect);  // update_kv does not support compressed kv or indirect for now
+        constexpr size_t past_seq_len_idx = 2;
         const auto it = impl_param.memory_deps.find(past_seq_len_idx);
         OPENVINO_ASSERT(it != impl_param.memory_deps.end()); // past_seq_len node should always exist as data when update_kv is true
         const auto& past_seq_len_mem = it->second;

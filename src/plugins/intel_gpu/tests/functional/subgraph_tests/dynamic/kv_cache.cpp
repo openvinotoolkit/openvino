@@ -368,7 +368,7 @@ class KVCacheTests: public ::testing::Test {
                 }
             }
             size_t update(const size_t past_seq_len) {
-                if (past_seq_len >= params.trigger_len) {
+                if (past_seq_len >= static_cast<uint32_t>(params.trigger_len)) {
                     seq_len.data<int32_t>()[0] = params.trim_seq;
                     src_shape = {params.src_idx.size()};
                     dst_shape[2] = params.dst_idx.size();
@@ -378,7 +378,8 @@ class KVCacheTests: public ::testing::Test {
                     dst_idx_data.copy_to(dst_idx);
                     return params.trim_seq;
                 } else {
-                    seq_len.data<int32_t>()[0] = past_seq_len;
+                    OPENVINO_ASSERT(past_seq_len < std::numeric_limits<int32_t>::max());
+                    seq_len.data<int32_t>()[0] = static_cast<int32_t>(past_seq_len);
                     src_shape = {0};
                     dst_shape[2] = 0;
                     src_idx.set_shape(src_shape);
