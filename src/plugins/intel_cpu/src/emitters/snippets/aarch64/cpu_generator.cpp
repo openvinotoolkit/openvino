@@ -127,12 +127,9 @@ static bool is_store_emitter(const intel_cpu::aarch64::jit_emitter* emitter) {
 }
 
 static bool is_segfault_detector_emitter(const intel_cpu::aarch64::jit_emitter* emitter) {
-    bool ret = false;
-    ret = is_load_emitter(emitter) || is_store_emitter(emitter) ||
-          (dynamic_cast<const intel_cpu::aarch64::jit_gemm_emitter*>(emitter) != nullptr) ||
-          (dynamic_cast<const intel_cpu::aarch64::jit_gemm_copy_b_emitter*>(emitter) != nullptr) ||
-          (dynamic_cast<const intel_cpu::aarch64::jit_kernel_emitter*>(emitter) != nullptr);
-    return ret;
+    return is_load_emitter(emitter) || is_store_emitter(emitter) ||
+           (dynamic_cast<const intel_cpu::aarch64::jit_gemm_emitter*>(emitter) != nullptr) ||
+           (dynamic_cast<const intel_cpu::aarch64::jit_gemm_copy_b_emitter*>(emitter) != nullptr);
 }
 
 #    define CREATE_SNIPPETS_EMITTER(e_type, ...)                                                                  \
