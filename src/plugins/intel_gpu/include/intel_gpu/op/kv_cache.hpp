@@ -33,6 +33,7 @@ public:
             int64_t gather_axis,
             const ov::element::Type output_type = ov::element::dynamic);
 
+    /// KVcache with reorder for tree-based speculative decoding
     KVCache(const Output<Node>& past,
             const Output<Node>& new_token_data,
             const Output<Node>& past_seq_len,
@@ -42,6 +43,7 @@ public:
             int64_t concat_axis,
             const ov::element::Type output_type = ov::element::dynamic);
 
+    /// KVcache(indirect) with reorder for tree-based speculative decoding
     KVCache(const Output<Node>& past,
             const Output<Node>& new_token_data,
             const Output<Node>& beam_idx,

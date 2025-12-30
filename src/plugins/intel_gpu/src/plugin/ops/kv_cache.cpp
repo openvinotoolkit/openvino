@@ -41,6 +41,7 @@ void CreateKVCacheOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::
 }
 
 void CreateKVCacheCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::KVCacheCompressed>& op) {
+    OPENVINO_ASSERT(!op->get_update_kv());  // compressed kv does not support update_kv
     validate_inputs_count(op, {4, 5});
     auto inputs = p.GetInputInfo(op);
     int64_t rank = op->get_input_partial_shape(0).size();

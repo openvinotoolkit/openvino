@@ -44,38 +44,38 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
         }
     }
 
-    std::vector<ShapeType> output_shapes;
     std::optional<int64_t> kv_cache_trim_length;
     if (desc->update_kv) {
-        if(impl_param.memory_deps.count(2) > 0) {
-            auto past_seq_len_mem = impl_param.memory_deps.at(2);
+        OPENVINO_ASSERT(!desc->compressed);  // update_kv does not support compressed kv
+        const size_t past_seq_len_idx = desc->indirect ? 3 : 2;
+        const auto it = impl_param.memory_deps.find(past_seq_len_idx);
+        OPENVINO_ASSERT(it != impl_param.memory_deps.end()); // past_seq_len node should always exist as data when update_kv is true
+        const auto& past_seq_len_mem = it->second;
+        const auto past_seq_len_layout = past_seq_len_mem->get_layout();
+        if (past_seq_len_layout.count() > 0) {
+            // past_seq_len is provided, need to do trim
+            OPENVINO_ASSERT(past_seq_len_layout.count() == 1);
             cldnn::mem_lock<uint8_t, mem_lock_type::read> past_seq_len_mem_lock(past_seq_len_mem, impl_param.get_stream());
-            auto t = make_tensor(past_seq_len_mem->get_layout(), past_seq_len_mem_lock.data());   
+            auto t = make_tensor(past_seq_len_layout, past_seq_len_mem_lock.data());
             const auto past_dim_updated = ov::get_tensor_data_as<int64_t>(t);
-            if (!past_dim_updated.empty()) {
-                const auto past_dim_stored = input_shapes[0][desc->concat_axis];
-                if (past_dim_stored.is_static()) {
-                    auto trim_length = past_dim_stored.get_length() - past_dim_updated[0];
-                    if (trim_length > 0) {
-                        kv_cache_trim_length = trim_length;
-                    } else {
-                        kv_cache_trim_length = 0;
-                    }
-                    impl_param.kv_cache_trim_length = *kv_cache_trim_length;
-                }
-            }
+            const auto past_dim_stored = input_shapes[0][desc->concat_axis];
+            OPENVINO_ASSERT(past_dim_stored.is_static());
+            const auto trim_length = past_dim_stored.get_length() - past_dim_updated[0];
+            OPENVINO_ASSERT(trim_length >= 0, "past_seq_len shouldn't be larger then actual past seq");
+            kv_cache_trim_length = trim_length;
+            impl_param.kv_cache_trim_length = *kv_cache_trim_length;
         }
     }
+
+    std::vector<ShapeType> output_shapes;
     if (desc->compressed) {
+        OPENVINO_ASSERT(!desc->update_kv && !kv_cache_trim_length);  // compressed kv does not support update_kv
         ov::intel_gpu::op::KVCacheCompressed op;
         op.set_output_size(desc->num_outputs);
         op.set_concat_axis(desc->concat_axis);
         op.set_gather_axis(desc->gather_axis);
         op.set_quantization_attrs(desc->quantization_attributes);
-        op.set_update_kv(desc->update_kv);
-        if (kv_cache_trim_length) {
-            op.set_trim_length(static_cast<uint64_t>(*kv_cache_trim_length));
-        }
+
         output_shapes = shape_infer(&op, input_shapes);
     } else {
         ov::intel_gpu::op::KVCache op;

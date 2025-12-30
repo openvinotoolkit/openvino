@@ -24,8 +24,9 @@ public:
 
     std::vector<size_t> get_shape_infer_dependencies() const override { 
         std::vector<size_t> vec;
-        for (size_t i  = 1; i < get_dependencies().size(); i++) {
-            vec.push_back(i);
+        const auto desc = get_primitive();
+        if (desc->update_kv) {
+            vec.push_back(desc->indirect ? 3 : 2); // past_seq_len
         }
         return vec;
      }
