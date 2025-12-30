@@ -6,7 +6,6 @@
 
 #include <cstdint>
 #include <stdexcept>
-#include <string>
 
 #ifdef _WIN32
 #    include <windows.h>
