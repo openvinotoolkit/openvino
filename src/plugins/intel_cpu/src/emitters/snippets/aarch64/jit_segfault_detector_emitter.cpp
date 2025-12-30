@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #    include "jit_segfault_detector_emitter.hpp"
 
+#    include <array>
 #    include <cpu/aarch64/cpu_isa_traits.hpp>
 #    include <cpu/aarch64/jit_generator.hpp>
 #    include <cstddef>
@@ -14,20 +15,16 @@
 #    include <memory>
 #    include <sstream>
 #    include <string>
-#    include <typeinfo>
 #    include <utility>
 #    include <vector>
 
 #    include "emitters/plugin/aarch64/jit_emitter.hpp"
-#    include "emitters/snippets/aarch64/jit_memory_emitters.hpp"
+#    include "utils/general_utils.h"
+#    include "verbose.hpp"
 #    include "xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h"
 #    include "xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h"
 #    include "xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_label.h"
 #    include "xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h"
-
-#    ifndef _WIN32
-#        include <cxxabi.h>
-#    endif
 
 using namespace dnnl::impl::cpu::aarch64;
 using namespace Xbyak_aarch64;
@@ -36,64 +33,6 @@ namespace ov::intel_cpu::aarch64 {
 
 const std::shared_ptr<ThreadLocal<jit_uni_segfault_detector_emitter*>> g_custom_segfault_handler =
     std::make_shared<ThreadLocal<jit_uni_segfault_detector_emitter*>>();
-
-static std::string get_emitter_type_name(const jit_emitter* emitter) {
-    std::string name = typeid(*emitter).name();
-#    ifndef _WIN32
-    int status = 0;
-    std::unique_ptr<char, void (*)(void*)> demangled_name(abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
-                                                          std::free);
-    name = demangled_name.get();
-#    endif
-    return name;
-}
-
-std::string init_info_jit_memory_emitter(const jit_memory_emitter* emitter) {
-    std::stringstream ss;
-    ss << " src_precision:" << emitter->src_prc << " dst_precision:" << emitter->dst_prc
-       << " load/store_element_number:" << emitter->count << " byte_offset:" << emitter->compiled_byte_offset;
-    return ss.str();
-}
-
-static std::string init_info_jit_load_memory_emitter(const jit_load_memory_emitter* emitter) {
-    std::stringstream ss;
-    std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
-    ss << "Emitter_type_name:jit_load_memory_emitter" << memory_emitter_info;
-    return ss.str();
-}
-
-static std::string init_info_jit_load_broadcast_emitter(const jit_load_broadcast_emitter* emitter) {
-    std::stringstream ss;
-    std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
-    ss << "Emitter_type_name:jit_load_broadcast_emitter" << memory_emitter_info;
-    return ss.str();
-}
-
-static std::string init_info_jit_store_memory_emitter(const jit_store_memory_emitter* emitter) {
-    std::stringstream ss;
-    std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
-    ss << "Emitter_type_name:jit_store_memory_emitter" << memory_emitter_info;
-    return ss.str();
-}
-
-static std::string init_info_jit_emitter_general(const jit_emitter* emitter) {
-    std::stringstream ss;
-    ss << "Emitter_type_name:" << get_emitter_type_name(emitter);
-    return ss.str();
-}
-
-static std::string init_info_jit_target_emitter(const jit_emitter* emitter) {
-    if (const auto* e_type = dynamic_cast<const jit_load_memory_emitter*>(emitter)) {
-        return init_info_jit_load_memory_emitter(e_type);
-    }
-    if (const auto* e_type = dynamic_cast<const jit_load_broadcast_emitter*>(emitter)) {
-        return init_info_jit_load_broadcast_emitter(e_type);
-    }
-    if (const auto* e_type = dynamic_cast<const jit_store_memory_emitter*>(emitter)) {
-        return init_info_jit_store_memory_emitter(e_type);
-    }
-    return init_info_jit_emitter_general(emitter);
-}
 
 jit_uni_segfault_detector_emitter::jit_uni_segfault_detector_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -124,23 +63,44 @@ std::string jit_uni_segfault_detector_emitter::info() const {
            << " ";
     }
     if (const auto* target_e = get_target_emitter()) {
-        ss << init_info_jit_target_emitter(target_e);
+        jit_emitter_info_t info;
+        info.init(target_e);
+        ss << info.c_str();
     }
     return ss.str();
 }
 
 void jit_uni_segfault_detector_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                                   const std::vector<size_t>& out_vec_idxs) const {
-    save_target_emitter();
     if (is_target_use_load_emitter) {
         memory_track(in_vec_idxs[0]);
     } else if (is_target_use_store_emitter) {
         memory_track(out_vec_idxs[0]);
+    } else {
+        save_target_emitter();
     }
 }
 
 void jit_uni_segfault_detector_emitter::save_target_emitter() const {
-    store_context({});
+    if (g_custom_segfault_handler->local() == this) {
+        return;
+    }
+    const std::array<XReg, 21> regs = {XReg(0),  XReg(1),  XReg(2),  XReg(3),  XReg(4),  XReg(5),  XReg(6),
+                                       XReg(7),  XReg(8),  XReg(9),  XReg(10), XReg(11), XReg(12), XReg(13),
+                                       XReg(14), XReg(15), XReg(16), XReg(17), XReg(18), XReg(29), XReg(30)};
+    const auto stack_bytes =
+        ov::intel_cpu::rnd_up(static_cast<int32_t>(regs.size() * sizeof(uint64_t)), jit_emitter::sp_alignment);
+
+    h->sub(h->sp, h->sp, stack_bytes);
+    int32_t offset = 0;
+    size_t i = 0;
+    for (; i + 1 < regs.size(); i += 2) {
+        h->stp(regs[i], regs[i + 1], Xbyak_aarch64::ptr(h->sp, offset));
+        offset += static_cast<int32_t>(sizeof(uint64_t) * 2);
+    }
+    if (i < regs.size()) {
+        h->str(regs[i], Xbyak_aarch64::ptr(h->sp, offset));
+    }
 
     const auto& set_local_handler_overload =
         static_cast<void (*)(jit_uni_segfault_detector_emitter*)>(set_local_handler);
@@ -149,7 +109,16 @@ void jit_uni_segfault_detector_emitter::save_target_emitter() const {
     h->mov(XReg(0), reinterpret_cast<uint64_t>(this));
     h->blr(h->X_TMP_0);
 
-    restore_context({});
+    offset = 0;
+    i = 0;
+    for (; i + 1 < regs.size(); i += 2) {
+        h->ldp(regs[i], regs[i + 1], Xbyak_aarch64::ptr(h->sp, offset));
+        offset += static_cast<int32_t>(sizeof(uint64_t) * 2);
+    }
+    if (i < regs.size()) {
+        h->ldr(regs[i], Xbyak_aarch64::ptr(h->sp, offset));
+    }
+    h->add(h->sp, h->sp, stack_bytes);
 }
 
 void jit_uni_segfault_detector_emitter::set_local_handler(jit_uni_segfault_detector_emitter* emitter_address) {
@@ -161,9 +130,11 @@ void jit_uni_segfault_detector_emitter::memory_track(size_t gpr_idx_for_mem_addr
     XReg val_reg(17);
     XReg mem_addr_reg(15);
 
-    h->sub(h->sp, h->sp, 32);
+    h->sub(h->sp, h->sp, 48);
     h->stp(mem_addr_reg, addr_reg, ptr(h->sp, 0));
     h->str(val_reg, ptr(h->sp, 16));
+    h->mrs(val_reg, 3, 3, 4, 2, 0);
+    h->str(val_reg, ptr(h->sp, 24));
 
     if (gpr_idx_for_mem_address == static_cast<size_t>(mem_addr_reg.getIdx())) {
         h->ldr(mem_addr_reg, ptr(h->sp, 0));
@@ -175,31 +146,37 @@ void jit_uni_segfault_detector_emitter::memory_track(size_t gpr_idx_for_mem_addr
         h->mov(mem_addr_reg, XReg(static_cast<int>(gpr_idx_for_mem_address)));
     }
 
-    Xbyak_aarch64::Label label_set_address_current;
-    Xbyak_aarch64::Label label_set_address_end;
-
-    h->mov(addr_reg, reinterpret_cast<uint64_t>(&start_address));
-    h->ldr(val_reg, ptr(addr_reg));
-    h->cmp(val_reg, 0);
-    h->b(NE, label_set_address_current);
-    h->str(mem_addr_reg, ptr(addr_reg));
-    h->mov(addr_reg, reinterpret_cast<uint64_t>(&current_address));
-    h->str(mem_addr_reg, ptr(addr_reg));
-    h->b(label_set_address_end);
-
-    h->L(label_set_address_current);
-    h->mov(addr_reg, reinterpret_cast<uint64_t>(&current_address));
-    h->str(mem_addr_reg, ptr(addr_reg));
-    h->L(label_set_address_end);
+    Xbyak_aarch64::Label label_fast_path;
+    Xbyak_aarch64::Label label_done;
 
     h->mov(addr_reg, reinterpret_cast<uint64_t>(&iteration));
     h->ldr(val_reg, ptr(addr_reg));
+    h->cmp(val_reg, 0);
+    h->b(NE, label_fast_path);
+
+    save_target_emitter();
+
+    h->mov(addr_reg, reinterpret_cast<uint64_t>(&start_address));
+    h->str(mem_addr_reg, ptr(addr_reg));
+    h->mov(addr_reg, reinterpret_cast<uint64_t>(&current_address));
+    h->str(mem_addr_reg, ptr(addr_reg));
+    h->mov(addr_reg, reinterpret_cast<uint64_t>(&iteration));
+    h->mov(val_reg, 1);
+    h->str(val_reg, ptr(addr_reg));
+    h->b(label_done);
+
+    h->L(label_fast_path);
     h->add_imm(val_reg, val_reg, 1, mem_addr_reg);
     h->str(val_reg, ptr(addr_reg));
+    h->mov(addr_reg, reinterpret_cast<uint64_t>(&current_address));
+    h->str(mem_addr_reg, ptr(addr_reg));
+    h->L(label_done);
 
+    h->ldr(val_reg, ptr(h->sp, 24));
+    h->msr(3, 3, 4, 2, 0, val_reg);
     h->ldp(mem_addr_reg, addr_reg, ptr(h->sp, 0));
     h->ldr(val_reg, ptr(h->sp, 16));
-    h->add(h->sp, h->sp, 32);
+    h->add(h->sp, h->sp, 48);
 }
 
 }  // namespace ov::intel_cpu::aarch64

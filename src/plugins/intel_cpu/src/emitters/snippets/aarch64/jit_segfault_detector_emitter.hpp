@@ -53,6 +53,10 @@ private:
     mutable size_t start_address = 0;
     mutable size_t current_address = 0;
     mutable size_t iteration = 0;
+
+#    ifdef SNIPPETS_DEBUG_CAPS
+    friend std::string init_info_jit_uni_segfault_detector_emitter(const jit_uni_segfault_detector_emitter* emitter);
+#    endif
 };
 
 }  // namespace ov::intel_cpu::aarch64
