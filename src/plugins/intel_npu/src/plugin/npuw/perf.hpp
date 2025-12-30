@@ -17,6 +17,23 @@ namespace ov {
 namespace npuw {
 namespace perf {
 
+class format_guard {
+public:
+    format_guard(std::ostream& os) : m_state(&m_sbuf), m_os(os) {
+        m_state.copyfmt(m_os);
+    }
+
+    ~format_guard() {
+        m_os.copyfmt(m_state);
+    }
+
+private:
+    struct : std::streambuf {
+    } m_sbuf;
+    std::ios m_state;
+    std::ostream& m_os;
+};
+
 float ms_to_run(const std::function<void()>& body);
 
 struct MSec {
@@ -94,6 +111,8 @@ public:
     }
 
     friend std::ostream& operator<<(std::ostream& os, const metric<U>& m) {
+        format_guard fmt(os);
+
         const char* units = U::name;
         os << std::left << std::setw(20) << (m.name.empty() ? std::string("<unnamed timer>") : m.name);
         if (m.enabled) {
@@ -140,6 +159,8 @@ public:
     }
 
     friend std::ostream& operator<<(std::ostream& os, const counter<U>& c) {
+        format_guard fmt(os);
+
         const char* units = U::name;
         os << std::left << std::setw(20) << (c.name.empty() ? std::string("<unnamed counter>") : c.name);
         if (c.enabled) {
@@ -172,6 +193,9 @@ struct Profile {
         if (metrics.empty()) {
             return;
         }
+
+        format_guard fmt(std::cout);
+
         if (!area.empty()) {
             std::cout << area << ":" << std::endl;
         } else {
