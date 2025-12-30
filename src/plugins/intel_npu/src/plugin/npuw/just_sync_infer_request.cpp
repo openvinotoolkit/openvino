@@ -401,6 +401,24 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 }
             }
             LOG_INFO("Created " << proto_comp_model_desc.moe_infer_requests.size() << " MoE infer requests");
+
+            // Pre-parse and sort chunk sizes in descending order for greedy selection
+            m_moe_sorted_chunk_sizes.clear();
+            m_moe_sorted_chunk_sizes.reserve(moe_experts._compiled_models.size());
+            for (const auto& entry : moe_experts._compiled_models) {
+                m_moe_sorted_chunk_sizes.push_back(entry.first);
+            }
+            std::sort(m_moe_sorted_chunk_sizes.begin(), m_moe_sorted_chunk_sizes.end(), std::greater<size_t>());
+
+            LOG_INFO("Sorted chunk sizes (descending): [" << [this]() {
+                std::ostringstream oss;
+                for (size_t i = 0; i < m_moe_sorted_chunk_sizes.size(); ++i) {
+                    oss << m_moe_sorted_chunk_sizes[i];
+                    if (i < m_moe_sorted_chunk_sizes.size() - 1)
+                        oss << ", ";
+                }
+                return oss.str();
+            }() << "]");
         }
 
         // Pre-allocate relayouted_output tensor with hardcoded precision
@@ -413,8 +431,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         // Use f16 as default, will be adjusted at runtime if needed
         const auto& device = *proto_comp_model_desc.device_it;
         m_moe_relayouted_output = allocMem(ov::element::f16, target_shape, device);
-
-
     }
 
     // Identify connections for the funcall pipeline, if needed
@@ -2375,17 +2391,33 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
         while (processed_tokens < total_tokens) {
             size_t remaining_tokens = total_tokens - processed_tokens;
 
-            // Select appropriate chunk_size based on remaining tokens
-            // Priority: 256 > 128 > 64 > 32
+            // Chunk selection strategy:
+            // - remaining_tokens <= smallest chunk → use smallest chunk
+            // - remaining_tokens >= largest chunk → use largest chunk
+            // - otherwise → use smallest chunk that is >= remaining_tokens
+            // Pre-sorted in descending order: [256, 128, 64, 32]
+            NPUW_ASSERT(!m_moe_sorted_chunk_sizes.empty() && "MoE sorted chunk sizes cannot be empty");
+
             size_t selected_chunk_size;
-            if (remaining_tokens > 128) {
-                selected_chunk_size = 256;
-            } else if (remaining_tokens > 64) {
-                selected_chunk_size = 128;
-            } else if (remaining_tokens > 32) {
-                selected_chunk_size = 64;
+            size_t smallest_chunk = m_moe_sorted_chunk_sizes.back();
+            size_t largest_chunk = m_moe_sorted_chunk_sizes.front();
+
+            if (remaining_tokens <= smallest_chunk) {
+                // Use smallest chunk
+                selected_chunk_size = smallest_chunk;
+            } else if (remaining_tokens >= largest_chunk) {
+                // Use largest chunk
+                selected_chunk_size = largest_chunk;
             } else {
-                selected_chunk_size = 32;
+                // Find smallest chunk >= remaining_tokens
+                // Since sorted descending, iterate from end to find first >= remaining_tokens
+                selected_chunk_size = smallest_chunk;  // Default to smallest
+                for (auto it = m_moe_sorted_chunk_sizes.rbegin(); it != m_moe_sorted_chunk_sizes.rend(); ++it) {
+                    if (*it >= remaining_tokens) {
+                        selected_chunk_size = *it;
+                        break;
+                    }
+                }
             }
 
             // Actual tokens to process in this iteration

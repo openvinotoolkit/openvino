@@ -936,7 +936,7 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
         // Prefill: Multiple models for different chunk sizes, each with 1 expert
         LOG_INFO("Prefill mode: Creating models for different chunk sizes");
 
-        std::vector<size_t> chunk_sizes = {32, 64, 128, 256, 512};
+        std::vector<size_t> chunk_sizes = {16, 32, 64, 128, 256};
         for (auto chunk_size : chunk_sizes) {
             // Re-analyze structure for each transformation to get fresh node pointers
             auto fresh_structure_info = analyze_moe_structure(model);
