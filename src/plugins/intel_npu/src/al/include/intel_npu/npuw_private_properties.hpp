@@ -250,14 +250,23 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 /**
  * @brief
  * Type: uint64_t.
- * Token chunk size for MoE expert model processing during prefill stage.
- * When MoE optimization is enabled, expert models are transformed to process tokens in chunks
- * of this size instead of the full sequence length. This allows better hardware utilization
- * and memory efficiency. The chunk size should be a power of two.
- * Note: This is different from prefill_chunk_size which controls the overall prompt chunking.
- * Default value: 128.
+ * MoE expert model compilation strategy for prefill stage token chunking.
+ *
+ * When set to 0 (default): Compiles multiple expert models with different chunk sizes
+ * {16, 32, 64, 128, 256} for dynamic chunk selection at runtime. This provides optimal
+ * performance by selecting the best chunk size based on remaining tokens.
+ *
+ * When set to a specific value (e.g., 128, 256): Compiles only a single expert model
+ * with the specified fixed chunk size. This reduces compilation time and memory usage but
+ * may not be optimal for all token counts.
+ *
+ * The chunk size should be a power of two for best hardware utilization.
+ * Note: This only affects prefill stage (multi-token inference). Decoding stage (single token)
+ * always uses a dedicated model regardless of this setting.
+ *
+ * Default value: 0 (dynamic multi-model compilation).
  */
-static constexpr ov::Property<uint64_t> moe_token_chunk_size{"NPUW_MOE_TOKEN_CHUNK_SIZE"};
+static constexpr ov::Property<uint64_t> moe_fixed_token_chunk_size{"NPUW_MOE_FIXED_TOKEN_CHUNK_SIZE"};
 
 /**
  * @brief
