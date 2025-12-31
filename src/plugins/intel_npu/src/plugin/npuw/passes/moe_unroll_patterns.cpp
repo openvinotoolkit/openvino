@@ -775,12 +775,18 @@ PushMultiplyBeforeConcat::PushMultiplyBeforeConcat() {
 // =============================================================================
 // UnrollConcatMatMul
 // =============================================================================
-// Transforms MatMul with Concat input and parameter-based weights to N expert branches
-// Pattern: Concat([a,b,c,d]) ────────┐
+// Transforms MatMul with Concat/Sliceable input and parameter-based weights to N expert branches
+// Pattern 1 (Concat path):
+//          Concat([a,b,c,d]) ────────┐
+//          scale_param + weights_param → multiply → convert ─┤→ MatMul
+//
+// Pattern 2 (Slicing path):
+//          AnyInput[N,...] ────────┐  (sliced into N branches)
 //          scale_param + weights_param → multiply → convert ─┤→ MatMul
 //
 // Input requirements:
-//   - Concat inputs: each branch has shape like [1,1,1,H]
+//   - Input0 (Concat path): Concat with N branches, each like [1,1,1,H]
+//   - Input0 (Slicing path): Any tensor with shape [N,...] where N = number of experts
 //   - scale_param shape: [N,A,1] where N = number of experts
 //   - weights_param shape: [N,A,B]
 // Output: N expert branches, each with new parameters [1,A,1] and [1,A,B]
@@ -798,18 +804,51 @@ UnrollConcatMatMul::UnrollConcatMatMul(std::shared_ptr<ov::Model> model) : model
 
         LOG_INFO("UnrollConcatMatMul: Checking MatMul " << matmul->get_friendly_name());
 
-        auto matmul_input0 = matmul->input_value(0);  // Should be Concat
+        auto matmul_input0 = matmul->input_value(0);  // Can be Concat or arbitrary input to be sliced
         auto matmul_input1 = matmul->input_value(1);  // Should be Multiply → Convert chain
 
-        // Check input0: should be Concat
+        // Check input0: prefer Concat, but also support slicing arbitrary input
         auto concat = std::dynamic_pointer_cast<ov::opset1::Concat>(matmul_input0.get_node_shared_ptr());
-        if (!concat) {
-            LOG_DEBUG("  Input0 is not Concat, skipping");
-            return false;
-        }
+        bool use_concat_path = (concat != nullptr);
+        size_t num_branches = 0;
 
-        size_t num_branches = concat->get_input_size();
-        LOG_DEBUG("  Found Concat with " << num_branches << " branches");
+        if (use_concat_path) {
+            num_branches = concat->get_input_size();
+            LOG_DEBUG("  Found Concat with " << num_branches << " branches");
+        } else {
+            LOG_DEBUG("  Input0 is not Concat, will try slicing path");
+
+            // Avoid conflict with UnrollBatchedMatMul pattern
+            // UnrollBatchedMatMul handles: input_param → convert → tile → reshape → MatMul
+            // Check if input0 matches that pattern and skip if so
+            auto input0_node = matmul_input0.get_node_shared_ptr();
+
+            // Check for Reshape (possibly through Squeeze/Convert)
+            std::shared_ptr<ov::opset1::Reshape> reshape_check;
+            if (auto reshape = std::dynamic_pointer_cast<ov::opset1::Reshape>(input0_node)) {
+                reshape_check = reshape;
+            } else if (auto squeeze = std::dynamic_pointer_cast<ov::opset1::Squeeze>(input0_node)) {
+                reshape_check =
+                    std::dynamic_pointer_cast<ov::opset1::Reshape>(squeeze->input_value(0).get_node_shared_ptr());
+            } else if (auto convert = std::dynamic_pointer_cast<ov::opset1::Convert>(input0_node)) {
+                reshape_check =
+                    std::dynamic_pointer_cast<ov::opset1::Reshape>(convert->input_value(0).get_node_shared_ptr());
+            }
+
+            // If we found Reshape → Tile → Convert chain, this is UnrollBatchedMatMul's pattern
+            if (reshape_check) {
+                auto tile_check =
+                    std::dynamic_pointer_cast<ov::opset1::Tile>(reshape_check->input_value(0).get_node_shared_ptr());
+                if (tile_check) {
+                    auto convert_check = std::dynamic_pointer_cast<ov::opset1::Convert>(
+                        tile_check->input_value(0).get_node_shared_ptr());
+                    if (convert_check) {
+                        LOG_DEBUG("  Input0 matches UnrollBatchedMatMul pattern (Reshape→Tile→Convert), skipping");
+                        return false;
+                    }
+                }
+            }
+        }
 
         // Check input1: Multiply (possibly through Convert)
         auto input1_node = matmul_input1.get_node_shared_ptr();
@@ -902,13 +941,40 @@ UnrollConcatMatMul::UnrollConcatMatMul(std::shared_ptr<ov::Model> model) : model
         size_t scale_num_experts = scale_orig_shape[0].get_length();
         size_t weights_num_experts = weights_orig_shape[0].get_length();
 
-        if (scale_num_experts != weights_num_experts || scale_num_experts != num_branches) {
+        if (scale_num_experts != weights_num_experts) {
+            LOG_DEBUG("  Number of experts mismatch: scale=" << scale_num_experts
+                                                             << ", weights=" << weights_num_experts);
+            return false;
+        }
+
+        // For slicing path, determine num_branches from parameter shapes
+        if (!use_concat_path) {
+            num_branches = scale_num_experts;
+            LOG_INFO("  Using slicing path with " << num_branches << " experts");
+
+            // Validate input0 shape: first dimension should equal num_branches
+            auto input0_shape = matmul_input0.get_partial_shape();
+            if (!input0_shape.rank().is_static() || !input0_shape[0].is_static()) {
+                LOG_DEBUG("  Input0 shape is not static, skipping");
+                return false;
+            }
+
+            if (input0_shape[0].get_length() != static_cast<int64_t>(num_branches)) {
+                LOG_DEBUG("  Input0 first dimension " << input0_shape[0].get_length() << " does not match num_experts "
+                                                      << num_branches << ", skipping");
+                return false;
+            }
+        } else if (scale_num_experts != num_branches) {
             LOG_DEBUG("  Number of experts mismatch: scale=" << scale_num_experts << ", weights=" << weights_num_experts
                                                              << ", concat_branches=" << num_branches);
             return false;
         }
 
-        LOG_INFO("  Found pattern: Concat + scale_param + weights_param → Multiply → MatMul");
+        if (use_concat_path) {
+            LOG_INFO("  Found pattern: Concat + scale_param + weights_param → Multiply → MatMul");
+        } else {
+            LOG_INFO("  Found pattern: SliceableInput + scale_param + weights_param → Multiply → MatMul");
+        }
         LOG_INFO("  Creating " << num_branches << " expert branches...");
 
         // Create per-expert parameter shapes: [N,...] → [1,...]
@@ -923,13 +989,72 @@ UnrollConcatMatMul::UnrollConcatMatMul(std::shared_ptr<ov::Model> model) : model
         LOG_INFO("  Scale: " << scale_shape_vec << " → " << scale_new_shape);
         LOG_INFO("  Weights: " << weights_shape_vec << " → " << weights_new_shape);
 
-        auto concat_inputs = concat->input_values();
+        // Prepare input0 branches: either from Concat or via Slice
+        ov::OutputVector input0_branches;
+        if (use_concat_path) {
+            input0_branches = concat->input_values();
+        } else {
+            // Create Slice operations to split input0 along axis 0
+            LOG_INFO("  Creating Slice operations for input0");
+            auto input0_shape = matmul_input0.get_partial_shape();
+
+            if (!input0_shape.rank().is_static()) {
+                LOG_ERROR("  Input0 shape rank is not static, cannot create Slice operations");
+                return false;
+            }
+
+            int64_t slice_axis = 0;
+            int64_t rank = input0_shape.rank().get_length();
+
+            LOG_INFO("  Input0 shape: " << input0_shape << ", rank: " << rank);
+
+            for (size_t expert_idx = 0; expert_idx < num_branches; ++expert_idx) {
+                // Slice parameters: only slice on axis 0
+                // axes=[0], start=[expert_idx], stop=[expert_idx+1], step=[1]
+                std::vector<int64_t> start_vec = {static_cast<int64_t>(expert_idx)};
+                std::vector<int64_t> stop_vec = {static_cast<int64_t>(expert_idx + 1)};
+                std::vector<int64_t> step_vec = {1};
+                std::vector<int64_t> axes_vec = {slice_axis};
+
+                LOG_DEBUG("    Expert " << expert_idx << " - start: " << start_vec[0] << ", stop: " << stop_vec[0]);
+
+                try {
+                    auto start_const = std::make_shared<ov::opset1::Constant>(ov::element::i64,
+                                                                              ov::Shape{start_vec.size()},
+                                                                              start_vec);
+                    auto stop_const =
+                        std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{stop_vec.size()}, stop_vec);
+                    auto step_const =
+                        std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{step_vec.size()}, step_vec);
+                    auto axes_const =
+                        std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{axes_vec.size()}, axes_vec);
+
+                    auto slice_op = std::make_shared<ov::op::v8::Slice>(matmul_input0,
+                                                                        start_const,
+                                                                        stop_const,
+                                                                        step_const,
+                                                                        axes_const);
+                    slice_op->set_friendly_name(matmul->get_friendly_name() + "/slice_input0_expert_" +
+                                                std::to_string(expert_idx));
+                    input0_branches.push_back(slice_op->output(0));
+                } catch (const std::exception& e) {
+                    LOG_ERROR("    Failed to create Slice for expert " << expert_idx << ": " << e.what());
+                    return false;
+                } catch (...) {
+                    LOG_ERROR("    Failed to create Slice for expert " << expert_idx << ": Unknown error");
+                    return false;
+                }
+            }
+
+            LOG_INFO("  Created " << num_branches << " Slice operations for input0");
+        }
+
         ov::NodeVector expert_outputs;
         ov::ParameterVector new_params;
 
         for (size_t expert_idx = 0; expert_idx < num_branches; ++expert_idx) {
-            // 1. Get Concat input for this branch
-            auto concat_input = concat_inputs[expert_idx];
+            // 1. Get input0 branch (from Concat or Slice)
+            auto input0_branch = input0_branches[expert_idx];
 
             // 2. Create new scale parameter
             auto new_scale_param = std::make_shared<ov::op::v0::Parameter>(scale_param->get_element_type(),
@@ -994,8 +1119,8 @@ UnrollConcatMatMul::UnrollConcatMatMul(std::shared_ptr<ov::Model> model) : model
                 weights_for_matmul = new_multiply->output(0);
             }
 
-            // 8. MatMul: concat_input × weights
-            auto new_matmul = std::make_shared<ov::opset1::MatMul>(concat_input,
+            // 8. MatMul: input0_branch × weights
+            auto new_matmul = std::make_shared<ov::opset1::MatMul>(input0_branch,
                                                                    weights_for_matmul,
                                                                    matmul->get_transpose_a(),
                                                                    matmul->get_transpose_b());
@@ -1004,8 +1129,8 @@ UnrollConcatMatMul::UnrollConcatMatMul(std::shared_ptr<ov::Model> model) : model
             expert_outputs.push_back(new_matmul);
         }
 
-        // Concat all expert outputs
-        auto output_concat = std::make_shared<ov::opset1::Concat>(expert_outputs, concat->get_axis());
+        // Concat all expert outputs on axis 0 (same as original concat or slice axis)
+        auto output_concat = std::make_shared<ov::opset1::Concat>(expert_outputs, 0);
         output_concat->set_friendly_name(matmul->get_friendly_name() + "/concat");
 
         // Register new parameters with model

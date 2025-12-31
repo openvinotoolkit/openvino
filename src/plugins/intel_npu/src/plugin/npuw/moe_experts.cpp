@@ -478,15 +478,21 @@ std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Mod
 // Unroll MoE expert model on expert dimension using GraphRewrite patterns
 std::shared_ptr<ov::Model> unroll_expert_dimension(const std::shared_ptr<ov::Model>& model,
                                                    const MoEStructureInfo& structure_info,
-                                                   size_t num_experts) {
+                                                   size_t num_experts,
+                                                   bool full_optimization) {
     LOG_INFO("Unrolling expert dimension for " << num_experts << " experts using GraphRewrite");
+    LOG_INFO("Optimization mode: " << (full_optimization ? "Full (weights + activations)" : "WeightsOnly"));
     LOG_BLOCK();
 
     try {
         auto unrolled_model = model->clone();
 
         ov::pass::Manager manager;
-        manager.register_pass<ov::npuw::pass::MoEExpertUnrolling>(num_experts, unrolled_model);
+        if (full_optimization) {
+            manager.register_pass<ov::npuw::pass::MoEExpertUnrolling>(num_experts, unrolled_model);
+        } else {
+            manager.register_pass<ov::npuw::pass::MoEExpertUnrollingWeightsOnly>(num_experts, unrolled_model);
+        }
         manager.run_passes(unrolled_model);
 
         unrolled_model->validate_nodes_and_infer_types();
