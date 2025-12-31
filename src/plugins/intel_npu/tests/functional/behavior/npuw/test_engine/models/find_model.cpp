@@ -8,10 +8,9 @@
 
 #include "openvino/util/file_util.hpp"
 
-#include "minicpm4_05b.hpp"
+#include "find_model.hpp"
 
-const std::string get_minicpm4_05b_path() {
-    static constexpr const char* model_name = "MiniCPM4-0.5B_int4_sym_group128_dyn_stateful";
+const std::string find_model(const std::string& model_name) {
     const char* pdir = std::getenv("NPU_TESTS_MODELS_PATH");
     if (pdir != nullptr) {
         std::filesystem::path dir(pdir);

@@ -89,7 +89,7 @@ std::vector<int64_t> SimpleLLMPipeline::generate(const std::vector<int64_t>& inp
     // Assume that we don't want to produce more than min response len in simple pipeline.
     for (; total_generated_tokens < m_min_response_len; total_generated_tokens++) {
         // KV Cache is full, no further generation is possible
-        if (position_ids_data + 1 == m_kvcache_total) {
+        if (position_ids_data + 1 >= m_kvcache_total) {
             break;
         }
 

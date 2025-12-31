@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_engine/models/minicpm4_05b.hpp"
+#include "test_engine/models/find_model.hpp"
 #include "test_engine/comparators/nrmse.hpp"
 #include "test_engine/simple_llm_pipeline.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
@@ -18,13 +18,8 @@ using namespace testing;
 using namespace ov::npuw::tests;
 using namespace ov::intel_npu::npuw;
 
-// this tests load plugin by library name: this is not available during static linkage
-#ifndef OPENVINO_STATIC_LIBRARY
-#ifdef WITH_CPU_PLUGIN
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-const char* cpu_plugin_file_name = "openvino_intel_cpu_plugin";
-
 namespace {
+const std::string minicpm_05_b_name = "MiniCPM4-0.5B_int4_sym_group128_dyn_stateful";
 
 struct GroundTruth {
     std::vector<int64_t> prompt;
@@ -46,22 +41,16 @@ using LLMTestParams = std::tuple<std::string, ov::AnyMap, GroundTruth>;
 
 class LLMSmokeAccuracyTestsNPUW : public ::testing::TestWithParam<LLMTestParams> {
 public:
-    void SetUp() override {
-        auto param = GetParam();
-        ov::AnyMap config;
-        GroundTruth input_and_reference_ids;
-        std::tie(model_path, config, input_and_reference_ids) = param;
-        if (model_path == "") {
-            GTEST_SKIP() << "Test model is not found, skipping the test!";
-        }
-        input_ids = input_and_reference_ids.prompt;
-        reference_ids = input_and_reference_ids.answer;
-
+    void SetUp() override {      
         // NOTE: TEMPLATE plugin in OpenVINO works for ~20 minute to generate
         //       first token from prefill model and crashes on launch of
         //       3rd subrequest in generate model.
         //       There is no such issue with CPU plugin, so CPU plugin was choosen
         //       for accuracy checks.
+        // Test only makes sense if CPU plugin is enabled.
+#if !defined(OPENVINO_STATIC_LIBRARY) && defined(WITH_CPU_PLUGIN) && \
+    (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64))
+        const char* cpu_plugin_file_name = "openvino_intel_cpu_plugin";
         // Register CPU plugin in OpenVINO:
         try {
             core.register_plugin(std::string(cpu_plugin_file_name) + OV_BUILD_POSTFIX, "CPU");
@@ -71,6 +60,24 @@ public:
                 throw ex;
             }
         }
+#else
+        GTEST_SKIP() << "CPU plugin is not enabled or platform requirements are not met, skipping the test!";
+#endif // not OPENVINO_STATIC_LIBRARY && WITH_CPU_PLUGIN &&
+       // (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64))
+
+        auto param = GetParam();
+        std::string model_name;
+        ov::AnyMap config;
+        GroundTruth input_and_reference_ids;
+        std::tie(model_name, config, input_and_reference_ids) = param;
+
+        model_path = find_model(model_name);
+        if (model_path == "") {
+            GTEST_SKIP() << "Test model is not found, skipping the test!";
+        }
+
+        input_ids = input_and_reference_ids.prompt;
+        reference_ids = input_and_reference_ids.answer;
 
         config["NPUW_DEVICES"] = "CPU";
         config["NPUW_LLM_MAX_PROMPT_LEN"] = 128;
@@ -95,10 +102,6 @@ TEST_P(LLMSmokeAccuracyTestsNPUW, ConfigIsAccurate) {
 }
 
 INSTANTIATE_TEST_SUITE_P(LLMSmokeAccuracyNPUW_FAST_COMPILE, LLMSmokeAccuracyTestsNPUW,
-    ::testing::Combine(testing::Values(get_minicpm4_05b_path()),
+    ::testing::Combine(testing::Values(minicpm_05_b_name),
                        testing::Values(ov::AnyMap{}),
                        testing::Values(What_is_OpenVINO_templated)));
-
-#endif // defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#endif // WITH_CPU_PLUGIN
-#endif // not OPENVINO_STATIC_LIBRARY
