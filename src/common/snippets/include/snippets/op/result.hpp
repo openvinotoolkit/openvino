@@ -20,7 +20,7 @@ namespace ov::snippets::op {
 
 // Snippets result is used only in snippets lowering pipeline as output of subgraph.
 // This op is needed becuase there could be multiple loop bodies(such as first, main and tail) in LIR,
-// all need write to the same output but at different offsets. Then snippets result should has
+// all need write to the same output but at different offsets. Then snippets result should have
 // multiple inputs connected to all loops. The correct and full connections are needed in passes like AssignRegisters.
 class Result : public ov::op::v0::Result {
 public:

@@ -13,7 +13,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
@@ -33,9 +32,6 @@ std::shared_ptr<Expression> ExpressionFactory::build(const std::shared_ptr<Node>
                                                      const std::vector<PortConnectorPtr>& inputs) {
     if (const auto par = ov::as_type_ptr<ov::op::v0::Parameter>(n)) {
         return create(par, inputs, m_shape_infer_factory);
-    }
-    if (const auto res = ov::as_type_ptr<ov::op::v0::Result>(n)) {
-        return create(res, inputs, m_shape_infer_factory);
     }
     if (const auto res = ov::as_type_ptr<op::Result>(n)) {
         return create(res, inputs, m_shape_infer_factory);
@@ -101,21 +97,6 @@ ExpressionPtr ExpressionFactory::create(const std::shared_ptr<ov::op::v0::Parame
     // make_shared<Expression>(args)
     auto expr = std::shared_ptr<Expression>(new Expression(par, shape_infer_factory, false));
     create_expression_outputs(expr);
-    expr->validate();
-    return expr;
-}
-
-ExpressionPtr ExpressionFactory::create(const std::shared_ptr<ov::op::v0::Result>& res,
-                                        const std::vector<PortConnectorPtr>& inputs,
-                                        const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
-    const auto snippets_result = std::make_shared<snippets::op::Result>(res->input_values());
-    // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly
-    // make_shared<Expression>(args)
-    auto expr = std::shared_ptr<Expression>(new Expression(snippets_result, shape_infer_factory));
-    init_expression_inputs(expr, inputs);
-    // The Result node don't need output port (because of sense of the node). But each node in openvino must have one
-    // output at least. The port descriptors are automatically created in constructor. We manually clean output ports.
-    expr->m_output_port_descriptors.clear();
     expr->validate();
     return expr;
 }
