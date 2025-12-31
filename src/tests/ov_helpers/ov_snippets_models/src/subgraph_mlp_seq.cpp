@@ -225,10 +225,10 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
         current, ov::element::f32, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f);
     current = std::make_shared<ov::op::v1::Subtract>(current, ov::op::v0::Constant::create(ov::element::f32, {1, 1}, {0}));
     current = std::make_shared<ov::op::v5::Round>(current, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
-    auto result_subgraph = std::make_shared<ov::op::v0::Result>(current);
+    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{current});
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         subgraph_nodes,
-        std::make_shared<ov::Model>(ov::ResultVector{result_subgraph}, subgraph_params));
+        std::make_shared<ov::Model>(ov::ResultVector{ov::as_type_ptr<ov::op::v0::Result>(snippets_result)}, subgraph_params));
     auto result = std::make_shared<ov::op::v0::Result>(subgraph);
 
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{A_param});

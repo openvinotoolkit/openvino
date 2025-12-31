@@ -30,6 +30,7 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/transpose.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
@@ -378,7 +379,7 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
         for (const auto& input : target_inputs) {
             input.replace_source_output(reshape);
             // Result input tensor name was changed, the name has to be restored
-            if (ov::is_type<ov::op::v0::Result>(input.get_node())) {
+            if (ov::is_type<snippets::op::Result>(input.get_node())) {
                 input.get_tensor_ptr()->add_names(subgraph->output(i).get_tensor_ptr()->get_names());
             }
         }

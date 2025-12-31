@@ -40,9 +40,6 @@ private:
     static ExpressionPtr create(const std::shared_ptr<ov::op::v0::Parameter>& par,
                                 const std::vector<PortConnectorPtr>& inputs,
                                 const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory);
-    static ExpressionPtr create(const std::shared_ptr<ov::op::v0::Result>& res,
-                                const std::vector<PortConnectorPtr>& inputs,
-                                const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory);
     static ExpressionPtr create(const std::shared_ptr<op::Result>& res,
                                 const std::vector<PortConnectorPtr>& inputs,
                                 const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory);

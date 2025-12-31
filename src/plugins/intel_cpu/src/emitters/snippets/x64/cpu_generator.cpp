@@ -66,7 +66,6 @@
 #include "openvino/op/power.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/relu.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/sigmoid.hpp"
@@ -250,7 +249,6 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
       compiled_kernel_cache(std::move(cache)) {
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
-    jitters[op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::Buffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
