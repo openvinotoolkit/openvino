@@ -569,6 +569,123 @@ ov::npuw::JustInferRequest::~JustInferRequest() {
         }
     };
 
+    // Print subgraph execution performance statistics (DECODING ONLY)
+    if (!m_subgraph_stats.detailed_stats_decoding.empty()) {
+        std::cout << "========== Subgraph Execution Performance (DECODING) ==========" << std::endl;
+
+        for (const auto& [idx, detailed] : m_subgraph_stats.detailed_stats_decoding) {
+            // Calculate overall stats for this subgraph in decoding phase
+            const auto& stats = detailed.total;
+            if (stats.count == 0)
+                continue;  // Skip if no decoding stats
+
+            std::string subgraph_name = "Subgraph[" + std::to_string(idx) + "]";
+            print_step(subgraph_name, stats.count, stats.total_ms, stats.min_ms, stats.max_ms);
+
+            std::cout << "    Step Breakdown:" << std::endl;
+
+            auto print_substep = [](const std::string& name, const SubgraphStats::Stats& step_stats) {
+                if (step_stats.count > 0) {
+                    double avg = step_stats.total_ms / step_stats.count;
+                    std::cout << "      " << name << ": "
+                              << "avg=" << avg << "ms, "
+                              << "min=" << step_stats.min_ms << "ms, "
+                              << "max=" << step_stats.max_ms << "ms, "
+                              << "total=" << step_stats.total_ms << "ms" << std::endl;
+                }
+            };
+
+            print_substep("bind_global_results", detailed.bind_global_results);
+            print_substep("function_prologue", detailed.function_prologue);
+            print_substep("dump_input", detailed.dump_input);
+            print_substep("unsafe_run (core execution)", detailed.unsafe_run);
+
+            // Print unsafe_run breakdown
+            if (detailed.unsafe_run_breakdown.actual_inference.count > 0) {
+                std::cout << "        unsafe_run breakdown:" << std::endl;
+                print_substep("          bind_next_parameters", detailed.unsafe_run_breakdown.bind_next_parameters);
+                print_substep("          unpack_closure", detailed.unsafe_run_breakdown.unpack_closure);
+                print_substep("          actual_inference", detailed.unsafe_run_breakdown.actual_inference);
+            }
+
+            print_substep("dump_output", detailed.dump_output);
+            print_substep("pipeline_swap", detailed.pipeline_swap);
+        }
+
+        // Calculate and print sum of all subgraph averages
+        double total_avg_sum = 0.0;
+        size_t subgraph_count = 0;
+        for (const auto& [idx, detailed] : m_subgraph_stats.detailed_stats_decoding) {
+            if (detailed.total.count > 0) {
+                total_avg_sum += detailed.total.avg_ms;
+                subgraph_count++;
+            }
+        }
+
+        std::cout << "================================================================" << std::endl;
+        std::cout << std::fixed << std::setprecision(3);
+        std::cout << "Sum of all " << subgraph_count << " subgraph averages: " << total_avg_sum << " ms" << std::endl;
+        std::cout << "================================================================" << std::endl;
+
+        // Print NPU Utilization Analysis
+        const auto& util = m_subgraph_stats.utilization_decoding;
+        if (util.inference_count > 0) {
+            std::cout << "\n========== NPU Utilization Analysis (DECODING) ==========" << std::endl;
+
+            double npu_util = util.get_npu_utilization();
+            double cpu_overhead_ratio = util.get_cpu_overhead_ratio();
+            double avg_npu_per_call = util.total_npu_inference_ms / util.inference_count;
+            double avg_cpu_per_call = util.total_cpu_overhead_ms / util.inference_count;
+            double avg_total_per_call = util.total_elapsed_ms / util.inference_count;
+
+            std::cout << std::fixed << std::setprecision(2);
+            std::cout << "\nOverall Statistics:" << std::endl;
+            std::cout << "  Total Inference Calls: " << util.inference_count << std::endl;
+            std::cout << "  Total Elapsed Time:    " << util.total_elapsed_ms << " ms" << std::endl;
+            std::cout << "  Total NPU Time:        " << util.total_npu_inference_ms << " ms" << std::endl;
+            std::cout << "  Total CPU Overhead:    " << util.total_cpu_overhead_ms << " ms" << std::endl;
+
+            std::cout << "\nPer-Call Averages:" << std::endl;
+            std::cout << "  Avg Total Time:        " << avg_total_per_call << " ms" << std::endl;
+            std::cout << "  Avg NPU Time:          " << avg_npu_per_call << " ms" << std::endl;
+            std::cout << "  Avg CPU Overhead:      " << avg_cpu_per_call << " ms" << std::endl;
+
+            std::cout << "\n***** KEY METRICS *****" << std::endl;
+            std::cout << "  NPU Utilization:       " << npu_util << "%" << std::endl;
+            std::cout << "  CPU Overhead Ratio:    " << cpu_overhead_ratio << "%" << std::endl;
+            std::cout << "  NPU Idle Time:         " << (100.0 - npu_util) << "%" << std::endl;
+            std::cout << "***********************" << std::endl;
+
+            // Diagnosis
+            std::cout << "\nDiagnosis & Recommendations:" << std::endl;
+            if (npu_util < 50.0) {
+                std::cout << "  [CRITICAL] NPU utilization < 50% - Severe CPU bottleneck!" << std::endl;
+                std::cout << "  Root Cause: " << (100.0 - npu_util) << "% of time NPU is IDLE waiting for CPU"
+                          << std::endl;
+                std::cout << "  Recommendations:" << std::endl;
+                std::cout << "    1. Reduce bind_next_parameters overhead" << std::endl;
+                std::cout << "    2. Optimize function_prologue (check for memory allocations)" << std::endl;
+                std::cout << "    3. Enable async execution with pipelining" << std::endl;
+                std::cout << "    4. Merge small subgraphs to amortize overhead" << std::endl;
+                std::cout << "    5. Pre-allocate tensors to avoid runtime allocation" << std::endl;
+            } else if (npu_util < 70.0) {
+                std::cout << "  [WARNING] NPU utilization < 70% - Moderate CPU overhead" << std::endl;
+                std::cout << "  CPU overhead is " << cpu_overhead_ratio << "% of NPU time" << std::endl;
+                std::cout << "  Recommendations:" << std::endl;
+                std::cout << "    1. Profile and optimize function_prologue" << std::endl;
+                std::cout << "    2. Consider tensor pre-allocation" << std::endl;
+                std::cout << "    3. Review parameter binding logic" << std::endl;
+            } else if (npu_util < 85.0) {
+                std::cout << "  [INFO] NPU utilization 70-85% - Acceptable performance" << std::endl;
+                std::cout << "  Minor optimization opportunity: " << (100.0 - npu_util) << "% idle time" << std::endl;
+            } else {
+                std::cout << "  [GOOD] NPU utilization > 85% - Well optimized!" << std::endl;
+                std::cout << "  System is efficiently utilizing NPU hardware" << std::endl;
+            }
+            std::cout << "\n=============================================================" << std::endl;
+        }
+    }
+
     // Print MoE prefill performance statistics if any were collected
     if (m_moe_prefill_stats.total_prefill.count > 0) {
         std::cout << "========== MoE Prefill Performance Statistics ==========" << std::endl;
@@ -682,6 +799,40 @@ ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out
     return IBaseInferRequest::alloc_global_out(out_idx);
 }
 
+void ov::npuw::JustInferRequest::record_subgraph_time(std::size_t idx, double time_ms) {
+    // Record overall stats (all phases combined)
+    auto& stats = m_subgraph_stats.subgraph_stats[idx];
+    stats.count++;
+    stats.total_ms += time_ms;
+    stats.min_ms = std::min(stats.min_ms, time_ms);
+    stats.max_ms = std::max(stats.max_ms, time_ms);
+    stats.avg_ms = stats.total_ms / stats.count;
+
+    // Also record in phase-specific detailed stats total field
+    bool is_decoding = !m_is_prefill_phase;
+    auto& detailed =
+        is_decoding ? m_subgraph_stats.detailed_stats_decoding[idx] : m_subgraph_stats.detailed_stats_prefill[idx];
+    record_time(detailed.total, time_ms);
+    detailed.total.avg_ms = detailed.total.total_ms / detailed.total.count;  // Calculate avg_ms here
+
+    // Track NPU utilization (actual inference vs CPU overhead)
+    auto& utilization = is_decoding ? m_subgraph_stats.utilization_decoding : m_subgraph_stats.utilization_prefill;
+
+    // NPU inference time = actual_inference from breakdown
+    double npu_time = detailed.unsafe_run_breakdown.actual_inference.total_ms;
+
+    // CPU overhead = everything except actual_inference
+    double cpu_overhead = detailed.bind_global_results.total_ms + detailed.function_prologue.total_ms +
+                          detailed.dump_input.total_ms + detailed.unsafe_run_breakdown.bind_next_parameters.total_ms +
+                          detailed.unsafe_run_breakdown.unpack_closure.total_ms + detailed.dump_output.total_ms +
+                          detailed.pipeline_swap.total_ms;
+
+    utilization.total_npu_inference_ms = npu_time;
+    utilization.total_cpu_overhead_ms = cpu_overhead;
+    utilization.total_elapsed_ms = detailed.total.total_ms;
+    utilization.inference_count = detailed.total.count;
+}
+
 void ov::npuw::JustInferRequest::connect_subrequests() {
     LOG_INFO("Connecting subrequests...");
     LOG_BLOCK();
@@ -750,6 +901,26 @@ void ov::npuw::JustInferRequest::connect_subrequests() {
 void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Preparing to infer...");
     LOG_BLOCK();
+
+    // Detect phase: prefill (first run with context) vs decoding (subsequent single-token runs)
+    // Check if we have attention selector to determine phase
+    if (m_attention_selector) {
+        // If context length > 1, it's prefill; if == 1, it's decoding
+        auto context_len = m_attention_selector->length();
+        m_is_prefill_phase = (context_len > 1);
+    } else if (m_pyramid_selector) {
+        auto context_len = m_pyramid_selector->length();
+        m_is_prefill_phase = (context_len > 1);
+    } else if (m_hfa_selector) {
+        auto context_len = m_hfa_selector->context_length();
+        m_is_prefill_phase = (context_len > 1);
+    } else {
+        // Fallback: assume first call is prefill, rest are decoding
+        // This gets set to false after first complete inference
+        static bool first_infer = true;
+        m_is_prefill_phase = first_infer;
+        first_infer = false;
+    }
 
     if (m_pyramid_selector) {
         m_pyramid_selector->prepare(get_history_size());
@@ -1483,6 +1654,15 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
+    // Detect inference phase: prefill vs decoding
+    // Heuristic: check if this is first iteration (prefill) or subsequent (decoding)
+    // A more robust approach: check attention mask or KV cache size
+    bool is_decoding = !m_is_prefill_phase;
+
+    // Get appropriate detailed stats reference based on phase
+    auto& detailed =
+        is_decoding ? m_subgraph_stats.detailed_stats_decoding[idx] : m_subgraph_stats.detailed_stats_prefill[idx];
+
     // Infer is also fail-safe...
     bool job_done = false;
     bool dump_in = false;
@@ -1502,21 +1682,39 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
         // execution pipeline: See how it is done in
         // `unsafe_run_this_prep_next()`.  Now we only need to bind
         // the subrequest' outputs to global Results, if relevant.
+        auto start_bind_results = std::chrono::high_resolution_clock::now();
         bind_global_results(idx);
+        auto end_bind_results = std::chrono::high_resolution_clock::now();
+        double bind_results_ms =
+            std::chrono::duration<double, std::milli>(end_bind_results - start_bind_results).count();
+        record_time(detailed.bind_global_results, bind_results_ms);
 
         if (comp_model_desc.replaced_by) {
+            auto start_prologue = std::chrono::high_resolution_clock::now();
             function_prologue(idx);
+            auto end_prologue = std::chrono::high_resolution_clock::now();
+            double prologue_ms = std::chrono::duration<double, std::milli>(end_prologue - start_prologue).count();
+            record_time(detailed.function_prologue, prologue_ms);
         }
         if (!dump_in) {
             dump_in = true;
+            auto start_dump_in = std::chrono::high_resolution_clock::now();
             dump_input_tensors(idx);
+            auto end_dump_in = std::chrono::high_resolution_clock::now();
+            double dump_in_ms = std::chrono::duration<double, std::milli>(end_dump_in - start_dump_in).count();
+            record_time(detailed.dump_input, dump_in_ms);
         }
 
         std::string error_text;
         try {
             LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
             LOG_BLOCK();
+            auto start_unsafe_run = std::chrono::high_resolution_clock::now();
             unsafe_run_this_prep_next(idx, next_prepared);
+            auto end_unsafe_run = std::chrono::high_resolution_clock::now();
+            double unsafe_run_ms = std::chrono::duration<double, std::milli>(end_unsafe_run - start_unsafe_run).count();
+            record_time(detailed.unsafe_run, unsafe_run_ms);
+
             job_done = true;
             LOG_DEBUG("Done: " << idx << "(exec subrequest)");
         } catch (const std::exception& ex) {
@@ -1548,11 +1746,20 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     }  // while(job_done)
 
     if (job_done) {
+        auto start_dump_out = std::chrono::high_resolution_clock::now();
         dump_output_tensors(idx);  // FIXME: Called here unconditionally, need to refactor
+        auto end_dump_out = std::chrono::high_resolution_clock::now();
+        double dump_out_ms = std::chrono::duration<double, std::milli>(end_dump_out - start_dump_out).count();
+        record_time(detailed.dump_output, dump_out_ms);
+
         if (is_pipelined(idx) && m_funcall_pipeline[idx].next) {
+            auto start_swap = std::chrono::high_resolution_clock::now();
             // Swap the next (pipelined, semi-prepared) infer request in the chain
             // with the default (to be accessed next) one.
             std::swap(m_subrequests[real_idx], m_funcall_pipeline[real_idx].subrequest);
+            auto end_swap = std::chrono::high_resolution_clock::now();
+            double swap_ms = std::chrono::duration<double, std::milli>(end_swap - start_swap).count();
+            record_time(detailed.pipeline_swap, swap_ms);
         }
     }
 }
@@ -2522,6 +2729,12 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
     auto real_idx = comp_model_desc.replaced_by.value_or(idx);
     const std::size_t next_idx = next(idx + 1);
 
+    // Get appropriate detailed stats reference based on phase
+    bool is_decoding = !m_is_prefill_phase;
+    auto& detailed =
+        is_decoding ? m_subgraph_stats.detailed_stats_decoding[idx] : m_subgraph_stats.detailed_stats_prefill[idx];
+    auto& breakdown = detailed.unsafe_run_breakdown;
+
     if (comp_model_desc.replaced_by) {
         // This is a function call!
         if (real_idx == real(next_idx)) {
@@ -2531,19 +2744,43 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             if (is_pipelined(real_idx)) {
                 // function pipelining is here! and the next rq is ours.
                 NPUW_ASSERT(m_funcall_pipeline[idx].next.value() == next_idx);
+
+                auto infer_start = std::chrono::high_resolution_clock::now();
                 unsafe_during(real_idx, idx, [&]() {
                     LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << next_idx << "]...");
                     LOG_BLOCK();
                     // Note: do it here unconditionally - if this request fails,
                     // have to resubmit all the data to the recompiled pair anyway
+
+                    auto bind_start = std::chrono::high_resolution_clock::now();
                     bind_global_parameters(next_idx);
+                    auto bind_end = std::chrono::high_resolution_clock::now();
+                    record_time(breakdown.bind_next_parameters,
+                                std::chrono::duration<double, std::milli>(bind_end - bind_start).count());
+
+                    auto unpack_start = std::chrono::high_resolution_clock::now();
                     unpack_closure(next_idx, m_funcall_pipeline[real_idx].subrequest);
+                    auto unpack_end = std::chrono::high_resolution_clock::now();
+                    record_time(breakdown.unpack_closure,
+                                std::chrono::duration<double, std::milli>(unpack_end - unpack_start).count());
                 });
+                auto infer_end = std::chrono::high_resolution_clock::now();
+                record_time(breakdown.actual_inference,
+                            std::chrono::duration<double, std::milli>(infer_end - infer_start).count());
             } else {
                 // Function pipelining is not used. THIS infer request
                 // is also the NEXT one. Nothing much to do here
+                auto infer_start = std::chrono::high_resolution_clock::now();
                 unsafe_infer(real_idx, idx);
+                auto infer_end = std::chrono::high_resolution_clock::now();
+                record_time(breakdown.actual_inference,
+                            std::chrono::duration<double, std::milli>(infer_end - infer_start).count());
+
+                auto bind_start = std::chrono::high_resolution_clock::now();
                 bind_global_parameters(next_idx);
+                auto bind_end = std::chrono::high_resolution_clock::now();
+                record_time(breakdown.bind_next_parameters,
+                            std::chrono::duration<double, std::milli>(bind_end - bind_start).count());
             }
         } else {
             // The next subgraph is NOT a call to the same function!
@@ -2552,34 +2789,63 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             if (next_idx == 0) {
                 // Note: even if m_function_pipelining is ON,
                 // SWAP won't happen here - see the below check for .next
+                auto infer_start = std::chrono::high_resolution_clock::now();
                 unsafe_infer(real_idx, idx);
+                auto infer_end = std::chrono::high_resolution_clock::now();
+                record_time(breakdown.actual_inference,
+                            std::chrono::duration<double, std::milli>(infer_end - infer_start).count());
             } else {
+                auto infer_start = std::chrono::high_resolution_clock::now();
                 unsafe_during(real_idx, idx, [&]() {
                     if (!next_prepared) {
+                        auto bind_start = std::chrono::high_resolution_clock::now();
                         bind_global_parameters(next_idx);
+                        auto bind_end = std::chrono::high_resolution_clock::now();
+                        record_time(breakdown.bind_next_parameters,
+                                    std::chrono::duration<double, std::milli>(bind_end - bind_start).count());
                         next_prepared = true;
                     }
                     if (is_pipelined(idx) && m_funcall_pipeline[idx].next) {
                         const auto my_next_idx = m_funcall_pipeline[idx].next.value();
                         LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << my_next_idx << "]...");
                         LOG_BLOCK();
+
+                        auto unpack_start = std::chrono::high_resolution_clock::now();
                         unpack_closure(my_next_idx, m_funcall_pipeline[real_idx].subrequest);
+                        auto unpack_end = std::chrono::high_resolution_clock::now();
+                        record_time(breakdown.unpack_closure,
+                                    std::chrono::duration<double, std::milli>(unpack_end - unpack_start).count());
                     }
                 });
+                auto infer_end = std::chrono::high_resolution_clock::now();
+                record_time(breakdown.actual_inference,
+                            std::chrono::duration<double, std::milli>(infer_end - infer_start).count());
             }
         }
     } else {
         // This is a regular subgraph. Start it async to prepare the next
         // parameters
         if (next_idx == 0) {
+            auto infer_start = std::chrono::high_resolution_clock::now();
             unsafe_infer(real_idx, idx);
+            auto infer_end = std::chrono::high_resolution_clock::now();
+            record_time(breakdown.actual_inference,
+                        std::chrono::duration<double, std::milli>(infer_end - infer_start).count());
         } else {
+            auto infer_start = std::chrono::high_resolution_clock::now();
             unsafe_during(real_idx, idx, [&]() {
                 if (!next_prepared) {
+                    auto bind_start = std::chrono::high_resolution_clock::now();
                     bind_global_parameters(next_idx);
+                    auto bind_end = std::chrono::high_resolution_clock::now();
+                    record_time(breakdown.bind_next_parameters,
+                                std::chrono::duration<double, std::milli>(bind_end - bind_start).count());
                     next_prepared = true;
                 }
             });
+            auto infer_end = std::chrono::high_resolution_clock::now();
+            record_time(breakdown.actual_inference,
+                        std::chrono::duration<double, std::milli>(infer_end - infer_start).count());
         }
     }  // if (replaced_by)
 }
