@@ -100,7 +100,7 @@ ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw:
 }
 
 void ov::npuw::KokoroInferRequest::infer() {
-    LOG_INFO("Creating KokoroInferRequest");
+    LOG_DEBUG("Creating KokoroInferRequest");
     OPENVINO_ASSERT(m_model_a_request);
     OPENVINO_ASSERT(m_model_b_request);
 
@@ -221,8 +221,22 @@ void ov::npuw::KokoroInferRequest::infer() {
         OPENVINO_THROW("Kokoro Model B: no floating-point outputs found");
     }
 
+    // FIXME Temporary 
+    const size_t overlap_size = 10; 
+    const auto one_side_overlap = static_cast<std::size_t>(overlap_size / 2);
+
+    // Block size will stay the same even if overlap is used, but effective input size per block increases
     const std::size_t block = static_cast<std::size_t>(m_kokoro_compiled_model->block_size());
-    const std::size_t num_blocks = (total_frames + block - 1) / block;
+    OPENVINO_ASSERT(overlap_size < block, "NPUW_OVERLAP_SIZE must be smaller than block size");
+
+    // Effective step size (how much we advance in the original sequence)
+    // We reserve space for overlap on both sides: [overlap | step | overlap]
+    // Total window size is 'block'.
+    OPENVINO_ASSERT(one_side_overlap * 2 < block, "NPUW_OVERLAP_SIZE is too large for the given block size (must be < block)");
+    const std::size_t step = block - 2 * one_side_overlap;
+    OPENVINO_ASSERT(step > 0, "Step size is zero, block size too small for overlap");
+    
+    const std::size_t num_blocks = (total_frames + step - 1) / step;
 
     std::vector<uint8_t> audio_bytes;
     std::size_t total_samples = 0;
@@ -231,9 +245,17 @@ void ov::npuw::KokoroInferRequest::infer() {
     ov::element::Type audio_type0;
 
     for (std::size_t blk = 0; blk < num_blocks; ++blk) {
-        const std::size_t t0 = blk * block;
-        const std::size_t t1 = std::min(t0 + block, total_frames);
-        const std::size_t valid_frames = t1 - t0;
+        // Logical start of the new data in this block
+        const std::size_t logical_start = blk * step;
+
+        // Calculate input window [t0, t1)
+        // We try to center the window: [logical_start - overlap, logical_start + step + overlap]
+        // But constrained by [0, total_frames] and max length 'block'
+        const std::size_t t0 = (blk == 0) ? 0 : (logical_start - one_side_overlap);
+        std::size_t t1 = t0 + block;
+        if (t1 > total_frames) {
+            t1 = total_frames;
+        }
 
         std::vector<int64_t> idx_block(idx_all.begin() + t0,
                                        idx_all.begin() + t1);
@@ -274,28 +296,47 @@ void ov::npuw::KokoroInferRequest::infer() {
         auto audio_tensor = m_model_b_request->get_tensor(audio_out.value());
         OPENVINO_ASSERT(audio_tensor);
 
+        OPENVINO_ASSERT(!audio_tensor->get_shape().empty());
+        const std::size_t block_samples = audio_tensor->get_shape().back();
         if (blk == 0) {
             audio_shape0 = audio_tensor->get_shape();
             audio_type0 = audio_tensor->get_element_type();
+            if (samples_per_frame == 0.0) {
+                // Estimate samples_per_frame. Model B is static, so it produces block_samples for 'block' input frames, even if has less input data.
+                samples_per_frame = static_cast<double>(block_samples) / static_cast<double>(block);
+            }
         }
 
-        OPENVINO_ASSERT(!audio_tensor->get_shape().empty());
-        const std::size_t block_samples = audio_tensor->get_shape().back();
-        if (samples_per_frame == 0.0) {
-            samples_per_frame = static_cast<double>(block_samples) / static_cast<double>(block);
+        // Calculate which part of the output audio is valid
+        // We want to keep the audio corresponding to [logical_start, logical_start + step)
+        // The input started at t0.
+        // So we skip (logical_start - t0) frames.
+        const std::size_t frames_to_skip = logical_start - t0;
+
+        // We keep 'step' frames, but clamped to the end of the sequence
+        std::size_t frames_to_keep = step;
+        if (logical_start + frames_to_keep > total_frames) {
+            frames_to_keep = total_frames - logical_start;
         }
 
-        std::size_t valid_samples = block_samples;
-        if (valid_frames < block) {
-            valid_samples = static_cast<std::size_t>(std::llround(samples_per_frame * static_cast<double>(valid_frames)));
-            valid_samples = std::min(valid_samples, block_samples);
+        // Convert frames to samples
+        const std::size_t skip_samples = static_cast<std::size_t>(std::llround(samples_per_frame * static_cast<double>(frames_to_skip)));
+        std::size_t keep_samples = static_cast<std::size_t>(std::llround(samples_per_frame * static_cast<double>(frames_to_keep)));
+
+        // Safety clamp
+        if (skip_samples >= block_samples) {
+            keep_samples = 0;
+        } else if (skip_samples + keep_samples > block_samples) {
+            keep_samples = block_samples - skip_samples;
         }
 
         const std::size_t elem_size = audio_tensor->get_element_type().size();
-        const std::size_t bytes_to_copy = valid_samples * elem_size;
+        const std::size_t bytes_to_copy = keep_samples * elem_size;
         const auto* src = static_cast<const uint8_t*>(audio_tensor->data());
-        audio_bytes.insert(audio_bytes.end(), src, src + bytes_to_copy);
-        total_samples += valid_samples;
+        const auto* start_byte = src + skip_samples * elem_size;
+
+        audio_bytes.insert(audio_bytes.end(), start_byte, start_byte + bytes_to_copy);
+        total_samples += keep_samples;
     }
 
     if (original_outputs.empty()) {
