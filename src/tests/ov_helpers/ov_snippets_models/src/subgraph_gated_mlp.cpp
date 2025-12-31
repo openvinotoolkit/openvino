@@ -84,10 +84,10 @@ std::shared_ptr<ov::Model> GatedMLPFunction::initReference() const {
     auto act = ov::test::utils::make_activation(fc_gate, precision, m_act_type, ov::Shape{}, std::vector<float>{0.5});
     auto mul = std::make_shared<ov::op::v1::Multiply>(act, fc_up);
     auto fc_down = makeFC(mul, param4);
-
+    auto snippets_result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{fc_down});
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         subgraph_inputs,
-        std::make_shared<ov::Model>(OutputVector{fc_down}, ParameterVector{param1, param2, param3, param4}));
+        std::make_shared<ov::Model>(OutputVector{snippets_result}, ParameterVector{param1, param2, param3, param4}));
 
     return std::make_shared<Model>(OutputVector{subgraph}, ParameterVector{data});
 }
