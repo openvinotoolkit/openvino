@@ -89,8 +89,6 @@ protected:
 
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
-    void record_subgraph_time(std::size_t idx, double time_ms) override;
-
     ////////////////////////////////////
     // now own API
 
@@ -245,65 +243,6 @@ protected:
 
     // MoE chunk sizes (pre-sorted in descending order for greedy selection)
     std::vector<size_t> m_moe_sorted_chunk_sizes;
-
-    // Subgraph execution performance statistics
-    struct SubgraphStats {
-        struct Stats {
-            size_t count = 0;
-            double total_ms = 0.0;
-            double min_ms = std::numeric_limits<double>::max();
-            double max_ms = 0.0;
-            double avg_ms = 0.0;
-        };
-
-        // Per-subgraph detailed step statistics
-        struct DetailedStats {
-            Stats total;                // Total execution time
-            Stats bind_global_results;  // bind_global_results() time
-            Stats function_prologue;    // function_prologue() time
-            Stats dump_input;           // dump_input_tensors() time
-            Stats unsafe_run;           // unsafe_run_this_prep_next() time (total)
-            Stats dump_output;          // dump_output_tensors() time
-            Stats pipeline_swap;        // Pipeline swap time
-
-            // Breakdown of unsafe_run step
-            struct UnsafeRunBreakdown {
-                Stats bind_next_parameters;  // bind_global_parameters(next_idx) time
-                Stats unpack_closure;        // unpack_closure() time
-                Stats actual_inference;      // unsafe_infer() or unsafe_during() time
-            } unsafe_run_breakdown;
-        };
-
-        std::map<size_t, Stats> subgraph_stats;                   // subgraph_idx -> overall stats (all phases)
-        std::map<size_t, DetailedStats> detailed_stats_decoding;  // subgraph_idx -> detailed stats (decoding only)
-        std::map<size_t, DetailedStats> detailed_stats_prefill;   // subgraph_idx -> detailed stats (prefill only)
-
-        // NPU utilization analysis
-        struct UtilizationStats {
-            double total_npu_inference_ms = 0.0;  // Time NPU is actually computing
-            double total_cpu_overhead_ms = 0.0;   // Time spent on CPU (bind, prologue, etc)
-            double total_elapsed_ms = 0.0;        // Total wall clock time
-            size_t inference_count = 0;
-
-            double get_npu_utilization() const {
-                if (total_elapsed_ms == 0.0)
-                    return 0.0;
-                return (total_npu_inference_ms / total_elapsed_ms) * 100.0;
-            }
-
-            double get_cpu_overhead_ratio() const {
-                if (total_npu_inference_ms == 0.0)
-                    return 0.0;
-                return (total_cpu_overhead_ms / total_npu_inference_ms) * 100.0;
-            }
-        };
-        UtilizationStats utilization_decoding;
-        UtilizationStats utilization_prefill;
-    };
-    SubgraphStats m_subgraph_stats;
-
-    // Track current inference phase
-    bool m_is_prefill_phase = true;  // First run is typically prefill
 };
 
 }  // namespace npuw
