@@ -224,9 +224,6 @@ protected:
     void alloc_quant_gather_tensors(std::size_t idx, RqPtr request);
     void handle_quant_host_gather(std::size_t idx, RqPtr request);
 
-    // Record subgraph execution time statistics
-    virtual void record_subgraph_time(std::size_t idx, double time_ms);
-
     void bind_attention_inputs(std::size_t idx, RqPtr request);
     void bind_pyramid_attention_inputs(std::size_t idx, RqPtr request);
 
