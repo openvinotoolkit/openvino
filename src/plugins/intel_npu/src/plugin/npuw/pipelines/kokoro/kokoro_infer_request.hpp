@@ -35,6 +35,9 @@ protected:
     
     std::shared_ptr<ov::IAsyncInferRequest> m_model_a_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_model_b_request;
+
+private:
+    void init_tensor(const ov::Output<const ov::Node>& port);
 };
 
 }  // namespace npuw

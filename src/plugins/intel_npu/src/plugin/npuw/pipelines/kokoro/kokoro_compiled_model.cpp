@@ -122,9 +122,11 @@ void ov::npuw::KokoroCompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any ov::npuw::KokoroCompiledModel::get_property(const std::string& name) const {
-    // FIXME Not implemented
     OPENVINO_SUPPRESS_DEPRECATED_START
-    OPENVINO_NOT_IMPLEMENTED;
+    if (m_model_b_compiled) {
+        return m_model_b_compiled->get_property(name);
+    }
+    OPENVINO_THROW("Property ", name, " not found");
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 

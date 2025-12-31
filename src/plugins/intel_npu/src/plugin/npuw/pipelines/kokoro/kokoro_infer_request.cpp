@@ -89,9 +89,37 @@ void gather_3d_last_dim(const ov::SoPtr<ov::ITensor>& src, T* dst, const std::ve
 }  // namespace
 
 
+void ov::npuw::KokoroInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
+    ov::SoPtr<ITensor> tensor;
+    tensor = ov::ISyncInferRequest::get_tensor(port);
+
+    if (!tensor) {
+        const auto& shape = port.get_partial_shape();
+        const bool is_dynamic = shape.is_dynamic();
+        ov::Shape tensor_shape;
+        if (is_dynamic) {
+            for (auto&& item : shape) {
+                tensor_shape.push_back(item.is_static() ? item.get_length() : 0);
+            }
+        } else {
+            tensor_shape = shape.to_shape();
+        }
+
+        tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
+        set_tensor(port, tensor);
+    }
+}
+
 ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw::KokoroCompiledModel>& compiled_model) 
     : ov::ISyncInferRequest(compiled_model),
       m_kokoro_compiled_model(compiled_model) {
+
+    for (const auto& input_port : m_kokoro_compiled_model->inputs()) {
+        init_tensor(input_port);
+    }
+    for (const auto& output_port : m_kokoro_compiled_model->outputs()) {
+        init_tensor(output_port);
+    }
 
     OPENVINO_ASSERT(m_kokoro_compiled_model->model_a(), "Kokoro: Model A is not compiled");
     OPENVINO_ASSERT(m_kokoro_compiled_model->model_b(), "Kokoro: Model B is not compiled");
