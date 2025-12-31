@@ -284,10 +284,6 @@ std::vector<ov::ProfilingInfo> ov::npuw::IBaseInferRequest::get_profiling_info()
     return info;
 }
 
-void ov::npuw::IBaseInferRequest::record_subgraph_time(std::size_t idx, double time_ms) {
-    // Base implementation does nothing - will be overridden in JustInferRequest
-}
-
 std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
     // So far accumulate over devices involved
     const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
@@ -305,14 +301,9 @@ void ov::npuw::IBaseInferRequest::infer() {
         }
         subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
-        double exec_time_ms = 0.0;
         m_profile[profile_tag(idx)].record([&]() {
-            auto start = std::chrono::high_resolution_clock::now();
             run_subrequest_for_success(idx, failover);
-            auto end = std::chrono::high_resolution_clock::now();
-            exec_time_ms = std::chrono::duration<double, std::milli>(end - start).count();
         });
-        record_subgraph_time(idx, exec_time_ms);
         failover_happened |= failover;
         complete_subrequest(idx);
         if (m_npuw_model->m_acc_check) {
