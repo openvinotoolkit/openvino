@@ -235,18 +235,23 @@ private:
 // Main transformation: Combine all MoE unrolling patterns
 // =============================================================================
 /**
- * @brief Comprehensive graph rewrite pass for MoE model optimization
+ * @brief Full MoE expert unrolling with comprehensive optimizations
  *
- * Combines all individual patterns into a single optimization pipeline:
+ * Applies all available unrolling and optimization patterns including both
+ * weight-related and activation-related transformations:
+ *
+ * Weight-related patterns:
  * - UnrollBatchedMatMul: Unroll batched expert MatMul operations
  * - UnrollConcatMatMul: Unroll MatMul with Concat inputs
  * - PushElementwiseBeforeConcat: Distribute Add/Multiply operations
- * - PushSliceBeforeConcat: Distribute Slice when safe
- * - PushClampBeforeConcat: Distribute Clamp operations
- * - PushScalarElementwiseBeforeConcat: Distribute scalar operations
  * - PushMultiplyBeforeConcat: Fuse two Concat with Multiply
  * - PushReshapeBeforeConcat: Distribute Reshape on axis 0
  * - FuseConcatReduceSum: Convert Concat+ReduceSum to Add chain
+ *
+ * Activation-related patterns:
+ * - PushSliceBeforeConcat: Distribute Slice when safe
+ * - PushClampBeforeConcat: Distribute Clamp operations
+ * - PushScalarElementwiseBeforeConcat: Distribute scalar operations
  *
  * Usage:
  * @code
@@ -265,12 +270,58 @@ public:
     OPENVINO_GRAPH_REWRITE_RTTI("npuw::pass::MoEExpertUnrolling");
 
     explicit MoEExpertUnrolling(size_t num_experts, std::shared_ptr<ov::Model> model) {
+        // Weight-related unrolling patterns
         add_matcher<UnrollBatchedMatMul>(num_experts, model);
         add_matcher<UnrollConcatMatMul>(model);
         add_matcher<PushElementwiseBeforeConcat>(model);
+        add_matcher<PushMultiplyBeforeConcat>();
+        add_matcher<PushReshapeBeforeConcat>();
+        add_matcher<FuseConcatReduceSum>();
+
+        // Activation-related optimization patterns
         add_matcher<PushSliceBeforeConcat>();
         add_matcher<PushClampBeforeConcat>();
         add_matcher<PushScalarElementwiseBeforeConcat>();
+
+        // Cleanup
+        add_matcher<RemoveUnusedParameters>(model);
+    }
+};
+
+/**
+ * @brief Weight-focused MoE expert unrolling for parameter optimization
+ *
+ * Applies only weight-related unrolling patterns, focusing on splitting
+ * batched parameters and weight operations into per-expert branches.
+ * This variant excludes activation-related optimizations (Slice, Clamp, etc.)
+ * to minimize graph modifications while still achieving parameter unrolling.
+ *
+ * Included patterns:
+ * - UnrollBatchedMatMul: Unroll batched expert MatMul operations
+ * - UnrollConcatMatMul: Unroll MatMul with Concat/sliceable inputs
+ * - PushElementwiseBeforeConcat: Distribute Add/Multiply with parameters
+ * - PushMultiplyBeforeConcat: Fuse two Concat with Multiply
+ * - PushReshapeBeforeConcat: Distribute Reshape on axis 0
+ * - FuseConcatReduceSum: Convert Concat+ReduceSum to Add chain
+ *
+ * Use cases:
+ * - When only parameter splitting is needed
+ * - When activation graph should remain unchanged
+ * - For more conservative optimization strategy
+ *
+ * @param num_experts Number of expert branches in the MoE model
+ * @param model Model instance for parameter registration
+ */
+
+class MoEExpertUnrollingWeightsOnly : public ov::pass::GraphRewrite {
+public:
+    OPENVINO_GRAPH_REWRITE_RTTI("npuw::pass::MoEExpertUnrollingWeightsOnly");
+
+    explicit MoEExpertUnrollingWeightsOnly(size_t num_experts, std::shared_ptr<ov::Model> model) {
+        // Only weight-related patterns - no activation optimizations
+        add_matcher<UnrollBatchedMatMul>(num_experts, model);
+        add_matcher<UnrollConcatMatMul>(model);
+        add_matcher<PushElementwiseBeforeConcat>(model);
         add_matcher<PushMultiplyBeforeConcat>();
         add_matcher<PushReshapeBeforeConcat>();
         add_matcher<FuseConcatReduceSum>();
