@@ -201,6 +201,17 @@ void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, si
                     "bytes from ",
                     file_name);
 }
+
+ov::Tensor wrap_obj_to_viewtensor(const std::shared_ptr<void>& shared_obj,
+                                  const void* data_ptr,
+                                  const element::Type& element_type,
+                                  const Shape& shape) {
+    auto view_tensor = Tensor(element_type, shape, data_ptr);
+    auto impl = get_tensor_impl(view_tensor);
+    impl._so = shared_obj;
+    view_tensor = make_tensor(impl);
+    return view_tensor;
+}
 }  // namespace
 
 Tensor read_tensor_data(const std::filesystem::path& file_name,
@@ -216,16 +227,11 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
             mapped_memory->data() + offset_in_bytes,
             mapped_memory->size() - offset_in_bytes,
             mapped_memory);
-
-        auto view_tensor = Tensor(element_type, static_shape, shared_buffer->get_ptr());
-        auto impl = get_tensor_impl(view_tensor);
-        impl._so = shared_buffer;
-        view_tensor = make_tensor(impl);
-        return view_tensor;
+        return wrap_obj_to_viewtensor(shared_buffer, shared_buffer->get_ptr(), element_type, static_shape);
     } else {
-        ov::Tensor tensor(element_type, static_shape);
-        read_tensor_data(file_name, tensor, offset_in_bytes);
-        return tensor;
+        auto tensor = std::make_shared<ov::Tensor>(element_type, static_shape);
+        read_tensor_data(file_name, *tensor.get(), offset_in_bytes);
+        return wrap_obj_to_viewtensor(tensor, tensor->data(), element_type, static_shape);
     }
 }
 }  // namespace ov

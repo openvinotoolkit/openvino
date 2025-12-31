@@ -35,7 +35,7 @@ public:
 class ov::pass::RoPEFusionFlux : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEFusionFlux");
-    RoPEFusionFlux();
+    RoPEFusionFlux(bool num_heads_transposed = true);
 };
 
 class ov::pass::RoPEFusionGPTJ : public ov::pass::MatcherPass {
