@@ -5,7 +5,6 @@
 #include "llm_compiled_model_utils.hpp"
 
 #include <regex>
-#include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
 
 #include "logging.hpp"
 #include "openvino/op/ops.hpp"
