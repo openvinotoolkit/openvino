@@ -533,19 +533,21 @@ static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
 
 /**
  * @brief
- * Type: boolean
- * Enable MoE (Mixture of Experts) architecture optimizations for prefill stage
- * Default value: false.
+ * Type: ::intel_npu::npuw::llm::MoEHint
+ * Specify MoE (Mixture of Experts) implementation strategy for prefill stage
+ * Possible values: DENSE, HOST_ROUTED, DEVICE_ROUTED
+ * Default value: HOST_ROUTED (recommended for prefill to avoid NPU-unfriendly operations)
  */
-static constexpr ov::Property<bool> prefill_enable_moe{"NPUW_LLM_PREFILL_ENABLE_MOE"};
+static constexpr ov::Property<std::string> prefill_moe_hint{"NPUW_LLM_PREFILL_MOE_HINT"};
 
 /**
  * @brief
- * Type: boolean
- * Enable MoE (Mixture of Experts) architecture optimizations for generate stage
- * Default value: false.
+ * Type: ::intel_npu::npuw::llm::MoEHint
+ * Specify MoE (Mixture of Experts) implementation strategy for generate/decoding stage
+ * Possible values: DENSE, HOST_ROUTED, DEVICE_ROUTED
+ * Default value: HOST_ROUTED (DEVICE_ROUTED recommended for better decoding performance)
  */
-static constexpr ov::Property<bool> generate_enable_moe{"NPUW_LLM_GENERATE_ENABLE_MOE"};
+static constexpr ov::Property<std::string> generate_moe_hint{"NPUW_LLM_GENERATE_MOE_HINT"};
 
 /**
  * @brief

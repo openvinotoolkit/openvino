@@ -148,8 +148,6 @@ DEFINE_OPT(NPUW_LLM_MAX_GENERATION_TOKEN_LEN, uint32_t, 1, npuw::llm::max_genera
 DEFINE_OPT(NPUW_LLM_MIN_RESPONSE_LEN, uint32_t, 128, npuw::llm::min_response_len, RunTime);
 DEFINE_OPT(NPUW_LLM_OPTIMIZE_V_TENSORS, bool, true, npuw::llm::optimize_v_tensors, RunTime);
 DEFINE_OPT(NPUW_LLM_CACHE_ROPE, bool, true, npuw::llm::cache_rope, RunTime);
-DEFINE_OPT(NPUW_LLM_PREFILL_ENABLE_MOE, bool, false, npuw::llm::prefill_enable_moe, RunTime);
-DEFINE_OPT(NPUW_LLM_GENERATE_ENABLE_MOE, bool, false, npuw::llm::generate_enable_moe, RunTime);
 DEFINE_OPT(NPUW_LLM_GENERATE_PYRAMID, bool, false, npuw::llm::generate_pyramid, RunTime);
 DEFINE_OPT(NPUW_LLM_PREFILL_CHUNK_SIZE, uint64_t, 1024, npuw::llm::prefill_chunk_size, RunTime);
 DEFINE_OPT(NPUW_LLM_SHARED_HEAD, bool, true, npuw::llm::shared_lm_head, RunTime);
@@ -175,6 +173,7 @@ namespace llm {
 enum class PrefillHint { DYNAMIC, STATIC };
 enum class GenerateHint { FAST_COMPILE, BEST_PERF };
 enum class AttentionHint { DYNAMIC, STATIC, PYRAMID, HFA };
+enum class MoEHint { DENSE, HOST_ROUTED, DEVICE_ROUTED };
 }  // namespace llm
 }  // namespace npuw
 
@@ -279,6 +278,62 @@ struct NPUW_LLM_GENERATE_ATTENTION_HINT final : ATTN_HINT_BASE {
 struct NPUW_LLM_PREFILL_ATTENTION_HINT final : ATTN_HINT_BASE {
     static std::string_view key() {
         return ov::intel_npu::npuw::llm::prefill_attn_hint.name();
+    }
+};
+
+struct MOE_HINT_BASE : OptionBase<MOE_HINT_BASE, ::intel_npu::npuw::llm::MoEHint> {
+    static constexpr std::string_view getTypeName() {
+        return "::intel_npu::npuw::llm::MoEHint";
+    }
+
+    static ::intel_npu::npuw::llm::MoEHint defaultValue() {
+        return ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED;
+    }
+
+    static ::intel_npu::npuw::llm::MoEHint parse(std::string_view val) {
+        if (val == "DENSE") {
+            return ::intel_npu::npuw::llm::MoEHint::DENSE;
+        } else if (val == "HOST_ROUTED") {
+            return ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED;
+        } else if (val == "DEVICE_ROUTED") {
+            return ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED;
+        }
+        OPENVINO_THROW("Unsupported MoE hint provided: ", val);
+        return {};
+    }
+
+    static std::string toString(const ::intel_npu::npuw::llm::MoEHint& val) {
+        switch (val) {
+        case ::intel_npu::npuw::llm::MoEHint::DENSE:
+            return "DENSE";
+        case ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED:
+            return "HOST_ROUTED";
+        case ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED:
+            return "DEVICE_ROUTED";
+        default:
+            OPENVINO_THROW("Can't convert provided MoE hint : ", int(val), " to string.");
+        }
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+};
+
+struct NPUW_LLM_PREFILL_MOE_HINT final : MOE_HINT_BASE {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::llm::prefill_moe_hint.name();
+    }
+};
+
+struct NPUW_LLM_GENERATE_MOE_HINT final : MOE_HINT_BASE {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::llm::generate_moe_hint.name();
     }
 };
 
