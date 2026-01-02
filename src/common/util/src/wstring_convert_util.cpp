@@ -21,10 +21,10 @@ constexpr auto codepoint_4th_shift = 18U;
 
 std::string wstring_to_string(const std::wstring_view wstr) {
 #    ifdef _WIN32
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
-    std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
-    return strTo;
+    const auto wstr_size = static_cast<int>(wstr.size());
+    const auto size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.data(), wstr_size, NULL, 0, NULL, NULL);
+    std::string result(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, wstr.data(), wstr_size, result.data(), size_needed, NULL, NULL);
 #    else
     std::string result;
     result.reserve(wstr.size() * (sizeof(wchar_t) >= 4 ? 4 : 3));  // Worst case for UTF-8
@@ -55,18 +55,17 @@ std::string wstring_to_string(const std::wstring_view wstr) {
         }
     }
     result.shrink_to_fit();
-    return result;
 #    endif
+    return result;
 }
 
 std::wstring string_to_wstring(const std::string_view string) {
     const char* str = string.data();
 #    ifdef _WIN32
-    int strSize = static_cast<int>(string.size());
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
-    std::wstring wstrTo(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
-    return wstrTo;
+    const auto str_size = static_cast<int>(string.size());
+    const auto size_needed = MultiByteToWideChar(CP_UTF8, 0, str, str_size, NULL, 0);
+    std::wstring result(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, str, str_size, result.data(), size_needed);
 #    else
 
     const auto check_utf8_seq_size = [](const char* first, const char* last, const std::ptrdiff_t seq_size) {
@@ -106,8 +105,8 @@ std::wstring string_to_wstring(const std::string_view string) {
         result.push_back(static_cast<wchar_t>(codepoint));
     }
 
-    return result;
 #    endif
+    return result;
 }
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 }  // namespace ov::util
