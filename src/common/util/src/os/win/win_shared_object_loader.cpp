@@ -101,7 +101,7 @@ std::shared_ptr<void> load_shared_object(const std::filesystem::path& path) {
     }
     if (!shared_object) {
         std::stringstream ss;
-        ss << "Cannot load library '" << path_to_string(path) << "': " << GetLastError()
+        ss << "Cannot load library \"" << path_to_string(path) << "\": " << GetLastError()
            << " from cwd: " << path_to_string(std::filesystem::current_path());
         throw std::runtime_error(ss.str());
     }
