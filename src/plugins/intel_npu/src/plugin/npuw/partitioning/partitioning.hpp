@@ -187,15 +187,16 @@ struct Partitioning {
     // Function: A proper name of a repeated block
     std::map<std::string, Function> functions;
 
-    // Router model for MoE (shared across all submodels)
-    std::shared_ptr<ov::Model> router_model;
-
     std::size_t total_ops = 0u;
     float total_gflops = 0.f;
 };
 
 struct PartitioningContext {
     bool use_host_gather_quant = false;
+
+    // Router model for MoE (shared during partitioning process)
+    // Will be populated during first pass and used in second pass
+    mutable std::shared_ptr<ov::Model> router_model;
 };
 
 Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model,
