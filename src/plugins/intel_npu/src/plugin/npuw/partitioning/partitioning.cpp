@@ -1948,18 +1948,18 @@ void Partitioner::attention(const std::string& func_name) {
 void Partitioner::moe(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
 
-    // Find and store router model from P.functions
-    if (P.router_model == nullptr) {
+    // Find and store router model in context
+    if (part_ctx.router_model == nullptr) {
         for (const auto& [name, func] : P.functions) {
             if (func.gettag() == "router") {
-                P.router_model = func._model;
+                part_ctx.router_model = func._model;
                 LOG_INFO("Found router model: " << name);
                 break;
             }
         }
     }
 
-    if (!P.router_model) {
+    if (!part_ctx.router_model) {
         LOG_DEBUG("Router model not found yet");
         return;
     }
@@ -1976,7 +1976,7 @@ void Partitioner::moe(const std::string& func_name) {
 
         // Use the factory method to create MoEExperts from the function model
         // K will be auto-extracted from router model's TopK node
-        f._moe_experts = ov::npuw::function::MoEExperts::from(f._model, P.router_model, moe_chunk_size);
+        f._moe_experts = ov::npuw::function::MoEExperts::from(f._model, part_ctx.router_model, moe_chunk_size);
 
         if (f._moe_experts) {
             if (moe_chunk_size == 0) {
@@ -1995,13 +1995,13 @@ void Partitioner::moe(const std::string& func_name) {
 void Partitioner::moeDownstream(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
 
-    if (!P.router_model) {
+    if (!part_ctx.router_model) {
         LOG_DEBUG("Router model not found, skipping MoE downstream transformation for " << func_name);
         return;
     }
 
     // Try downstream pattern for all functions (using the cached router_model)
-    f._moe_experts_downstream = ov::npuw::function::create_moe_downstream(f._model, P.router_model);
+    f._moe_experts_downstream = ov::npuw::function::create_moe_downstream(f._model, part_ctx.router_model);
     if (f._moe_experts_downstream) {
         LOG_INFO("Successfully created MoE downstream model for " << func_name);
     }
