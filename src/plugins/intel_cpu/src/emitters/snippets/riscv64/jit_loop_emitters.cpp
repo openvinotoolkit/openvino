@@ -33,6 +33,16 @@ namespace ov::intel_cpu::riscv64 {
 
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
+static constexpr ptrdiff_t btype_min_disp = -(1 << 12);
+static constexpr ptrdiff_t btype_max_disp = (1 << 12) - 2;
+
+// RISC-V B-type branches encode a signed 12-bit immediate with 2-byte granularity, i.e. valid target offsets are
+// even and fall within [-4096, +4094]. Use this helper to decide whether we can emit a short branch or need a long jump
+// sequence when the loop body grows too large.
+static bool is_valid_btype_offset(ptrdiff_t offset) {
+    return (offset & 1) == 0 && offset >= btype_min_disp && offset <= btype_max_disp;
+}
+
 /* ================== jit_loop_begin_emitter ====================== */
 
 jit_loop_begin_emitter::jit_loop_begin_emitter(ov::intel_cpu::riscv64::jit_generator_t* h,
@@ -108,7 +118,12 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
     ov::intel_cpu::riscv64::utils::jit_aux_gpr_holder h_inc(h, aux_gpr_idxs, used2);
     Xbyak_riscv::Reg reg_inc = h_inc.get_reg();
     h->uni_li(reg_inc, eff_inc);
-    h->blt(reg_work_amount, reg_inc, *loop_end_label);
+    // B-type branches are short-range; loop bodies may exceed that range.
+    // Emit a short conditional branch over a long unconditional jump.
+    Xbyak_riscv::Label skip_end;
+    h->bge(reg_work_amount, reg_inc, skip_end);
+    h->j_(*loop_end_label);
+    h->L(skip_end);
 }
 
 /* =================== jit_loop_end_emitter ======================= */
@@ -225,7 +240,18 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
         h->uni_li(reg_inc, wa_increment);
         h->sub(reg_work_amount, reg_work_amount, reg_inc);
         // if reg_work_amount >= wa_increment -> loop
-        h->bge(reg_work_amount, reg_inc, *loop_begin_label);
+        const auto* from = h->getCurr();
+        const auto* to = loop_begin_label->getAddress();
+        const ptrdiff_t offset = to - from;
+        if (is_valid_btype_offset(offset)) {
+            h->bge(reg_work_amount, reg_inc, *loop_begin_label);
+        } else {
+            // Use a long jump for the backward edge to avoid B-type range limitations when the loop body is large.
+            Xbyak_riscv::Label exit_loop;
+            h->blt(reg_work_amount, reg_inc, exit_loop);
+            h->j_(*loop_begin_label);
+            h->L(exit_loop);
+        }
     }
 
     apply_increments(loop_args.m_finalization_offsets,

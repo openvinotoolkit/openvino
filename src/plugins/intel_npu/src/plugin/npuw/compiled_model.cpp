@@ -1777,8 +1777,6 @@ void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id,
         hfa.set_compiled_tile_model(std::move(compiled_tile_model));
 
         LOG_INFO("Successfully compiled host flash attention regular tile model");
-        std::cout << "HostFlashAttention tile model compiled on " << device << " (tile_size=" << hfa._tile_size << ")"
-                  << std::endl;
     } catch (const std::exception& ex) {
         LOG_ERROR("Failed to compile host flash attention tile model: " << ex.what());
         OPENVINO_THROW("Host flash attention tile model compilation failed: ", ex.what());

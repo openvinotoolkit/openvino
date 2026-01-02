@@ -3,6 +3,7 @@
 //
 #pragma once
 #include <bitset>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <string>
@@ -72,29 +73,36 @@ private:
     }
     void dump(const std::string&& postfix) {
         static int num = 0;  // just to keep dumped IRs ordered in filesystem
-        const auto pathAndName =
-            config.dumpIR.dir + "/ir_" + std::to_string(num) + '_' + infoMap.at(type).name + postfix;
+        const std::filesystem::path dumpDir{config.dumpIR.dir};
+        const auto pathAndName = dumpDir / ("ir_" + std::to_string(num) + '_' + infoMap.at(type).name + postfix);
 
-        ov::util::create_directory_recursive(config.dumpIR.dir);
+        ov::util::create_directory_recursive(dumpDir);
 
         ov::pass::Manager serializer;
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::XmlBin]) {
-            serializer.register_pass<ov::pass::Serialize>(pathAndName + ".xml", "");
+            auto xmlPath = pathAndName;
+            xmlPath.replace_extension(".xml");
+            serializer.register_pass<ov::pass::Serialize>(xmlPath, std::filesystem::path{});
         }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Xml]) {
-            std::string xmlFile(pathAndName + ".xml");
+            auto xmlFile = pathAndName;
+            xmlFile.replace_extension(".xml");
 
-            serializer.register_pass<ov::pass::Serialize>(xmlFile, NULL_STREAM);
+            serializer.register_pass<ov::pass::Serialize>(xmlFile, std::filesystem::path{NULL_STREAM});
         }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Svg]) {
-            serializer.register_pass<ov::pass::VisualizeTree>(pathAndName + ".svg");
+            auto svgFile = pathAndName;
+            svgFile.replace_extension(".svg");
+            serializer.register_pass<ov::pass::VisualizeTree>(svgFile);
         }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Dot]) {
-            serializer.register_pass<ov::pass::VisualizeTree>(pathAndName + ".dot");
+            auto dotFile = pathAndName;
+            dotFile.replace_extension(".dot");
+            serializer.register_pass<ov::pass::VisualizeTree>(dotFile);
         }
 
         serializer.run_passes(model);

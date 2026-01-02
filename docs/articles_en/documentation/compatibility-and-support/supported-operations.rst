@@ -9,7 +9,7 @@ Here, you will find comprehensive information on operations supported by OpenVIN
 conformance reports provide operation coverage for inference devices, while the tables list
 operations available for all OpenVINO framework frontends.
 
-Data as of OpenVINO 2024.4, 18 Oct. 2024.
+Data as of OpenVINO 2025.4.1 (December 18, 2025).
 
 **Device-operation conformance reports:**
 

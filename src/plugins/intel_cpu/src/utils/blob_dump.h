@@ -7,6 +7,7 @@
 #include <cpu_memory.h>
 
 #include <cstdint>
+#include <filesystem>
 #include <istream>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -43,13 +44,13 @@ public:
 
     explicit BlobDumper(MemoryPtr _memory) : memory(std::move(_memory)) {}
 
-    static BlobDumper read(const std::string& file_path);
+    static BlobDumper read(const std::filesystem::path& file_path);
     static BlobDumper read(std::istream& stream);
 
-    void dump(const std::string& dump_path) const;
+    void dump(const std::filesystem::path& dump_path) const;
     void dump(std::ostream& stream) const;
 
-    void dumpAsTxt(const std::string& dump_path) const;
+    void dumpAsTxt(const std::filesystem::path& dump_path) const;
     void dumpAsTxt(std::ostream& stream) const;
 
     [[nodiscard]] void* getDataPtr() const {

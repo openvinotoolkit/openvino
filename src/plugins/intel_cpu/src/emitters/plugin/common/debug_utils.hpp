@@ -66,6 +66,12 @@ void print_vmm_prc(const char* name, const char* orig_name, PRC_T* ptr) {
     detail::print_values_impl(name, orig_name, ptr, elems);
 }
 
+template <typename PRC_T>
+void print_vmm_prc_runtime(const char* name, const char* orig_name, PRC_T* ptr, size_t vlen_bytes) {
+    const size_t elems = vlen_bytes / sizeof(PRC_T);
+    detail::print_values_impl(name, orig_name, ptr, elems);
+}
+
 }  // namespace ov::intel_cpu::debug_utils
 
 #endif  // CPU_DEBUG_CAPS
