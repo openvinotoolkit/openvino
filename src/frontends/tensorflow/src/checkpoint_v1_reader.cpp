@@ -23,7 +23,7 @@ std::vector<std::string> list_files_in_dir(const std::string& directory_path) {
         ov::util::iterate_files(
             ov::util::make_path(directory_path),
             [&res](const std::filesystem::path& file_path) {
-                res.push_back(ov::util::path_to_string(file_path.filename()));
+                res.push_back(ov::util::path_to_string(file_path));
             },
             true);
     } catch (...) {
