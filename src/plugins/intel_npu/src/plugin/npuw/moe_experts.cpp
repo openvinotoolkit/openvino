@@ -105,82 +105,92 @@ static std::map<size_t, std::vector<size_t>> build_parameter_mapping_from_rtinfo
     return param_mapping;
 }
 
-// Analyze MoE model structure - comprehensive single-pass analysis
-std::optional<MoEStructureInfo> analyze_moe_structure(const std::shared_ptr<ov::Model>& model) {
-    LOG_DEBUG("Analyzing MoE model structure...");
-    LOG_BLOCK();
+// Helper: Trace back from a node to find the source Parameter
+static std::optional<size_t> trace_to_parameter(const std::shared_ptr<ov::Node>& start_node,
+                                                const std::shared_ptr<ov::Model>& model) {
+    std::shared_ptr<ov::Node> current_node = start_node;
 
-    MoEStructureInfo info;
-
-    // Step 1: Find Tile operation and extract expert configuration
-    for (const auto& node : model->get_ordered_ops()) {
-        if (auto tile = std::dynamic_pointer_cast<ov::op::v0::Tile>(node)) {
-            auto repeats_input = tile->input_value(1);
-            if (auto repeats_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(repeats_input.get_node_shared_ptr())) {
-                auto repeats_data = repeats_const->cast_vector<int64_t>();
-
-                if (!repeats_data.empty() && repeats_data[0] > 1) {
-                    info.num_experts = static_cast<size_t>(repeats_data[0]);
-                    info.expert_input_tile_node = tile;
-
-                    // Extract shape information
-                    auto tile_output_shape = tile->output(0).get_shape();
-                    if (tile_output_shape.empty() || tile_output_shape[0] % info.num_experts != 0) {
-                        LOG_WARN("Invalid Tile output shape");
-                        return std::nullopt;
-                    }
-
-                    info.input_token_count = tile->input_value(0).get_shape()[0];
-                    info.expert_hidden_dim = tile->input_value(0).get_shape()[1];
-
-                    LOG_DEBUG("Found Tile: num_experts=" << info.num_experts
-                                                         << ", expert_hidden_dim=" << info.expert_hidden_dim
-                                                         << ", input_token_count=" << info.input_token_count);
-
-                    // Find the parameter index for Tile's input
-                    auto tile_input_node = tile->input_value(0).get_node_shared_ptr();
-                    std::shared_ptr<ov::Node> current_node = tile_input_node;
-
-                    // Trace back through single-input operations to find the Parameter
-                    while (current_node) {
-                        if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(current_node)) {
-                            // Found the parameter, get its index
-                            const auto& params = model->get_parameters();
-                            for (size_t idx = 0; idx < params.size(); ++idx) {
-                                if (params[idx]->get_friendly_name() == param->get_friendly_name()) {
-                                    info.expert_input_param_idx = idx;
-                                    LOG_DEBUG("  Found expert input parameter at index " << idx << ": "
-                                                                                         << param->get_friendly_name());
-                                    break;
-                                }
-                            }
-                            break;
-                        }
-
-                        // Move up the graph (single input ops like Convert, Reshape, etc.)
-                        if (current_node->get_input_size() == 1) {
-                            current_node = current_node->input_value(0).get_node_shared_ptr();
-                        } else {
-                            // Multi-input operation, cannot trace further
-                            break;
-                        }
-                    }
-
-                    break;
+    while (current_node) {
+        if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(current_node)) {
+            // Found parameter, get its index
+            const auto& params = model->get_parameters();
+            for (size_t idx = 0; idx < params.size(); ++idx) {
+                if (params[idx]->get_friendly_name() == param->get_friendly_name()) {
+                    return idx;
                 }
             }
+            return std::nullopt;
         }
+
+        // Only skip Convert and Reshape nodes when tracing back
+        if (current_node->get_input_size() == 1) {
+            if (std::dynamic_pointer_cast<ov::op::v0::Convert>(current_node) ||
+                std::dynamic_pointer_cast<ov::op::v1::Reshape>(current_node)) {
+                current_node = current_node->input_value(0).get_node_shared_ptr();
+                continue;
+            }
+        }
+
+        // Cannot trace further through this node
+        break;
     }
 
-    if (!info.expert_input_tile_node || info.num_experts == 0) {
-        LOG_WARN("Could not find valid Tile operation");
-        return std::nullopt;
+    return std::nullopt;
+}
+
+// Helper: Find Tile node and extract expert configuration
+static bool find_tile_and_extract_config(const std::shared_ptr<ov::Model>& model, MoEStructureInfo& info) {
+    for (const auto& node : model->get_ordered_ops()) {
+        auto tile = std::dynamic_pointer_cast<ov::op::v0::Tile>(node);
+        if (!tile)
+            continue;
+
+        auto repeats_input = tile->input_value(1);
+        auto repeats_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(repeats_input.get_node_shared_ptr());
+        if (!repeats_const)
+            continue;
+
+        auto repeats_data = repeats_const->cast_vector<int64_t>();
+        if (repeats_data.empty() || repeats_data[0] <= 1)
+            continue;
+
+        // Found valid Tile node
+        info.num_experts = static_cast<size_t>(repeats_data[0]);
+        info.expert_input_tile_node = tile;
+
+        // Validate and extract shape information
+        auto tile_output_shape = tile->output(0).get_shape();
+        if (tile_output_shape.empty() || tile_output_shape[0] % info.num_experts != 0) {
+            LOG_WARN("Invalid Tile output shape");
+            return false;
+        }
+
+        info.input_token_count = tile->input_value(0).get_shape()[0];
+        info.expert_hidden_dim = tile->input_value(0).get_shape()[1];
+
+        LOG_DEBUG("Found Tile: num_experts=" << info.num_experts << ", expert_hidden_dim=" << info.expert_hidden_dim
+                                             << ", input_token_count=" << info.input_token_count);
+
+        // Find the parameter index for Tile's input
+        auto tile_input_node = tile->input_value(0).get_node_shared_ptr();
+        info.expert_input_param_idx = trace_to_parameter(tile_input_node, model);
+
+        if (info.expert_input_param_idx.has_value()) {
+            LOG_DEBUG("  Found expert input parameter at index " << info.expert_input_param_idx.value());
+        }
+
+        return true;
     }
 
-    // Step 2: Detect router_scores parameter from output path
-    // Output path: Result <- [Convert] <- [ReduceSum] <- Multiply <- router_param
+    LOG_WARN("Could not find valid Tile operation");
+    return false;
+}
+
+// Helper: Find router scores parameter from output path
+// Output path: Result <- [Convert] <- [ReduceSum] <- Multiply <- router_param
+static bool find_router_scores_from_output(const std::shared_ptr<ov::Model>& model, MoEStructureInfo& info) {
     LOG_DEBUG("Detecting router scores parameter from output path...");
+
     for (const auto& result_node : model->get_results()) {
         auto current = result_node->input_value(0).get_node_shared_ptr();
 
@@ -197,60 +207,50 @@ std::optional<MoEStructureInfo> analyze_moe_structure(const std::shared_ptr<ov::
         }
 
         // Check for Multiply node
-        if (auto multiply_node = std::dynamic_pointer_cast<ov::op::v1::Multiply>(current)) {
-            LOG_DEBUG("  Found Multiply node before Result");
+        auto multiply_node = std::dynamic_pointer_cast<ov::op::v1::Multiply>(current);
+        if (!multiply_node)
+            continue;
 
-            // Save the multiply node for later use in transformation
-            info.router_scores_multiply_node = multiply_node;
+        LOG_DEBUG("  Found Multiply node before Result");
+        info.router_scores_multiply_node = multiply_node;
 
-            // Multiply has two inputs, one is expert output (from Reshape), other is router scores
-            for (size_t i = 0; i < 2; ++i) {
-                auto multiply_input = multiply_node->input_value(i).get_node_shared_ptr();
+        // Multiply has two inputs, one is expert output (from Reshape), other is router scores
+        for (size_t i = 0; i < 2; ++i) {
+            auto multiply_input = multiply_node->input_value(i).get_node_shared_ptr();
 
-                // Skip the Reshape input (expert output)
-                if (std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input)) {
-                    continue;
-                }
-
-                // Trace back to find Parameter (router scores)
-                std::shared_ptr<ov::Node> trace_node = multiply_input;
-                while (trace_node) {
-                    if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(trace_node)) {
-                        // Found router parameter, get its index
-                        const auto& params = model->get_parameters();
-                        for (size_t idx = 0; idx < params.size(); ++idx) {
-                            if (params[idx]->get_friendly_name() == param->get_friendly_name()) {
-                                info.router_scores_idx = idx;
-                                LOG_DEBUG("  Found router scores parameter at index " << idx << ": "
-                                                                                      << param->get_friendly_name());
-                                break;
-                            }
-                        }
-                        break;
-                    }
-
-                    // Move up the graph (single input ops)
-                    if (trace_node->get_input_size() == 1) {
-                        trace_node = trace_node->input_value(0).get_node_shared_ptr();
-                    } else {
-                        break;
-                    }
-                }
-
-                if (info.router_scores_idx.has_value()) {
-                    break;
-                }
+            // Skip the Reshape input (expert output)
+            if (std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input)) {
+                continue;
             }
-        }
 
-        if (info.router_scores_idx.has_value()) {
-            break;
+            // Trace back to find Parameter (router scores)
+            info.router_scores_idx = trace_to_parameter(multiply_input, model);
+
+            if (info.router_scores_idx.has_value()) {
+                LOG_DEBUG("  Found router scores parameter at index " << info.router_scores_idx.value());
+                return true;
+            }
         }
     }
 
-    // Validate that we found the router scores Multiply node
-    if (!info.router_scores_multiply_node) {
-        LOG_WARN("Could not find router scores Multiply node in output path");
+    LOG_WARN("Could not find router scores Multiply node in output path");
+    return false;
+}
+
+// Analyze MoE model structure - comprehensive single-pass analysis
+std::optional<MoEStructureInfo> analyze_moe_structure(const std::shared_ptr<ov::Model>& model) {
+    LOG_DEBUG("Analyzing MoE model structure...");
+    LOG_BLOCK();
+
+    MoEStructureInfo info;
+
+    // Step 1: Find Tile operation and extract expert configuration
+    if (!find_tile_and_extract_config(model, info)) {
+        return std::nullopt;
+    }
+
+    // Step 2: Detect router_scores parameter from output path
+    if (!find_router_scores_from_output(model, info)) {
         return std::nullopt;
     }
 
@@ -290,7 +290,6 @@ MoETransformConfig determine_transformation_params(const MoEStructureInfo& struc
 
     if (structure_info.is_decoding_stage) {
         // Decoding stage: transform to K active experts
-        config.mode = ExpertMode::ACTIVE_EXPERTS;
         config.num_target_experts = k_from_router;
         config.chunk_size = 0;  // Not used in decoding
 
@@ -299,7 +298,6 @@ MoETransformConfig determine_transformation_params(const MoEStructureInfo& struc
         LOG_INFO("  - Target experts: " << config.num_target_experts);
     } else {
         // Prefill stage: transform to 1 expert
-        config.mode = ExpertMode::SINGLE_EXPERT;
         config.num_target_experts = 1;
         config.chunk_size = prefill_chunk_size;
 
@@ -312,128 +310,108 @@ MoETransformConfig determine_transformation_params(const MoEStructureInfo& struc
     return config;
 }
 
+// Helper: Check if parameter matches downstream pattern
+// Pattern: Parameter -> [Convert] -> ReduceSum (Convert is optional)
+static bool check_downstream_pattern(const std::shared_ptr<ov::op::v0::Parameter>& param) {
+    // Parameter should have exactly one user
+    auto param_users = param->output(0).get_target_inputs();
+    if (param_users.size() != 1) {
+        return false;
+    }
+
+    auto first_consumer = param_users.begin()->get_node()->shared_from_this();
+
+    // Check if first consumer is ReduceSum (no Convert)
+    if (auto reduce_sum = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(first_consumer)) {
+        return true;
+    }
+
+    // Check if first consumer is Convert
+    auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(first_consumer);
+    if (!convert_node) {
+        return false;
+    }
+
+    // Convert should have exactly one user (ReduceSum node)
+    auto convert_users = convert_node->output(0).get_target_inputs();
+    if (convert_users.size() != 1) {
+        return false;
+    }
+
+    auto reduce_sum =
+        std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(convert_users.begin()->get_node()->shared_from_this());
+    return reduce_sum != nullptr;
+}
+
 std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shared_ptr<ov::Model>& model,
                                                                  size_t active_experts_num) {
     LOG_DEBUG("Detecting MoE downstream pattern...");
     LOG_BLOCK();
 
-    MoEDownstream result;
-    result.active_experts_num = active_experts_num;
-
     // Pattern to match: Parameter -> Convert -> ReduceSum
     // Looking for a parameter with shape [N, 1, H, W] where N is total_experts_num
+    const auto& params = model->get_parameters();
 
-    for (const auto& param : model->get_parameters()) {
+    for (size_t param_idx = 0; param_idx < params.size(); ++param_idx) {
+        const auto& param = params[param_idx];
+
+        // Validate shape: must be [N, 1, H, W] where N > 1
         auto param_shape = param->get_partial_shape();
         if (!param_shape.rank().is_static() || param_shape.rank().get_length() != 4) {
             continue;
         }
 
         auto shape = param_shape.to_shape();
-        // Check if shape matches [N, 1, H, W] pattern
         if (shape[1] != 1 || shape[0] <= 1) {
             continue;
         }
 
-        size_t potential_total_experts = shape[0];
-
-        // Check if this parameter feeds into Convert -> ReduceSum
-        bool found_pattern = false;
-        for (const auto& param_output : param->outputs()) {
-            for (const auto& target_input : param_output.get_target_inputs()) {
-                auto consumer = target_input.get_node()->shared_from_this();
-
-                // Check for Convert node
-                if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(consumer)) {
-                    LOG_DEBUG("  Found Convert after Parameter: " << param->get_friendly_name());
-
-                    // Check if Convert feeds into ReduceSum
-                    for (const auto& convert_output : convert_node->outputs()) {
-                        for (const auto& convert_target : convert_output.get_target_inputs()) {
-                            if (auto reduce_sum = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(
-                                    convert_target.get_node()->shared_from_this())) {
-                                LOG_DEBUG("  Found ReduceSum after Convert");
-                                LOG_DEBUG("  Pattern matched: Parameter -> Convert -> ReduceSum");
-
-                                found_pattern = true;
-                                result.total_experts_num = potential_total_experts;
-                                result.expert_output_param_idx = 0;  // Find actual index
-
-                                // Get parameter index
-                                const auto& params = model->get_parameters();
-                                for (size_t i = 0; i < params.size(); ++i) {
-                                    if (params[i] == param) {
-                                        result.expert_output_param_idx = i;
-                                        break;
-                                    }
-                                }
-
-                                LOG_DEBUG("  Total experts num: " << result.total_experts_num);
-                                LOG_DEBUG("  Active experts num: " << result.active_experts_num);
-                                LOG_DEBUG("  Expert output parameter index: " << result.expert_output_param_idx);
-                                break;
-                            }
-                        }
-                        if (found_pattern)
-                            break;
-                    }
-                }
-                if (found_pattern)
-                    break;
-            }
-            if (found_pattern)
-                break;
+        // Check pattern: Parameter -> Convert -> ReduceSum
+        if (!check_downstream_pattern(param)) {
+            continue;
         }
 
-        if (found_pattern) {
-            // Validate that active_experts_num <= total_experts_num
-            if (result.active_experts_num > result.total_experts_num) {
-                LOG_WARN("Active experts (" << result.active_experts_num << ") > total experts ("
-                                            << result.total_experts_num << "), invalid configuration");
-                continue;
-            }
+        LOG_DEBUG("  Found downstream pattern for Parameter: " << param->get_friendly_name());
+        LOG_DEBUG("  Pattern matched: Parameter -> Convert -> ReduceSum");
 
-            // Clone the model and modify the parameter shape
-            auto modified_model = model->clone();
+        size_t total_experts_num = shape[0];
 
-            // Find the corresponding parameter in the cloned model
-            auto& cloned_params = modified_model->get_parameters();
-            if (result.expert_output_param_idx < cloned_params.size()) {
-                auto& target_param = cloned_params[result.expert_output_param_idx];
-                auto new_shape = shape;
-                new_shape[0] = result.active_experts_num;  // Change from total to active
-
-                LOG_DEBUG("  Modifying parameter shape from " << shape << " to " << new_shape);
-                LOG_DEBUG("  Parameter name: " << target_param->get_friendly_name());
-
-                target_param->set_partial_shape(ov::PartialShape(new_shape));
-                target_param->validate_and_infer_types();
-
-                // Validate the entire model after parameter shape change
-                modified_model->validate_nodes_and_infer_types();
-
-                // Store the modified model in result
-                result.modified_model = modified_model;
-
-                // Save debug model to verify shape modification
-                try {
-                    std::string debug_path = "moe_downstream_model.xml";
-                    ov::serialize(modified_model, debug_path);
-                    LOG_INFO("Saved downstream model to: " << debug_path);
-                } catch (const std::exception& e) {
-                    LOG_WARN("Failed to save downstream model: " << e.what());
-                }
-
-                LOG_INFO("Successfully detected and transformed MoE downstream pattern");
-                LOG_INFO("  Expert output parameter: " << param->get_friendly_name());
-                LOG_INFO("  Expert output parameter index: " << result.expert_output_param_idx);
-                LOG_INFO("  Shape changed: [" << result.total_experts_num << ", 1, " << shape[2] << ", " << shape[3]
-                                              << "] -> [" << result.active_experts_num << ", 1, " << shape[2] << ", "
-                                              << shape[3] << "]");
-
-                return result;
-            }
+        // Validate configuration
+        if (active_experts_num > total_experts_num) {
+            LOG_WARN("Active experts (" << active_experts_num << ") > total experts (" << total_experts_num
+                                        << "), skipping this parameter");
+            continue;
         }
+
+        // Clone and modify the model
+        auto modified_model = model->clone();
+        auto& cloned_params = modified_model->get_parameters();
+        auto& target_param = cloned_params[param_idx];
+
+        auto new_shape = shape;
+        new_shape[0] = active_experts_num;
+
+        LOG_DEBUG("  Modifying parameter shape from " << shape << " to " << new_shape);
+        LOG_DEBUG("  Parameter name: " << target_param->get_friendly_name());
+
+        target_param->set_partial_shape(ov::PartialShape(new_shape));
+        target_param->validate_and_infer_types();
+        modified_model->validate_nodes_and_infer_types();
+
+        LOG_INFO("Successfully detected and transformed MoE downstream pattern");
+        LOG_INFO("  Expert output parameter: " << param->get_friendly_name());
+        LOG_INFO("  Expert output parameter index: " << param_idx);
+        LOG_INFO("  Shape changed: [" << total_experts_num << ", 1, " << shape[2] << ", " << shape[3] << "] -> ["
+                                      << active_experts_num << ", 1, " << shape[2] << ", " << shape[3] << "]");
+
+        // Build and return result
+        MoEDownstream result;
+        result.total_experts_num = total_experts_num;
+        result.active_experts_num = active_experts_num;
+        result.expert_output_param_idx = param_idx;
+        result.modified_model = modified_model;
+
+        return result;
     }
 
     LOG_DEBUG("MoE downstream pattern not found");
@@ -475,11 +453,333 @@ std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Mod
     return std::nullopt;
 }
 
+// ============================================================================
+// MoEModelTransformer Implementation
+// ============================================================================
+
+std::optional<MoEModelTransformer::KeyNodes> MoEModelTransformer::find_key_nodes_in_cloned_model(
+    const std::shared_ptr<ov::Model>& model) const {
+    KeyNodes nodes;
+    const std::string tile_name = m_structure_info.expert_input_tile_node->get_friendly_name();
+    const std::string multiply_name = m_structure_info.router_scores_multiply_node->get_friendly_name();
+
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto tile = std::dynamic_pointer_cast<ov::op::v0::Tile>(node)) {
+            if (tile->get_friendly_name() == tile_name) {
+                nodes.tile_node = tile;
+                LOG_DEBUG("Found Tile node in cloned model: " << tile_name);
+            }
+        }
+
+        if (auto multiply = std::dynamic_pointer_cast<ov::op::v1::Multiply>(node)) {
+            if (multiply->get_friendly_name() == multiply_name) {
+                nodes.multiply_node = multiply;
+                LOG_DEBUG("Found Multiply node in cloned model: " << multiply_name);
+            }
+        }
+
+        if (nodes.tile_node && nodes.multiply_node) {
+            break;  // Found all required nodes
+        }
+    }
+
+    if (!nodes.tile_node || !nodes.multiply_node) {
+        LOG_ERROR("Could not find required nodes in cloned model - Tile: " << tile_name
+                                                                           << ", Multiply: " << multiply_name);
+        return std::nullopt;
+    }
+
+    return nodes;
+}
+
+std::pair<std::shared_ptr<ov::Node>, ov::Output<ov::Node>> MoEModelTransformer::find_matmul_and_predecessor(
+    ov::Output<ov::Node>& tile_output) const {
+    for (const auto& target_input : tile_output.get_target_inputs()) {
+        auto consumer = target_input.get_node()->shared_from_this();
+
+        if (auto reshape_op = std::dynamic_pointer_cast<ov::op::v1::Reshape>(consumer)) {
+            LOG_DEBUG("Found Reshape after Tile: " << reshape_op->get_friendly_name());
+            for (const auto& reshape_target : reshape_op->output(0).get_target_inputs()) {
+                if (auto mm =
+                        std::dynamic_pointer_cast<ov::op::v0::MatMul>(reshape_target.get_node()->shared_from_this())) {
+                    LOG_DEBUG("Found MatMul after Reshape: " << mm->get_friendly_name());
+                    return {mm, reshape_op->output(0)};
+                }
+            }
+        } else if (auto mm = std::dynamic_pointer_cast<ov::op::v0::MatMul>(consumer)) {
+            LOG_DEBUG("Found MatMul directly after Tile: " << mm->get_friendly_name());
+            return {mm, tile_output};
+        }
+    }
+    return {nullptr, ov::Output<ov::Node>()};
+}
+
+void MoEModelTransformer::replace_tile_with_new_tile(const ov::Output<ov::Node>& tile_input,
+                                                     ov::Output<ov::Node>& node_before_matmul,
+                                                     const std::string& friendly_name,
+                                                     size_t num_target_experts) const {
+    auto matmul_input_shape = node_before_matmul.get_shape();
+    ov::Shape target_expert_shape = matmul_input_shape;
+    target_expert_shape[0] = num_target_experts;
+
+    LOG_DEBUG("Original MatMul input shape: " << matmul_input_shape);
+    LOG_DEBUG("Target expert shape (" << num_target_experts << " experts): " << target_expert_shape);
+
+    std::shared_ptr<ov::Node> new_node;
+
+    if (num_target_experts == 1) {
+        // For single expert (prefill), use Reshape since no repetition needed
+        auto target_shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                                         ov::Shape{target_expert_shape.size()},
+                                                                         target_expert_shape);
+        new_node = std::make_shared<ov::op::v1::Reshape>(tile_input, target_shape_const, false);
+        new_node->set_friendly_name(friendly_name + "_transformed_single_expert");
+        LOG_DEBUG("Using Reshape for single expert");
+    } else {
+        // For multiple active experts (decoding), use Tile to replicate data, then Reshape to expand dims
+        std::vector<int64_t> repeats_data(tile_input.get_shape().size(), 1);
+        repeats_data[0] = num_target_experts;  // Repeat along first dimension
+
+        auto repeats_const =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{repeats_data.size()}, repeats_data);
+        auto tile_node = std::make_shared<ov::op::v0::Tile>(tile_input, repeats_const);
+        tile_node->set_friendly_name(friendly_name + "_transformed_tile_" + std::to_string(num_target_experts));
+        LOG_DEBUG("Using Tile with repeats=" << num_target_experts << " for multiple active experts");
+
+        // After Tile: [4, 2880] -> need Reshape to [4, token_num, 2880]
+        // target_expert_shape already has the correct 3D shape
+        auto reshape_shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                                          ov::Shape{target_expert_shape.size()},
+                                                                          target_expert_shape);
+        new_node = std::make_shared<ov::op::v1::Reshape>(tile_node, reshape_shape_const, false);
+        new_node->set_friendly_name(friendly_name + "_transformed_" + std::to_string(num_target_experts) +
+                                    "_experts_reshape");
+        LOG_DEBUG("Added Reshape after Tile to expand to 3D shape: " << target_expert_shape);
+    }
+
+    node_before_matmul.replace(new_node->output(0));
+}
+
+void MoEModelTransformer::fix_output_reshapes(const std::shared_ptr<ov::Model>& model,
+                                              size_t num_experts,
+                                              size_t num_target_experts) const {
+    LOG_DEBUG("Fixing output Reshape nodes...");
+    for (const auto& result : model->get_results()) {
+        auto result_input = result->input_value(0);
+        auto result_input_node = result_input.get_node_shared_ptr();
+
+        // Skip Convert node if present (Result <- Convert)
+        if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(result_input_node)) {
+            LOG_DEBUG("  Skipping Convert node before Result");
+            result_input = convert_node->input_value(0);
+            result_input_node = result_input.get_node_shared_ptr();
+        }
+
+        // Skip ReduceSum node if present (Result <- [Convert] <- ReduceSum)
+        if (auto reduce_sum_node = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(result_input_node)) {
+            LOG_DEBUG("  Skipping ReduceSum node before Result");
+            result_input = reduce_sum_node->input_value(0);
+            result_input_node = result_input.get_node_shared_ptr();
+        }
+
+        // Check for Multiply node (Result <- [Convert] <- [ReduceSum] <- Multiply)
+        std::shared_ptr<ov::Node> reshape_node_ptr;
+        if (auto multiply_node = std::dynamic_pointer_cast<ov::op::v1::Multiply>(result_input_node)) {
+            LOG_DEBUG("  Found Multiply node before Result");
+
+            // Multiply has two inputs, one should be from Reshape
+            auto multiply_input0 = multiply_node->input_value(0).get_node_shared_ptr();
+            auto multiply_input1 = multiply_node->input_value(1).get_node_shared_ptr();
+
+            if (auto reshape0 = std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input0)) {
+                reshape_node_ptr = reshape0;
+            } else if (auto reshape1 = std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input1)) {
+                reshape_node_ptr = reshape1;
+            }
+        } else if (auto reshape_direct = std::dynamic_pointer_cast<ov::op::v1::Reshape>(result_input_node)) {
+            // Direct Reshape -> Result (fallback case)
+            reshape_node_ptr = reshape_direct;
+        }
+
+        if (reshape_node_ptr) {
+            auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(reshape_node_ptr);
+            auto shape_input = reshape_node->input_value(1);
+            if (auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_input.get_node_shared_ptr())) {
+                auto shape_data = shape_const->cast_vector<int64_t>();
+
+                if (!shape_data.empty() && shape_data[0] == static_cast<int64_t>(num_experts)) {
+                    LOG_DEBUG("  Found output Reshape '" << reshape_node->get_friendly_name() << "' with shape[0]="
+                                                         << shape_data[0] << ", changing to " << num_target_experts);
+                    shape_data[0] = num_target_experts;
+
+                    auto new_shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                                                  ov::Shape{shape_data.size()},
+                                                                                  shape_data);
+                    auto new_output_reshape =
+                        std::make_shared<ov::op::v1::Reshape>(reshape_node->input_value(0), new_shape_const, false);
+                    new_output_reshape->set_friendly_name(reshape_node->get_friendly_name() + "_" +
+                                                          std::to_string(num_target_experts) + "_experts");
+
+                    reshape_node->output(0).replace(new_output_reshape->output(0));
+                }
+            }
+        }
+    }
+}
+
+void MoEModelTransformer::ensure_tensor_names(const std::shared_ptr<ov::Model>& model) const {
+    LOG_DEBUG("Ensuring all tensors have names...");
+    size_t in_tensor_idx = 0;
+    for (auto& input : model->inputs()) {
+        if (input.get_tensor().get_names().empty()) {
+            std::string name = "moe_in_tensor_" + std::to_string(in_tensor_idx);
+            input.get_tensor().set_names({name});
+            LOG_DEBUG("  Added input tensor name: " << name);
+        }
+        in_tensor_idx++;
+    }
+
+    size_t out_tensor_idx = 0;
+    for (auto& output : model->outputs()) {
+        if (output.get_tensor().get_names().empty()) {
+            std::string name = "moe_out_tensor_" + std::to_string(out_tensor_idx);
+            output.get_tensor().set_names({name});
+            LOG_DEBUG("  Added output tensor name: " << name);
+        }
+        out_tensor_idx++;
+    }
+}
+
+void MoEModelTransformer::fix_parameters_with_num_experts(const std::shared_ptr<ov::Model>& model,
+                                                          size_t num_experts,
+                                                          size_t num_target_experts) const {
+    LOG_DEBUG("Fixing Parameter nodes with num_experts in shape to " << num_target_experts << " experts...");
+
+    const auto& all_params = model->get_parameters();
+    for (size_t param_idx = 0; param_idx < all_params.size(); ++param_idx) {
+        const auto& param = all_params[param_idx];
+
+        // Skip the tile input parameter - it does not contain expert dimension
+        if (m_structure_info.expert_input_param_idx.has_value() &&
+            param_idx == m_structure_info.expert_input_param_idx.value()) {
+            LOG_DEBUG("  Skipping tile input parameter at index " << param_idx << ": " << param->get_friendly_name());
+            continue;
+        }
+
+        auto param_shape = param->get_partial_shape();
+        if (param_shape.rank().is_static() && param_shape.rank().get_length() > 0) {
+            auto shape = param_shape.to_shape();
+            bool needs_fix = false;
+            size_t fix_dim = 0;
+
+            for (size_t i = 0; i < shape.size(); ++i) {
+                if (shape[i] == num_experts) {
+                    needs_fix = true;
+                    fix_dim = i;
+                    break;
+                }
+            }
+
+            if (needs_fix) {
+                LOG_DEBUG("  Found Parameter '" << param->get_friendly_name() << "' with shape[" << fix_dim
+                                                << "]=" << num_experts);
+
+                shape[fix_dim] = num_target_experts;
+
+                // Directly set the new shape on the parameter
+                param->set_partial_shape(ov::PartialShape(shape));
+                param->validate_and_infer_types();
+                LOG_DEBUG("    Successfully updated parameter shape to " << num_target_experts);
+            }
+        }
+    }
+}
+
+void MoEModelTransformer::fix_token_count_for_prefill(
+    const std::shared_ptr<ov::Model>& model,
+    size_t num_target_experts,
+    size_t prefill_chunk_size,
+    const std::shared_ptr<ov::op::v0::Tile>& expert_input_tile_op,
+    const std::shared_ptr<ov::op::v1::Multiply>& router_scores_multiply_op) const {
+    if (num_target_experts != 1) {
+        return;  // Only apply to prefill mode (single expert)
+    }
+
+    LOG_DEBUG("Fixing token count from " << m_structure_info.input_token_count << " to " << prefill_chunk_size
+                                         << " for prefill mode...");
+
+    if (!expert_input_tile_op) {
+        LOG_WARN("Tile node not available for token count fixing");
+        return;
+    }
+
+    // Trace back from Tile input to find Parameters
+    std::set<std::shared_ptr<ov::op::v0::Parameter>> params_to_fix;
+    std::function<void(const ov::Output<ov::Node>&)> trace_to_params;
+    trace_to_params = [&](const ov::Output<ov::Node>& output) {
+        auto node = output.get_node_shared_ptr();
+
+        if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node)) {
+            params_to_fix.insert(param);
+            return;
+        }
+
+        // Skip Convert nodes during tracing
+        if (auto convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(node)) {
+            LOG_DEBUG("  Skipping Convert node during trace: " << convert->get_friendly_name());
+        }
+
+        // Recursively trace inputs
+        for (size_t i = 0; i < node->get_input_size(); ++i) {
+            trace_to_params(node->input_value(i));
+        }
+    };
+
+    trace_to_params(expert_input_tile_op->input_value(0));
+
+    // Also find router parameter from the Multiply node
+    LOG_DEBUG("Tracing router parameter from Multiply node");
+    for (size_t i = 0; i < 2; ++i) {
+        auto multiply_input = router_scores_multiply_op->input_value(i).get_node_shared_ptr();
+
+        // Skip Reshape input (that's the expert output)
+        if (std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input)) {
+            continue;
+        }
+
+        trace_to_params(router_scores_multiply_op->input_value(i));
+    }
+
+    // Fix Parameter shapes
+    size_t original_token_count = m_structure_info.input_token_count;
+    for (const auto& param : params_to_fix) {
+        auto param_shape = param->get_partial_shape();
+        if (param_shape.rank().is_static() && param_shape.rank().get_length() >= 2) {
+            auto shape = param_shape.to_shape();
+
+            // Find dimension with original token count
+            for (size_t i = 0; i < shape.size(); ++i) {
+                if (shape[i] == original_token_count) {
+                    LOG_DEBUG("  Updating Parameter '" << param->get_friendly_name() << "' shape[" << i << "] from "
+                                                       << original_token_count << " to " << prefill_chunk_size);
+                    shape[i] = prefill_chunk_size;
+                }
+            }
+
+            param->set_partial_shape(ov::PartialShape(shape));
+            param->validate_and_infer_types();
+        }
+    }
+
+    // Trigger shape inference to propagate changes through the model
+    LOG_DEBUG("Triggering shape inference after token count changes...");
+    model->validate_nodes_and_infer_types();
+}
+
 // Unroll MoE expert model on expert dimension using GraphRewrite patterns
-std::shared_ptr<ov::Model> unroll_expert_dimension(const std::shared_ptr<ov::Model>& model,
-                                                   const MoEStructureInfo& structure_info,
-                                                   size_t num_experts,
-                                                   bool full_optimization) {
+std::shared_ptr<ov::Model> MoEModelTransformer::unroll_expert_dimension(const std::shared_ptr<ov::Model>& model,
+                                                                        size_t num_experts,
+                                                                        bool full_optimization) const {
     LOG_INFO("Unrolling expert dimension for " << num_experts << " experts using GraphRewrite");
     LOG_INFO("Optimization mode: " << (full_optimization ? "Full (weights + activations)" : "WeightsOnly"));
     LOG_BLOCK();
@@ -505,357 +805,27 @@ std::shared_ptr<ov::Model> unroll_expert_dimension(const std::shared_ptr<ov::Mod
     }
 }
 
-// Transform MoE model based on configuration (pure function, no side effects)
-std::shared_ptr<ov::Model> transform_moe_model(const std::shared_ptr<ov::Model>& original_model,
-                                               const MoEStructureInfo& structure_info,
-                                               const MoETransformConfig& config) {
-    LOG_DEBUG("Transforming MoE model to "
-              << config.num_target_experts
-              << " expert(s), mode: " << (config.mode == ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS")
-              << ", chunk_size: " << config.chunk_size);
+// Transform MoE model based on configuration
+std::shared_ptr<ov::Model> MoEModelTransformer::apply_expert_transformation(
+    const std::shared_ptr<ov::Model>& original_model,
+    const MoETransformConfig& config) const {
+    LOG_DEBUG("Transforming MoE model to " << config.num_target_experts << " expert(s), mode: "
+                                           << (config.is_single_expert() ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS")
+                                           << ", chunk_size: " << config.chunk_size);
     LOG_BLOCK();
 
     auto model = original_model->clone();
-    const auto num_experts = structure_info.num_experts;
+    const auto num_experts = m_structure_info.num_experts;
     const auto num_target_experts = config.num_target_experts;
-    const auto mode = config.mode;
     const auto prefill_chunk_size = config.chunk_size;
 
-    // Find the Tile and Multiply nodes in the cloned model by matching friendly names from structure_info
-    std::shared_ptr<ov::op::v0::Tile> expert_input_tile_op = nullptr;
-    std::shared_ptr<ov::op::v1::Multiply> router_scores_multiply_op = nullptr;
-    const std::string original_tile_name = structure_info.expert_input_tile_node->get_friendly_name();
-    const std::string multiply_name = structure_info.router_scores_multiply_node->get_friendly_name();
-
-    for (const auto& node : model->get_ordered_ops()) {
-        if (auto tile = std::dynamic_pointer_cast<ov::op::v0::Tile>(node)) {
-            if (tile->get_friendly_name() == original_tile_name) {
-                expert_input_tile_op = tile;
-                LOG_DEBUG("Found Tile node in cloned model: " << original_tile_name);
-            }
-        }
-
-        if (auto multiply = std::dynamic_pointer_cast<ov::op::v1::Multiply>(node)) {
-            if (multiply->get_friendly_name() == multiply_name) {
-                router_scores_multiply_op = multiply;
-                LOG_DEBUG("Found Multiply node in cloned model: " << multiply_name);
-            }
-        }
-
-        if (expert_input_tile_op && router_scores_multiply_op) {
-            break;  // Found all required nodes
-        }
-    }
-
-    if (!expert_input_tile_op || !router_scores_multiply_op) {
-        LOG_ERROR("Could not find Tile operation in cloned model matching: " << original_tile_name);
+    // Find key nodes in the cloned model
+    auto key_nodes = find_key_nodes_in_cloned_model(model);
+    if (!key_nodes) {
         return nullptr;
     }
-
-    // Lambda: Find MatMul consumer of Tile (possibly through Reshape)
-    auto find_matmul_and_predecessor =
-        [&](ov::Output<ov::Node>& tile_output) -> std::pair<std::shared_ptr<ov::Node>, ov::Output<ov::Node>> {
-        for (const auto& target_input : tile_output.get_target_inputs()) {
-            auto consumer = target_input.get_node()->shared_from_this();
-
-            if (auto reshape_op = std::dynamic_pointer_cast<ov::op::v1::Reshape>(consumer)) {
-                LOG_DEBUG("Found Reshape after Tile: " << reshape_op->get_friendly_name());
-                for (const auto& reshape_target : reshape_op->output(0).get_target_inputs()) {
-                    if (auto mm = std::dynamic_pointer_cast<ov::op::v0::MatMul>(
-                            reshape_target.get_node()->shared_from_this())) {
-                        LOG_DEBUG("Found MatMul after Reshape: " << mm->get_friendly_name());
-                        return {mm, reshape_op->output(0)};
-                    }
-                }
-            } else if (auto mm = std::dynamic_pointer_cast<ov::op::v0::MatMul>(consumer)) {
-                LOG_DEBUG("Found MatMul directly after Tile: " << mm->get_friendly_name());
-                return {mm, tile_output};
-            }
-        }
-        return {nullptr, ov::Output<ov::Node>()};
-    };
-
-    // Lambda: Replace Tile with new Tile (or Reshape for single expert case)
-    auto replace_tile_with_new_tile = [&](const ov::Output<ov::Node>& tile_input,
-                                          ov::Output<ov::Node>& node_before_matmul,
-                                          const std::string& friendly_name) {
-        auto matmul_input_shape = node_before_matmul.get_shape();
-        ov::Shape target_expert_shape = matmul_input_shape;
-        target_expert_shape[0] = num_target_experts;
-
-        // For prefill mode, update token dimension to use chunk size
-        if (mode == ExpertMode::SINGLE_EXPERT && target_expert_shape.size() >= 2) {
-            target_expert_shape[1] = prefill_chunk_size;
-            LOG_DEBUG("Prefill mode: updating target shape token dimension to " << prefill_chunk_size);
-        }
-
-        LOG_DEBUG("Original MatMul input shape: " << matmul_input_shape);
-        LOG_DEBUG("Target expert shape (" << num_target_experts << " experts): " << target_expert_shape);
-
-        std::shared_ptr<ov::Node> new_node;
-
-        if (num_target_experts == 1) {
-            // For single expert (prefill), use Reshape since no repetition needed
-            auto target_shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                                                             ov::Shape{target_expert_shape.size()},
-                                                                             target_expert_shape);
-            new_node = std::make_shared<ov::op::v1::Reshape>(tile_input, target_shape_const, false);
-            new_node->set_friendly_name(friendly_name + "_transformed_single_expert");
-            LOG_DEBUG("Using Reshape for single expert");
-        } else {
-            // For multiple active experts (decoding), use Tile to replicate data, then Reshape to expand dims
-            std::vector<int64_t> repeats_data(tile_input.get_shape().size(), 1);
-            repeats_data[0] = num_target_experts;  // Repeat along first dimension
-
-            auto repeats_const =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{repeats_data.size()}, repeats_data);
-            auto tile_node = std::make_shared<ov::op::v0::Tile>(tile_input, repeats_const);
-            tile_node->set_friendly_name(friendly_name + "_transformed_tile_" + std::to_string(num_target_experts));
-            LOG_DEBUG("Using Tile with repeats=" << num_target_experts << " for multiple active experts");
-
-            // After Tile: [4, 2880] -> need Reshape to [4, token_num, 2880]
-            // target_expert_shape already has the correct 3D shape
-            auto reshape_shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                                                              ov::Shape{target_expert_shape.size()},
-                                                                              target_expert_shape);
-            new_node = std::make_shared<ov::op::v1::Reshape>(tile_node, reshape_shape_const, false);
-            new_node->set_friendly_name(friendly_name + "_transformed_" + std::to_string(num_target_experts) +
-                                        "_experts_reshape");
-            LOG_DEBUG("Added Reshape after Tile to expand to 3D shape: " << target_expert_shape);
-        }
-
-        node_before_matmul.replace(new_node->output(0));
-    };
-
-    // Lambda: Fix output Reshape nodes (no longer detects router parameter - already done in analyze_moe_structure)
-    // Output path: Reshape -> Multiply -> [ReduceSum] -> Convert(optional) -> Result
-    auto fix_output_reshapes = [&]() {
-        LOG_DEBUG("Fixing output Reshape nodes...");
-        for (const auto& result : model->get_results()) {
-            auto result_input = result->input_value(0);
-            auto result_input_node = result_input.get_node_shared_ptr();
-
-            // Skip Convert node if present (Result <- Convert)
-            if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(result_input_node)) {
-                LOG_DEBUG("  Skipping Convert node before Result");
-                result_input = convert_node->input_value(0);
-                result_input_node = result_input.get_node_shared_ptr();
-            }
-
-            // Skip ReduceSum node if present (Result <- [Convert] <- ReduceSum)
-            if (auto reduce_sum_node = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(result_input_node)) {
-                LOG_DEBUG("  Skipping ReduceSum node before Result");
-                result_input = reduce_sum_node->input_value(0);
-                result_input_node = result_input.get_node_shared_ptr();
-            }
-
-            // Check for Multiply node (Result <- [Convert] <- [ReduceSum] <- Multiply)
-            std::shared_ptr<ov::Node> reshape_node_ptr;
-            if (auto multiply_node = std::dynamic_pointer_cast<ov::op::v1::Multiply>(result_input_node)) {
-                LOG_DEBUG("  Found Multiply node before Result");
-
-                // Multiply has two inputs, one should be from Reshape
-                auto multiply_input0 = multiply_node->input_value(0).get_node_shared_ptr();
-                auto multiply_input1 = multiply_node->input_value(1).get_node_shared_ptr();
-
-                if (auto reshape0 = std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input0)) {
-                    reshape_node_ptr = reshape0;
-                } else if (auto reshape1 = std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input1)) {
-                    reshape_node_ptr = reshape1;
-                }
-            } else if (auto reshape_direct = std::dynamic_pointer_cast<ov::op::v1::Reshape>(result_input_node)) {
-                // Direct Reshape -> Result (fallback case)
-                reshape_node_ptr = reshape_direct;
-            }
-
-            if (reshape_node_ptr) {
-                auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(reshape_node_ptr);
-                auto shape_input = reshape_node->input_value(1);
-                if (auto shape_const =
-                        std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_input.get_node_shared_ptr())) {
-                    auto shape_data = shape_const->cast_vector<int64_t>();
-
-                    if (!shape_data.empty() && shape_data[0] == static_cast<int64_t>(num_experts)) {
-                        LOG_DEBUG("  Found output Reshape '" << reshape_node->get_friendly_name()
-                                                             << "' with shape[0]=" << shape_data[0] << ", changing to "
-                                                             << num_target_experts);
-                        shape_data[0] = num_target_experts;
-
-                        auto new_shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                                                                      ov::Shape{shape_data.size()},
-                                                                                      shape_data);
-                        auto new_output_reshape =
-                            std::make_shared<ov::op::v1::Reshape>(reshape_node->input_value(0), new_shape_const, false);
-                        new_output_reshape->set_friendly_name(reshape_node->get_friendly_name() + "_" +
-                                                              std::to_string(num_target_experts) + "_experts");
-
-                        reshape_node->output(0).replace(new_output_reshape->output(0));
-                    }
-                }
-            }
-        }
-    };
-
-    // Lambda: Ensure all tensors have names
-    auto ensure_tensor_names = [&]() {
-        LOG_DEBUG("Ensuring all tensors have names...");
-        size_t in_tensor_idx = 0;
-        for (auto& input : model->inputs()) {
-            if (input.get_tensor().get_names().empty()) {
-                std::string name = "moe_in_tensor_" + std::to_string(in_tensor_idx);
-                input.get_tensor().set_names({name});
-                LOG_DEBUG("  Added input tensor name: " << name);
-            }
-            in_tensor_idx++;
-        }
-
-        size_t out_tensor_idx = 0;
-        for (auto& output : model->outputs()) {
-            if (output.get_tensor().get_names().empty()) {
-                std::string name = "moe_out_tensor_" + std::to_string(out_tensor_idx);
-                output.get_tensor().set_names({name});
-                LOG_DEBUG("  Added output tensor name: " << name);
-            }
-            out_tensor_idx++;
-        }
-    };
-
-    // Lambda: Fix parameters with num_experts in their shape (manually, without model->reshape())
-    auto fix_parameters_with_num_experts = [&]() {
-        LOG_DEBUG("Fixing Parameter nodes with num_experts in shape to " << num_target_experts << " experts...");
-
-        const auto& all_params = model->get_parameters();
-        for (size_t param_idx = 0; param_idx < all_params.size(); ++param_idx) {
-            const auto& param = all_params[param_idx];
-
-            // Skip the tile input parameter - it does not contain expert dimension
-            if (structure_info.expert_input_param_idx.has_value() &&
-                param_idx == structure_info.expert_input_param_idx.value()) {
-                LOG_DEBUG("  Skipping tile input parameter at index " << param_idx << ": "
-                                                                      << param->get_friendly_name());
-                continue;
-            }
-
-            auto param_shape = param->get_partial_shape();
-            if (param_shape.rank().is_static() && param_shape.rank().get_length() > 0) {
-                auto shape = param_shape.to_shape();
-                bool needs_fix = false;
-                size_t fix_dim = 0;
-
-                for (size_t i = 0; i < shape.size(); ++i) {
-                    if (shape[i] == num_experts) {
-                        needs_fix = true;
-                        fix_dim = i;
-                        break;
-                    }
-                }
-
-                if (needs_fix) {
-                    LOG_DEBUG("  Found Parameter '" << param->get_friendly_name() << "' with shape[" << fix_dim
-                                                    << "]=" << num_experts);
-
-                    shape[fix_dim] = num_target_experts;  // Use num_target_experts instead of hardcoded 1
-
-                    // Directly set the new shape on the parameter
-                    param->set_partial_shape(ov::PartialShape(shape));
-                    param->validate_and_infer_types();
-                    LOG_DEBUG("    Successfully updated parameter shape to " << num_target_experts);
-                }
-            }
-        }
-    };
-
-    // Lambda: Fix token count for prefill mode - trace from Tile to Parameter and update
-    auto fix_token_count_for_prefill = [&]() {
-        if (mode != ExpertMode::SINGLE_EXPERT) {
-            return;  // Only apply to prefill mode
-        }
-
-        LOG_DEBUG("Fixing token count from " << structure_info.input_token_count << " to " << prefill_chunk_size
-                                             << " for prefill mode...");
-
-        // Use the expert_input_tile_op we already found
-        if (!expert_input_tile_op) {
-            LOG_WARN("Tile node not available for token count fixing");
-            return;
-        }
-
-        // Trace back from Tile input to find Parameters
-        std::set<std::shared_ptr<ov::op::v0::Parameter>> params_to_fix;
-        std::function<void(const ov::Output<ov::Node>&)> trace_to_params;
-        trace_to_params = [&](const ov::Output<ov::Node>& output) {
-            auto node = output.get_node_shared_ptr();
-
-            if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node)) {
-                params_to_fix.insert(param);
-                return;
-            }
-
-            // Skip Convert nodes during tracing
-            if (auto convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(node)) {
-                LOG_DEBUG("  Skipping Convert node during trace: " << convert->get_friendly_name());
-            }
-
-            // Recursively trace inputs
-            for (size_t i = 0; i < node->get_input_size(); ++i) {
-                trace_to_params(node->input_value(i));
-            }
-        };
-
-        trace_to_params(expert_input_tile_op->input_value(0));
-
-        // Also find router parameter from the Multiply node
-        LOG_DEBUG("Tracing router parameter from Multiply node");
-        // Check both inputs, one should be the router parameter
-        for (size_t i = 0; i < 2; ++i) {
-            auto multiply_input = router_scores_multiply_op->input_value(i).get_node_shared_ptr();
-
-            // Skip Reshape input (that's the expert output)
-            if (std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input)) {
-                continue;
-            }
-
-            // Trace to parameter
-            trace_to_params(router_scores_multiply_op->input_value(i));
-        }
-
-        // Fix Parameter shapes
-        size_t original_token_count = structure_info.input_token_count;
-        for (const auto& param : params_to_fix) {
-            auto param_shape = param->get_partial_shape();
-            if (param_shape.rank().is_static() && param_shape.rank().get_length() >= 2) {
-                auto shape = param_shape.to_shape();
-
-                // Find dimension with original token count
-                for (size_t i = 0; i < shape.size(); ++i) {
-                    if (shape[i] == original_token_count) {
-                        LOG_DEBUG("  Updating Parameter '" << param->get_friendly_name() << "' shape[" << i << "] from "
-                                                           << original_token_count << " to " << prefill_chunk_size);
-                        shape[i] = prefill_chunk_size;
-                    }
-                }
-
-                param->set_partial_shape(ov::PartialShape(shape));
-                param->validate_and_infer_types();
-            }
-        }
-
-        // Trigger shape inference to propagate changes through the model
-        LOG_DEBUG("Triggering shape inference after token count changes...");
-        model->validate_nodes_and_infer_types();
-    };
-
-    // Lambda: Save model for debugging
-    auto save_debug_model = [&]() {
-        try {
-            std::string debug_path = "moe_transformed_" + std::to_string(num_target_experts) + "_" +
-                                     std::to_string(prefill_chunk_size) + "_experts_model.xml";
-            ov::serialize(model, debug_path);
-            LOG_INFO("Saved transformed expert model to: " << debug_path);
-        } catch (const std::exception& e) {
-            LOG_WARN("Failed to save transformed expert model for debugging: " << e.what());
-        }
-    };
+    auto expert_input_tile_op = key_nodes->tile_node;
+    auto router_scores_multiply_op = key_nodes->multiply_node;
 
     // Main transformation flow
     auto tile_input = expert_input_tile_op->input_value(0);
@@ -867,20 +837,26 @@ std::shared_ptr<ov::Model> transform_moe_model(const std::shared_ptr<ov::Model>&
         return nullptr;
     }
 
-    fix_token_count_for_prefill();  // Fix token count BEFORE replacing Tile (Tile will be replaced)
-    replace_tile_with_new_tile(tile_input, node_before_matmul, expert_input_tile_op->get_friendly_name());
-    fix_output_reshapes();
-    fix_parameters_with_num_experts();
-    ensure_tensor_names();
+    // Apply transformations in sequence
+    fix_token_count_for_prefill(model,
+                                num_target_experts,
+                                prefill_chunk_size,
+                                expert_input_tile_op,
+                                router_scores_multiply_op);
+    replace_tile_with_new_tile(tile_input,
+                               node_before_matmul,
+                               expert_input_tile_op->get_friendly_name(),
+                               num_target_experts);
+    fix_output_reshapes(model, num_experts, num_target_experts);
+    fix_parameters_with_num_experts(model, num_experts, num_target_experts);
+    ensure_tensor_names(model);
 
     model->validate_nodes_and_infer_types();
     LOG_DEBUG("Successfully transformed to " << num_target_experts << " expert(s) model");
 
-    if (structure_info.is_decoding_stage) {
-        model = unroll_expert_dimension(model, structure_info, num_target_experts);
+    if (num_target_experts > 1) {
+        model = unroll_expert_dimension(model, num_target_experts);
     }
-
-    save_debug_model();
 
     return model;
 }
@@ -913,70 +889,42 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
         return std::nullopt;
     }
 
-    // Step 3: Determine transformation parameters
-    auto transform_config = determine_transformation_params(*structure_info, k_value, prefill_chunk_size);
-
-    LOG_INFO("Transformation plan:");
-    LOG_INFO("  Stage: " << (structure_info->is_decoding_stage ? "DECODING" : "PREFILL"));
-    LOG_INFO("  Mode: " << (transform_config.mode == ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS"));
-    LOG_INFO("  Target num experts: " << transform_config.num_target_experts);
-
-    // Step 4: Transform models based on mode
-    std::map<size_t, std::shared_ptr<ov::Model>> transformed_models;
-
+    // Step 3: Determine chunk sizes based on stage and configuration
+    std::vector<size_t> chunk_sizes;
     if (structure_info->is_decoding_stage) {
-        // Decoding: Only one model with K active experts, no chunking needed
-        LOG_INFO("Decoding mode: Creating single model with " << k_value << " active experts");
-
-        auto decoding_model = transform_moe_model(model, *structure_info, transform_config);
-        if (!decoding_model) {
-            LOG_WARN("Failed to transform model for decoding");
-            return std::nullopt;
-        }
-
-        // Store with chunk_size = 0 to indicate no chunking
-        transformed_models[0] = decoding_model;
-        LOG_INFO("Successfully transformed decoding model");
-
+        // Decoding stage: single model with K active experts, no chunking
+        chunk_sizes = {0};
+        LOG_INFO("Decoding mode: Creating single model for K=" << k_value << " active experts");
     } else {
-        // Prefill: Multiple models for different chunk sizes, each with 1 expert
-        // Use prefill_chunk_size config to control compilation strategy:
-        // - If prefill_chunk_size == 0: compile multiple models for dynamic chunking
-        // - If prefill_chunk_size > 0: compile only single model with specified chunk size
-        std::vector<size_t> chunk_sizes;
         if (prefill_chunk_size == 0) {
-            chunk_sizes = {16, 32, 64, 128, 256};
+            chunk_sizes.assign(DEFAULT_PREFILL_CHUNKING_VARIANTS.begin(), DEFAULT_PREFILL_CHUNKING_VARIANTS.end());
             LOG_INFO("Prefill mode: Creating multiple models for dynamic chunking");
         } else {
             chunk_sizes = {prefill_chunk_size};
             LOG_INFO("Prefill mode: Creating single model with chunk_size=" << prefill_chunk_size);
         }
-
-        for (auto chunk_size : chunk_sizes) {
-            // Re-analyze structure for each transformation to get fresh node pointers
-            auto fresh_structure_info = analyze_moe_structure(model);
-            if (!fresh_structure_info || !fresh_structure_info->is_valid()) {
-                LOG_WARN("Failed to re-analyze structure for chunk_size=" << chunk_size);
-                continue;
-            }
-
-            auto config = determine_transformation_params(*fresh_structure_info, k_value, chunk_size);
-            auto temp_model = transform_moe_model(model, *fresh_structure_info, config);
-            if (!temp_model) {
-                LOG_WARN("Failed to transform model with chunk_size=" << chunk_size);
-                continue;
-            }
-
-            // Store the transformed model
-            transformed_models[chunk_size] = temp_model;
-
-            LOG_INFO("Successfully transformed model for chunk_size=" << chunk_size);
-        }
     }
 
-    // Validate that we have at least one transformed model
+    // Step 4: Transform models for each chunk size
+    std::map<size_t, std::shared_ptr<ov::Model>> transformed_models;
+    for (auto chunk_size : chunk_sizes) {
+        auto config = determine_transformation_params(*structure_info, k_value, chunk_size);
+
+        MoEModelTransformer transformer(*structure_info);
+        auto transformed_model = transformer.apply_expert_transformation(model, config);
+        if (!transformed_model) {
+            LOG_WARN("Failed to transform model with chunk_size=" << chunk_size);
+            continue;
+        }
+
+        // Store the transformed model
+        transformed_models[chunk_size] = transformed_model;
+
+        LOG_INFO("Successfully transformed model for chunk_size=" << chunk_size);
+    }
+
     if (transformed_models.empty()) {
-        LOG_WARN("Failed to transform any models");
+        LOG_ERROR("Failed to transform any models");
         return std::nullopt;
     }
 
@@ -985,27 +933,24 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     //       For decoding (ACTIVE_EXPERTS), unrolling creates the same mapping structure
     auto param_mapping = build_parameter_mapping_from_rtinfo(model, transformed_models.begin()->second);
 
-    // Step 6: Populate MoEExperts structure
+    // Step 6: Populate and validate MoEExperts structure
     MoEExperts moe_experts;
     moe_experts._num_experts = structure_info->num_experts;
     moe_experts._expert_hidden_dim = structure_info->expert_hidden_dim;
     moe_experts._input_token_count = structure_info->input_token_count;
     moe_experts._chunk_token_count = structure_info->is_decoding_stage ? 0 : prefill_chunk_size;
-    moe_experts._mode = transform_config.mode;
     moe_experts._num_active_experts = k_value;  // Store actual K from router
     moe_experts._transformed_models = std::move(transformed_models);
     moe_experts._router_scores_idx = structure_info->router_scores_idx;
     moe_experts._expert_input_param_idx = structure_info->expert_input_param_idx;
     moe_experts._param_mapping = std::move(param_mapping);
 
-    // Validation
     if (!moe_experts.is_valid()) {
-        LOG_WARN("Created MoEExperts structure is invalid");
+        LOG_ERROR("Created MoEExperts structure is invalid");
         return std::nullopt;
     }
 
     LOG_INFO("Successfully created MoEExperts:");
-    LOG_INFO("  - Mode: " << (transform_config.mode == ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS"));
     LOG_INFO("  - Total number of experts: " << moe_experts._num_experts);
     LOG_INFO("  - Num active experts: " << moe_experts._num_active_experts);
     LOG_INFO("  - Expert hidden dim: " << moe_experts._expert_hidden_dim);
@@ -1031,14 +976,13 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     expert_hidden_dim = func_moe._expert_hidden_dim;
     num_active_experts = func_moe._num_active_experts;
     input_token_count = func_moe._input_token_count;
-    mode = func_moe._mode;
     _models_to_compile = func_moe._transformed_models;
     _router_scores_idx = func_moe._router_scores_idx;
     _expert_input_param_idx = func_moe._expert_input_param_idx;
     _param_mapping = func_moe._param_mapping;
 
     LOG_DEBUG("Created compiled::MoEExperts:");
-    LOG_DEBUG("  Mode: " << (mode == function::ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS"));
+    LOG_DEBUG("  Mode: " << (func_moe.is_single_expert() ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS"));
     LOG_DEBUG("  Total experts: " << num_experts);
     LOG_DEBUG("  Active experts: " << num_active_experts);
     LOG_DEBUG("  Input token count: " << input_token_count);

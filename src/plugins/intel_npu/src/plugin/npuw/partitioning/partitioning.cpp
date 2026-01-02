@@ -238,6 +238,11 @@ private:
     using Match = std::function<bool(const std::shared_ptr<ov::Node>& node)>;
     void propagate(const std::string& func_name, const Match& test, ov::npuw::RepeatedBlock::MatchedBank& bank);
 
+    // Helper method to find and cache router model for MoE transformations
+    // Returns cached router model if available, otherwise searches P.functions
+    // for a function tagged as "router" and caches it for future use
+    std::shared_ptr<ov::Model> ensureAndGetRouterModel();
+
     void createFunction(FunctionPipeline& func_ggg);
 
     // NB(dm): This method should get a better place, it is here only because
@@ -335,8 +340,13 @@ public:
     void matchRepeatedSubgraphs(const std::string& func_name);
     void spatial(const std::string& func_name);
     void attention(const std::string& func_name);
-    void moe(const std::string& func_name);
-    void moeDownstream(const std::string& func_name);
+
+    // MoE-specific transformations (require router model availability)
+    // transformMoeExperts: Transform expert functions (tag="expert") to optimized MoE expert models
+    // transformMoeDownstream: Transform downstream processing (pattern-based detection)
+    void transformMoeExperts(const std::string& func_name);
+    void transformMoeDownstream(const std::string& func_name);
+
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
@@ -1945,65 +1955,104 @@ void Partitioner::attention(const std::string& func_name) {
     }
 }
 
-void Partitioner::moe(const std::string& func_name) {
-    ov::npuw::Function& f = P.functions.at(func_name);
-
-    // Find and store router model in context
-    if (part_ctx.router_model == nullptr) {
-        for (const auto& [name, func] : P.functions) {
-            if (func.gettag() == "router") {
-                part_ctx.router_model = func._model;
-                LOG_INFO("Found router model: " << name);
-                break;
-            }
-        }
+std::shared_ptr<ov::Model> Partitioner::ensureAndGetRouterModel() {
+    // Find and cache router model in context if not already cached
+    if (part_ctx.router_model != nullptr) {
+        return part_ctx.router_model;
     }
 
-    if (!part_ctx.router_model) {
-        LOG_DEBUG("Router model not found yet");
+    for (const auto& [name, func] : P.functions) {
+        LOG_DEBUG("Checking function " << name << " with tag " << func.gettag());
+        if (func.gettag() != "router") {
+            continue;
+        }
+
+        part_ctx.router_model = func._model;
+        LOG_INFO("Found router model: " << name);
+        break;
+    }
+
+    return part_ctx.router_model;
+}
+
+void Partitioner::transformMoeExperts(const std::string& func_name) {
+    ov::npuw::Function& f = P.functions.at(func_name);
+
+    // Only process functions tagged as "expert"
+    if (f.gettag() != "expert") {
         return;
     }
 
-    // Handle expert tag - create MoE experts transformation
-    if (f.gettag() == "expert") {
-        LOG_INFO("Transform " << func_name << " into MoE expert block in model " << model->get_friendly_name()
-                              << "...");
+    // Retrieve router model (required for extracting K from TopK node)
+    auto router_model = ensureAndGetRouterModel();
+    if (!router_model) {
+        LOG_DEBUG("Router model not available yet, skipping MoE expert transformation for " << func_name);
+        return;
+    }
 
-        // Get MoE compilation strategy from config
-        // - If 0 (default): compile multiple models {16, 32, 64, 128, 256} for dynamic chunk selection
-        // - If >0: compile single model with specified fixed chunk size
-        const auto moe_chunk_size = cfg.get<::intel_npu::NPUW_MOE_FIXED_TOKEN_CHUNK_SIZE>();
+    LOG_INFO("Transforming " << func_name << " into MoE expert block in model " << model->get_friendly_name() << "...");
+    LOG_BLOCK();
 
-        // Use the factory method to create MoEExperts from the function model
-        // K will be auto-extracted from router model's TopK node
-        f._moe_experts = ov::npuw::function::MoEExperts::from(f._model, part_ctx.router_model, moe_chunk_size);
+    // Determine compilation strategy from configuration:
+    // - moe_chunk_size = 0 (default): Compile multiple models for various chunk sizes
+    //   {16, 32, 64, 128, 256} to enable dynamic chunk selection at runtime
+    // - moe_chunk_size > 0: Compile a single model with the specified fixed chunk size
+    const auto moe_chunk_size = cfg.get<::intel_npu::NPUW_MOE_FIXED_TOKEN_CHUNK_SIZE>();
 
-        if (f._moe_experts) {
-            if (moe_chunk_size == 0) {
-                LOG_INFO("Successfully created MoE expert models with dynamic chunking (multiple chunk sizes)");
-            } else {
-                LOG_INFO("Successfully created MoE expert model with fixed chunk size: " << moe_chunk_size);
-            }
-            f._moe_experts->log_info();
-            LOG_VERB("MoE transformation completed");
+    // Create MoEExperts using factory method:
+    // - Analyzes expert model structure
+    // - Extracts K (number of active experts) from router model's TopK node
+    // - Generates optimized expert models for prefill and/or decoding stages
+    f._moe_experts = ov::npuw::function::MoEExperts::from(f._model, router_model, moe_chunk_size);
+
+    // Report transformation results
+    if (f._moe_experts) {
+        if (moe_chunk_size == 0) {
+            LOG_INFO("Successfully created MoE expert models with dynamic chunking strategy");
         } else {
-            LOG_WARN("Failed to create MoE expert model from " << func_name);
+            LOG_INFO("Successfully created MoE expert model with fixed chunk size: " << moe_chunk_size);
         }
+        f._moe_experts->log_info();
+        LOG_VERB("MoE expert transformation completed for " << func_name);
+    } else {
+        LOG_WARN("Failed to create MoE expert transformation for "
+                 << func_name << " - expert pattern not found or transformation failed");
     }
 }
 
-void Partitioner::moeDownstream(const std::string& func_name) {
+void Partitioner::transformMoeDownstream(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
 
-    if (!part_ctx.router_model) {
-        LOG_DEBUG("Router model not found, skipping MoE downstream transformation for " << func_name);
+    // Retrieve router model (required for extracting active expert count)
+    auto router_model = ensureAndGetRouterModel();
+    if (!router_model) {
+        LOG_DEBUG("Router model not available, skipping MoE downstream transformation for " << func_name);
         return;
     }
 
-    // Try downstream pattern for all functions (using the cached router_model)
-    f._moe_experts_downstream = ov::npuw::function::create_moe_downstream(f._model, part_ctx.router_model);
+    LOG_VERB("Attempting MoE downstream transformation for " << func_name << "...");
+    LOG_BLOCK();
+
+    // Detect and transform MoE downstream processing pattern:
+    // Expected pattern: Parameter[total_experts, 1, H, W] -> Convert -> ReduceSum
+    //
+    // Transformation:
+    // - Identifies parameters with expert dimension (first dimension = total_experts)
+    // - Reshapes from [total_experts, ...] to [active_experts, ...]
+    // - active_experts (K) is extracted from router model's TopK node
+    //
+    // Note: No tag-based filtering - pattern matching determines applicability
+    // This allows downstream processing to be detected in any function that follows
+    // the structural pattern, regardless of how it was originally tagged
+    f._moe_experts_downstream = ov::npuw::function::create_moe_downstream(f._model, router_model);
+
+    // Report transformation results
     if (f._moe_experts_downstream) {
-        LOG_INFO("Successfully created MoE downstream model for " << func_name);
+        LOG_INFO("Successfully created MoE downstream transformation for " << func_name);
+        LOG_DEBUG("  - Reshaped expert output from [" << f._moe_experts_downstream->total_experts_num << ", ...] to ["
+                                                      << f._moe_experts_downstream->active_experts_num << ", ...]");
+    } else {
+        LOG_DEBUG("MoE downstream pattern not found in " << func_name);
     }
 }
 
@@ -2587,8 +2636,13 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
         if (cfg.get<::intel_npu::NPUW_FOLD>()) {
             // Do full-featured folding
             auto all_functions = p.initFunctionPipeline(Partitioner::FunctionPipelineType::FOLD);
+
+            // Pass 1: Register all functions and apply general transformations
+            // - matchRepeatedSubgraphs() populates P.functions with all function definitions
+            // - Other transformations (spatial, attention, optimize, etc.) can be applied
+            //   independently without cross-function dependencies
             for (auto&& func_group : all_functions) {
-                LOG_INFO("FOLD: Process function " << func_group << "...");
+                LOG_INFO("FOLD Pass 1: Register and transform function " << func_group << "...");
                 LOG_BLOCK();
                 p.propagateSlices(func_group);
                 p.propagateConverts(func_group);
@@ -2600,16 +2654,26 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTailDictConstants(func_group);
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
-                p.matchRepeatedSubgraphs(func_group);
+                p.matchRepeatedSubgraphs(func_group);  // This populates P.functions
                 p.spatial(func_group);
                 p.attention(func_group);
-                p.moe(func_group);  // First pass: find router and create experts
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
+
+            // Pass 2: MoE-specific transformations (requires all functions registered)
+            //
+            // Why separate pass?
+            // - transformMoeExperts() and transformMoeDownstream() require the "router" function
+            // - Router function must be found in P.functions (populated in Pass 1)
+            // - Processing order in Pass 1 is not guaranteed (router may come after experts)
+            // - Therefore, MoE transformations run in Pass 2 after all function registration
+            //   completes, ensuring router model is always available when needed
             for (auto&& func_group : all_functions) {
-                p.moeDownstream(
-                    func_group);  // Second pass: create downstream for all functions (after router is found)
+                LOG_INFO("FOLD Pass 2: MoE-specific transformations for " << func_group << "...");
+                LOG_BLOCK();
+                p.transformMoeExperts(func_group);
+                p.transformMoeDownstream(func_group);
             }
         } else if (cfg.get<::intel_npu::NPUW_CWAI>()) {
             // Less brutal version - just transform repeated blocks
