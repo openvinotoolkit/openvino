@@ -48,9 +48,9 @@ ov::OutputVector col2im(const ov::frontend::onnx::Node& node) {
         pads.size() == spatial_rank * 2,
         "Col2Im 'pads' attribute must have size [4]. Got: ", pads.size());
 
-    const auto half_size = pads.size() / 2;
-    pads_begin.assign(pads.begin(), pads.begin() + half_size);
-    pads_end.assign(pads.begin() + half_size, pads.end());
+    // spatial_rank == pads.size() / 2
+    pads_begin.assign(pads.begin(), pads.begin() + spatial_rank);
+    pads_end.assign(pads.begin() + spatial_rank, pads.end());
 
     // 3. return Col2Im
     return {std::make_shared<ov::op::v15::Col2Im>(
