@@ -303,12 +303,12 @@ Notice that only functions with correct arguments are **not** throwing exception
 Although *pybind11* is a powerful tool, it is sometimes required (or simply easier and more efficent) to combine both approaches and utilize both languages to achive best results.
 
 ### Making pybind11-based module/class visible in OpenVINO™ package
-Let's move a new class from `openvino._pyopenvino.mymodule` to the actual package. Simply introduce a new import statement in the desired file. Let it be [`openvino/runtime/__init__.py`](./../src/openvino/runtime/__init__.py): 
+Let's move a new class from `openvino._pyopenvino.mymodule` to the actual package. Simply introduce a new import statement in the desired file. Let it be [`openvino/__init__.py`](./../src/openvino/__init__.py): 
 ```python
 from openvino._pyopenvino.mymodule import MyTensor
 ```
 
-Now, while importing `openvino`, a new class is accessible from the `runtime` level:
+Now, while importing `openvino`, a new class is accessible:
 ```python
 import openvino as ov
 ov.MyTensor
@@ -320,7 +320,7 @@ Same rule applies to whole modules and free functions. **This is a required step
 ### Yet another Python layer
 As mentioned earlier, it may be helpful to utilize Python in-between to achieve hard C++ feats in a more efficient way. Let's extend the previously created `say_hello` function a little bit.
 
-First, create a new file in the [runtime directory](./../src/openvino/runtime/) and call it `mymodule_ext.py`. There are no strict rules for naming, just make sure the names are in good taste. Import the class here:
+First, create a new file in the [openvino directory](./../src/openvino/) and call it `mymodule_ext.py`. There are no strict rules for naming, just make sure the names are in good taste. Import the class here:
 ```python
 from openvino._pyopenvino.mymodule import MyTensor as MyTensorBase
 ```
