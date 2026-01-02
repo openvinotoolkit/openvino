@@ -5,6 +5,7 @@
 #include "llm_compiled_model_utils.hpp"
 
 #include <regex>
+#include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
 
 #include "logging.hpp"
 #include "openvino/op/ops.hpp"
@@ -223,8 +224,6 @@ public:
         auto zero_f = register_new_node<v1::ConvertLike>(zero_i, query);
 
         Output<Node> scale;
-        Output<Node> sink;
-        bool has_sink = false;
         if (node->get_input_size() < 5) {
             scale = register_new_node<v8::Gather>(q_shape, minus_one, zero_i)->output(0);
             scale = register_new_node<v1::ConvertLike>(scale, query);
@@ -232,10 +231,6 @@ public:
             scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
         } else {
             scale = node->input_value(4);
-            if (node->get_input_size() == 6) {
-                sink = node->input_value(5);
-                has_sink = true;
-            }
         }
 
         auto q_scaled = register_new_node<v1::Multiply>(query, scale);
@@ -291,27 +286,7 @@ public:
             scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask);
         }
 
-        if (has_sink) {
-            auto minus_two = register_new_node(v0::Constant::create(element::i32, Shape{1}, {-2}));
-            auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-            auto zero_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {0}));
-            auto one_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {1}));
-
-            auto q_last_but_one_dim = register_new_node<v1::Subtract>(register_new_node<v0::ShapeOf>(q_shape),
-                                                                      v0::Constant::create(element::i64, Shape{}, {1}));
-            auto sink_target_shape_1 = register_new_node<v8::Slice>(q_shape, zero_i, q_last_but_one_dim, one_i);
-            auto sink_target_shape = register_new_node<v0::Concat>(OutputVector{sink_target_shape_1, one_i}, 0);
-            auto sink_broadcast = register_new_node<v1::Broadcast>(sink, sink_target_shape);
-
-            auto scaled_attn_sink = register_new_node<v0::Concat>(OutputVector{scaled_atten, sink_broadcast}, -1);
-            scaled_atten = register_new_node<v8::Softmax>(scaled_attn_sink, -1);
-
-            auto prev_seq_len = register_new_node<v8::Gather>(k_shape, minus_two, zero_i);
-            scaled_atten = register_new_node<v8::Slice>(scaled_atten, zero_i, prev_seq_len, one_i, minus_one);
-        } else {
-            scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
-        }
-
+        scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
         auto result = register_new_node<v0::MatMul>(scaled_atten, value);
         result->set_friendly_name(node->get_friendly_name());
         copy_runtime_info(node, get_new_nodes());
@@ -534,7 +509,7 @@ bool ov::npuw::util::has_input(const std::shared_ptr<ov::Model>& model, const st
 
 bool ov::npuw::util::optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ScaledDotProductAttentionDecomposition>(isPrefill);
+    rewr.add_matcher<ov::pass::ScaledDotProductAttentionDecomposition>();
     TransposeValueTensors::Context ctx;
     rewr.add_matcher<TransposeValueTensors_llama2>(std::ref(ctx));
     rewr.add_matcher<TransposeValueTensors_llama3>(std::ref(ctx));
