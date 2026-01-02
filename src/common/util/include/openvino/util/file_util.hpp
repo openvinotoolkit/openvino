@@ -48,7 +48,10 @@ std::filesystem::path make_path(Source&& source) {
     if constexpr (std::is_same_v<std::add_const_t<std::remove_pointer_t<std::decay_t<Source>>>, const wchar_t>) {
         return {std::wstring(std::forward<Source>(source))};
     } else if constexpr (std::is_same_v<std::filesystem::path::string_type, std::wstring> &&
-                         std::is_same_v<std::decay_t<Source>, std::string>) {
+                         std::disjunction_v<std::is_same<std::decay_t<Source>, std::string>,
+                                            std::is_same<std::decay_t<Source>, const char*>,
+                                            std::is_same<std::decay_t<Source>, char*>,
+                                            std::is_same<std::decay_t<Source>, std::string_view>>) {
         return {string_to_wstring(std::forward<Source>(source))};
     } else {
         return {std::forward<Source>(source)};

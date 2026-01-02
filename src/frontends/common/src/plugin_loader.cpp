@@ -158,8 +158,7 @@ bool PluginInfo::load() {
 bool PluginInfo::load_internal() {
     std::shared_ptr<void> so;
     try {
-        const auto str_path = ov::util::path_to_string(m_file_path);
-        so = ov::util::load_shared_object(str_path.c_str());
+        so = ov::util::load_shared_object(m_file_path);
     }
 #ifdef ENABLE_OPENVINO_DEBUG
     catch (const std::exception& ex) {
