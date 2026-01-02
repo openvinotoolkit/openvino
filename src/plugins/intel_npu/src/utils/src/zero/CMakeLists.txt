@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -51,12 +51,12 @@ ov_developer_package_export_targets(TARGET level-zero-headers)
 ov_install_static_lib(level-zero-headers ${NPU_PLUGIN_COMPONENT})
 
 if(TARGET ze_loader)
-    ov_developer_package_export_targets(
-        TARGET ze_loader
-        INSTALL_INCLUDE_DIRECTORIES 
-          $<TARGET_PROPERTY:ze_loader,INTERFACE_INCLUDE_DIRECTORIES>/ze_api.h
-          $<TARGET_PROPERTY:ze_loader,INTERFACE_INCLUDE_DIRECTORIES>/loader)
-    ov_install_static_lib(ze_loader ${NPU_PLUGIN_COMPONENT})
-    
+  ov_developer_package_export_targets(
+    TARGET ze_loader
+    INSTALL_INCLUDE_DIRECTORIES
+    $<TARGET_PROPERTY:ze_loader,INTERFACE_INCLUDE_DIRECTORIES>/ze_api.h
+    $<TARGET_PROPERTY:ze_loader,INTERFACE_INCLUDE_DIRECTORIES>/loader)
+  ov_install_static_lib(ze_loader ${NPU_PLUGIN_COMPONENT})
+
     add_dependencies(${TARGET_NAME} ze_loader)
 endif()

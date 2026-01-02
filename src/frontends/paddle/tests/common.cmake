@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 # Test model generating
 set(CODE_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../)
 set(PADDLE_REQ "${CODE_ROOT_DIR}/requirements.txt")
+
 if(Python3_Interpreter_FOUND)
     execute_process(
         COMMAND ${Python3_EXECUTABLE} "${CODE_ROOT_DIR}/paddle_pip_check.py" ${PADDLE_REQ}
@@ -22,23 +23,22 @@ endif()
 
 ov_add_test_target(
     NAME ${TARGET_NAME}
-        ROOT ${CODE_ROOT_DIR}
-        DEPENDENCIES
-            paddle_test_models_${PD_MODEL_TAG}
-            openvino_paddle_frontend
-            paddle_fe_standalone_build_test
-        LINK_LIBRARIES
-            openvino::cnpy
-            frontend_shared_test_classes
-            openvino_paddle_frontend
-            openvino::runtime
-            gtest_main_manifest
-            func_test_utils
-        ADD_CLANG_FORMAT
-        LABELS
-            ${ctest_labels} PADDLE_FE
+    ROOT ${CODE_ROOT_DIR}
+    DEPENDENCIES
+    paddle_test_models_${PD_MODEL_TAG}
+    openvino_paddle_frontend
+    paddle_fe_standalone_build_test
+    LINK_LIBRARIES
+    openvino::cnpy
+    frontend_shared_test_classes
+    openvino_paddle_frontend
+    openvino::runtime
+    gtest_main_manifest
+    func_test_utils
+    ADD_CLANG_FORMAT
+    LABELS
+    ${ctest_labels} PADDLE_FE
 )
-
 
 if(paddlepaddle_FOUND)
     execute_process(
@@ -47,6 +47,7 @@ if(paddlepaddle_FOUND)
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
     message(STATUS "PaddlePaddle version: ${PADDLE_VERSION}")
+
     if(PADDLE_VERSION VERSION_GREATER_EQUAL "3.0.0" OR PADDLE_VERSION VERSION_EQUAL "0.0.0")
         set(PADDLEDET_OPS_URL "https://raw.githubusercontent.com/PaddlePaddle/PaddleDetection/release/2.8.1/ppdet/modeling/ops.py")
         set(PADDLEDET_OPS_SHA256 "9b3193d91d617a6c9e6ef49896dc8612cbcbb67c146d0a76ce16bf2b64dac86f")
@@ -63,12 +64,11 @@ if(paddlepaddle_FOUND)
         set(PADDLEDET_DIRNAME ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/PaddleDetection/release21/ppdet/modeling/)
         set(paddle_gen_tag "ge2")
     endif()
-    
+
     DownloadAndCheck(${PADDLEDET_OPS_URL} ${PADDLEDET_DIRNAME}/ops.py PADDLEDET_FATAL PADDLEDET_RESULT ${PADDLEDET_OPS_SHA256})
 else()
     set(paddle_gen_tag "unkown")
 endif()
-
 
 set(TEST_PADDLE_MODELS_DIRNAME ${TEST_MODEL_ZOO}/paddle_test_models/${PD_MODEL_TAG})
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_MODELS_DIRNAME=\"${TEST_PADDLE_MODELS_DIRNAME}/\")
@@ -85,25 +85,25 @@ if(PADDLEDET_RESULT)
     file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CODE_ROOT_DIR}/*.py)
     set(OUT_FILE ${TEST_PADDLE_MODELS}/generate_done_${PD_MODEL_TAG}.txt)
     add_custom_command(OUTPUT ${OUT_FILE}
-            COMMAND  ${CMAKE_COMMAND} -E env PYTHONPATH=${PADDLEDET_DIRNAME} FLAGS_enable_pir_api=${ENABLE_PIR}
-                ${Python3_EXECUTABLE}
-                    ${CODE_ROOT_DIR}/test_models/gen_wrapper.py
-                    ${CODE_ROOT_DIR}/test_models/gen_scripts
-                    ${TEST_PADDLE_MODELS}
-            DEPENDS ${PADDLE_ALL_SCRIPTS})
+        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PADDLEDET_DIRNAME} FLAGS_enable_pir_api=${ENABLE_PIR}
+        ${Python3_EXECUTABLE}
+        ${CODE_ROOT_DIR}/test_models/gen_wrapper.py
+        ${CODE_ROOT_DIR}/test_models/gen_scripts
+        ${TEST_PADDLE_MODELS}
+        DEPENDS ${PADDLE_ALL_SCRIPTS})
     add_custom_target(paddle_test_models_${PD_MODEL_TAG} DEPENDS ${OUT_FILE})
 
     install(DIRECTORY ${TEST_PADDLE_MODELS}
-            DESTINATION tests/${TEST_PADDLE_MODELS_DIRNAME}
-            COMPONENT tests
-            EXCLUDE_FROM_ALL)
+        DESTINATION tests/${TEST_PADDLE_MODELS_DIRNAME}
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
 
 else()
     # Produce warning message at build time as well
     add_custom_command(OUTPUT unable_build_paddle_models.txt
-            COMMAND ${CMAKE_COMMAND}
-            -E cmake_echo_color --red "Warning: Unable to generate PaddlePaddle test models. Running '${TARGET_NAME}' will likely fail"
-            )
+        COMMAND ${CMAKE_COMMAND}
+        -E cmake_echo_color --red "Warning: Unable to generate PaddlePaddle test models. Running '${TARGET_NAME}' will likely fail"
+    )
     add_custom_target(paddle_test_models_${PD_MODEL_TAG} DEPENDS unable_build_paddle_models.txt)
 endif()
 
@@ -113,4 +113,3 @@ if(ENABLE_INTEL_CPU)
 endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
-
