@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -303,6 +303,9 @@ MockPluginBase<DeviceType>::~MockPluginBase() {
 }
 
 template class MockPluginBase<ov::npuw::tests::mocks::Npu>;
+template class MockPluginBase<ov::npuw::tests::mocks::NpuForPrefill>;
+template class MockPluginBase<ov::npuw::tests::mocks::NpuForGenerate>;
+template class MockPluginBase<ov::npuw::tests::mocks::NpuForLMHead>;
 template class MockPluginBase<ov::npuw::tests::mocks::Cpu>;
 
 }  // namespace tests
