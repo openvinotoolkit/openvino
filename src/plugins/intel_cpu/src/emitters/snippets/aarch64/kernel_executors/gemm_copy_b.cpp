@@ -12,7 +12,6 @@
 #include <sstream>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "emitters/utils.hpp"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
