@@ -2,11 +2,11 @@ alabaster==1.0.0
 atomicwrites==1.4.1
 attrs==25.4.0
 Babel==2.17.0
-beautifulsoup4==4.14.2
+beautifulsoup4==4.14.3
 breathe==4.36.0
 certifi==2025.11.12
 colorama==0.4.6
-Cython==3.2.1
+Cython==3.2.3
 docutils==0.21.2
 idna==3.11
 imagesize==1.4.1
@@ -23,7 +23,7 @@ packaging==25.0
 pluggy==1.6.0
 pydata-sphinx-theme==0.14.4
 Pygments==2.19.2
-pyparsing==3.2.5
+pyparsing==3.3.1
 pytest==9.0.2
 pytest-html==4.1.1
 pytest-metadata==3.1.1
