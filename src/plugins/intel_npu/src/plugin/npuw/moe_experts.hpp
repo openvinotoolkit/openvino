@@ -26,6 +26,9 @@ namespace npuw {
 
 namespace function {
 
+// Default chunk size variants for dynamic prefill chunking
+constexpr std::array<size_t, 5> DEFAULT_PREFILL_CHUNKING_VARIANTS = {16, 32, 64, 128, 256};
+
 // Complete structure analysis result (immutable after analysis)
 struct MoEStructureInfo {
     // Expert configuration
@@ -52,17 +55,20 @@ struct MoEStructureInfo {
     }
 };
 
-// Expert transformation mode
-enum class ExpertMode {
-    SINGLE_EXPERT,  // Transform to 1 expert (prefill stage)
-    ACTIVE_EXPERTS  // Transform to K active experts (decoding stage)
-};
-
 // Transformation configuration (clear decision parameters)
 struct MoETransformConfig {
-    ExpertMode mode;            // SINGLE_EXPERT for prefill, ACTIVE_EXPERTS for decoding
     size_t num_target_experts;  // Number of experts in transformed model (1 for prefill, K for decoding)
     size_t chunk_size;          // Token chunk size for prefill (0 for decoding)
+
+    // Helper: Check if this is single expert mode (prefill)
+    bool is_single_expert() const {
+        return num_target_experts == 1;
+    }
+
+    // Helper: Check if this is active experts mode (decoding)
+    bool is_active_experts() const {
+        return num_target_experts > 1;
+    }
 };
 
 // Structure to hold MoE downstream processing information (ReduceSum + QKV + attention postproc + downstream layers)
@@ -87,20 +93,62 @@ MoETransformConfig determine_transformation_params(const MoEStructureInfo& struc
                                                    size_t k_from_router,
                                                    size_t prefill_chunk_size);
 
-// Transform MoE expert model based on configuration (pure function, no side effects)
-// Returns transformed model, does not modify any input parameters
-std::shared_ptr<ov::Model> transform_moe_model(const std::shared_ptr<ov::Model>& original_model,
-                                               const MoEStructureInfo& structure_info,
-                                               const MoETransformConfig& config);
+// MoE Model Transformer - encapsulates all transformation logic for MoE expert models
+// This class provides a clean interface for transforming MoE models with different expert configurations
+class MoEModelTransformer {
+public:
+    // Constructor takes the structure info which remains constant during transformations
+    explicit MoEModelTransformer(const MoEStructureInfo& structure_info) : m_structure_info(structure_info) {}
 
-// Unroll the MoE expert model on the expert dimension using GraphRewrite patterns
-// This creates separate computation branches for each expert
-// @param full_optimization If true, uses MoEExpertUnrolling (all optimizations including activation-related)
-//                          If false (default), uses MoEExpertUnrollingWeightsOnly (weights-related only)
-std::shared_ptr<ov::Model> unroll_expert_dimension(const std::shared_ptr<ov::Model>& model,
-                                                   const MoEStructureInfo& structure_info,
-                                                   size_t num_experts,
-                                                   bool full_optimization = false);
+    // Apply expert transformation to the model based on configuration
+    // Returns transformed model with adjusted expert count and token dimensions
+    std::shared_ptr<ov::Model> apply_expert_transformation(const std::shared_ptr<ov::Model>& original_model,
+                                                           const MoETransformConfig& config) const;
+
+private:
+    // Helper methods for specific transformation steps
+
+    // Find Tile and Multiply nodes in cloned model by matching friendly names
+    struct KeyNodes {
+        std::shared_ptr<ov::op::v0::Tile> tile_node;
+        std::shared_ptr<ov::op::v1::Multiply> multiply_node;
+    };
+    std::optional<KeyNodes> find_key_nodes_in_cloned_model(const std::shared_ptr<ov::Model>& model) const;
+
+    std::pair<std::shared_ptr<ov::Node>, ov::Output<ov::Node>> find_matmul_and_predecessor(
+        ov::Output<ov::Node>& tile_output) const;
+
+    void replace_tile_with_new_tile(const ov::Output<ov::Node>& tile_input,
+                                    ov::Output<ov::Node>& node_before_matmul,
+                                    const std::string& friendly_name,
+                                    size_t num_target_experts) const;
+
+    void fix_output_reshapes(const std::shared_ptr<ov::Model>& model,
+                             size_t num_experts,
+                             size_t num_target_experts) const;
+
+    void ensure_tensor_names(const std::shared_ptr<ov::Model>& model) const;
+
+    void fix_parameters_with_num_experts(const std::shared_ptr<ov::Model>& model,
+                                         size_t num_experts,
+                                         size_t num_target_experts) const;
+
+    void fix_token_count_for_prefill(const std::shared_ptr<ov::Model>& model,
+                                     size_t num_target_experts,
+                                     size_t prefill_chunk_size,
+                                     const std::shared_ptr<ov::op::v0::Tile>& expert_input_tile_op,
+                                     const std::shared_ptr<ov::op::v1::Multiply>& router_scores_multiply_op) const;
+
+    // Unroll the MoE expert model on the expert dimension using GraphRewrite patterns
+    // This creates separate computation branches for each expert
+    // @param full_optimization If true, uses MoEExpertUnrolling (all optimizations)
+    //                          If false (default), uses MoEExpertUnrollingWeightsOnly
+    std::shared_ptr<ov::Model> unroll_expert_dimension(const std::shared_ptr<ov::Model>& model,
+                                                       size_t num_experts,
+                                                       bool full_optimization = false) const;
+
+    const MoEStructureInfo& m_structure_info;
+};
 
 // Helper function to detect and transform MoE downstream pattern
 // Looks for: Parameter -> Convert -> ReduceSum pattern
@@ -117,8 +165,7 @@ struct MoEExperts {
     size_t _chunk_token_count = 0;  // Chunk size for prefill mode (0 for decoding mode)
 
     // Transformation mode and target expert count
-    ExpertMode _mode = ExpertMode::SINGLE_EXPERT;  // Transformation mode
-    size_t _num_active_experts = 1;  // Number of active experts (1 for SINGLE_EXPERT, K for ACTIVE_EXPERTS)
+    size_t _num_active_experts = 1;  // Number of active experts (1 for single-expert/prefill, K for decoding)
 
     // Transformed expert models for different chunk sizes (chunk_size -> model)
     // For prefill: multiple models with different chunk sizes {32, 64, 128, 256, 512}
@@ -153,8 +200,14 @@ struct MoEExperts {
         return _num_active_experts;
     }
 
-    ExpertMode mode() const {
-        return _mode;
+    // Helper: Check if this is single expert mode (prefill)
+    bool is_single_expert() const {
+        return _num_active_experts == 1;
+    }
+
+    // Helper: Check if this is active experts mode (decoding)
+    bool is_active_experts() const {
+        return _num_active_experts > 1;
     }
 
     const std::map<size_t, std::shared_ptr<ov::Model>>& transformed_models() const {
@@ -185,14 +238,13 @@ struct MoEExperts {
     // Log MoE expert information for debugging
     void log_info() const {
         std::cout << "MoE Expert Information:" << std::endl;
-        std::cout << "  Mode: " << (_mode == ExpertMode::SINGLE_EXPERT ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS")
-                  << std::endl;
+        std::cout << "  Mode: " << (is_single_expert() ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS") << std::endl;
         std::cout << "  Number of experts: " << _num_experts << std::endl;
         std::cout << "  Number of active experts: " << _num_active_experts << std::endl;
         std::cout << "  Expert hidden dimension: " << _expert_hidden_dim << std::endl;
         std::cout << "  Input token count: " << _input_token_count << std::endl;
 
-        if (_mode == ExpertMode::ACTIVE_EXPERTS) {
+        if (is_active_experts()) {
             std::cout << "  Decoding mode: no chunking" << std::endl;
         } else {
             std::cout << "  Prefill mode - Available chunk sizes: ";
@@ -226,7 +278,6 @@ struct MoEExperts {
     size_t expert_hidden_dim = 0;
     size_t num_active_experts = 1;  // Number of active experts (1 for prefill, K for decoding)
     size_t input_token_count = 0;   // Number of input tokens (original total token count)
-    function::ExpertMode mode = function::ExpertMode::SINGLE_EXPERT;
 
     // Compiled expert models for different chunk sizes (chunk_size -> compiled_model)
     std::map<size_t, ov::SoPtr<ov::ICompiledModel>> _compiled_models;
