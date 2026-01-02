@@ -1677,21 +1677,45 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
         {"NPUW_UNFOLD_IREQS", "NO"},
     };
-    const bool prefill_enable_moe = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ENABLE_MOE>();
-    if (prefill_enable_moe) {
-        LOG_INFO("MoE architecture optimization for PREFILL stage is ENABLED");
+    // Check MoE hint for prefill stage
+    const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
+    if (prefill_moe_hint == ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED) {
+        LOG_INFO("MoE architecture optimization for PREFILL stage: HOST_ROUTED (host-side expert routing)");
         merge_config_with(prefill_config, expert_opts);
-    } else {
-        LOG_INFO("MoE architecture optimization for PREFILL stage is DISABLED");
+    } else if (prefill_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
+        NPUW_ASSERT(false && "MoE DEVICE_ROUTED for PREFILL is not yet implemented! "
+                             "DEVICE_ROUTED contains NPU-unfriendly operations (NonZero, ScatterElementsUpdate) "
+                             "which are not suitable for prefill stage.");
+    } else if (prefill_moe_hint == ::intel_npu::npuw::llm::MoEHint::DENSE) {
+        LOG_INFO("MoE architecture optimization for PREFILL stage: DENSE (all experts active)");
+        // DENSE mode requires CPU-only device due to extremely long NPU compilation time and high resource consumption
+        auto npuw_devices =
+            prefill_config.count("NPUW_DEVICES") ? prefill_config.at("NPUW_DEVICES").as<std::string>() : "NPU";
+        NPUW_ASSERT(npuw_devices == "CPU" &&
+                    "MoE DENSE mode requires CPU-only device (NPUW_DEVICES must be 'CPU'). "
+                    "DENSE activates all experts simultaneously, causing Extremely long NPU compilation time"
+                    "Please set NPUW_DEVICES to 'CPU'.");
     }
 
-    // Check if MoE architecture optimization should be enabled for generate
-    const bool generate_enable_moe = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_ENABLE_MOE>();
-    if (generate_enable_moe) {
-        LOG_INFO("MoE architecture optimization for GENERATE stage is ENABLED");
+    // Check MoE hint for generate stage
+    const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
+    if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED) {
+        LOG_INFO("MoE architecture optimization for GENERATE stage: HOST_ROUTED (host-side expert routing)");
         merge_config_with(generate_config, expert_opts);
-    } else {
-        LOG_INFO("MoE architecture optimization for GENERATE stage is DISABLED");
+    } else if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
+        NPUW_ASSERT(false && "MoE DEVICE_ROUTED for GENERATE is not yet implemented! "
+                             "DEVICE_ROUTED will use in-graph gather-based expert selection to avoid "
+                             "graph splitting and reduce host-device communication overhead. "
+                             "This feature is planned for future releases.");
+    } else if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DENSE) {
+        LOG_INFO("MoE architecture optimization for GENERATE stage: DENSE (all experts active)");
+        // DENSE mode requires CPU-only device due to extremely long NPU compilation time and high resource consumption
+        auto npuw_devices =
+            generate_config.count("NPUW_DEVICES") ? generate_config.at("NPUW_DEVICES").as<std::string>() : "NPU";
+        NPUW_ASSERT(npuw_devices == "CPU" &&
+                    "MoE DENSE mode requires CPU-only device (NPUW_DEVICES must be 'CPU'). "
+                    "DENSE activates all experts simultaneously, causing Extremely long NPU compilation time"
+                    "Please set NPUW_DEVICES to 'CPU'.");
     }
 
     // Note: with dynamic attention in EITHER STAGE, we have to
@@ -2238,8 +2262,8 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
-                          BIND(npuw::llm::prefill_enable_moe, NPUW_LLM_PREFILL_ENABLE_MOE, get),
-                          BIND(npuw::llm::generate_enable_moe, NPUW_LLM_GENERATE_ENABLE_MOE, get),
+                          BIND(npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT, get),
+                          BIND(npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT, get),
                           BIND(npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID, get),
                           BIND(npuw::llm::prefill_chunk_size, NPUW_LLM_PREFILL_CHUNK_SIZE, get),
                           BIND(npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT, getString),
