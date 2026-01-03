@@ -320,6 +320,34 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_expand_model_with_initializers) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_default) {
+    const auto model = convert_model("col2im_2D_default_opset_18.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input: [1, 4, 4]
+    std::vector<float> input_data = {
+        1.0f, 2.0f, 3.0f, 4.0f,
+        5.0f, 6.0f, 7.0f, 8.0f,
+        9.0f, 10.0f, 11.0f, 12.0f,
+        13.0f, 14.0f, 15.0f, 16.0f
+    };
+    test_case.add_input<float>(ov::Shape{1, 4, 4}, input_data);
+
+    // image_shape: [3, 3]
+    test_case.add_input<int64_t>(ov::Shape{2}, {3, 3});
+    // block_shape: [2, 2]
+    test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
+
+    // Expected Output: [1, 1, 3, 3]
+    std::vector<float> expected_output = {
+        1.0f,  7.0f,  6.0f,
+        12.0f, 34.0f, 22.0f,
+        11.0f, 27.0f, 16.0f
+    };
+    test_case.add_expected_output<float>(ov::Shape{1, 1, 3, 3}, expected_output);
+    test_case.run();
+}
+
 // ############################################################################ OPERATOR TESTS
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_addmul_abc) {
     auto model = convert_model("addmul_abc.onnx");
