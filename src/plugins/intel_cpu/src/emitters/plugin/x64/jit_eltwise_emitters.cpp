@@ -243,6 +243,12 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         case ov::element::i32:
             h->uni_vpsubd(vmm_dst, vmm_src0, vmm_src1);
             break;
+        case ov::element::u8:
+            // u8 subtraction uses vpsubb which naturally wraps around (mod 256).
+            // This gives correct behavior: e.g., 3 - 4 = 255.
+            // See https://github.com/openvinotoolkit/openvino/issues/33164
+            h->uni_vpsubb(vmm_dst, vmm_src0, vmm_src1);
+            break;
         default:
             OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
         }
@@ -258,7 +264,9 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
 std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}, {element::i32, element::i32}};
+    // u8 added to support wrap-around behavior for unsigned subtraction.
+    // See https://github.com/openvinotoolkit/openvino/issues/33164
+    return {{element::f32, element::f32}, {element::i32, element::i32}, {element::u8, element::u8}};
 }
 
 /// MULTIPLY ///
