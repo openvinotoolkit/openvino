@@ -8,6 +8,8 @@
 
 namespace intel_npu {
 
+class InvalidCRE : public ov::Exception {};
+
 class CRE final {
 public:
     using Token = uint16_t;
@@ -19,13 +21,6 @@ public:
 
     static inline const std::unordered_set<Token> RESERVED_TOKENS{AND, OR, OPEN, CLOSE};
 
-    static std::unordered_set<Token> plugin_capabilities;
-
-    // TODO tie this to the plugin object
-    static void register_plugin_capability(const Token capability_id);
-
-    static void check_plugin_capability(const Token capability_id);
-
     CRE();
 
     void append_to_expression(const CRE::Token requirement_token);
@@ -34,9 +29,17 @@ public:
 
     size_t write(std::ostream& stream);
 
-    // bool read_and_validate(std::istream& stream) override;
+    bool check_compatibility(const std::unordered_set<CRE::Token>& plugin_capabilities);
 
 private:
+    enum class Delimiter { PARRENTHESIS, NOT_CAPABILITY_ID, SIZE };
+
+    bool end_condition(const std::vector<Token>::const_iterator& expression_iterator, const Delimiter end_delimiter);
+
+    bool evaluate(std::vector<Token>::const_iterator& expression_iterator,
+                  const std::unordered_set<CRE::Token>& plugin_capabilities,
+                  const Delimiter end_delimiter);
+
     std::vector<Token> m_expression;
 };
 

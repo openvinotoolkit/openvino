@@ -9,6 +9,7 @@
 #include <string>
 
 #include "backends_registry.hpp"
+#include "cre.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
@@ -73,6 +74,10 @@ private:
                                      const std::unique_ptr<ICompilerAdapter>& compiler,
                                      OptionMode mode = OptionMode::Both) const;
 
+    void register_capability(const CRE::Token capability_id);
+
+    std::vector<CRE::Token> get_capabilities_ids();
+
     /**
      * @brief Parses the compiled model found within the stream and tensor and returns a wrapper over the L0 handle that
      * can be used for running predictions.
@@ -100,6 +105,7 @@ private:
     mutable Logger _logger;
     std::shared_ptr<Metrics> _metrics;
     std::unique_ptr<Properties> _properties;
+    std::vector<CRE::Token> _capabilitiesIDs;
 
     static std::atomic<int> _compiledModelLoadCounter;
     mutable std::mutex _mutex;

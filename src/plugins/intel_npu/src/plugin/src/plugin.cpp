@@ -1206,6 +1206,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, batchSize);
 }
 
+void Plugin::register_capability(const CRE::Token capability_id) {
+    _capabilitiesIDs.push_back(capability_id);
+}
+
+std::vector<CRE::Token> Plugin::get_capabilities_ids() {
+    return _capabilitiesIDs;
+}
+
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};
 
 static const ov::Version version = {CI_BUILD_NUMBER, NPU_PLUGIN_LIB_NAME};

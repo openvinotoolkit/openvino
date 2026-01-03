@@ -25,7 +25,7 @@ public:
 
     void write(std::ostream& stream, const std::shared_ptr<IGraph>& graph);
 
-    void append_compatibility_requirement(const CREToken requirement_token);
+    void append_compatibility_requirement(const CRE::Token requirement_token);
 
     size_t offset = 0;
 
