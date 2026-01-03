@@ -4,4 +4,12 @@
 
 #include "isection.hpp"
 
-namespace intel_npu {}  // namespace intel_npu
+namespace intel_npu {
+
+ISection::ISection(const SectionID section_id) : m_section_id(section_id) {}
+
+ISection::SectionID ISection::get_section_id() {
+    return m_section_id;
+}
+
+}  // namespace intel_npu

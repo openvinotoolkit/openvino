@@ -27,7 +27,7 @@ public:
     SectionID get_section_id();
 
 private:
-    SectionID section_id;
+    SectionID m_section_id;
 };
 
 }  // namespace intel_npu

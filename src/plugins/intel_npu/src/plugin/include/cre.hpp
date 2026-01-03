@@ -12,8 +12,6 @@ using CREToken = uint16_t;
 
 class CRESection final : public ISection {
 public:
-    static constexpr SectionID id = 100;
-
     CRESection();
 
     void write(std::ostream& stream, BlobWriter* writer) override;
@@ -23,7 +21,7 @@ public:
     void append_to_expression(const CREToken requirement_token);
 
 private:
-    std::vector<CREToken> expression;
+    std::vector<CREToken> m_expression;
 };
 
 }  // namespace intel_npu
