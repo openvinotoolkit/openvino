@@ -24,12 +24,146 @@ namespace ov {
 namespace npuw {
 namespace pass {
 
+namespace {
+
+// =============================================================================
+// Common Helper Functions
+// =============================================================================
+
+/**
+ * @brief Skip Convert node if present and return the underlying input
+ */
+inline ov::Output<ov::Node> skip_convert(ov::Output<ov::Node> out) {
+    if (auto conv = std::dynamic_pointer_cast<ov::opset1::Convert>(out.get_node_shared_ptr())) {
+        return conv->input_value(0);
+    }
+    return out;
+}
+
+/**
+ * @brief Calculate total number of elements in a shape
+ */
+inline size_t calc_total_size(const ov::PartialShape& shape) {
+    if (!shape.rank().is_static())
+        return 0;
+    size_t total = 1;
+    for (int64_t i = 0; i < shape.rank().get_length(); ++i) {
+        if (shape[i].is_static()) {
+            total *= shape[i].get_length();
+        }
+    }
+    return total;
+}
+
+/**
+ * @brief Extract Parameter node from output, skipping intermediate Convert if present
+ */
+inline std::shared_ptr<ov::op::v0::Parameter> get_param_node(ov::Output<ov::Node> out) {
+    auto skipped = skip_convert(out);
+    return std::dynamic_pointer_cast<ov::op::v0::Parameter>(skipped.get_node_shared_ptr());
+}
+
+/**
+ * @brief Context for creating expert branch with scale and weights parameters
+ */
+struct ExpertBranchContext {
+    size_t expert_idx;
+    std::shared_ptr<ov::op::v0::Parameter> scale_param;
+    std::shared_ptr<ov::op::v0::Parameter> weights_param;
+    ov::Output<ov::Node> scale_param_source;
+    ov::Output<ov::Node> weights_param_source;
+    std::shared_ptr<ov::opset1::Multiply> multiply_node;
+    std::shared_ptr<ov::opset1::Convert> convert_after_multiply;
+    std::shared_ptr<ov::opset1::MatMul> matmul;
+    ov::Shape scale_new_shape;
+    ov::Shape weights_new_shape;
+};
+
+/**
+ * @brief Create expert branch: parameters → convert → multiply → convert → weights output
+ *
+ * This helper function encapsulates the common logic for creating per-expert parameters
+ * and weight computation chain used in both UnrollBatchedMatMul and UnrollConcatMatMul.
+ *
+ * @param ctx Context containing all necessary information for creating the branch
+ * @param new_params Output vector to collect newly created parameters
+ * @return Processed weights ready for MatMul operation
+ */
+inline ov::Output<ov::Node> create_expert_branch_weights(const ExpertBranchContext& ctx,
+                                                         ov::ParameterVector& new_params) {
+    // 1. Create new scale parameter
+    auto new_scale_param = std::make_shared<ov::op::v0::Parameter>(ctx.scale_param->get_element_type(),
+                                                                   ov::PartialShape(ctx.scale_new_shape));
+    new_scale_param->set_friendly_name(ctx.scale_param->get_friendly_name() + "/expert_" +
+                                       std::to_string(ctx.expert_idx));
+    new_scale_param->get_rt_info()["moe_original_param"] = ctx.scale_param->get_friendly_name();
+    new_scale_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(ctx.expert_idx);
+    new_params.push_back(new_scale_param);
+
+    // 2. Create new weights parameter
+    auto new_weights_param = std::make_shared<ov::op::v0::Parameter>(ctx.weights_param->get_element_type(),
+                                                                     ov::PartialShape(ctx.weights_new_shape));
+    new_weights_param->set_friendly_name(ctx.weights_param->get_friendly_name() + "/expert_" +
+                                         std::to_string(ctx.expert_idx));
+    new_weights_param->get_rt_info()["moe_original_param"] = ctx.weights_param->get_friendly_name();
+    new_weights_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(ctx.expert_idx);
+    new_params.push_back(new_weights_param);
+
+    // 3. Apply Convert to weights if needed
+    ov::Output<ov::Node> weights_for_multiply;
+    if (auto weights_convert =
+            std::dynamic_pointer_cast<ov::opset1::Convert>(ctx.weights_param_source.get_node_shared_ptr())) {
+        auto new_weights_convert =
+            std::make_shared<ov::opset1::Convert>(new_weights_param, weights_convert->get_destination_type());
+        new_weights_convert->set_friendly_name(weights_convert->get_friendly_name() + "/expert_" +
+                                               std::to_string(ctx.expert_idx));
+        weights_for_multiply = new_weights_convert->output(0);
+    } else {
+        weights_for_multiply = new_weights_param->output(0);
+    }
+
+    // 4. Apply Convert to scale if needed
+    ov::Output<ov::Node> scale_for_multiply;
+    if (auto scale_convert =
+            std::dynamic_pointer_cast<ov::opset1::Convert>(ctx.scale_param_source.get_node_shared_ptr())) {
+        auto new_scale_convert =
+            std::make_shared<ov::opset1::Convert>(new_scale_param, scale_convert->get_destination_type());
+        new_scale_convert->set_friendly_name(scale_convert->get_friendly_name() + "/expert_" +
+                                             std::to_string(ctx.expert_idx));
+        scale_for_multiply = new_scale_convert->output(0);
+    } else {
+        scale_for_multiply = new_scale_param->output(0);
+    }
+
+    // 5. Multiply: scale * weights
+    auto new_multiply = std::make_shared<ov::opset1::Multiply>(scale_for_multiply, weights_for_multiply);
+    new_multiply->set_friendly_name(ctx.multiply_node->get_friendly_name() + "/expert_" +
+                                    std::to_string(ctx.expert_idx));
+
+    // 6. Convert after Multiply if needed
+    if (ctx.convert_after_multiply) {
+        auto new_convert_after_multiply =
+            std::make_shared<ov::opset1::Convert>(new_multiply, ctx.convert_after_multiply->get_destination_type());
+        new_convert_after_multiply->set_friendly_name(ctx.convert_after_multiply->get_friendly_name() + "/expert_" +
+                                                      std::to_string(ctx.expert_idx));
+        return new_convert_after_multiply->output(0);
+    }
+    return new_multiply->output(0);
+}
+
+}  // anonymous namespace
+
 // =============================================================================
 // UnrollBatchedMatMul
 // =============================================================================
 // Matches MoE expert MatMul pattern and unrolls batched dimension to N branches
 // Pattern: input_param → convert → tile → reshape ─────────────┐
 //          scale_param + weights_param → multiply → convert ───┤→ MatMul
+//
+// CONSTRAINTS:
+//   - Expert dimension MUST be at position 0 (first dimension) in parameter shapes
+//   - scale_param shape: [num_experts, ...], weights_param shape: [num_experts, ...]
+//   - reshape output shape[0] must equal num_experts
 //
 // Transforms to N expert branches with Concat output
 
@@ -53,20 +187,8 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
         LOG_DEBUG("  Input0 type: " << matmul_input0.get_node_shared_ptr()->get_type_name());
         LOG_DEBUG("  Input1 type: " << matmul_input1.get_node_shared_ptr()->get_type_name());
 
-        // Check input0: Reshape (possibly through Squeeze/Convert)
-        auto input0_node = matmul_input0.get_node_shared_ptr();
-        auto reshape_node = std::dynamic_pointer_cast<ov::opset1::Reshape>(input0_node);
-
-        if (!reshape_node) {
-            if (auto squeeze = std::dynamic_pointer_cast<ov::opset1::Squeeze>(input0_node)) {
-                reshape_node =
-                    std::dynamic_pointer_cast<ov::opset1::Reshape>(squeeze->input_value(0).get_node_shared_ptr());
-            } else if (auto convert = std::dynamic_pointer_cast<ov::opset1::Convert>(input0_node)) {
-                reshape_node =
-                    std::dynamic_pointer_cast<ov::opset1::Reshape>(convert->input_value(0).get_node_shared_ptr());
-            }
-        }
-
+        // Check input0: Reshape
+        auto reshape_node = std::dynamic_pointer_cast<ov::opset1::Reshape>(matmul_input0.get_node_shared_ptr());
         if (!reshape_node) {
             LOG_DEBUG("  Input0 is not Reshape, skipping");
             return false;
@@ -109,27 +231,6 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
         auto multiply_input0 = multiply_weights_node->input_value(0);
         auto multiply_input1 = multiply_weights_node->input_value(1);
 
-        // Helper: Skip Convert operation to access underlying Parameter node
-        auto skip_convert = [](ov::Output<ov::Node> out) -> ov::Output<ov::Node> {
-            if (auto conv = std::dynamic_pointer_cast<ov::opset1::Convert>(out.get_node_shared_ptr())) {
-                return conv->input_value(0);
-            }
-            return out;
-        };
-
-        // Helper: Calculate total number of elements in a shape for size comparison
-        auto calc_total_size = [](const ov::PartialShape& shape) -> size_t {
-            if (!shape.rank().is_static())
-                return 0;
-            size_t total = 1;
-            for (int64_t i = 0; i < shape.rank().get_length(); ++i) {
-                if (shape[i].is_static()) {
-                    total *= shape[i].get_length();
-                }
-            }
-            return total;
-        };
-
         auto mult_in0_skip_convert = skip_convert(multiply_input0);
         auto mult_in1_skip_convert = skip_convert(multiply_input1);
 
@@ -151,15 +252,6 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
         LOG_INFO("                  scale_param + weights_param → multiply → MatMul");
         LOG_INFO("  Creating " << num_experts_ << " expert branches...");
 
-        // Helper: Extract Parameter node, skipping intermediate Convert if present
-        auto get_param_node = [](ov::Output<ov::Node> out) -> std::shared_ptr<ov::op::v0::Parameter> {
-            auto node = out.get_node_shared_ptr();
-            if (auto conv = std::dynamic_pointer_cast<ov::opset1::Convert>(node)) {
-                node = conv->input_value(0).get_node_shared_ptr();
-            }
-            return std::dynamic_pointer_cast<ov::op::v0::Parameter>(node);
-        };
-
         auto scale_param = get_param_node(scale_param_source);
         auto weights_param = get_param_node(weights_param_source);
 
@@ -171,131 +263,84 @@ UnrollBatchedMatMul::UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov:
         // Calculate per-expert parameter shapes by splitting expert dimension
         // Original: [num_experts, dim1, dim2, ...] → Per-expert: [1, dim1, dim2, ...]
         // This splits batched parameters into individual expert parameters
+        // CONSTRAINT: Expert dimension MUST be at position 0 (first dimension)
         auto scale_orig_shape = scale_param->get_partial_shape().to_shape();
         auto weights_orig_shape = weights_param->get_partial_shape().to_shape();
 
-        // Find which dimension contains num_experts (usually dimension 0)
-        size_t expert_dim = 0;
-        for (size_t i = 0; i < scale_orig_shape.size(); ++i) {
-            if (scale_orig_shape[i] == num_experts_) {
-                expert_dim = i;
-                break;
-            }
+        // Validate: expert dimension must be at position 0 and match num_experts
+        if (scale_orig_shape.empty() || scale_orig_shape[0] != num_experts_) {
+            LOG_DEBUG("  Scale parameter first dimension " << (scale_orig_shape.empty() ? 0 : scale_orig_shape[0])
+                                                           << " does not match num_experts " << num_experts_
+                                                           << ", skipping");
+            return false;
+        }
+        if (weights_orig_shape.empty() || weights_orig_shape[0] != num_experts_) {
+            LOG_DEBUG("  Weights parameter first dimension " << (weights_orig_shape.empty() ? 0 : weights_orig_shape[0])
+                                                             << " does not match num_experts " << num_experts_
+                                                             << ", skipping");
+            return false;
         }
 
         ov::Shape scale_new_shape = scale_orig_shape;
         ov::Shape weights_new_shape = weights_orig_shape;
-        scale_new_shape[expert_dim] = 1;
-        weights_new_shape[expert_dim] = 1;
+        scale_new_shape[0] = 1;  // Expert dimension is always at position 0
+        weights_new_shape[0] = 1;
 
         LOG_INFO("  Original scale shape: " << scale_orig_shape << " → " << scale_new_shape);
         LOG_INFO("  Original weights shape: " << weights_orig_shape << " → " << weights_new_shape);
+
+        // Create shared Convert and Reshape for all expert branches
+        // Validate reshape shape: first dimension must exactly equal num_experts
+        auto orig_reshape_shape_const =
+            std::dynamic_pointer_cast<ov::opset1::Constant>(reshape_node->input_value(1).get_node_shared_ptr());
+        if (!orig_reshape_shape_const) {
+            LOG_ERROR("  Reshape shape is not a Constant");
+            return false;
+        }
+
+        auto orig_shape_vec = orig_reshape_shape_const->cast_vector<int64_t>();
+        if (orig_shape_vec.empty() || orig_shape_vec[0] != static_cast<int64_t>(num_experts_)) {
+            LOG_DEBUG("  Reshape first dimension " << (orig_shape_vec.empty() ? 0 : orig_shape_vec[0])
+                                                   << " does not match num_experts " << num_experts_ << ", skipping");
+            return false;
+        }
+
+        // Create shared Convert: input_param → convert
+        auto shared_convert =
+            std::make_shared<ov::opset1::Convert>(input_param_source, convert_input_node->get_destination_type());
+        shared_convert->set_friendly_name(convert_input_node->get_friendly_name() + "/shared");
+
+        // Create shared Reshape: convert → reshape[1, ...]
+        // Change first dimension from num_experts to 1
+        std::vector<int64_t> new_shape_vec = orig_shape_vec;
+        new_shape_vec[0] = 1;
+
+        auto new_reshape_shape_const =
+            std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{new_shape_vec.size()}, new_shape_vec);
+        auto shared_reshape =
+            std::make_shared<ov::opset1::Reshape>(shared_convert->output(0), new_reshape_shape_const, false);
+        shared_reshape->set_friendly_name(reshape_node->get_friendly_name() + "/shared");
 
         ov::NodeVector expert_outputs;
         ov::ParameterVector new_params;
 
         for (size_t expert_idx = 0; expert_idx < num_experts_; ++expert_idx) {
-            // 1. Convert input
-            auto new_convert =
-                std::make_shared<ov::opset1::Convert>(input_param_source, convert_input_node->get_destination_type());
-            new_convert->set_friendly_name(convert_input_node->get_friendly_name() + "/expert_" +
-                                           std::to_string(expert_idx));
+            // Create expert branch weights using helper function
+            ExpertBranchContext ctx{expert_idx,
+                                    scale_param,
+                                    weights_param,
+                                    scale_param_source,
+                                    weights_param_source,
+                                    multiply_weights_node,
+                                    convert_after_multiply,
+                                    matmul,
+                                    scale_new_shape,
+                                    weights_new_shape};
 
-            // 2. Create per-expert Reshape with adjusted target shape
-            // Only handle case where first dimension exactly equals num_experts
-            // Original reshape: [num_experts, ...] → Per-expert reshape: [1, ...]
-            auto orig_reshape_shape_const =
-                std::dynamic_pointer_cast<ov::opset1::Constant>(reshape_node->input_value(1).get_node_shared_ptr());
-            if (!orig_reshape_shape_const) {
-                LOG_ERROR("  Reshape shape is not a Constant");
-                return false;
-            }
+            auto weights_for_matmul = create_expert_branch_weights(ctx, new_params);
 
-            auto orig_shape_vec = orig_reshape_shape_const->cast_vector<int64_t>();
-
-            // Validate: first dimension must exactly equal num_experts
-            if (orig_shape_vec.empty() || orig_shape_vec[0] != static_cast<int64_t>(num_experts_)) {
-                LOG_DEBUG("  Reshape first dimension " << (orig_shape_vec.empty() ? 0 : orig_shape_vec[0])
-                                                       << " does not match num_experts " << num_experts_
-                                                       << ", skipping");
-                return false;
-            }
-
-            std::vector<int64_t> new_shape_vec = orig_shape_vec;
-            new_shape_vec[0] = 1;  // Change first dimension from num_experts to 1
-
-            auto new_reshape_shape_const = std::make_shared<ov::opset1::Constant>(ov::element::i64,
-                                                                                  ov::Shape{new_shape_vec.size()},
-                                                                                  new_shape_vec);
-            auto new_reshape =
-                std::make_shared<ov::opset1::Reshape>(new_convert->output(0), new_reshape_shape_const, false);
-            new_reshape->set_friendly_name(reshape_node->get_friendly_name() + "/expert_" + std::to_string(expert_idx));
-
-            // 3. Create new scale parameter
-            auto new_scale_param = std::make_shared<ov::op::v0::Parameter>(scale_param->get_element_type(),
-                                                                           ov::PartialShape(scale_new_shape));
-            new_scale_param->set_friendly_name(scale_param->get_friendly_name() + "/expert_" +
-                                               std::to_string(expert_idx));
-            // Add RTInfo for parameter mapping
-            new_scale_param->get_rt_info()["moe_original_param"] = scale_param->get_friendly_name();
-            new_scale_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(expert_idx);
-            new_params.push_back(new_scale_param);
-
-            // 4. Create new weights parameter
-            auto new_weights_param = std::make_shared<ov::op::v0::Parameter>(weights_param->get_element_type(),
-                                                                             ov::PartialShape(weights_new_shape));
-            new_weights_param->set_friendly_name(weights_param->get_friendly_name() + "/expert_" +
-                                                 std::to_string(expert_idx));
-            // Add RTInfo for parameter mapping
-            new_weights_param->get_rt_info()["moe_original_param"] = weights_param->get_friendly_name();
-            new_weights_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(expert_idx);
-            new_params.push_back(new_weights_param);
-
-            // 5. Apply Convert to weights if needed
-            ov::Output<ov::Node> weights_for_multiply;
-            if (auto weights_convert =
-                    std::dynamic_pointer_cast<ov::opset1::Convert>(weights_param_source.get_node_shared_ptr())) {
-                auto new_weights_convert =
-                    std::make_shared<ov::opset1::Convert>(new_weights_param, weights_convert->get_destination_type());
-                new_weights_convert->set_friendly_name(weights_convert->get_friendly_name() + "/expert_" +
-                                                       std::to_string(expert_idx));
-                weights_for_multiply = new_weights_convert->output(0);
-            } else {
-                weights_for_multiply = new_weights_param->output(0);
-            }
-
-            // 6. Apply Convert to scale if needed
-            ov::Output<ov::Node> scale_for_multiply;
-            if (auto scale_convert =
-                    std::dynamic_pointer_cast<ov::opset1::Convert>(scale_param_source.get_node_shared_ptr())) {
-                auto new_scale_convert =
-                    std::make_shared<ov::opset1::Convert>(new_scale_param, scale_convert->get_destination_type());
-                new_scale_convert->set_friendly_name(scale_convert->get_friendly_name() + "/expert_" +
-                                                     std::to_string(expert_idx));
-                scale_for_multiply = new_scale_convert->output(0);
-            } else {
-                scale_for_multiply = new_scale_param->output(0);
-            }
-
-            // 7. Multiply: scale * weights
-            auto new_multiply = std::make_shared<ov::opset1::Multiply>(scale_for_multiply, weights_for_multiply);
-            new_multiply->set_friendly_name(multiply_weights_node->get_friendly_name() + "/expert_" +
-                                            std::to_string(expert_idx));
-
-            // 8. Convert after Multiply if needed
-            ov::Output<ov::Node> weights_for_matmul;
-            if (convert_after_multiply) {
-                auto new_convert_after_multiply =
-                    std::make_shared<ov::opset1::Convert>(new_multiply, convert_after_multiply->get_destination_type());
-                new_convert_after_multiply->set_friendly_name(convert_after_multiply->get_friendly_name() + "/expert_" +
-                                                              std::to_string(expert_idx));
-                weights_for_matmul = new_convert_after_multiply->output(0);
-            } else {
-                weights_for_matmul = new_multiply->output(0);
-            }
-
-            // 9. MatMul
-            auto new_matmul = std::make_shared<ov::opset1::MatMul>(new_reshape,
+            // MatMul: shared_reshape × weights
+            auto new_matmul = std::make_shared<ov::opset1::MatMul>(shared_reshape,
                                                                    weights_for_matmul,
                                                                    matmul->get_transpose_a(),
                                                                    matmul->get_transpose_b());
@@ -820,23 +865,9 @@ UnrollConcatMatMul::UnrollConcatMatMul(std::shared_ptr<ov::Model> model) : model
 
             // Avoid conflict with UnrollBatchedMatMul pattern
             // UnrollBatchedMatMul handles: input_param → convert → tile → reshape → MatMul
-            // Check if input0 matches that pattern and skip if so
-            auto input0_node = matmul_input0.get_node_shared_ptr();
-
-            // Check for Reshape (possibly through Squeeze/Convert)
-            std::shared_ptr<ov::opset1::Reshape> reshape_check;
-            if (auto reshape = std::dynamic_pointer_cast<ov::opset1::Reshape>(input0_node)) {
-                reshape_check = reshape;
-            } else if (auto squeeze = std::dynamic_pointer_cast<ov::opset1::Squeeze>(input0_node)) {
-                reshape_check =
-                    std::dynamic_pointer_cast<ov::opset1::Reshape>(squeeze->input_value(0).get_node_shared_ptr());
-            } else if (auto convert = std::dynamic_pointer_cast<ov::opset1::Convert>(input0_node)) {
-                reshape_check =
-                    std::dynamic_pointer_cast<ov::opset1::Reshape>(convert->input_value(0).get_node_shared_ptr());
-            }
-
-            // If we found Reshape → Tile → Convert chain, this is UnrollBatchedMatMul's pattern
-            if (reshape_check) {
+            // Check if input0 is Reshape → Tile → Convert chain
+            if (auto reshape_check =
+                    std::dynamic_pointer_cast<ov::opset1::Reshape>(matmul_input0.get_node_shared_ptr())) {
                 auto tile_check =
                     std::dynamic_pointer_cast<ov::opset1::Tile>(reshape_check->input_value(0).get_node_shared_ptr());
                 if (tile_check) {
@@ -870,27 +901,6 @@ UnrollConcatMatMul::UnrollConcatMatMul(std::shared_ptr<ov::Model> model) : model
         auto multiply_input0 = multiply_node->input_value(0);
         auto multiply_input1 = multiply_node->input_value(1);
 
-        // Helper: skip Convert to get to Parameter
-        auto skip_convert = [](ov::Output<ov::Node> out) -> ov::Output<ov::Node> {
-            if (auto conv = std::dynamic_pointer_cast<ov::opset1::Convert>(out.get_node_shared_ptr())) {
-                return conv->input_value(0);
-            }
-            return out;
-        };
-
-        // Helper: calculate total size
-        auto calc_total_size = [](const ov::PartialShape& shape) -> size_t {
-            if (!shape.rank().is_static())
-                return 0;
-            size_t total = 1;
-            for (int64_t i = 0; i < shape.rank().get_length(); ++i) {
-                if (shape[i].is_static()) {
-                    total *= shape[i].get_length();
-                }
-            }
-            return total;
-        };
-
         auto mult_in0_skip_convert = skip_convert(multiply_input0);
         auto mult_in1_skip_convert = skip_convert(multiply_input1);
 
@@ -906,15 +916,6 @@ UnrollConcatMatMul::UnrollConcatMatMul(std::shared_ptr<ov::Model> model) : model
             weights_param_source = multiply_input1;
             scale_param_source = multiply_input0;
         }
-
-        // Extract parameter nodes
-        auto get_param_node = [](ov::Output<ov::Node> out) -> std::shared_ptr<ov::op::v0::Parameter> {
-            auto node = out.get_node_shared_ptr();
-            if (auto conv = std::dynamic_pointer_cast<ov::opset1::Convert>(node)) {
-                node = conv->input_value(0).get_node_shared_ptr();
-            }
-            return std::dynamic_pointer_cast<ov::op::v0::Parameter>(node);
-        };
 
         auto scale_param = get_param_node(scale_param_source);
         auto weights_param = get_param_node(weights_param_source);
@@ -1053,73 +1054,24 @@ UnrollConcatMatMul::UnrollConcatMatMul(std::shared_ptr<ov::Model> model) : model
         ov::ParameterVector new_params;
 
         for (size_t expert_idx = 0; expert_idx < num_branches; ++expert_idx) {
-            // 1. Get input0 branch (from Concat or Slice)
+            // Get input0 branch (from Concat or Slice)
             auto input0_branch = input0_branches[expert_idx];
 
-            // 2. Create new scale parameter
-            auto new_scale_param = std::make_shared<ov::op::v0::Parameter>(scale_param->get_element_type(),
-                                                                           ov::PartialShape(scale_new_shape));
-            new_scale_param->set_friendly_name(scale_param->get_friendly_name() + "/expert_" +
-                                               std::to_string(expert_idx));
-            // Add RTInfo for parameter mapping
-            new_scale_param->get_rt_info()["moe_original_param"] = scale_param->get_friendly_name();
-            new_scale_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(expert_idx);
-            new_params.push_back(new_scale_param);
+            // Create expert branch weights using helper function
+            ExpertBranchContext ctx{expert_idx,
+                                    scale_param,
+                                    weights_param,
+                                    scale_param_source,
+                                    weights_param_source,
+                                    multiply_node,
+                                    convert_after_multiply,
+                                    matmul,
+                                    scale_new_shape,
+                                    weights_new_shape};
 
-            // 3. Create new weights parameter
-            auto new_weights_param = std::make_shared<ov::op::v0::Parameter>(weights_param->get_element_type(),
-                                                                             ov::PartialShape(weights_new_shape));
-            new_weights_param->set_friendly_name(weights_param->get_friendly_name() + "/expert_" +
-                                                 std::to_string(expert_idx));
-            // Add RTInfo for parameter mapping
-            new_weights_param->get_rt_info()["moe_original_param"] = weights_param->get_friendly_name();
-            new_weights_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(expert_idx);
-            new_params.push_back(new_weights_param);
+            auto weights_for_matmul = create_expert_branch_weights(ctx, new_params);
 
-            // 4. Apply Convert to weights if needed
-            ov::Output<ov::Node> weights_for_multiply;
-            if (auto weights_convert =
-                    std::dynamic_pointer_cast<ov::opset1::Convert>(weights_param_source.get_node_shared_ptr())) {
-                auto new_weights_convert =
-                    std::make_shared<ov::opset1::Convert>(new_weights_param, weights_convert->get_destination_type());
-                new_weights_convert->set_friendly_name(weights_convert->get_friendly_name() + "/expert_" +
-                                                       std::to_string(expert_idx));
-                weights_for_multiply = new_weights_convert->output(0);
-            } else {
-                weights_for_multiply = new_weights_param->output(0);
-            }
-
-            // 5. Apply Convert to scale if needed
-            ov::Output<ov::Node> scale_for_multiply;
-            if (auto scale_convert =
-                    std::dynamic_pointer_cast<ov::opset1::Convert>(scale_param_source.get_node_shared_ptr())) {
-                auto new_scale_convert =
-                    std::make_shared<ov::opset1::Convert>(new_scale_param, scale_convert->get_destination_type());
-                new_scale_convert->set_friendly_name(scale_convert->get_friendly_name() + "/expert_" +
-                                                     std::to_string(expert_idx));
-                scale_for_multiply = new_scale_convert->output(0);
-            } else {
-                scale_for_multiply = new_scale_param->output(0);
-            }
-
-            // 6. Multiply: scale * weights
-            auto new_multiply = std::make_shared<ov::opset1::Multiply>(scale_for_multiply, weights_for_multiply);
-            new_multiply->set_friendly_name(multiply_node->get_friendly_name() + "/expert_" +
-                                            std::to_string(expert_idx));
-
-            // 7. Convert after Multiply if needed
-            ov::Output<ov::Node> weights_for_matmul;
-            if (convert_after_multiply) {
-                auto new_convert_after_multiply =
-                    std::make_shared<ov::opset1::Convert>(new_multiply, convert_after_multiply->get_destination_type());
-                new_convert_after_multiply->set_friendly_name(convert_after_multiply->get_friendly_name() + "/expert_" +
-                                                              std::to_string(expert_idx));
-                weights_for_matmul = new_convert_after_multiply->output(0);
-            } else {
-                weights_for_matmul = new_multiply->output(0);
-            }
-
-            // 8. MatMul: input0_branch × weights
+            // MatMul: input0_branch × weights
             auto new_matmul = std::make_shared<ov::opset1::MatMul>(input0_branch,
                                                                    weights_for_matmul,
                                                                    matmul->get_transpose_a(),
@@ -1347,69 +1299,6 @@ FuseConcatReduceSum::FuseConcatReduceSum() {
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(reduce_sum_pattern, matcher_name);
-    register_matcher(m, callback);
-}
-
-// =============================================================================
-// UnrollExpertReshape
-// =============================================================================
-// Transforms: Tile → Reshape[num_experts,1,hidden]  =>  N×Reshape[1,1,hidden] → Concat
-// Purpose: Unrolls expert dimension in Reshape to enable per-expert optimization
-// Requirements:
-//   - Reshape output must be 3D with shape [num_experts, 1, hidden_dim]
-//   - First dimension must equal num_experts
-// Output: Creates N separate Reshape operations, one per expert, concatenated on axis 0
-
-UnrollExpertReshape::UnrollExpertReshape(size_t num_experts) : num_experts_(num_experts) {
-    MATCHER_SCOPE(UnrollExpertReshape);
-
-    auto tile_pattern = ov::pass::pattern::wrap_type<ov::opset1::Tile>();
-    auto reshape_pattern =
-        ov::pass::pattern::wrap_type<ov::opset1::Reshape>({tile_pattern, ov::pass::pattern::any_input()});
-
-    auto callback = [this, tile_pattern](ov::pass::pattern::Matcher& m) {
-        auto& pm = m.get_pattern_value_map();
-        auto reshape = std::dynamic_pointer_cast<ov::opset1::Reshape>(m.get_match_root());
-        auto tile = std::dynamic_pointer_cast<ov::opset1::Tile>(pm.at(tile_pattern).get_node_shared_ptr());
-
-        if (!reshape || !tile)
-            return false;
-
-        auto reshape_output_shape = reshape->get_output_partial_shape(0);
-        if (!reshape_output_shape.rank().is_static() || reshape_output_shape.rank().get_length() != 3 ||
-            !reshape_output_shape[0].is_static() ||
-            reshape_output_shape[0].get_length() != static_cast<int64_t>(num_experts_)) {
-            return false;
-        }
-
-        LOG_INFO("UnrollExpertReshape: Unrolling Reshape after Tile");
-
-        auto tile_input = tile->input_value(0);
-        ov::NodeVector expert_reshapes;
-
-        for (size_t expert_idx = 0; expert_idx < num_experts_; ++expert_idx) {
-            auto new_shape_const = std::make_shared<ov::opset1::Constant>(
-                ov::element::i64,
-                ov::Shape{3},
-                std::vector<int64_t>{1, 1, static_cast<int64_t>(reshape_output_shape[2].get_length())});
-
-            auto expert_reshape = std::make_shared<ov::opset1::Reshape>(tile_input, new_shape_const, false);
-            expert_reshape->set_friendly_name(reshape->get_friendly_name() + "/expert_" + std::to_string(expert_idx));
-            expert_reshapes.push_back(expert_reshape);
-        }
-
-        auto concat = std::make_shared<ov::opset1::Concat>(expert_reshapes, 0);
-        concat->set_friendly_name(reshape->get_friendly_name() + "/concat");
-
-        ov::NodeVector from_nodes = {tile, reshape};
-        ov::copy_runtime_info(from_nodes, concat);
-        ov::replace_node(reshape, concat);
-
-        LOG_INFO("  Created " << num_experts_ << " expert Reshape branches");
-        return true;
-    };
-
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
