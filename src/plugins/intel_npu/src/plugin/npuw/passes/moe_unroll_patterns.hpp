@@ -152,27 +152,6 @@ public:
 };
 
 // =============================================================================
-// UnrollExpertReshape: Unroll expert Reshape operations
-// =============================================================================
-/**
- * @brief Unrolls batched Reshape after Tile into per-expert branches
- *
- * Requirement: Reshape output shape must be [num_experts, 1, hidden_dim]
- * Transforms: Tile → Reshape[N,1,H] → N×Reshape[1,1,H] → Concat
- *
- * @param num_experts Number of experts to unroll
- */
-
-class UnrollExpertReshape : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::pass::UnrollExpertReshape");
-    explicit UnrollExpertReshape(size_t num_experts);
-
-private:
-    size_t num_experts_;
-};
-
-// =============================================================================
 // UnrollConcatMatMul: Unroll MatMul with Concat input and parameter weights
 // =============================================================================
 /**
