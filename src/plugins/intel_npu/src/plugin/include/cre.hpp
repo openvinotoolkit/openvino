@@ -32,7 +32,7 @@ public:
     bool check_compatibility(const std::unordered_set<CRE::Token>& plugin_capabilities);
 
 private:
-    enum class Delimiter { PARRENTHESIS, NOT_CAPABILITY_ID, SIZE };
+    enum class Delimiter { PARRENTHESIS, SIZE, NOT_CAPABILITY_ID };
 
     bool end_condition(const std::vector<Token>::const_iterator& expression_iterator, const Delimiter end_delimiter);
 

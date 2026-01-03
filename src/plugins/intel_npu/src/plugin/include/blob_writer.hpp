@@ -23,11 +23,12 @@ public:
 
     void register_offset_in_table(const ISection::SectionID id, const uint64_t offset);
 
-    void write(std::ostream& stream, const std::shared_ptr<IGraph>& graph);
+    void write(std::ostream& stream);
 
     void append_compatibility_requirement(const CRE::Token requirement_token);
 
-    size_t offset = 0;
+    size_t cursor;
+    size_t stream_base;
 
 private:
     void write_persistent_format_region();
@@ -36,6 +37,7 @@ private:
     std::vector<std::shared_ptr<ISection>> m_registered_sections;
     std::unordered_map<ISection::SectionID, uint64_t> m_offsets_table;
     std::shared_ptr<CRESection> m_cre;
+    uint64_t offsets_table_location = 0;
 };
 
 }  // namespace intel_npu
