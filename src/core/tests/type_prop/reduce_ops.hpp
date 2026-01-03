@@ -312,24 +312,40 @@ TYPED_TEST_P(ReduceTest, dynamic_interval_symboled_shape_data_axes_const_keep_di
 }
 
 TYPED_TEST_P(ReduceTest, reduce_invalid_axis_out_of_range) {
+    // With deferred axis validation, invalid axes no longer throw at node creation time.
+    // Instead, the node is created with a dynamic output shape, and validation happens at runtime/compile time.
     PartialShape data_ps{1, 2, 3};
     element::Type data_et = element::dynamic;
 
     Shape axes_ps{2};
     element::Type axes_et = element::i64;
-    std::vector<int64_t> axes{2, 3};
+    std::vector<int64_t> axes{2, 3};  // axis 3 is out of range for rank 3
 
     bool keep_dims = false;
 
     const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
-    try {
-        auto reduce_op = makeReduceOp<TypeParam>(params);
-        FAIL() << "Invalid axes values not detected";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "out of the tensor rank range");
-    } catch (...) {
-        FAIL() << "Axes input values validation check failed for unexpected reason";
-    }
+    auto reduce_op = makeReduceOp<TypeParam>(params);
+    // Output shape should be dynamic since axes validation is deferred
+    EXPECT_TRUE(reduce_op->get_output_partial_shape(0).rank().is_dynamic());
+}
+
+TYPED_TEST_P(ReduceTest, reduce_invalid_axis_out_of_range_keep_dims) {
+    // With deferred axis validation, invalid axes no longer throw at node creation time.
+    // When keep_dims=true, output rank equals input rank but shape is dynamic.
+    PartialShape data_ps{1, 2, 3};
+    element::Type data_et = element::dynamic;
+
+    Shape axes_ps{2};
+    element::Type axes_et = element::i64;
+    std::vector<int64_t> axes{2, 3};  // axis 3 is out of range for rank 3
+
+    bool keep_dims = true;
+
+    const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
+    auto reduce_op = makeReduceOp<TypeParam>(params);
+    // Output shape should have same rank as input but be dynamic since axes validation is deferred
+    EXPECT_EQ(reduce_op->get_output_partial_shape(0).rank(), data_ps.rank());
+    EXPECT_TRUE(reduce_op->get_output_partial_shape(0).is_dynamic());
 }
 
 TYPED_TEST_P(ReduceTest, reduce_invalid_axes_shape) {
@@ -390,6 +406,7 @@ REGISTER_TYPED_TEST_SUITE_P(ReduceTest,
                             dynamic_interval_symboled_shape_data_axes_const_keep_dims,
                             dynamic_interval_symboled_shape_data_axes_const,
                             reduce_invalid_axis_out_of_range,
+                            reduce_invalid_axis_out_of_range_keep_dims,
                             reduce_invalid_axes_shape,
                             reduce_invalid_axes_et);
 
