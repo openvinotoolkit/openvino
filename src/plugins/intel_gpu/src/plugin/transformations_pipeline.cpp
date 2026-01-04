@@ -647,10 +647,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             kv_cache_config.valueCacheQuantBychannel = false;
             kv_cache_config.valueCacheGroupSize = 0;
 
-            std::cout << ">>>> ConvertPagedAttnInputs : get_kv_cache_precision " << kv_cache_precision << "  -----------" << std::endl;
-            std::cout << "  -- keyCacheQuantBychannel : " << kv_cache_config.keyCacheQuantBychannel
-                        << ", keyCacheGroupSize : " << kv_cache_config.keyCacheGroupSize
-                        << std::endl;
             manager.register_pass<ov::pass::ConvertPagedAttnInputs>(kv_cache_config,
                 [&infer_precision](const ov::element::Type& precision,
                 const bool bychannel,
@@ -673,7 +669,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         }
                     }
                 });
-            std::cout << ">>>> ConvertPagedAttnInputs  Done ------------------------------------------------------------" << std::endl;
         }
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
@@ -1400,9 +1395,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
         auto kv_cache_compression_dt = config.get_kv_cache_precision();
-        std::cout << ">>>> KVCacheCompression : get_kv_cache_precision " << kv_cache_compression_dt << " ---------------" << std::endl;
         manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt, device_info.supports_immad);
-        std::cout << ">>>> KVCacheCompression  Done ---------------------------------------------------------------" << std::endl;
 
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
 

@@ -84,9 +84,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
             return cache_precision == ov::element::f16 && infer_precision == ov::element::bf16 ? infer_precision
                                                                                                : cache_precision;
         };
-        std::cout << "  >> PagedAttentionExtension : [" << pa_op->get_friendly_name() << std::endl;
-        // std::cout << "    -- key_cache " << key_cache->get_partial_shape() << std::endl;
-        // std::cout << "    -- value_cache " << value_cache->get_partial_shape() << std::endl;
+
         auto init_cache_shape = [&](const size_t head_nums,
                                     const size_t head_size,
                                     const size_t block_size,
@@ -131,10 +129,6 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                                                           m_config.keyCacheGroupSize,
                                                           m_config.keyCacheQuantBychannel,
                                                           m_config.keyCacheDimOrder);
-            std::cout << "    -- K-cache shape : " << key_cache_shape << "   num_k_heads : " << pa_op->get_rt_info()["num_k_heads"].as<size_t>()
-                        << ",  k_head_size : " << pa_op->get_rt_info()["k_head_size"].as<size_t>()
-                        << ",  key_cache_block_size : " << m_config.keyCacheBlockSize << ",  key_cache_precision : " << key_cache_precision
-                        << std::endl;
             const auto value_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_v_heads"].as<size_t>(),
                                                             pa_op->get_rt_info()["v_head_size"].as<size_t>(),
                                                             m_config.valueCacheBlockSize,
@@ -142,10 +136,6 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                                                             m_config.valueCacheGroupSize,
                                                             m_config.valueCacheQuantBychannel,
                                                             m_config.valueCacheDimOrder);
-            std::cout << "    -- V-cache shape : " << value_cache_shape << "   num_v_heads : " << pa_op->get_rt_info()["num_v_heads"].as<size_t>()
-                        << ",  v_head_size : " << pa_op->get_rt_info()["v_head_size"].as<size_t>()
-                        << ",  value_cache_block_size : " << m_config.valueCacheBlockSize << ",  value_cache_precision : " << value_cache_precision
-                        << std::endl;
 
             key_cache->set_partial_shape(key_cache_shape);
             value_cache->set_partial_shape(value_cache_shape);
