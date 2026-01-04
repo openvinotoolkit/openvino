@@ -14,12 +14,19 @@ class CRE final {
 public:
     using Token = uint16_t;
 
-    static constexpr Token AND = 50000;
-    static constexpr Token OR = 50001;
-    static constexpr Token OPEN = 50002;
-    static constexpr Token CLOSE = 50003;
+    enum ReservedToken : Token { AND = 50000, OR = 50001, OPEN = 50002, CLOSE = 50003 };
 
-    static inline const std::unordered_set<Token> RESERVED_TOKENS{AND, OR, OPEN, CLOSE};
+    static inline const std::unordered_set<Token> RESERVED_TOKENS{ReservedToken::AND,
+                                                                  ReservedToken::OR,
+                                                                  ReservedToken::OPEN,
+                                                                  ReservedToken::CLOSE};
+
+    enum PredefinedCapabilityToken : Token { CRE_EVALUATION = 100, BATCHING = 101, WEIGHTS_SEPARATION = 102 };
+
+    static inline const std::unordered_set<Token> PREDEFINED_CAPABILITIES_TOKENS{
+        PredefinedCapabilityToken::CRE_EVALUATION,
+        PredefinedCapabilityToken::BATCHING,
+        PredefinedCapabilityToken::WEIGHTS_SEPARATION};
 
     CRE();
 

@@ -234,7 +234,8 @@ namespace intel_npu {
 Plugin::Plugin()
     : _options(std::make_shared<OptionsDesc>()),
       _globalConfig(_options),
-      _logger("NPUPlugin", Logger::global().level()) {
+      _logger("NPUPlugin", Logger::global().level()),
+      _capabilitiesIDs(CRE::PREDEFINED_CAPABILITIES_TOKENS) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
@@ -1207,10 +1208,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 }
 
 void Plugin::register_capability(const CRE::Token capability_id) {
-    _capabilitiesIDs.push_back(capability_id);
+    _capabilitiesIDs.insert(capability_id);
 }
 
-std::vector<CRE::Token> Plugin::get_capabilities_ids() {
+std::unordered_set<CRE::Token> Plugin::get_capabilities_ids() {
     return _capabilitiesIDs;
 }
 

@@ -65,6 +65,10 @@ public:
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
 
+    void register_capability(const CRE::Token capability_id);
+
+    std::unordered_set<CRE::Token> get_capabilities_ids();
+
 private:
     void init_options();
     void filter_global_config_safe(
@@ -73,10 +77,6 @@ private:
     FilteredConfig fork_local_config(const std::map<std::string, std::string>& rawConfig,
                                      const std::unique_ptr<ICompilerAdapter>& compiler,
                                      OptionMode mode = OptionMode::Both) const;
-
-    void register_capability(const CRE::Token capability_id);
-
-    std::vector<CRE::Token> get_capabilities_ids();
 
     /**
      * @brief Parses the compiled model found within the stream and tensor and returns a wrapper over the L0 handle that
@@ -105,7 +105,7 @@ private:
     mutable Logger _logger;
     std::shared_ptr<Metrics> _metrics;
     std::unique_ptr<Properties> _properties;
-    std::vector<CRE::Token> _capabilitiesIDs;
+    std::unordered_set<CRE::Token> _capabilitiesIDs;
 
     static std::atomic<int> _compiledModelLoadCounter;
     mutable std::mutex _mutex;
