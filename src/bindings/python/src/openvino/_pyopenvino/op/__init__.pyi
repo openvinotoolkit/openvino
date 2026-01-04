@@ -183,6 +183,12 @@ class _PagedAttentionExtension(openvino._pyopenvino.Node):
     """
     def __init__(self, arg0: collections.abc.Sequence[openvino._pyopenvino.Output]) -> None:
         ...
+        
+class _LinearAttention(openvino._pyopenvino.Node):
+    """
+    Experimental extention for PagedAttention operation. Use with care: no backward compatibility is guaranteed in future releases.
+    """
+    def __init__(self, arg0: collections.abc.Sequence[openvino._pyopenvino.Output]) -> None:
 class assign(openvino._pyopenvino.Node):
     """
     openvino.op.assign wraps ov::op::v6::Assign

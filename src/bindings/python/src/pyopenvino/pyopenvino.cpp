@@ -57,6 +57,7 @@
 #include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/loop.hpp"
 #include "pyopenvino/graph/ops/paged_attention_extension.hpp"
+#include "pyopenvino/graph/ops/linear_attention.hpp"
 #include "pyopenvino/graph/ops/parameter.hpp"
 #include "pyopenvino/graph/ops/read_value.hpp"
 #include "pyopenvino/graph/ops/result.hpp"
@@ -242,6 +243,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_graph_op_Assign(m_op);
     regclass_graph_op_Constant(m_op);
     regclass_graph_op_PagedAttentionExtension(m_op);
+    regclass_graph_op_LinearAttention(m_op);
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_ReadValue(m_op);
     regclass_graph_op_Result(m_op);
