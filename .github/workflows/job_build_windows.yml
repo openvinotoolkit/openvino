@@ -337,7 +337,7 @@ jobs:
       #
 
       - name: Upload OpenVINO package
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
@@ -345,28 +345,28 @@ jobs:
 
       - name: Upload OpenVINO wheels
         if: ${{ inputs.build-type != 'Debug' }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO tests package
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO developer package
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_developer_package
           path: ${{ env.BUILD_DIR }}/developer_package.zip
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO PDB package
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_pdb
           path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
@@ -374,7 +374,7 @@ jobs:
 
       - name: Upload OpenVINO js package
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_js_package
           path: ${{ env.BUILD_DIR }}/openvino_js_package.zip
@@ -382,7 +382,7 @@ jobs:
 
       - name: Upload openvino-node NPM package
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_node_npm_package
           path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.zip
