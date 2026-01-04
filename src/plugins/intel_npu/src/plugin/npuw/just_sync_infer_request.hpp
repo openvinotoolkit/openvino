@@ -134,28 +134,6 @@ protected:
                                                int64_t tile_length);
 
     // MoE helper functions
-    void gather_router_scores(const ov::SoPtr<ov::ITensor>& router_source,
-                              const ov::SoPtr<ov::ITensor>& router_dest,
-                              size_t expert_id,
-                              const std::vector<size_t>& token_ids,
-                              size_t chunk_start,
-                              size_t chunk_size);
-
-    void gather_expert_inputs(const ov::SoPtr<ov::ITensor>& input_source,
-                              const ov::SoPtr<ov::ITensor>& input_dest,
-                              const std::vector<size_t>& token_ids,
-                              size_t chunk_start,
-                              size_t chunk_size);
-
-    void scatter_expert_outputs(const ov::SoPtr<ov::ITensor>& expert_output,
-                                const std::vector<size_t>& token_ids,
-                                size_t chunk_start,
-                                size_t chunk_size,
-                                size_t expert_id,
-                                size_t embed_dim,
-                                size_t input_token_count,
-                                const std::map<size_t, std::vector<size_t>>& token_to_experts);
-
     void set_unrolled_router_scores(std::size_t idx, std::size_t real_idx, const std::vector<size_t>& selected_experts);
 
     void connect_subrequests();

@@ -11,6 +11,7 @@
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "logging.hpp"
+#include "moe_infer_utils.hpp"
 #include "openvino/core/parallel.hpp"
 #include "util.hpp"
 
@@ -420,7 +421,8 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
     const auto real_idx = comp_model_desc.replaced_by.value();
     auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
-    // Skip MoE expert submodels - they require special handling via unpack_moe_expert_closure()
+    // Skip MoE expert submodels - MoE experts require special unpacking logic according to the
+    // expert selection, which is handled later in the inference flow.
     if (func_desc.moe_experts.has_value()) {
         return;
     }
@@ -500,205 +502,7 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
     }
 }
 
-ov::Tensor ov::npuw::IBaseInferRequest::slice_expert_weight(const ov::Tensor& batched_weight,
-                                                            size_t expert_id,
-                                                            size_t num_experts) {
-    // Slice weight tensor from batched (num_experts, ...) to single expert (1, ...)
-    auto shape = batched_weight.get_shape();
-
-    if (shape.empty() || shape[0] != num_experts) {
-        LOG_WARN("Invalid batched weight shape for expert slicing: " << shape);
-        return batched_weight;  // Return original if not batched
-    }
-
-    auto elem_type = batched_weight.get_element_type();
-
-    // Calculate new shape: replace first dimension with 1
-    ov::Shape view_shape = shape;
-    view_shape[0] = 1;
-
-    // Check if element type is sub-byte (4-bit types)
-    // For sub-byte types, we can't use strides, but we can create a zero-copy view
-    // by wrapping the data pointer at the correct byte offset
-    if (elem_type == ov::element::nf4 || elem_type == ov::element::u4 || elem_type == ov::element::i4) {
-        // Calculate byte-level offset for this expert
-        size_t total_byte_size = batched_weight.get_byte_size();
-        size_t expert_byte_size = total_byte_size / num_experts;
-
-        // Get pointer to this expert's data
-        const uint8_t* base_ptr = static_cast<const uint8_t*>(batched_weight.data());
-        void* expert_ptr = const_cast<uint8_t*>(base_ptr + expert_id * expert_byte_size);
-
-        // Create zero-copy tensor wrapping the expert's data slice
-        ov::Tensor expert_tensor(elem_type, view_shape, expert_ptr);
-
-        LOG_DEBUG("Sliced expert " << expert_id << " weight (4-bit, zero-copy): " << shape << " -> " << view_shape);
-        return expert_tensor;
-    }
-
-    // For >= 8-bit types, use util::view to create zero-copy strided view
-    // Note: util::view has a lifetime bug (creates local tensor and returns impl pointer)
-    // We wrap the result in a new ov::Tensor to ensure proper lifetime management
-    auto view_impl = ov::npuw::util::view(ov::get_tensor_impl(batched_weight), 0, expert_id, 1);
-    ov::Tensor view_tensor = ov::make_tensor(view_impl);
-
-    LOG_DEBUG("Sliced expert " << expert_id << " weight using util::view: " << shape << " -> "
-                               << view_tensor.get_shape());
-
-    return view_tensor;
-}
-
-void set_tensor_optimized(ov::SoPtr<ov::IAsyncInferRequest> request,
-                          const ov::Output<const ov::Node>& iport,
-                          const ov::SoPtr<ov::ITensor>& tensor_impl) {
-    // Optimization: For small tensors, use copy instead of set_tensor to avoid overhead
-    // Threshold: 11520 bytes (~11.25KB, typically 5760 f16 elements or 2880 f32 elements)
-    // Empirically verified to have performance benefit for small tensors
-    // Typical shapes: 1x2880x1 (f16: 5760 bytes), 1x5760x1 (f16: 11520 bytes)
-    constexpr size_t SMALL_TENSOR_THRESHOLD_BYTES = 11520;
-
-    size_t tensor_bytes = tensor_impl->get_byte_size();
-
-    if (tensor_bytes <= SMALL_TENSOR_THRESHOLD_BYTES) {
-        // Small tensor: direct copy to avoid set_tensor overhead (~0.65ms per call)
-        // Copy is faster for small tensors due to avoiding NPU plugin overhead
-        auto clparam = request->get_tensor(iport);
-        tensor_impl->copy_to(clparam._ptr);
-        LOG_DEBUG("Using copy for small tensor (" << tensor_bytes << " bytes)");
-    } else {
-        // Large tensor: use set_tensor (zero-copy)
-        request->set_tensor(iport, tensor_impl);
-    }
-}
-
-std::vector<size_t> ov::npuw::IBaseInferRequest::parse_selected_experts_from_router(
-    const ov::SoPtr<ov::ITensor>& router_output,
-    size_t num_experts,
-    std::map<size_t, std::vector<size_t>>& token_to_experts,
-    std::map<size_t, std::vector<size_t>>& expert_to_tokens) {
-    // Clear input maps
-    token_to_experts.clear();
-    expert_to_tokens.clear();
-
-    if (!router_output) {
-        LOG_WARN("Router output is null, selecting all experts");
-        std::vector<size_t> all_experts;
-        for (size_t i = 0; i < num_experts; ++i) {
-            all_experts.push_back(i);
-        }
-        return all_experts;
-    }
-
-    auto shape = router_output->get_shape();
-    auto elem_type = router_output->get_element_type();
-
-    // Router output shape: [num_experts, 1, token_num, 1]
-    // We need to parse which expert each token selects based on non-zero weights
-
-    if (shape.size() != 4 || shape[0] != num_experts || shape[1] != 1 || shape[3] != 1) {
-        LOG_WARN("Unexpected router output shape: [" << shape[0] << ", " << shape[1] << ", " << shape[2] << ", "
-                                                     << shape[3] << "], expected [" << num_experts
-                                                     << ", 1, token_num, 1]");
-    }
-
-    size_t num_tokens = shape[2];  // token_num from shape
-
-    auto parse_experts = [&](auto* data) {
-        // For each token, find which experts have non-zero weights
-        for (size_t token_id = 0; token_id < num_tokens; ++token_id) {
-            for (size_t expert_id = 0; expert_id < num_experts; ++expert_id) {
-                // Index calculation for shape [num_experts, 1, token_num, 1]
-                // data[expert_id, 0, token_id, 0]
-                size_t idx = expert_id * num_tokens + token_id;
-
-                float value = std::abs(static_cast<float>(data[idx]));
-                if (value > 1e-6f) {
-                    // This token selected this expert
-                    token_to_experts[token_id].push_back(expert_id);
-                    expert_to_tokens[expert_id].push_back(token_id);
-                }
-            }
-        }
-    };
-
-    if (elem_type == ov::element::f32) {
-        parse_experts(router_output->data<float>());
-    } else if (elem_type == ov::element::f16) {
-        parse_experts(router_output->data<ov::float16>());
-    } else {
-        LOG_WARN("Unsupported router output element type: " << elem_type << ", selecting all experts");
-        std::vector<size_t> all_experts;
-        for (size_t i = 0; i < num_experts; ++i) {
-            all_experts.push_back(i);
-        }
-        return all_experts;
-    }
-
-    // Convert expert_to_tokens keys to vector (sorted order)
-    std::vector<size_t> selected_experts;
-    selected_experts.reserve(expert_to_tokens.size());
-    for (const auto& [expert_id, tokens] : expert_to_tokens) {
-        selected_experts.push_back(expert_id);
-    }
-
-    return selected_experts;
-}
-
-void ov::npuw::IBaseInferRequest::relayout_single_expert_output(
-    size_t expert_id,
-    const ov::SoPtr<ov::ITensor>& expert_output,
-    const ov::SoPtr<ov::ITensor>& target_tensor,
-    const std::map<size_t, std::vector<size_t>>& token_to_experts,
-    size_t num_tokens,
-    size_t embed_dim) {
-    // Get expert output shape and validate
-    auto shape = expert_output->get_shape();
-    if (shape.size() != 4 || shape[0] != 1 || shape[1] != 1 || shape[2] != num_tokens || shape[3] != embed_dim) {
-        LOG_WARN("Expert " << expert_id << " has unexpected output shape: " << shape);
-    }
-
-    auto elem_type = target_tensor->get_element_type();
-
-    // Process each token that selected this expert
-    for (auto& [token_id, expert_ids] : token_to_experts) {
-        // Check if this token selected the current expert and get its slot index
-        auto it = std::find(expert_ids.begin(), expert_ids.end(), expert_id);
-        if (it == expert_ids.end()) {
-            continue;  // This token didn't select this expert
-        }
-
-        if (token_id >= num_tokens) {
-            LOG_WARN("Token ID " << token_id << " exceeds num_tokens " << num_tokens);
-            continue;
-        }
-
-        // Calculate expert_slot: position of this expert in the token's expert list
-        // This ensures each token's experts are placed in slots [0, 1, 2, 3]
-        size_t expert_slot = std::distance(expert_ids.begin(), it);
-
-        // Copy this expert's output for this token to the target tensor
-        // Source: expert_output[0, 0, token_id, :]
-        // Target: target_tensor[expert_slot, 0, token_id, :]
-
-        if (elem_type == ov::element::f32) {
-            const float* src = expert_output->data<float>() + token_id * embed_dim;
-            float* dst = target_tensor->data<float>() + (expert_slot * num_tokens * embed_dim + token_id * embed_dim);
-            std::memcpy(dst, src, embed_dim * sizeof(float));
-
-        } else if (elem_type == ov::element::f16) {
-            const ov::float16* src = expert_output->data<ov::float16>() + token_id * embed_dim;
-            ov::float16* dst =
-                target_tensor->data<ov::float16>() + (expert_slot * num_tokens * embed_dim + token_id * embed_dim);
-            std::memcpy(dst, src, embed_dim * sizeof(ov::float16));
-
-        } else {
-            LOG_ERROR("Unsupported element type for MoE output relayout: " << elem_type);
-            OPENVINO_THROW("MoE: Unsupported element type for output relayout");
-        }
-    }
-}
-
-void ov::npuw::IBaseInferRequest::unpack_moe_expert_closure(std::size_t idx, RqPtr request, size_t expert_id) {
+void ov::npuw::IBaseInferRequest::unpack_single_expert_closure(std::size_t idx, RqPtr request, size_t expert_id) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     NPUW_ASSERT(comp_model_desc.replaced_by);
 
@@ -726,7 +530,7 @@ void ov::npuw::IBaseInferRequest::unpack_moe_expert_closure(std::size_t idx, RqP
 
         if (needs_slicing) {
             // Slice expert weight using view (no copy) - returns ov::Tensor object
-            auto sliced_weight_tensor = slice_expert_weight(closure, expert_id, num_experts);
+            auto sliced_weight_tensor = ov::npuw::moe::slice_expert_weight(closure, expert_id, num_experts);
 
             // Get impl pointer for use in unpacking/setting
             auto sliced_weight = ov::get_tensor_impl(sliced_weight_tensor);
@@ -748,7 +552,7 @@ void ov::npuw::IBaseInferRequest::unpack_moe_expert_closure(std::size_t idx, RqP
                 }
             } else {
                 // Direct set (no unpacking needed) - use optimized function
-                set_tensor_optimized(request, iport, sliced_weight);
+                ov::npuw::moe::set_tensor_optimized(request, iport, sliced_weight);
             }
         } else {
             // This closure parameter doesn't need slicing, use original logic
@@ -762,7 +566,7 @@ void ov::npuw::IBaseInferRequest::unpack_moe_expert_closure(std::size_t idx, RqP
     }
 }
 
-void ov::npuw::IBaseInferRequest::unpack_moe_batch_expert_closure(std::size_t idx,
+void ov::npuw::IBaseInferRequest::unpack_multiple_experts_closure(std::size_t idx,
                                                                   RqPtr request,
                                                                   const std::vector<size_t>& expert_ids) {
     /**
@@ -799,10 +603,6 @@ void ov::npuw::IBaseInferRequest::unpack_moe_batch_expert_closure(std::size_t id
     const auto& param_mapping = moe_experts._param_mapping;  // original_idx -> [unrolled_indices]
 
     auto& desc_closure = comp_model_desc.closure.get().closure;
-
-    LOG_DEBUG("Unpacking MoE batch expert closure for " << K << " experts: [" << expert_ids[0] << ", " << expert_ids[1]
-                                                        << ", " << expert_ids[2] << ", " << expert_ids[3] << "]");
-
     const auto& compiled_inputs = func_desc.compiled_model->inputs();
 
     // ========== Step 2: Process each original closure parameter ==========
@@ -869,7 +669,7 @@ void ov::npuw::IBaseInferRequest::unpack_moe_batch_expert_closure(std::size_t id
             const auto& iport = compiled_inputs[unrolled_indices[position]];
 
             // Slice expert weight (zero-copy view)
-            ov::Tensor sliced_expert = slice_expert_weight(batched_closure, expert_id, num_experts);
+            ov::Tensor sliced_expert = ov::npuw::moe::slice_expert_weight(batched_closure, expert_id, num_experts);
 
             if (needs_unpack) {
                 // Unpack path (dtype mismatch)
@@ -888,7 +688,7 @@ void ov::npuw::IBaseInferRequest::unpack_moe_batch_expert_closure(std::size_t id
             } else {
                 // Direct set (no unpacking needed) - use optimized function
                 auto sliced_impl = ov::get_tensor_impl(sliced_expert);
-                set_tensor_optimized(request, iport, sliced_impl);
+                ov::npuw::moe::set_tensor_optimized(request, iport, sliced_impl);
             }
         }  // for each expert
     }  // for each closure parameter
