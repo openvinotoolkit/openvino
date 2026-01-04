@@ -348,35 +348,124 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_default) {
     test_case.run();
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, test_col2im) {
-    const auto model = convert_model("col2im_2D_default_opset_18_for_question.onnx");
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_dilations) {
+    const auto model = convert_model("col2im_2D_dilations_opset_18.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
 
-    // Input: [1, 5, 5]
-    std::vector<float> input_data = {
-        1.0f, 6.0f, 11.0f, 16.0f, 21.0f,
-        2.0f, 7.0f, 12.0f, 17.0f, 22.0f,
-        3.0f, 8.0f, 13.0f, 18.0f, 23.0f,
-        4.0f, 9.0f, 14.0f, 19.0f, 24.0f,
-        5.0f, 0.0f, 15.0f, 20.0f, 25.0f
-    };
-    test_case.add_input<float>(ov::Shape{1, 5, 5}, input_data);
+    // Input: [1, 4, 9]
+    std::vector<float> input_data(36, 1.0f);
+    test_case.add_input<float>(ov::Shape{1, 4, 9}, input_data);
 
     // image_shape: [5, 5]
     test_case.add_input<int64_t>(ov::Shape{2}, {5, 5});
-    // block_shape: [1, 5]
-    test_case.add_input<int64_t>(ov::Shape{2}, {1, 5});
+    // block_shape: [2, 2]
+    test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
 
     // Expected Output: [1, 1, 5, 5]
     std::vector<float> expected_output = {
-        1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
-        6.0f, 7.0f, 8.0f, 9.0f, 0.0f,
-        11.0f, 12.0f, 13.0f, 14.0f, 15.0f,
-        16.0f, 17.0f, 18.0f, 19.0f, 20.0f,
-        21.0f, 22.0f, 23.0f, 24.0f, 25.0f
+        1.0f, 1.0f, 2.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 2.0f, 1.0f, 1.0f,
+        2.0f, 2.0f, 4.0f, 2.0f, 2.0f,
+        1.0f, 1.0f, 2.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 2.0f, 1.0f, 1.0f
     };
     test_case.add_expected_output<float>(ov::Shape{1, 1, 5, 5}, expected_output);
-    
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_pads) {
+    const auto model = convert_model("col2im_2D_pads_opset_18.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input: [1, 4, 9]
+    std::vector<float> input_data(36, 1.0f);
+    test_case.add_input<float>(ov::Shape{1, 4, 9}, input_data);
+
+    // image_shape: [2, 2]
+    test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
+    // block_shape: [2, 2]
+    test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
+
+    // Expected Output: [1, 1, 2, 2]
+    std::vector<float> expected_output = {
+        4.0f, 4.0f,
+        4.0f, 4.0f
+    };
+    test_case.add_expected_output<float>(ov::Shape{1, 1, 2, 2}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_strides) {
+    const auto model = convert_model("col2im_2D_strides_opset_18.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input: [1, 4, 4]
+    std::vector<float> input_data(16, 1.0f);
+    test_case.add_input<float>(ov::Shape{1, 4, 4}, input_data);
+
+    // image_shape: [4, 4]
+    test_case.add_input<int64_t>(ov::Shape{2}, {4, 4});
+    // block_shape: [2, 2]
+    test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
+
+    // Expected Output: [1, 1, 4, 4]
+    std::vector<float> expected_output(16, 1.0f);
+    test_case.add_expected_output<float>(ov::Shape{1, 1, 4, 4}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_batch) {
+    const auto model = convert_model("col2im_2D_batch_opset_18.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input: [2, 4, 4]
+    std::vector<float> input_data(32, 1.0f);
+    test_case.add_input<float>(ov::Shape{2, 4, 4}, input_data);
+
+    // image_shape: [3, 3]
+    test_case.add_input<int64_t>(ov::Shape{2}, {3, 3});
+    // block_shape: [2, 2]
+    test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
+
+    // Expected Output: [2, 1, 3, 3]
+    std::vector<float> single_batch_output = {
+        1.0f, 2.0f, 1.0f,
+        2.0f, 4.0f, 2.0f,
+        1.0f, 2.0f, 1.0f
+    };
+    std::vector<float> expected_output;
+    expected_output.insert(expected_output.end(), single_batch_output.begin(), single_batch_output.end());
+    expected_output.insert(expected_output.end(), single_batch_output.begin(), single_batch_output.end());
+
+    test_case.add_expected_output<float>(ov::Shape{2, 1, 3, 3}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_channel) {
+    const auto model = convert_model("col2im_2D_channel_opset_18.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input: [1, 12, 4]
+    std::vector<float> input_data(48, 1.0f);
+    test_case.add_input<float>(ov::Shape{1, 12, 4}, input_data);
+
+    // image_shape: [3, 3]
+    test_case.add_input<int64_t>(ov::Shape{2}, {3, 3});
+    // block_shape: [2, 2]
+    test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
+
+    // Expected Output: [1, 3, 3, 3]
+    std::vector<float> single_channel_output = {
+        1.0f, 2.0f, 1.0f,
+        2.0f, 4.0f, 2.0f,
+        1.0f, 2.0f, 1.0f
+    };
+    std::vector<float> expected_output;
+    for(int i=0; i<3; ++i) {
+        expected_output.insert(expected_output.end(), single_channel_output.begin(), single_channel_output.end());
+    }
+
+    test_case.add_expected_output<float>(ov::Shape{1, 3, 3, 3}, expected_output);
     test_case.run();
 }
 
