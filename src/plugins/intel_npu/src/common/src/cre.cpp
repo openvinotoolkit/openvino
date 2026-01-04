@@ -2,13 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cre.hpp"
+#include "intel_npu/common/cre.hpp"
+
+#include <functional>
+
+#include "intel_npu/common/blob_reader.hpp"
+#include "intel_npu/common/blob_writer.hpp"
 
 namespace {
 
 constexpr intel_npu::ISection::SectionID CRE_SECTION_ID = 100;
 
-const std::unordered_set<intel_npu::CRE::Token> OPERATORS{AND, OR};
+const std::unordered_set<intel_npu::CRE::Token> OPERATORS{intel_npu::CRE::AND, intel_npu::CRE::OR};
 
 inline bool and_function(bool a, bool b) {
     return a && b;

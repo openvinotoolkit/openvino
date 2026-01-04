@@ -9,9 +9,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "intel_npu/common/igraph.hpp"
-#include "isection.hpp"
-
 namespace intel_npu {
 
 class BlobReader {

@@ -9,7 +9,7 @@
 #include <string>
 
 #include "backends_registry.hpp"
-#include "cre.hpp"
+#include "intel_npu/common/cre.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"

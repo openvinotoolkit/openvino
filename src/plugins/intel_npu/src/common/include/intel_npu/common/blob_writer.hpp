@@ -5,13 +5,12 @@
 #pragma once
 
 #include <cinttypes>
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include "cre.hpp"
-#include "intel_npu/common/igraph.hpp"
-#include "isection.hpp"
 
 namespace intel_npu {
 

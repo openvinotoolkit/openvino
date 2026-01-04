@@ -9,6 +9,7 @@
 #include "compiled_model.hpp"
 #include "compiler_adapter_factory.hpp"
 #include "driver_compiler_adapter.hpp"
+#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/igraph.hpp"
@@ -625,6 +626,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
+
+    // Created at this stage to allow functions to register blob sections & capability requirements on the fly
+    auto blobWriter = std::make_shared<BlobWriter>();
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated

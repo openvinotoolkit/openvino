@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "offsets_table.hpp"
+#include "intel_npu/common/offsets_table.hpp"
+
+#include "intel_npu/common/blob_reader.hpp"
+#include "intel_npu/common/blob_writer.hpp"
 
 namespace {
 

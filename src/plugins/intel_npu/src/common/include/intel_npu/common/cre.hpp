@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "isection.hpp"
+#include "intel_npu/common/isection.hpp"
+#include "openvino/core/except.hpp"
 
 namespace intel_npu {
 

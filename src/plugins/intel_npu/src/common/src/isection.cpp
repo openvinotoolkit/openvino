@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "isection.hpp"
+#include "intel_npu/common/isection.hpp"
 
 namespace intel_npu {
 

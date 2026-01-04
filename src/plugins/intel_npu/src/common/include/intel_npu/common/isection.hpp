@@ -5,14 +5,22 @@
 #pragma once
 
 #include <cinttypes>
+#include <iostream>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
-#include "blob_reader.hpp"
-#include "blob_writer.hpp"
-
 namespace intel_npu {
+
+// TODOs: fix the circular dependencies
+// Move sections in directory
+// Create initschedules & main schedule sections. these hold a graph object, call the right "export"
+// Past capabilities
+// Unique SID
+
+class BlobWriter;
+class BlobReader;
 
 class ISection {
 public:
