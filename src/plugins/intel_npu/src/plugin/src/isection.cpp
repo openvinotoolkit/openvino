@@ -8,11 +8,11 @@ namespace intel_npu {
 
 ISection::ISection(const SectionID section_id) : m_section_id(section_id) {}
 
-ISection::SectionID ISection::get_section_id() {
+ISection::SectionID ISection::get_section_id() const {
     return m_section_id;
 }
 
-std::optional<uint64_t> ISection::get_length() {
+std::optional<uint64_t> ISection::get_length() const {
     return std::nullopt;
 }
 

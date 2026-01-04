@@ -4,6 +4,8 @@
 
 #include "blob_writer.hpp"
 
+#include "offsets_table.hpp"
+
 namespace {
 
 // TODO: find out why these are like this
@@ -24,7 +26,7 @@ void BlobWriter::register_section(const std::shared_ptr<ISection>& section) {
     m_registered_sections_ids.insert(section->get_section_id());
 }
 
-void BlobWriter::append_compatibility_requirement(const CREToken requirement_token) {
+void BlobWriter::append_compatibility_requirement(const CRE::Token requirement_token) {
     m_cre->append_to_expression(requirement_token);
 }
 
@@ -42,7 +44,10 @@ void BlobWriter::write(std::ostream& stream) {
     cursor += MAGIC_BYTES.size();  // TODO more elegant pls
     stream.write(reinterpret_cast<const char*>(&FORMAT_VERSION), sizeof(FORMAT_VERSION));
     cursor += sizeof(FORMAT_VERSION);
-    const uint64_t will_come_back_to_this_at_the_end = cursor;
+
+    // Placeholder until the offsets table is fully populated and written into the blob
+    const auto will_come_back_to_this_at_the_end = stream.tellp();
+    uint64_t offsets_table_location = 0;
     stream.write(reinterpret_cast<const char*>(&offsets_table_location),
                  sizeof(offsets_table_location));  // placeholder
     cursor += sizeof(offsets_table_location);
@@ -51,6 +56,10 @@ void BlobWriter::write(std::ostream& stream) {
     // content of the payload)
     for (const std::shared_ptr<ISection>& section : m_registered_sections) {
         const ISection::SectionID section_id = section->get_section_id();
+
+        // All sections registered within the BlobWriter are automatically added to the table of offsets
+        register_offset_in_table(section_id, cursor);
+
         stream.write(reinterpret_cast<const char*>(&section_id), sizeof(section_id));
         cursor += sizeof(section_id);
 
@@ -78,7 +87,21 @@ void BlobWriter::write(std::ostream& stream) {
         }
     }
 
-    // TODO: define the offsets table section. then here you should retrieve its location and write it at the beg
+    // We know the location of the table of offsets. Go back to the beginning and write it.
+    offsets_table_location = cursor;
+    stream.seekp(will_come_back_to_this_at_the_end);
+    stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
+    stream.seekp(stream_base + cursor);
+
+    // Write the table of offsets
+    OffsetsTableSection offsets_table_section(m_offsets_table);
+    const ISection::SectionID section_id = offsets_table_section.get_section_id();
+    const uint64_t length = offsets_table_section.get_length().value();
+    stream.write(reinterpret_cast<const char*>(&section_id), sizeof(section_id));
+    cursor += sizeof(section_id);
+    stream.write(reinterpret_cast<const char*>(&length), sizeof(length));
+    cursor += sizeof(length);
+    offsets_table_section.write(stream, this);
 }
 
 }  // namespace intel_npu

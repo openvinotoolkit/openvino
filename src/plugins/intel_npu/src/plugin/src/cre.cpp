@@ -39,7 +39,7 @@ void CRE::append_to_expression(const std::vector<CRE::Token>& requirement_tokens
     m_expression.insert(m_expression.end(), requirement_tokens.begin(), requirement_tokens.end());
 }
 
-size_t CRE::get_expression_length() {
+size_t CRE::get_expression_length() const {
     return m_expression.size();
 }
 
@@ -132,7 +132,7 @@ void CRESection::write(std::ostream& stream, BlobWriter* writer) {
     writer->cursor += m_cre.write(stream);
 }
 
-std::optional<uint64_t> CRESection::get_length() {
+std::optional<uint64_t> CRESection::get_length() const {
     return m_cre.get_expression_length();
 }
 

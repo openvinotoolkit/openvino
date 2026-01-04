@@ -27,7 +27,7 @@ public:
 
     void append_to_expression(const std::vector<CRE::Token>& requirement_tokens);
 
-    size_t get_expression_length();
+    size_t get_expression_length() const;
 
     size_t write(std::ostream& stream);
 
@@ -51,7 +51,7 @@ public:
 
     void write(std::ostream& stream, BlobWriter* writer) override;
 
-    std::optional<uint64_t> get_length() override;
+    std::optional<uint64_t> get_length() const override;
 
     // void read(BlobReader* reader) override;
 
