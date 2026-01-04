@@ -6,7 +6,6 @@
 
 #include "infer_request_utils.hpp"
 #include "logging.hpp"
-#include "util.hpp"
 
 ov::SoPtr<ov::ITensor> ov::npuw::EmbeddingInferRequest::create_prefill_output_tensor() {
     const auto& out_port = m_prefill_request->get_outputs()[0];
