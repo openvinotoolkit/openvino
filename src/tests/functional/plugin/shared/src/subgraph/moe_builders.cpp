@@ -93,6 +93,7 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
     const MoePatternParams& moe_params,
     const ov::element::Type data_precision,
     const ov::element::Type weights_precision,
+    const bool with_gate_mul,
     const bool use_weight_decompression,
     const std::optional<ov::element::Type> decompression_precision,
     const std::optional<ov::element::Type> scale_precision,
@@ -105,7 +106,6 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
     const size_t intermediate_size = moe_params.intermediate_size;
     const size_t topk = moe_params.topk;
     const size_t number_of_experts = moe_params.number_of_experts;
-    bool with_gate_mul = moe_params.with_gate_mul;
 
     const auto expert_alpha = 1.625f;
     const auto expert_beta = 7.0f;
@@ -309,6 +309,7 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const MoePatternParams& moe_params,
     const ov::element::Type data_precision,
     const ov::element::Type weights_precision,
+    const bool with_gate_mul,
     const bool use_weight_decompression,
     const std::optional<ov::element::Type> decompression_precision,
     const std::optional<ov::element::Type> scale_precision,
@@ -321,6 +322,7 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const size_t intermediate_size = moe_params.intermediate_size;
     const size_t topk = moe_params.topk;
     const size_t number_of_experts = moe_params.number_of_experts;
+    OPENVINO_ASSERT(!with_gate_mul, "MoE3GeMM doesn't support multiply on gate via batchGatherMatmul");
 
     const auto expert_alpha = 1.702f;
 

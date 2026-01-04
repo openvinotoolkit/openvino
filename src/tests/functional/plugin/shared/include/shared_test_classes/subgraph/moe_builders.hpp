@@ -21,12 +21,12 @@ struct MoePatternParams {
     size_t topk;
     size_t number_of_experts;
     size_t intermediate_size;
-    bool with_gate_mul;  // whether add multiply on gate branch with constants, only applicale for MoE2GeMM.
 };
 
 std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(const MoePatternParams& moe_params,
                                                  const ov::element::Type data_precision,
                                                  const ov::element::Type weights_precision,
+                                                 const bool with_gate_mul = false,
                                                  const bool use_weight_decompression = false,
                                                  const std::optional<ov::element::Type> decompression_precision = std::nullopt,
                                                  const std::optional<ov::element::Type> scale_precision = std::nullopt,
@@ -38,6 +38,7 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(const MoePatternParams& moe_para
 std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(const MoePatternParams& moe_params,
                                                  const ov::element::Type data_precision,
                                                  const ov::element::Type weights_precision,
+                                                 const bool with_gate_mul = false,
                                                  const bool use_weight_decompression = false,
                                                  const std::optional<ov::element::Type> decompression_precision = std::nullopt,
                                                  const std::optional<ov::element::Type> scale_precision = std::nullopt,

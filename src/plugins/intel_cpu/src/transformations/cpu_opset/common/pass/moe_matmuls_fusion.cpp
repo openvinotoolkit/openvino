@@ -80,7 +80,7 @@ ov::intel_cpu::MoE2GeMMFusion::MoE2GeMMFusion() {
     auto clamp = pattern::wrap_type<ov::op::v0::Clamp>({slice1}, pattern::consumers_count(1));
     auto add1 = pattern::wrap_type<ov::op::v1::Add>({clamp, pattern::wrap_const()}, pattern::consumers_count(1));
 
-    // Branch 2: Slice_2 -> Minimum_1 -> Swish
+    // Branch 2: Slice_2 -> Minimum_1 -> Swish -> (optional) Multiply_1
     auto slice2 = pattern::wrap_type<ov::op::v8::Slice>(
         {gate_up_add, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()},
         pattern::consumers_count(1));
@@ -88,10 +88,7 @@ ov::intel_cpu::MoE2GeMMFusion::MoE2GeMMFusion() {
         pattern::wrap_type<ov::op::v1::Minimum>({slice2, pattern::wrap_const()}, pattern::consumers_count(1));
     auto swish_beta = pattern::wrap_const();
     auto swish = pattern::wrap_type<ov::op::v4::Swish>({minimum1, swish_beta}, pattern::consumers_count(1));
-    auto mul1_const_predicate = [](const ov::Output<ov::Node>& output) -> bool {
-        return pattern::rank_equals(3)(output) && output.get_shape()[1] == 1;
-    };
-    auto mul1_const = pattern::wrap_type<ov::op::v0::Constant>(mul1_const_predicate);
+    auto mul1_const = pattern::wrap_type<ov::op::v0::Constant>(pattern::shape_matches("[?, 1, ?]"));
     auto multiply1 = pattern::optional<ov::op::v1::Multiply>({swish, mul1_const}, pattern::consumers_count(1));
 
     // Join: Multiply_2
@@ -181,6 +178,7 @@ ov::intel_cpu::MoE2GeMMFusion::MoE2GeMMFusion() {
                 std::make_shared<ov::op::v1::Transpose>(batch_gather,
                                                         ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 0, 2}));
             auto mul1_new = mul1->clone_with_new_inputs({pattern_map.at(swish), transpose});
+            ov::copy_runtime_info(mul1, {reshape_const, batch_gather, transpose, mul1_new});
             ov::replace_node_update_name(mul1, mul1_new);
         }
 
