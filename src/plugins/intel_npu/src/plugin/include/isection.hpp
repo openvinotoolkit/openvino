@@ -22,6 +22,9 @@ public:
 
     virtual void write(std::ostream& stream, BlobWriter* writer) = 0;
 
+    // note necessary, saves some performance if provided
+    virtual std::optional<uint64_t> get_length();
+
     // virtual void read(BlobReader* reader) = 0;
 
     SectionID get_section_id();

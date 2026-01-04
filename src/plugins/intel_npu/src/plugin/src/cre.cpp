@@ -39,6 +39,10 @@ void CRE::append_to_expression(const std::vector<CRE::Token>& requirement_tokens
     m_expression.insert(m_expression.end(), requirement_tokens.begin(), requirement_tokens.end());
 }
 
+size_t CRE::get_expression_length() {
+    return m_expression.size();
+}
+
 bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_iterator, const Delimiter end_delimiter) {
     switch (end_delimiter) {
     case Delimiter::PARRENTHESIS:
@@ -125,7 +129,11 @@ void CRESection::append_to_expression(const std::vector<CRE::Token>& requirement
 }
 
 void CRESection::write(std::ostream& stream, BlobWriter* writer) {
-    writer->offset += m_cre.write(stream);
+    writer->cursor += m_cre.write(stream);
+}
+
+std::optional<uint64_t> CRESection::get_length() {
+    return m_cre.get_expression_length();
 }
 
 }  // namespace intel_npu

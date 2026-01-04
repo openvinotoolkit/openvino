@@ -27,6 +27,8 @@ public:
 
     void append_to_expression(const std::vector<CRE::Token>& requirement_tokens);
 
+    size_t get_expression_length();
+
     size_t write(std::ostream& stream);
 
     bool check_compatibility(const std::unordered_set<CRE::Token>& plugin_capabilities);
@@ -48,6 +50,8 @@ public:
     CRESection();
 
     void write(std::ostream& stream, BlobWriter* writer) override;
+
+    std::optional<uint64_t> get_length() override;
 
     // void read(BlobReader* reader) override;
 

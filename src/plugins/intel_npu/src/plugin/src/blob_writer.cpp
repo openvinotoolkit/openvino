@@ -54,19 +54,28 @@ void BlobWriter::write(std::ostream& stream) {
         stream.write(reinterpret_cast<const char*>(&section_id), sizeof(section_id));
         cursor += sizeof(section_id);
 
-        uint64_t length = 0;  // placeholder
-        auto length_location = stream.tellp();
-        stream.write(reinterpret_cast<const char*>(&length), sizeof(length));
-        cursor += sizeof(section_id);
+        std::optional<uint64_t> length = section->get_length();
 
-        const uint64_t payload_start = cursor;
-        section->write(stream, this);
+        if (length.has_value()) {
+            stream.write(reinterpret_cast<const char*>(&length.value()), sizeof(length.value()));
+            cursor += sizeof(uint64_t);
+            section->write(stream, this);
+        } else {
+            // Use the cursor to deduce the length
+            uint64_t length = 0;  // placeholder
+            auto length_location = stream.tellp();
+            stream.write(reinterpret_cast<const char*>(&length), sizeof(length));
+            cursor += sizeof(uint64_t);
 
-        // Compute the size of the payload and then go back and write the true value
-        length = cursor - payload_start;
-        stream.seekp(length_location);
-        stream.write(reinterpret_cast<const char*>(&length), sizeof(length));
-        stream.seekp(stream_base + cursor);
+            const uint64_t payload_start = cursor;
+            section->write(stream, this);
+
+            // Compute the size of the payload and then go back and write the true value
+            length = cursor - payload_start;
+            stream.seekp(length_location);
+            stream.write(reinterpret_cast<const char*>(&length), sizeof(length));
+            stream.seekp(stream_base + cursor);
+        }
     }
 
     // TODO: define the offsets table section. then here you should retrieve its location and write it at the beg
