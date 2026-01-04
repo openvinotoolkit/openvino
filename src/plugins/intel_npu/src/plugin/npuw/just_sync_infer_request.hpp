@@ -112,12 +112,12 @@ protected:
 
     // MoE inference functions
     void run_moe_infer(std::size_t real_idx, std::size_t idx);
-    void run_moe_decoding_inference(std::size_t idx, std::size_t real_idx, const std::vector<size_t>& selected_experts);
-    void run_moe_prefill_inference(std::size_t idx,
-                                   std::size_t real_idx,
-                                   const std::vector<size_t>& selected_experts,
-                                   const std::map<size_t, std::vector<size_t>>& token_to_experts,
-                                   const std::map<size_t, std::vector<size_t>>& expert_to_tokens);
+    void run_moe_batch_experts_inference(std::size_t idx,
+                                         std::size_t real_idx,
+                                         const std::vector<size_t>& selected_experts);
+    void run_moe_iterative_experts_inference(std::size_t idx,
+                                             std::size_t real_idx,
+                                             const std::vector<size_t>& selected_experts);
 
     // HFA helper functions
     static void hfa_extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
@@ -147,6 +147,9 @@ protected:
                                   bool is_piped,
                                   bool is_recreate,
                                   bool enable_hfa_optimizations = true);
+
+    // Helper function to setup MoE expert infer requests
+    void setup_moe_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate);
 
     FuncMemMgr m_func_mem_mgr;                       // Owns memory
     std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
@@ -187,14 +190,14 @@ protected:
             double max_ms = 0.0;
         };
 
-        StepStats parse_router;      // Parse router output
-        StepStats unpack_closure;    // Unpack expert weights
-        StepStats set_router_input;  // Set router input tensor
-        StepStats expert_inference;  // Expert inference execution
-        StepStats dump_tensors;      // Dump input/output to files
-        StepStats relayout_output;   // Relayout expert output
-        StepStats total_per_expert;  // Total time per expert
-        StepStats total_prefill;     // Total prefill time
+        StepStats parse_router;          // Parse router output
+        StepStats unpack_closure;        // Unpack expert weights
+        StepStats gather_router_scores;  // Gather router scores for chunk
+        StepStats gather_expert_input;   // Gather expert inputs for chunk
+        StepStats expert_inference;      // Expert inference execution
+        StepStats relayout_output;       // Relayout expert output
+        StepStats total_per_expert;      // Total time per expert
+        StepStats total_prefill;         // Total prefill time
     };
     MoEPrefillStats m_moe_prefill_stats;
 

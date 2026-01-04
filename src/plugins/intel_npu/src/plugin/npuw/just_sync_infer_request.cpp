@@ -227,7 +227,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     std::size_t dynamic_sub_idx = -1;
     std::size_t pyramid_sub_idx = -1;
     std::size_t hfa_sub_idx = -1;
-    std::size_t moe_sub_idx = -1;
+    std::size_t moe_experts_sub_idx = -1;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -311,11 +311,11 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             // Initialize the MoE IO placeholders, if required
             if (proto_comp_model_desc.moe_experts) {
                 // Sanity check first
-                if (has_moe && moe_sub_idx != real_idx) {
+                if (has_moe && moe_experts_sub_idx != real_idx) {
                     OPENVINO_THROW("Only single MoE type is permitted for model");
                 }
                 has_moe = true;
-                moe_sub_idx = real_idx;
+                moe_experts_sub_idx = real_idx;
                 m_moe_io[i].outputs.resize(num_outputs);
             }  // if(moe_experts)
 
@@ -371,67 +371,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     // Initialize MoE resources if MoE was detected
     if (has_moe) {
-        auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[moe_sub_idx];
-
-        // Create infer requests for all compiled MoE chunk size models
-        // This must happen AFTER compilation is complete
-        if (proto_comp_model_desc.moe_experts.has_value()) {
-            LOG_INFO("Creating infer requests for MoE chunk size models...");
-            LOG_BLOCK();
-
-            const auto& moe_experts = proto_comp_model_desc.moe_experts.value();
-            const bool is_piped = is_pipelined(moe_sub_idx);
-
-            for (const auto& entry : moe_experts._compiled_models) {
-                const size_t chunk_size = entry.first;
-                const auto& compiled_model = entry.second;
-
-                if (!compiled_model) {
-                    LOG_WARN("Compiled model for chunk_size=" << chunk_size << " is null, skipping...");
-                    continue;
-                }
-
-                try {
-                    // Create main infer request
-                    auto infer_request = compiled_model->create_infer_request();
-                    proto_comp_model_desc.moe_infer_requests[chunk_size] = std::move(infer_request);
-                    LOG_INFO("Created infer request for MoE chunk_size=" << chunk_size);
-                } catch (const std::exception& ex) {
-                    LOG_ERROR("Failed to create infer request for MoE chunk_size=" << chunk_size << ": " << ex.what());
-                    OPENVINO_THROW("MoE infer request creation failed for chunk_size=", chunk_size, ": ", ex.what());
-                }
-            }
-            LOG_INFO("Created " << proto_comp_model_desc.moe_infer_requests.size() << " MoE infer requests");
-
-            // Pre-parse and sort chunk sizes in descending order for greedy selection
-            m_moe_sorted_chunk_sizes.clear();
-            m_moe_sorted_chunk_sizes.reserve(moe_experts._compiled_models.size());
-            for (const auto& entry : moe_experts._compiled_models) {
-                m_moe_sorted_chunk_sizes.push_back(entry.first);
-            }
-            std::sort(m_moe_sorted_chunk_sizes.begin(), m_moe_sorted_chunk_sizes.end(), std::greater<size_t>());
-
-            LOG_INFO("Sorted chunk sizes (descending): [" << [this]() {
-                std::ostringstream oss;
-                for (size_t i = 0; i < m_moe_sorted_chunk_sizes.size(); ++i) {
-                    oss << m_moe_sorted_chunk_sizes[i];
-                    if (i < m_moe_sorted_chunk_sizes.size() - 1)
-                        oss << ", ";
-                }
-                return oss.str();
-            }() << "]");
-        }
-
-        // Pre-allocate relayouted_output tensor with hardcoded precision
-        // TODO: Get precision from model metadata or make configurable
-        const size_t active_experts = proto_comp_model_desc.moe_experts->num_active_experts;
-        const size_t num_tokens = proto_comp_model_desc.moe_experts->input_token_count;
-        const size_t embed_dim = proto_comp_model_desc.moe_experts->expert_hidden_dim;
-        ov::Shape target_shape = {active_experts, 1, num_tokens, embed_dim};
-
-        // Use f16 as default, will be adjusted at runtime if needed
-        const auto& device = *proto_comp_model_desc.device_it;
-        m_moe_relayouted_output = allocMem(ov::element::f16, target_shape, device);
+        setup_moe_infer_requests(moe_experts_sub_idx, is_pipelined(moe_experts_sub_idx), /* is_recreate */ false);
     }
 
     // Identify connections for the funcall pipeline, if needed
@@ -583,21 +523,21 @@ ov::npuw::JustInferRequest::~JustInferRequest() {
                    m_moe_prefill_stats.unpack_closure.total_ms,
                    m_moe_prefill_stats.unpack_closure.min_ms,
                    m_moe_prefill_stats.unpack_closure.max_ms);
-        print_step("Set Router Input",
-                   m_moe_prefill_stats.set_router_input.count,
-                   m_moe_prefill_stats.set_router_input.total_ms,
-                   m_moe_prefill_stats.set_router_input.min_ms,
-                   m_moe_prefill_stats.set_router_input.max_ms);
+        print_step("Gather Router Scores",
+                   m_moe_prefill_stats.gather_router_scores.count,
+                   m_moe_prefill_stats.gather_router_scores.total_ms,
+                   m_moe_prefill_stats.gather_router_scores.min_ms,
+                   m_moe_prefill_stats.gather_router_scores.max_ms);
+        print_step("Gather Expert Input",
+                   m_moe_prefill_stats.gather_expert_input.count,
+                   m_moe_prefill_stats.gather_expert_input.total_ms,
+                   m_moe_prefill_stats.gather_expert_input.min_ms,
+                   m_moe_prefill_stats.gather_expert_input.max_ms);
         print_step("Expert Inference",
                    m_moe_prefill_stats.expert_inference.count,
                    m_moe_prefill_stats.expert_inference.total_ms,
                    m_moe_prefill_stats.expert_inference.min_ms,
                    m_moe_prefill_stats.expert_inference.max_ms);
-        print_step("Dump Tensors",
-                   m_moe_prefill_stats.dump_tensors.count,
-                   m_moe_prefill_stats.dump_tensors.total_ms,
-                   m_moe_prefill_stats.dump_tensors.min_ms,
-                   m_moe_prefill_stats.dump_tensors.max_ms);
         print_step("Relayout Output",
                    m_moe_prefill_stats.relayout_output.count,
                    m_moe_prefill_stats.relayout_output.total_ms,
@@ -926,33 +866,19 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 // Host Flash Attention case - defer, use dedicated HFA I/O structure
                 m_hfa_io[idx].inputs.at(i) = i_tensor;
             } else if (is_moe) {
-                // MoE case - register input for later processing
+                // MoE expert layer: handle router scores and expert inputs
                 if (func_desc.moe_experts) {
-                    // Check if this is the router scores parameter
-                    bool is_router_scores = func_desc.moe_experts->_router_scores_idx.has_value() &&
-                                            i == func_desc.moe_experts->_router_scores_idx.value();
+                    const auto& moe = func_desc.moe_experts.value();
 
-                    // Check if this is the expert input parameter (token embeddings)
-                    bool is_expert_input = func_desc.moe_experts->_expert_input_param_idx.has_value() &&
-                                           i == func_desc.moe_experts->_expert_input_param_idx.value();
-
-                    if (is_router_scores) {
+                    // Router scores: defer to MoE inference dispatcher
+                    if (moe._router_scores_idx.has_value() && i == moe._router_scores_idx.value()) {
                         m_moe_io[idx].router_scores = i_tensor;
-                    } else if (is_expert_input) {
-                        // CRITICAL FIX: Distinguish between decoding and prefill modes
-                        //
-                        // Root cause of previous accuracy issue:
-                        // - Old code only recorded tensor: m_moe_io[idx].inputs.at(i) = i_tensor
-                        // - This worked for chunk-based prefill because unsafe_run_this_moe_expert() would
-                        //   gather tokens from the recorded tensor before inference
-                        // - But for decoding OR non-chunk prefill, if tensor is only recorded without set_tensor(),
-                        //   the expert model receives uninitialized/zero input, causing incorrect results
-                        //
-                        // Correct solution:
-                        // - Decoding (input_token_count == 1): Always set_tensor() directly since no chunking
-                        // - Prefill (input_token_count > 1): Only record tensor, chunking code will handle gather+set
-                        const auto input_token_count = func_desc.moe_experts.value().input_token_count;
-                        const bool is_decoding = (input_token_count == 1);
+                        continue;
+                    }
+
+                    // Expert inputs: decoding sets directly, prefill defers for chunking
+                    if (moe._expert_input_param_idx.has_value() && i == moe._expert_input_param_idx.value()) {
+                        const bool is_decoding = (moe.input_token_count == 1);
                         if (is_decoding) {
                             // For decoding, set expert input tensor directly
                             m_subrequests[real_idx]->set_tensor(iport, i_tensor);
@@ -960,27 +886,25 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                             // For prefill, record the expert input tensor (token embeddings) for later chunk processing
                             m_moe_io[idx].expert_input = i_tensor;
                         }
-                    } else {
-                        NPUW_ASSERT(false && "Unknown MoE expert parameter requested");
+                        continue;
                     }
-                } else if (func_desc.moe_experts_downstream) {
-                    // MoE downstream: set the relayouted expert outputs as input
-                    // Verify this is the correct parameter that should receive expert outputs
-                    if (i == func_desc.moe_experts_downstream->expert_output_param_idx) {
-                        if (m_moe_relayouted_output) {
-                            m_subrequests[real_idx]->set_tensor(iport, m_moe_relayouted_output);
-                        } else {
-                            NPUW_ASSERT(
-                                false &&
-                                "MoE downstream expert output parameter requested but no relayouted output available");
-                        }
+
+                    NPUW_ASSERT(false && "Unknown MoE expert parameter index");
+                }
+
+                // MoE downstream layer: connect to relayouted expert outputs
+                if (func_desc.moe_experts_downstream) {
+                    const auto& moe_downstream = func_desc.moe_experts_downstream.value();
+                    if (i == moe_downstream.expert_output_param_idx) {
+                        NPUW_ASSERT(m_moe_output_buffer && "MoE output buffer not available");
+                        m_subrequests[real_idx]->set_tensor(iport, m_moe_output_buffer);
                     } else {
-                        // Other MoE downstream parameters should use normal tensor binding
                         m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                     }
-                } else {
-                    NPUW_ASSERT(false && "MoE info missing in function description");
+                    continue;
                 }
+
+                NPUW_ASSERT(false && "MoE flag set but no moe_experts/moe_experts_downstream found");
             } else {
                 // Default case
                 m_subrequests[real_idx]->set_tensor(iport, i_tensor);
@@ -1020,15 +944,9 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         auto& oport = func_desc.compiled_model->outputs()[i];
         auto o_tensor = m_funcall_result.at({idx, i});
         if (func_desc.moe_experts) {
-            // Need it??
-            // MoE case - register output for later processing
-            m_moe_io[idx].outputs.at(i) = o_tensor;
-            // Set tensor immediately so that decoding infer request can output to it
-            // Prefill phase does not use MoE outputs
+            // MoE: Decoding outputs final result directly; Prefill outputs intermediate per-expert result
+            // (scatter_expert_outputs relayouts to global buffer)
             m_subrequests[real_idx]->set_tensor(oport, o_tensor);
-
-            // Verify the setting
-            auto verify_tensor = m_subrequests[real_idx]->get_tensor(oport);
         } else if (is_hfa) {
             // HFA case - defer, store in dedicated HFA I/O structure
             m_hfa_io[idx].outputs.at(i) = o_tensor;
@@ -1235,6 +1153,10 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
         // Recreate HFA tile infer requests if this function has host flash attention
         if (proto_comp_model_desc.host_flash_attention) {
             setup_hfa_infer_requests(real_idx, is_piped, /* is_recreate */ true, /* enable_hfa_optimizations */ true);
+        }
+        // Recreate MoE expert infer requests if this function has MoE
+        if (proto_comp_model_desc.moe_experts) {
+            setup_moe_infer_requests(real_idx, is_piped, /* is_recreate */ true);
         }
     }
 
@@ -2056,12 +1978,12 @@ void ov::npuw::JustInferRequest::run_moe_infer(std::size_t real_idx, std::size_t
                                          << ", input_token_count=" << input_token_count
                                          << ", mode=" << (is_decoding ? "DECODING" : "PREFILL"));
 
-    // Step 1: Parse router scores to get selected experts
     if (!m_moe_io[idx].router_scores) {
         OPENVINO_THROW("MoE: Router scores are required but not available");
     }
 
-    // Clear and reuse member variables to avoid stack allocation overhead
+    // Parse router scores and populate routing maps
+    // Note: parse_selected_experts_from_router() clears the maps internally before populating
     auto parse_start = std::chrono::high_resolution_clock::now();
     auto selected_experts = ov::npuw::moe::parse_selected_experts_from_router(m_moe_io[idx].router_scores,
                                                                               num_experts,
@@ -2081,21 +2003,11 @@ void ov::npuw::JustInferRequest::run_moe_infer(std::size_t real_idx, std::size_t
         NPUW_ASSERT(false && "No experts selected by router");
     }
 
-    std::ostringstream oss;
-    oss << "Selected experts (" << selected_experts.size() << "): [";
-    for (size_t i = 0; i < selected_experts.size(); ++i) {
-        oss << selected_experts[i];
-        if (i < selected_experts.size() - 1)
-            oss << ", ";
-    }
-    oss << "]";
-    LOG_DEBUG(oss.str());
-
-    // Step 2: Dispatch to appropriate inference function
+    // Dispatch to appropriate inference function
     if (is_decoding) {
-        run_moe_decoding_inference(idx, real_idx, selected_experts);
+        run_moe_batch_experts_inference(idx, real_idx, selected_experts);
     } else {
-        run_moe_prefill_inference(idx, real_idx, selected_experts, m_moe_token_to_experts, m_moe_expert_to_tokens);
+        run_moe_iterative_experts_inference(idx, real_idx, selected_experts);
     }
 
     LOG_DEBUG("========== MoE Expert Inference Completed ==========");
@@ -2166,14 +2078,23 @@ void ov::npuw::JustInferRequest::set_unrolled_router_scores(std::size_t idx,
 }
 
 // ====================================================================================================
-// MoE Decoding Inference
+// MoE Batch Experts Inference (Single Token, K Experts Processed in Parallel)
+// ====================================================================================================
+//
+// Strategy: Process one token with K active experts in a single batched inference.
+// - Unpack all K expert weights at once (batch unrolling)
+// - Set K router scores (one per expert)
+// - Execute single inference that processes all K experts in parallel
+//
+// Use case: Token generation phase where each token requires K experts
+//
 // ====================================================================================================
 
-void ov::npuw::JustInferRequest::run_moe_decoding_inference(std::size_t idx,
-                                                            std::size_t real_idx,
-                                                            const std::vector<size_t>& selected_experts) {
-    LOG_DEBUG("\n[DECODING] Processing single token with " << selected_experts.size() << " experts");
-    auto decoding_start = std::chrono::high_resolution_clock::now();
+void ov::npuw::JustInferRequest::run_moe_batch_experts_inference(std::size_t idx,
+                                                                 std::size_t real_idx,
+                                                                 const std::vector<size_t>& selected_experts) {
+    LOG_DEBUG("\n[BATCH EXPERTS] Processing single token with " << selected_experts.size() << " experts in parallel");
+    auto batch_start = std::chrono::high_resolution_clock::now();
 
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     auto& r = m_subrequests[real_idx];
@@ -2182,7 +2103,7 @@ void ov::npuw::JustInferRequest::run_moe_decoding_inference(std::size_t idx,
 
     // Validate expert count
     if (selected_experts.size() != num_active_experts) {
-        NPUW_ASSERT(false && "Decoding stage: number of selected experts does not match num_active_experts");
+        NPUW_ASSERT(false && "Batch experts mode: number of selected experts does not match num_active_experts");
     }
 
     // Step 1: Unpack all K expert weights at once
@@ -2199,7 +2120,7 @@ void ov::npuw::JustInferRequest::run_moe_decoding_inference(std::size_t idx,
     record_time(m_moe_decoding_stats.set_router_input,
                 std::chrono::duration<double, std::milli>(step_end - step_start).count());
 
-    // Step 3: Execute inference once for all K experts
+    // Step 3: Execute inference once for all K experts in parallel
     step_start = std::chrono::high_resolution_clock::now();
     r->infer();
     step_end = std::chrono::high_resolution_clock::now();
@@ -2207,36 +2128,42 @@ void ov::npuw::JustInferRequest::run_moe_decoding_inference(std::size_t idx,
                 std::chrono::duration<double, std::milli>(step_end - step_start).count());
 
     // Record total time
-    auto decoding_end = std::chrono::high_resolution_clock::now();
-    double decoding_total_ms = std::chrono::duration<double, std::milli>(decoding_end - decoding_start).count();
-    record_time(m_moe_decoding_stats.total_decoding, decoding_total_ms);
+    auto batch_end = std::chrono::high_resolution_clock::now();
+    double batch_total_ms = std::chrono::duration<double, std::milli>(batch_end - batch_start).count();
+    record_time(m_moe_decoding_stats.total_decoding, batch_total_ms);
 
-    LOG_DEBUG("[DECODING] Completed in " << decoding_total_ms << " ms");
+    LOG_DEBUG("[BATCH EXPERTS] Completed in " << batch_total_ms << " ms");
 }
 
 // ====================================================================================================
-// MoE Prefill Inference
+// MoE Iterative Experts Inference (Multiple Tokens, Experts Processed Sequentially)
+// ====================================================================================================
+//
+// Strategy: Process multiple tokens by iterating through experts sequentially.
+// - For each expert: process all tokens assigned to it (potentially in chunks)
+// - Use dynamic chunk sizing (256/128/64/32/16) based on token count
+// - Accumulate expert outputs into global buffer
+//
+// Use case: Prompt prefill phase where multiple tokens need expert routing
+//
 // ====================================================================================================
 
-void ov::npuw::JustInferRequest::run_moe_prefill_inference(
-    std::size_t idx,
-    std::size_t real_idx,
-    const std::vector<size_t>& selected_experts,
-    const std::map<size_t, std::vector<size_t>>& token_to_experts,
-    const std::map<size_t, std::vector<size_t>>& expert_to_tokens) {
-    LOG_DEBUG("\n[PREFILL] Processing MoE inference for multiple tokens");
-    auto prefill_start = std::chrono::high_resolution_clock::now();
+void ov::npuw::JustInferRequest::run_moe_iterative_experts_inference(std::size_t idx,
+                                                                     std::size_t real_idx,
+                                                                     const std::vector<size_t>& selected_experts) {
+    LOG_DEBUG("\n[ITERATIVE EXPERTS] Processing multiple tokens by iterating through experts");
+    auto iterative_start = std::chrono::high_resolution_clock::now();
 
     // Get references
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     const auto& moe_experts = comp_model_desc.moe_experts.value();
     const auto input_token_count = moe_experts.input_token_count;
 
-    // Clear output buffer before accumulating
-    if (!m_moe_relayouted_output) {
-        NPUW_ASSERT(false && "MoE relayouted output buffer is null");
+    // Clear output buffer before accumulating expert outputs
+    if (!m_moe_output_buffer) {
+        NPUW_ASSERT(false && "MoE output buffer is null");
     }
-    std::memset(m_moe_relayouted_output->data(), 0, m_moe_relayouted_output->get_byte_size());
+    std::memset(m_moe_output_buffer->data(), 0, m_moe_output_buffer->get_byte_size());
 
     // Get tensor references (constant across all experts)
     NPUW_ASSERT(moe_experts._router_scores_idx.has_value());
@@ -2256,7 +2183,7 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
         auto expert_start = std::chrono::high_resolution_clock::now();
 
         // Get tokens assigned to this expert
-        const auto& tokens_for_expert = expert_to_tokens.at(expert_id);
+        const auto& tokens_for_expert = m_moe_expert_to_tokens.at(expert_id);
         const size_t total_tokens = tokens_for_expert.size();
 
         LOG_DEBUG("    Expert[" << expert_id << "] processing " << total_tokens << " tokens");
@@ -2266,7 +2193,7 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
         std::vector<size_t> expert_slots_for_tokens(total_tokens);
         for (size_t i = 0; i < total_tokens; ++i) {
             size_t token_id = tokens_for_expert[i];
-            const auto& expert_ids = token_to_experts.at(token_id);
+            const auto& expert_ids = m_moe_token_to_experts.at(token_id);
             auto it = std::find(expert_ids.begin(), expert_ids.end(), expert_id);
             NPUW_ASSERT(it != expert_ids.end() && "Token should have this expert");
             expert_slots_for_tokens[i] = std::distance(expert_ids.begin(), it);
@@ -2285,7 +2212,7 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
             // - remaining_tokens <= smallest chunk → use smallest chunk
             // - remaining_tokens >= largest chunk → use largest chunk
             // - otherwise → use smallest chunk that is >= remaining_tokens
-            // Pre-sorted in descending order: [256, 128, 64, 32]
+            // Pre-sorted in descending order: [256, 128, 64, 32, 16]
             NPUW_ASSERT(!m_moe_sorted_chunk_sizes.empty() && "MoE sorted chunk sizes cannot be empty");
 
             size_t selected_chunk_size;
@@ -2357,15 +2284,19 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
                                                 processed_tokens,
                                                 current_chunk_size);
             auto step_end = std::chrono::high_resolution_clock::now();
-            record_time(m_moe_prefill_stats.set_router_input,
+            record_time(m_moe_prefill_stats.gather_router_scores,
                         std::chrono::duration<double, std::milli>(step_end - step_start).count());
 
             // Step 3: Gather expert inputs for this chunk
+            step_start = std::chrono::high_resolution_clock::now();
             ov::npuw::moe::gather_expert_inputs(expert_input_source,
                                                 selected_expert_input_dest,
                                                 tokens_for_expert,
                                                 processed_tokens,
                                                 current_chunk_size);
+            step_end = std::chrono::high_resolution_clock::now();
+            record_time(m_moe_prefill_stats.gather_expert_input,
+                        std::chrono::duration<double, std::milli>(step_end - step_start).count());
 
             // Step 4: Execute expert inference
             step_start = std::chrono::high_resolution_clock::now();
@@ -2377,7 +2308,7 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
             // Step 5: Scatter expert outputs back to global buffer
             step_start = std::chrono::high_resolution_clock::now();
             ov::npuw::moe::scatter_expert_outputs(selected_expert_output,
-                                                  m_moe_relayouted_output,
+                                                  m_moe_output_buffer,
                                                   tokens_for_expert,
                                                   processed_tokens,
                                                   current_chunk_size,
@@ -2399,12 +2330,13 @@ void ov::npuw::JustInferRequest::run_moe_prefill_inference(
         LOG_DEBUG("    Expert[" << expert_id << "] completed");
     }
 
-    // Record total prefill time
-    auto prefill_end = std::chrono::high_resolution_clock::now();
-    double prefill_total_ms = std::chrono::duration<double, std::milli>(prefill_end - prefill_start).count();
-    record_time(m_moe_prefill_stats.total_prefill, prefill_total_ms);
+    // Record total iterative processing time
+    auto iterative_end = std::chrono::high_resolution_clock::now();
+    double iterative_total_ms = std::chrono::duration<double, std::milli>(iterative_end - iterative_start).count();
+    record_time(m_moe_prefill_stats.total_prefill, iterative_total_ms);
 
-    LOG_DEBUG("[PREFILL] Completed all " << selected_experts.size() << " experts in " << prefill_total_ms << " ms");
+    LOG_DEBUG("[ITERATIVE EXPERTS] Completed all " << selected_experts.size() << " experts in " << iterative_total_ms
+                                                   << " ms");
 }
 
 void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared) {
@@ -2497,4 +2429,72 @@ void ov::npuw::JustInferRequest::update_subrequest_links(std::size_t) {
 bool ov::npuw::JustInferRequest::is_pipelined(std::size_t idx) const {
     const auto& desc = m_npuw_model->m_compiled_submodels[real(idx)];
     return m_use_function_pipelining && desc.replaced_by && !desc.forced_to_fcall;
+}
+
+void ov::npuw::JustInferRequest::setup_moe_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+
+    if (!comp_model_desc.moe_experts.has_value()) {
+        return;
+    }
+
+    LOG_INFO((is_recreate ? "Recreating" : "Setting up") << " MoE expert infer requests...");
+    LOG_BLOCK();
+
+    const auto& moe = comp_model_desc.moe_experts.value();
+
+    // Clear existing requests if recreating
+    if (is_recreate) {
+        comp_model_desc.moe_infer_requests.clear();
+    }
+
+    // Step 1: Create infer requests for all compiled MoE chunk size models
+    LOG_INFO("Creating infer requests for MoE chunk size models...");
+    for (const auto& entry : moe._compiled_models) {
+        const size_t chunk_size = entry.first;
+        const auto& compiled_model = entry.second;
+
+        if (!compiled_model) {
+            LOG_WARN("Compiled model for chunk_size=" << chunk_size << " is null, skipping...");
+            continue;
+        }
+
+        try {
+            auto infer_request = compiled_model->create_infer_request();
+            comp_model_desc.moe_infer_requests[chunk_size] = std::move(infer_request);
+            LOG_INFO("Created infer request for MoE chunk_size=" << chunk_size);
+        } catch (const std::exception& ex) {
+            LOG_ERROR("Failed to create infer request for MoE chunk_size=" << chunk_size << ": " << ex.what());
+            OPENVINO_THROW("MoE infer request creation failed for chunk_size=", chunk_size, ": ", ex.what());
+        }
+    }
+    LOG_INFO("Created " << comp_model_desc.moe_infer_requests.size() << " MoE infer requests");
+
+    // Step 2: Pre-sort chunk sizes in descending order for greedy selection
+    LOG_INFO("Pre-sorting chunk sizes for greedy selection...");
+    m_moe_sorted_chunk_sizes.clear();
+    m_moe_sorted_chunk_sizes.reserve(moe._compiled_models.size());
+    for (const auto& entry : moe._compiled_models) {
+        m_moe_sorted_chunk_sizes.push_back(entry.first);
+    }
+    std::sort(m_moe_sorted_chunk_sizes.begin(), m_moe_sorted_chunk_sizes.end(), std::greater<size_t>());
+    LOG_INFO("Sorted chunk sizes: " << m_moe_sorted_chunk_sizes.size() << " entries");
+
+    // Step 3: Pre-allocate expert output accumulation buffer
+    LOG_INFO("Allocating MoE expert output buffer...");
+    const size_t active_experts = moe.num_active_experts;
+    const size_t num_tokens = moe.input_token_count;
+    const size_t embed_dim = moe.expert_hidden_dim;
+    ov::Shape target_shape = {active_experts, 1, num_tokens, embed_dim};
+
+    // Infer element type from compiled model output (all chunk models have same output type)
+    auto any_compiled_model = moe._compiled_models.begin()->second;
+    auto output_element_type = any_compiled_model->outputs()[0].get_element_type();
+
+    const auto& device = *comp_model_desc.device_it;
+    m_moe_output_buffer = allocMem(output_element_type, target_shape, device);
+    LOG_INFO("Allocated output buffer with shape " << target_shape << ", type " << output_element_type << " on device "
+                                                   << device);
+
+    LOG_INFO("MoE setup completed successfully");
 }
