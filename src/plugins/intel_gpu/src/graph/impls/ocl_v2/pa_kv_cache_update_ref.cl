@@ -107,39 +107,11 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
             for (uint i = 0; i < num_groups; i++) {
                 OUTPUT_TYPE res = convert_char_rte(input_data[i] * scale + zp);
 
-                // [TEMP]
-                if ((int)res > INT4_MAX || (int)res < INT4_MIN) {
-                    printf(" !!!!(%d)!!!", (int)res);
-                }
-
                 orig_offset[i] = out_data_offset + (i * SUBGROUP_SIZE + sglid) * out_data_pitch;
                 // [TEST]
                 // out_data[orig_offset[i]] = res;
                 orig_result[i] = res;
-
-                // if ((uint)get_global_id(0) == 0 && (uint)get_global_id(1) == 0/* && (uint)get_global_id(2) == 0*/) {
-                //     if (orig_offset == 2500608 || orig_offset == 2500880) {
-                //         printf("\t\t\t???? sglid(%u) i(%u) : index(%u) => value(%d)\n",
-                //         sglid, i, orig_offset[i], (int)orig_result[i]);
-                //     }
-                // }
-                if ((int)orig_result[i] != (int)result[i]) {
-                    printf("??????????????????????????????????????????????????????????????????????\n");
-                }
             }
-
-            #if ENABLE_DEBUG
-            if ((uint)get_global_id(0) == 0 && (uint)get_global_id(1) == 0 && (uint)(uint)sglid < 4 &&
-                token_pos_in_block < 8 && (out_data_pitch != PAGED_ATTENTION_BLOCK_SIZE)) {
-                printf("\t---- out idx (token:%u,sglid:%u) (%d:%u,%u,%u,%u)=>(%u:%u,%u) (scale:%.3f) (zp:%.3f) => (%d:%d)(%d:%d)(%d:%d)(%d:%d)\n",
-                        token_pos_in_block, sglid,
-                        (int)num_groups, orig_offset[0], orig_offset[1], orig_offset[2], orig_offset[3],
-                        (int)(num_groups / PACK_SIZE), packed_offset[0], packed_offset[1], (float)scale, (float)zp,
-                        (int)result[0], (int)orig_result[0], (int)result[1], (int)orig_result[1],
-                        (int)result[2], (int)orig_result[2], (int)result[3], (int)orig_result[3]
-                        );
-            }
-            #endif
         }
         #endif
     } else {
@@ -391,7 +363,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
             }
         }
 
-        #if ENABLE_DEBUG && 1
+        #if ENABLE_DEBUG
         {
             if ((uint)get_global_id(0) == 0 && (uint)get_global_id(1) < 4 && h_sub < 6 && get_group_id(2) < 4) {
                     uint temp = order_in_packed + packed_head_idx;
@@ -498,7 +470,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
             #endif
         //}
 
-        #if ENABLE_DEBUG && 1
+        #if ENABLE_DEBUG
         {
             // if ((uint)get_global_id(0) == 0 && (uint)get_global_id(1) == 0 && (uint)(uint)get_local_id(2) < 4 && h_sub < 6) {
             //     printf("!!!! Error Re-quantize : K-cache(By-channel) num_group(%u) sglid(%u) idx:block/head(%lu,%lu) token_num(%u) comp_index(%u) cache_index_INT8(%u, %u, %u, %u) => value_int8(%d, %d, %d, %d) zp(%d)\n",
@@ -1116,10 +1088,6 @@ KERNEL(pa_kv_cache_update)(
         #if defined(IS_KV_COMPRESSED) && defined(IS_KEY_BY_CHANNEL)
             // key processing by channel
             if (token_start_pos_key != 0) {
-                #if ENABLE_DEBUG || 1
-                    printf("\t>> Requant : is_prefill(true) block_idx(%u) head_idx(%u) sglid(%u) => token_start_pos_key(%u) tokens_num(%u) key_out_offset(%u) block_k_base_offset(%u)\n",
-                        block_idx, head_idx, sglid, token_start_pos_key, tokens_num, key_out_offset, block_k_base_offset);
-                #endif
                 // mixed mode => need requantize with prev tokens
                 FUNC_CALL(quantize_and_save_by_channel_block_with_requantize)(key_data,
                                                                             key_in_offset,
