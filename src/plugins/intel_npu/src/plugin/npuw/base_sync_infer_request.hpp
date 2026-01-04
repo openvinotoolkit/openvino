@@ -157,14 +157,18 @@ protected:
 
     struct MoEIO {
         std::vector<ov::SoPtr<ov::ITensor>> outputs;  // # of elements - # of subgraph outputs
-        ov::SoPtr<ov::ITensor> router_scores;         // Router scores for expert selection (per-expert weights)
-        ov::SoPtr<ov::ITensor> expert_input;          // Expert's input tensor (token embeddings)
+        ov::SoPtr<ov::ITensor> router_scores;         // Expert model input: router output for expert selection
+        ov::SoPtr<ov::ITensor> expert_input;          // Expert model input: token embeddings
     };
     std::vector<MoEIO> m_moe_io;
 
-    // MoE relayouted output: Single pre-allocated tensor shared by all MoE operations in this infer request
-    // Shape: [active_experts, 1, num_tokens, embed_dim]
-    ov::SoPtr<ov::ITensor> m_moe_relayouted_output;
+    // MoE expert output buffer: Accumulates outputs from all experts during multi-token inference
+    // - Allocated once in setup_moe_infer_requests() with element type inferred from expert model output
+    // - Cleared to zero before each prefill inference (iterative experts mode)
+    // - Each expert's output is scattered to designated [expert_id, token_id, embed_dim] slots
+    // - Shape: [num_active_experts, 1, num_tokens, embed_dim]
+    // - Shared by all MoE subgraphs in this infer request
+    ov::SoPtr<ov::ITensor> m_moe_output_buffer;
 
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
