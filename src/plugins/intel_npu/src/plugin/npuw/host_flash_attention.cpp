@@ -599,7 +599,6 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
     if (auto q_param = extract_param(pattern_nodes.matmul1_node->get_input_node_shared_ptr(0))) {
         std::size_t q_idx = model->get_parameter_index(q_param);
         hfa._sdpa_param_index_map[SDPAInputId::QUERY] = q_idx;
-        LOG_DEBUG("Mapped QUERY to parameter index " << q_idx);
     }
 
     // Extract past_key parameter - input 0 of past_key_concat
@@ -607,14 +606,12 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
         if (auto past_k_param = extract_param(pattern_nodes.past_key_concat_node->get_input_node_shared_ptr(0))) {
             std::size_t past_k_idx = model->get_parameter_index(past_k_param);
             hfa._sdpa_param_index_map[SDPAInputId::PAST_KEY] = past_k_idx;
-            LOG_DEBUG("Mapped PAST_KEY to parameter index " << past_k_idx);
         }
 
         // Extract present_key parameter - input 1 of past_key_concat
         if (auto present_k_param = extract_param(pattern_nodes.past_key_concat_node->get_input_node_shared_ptr(1))) {
             std::size_t present_k_idx = model->get_parameter_index(present_k_param);
             hfa._sdpa_param_index_map[SDPAInputId::PRESENT_KEY] = present_k_idx;
-            LOG_DEBUG("Mapped PRESENT_KEY to parameter index " << present_k_idx);
         }
     }
 
@@ -623,14 +620,12 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
         if (auto past_v_param = extract_param(pattern_nodes.past_value_concat_node->get_input_node_shared_ptr(0))) {
             std::size_t past_v_idx = model->get_parameter_index(past_v_param);
             hfa._sdpa_param_index_map[SDPAInputId::PAST_VALUE] = past_v_idx;
-            LOG_DEBUG("Mapped PAST_VALUE to parameter index " << past_v_idx);
         }
 
         // Extract present_value parameter - input 1 of past_value_concat
         if (auto present_v_param = extract_param(pattern_nodes.past_value_concat_node->get_input_node_shared_ptr(1))) {
             std::size_t present_v_idx = model->get_parameter_index(present_v_param);
             hfa._sdpa_param_index_map[SDPAInputId::PRESENT_VALUE] = present_v_idx;
-            LOG_DEBUG("Mapped PRESENT_VALUE to parameter index " << present_v_idx);
         }
     }
 
@@ -638,19 +633,19 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
     if (auto add_param = extract_param(pattern_nodes.add_node->get_input_node_shared_ptr(1))) {
         std::size_t mask_idx = model->get_parameter_index(add_param);
         hfa._sdpa_param_index_map[SDPAInputId::ATTENTION_MASK] = mask_idx;
-        LOG_DEBUG("Mapped ATTENTION_MASK to parameter index " << mask_idx);
     }
 
     LOG_INFO("Built SDPA input mapping with " << hfa._sdpa_param_index_map.size() << " entries");
 
     // Print the complete mapping table
-    std::cout << "\n========== SDPA Input Index Mapping ==========\n";
-    std::cout << "Total entries: " << hfa._sdpa_param_index_map.size() << "\n";
+    LOG_DEBUG("");
+    LOG_DEBUG("========== SDPA Input Index Mapping ==========");
+    LOG_DEBUG("Total entries: " << hfa._sdpa_param_index_map.size());
 
     for (const auto& [input_id, param_idx] : hfa._sdpa_param_index_map) {
-        std::cout << "  " << sdpa_input_id_to_string(input_id) << " -> parameter[" << param_idx << "]" << std::endl;
+        LOG_DEBUG("  " << sdpa_input_id_to_string(input_id) << " -> parameter[" << param_idx << "]");
     }
-    std::cout << "=============================================\n" << std::endl;
+    LOG_DEBUG("=============================================");
 }
 
 // ============================================================================
@@ -674,38 +669,32 @@ static void build_tile_param_mapping(HostFlashAttention& hfa, const std::shared_
         // Map tensor name to enum ID
         if (name == "past_acc") {
             hfa._tile_param_index_map[HFATileInputId::PAST_ACC] = i;
-            LOG_DEBUG("Mapped PAST_ACC to tile input[" << i << "]");
         } else if (name == "past_max") {
             hfa._tile_param_index_map[HFATileInputId::PAST_MAX] = i;
-            LOG_DEBUG("Mapped PAST_MAX to tile input[" << i << "]");
         } else if (name == "past_d") {
             hfa._tile_param_index_map[HFATileInputId::PAST_D] = i;
-            LOG_DEBUG("Mapped PAST_D to tile input[" << i << "]");
         } else if (name == "k_tile") {
             hfa._tile_param_index_map[HFATileInputId::K_TILE] = i;
-            LOG_DEBUG("Mapped K_TILE to tile input[" << i << "]");
         } else if (name == "v_tile") {
             hfa._tile_param_index_map[HFATileInputId::V_TILE] = i;
-            LOG_DEBUG("Mapped V_TILE to tile input[" << i << "]");
         } else if (name == "q") {
             hfa._tile_param_index_map[HFATileInputId::Q] = i;
-            LOG_DEBUG("Mapped Q to tile input[" << i << "]");
         } else if (name == "mask_tile") {
             hfa._tile_param_index_map[HFATileInputId::MASK_TILE] = i;
-            LOG_DEBUG("Mapped MASK_TILE to tile input[" << i << "]");
         } else {
             LOG_WARN("Unknown tile model input name: " << name);
         }
     }
 
     // Print the tile input mapping
-    std::cout << "\n========== HFA Tile Model Input Mapping ==========\n";
-    std::cout << "Total entries: " << hfa._tile_param_index_map.size() << "\n";
+    LOG_DEBUG("");
+    LOG_DEBUG("========== HFA Tile Model Input Mapping ==========");
+    LOG_DEBUG("Total entries: " << hfa._tile_param_index_map.size());
 
     for (const auto& [input_id, input_idx] : hfa._tile_param_index_map) {
-        std::cout << "  " << hfa_tile_input_id_to_string(input_id) << " -> input[" << input_idx << "]" << std::endl;
+        LOG_DEBUG("  " << hfa_tile_input_id_to_string(input_id) << " -> input[" << input_idx << "]");
     }
-    std::cout << "==================================================\n" << std::endl;
+    LOG_DEBUG("==================================================");
 }
 
 // ============================================================================
@@ -729,26 +718,24 @@ static void build_tile_output_mapping(HostFlashAttention& hfa, const std::shared
         // Map tensor name to enum ID
         if (name == "acc") {
             hfa._tile_output_index_map[HFATileOutputId::ACC] = i;
-            LOG_DEBUG("Mapped ACC to tile output[" << i << "]");
         } else if (name == "maxx") {
             hfa._tile_output_index_map[HFATileOutputId::MAXX] = i;
-            LOG_DEBUG("Mapped MAXX to tile output[" << i << "]");
         } else if (name == "d") {
             hfa._tile_output_index_map[HFATileOutputId::D] = i;
-            LOG_DEBUG("Mapped D to tile output[" << i << "]");
         } else {
             LOG_WARN("Unknown tile model output name: " << name);
         }
     }
 
     // Print the tile output mapping
-    std::cout << "\n========== HFA Tile Model Output Mapping ==========\n";
-    std::cout << "Total entries: " << hfa._tile_output_index_map.size() << "\n";
+    LOG_DEBUG("");
+    LOG_DEBUG("========== HFA Tile Model Output Mapping ==========");
+    LOG_DEBUG("Total entries: " << hfa._tile_output_index_map.size());
 
     for (const auto& [output_id, output_idx] : hfa._tile_output_index_map) {
-        std::cout << "  " << hfa_tile_output_id_to_string(output_id) << " -> output[" << output_idx << "]" << std::endl;
+        LOG_DEBUG("  " << hfa_tile_output_id_to_string(output_id) << " -> output[" << output_idx << "]");
     }
-    std::cout << "==================================================\n" << std::endl;
+    LOG_DEBUG("==================================================");
 }
 
 // ============================================================================
@@ -1056,7 +1043,7 @@ void PositionIDs::prepare(int64_t past_len) {
 
     // Same logic as regular attention PositionIDs
     auto* pos_data_ptr = in_tensor->data<int64_t>();
-    for (auto idx = in_dims.back() - 1; idx >= 0; idx--) {
+    for (int64_t idx = static_cast<int64_t>(in_dims.back()) - 1; idx >= 0; idx--) {
         if (pos_data_ptr[idx] > 0) {
             // Initialize fields
             _current_length = pos_data_ptr[idx];
