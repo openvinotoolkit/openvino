@@ -236,6 +236,8 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
         return;
     }
 
+    // Remove if micro_gemm support u8
+    setenv("MOE_USE_MICRO_GEMM_PREFILL", "0", 0);
     tests::random_generator rg(GET_SUITE_NAME);
     Moe3GemmConfig config;
     config.batch_size = 1;
