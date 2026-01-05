@@ -300,7 +300,19 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         GPU_DEBUG_TRACE_DETAIL << "\t experts_weight_layout: " << experts_weight_layout.to_short_string() << std::endl;
 
         // has_batch_dim indicates whether the input tensor has batch dimension
-        size_t n = input_layout.get_shape().size() == 3 ? input_layout.get_shape()[1] : input_layout.get_shape()[0];
+        size_t n = input_layout.get_shape()[0];
+        switch (input_layout.get_shape().size()) {
+        case 2:
+            n = input_layout.get_shape()[0];
+            break;
+        case 3:
+        case 4:
+            n = input_layout.get_shape()[0] * input_layout.get_shape()[1];
+            break;
+        default:
+            OPENVINO_THROW("Unsupported input tensor shape size: ", input_layout.get_shape().size());
+        }
+
         auto cur_moe = params.typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
         n = n * config.top_k;

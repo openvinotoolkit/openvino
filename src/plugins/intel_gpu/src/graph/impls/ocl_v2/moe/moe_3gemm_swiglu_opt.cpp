@@ -1407,7 +1407,8 @@ public:
         auto batch_mem_ptr = scratch.topk_id;
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         auto routing_mem_ptr = scratch.topk_weights;
-        auto input_shape = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))->get_layout().get_shape();
+        auto input_layout = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))->get_layout();
+        auto token_num = get_seq_len(input_layout);
 
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
@@ -1431,7 +1432,7 @@ public:
         //   mask 3: expert id, shape = [activated_expert_num]
         //   mask 4: actual activated expert num, shape = [1]
         if (use_gpu_mask_gen) {
-            auto token_size = input_shape[0];
+            auto token_size = token_num;
             ret_event = execute_stage(events,
                                       instance,
                                       *prefill_mask_gen,
@@ -1459,7 +1460,7 @@ public:
             expert_mask_cpu expert_mask_cpu;
             get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask_cpu);
 
-            auto token_size = input_shape[0];
+            auto token_size = token_num;
             auto max_topk = static_cast<int>(cur_moe->_config.top_k);
             std::vector<int32_t> tokens_per_expert_cpu(token_size * max_topk, -1);
             std::vector<int32_t> tokens_lens_per_expert_cpu(num_total_experts, -1);
@@ -1551,6 +1552,16 @@ public:
                                       {scratch.x},
                                       {static_cast<size_t>(token_per_expert * local_threads_count), 1, 1},
                                       {static_cast<size_t>(local_threads_count), 1, 1});
+
+#    if DUMP_TENSOR_CONTENTS
+            {
+                stream.finish();  // debug
+                // print_mem_f16(stream, instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)), "input token");
+                // print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT], "token idx per expert");
+                // print_mem_f16(stream, scratch.x, "gathered token");
+                std::cout << std::endl;
+            }
+#    endif
         }
 
         // step 3: moe_gemm for up and gate
@@ -1571,7 +1582,31 @@ public:
             std::cout << "\nstep 3: moe_gemm for up and gate" << std::endl;
 #    endif
             ret_event = PrimitiveImplOCL::execute_stage({ret_event}, instance, micro_gemm_up);
+#    if DUMP_TENSOR_CONTENTS
+            {
+                stream.finish();  // debug
+                print_mem_f16(stream, intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT], "up_token_input");
+                print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS], "expert_id", num_actually_used_experts);
+                print_mem(stream,
+                          intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT],
+                          "input_offset_per_expert",
+                          num_actually_used_experts);
+                print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT], "token_len", num_actually_used_experts);
+                print_mem_f16(stream, intermediates_memories[MOE_INTERNAL_BUFFER_UP_OUTPUT], "up_output");
+            }
+#    endif
             ret_event = PrimitiveImplOCL::execute_stage({ret_event}, instance, micro_gemm_gate);
+#    if DUMP_TENSOR_CONTENTS
+            {
+                stream.finish();  // debug
+                // print_mem_f16(stream, intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT], "gate_token_input");
+                // print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS], "gate_expert_id", num_actually_used_experts);
+                // print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT], "gate_input_offset_per_expert",
+                // num_actually_used_experts); print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
+                // "gate_token_len", num_actually_used_experts);
+                print_mem_f16(stream, intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT], "gate_output");
+            }
+#    endif
         }
 
         // step 4: post proc - gate_up = silu(gate)*up, silu(x)=x*sigmod(x)=x*(1+exp(-x))
@@ -1581,7 +1616,7 @@ public:
         // output
         //      0: gate_up  [token_len * expert_topK, hidden_size]
         {
-            auto token_size = input_shape[0] * max_topk;
+            auto token_size = token_num * max_topk;
 #    if DEBUG_MOE_LOG
             std::cout << "\nstep 4: prefill_swiglu token_size=" << token_size << ", hidden_size=" << _intermediate_size << std::endl;
 #    endif
@@ -1592,6 +1627,15 @@ public:
                                       {intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
                                       {static_cast<size_t>(token_size), static_cast<size_t>(_intermediate_size), 1},
                                       {1, subgroup_size, 1});
+
+#    if DUMP_TENSOR_CONTENTS
+            {
+                ret_event->wait();  // debug
+                stream.finish();    // debug
+                print_mem_f16(stream, intermediates_memories[MOE_INTERNAL_BUFFER_UP_OUTPUT], "silu_up_input");
+                print_mem_f16(stream, intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT], "silu_gate_up_output");
+            }
+#    endif
         }
 
         // step 5: moe_gemm for down
@@ -1626,7 +1670,7 @@ public:
         // output:
         //      0: final hidden states, shape = [token_len, hidden_size]
         {
-            auto token_size = input_shape[0];
+            auto token_size = token_num;
             auto [local_threads_count, batches_per_thread, _] = calc_thread_count(const_cast<RuntimeParams&>(*instance.get_impl_params()), 4, _hidden_size);
 
 #    if DEBUG_MOE_LOG
@@ -1649,6 +1693,25 @@ public:
                                       {static_cast<size_t>(token_size * local_threads_count), 1, 1},
                                       {local_threads_count, 1, 1},
                                       true /*instance.needs_completion_event()*/);
+#    if DUMP_TENSOR_CONTENTS
+            {
+                stream.finish();  // debug
+                print_mem_f16(stream, intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT], "scatter_reduce_input");
+                print_mem(stream, batch_mem_ptr, "scatter_reduce_experts_per_token");
+                print_mem_f16(stream, routing_mem_ptr, "scatter_reduce_expert_weights");
+                print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT], "scatter_reduce_tokens_per_expert");
+                print_mem(stream,
+                          intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT],
+                          "scatter_reduce_experts_start_offset",
+                          num_actually_used_experts);
+                print_mem(stream,
+                          intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
+                          "scatter_reduce_tokens_len_per_expert",
+                          num_actually_used_experts);
+                print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS], "scatter_reduce_expert_id", num_actually_used_experts);
+                print_mem_f16(stream, final_hidden_states_mem_ptr, "final_hidden_states");
+            }
+#    endif
         }
 
         return ret_event;

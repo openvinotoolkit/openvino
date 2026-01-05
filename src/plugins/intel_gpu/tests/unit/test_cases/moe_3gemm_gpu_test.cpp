@@ -302,17 +302,17 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     size_t group_num = config.hidden_size / config.group_size;
     size_t group_num2 = config.inter_size / config.group_size;
 
-    auto w0_weight_mem = create_weight_tensor(w0_q_packed, config.num_experts, config.inter_size, group_num, config.group_size);
-    auto w0_scale_mem = create_f16_tensor(w0_scale, config.num_experts, config.inter_size, group_num, 1);
-    auto w0_zp_mem = create_zp_tensor(w0_zp_packed, config.num_experts, config.inter_size, group_num, 1);
+    auto w0_weight_mem = create_weight_tensor(w0_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
+    auto w0_scale_mem = create_f16_tensor(w0_scale, config.num_experts, group_num, 1, config.inter_size);
+    auto w0_zp_mem = create_zp_tensor(w0_zp_packed, config.num_experts, group_num, 1, config.inter_size);
 
-    auto w1_weight_mem = create_weight_tensor(w1_q_packed, config.num_experts, config.inter_size, group_num, config.group_size);
-    auto w1_scale_mem = create_f16_tensor(w1_scale, config.num_experts, config.inter_size, group_num, 1);
-    auto w1_zp_mem = create_zp_tensor(w1_zp_packed, config.num_experts, config.inter_size, group_num, 1);
+    auto w1_weight_mem = create_weight_tensor(w1_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
+    auto w1_scale_mem = create_f16_tensor(w1_scale, config.num_experts, group_num, 1, config.inter_size);
+    auto w1_zp_mem = create_zp_tensor(w1_zp_packed, config.num_experts, group_num, 1, config.inter_size);
 
-    auto w2_weight_mem = create_weight_tensor(w2_q_packed, config.num_experts, config.hidden_size, group_num2, config.group_size);
-    auto w2_scale_mem = create_f16_tensor(w2_scale, config.num_experts, config.hidden_size, group_num2, 1);
-    auto w2_zp_mem = create_zp_tensor(w2_zp_packed, config.num_experts, config.hidden_size, group_num2, 1);
+    auto w2_weight_mem = create_weight_tensor(w2_q_packed, config.num_experts, config.hidden_size, config.group_size, group_num2);
+    auto w2_scale_mem = create_f16_tensor(w2_scale, config.num_experts, group_num2, 1, config.hidden_size);
+    auto w2_zp_mem = create_zp_tensor(w2_zp_packed, config.num_experts, group_num2, 1, config.hidden_size);
 
     // Build topology
     topology topology;
