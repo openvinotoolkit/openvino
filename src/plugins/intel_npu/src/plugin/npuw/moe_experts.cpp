@@ -8,7 +8,6 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/tile.hpp"
 #include "openvino/op/topk.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
@@ -401,8 +400,6 @@ std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shar
         LOG_INFO("Successfully detected and transformed MoE downstream pattern");
         LOG_INFO("  Expert output parameter: " << param->get_friendly_name());
         LOG_INFO("  Expert output parameter index: " << param_idx);
-        LOG_INFO("  Shape changed: [" << total_experts_num << ", 1, " << shape[2] << ", " << shape[3] << "] -> ["
-                                      << active_experts_num << ", 1, " << shape[2] << ", " << shape[3] << "]");
 
         // Build and return result
         MoEDownstream result;

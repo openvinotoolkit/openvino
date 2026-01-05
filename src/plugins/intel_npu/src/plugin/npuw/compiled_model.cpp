@@ -535,7 +535,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
         LOG_INFO("Compiling Subgraph[" << id << "]: " << m_compiled_submodels[real_id].model->get_friendly_name()
                                        << "...");
-
         if (!compile_for_success(id)) {
             OPENVINO_THROW("Failed to compile ",
                            m_compiled_submodels[real_id].model->get_friendly_name(),
