@@ -285,7 +285,9 @@ void TileBroadcastCommon::broadcastScalar(const char* srcData, char* dstData, si
     }
 }
 
-void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const MemoryPtr& dstMemory) {
+void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory,
+                                           const MemoryPtr& dstMemory,
+                                           const std::shared_ptr<CpuParallel> cpuParallel) {
     const auto* srcData = srcMemory->getDataAs<const char>();
     auto* dstData = dstMemory->getDataAs<char>();
 
@@ -308,7 +310,7 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const Mem
                 broadcastScalar(srcData, dstData, elt_cnt, data_size);
             }
         } else {
-            parallel_for5d(optimizedParams.dims[0],
+            cpuParallel->parallel_for5d(optimizedParams.dims[0],
                            optimizedParams.dims[1],
                            optimizedParams.dims[2],
                            optimizedParams.dims[3],
@@ -330,7 +332,7 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const Mem
                            });
         }
     } else {
-        parallel_for5d(optimizedParams.dims[0],
+        cpuParallel->parallel_for5d(optimizedParams.dims[0],
                        optimizedParams.dims[1],
                        optimizedParams.dims[2],
                        optimizedParams.dims[3],

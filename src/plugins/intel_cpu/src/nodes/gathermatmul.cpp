@@ -705,6 +705,7 @@ private:
 }  // namespace
 
 void GatherMatmul::execute(const dnnl::stream& strm) {
+    const std::shared_ptr<CpuParallel>& cpu_parallel = context->getCpuParallel();
     const auto& srcMem = getParentEdgeAt(DATA)->getMemoryPtr();
     const auto& biasMem = getParentEdgeAt(BIAS)->getMemoryPtr();
     const auto& indexMem = getParentEdgeAt(INDICES)->getMemoryPtr();
@@ -782,7 +783,7 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
                     continue;
                 }
 
-                parallel_for(M_size, [&](size_t m) {
+                cpu_parallel->parallel_for(M_size, [&](size_t m) {
                     auto* dst_row = tmp_input_offset(m);
 
                     if (m < num_valid_rows) {
@@ -805,7 +806,7 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
                 gemm_impl->exec(strm, src, dst, wei, bias, scale, zp);
 
                 // Immediately scatter results while they're hot in cache
-                parallel_for(num_valid_rows, [&](size_t m) {
+                cpu_parallel->parallel_for(num_valid_rows, [&](size_t m) {
                     const auto* src_row = tmp_dst_offset(m);
                     const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
                     const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;

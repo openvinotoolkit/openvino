@@ -62,7 +62,8 @@ bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
 }
 
 Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, NgraphShapeInferFactory(op)) {
+    : Node(op, context, NgraphShapeInferFactory(op)),
+      cpuParallel(context->getCpuParallel()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -212,7 +213,7 @@ void Broadcast::executeDynamicImpl(const dnnl::stream& strm) {
 
 void Broadcast::execute(const dnnl::stream& strm) {
     if (optimizedCase) {
-        optimizedExecute(getSrcMemoryAtPort(INPUT_DATA_IDX), getDstMemoryAtPort(0));
+        optimizedExecute(getSrcMemoryAtPort(INPUT_DATA_IDX), getDstMemoryAtPort(0), cpuParallel);
     } else {
         plainExecute(strm);
     }

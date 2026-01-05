@@ -11,6 +11,7 @@
 
 #include "cpu_memory.h"
 #include "cpu_types.h"
+#include "cpu_parallel.hpp"
 
 namespace ov::intel_cpu {
 
@@ -20,7 +21,9 @@ protected:
     std::vector<NodeDesc> getSupportedConfigs(const Node* node, size_t outSize);
     bool prepareOptimizedParams(const Node* node, VectorDims& srcBlockedDims, VectorDims& dstBlockedDims);
 
-    void optimizedExecute(const MemoryPtr& srcMemory, const MemoryPtr& dstMemory);
+    void optimizedExecute(const MemoryPtr& srcMemory,
+                          const MemoryPtr& dstMemory,
+                          const std::shared_ptr<CpuParallel> cpuParallel);
 
     VectorDims repeats;
     bool optimizedCase = false;

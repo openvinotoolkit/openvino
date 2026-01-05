@@ -2792,7 +2792,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
             // mean for this instance in batch
             float C5inv = 1.F / static_cast<float>(C5);
             float mean_temp = 0.0F;
-            mean_temp = parallel_sum3d(CB, D, H, mean_temp, [&](size_t cb, size_t d, size_t h) -> float {
+            mean_temp = mvnAttrs.cpuParallel->parallel_sum3d(CB, D, H, mean_temp, [&](size_t cb, size_t d, size_t h) -> float {
                 size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
                 float mean_internal = 0.0F;
@@ -2834,7 +2834,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
             if (mvnAttrs.normalizeVariance_) {
                 // variance: sum((x-mean)*(x-mean)) for one instance in batch
                 float variance_temp = 0.0F;
-                variance_temp = parallel_sum3d(CB, D, H, variance_temp, [&](size_t cb, size_t d, size_t h) -> float {
+                variance_temp = mvnAttrs.cpuParallel->parallel_sum3d(CB, D, H, variance_temp, [&](size_t cb, size_t d, size_t h) -> float {
                     size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
                     float variance_internal = 0.0F;
@@ -2869,7 +2869,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 }
 
                 // mvn for one instance in batch
-                parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
+                mvnAttrs.cpuParallel->parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
                     size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + src_offset * src_data_size;
@@ -2884,7 +2884,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 });
             } else {
                 // mvn for one instance in batch
-                parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
+                mvnAttrs.cpuParallel->parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
                     size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + src_offset * src_data_size;
@@ -2974,7 +2974,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                     }
                 }
 
-                parallel_for2d(D, H, [&](size_t d, size_t h) {
+                mvnAttrs.cpuParallel->parallel_for2d(D, H, [&](size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
                         size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
                         auto* mean_buffer_ptr = &mean_buffer[blk_size * cb];
@@ -2994,7 +2994,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 });
             } else {
                 // normalizeVariance_ == false
-                parallel_for2d(D, H, [&](size_t d, size_t h) {
+                mvnAttrs.cpuParallel->parallel_for2d(D, H, [&](size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
                         size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
                         auto* mean_buffer_ptr = &mean_buffer[blk_size * cb];

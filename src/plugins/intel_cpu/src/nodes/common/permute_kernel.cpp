@@ -252,7 +252,7 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst
         }
         break;
     case 1:
-        parallel_for(dst_dims[0], [&](int i0) {
+        cpu_parallel->parallel_for(dst_dims[0], [&](int i0) {
             auto arg = jit_args_permute();
 
             size_t dst_off = i0 * dst_strides[0];
@@ -264,7 +264,7 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst
         });
         break;
     case 2:
-        parallel_for2d(dst_dims[0], dst_dims[1], [&](int i0, int i1) {
+        cpu_parallel->parallel_for2d(dst_dims[0], dst_dims[1], [&](int i0, int i1) {
             auto arg = jit_args_permute();
 
             size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1];
@@ -276,7 +276,7 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst
         });
         break;
     case 3:
-        parallel_for3d(dst_dims[0], dst_dims[1], dst_dims[2], [&](int i0, int i1, int i2) {
+        cpu_parallel->parallel_for3d(dst_dims[0], dst_dims[1], dst_dims[2], [&](int i0, int i1, int i2) {
             auto arg = jit_args_permute();
 
             size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1] + i2 * dst_strides[2];
