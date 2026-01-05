@@ -76,30 +76,40 @@ bool Col2Im::needPrepareParams() const {
 }
 
 void Col2Im::executeDynamicImpl(const dnnl::stream& strm) {
-    // 1. get image_shape
-    auto image_size_mem = getSrcMemoryAtPort(1);
-    const auto* image_size_ptr = image_size_mem->getDataAs<const int32_t>();
+    // 1. get data shape
+    auto data_shape = getSrcMemoryAtPort(0)->getStaticDims();
+    size_t data_rank = data_shape.size();
 
-    // 2. get kernel_size
+    // 2. get output_size
+    auto output_size_mem = getSrcMemoryAtPort(1);
+    const auto* output_size_ptr = output_size_mem->getDataAs<const int32_t>();
+
+    // 3. get kernel_size
     auto kernel_size_mem = getSrcMemoryAtPort(2);
     const auto* kernel_size_ptr = kernel_size_mem->getDataAs<const int32_t>();
 
-    // 3. get input data shape
-    auto data_shape = getSrcMemoryAtPort(0)->getStaticDims();
-
     // 4. calculate output_shape
     size_t kernel_prod = static_cast<size_t>(kernel_size_ptr[0] * kernel_size_ptr[1]);
-    size_t C = data_shape[1] / kernel_prod;
 
-    size_t N = data_shape[0];
+    size_t H = static_cast<size_t>(output_size_ptr[0]);
+    size_t W = static_cast<size_t>(output_size_ptr[1]);
 
-    size_t H = static_cast<size_t>(image_size_ptr[0]);
-    size_t W = static_cast<size_t>(image_size_ptr[1]);
-
-    ov::Shape out_shape = {N, C, H, W};
-
-    redefineOutputMemory({out_shape});
-    execute(strm);
+    ov::Shape output_shape;
+    if (data_rank == 2) { // Case of Non-batched inputs
+        size_t C = data_shape[0] / kernel_prod;
+        output_shape = {C, H, W};
+        redefineOutputMemory({output_shape});
+        execute(strm);
+    }
+    else if (data_rank == 3) { // Case of Batched inputs
+        size_t N = data_shape[0];
+        size_t C = data_shape[1] / kernel_prod;
+        output_shape = {N, C, H, W};
+        redefineOutputMemory({output_shape});
+        execute(strm);
+    } else {
+        OPENVINO_THROW("Col2Im node supports only 2D(Non-Batched) or 3D(Batched) input tensors");
+    }
 }
 
 template <class T, class T_idx>
