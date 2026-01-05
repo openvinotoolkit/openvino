@@ -40,21 +40,6 @@ JitConstants RandomUniformKernelRef::GetJitConstants(const random_uniform_params
         jit.AddConstant(MakeJitConstant("GLOBAL_SEED", params.global_seed));
     }
 
-    const auto& output = params.outputs[0];
-    if (output.is_dynamic()) {
-        DimensionAccessHelperJit dims(output);
-        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({dims.x(),
-                                                                                              dims.y(),
-                                                                                              dims.z(),
-                                                                                              dims.w(),
-                                                                                              dims.u(),
-                                                                                              dims.v(),
-                                                                                              dims.f(),
-                                                                                              dims.b()})));
-    } else {
-        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", params.outputs[0].LogicalSize()));
-    }
-
     jit.AddConstant(MakeJitConstant("OP_SEED", params.op_seed));
     jit.AddConstant(MakeJitConstant("OUTPUT_STEP", getStep(params)));
     return jit;
