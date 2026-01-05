@@ -7,8 +7,7 @@
 #include "moe_3gemm_swiglu_opt.hpp"
 // clang-format on
 
-#define DEBUG_MOE_LOG        0
-#define DUMP_TENSOR_CONTENTS 0
+#define DEBUG_MOE_LOG 0
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <initializer_list>
@@ -1196,110 +1195,7 @@ public:
         return std::make_tuple(mem, layout);
     }
 
-#    if DUMP_TENSOR_CONTENTS
-    void print_mem_f16(cldnn::stream& stream, memory::ptr mem, const std::string& mem_name, size_t max_row = 10000) {
-        auto layout = mem->get_layout().get_shape();
-        size_t row = 0;
-        size_t col = 0;
-
-        switch (layout.size()) {
-        case 1:
-            row = 1;
-            col = layout[0];
-            break;
-        case 2:
-            row = layout[0];
-            col = layout[1];
-            break;
-        case 3:
-            row = layout[0] * layout[1];
-            col = layout[2];
-            break;
-        case 4:
-            row = layout[0] * layout[1] * layout[2];
-            col = layout[3];
-            break;
-        default:
-            OPENVINO_THROW("print_mem_f16 not support layout size ", layout.size());
-        }
-
-        cldnn::mem_lock<uint16_t, mem_lock_type::read> lock_data{mem, stream};
-        std::cout << mem_name << ": layout = " << mem->get_layout().to_short_string() << std::endl;
-        for (size_t j = 0; j < row && j < max_row; j++) {
-            std::cout << "\t[" << j << "]: ";
-            for (size_t i = 0; i < col && i < 16; i++) {
-                ov::float16 v = ov::float16::from_bits(lock_data[j * col + i]);
-                std::cout << static_cast<float>(v) << ", ";
-            }
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-    };
-
-    void print_mem_u4(cldnn::stream& stream, memory::ptr mem, const std::string& mem_name, size_t max_row = 10000) {
-        auto layout = mem->get_layout().get_shape();
-        size_t row = 0;
-        size_t col = 0;
-
-        switch (layout.size()) {
-        case 1:
-            row = 1;
-            col = layout[0];
-            break;
-        case 2:
-            row = layout[0];
-            col = layout[1];
-            break;
-        case 3:
-            row = layout[0] * layout[1];
-            col = layout[2];
-            break;
-        case 4:
-            row = layout[0] * layout[1] * layout[2];
-            col = layout[3];
-            break;
-        default:
-            OPENVINO_THROW("print_mem_f16 not support layout size ", layout.size());
-        }
-
-        col = col / 2;  // u4
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock_data{mem, stream};
-        std::cout << mem_name << ": layout = " << mem->get_layout().to_short_string() << std::endl;
-        for (size_t j = 0; j < row && j < max_row; j++) {
-            std::cout << "\t[" << j << "]: ";
-            for (size_t i = 0; i < col && i < 16; i++) {
-                uint8_t byte_val = lock_data[j * col + i];
-                std::cout << (byte_val & 0xF) << ", " << ((byte_val >> 4) & 0xF) << ", ";
-            }
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-    };
-
-    void print_mem(cldnn::stream& stream, memory::ptr mem, const std::string& mem_name, int max_print = 10000) {
-        auto layout = mem->get_layout().get_shape();
-        size_t row = layout.size() >= 2 ? layout[layout.size() - 2] : 1;
-        size_t col = layout.size() >= 2 ? layout[layout.size() - 1] : layout[0];
-        cldnn::mem_lock<int32_t, mem_lock_type::read> lock_data{mem, stream};
-        std::cout << mem_name << ": layout = " << mem->get_layout().to_short_string() << std::endl;
-        int print_cnt = 0;
-        for (size_t j = 0; j < row; j++) {
-            std::cout << "\t[" << j << "]: ";
-            for (size_t i = 0; i < col; i++) {
-                if (print_cnt++ >= max_print) {
-                    std::cout << "..." << std::endl;
-                    return;
-                }
-                std::cout << lock_data[j * col + i] << ", ";
-            }
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-    };
-#    endif
-
     bool print_wei = false;
-
     cldnn::event::ptr exec_single_token(const std::vector<cldnn::event::ptr>& events,
                                         typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                         scratch_buffers& scratch) {
@@ -1344,14 +1240,6 @@ public:
                 {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
                 {1, subgroup_size, SUBGROUP_NUM});
 
-#    if DUMP_TENSOR_CONTENTS
-            auto& stream = instance.get_network().get_stream();
-            stream.finish();
-            print_mem_f16(stream, hidden_states_mem_ptr, "input hidden_states");
-            print_mem(stream, batch_mem_ptr, "expert_list");
-
-            print_mem_f16(stream, scratch.up, "gate_up_output");
-#    endif
             // scratch.y = down(scratch.up) * weight[expert_no]
             ret_event = execute_stage({ret_event},
                                       instance,
@@ -1360,21 +1248,6 @@ public:
                                       {scratch.y},
                                       {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
                                       {1, subgroup_size, SUBGROUP_NUM});
-
-#    if DUMP_TENSOR_CONTENTS
-            stream.finish();
-            print_mem_f16(stream, routing_mem_ptr, "routing_weights");
-            print_mem_f16(stream, scratch.y, "down_output");
-            if (print_wei) {
-                print_mem_u4(stream, mlp_gate_wei_mem, "mlp_gate_wei_mem");
-                print_mem_f16(stream, mlp_gate_scale_mem, "mlp_gate_scale_mem");
-                print_mem_u4(stream, mlp_up_wei_mem, "mlp_up_wei_mem");
-                print_mem_f16(stream, mlp_up_scale_mem, "mlp_up_scale_mem");
-                print_mem_u4(stream, mlp_down_wei_mem, "mlp_down_wei_mem");
-                print_mem_f16(stream, mlp_down_scale_mem, "mlp_down_scale_mem");
-                print_wei = false;
-            }
-#    endif
 
             // final = sum(scratch.y)
             ret = execute_stage({ret_event},
@@ -1385,11 +1258,6 @@ public:
                                 {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
                                 {1, std::min(max_work_group_size, size_t{1024})},
                                 instance.needs_completion_event());
-
-#    if DUMP_TENSOR_CONTENTS
-            stream.finish();
-            print_mem_f16(stream, final_hidden_states_mem_ptr, "final_hidden_states_mem");
-#    endif
         }
         return ret;
     }
@@ -1454,7 +1322,6 @@ public:
 #    if DEBUG_MOE_LOG
             std::cout << "Step 1: mask gen by gpu, num_actually_used_experts = " << rtp->num_actually_used_experts << std::endl;
 #    endif
-
         } else {
             ret_event = events.empty() ? nullptr : events[0];
             expert_mask_cpu expert_mask_cpu;
@@ -1552,16 +1419,6 @@ public:
                                       {scratch.x},
                                       {static_cast<size_t>(token_per_expert * local_threads_count), 1, 1},
                                       {static_cast<size_t>(local_threads_count), 1, 1});
-
-#    if DUMP_TENSOR_CONTENTS
-            {
-                stream.finish();  // debug
-                // print_mem_f16(stream, instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)), "input token");
-                // print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT], "token idx per expert");
-                // print_mem_f16(stream, scratch.x, "gathered token");
-                std::cout << std::endl;
-            }
-#    endif
         }
 
         // step 3: moe_gemm for up and gate
@@ -1582,31 +1439,7 @@ public:
             std::cout << "\nstep 3: moe_gemm for up and gate" << std::endl;
 #    endif
             ret_event = PrimitiveImplOCL::execute_stage({ret_event}, instance, micro_gemm_up);
-#    if DUMP_TENSOR_CONTENTS
-            {
-                stream.finish();  // debug
-                print_mem_f16(stream, intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT], "up_token_input");
-                print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS], "expert_id", num_actually_used_experts);
-                print_mem(stream,
-                          intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT],
-                          "input_offset_per_expert",
-                          num_actually_used_experts);
-                print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT], "token_len", num_actually_used_experts);
-                print_mem_f16(stream, intermediates_memories[MOE_INTERNAL_BUFFER_UP_OUTPUT], "up_output");
-            }
-#    endif
             ret_event = PrimitiveImplOCL::execute_stage({ret_event}, instance, micro_gemm_gate);
-#    if DUMP_TENSOR_CONTENTS
-            {
-                stream.finish();  // debug
-                // print_mem_f16(stream, intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT], "gate_token_input");
-                // print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS], "gate_expert_id", num_actually_used_experts);
-                // print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT], "gate_input_offset_per_expert",
-                // num_actually_used_experts); print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
-                // "gate_token_len", num_actually_used_experts);
-                print_mem_f16(stream, intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT], "gate_output");
-            }
-#    endif
         }
 
         // step 4: post proc - gate_up = silu(gate)*up, silu(x)=x*sigmod(x)=x*(1+exp(-x))
@@ -1627,15 +1460,6 @@ public:
                                       {intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
                                       {static_cast<size_t>(token_size), static_cast<size_t>(_intermediate_size), 1},
                                       {1, subgroup_size, 1});
-
-#    if DUMP_TENSOR_CONTENTS
-            {
-                ret_event->wait();  // debug
-                stream.finish();    // debug
-                print_mem_f16(stream, intermediates_memories[MOE_INTERNAL_BUFFER_UP_OUTPUT], "silu_up_input");
-                print_mem_f16(stream, intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT], "silu_gate_up_output");
-            }
-#    endif
         }
 
         // step 5: moe_gemm for down
@@ -1693,25 +1517,6 @@ public:
                                       {static_cast<size_t>(token_size * local_threads_count), 1, 1},
                                       {local_threads_count, 1, 1},
                                       true /*instance.needs_completion_event()*/);
-#    if DUMP_TENSOR_CONTENTS
-            {
-                stream.finish();  // debug
-                print_mem_f16(stream, intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT], "scatter_reduce_input");
-                print_mem(stream, batch_mem_ptr, "scatter_reduce_experts_per_token");
-                print_mem_f16(stream, routing_mem_ptr, "scatter_reduce_expert_weights");
-                print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT], "scatter_reduce_tokens_per_expert");
-                print_mem(stream,
-                          intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT],
-                          "scatter_reduce_experts_start_offset",
-                          num_actually_used_experts);
-                print_mem(stream,
-                          intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
-                          "scatter_reduce_tokens_len_per_expert",
-                          num_actually_used_experts);
-                print_mem(stream, intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS], "scatter_reduce_expert_id", num_actually_used_experts);
-                print_mem_f16(stream, final_hidden_states_mem_ptr, "final_hidden_states");
-            }
-#    endif
         }
 
         return ret_event;
@@ -1832,10 +1637,6 @@ public:
         auto lws_size = get_best_lws(_hidden_size);
         int max_topk = static_cast<int>(config.top_k);
 
-#    if DUMP_TENSOR_CONTENTS
-        print_mem_f16(stream, hidden_states_mem_ptr, "input_token");
-#    endif
-
         // [batch, max_topk]
         auto topk_id_mem = scratch.topk_id;
         expert_mask_cpu expert_mask;
@@ -1868,17 +1669,6 @@ public:
                                          {1, lws_size},
                                          instance.needs_completion_event());
 
-#    if DUMP_TENSOR_CONTENTS
-            {
-                // debug print
-                std::cout << "expert_no=" << expert_no << ", n_token=" << n_token << ", hidden_size=" << _hidden_size
-                          << ", intermediate_size=" << _intermediate_size << std::endl;
-                stream.finish();  // debug
-                // print_mem_f16(stream, hidden_states_mem_ptr, "input_token");
-                print_mem_f16(stream, scratch.x, "gathered_token", n_token);
-                print_mem_f16(stream, scratch.routing_weights, "routing_weights");
-            }
-#    endif
             // up
             kernel.up.forward(dnn_stream,
                               n_token,
@@ -1886,40 +1676,20 @@ public:
                               convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
                               dnnl::memory());
 
-#    if DUMP_TENSOR_CONTENTS
-            {
-                // debug print
-                stream.finish();  // debug
-                print_mem_f16(stream, scratch.up, "up_output", n_token);
-            }
-#    endif
-
             // gate
             kernel.gate.forward(dnn_stream,
                                 n_token,
                                 convert2dnnl(scratch.x, {static_cast<int>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
                                 convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
                                 convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab));
-#    if DUMP_TENSOR_CONTENTS
-            {
-                // debug print
-                stream.finish();  // debug
-                print_mem_f16(stream, scratch.gate, "gate_up_output", n_token);
-            }
-#    endif
+
             // down
             kernel.down.forward(dnn_stream,
                                 n_token,
                                 convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
                                 convert2dnnl(scratch.y, {static_cast<int>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
                                 convert2dnnl(scratch.routing_weights, {static_cast<int>(n_token * max_topk)}, dnnl::memory::format_tag::a));
-#    if DUMP_TENSOR_CONTENTS
-            {
-                // debug print
-                stream.finish();  // debug
-                print_mem_f16(stream, scratch.y, "down_with_weights_output", n_token);
-            }
-#    endif
+
             // index_add
             result_event = execute_stage({result_event},
                                          instance,
@@ -1930,13 +1700,7 @@ public:
                                          {1, lws_size},
                                          true /*instance.needs_completion_event()*/);
         }
-#    if DUMP_TENSOR_CONTENTS
-        {
-            // debug print
-            stream.finish();  // debug
-            print_mem_f16(stream, final_hidden_states_mem_ptr, "final_output");
-        }
-#    endif
+
         return result_event;
     }
 

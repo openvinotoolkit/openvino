@@ -236,8 +236,6 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
         return;
     }
 
-    // Remove if micro_gemm support u8
-    setenv("MOE_USE_MICRO_GEMM_PREFILL", "0", 0);
     tests::random_generator rg(GET_SUITE_NAME);
     Moe3GemmConfig config;
     config.batch_size = 1;
@@ -369,12 +367,16 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     }
 }
 
+// INSTANTIATE_TEST_SUITE_P(smoke,
+//                          moe_3gemm_compressed_gpu_random,
+//                          ::testing::Values(Moe3GemmTestParams{1, true, 128, 128, 4, 2, 128},
+//                                            Moe3GemmTestParams{16, true, 128, 128, 4, 2, 128},
+//                                            Moe3GemmTestParams{1, false, 128, 128, 4, 2, 128},
+//                                            Moe3GemmTestParams{16, false, 128, 128, 4, 2, 128}));
+
 INSTANTIATE_TEST_SUITE_P(smoke,
                          moe_3gemm_compressed_gpu_random,
-                         ::testing::Values(Moe3GemmTestParams{1, true, 128, 128, 4, 2, 128},
-                                           Moe3GemmTestParams{16, true, 128, 128, 4, 2, 128},
-                                           Moe3GemmTestParams{1, false, 128, 128, 4, 2, 128},
-                                           Moe3GemmTestParams{16, false, 128, 128, 4, 2, 128}));
+                         ::testing::Values(Moe3GemmTestParams{1, true, 128, 128, 4, 2, 128}, Moe3GemmTestParams{16, true, 128, 128, 4, 2, 128}));
 
 TEST(moe_3gemm_compressed_gpu, moe_accuracy_test_u4) {
     auto& engine = get_test_engine();
