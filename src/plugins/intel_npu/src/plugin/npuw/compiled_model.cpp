@@ -1733,15 +1733,15 @@ void ov::npuw::CompiledModel::compile_moe_models(std::size_t id, const std::stri
         LOG_INFO("Total MoE models to compile: " << models_to_compile.size());
 
         // Compile each chunk size model
-        for (const auto& [chunk_size, model] : models_to_compile) {
-            LOG_INFO("Compiling MoE expert model for chunk_size=" << chunk_size);
+        for (const auto& entry : models_to_compile) {
+            LOG_INFO("Compiling MoE expert model for chunk_size=" << entry.first);
 
-            m_profile["compile/" + device + "/moe_chunk_" + std::to_string(chunk_size)].record([&]() {
-                auto compiled = compile_submodel(model, device);
-                moe_experts.set_compiled_model(chunk_size, std::move(compiled));
+            m_profile["compile/" + device + "/moe_chunk_" + std::to_string(entry.first)].record([&, entry]() {
+                auto compiled = compile_submodel(entry.second, device);
+                moe_experts.set_compiled_model(entry.first, std::move(compiled));
             });
 
-            LOG_INFO("Successfully compiled MoE expert model for chunk_size=" << chunk_size);
+            LOG_INFO("Successfully compiled MoE expert model for chunk_size=" << entry.first);
         }
 
         // Set compiled_model to first compiled model for backward compatibility
