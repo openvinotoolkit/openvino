@@ -121,9 +121,9 @@ pass::FuseConvert::FuseConvert() {
         // Forcing an output precision with a smaller bit width for output buffer causes out-of-bounds memory writes
         // during intermediate results storage, so the convert fusion is skipped in the case when internal blocking is
         // needed.
+        const auto& cur_out_precision = brgemm->get_output_element_type(0);
+        const auto& new_out_precision = convert->get_output_element_type(0);
         if (brgemm->get_config().is_amx()) {
-            const auto& cur_out_precision = brgemm->get_output_element_type(0);
-            const auto& new_out_precision = convert->get_output_element_type(0);
             if (cur_out_precision.bitwidth() > new_out_precision.bitwidth()) {
                 const auto a_shape = ov::snippets::utils::get_planar_pshape(brgemm->input(0));
                 const auto& k_dim = *a_shape.rbegin();
@@ -131,6 +131,22 @@ pass::FuseConvert::FuseConvert() {
                 if (k_dim.is_dynamic() || (k_dim.get_length() % k_inner_block != 0)) {
                     return false;
                 }
+            }
+        }
+        // Align with onednn brgemm output data type limitations:
+        // see https://github.com/uxlfoundation/oneDNN/blob/main/src/cpu/x64/brgemm/brgemm.cpp#L327
+        if (cur_out_precision == ov::element::bf16) {
+            if (!ov::snippets::utils::any_of(new_out_precision,
+                                             ov::element::f16,
+                                             ov::element::f32,
+                                             ov::element::i8,
+                                             ov::element::u8)) {
+                return false;
+            }
+        }
+        if (cur_out_precision == ov::element::f16) {
+            if (!ov::snippets::utils::any_of(new_out_precision, ov::element::f32, ov::element::i8, ov::element::u8)) {
+                return false;
             }
         }
 
