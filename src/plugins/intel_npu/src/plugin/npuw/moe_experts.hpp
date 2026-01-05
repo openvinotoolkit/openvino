@@ -288,7 +288,7 @@ struct MoEExperts {
         if (it != _compiled_models.end()) {
             return it->second;
         }
-        return nullptr;
+        return {};
     }
 
     // Validation
