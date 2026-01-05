@@ -15,12 +15,12 @@
 
 #include "emitters/snippets/brgemm_generic.hpp"
 #include "emitters/utils.hpp"
-#include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla.h"
+#include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla.h"
 #include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p_interface.h"
-#include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
+#include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p16x1b_6x16_neon_mla.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
-#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon.h"
-#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -52,16 +52,16 @@ struct GemmCompiledKernelF32 {
         std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel);
 
     static constexpr kai_matmul_clamp_f32_f32_f32p_ukernel ukernel{
-        kai_get_m_step_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
-        kai_get_n_step_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
-        kai_get_nr_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
-        kai_get_kr_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
-        kai_get_sr_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
-        kai_get_lhs_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
-        kai_get_rhs_packed_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
-        kai_get_dst_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
-        kai_get_dst_size_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
-        kai_run_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla};
+        kai_get_m_step_matmul_clamp_f32_f32_f32p16x1b_6x16_neon_mla,
+        kai_get_n_step_matmul_clamp_f32_f32_f32p16x1b_6x16_neon_mla,
+        kai_get_nr_matmul_clamp_f32_f32_f32p16x1b_6x16_neon_mla,
+        kai_get_kr_matmul_clamp_f32_f32_f32p16x1b_6x16_neon_mla,
+        kai_get_sr_matmul_clamp_f32_f32_f32p16x1b_6x16_neon_mla,
+        kai_get_lhs_offset_matmul_clamp_f32_f32_f32p16x1b_6x16_neon_mla,
+        kai_get_rhs_packed_offset_matmul_clamp_f32_f32_f32p16x1b_6x16_neon_mla,
+        kai_get_dst_offset_matmul_clamp_f32_f32_f32p16x1b_6x16_neon_mla,
+        kai_get_dst_size_matmul_clamp_f32_f32_f32p16x1b_6x16_neon_mla,
+        kai_run_matmul_clamp_f32_f32_f32p16x1b_6x16_neon_mla};
 };
 
 struct GemmCompiledKernelF16 {
@@ -69,16 +69,16 @@ struct GemmCompiledKernelF16 {
         std::make_shared<kai_matmul_clamp_f16_f16_f16p_ukernel>(ukernel);
 
     static constexpr kai_matmul_clamp_f16_f16_f16p_ukernel ukernel{
-        kai_get_m_step_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla,
-        kai_get_n_step_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla,
-        kai_get_nr_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla,
-        kai_get_kr_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla,
-        kai_get_sr_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla,
-        kai_get_lhs_offset_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla,
-        kai_get_rhs_packed_offset_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla,
-        kai_get_dst_offset_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla,
-        kai_get_dst_size_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla,
-        kai_run_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla};
+        kai_get_m_step_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla,
+        kai_get_n_step_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla,
+        kai_get_nr_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla,
+        kai_get_kr_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla,
+        kai_get_sr_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla,
+        kai_get_lhs_offset_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla,
+        kai_get_rhs_packed_offset_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla,
+        kai_get_dst_offset_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla,
+        kai_get_dst_size_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla,
+        kai_run_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla};
 };
 
 struct GemmKaiCallArgs {

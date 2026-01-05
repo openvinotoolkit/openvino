@@ -257,10 +257,6 @@ constexpr Type from() {
     }
 }
 
-OPENVINO_DEPRECATED(
-    "This function is deprecated and will be removed in 2026.0. Use ov::fundamental_type_for<Type> instead")
-OPENVINO_API Type fundamental_type_for(const Type& type);
-
 OPENVINO_API
 std::ostream& operator<<(std::ostream& out, const ov::element::Type& obj);
 

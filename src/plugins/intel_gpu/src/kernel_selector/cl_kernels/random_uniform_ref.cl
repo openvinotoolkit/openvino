@@ -132,7 +132,7 @@ KERNEL(random_uniform_ref)(OPTIONAL_SHAPE_INFO_ARG
                             const __global INPUT2_TYPE* max_val, __global OUTPUT_TYPE *output) {
     const uint plain_index = get_global_id(0);
     uint4 result = FUNC_CALL(run_philox)(plain_index);
-    FILL_FUNC(FUNC_NAME(OUTPUT_TYPE), result, *min_val, *max_val, output, plain_index * OUTPUT_STEP, COMPUTATIONAL_OPERATIONS_NUMBER);
+    FILL_FUNC(FUNC_NAME(OUTPUT_TYPE), result, *min_val, *max_val, output, plain_index * OUTPUT_STEP, OUTPUT_LENGTH);
 }
 
 #undef FILL_FUNC

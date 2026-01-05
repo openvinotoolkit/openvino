@@ -530,7 +530,7 @@ PyramidAttention::PyramidAttention(const function::PyramidAttention& func_pyrami
         attention_info.context_length = func_attn.context_len();
 
         _attention_infos.push_back(std::move(attention_info));
-        _context_lengths.push_back(attention_info.context_length);
+        _context_lengths.push_back(_attention_infos.back().context_length);
     }
 
     LOG_INFO("compiled::PyramidAttention metadata extracted, models stored for compilation");
@@ -587,7 +587,7 @@ void PositionIDs::prepare(int64_t past_len) {
 
     // Same logic as regular attention PositionIDs
     auto* pos_data_ptr = in_tensor->data<int64_t>();
-    for (auto idx = in_dims.back() - 1; idx >= 0; idx--) {
+    for (int64_t idx = static_cast<int64_t>(in_dims.back()) - 1; idx >= 0; idx--) {
         if (pos_data_ptr[idx] > 0) {
             // Initialize fields
             m_current_length = pos_data_ptr[idx];

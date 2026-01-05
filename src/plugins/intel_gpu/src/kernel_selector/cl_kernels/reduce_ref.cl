@@ -75,7 +75,7 @@ KERNEL(reduce_ref)(
 #endif
 
     const uint linear_idx = FUNC_CALL(calc_linear_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, v, u, w, z, y, x);
-    if (linear_idx >= COMPUTATIONAL_OPERATIONS_NUMBER)
+    if (linear_idx >= OUTPUT_LENGTH)
         return;
 
 #ifdef REDUCE_BATCH

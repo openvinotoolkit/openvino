@@ -8,7 +8,7 @@ import openvino._pyopenvino
 __all__: list[str] = ['Shape', 'Type', 'np', 'pack_data', 'unpack_data']
 def pack_data(array: numpy.ndarray, type: openvino._pyopenvino.Type) -> numpy.ndarray:
     """
-    Represent array values as u1,u4 or i4 openvino element type and pack them into uint8 numpy array.
+    Represent array values as u1, u2, u4 or i4 openvino element type and pack them into uint8 numpy array.
     
         If the number of elements in array is odd we pad them with zero value to be able to fit the bit
         sequence into the uint8 array.
@@ -19,7 +19,7 @@ def pack_data(array: numpy.ndarray, type: openvino._pyopenvino.Type) -> numpy.nd
     
         :param array: numpy array with values to pack.
         :type array: numpy array
-        :param type: Type to interpret the array values. Type must be u1, u4, i4, nf4 or f4e2m1.
+        :param type: Type to interpret the array values. Type must be u1, u2, u4, i4, nf4 or f4e2m1.
         :type type: openvino.Type
         
     """
@@ -33,7 +33,7 @@ def unpack_data(array: numpy.ndarray, type: openvino._pyopenvino.Type, shape: ty
     
         :param array: numpy array to unpack.
         :type array: numpy array
-        :param type: Type to extract from array values. Type must be u1, u4, i4, nf4 or f4e2m1.
+        :param type: Type to extract from array values. Type must be u1, u2, u4, i4, nf4 or f4e2m1.
         :type type: openvino.Type
         :param shape: the new shape for the unpacked array.
         :type shape: Union[list, openvino.Shape]

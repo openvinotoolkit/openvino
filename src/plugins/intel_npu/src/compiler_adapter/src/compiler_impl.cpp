@@ -353,6 +353,12 @@ struct vcl_allocator_malloc {
 };
 
 NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
+    return compile(model, config, false);
+}
+
+NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
+                                            const Config& config,
+                                            const bool storeWeightlessCacheAttributeFlag) const {
     _logger.debug("compile start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -376,8 +382,12 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, updatedConfig);
     _logger.debug("serialize IR method is %s",
                   useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
+    auto serializedIR = driver_compiler_utils::serializeIR(model,
+                                                           compilerVersion,
+                                                           maxOpsetVersion,
+                                                           useBaseModelSerializer,
+                                                           false,
+                                                           storeWeightlessCacheAttributeFlag);
 
     std::string buildFlags;
     _logger.debug("create build flags");
@@ -386,8 +396,8 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
-    vcl_executable_desc_t exeDesc = {serializedIR.second.get(),
-                                     serializedIR.first,
+    vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
+                                     serializedIR.size,
                                      buildFlags.c_str(),
                                      buildFlags.size()};
 
@@ -422,7 +432,6 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     const std::shared_ptr<ov::Model>& model,
     const Config& config) const {
     _logger.debug("compileWsOneShot start");
-    storeWeightlessCacheAttribute(model);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -441,8 +450,12 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     useBaseModelSerializer = isUseBaseModelSerializer({7, 5}, updatedConfig);
     _logger.debug("serialize IR method is %s",
                   useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
+    auto serializedIR = driver_compiler_utils::serializeIR(model,
+                                                           compilerVersion,
+                                                           maxOpsetVersion,
+                                                           useBaseModelSerializer,
+                                                           false,
+                                                           true);
 
     std::string buildFlags;
     _logger.debug("create build flags");
@@ -451,8 +464,8 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
-    vcl_executable_desc_t exeDesc = {serializedIR.second.get(),
-                                     serializedIR.first,
+    vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
+                                     serializedIR.size,
                                      buildFlags.c_str(),
                                      buildFlags.size()};
     _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
@@ -481,14 +494,13 @@ NetworkDescription VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov:
                                                        const Config& config,
                                                        size_t callNumber) const {
     _logger.debug("compileWsIterative start");
-    storeWeightlessCacheAttribute(model);
     const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
     if (filteredConfig == nullptr) {
         OPENVINO_THROW("config is not FilteredConfig");
     }
     FilteredConfig updatedConfig = *filteredConfig;
     updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
-    return compile(model, updatedConfig);
+    return compile(model, updatedConfig, true);
 }
 
 intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network, const Config& config) const {
@@ -576,7 +588,7 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     vcl_query_handle_t queryHandle;
-    vcl_query_desc_t queryDesc = {serializedIR.second.get(), serializedIR.first, buildFlags.c_str(), buildFlags.size()};
+    vcl_query_desc_t queryDesc = {serializedIR.buffer.get(), serializedIR.size, buildFlags.c_str(), buildFlags.size()};
     THROW_ON_FAIL_FOR_VCL("vclQueryNetworkCreate",
                           vclQueryNetworkCreate(_compilerHandle, queryDesc, &queryHandle),
                           _logHandle);

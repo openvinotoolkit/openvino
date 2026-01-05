@@ -3,6 +3,7 @@
 //
 #include <algorithm>
 #include <cstddef>
+#include <filesystem>
 #include <iostream>
 
 #include "cpu_types.h"
@@ -90,7 +91,7 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
     return true;
 }
 
-static void dump(const BlobDumper& bd, const std::string& file, const DebugCapsConfig& config) {
+static void dump(const BlobDumper& bd, const std::filesystem::path& file, const DebugCapsConfig& config) {
     switch (config.blobDumpFormat) {
     case DebugCapsConfig::FORMAT::BIN: {
         bd.dump(file);
@@ -106,6 +107,7 @@ static void dump(const BlobDumper& bd, const std::string& file, const DebugCapsC
 }
 
 static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config) {
+    const std::filesystem::path blobDumpDir{config.blobDumpDir};
     std::string nodeName = node->getName();
     formatNodeName(nodeName);
 
@@ -114,7 +116,7 @@ static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config
     for (size_t i = 0; i < internalBlobs.size(); i++) {
         const auto& blb = internalBlobs[i];
         std::string file_name = NameFromType(node->getType()) + "_" + nodeName + "_blb" + std::to_string(i) + ".ieb";
-        auto dump_file = config.blobDumpDir + "/#" + std::to_string(node->getExecIndex()) + "_" + file_name;
+        auto dump_file = blobDumpDir / ("#" + std::to_string(node->getExecIndex()) + "_" + file_name);
 
         if (blb->getDesc().getPrecision() == ov::element::u1) {
             continue;
@@ -125,14 +127,10 @@ static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config
     }
 }
 
-static std::string createDumpFilePath(const std::string& blobDumpDir, const std::string& fileName, int execIndex) {
-    auto execIndexStr = std::to_string(execIndex);
-    std::string dump_file;
-    dump_file.reserve(blobDumpDir.size() + execIndexStr.size() + fileName.size() + 4);
-
-    dump_file.append(blobDumpDir).append("/#").append(execIndexStr).append("_").append(fileName);
-
-    return dump_file;
+static std::filesystem::path createDumpFilePath(const std::filesystem::path& blobDumpDir,
+                                                const std::string& fileName,
+                                                int execIndex) {
+    return blobDumpDir / ("#" + std::to_string(execIndex) + "_" + fileName);
 }
 
 void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int count) {
@@ -140,6 +138,7 @@ void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int coun
         return;
     }
 
+    const std::filesystem::path blobDumpDir{config.blobDumpDir};
     std::string nodeName = node->getName();
     formatNodeName(nodeName);
 
@@ -157,7 +156,7 @@ void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int coun
             file_name = file_name.substr(file_name.size() - 240);
         }
 
-        std::string dump_file = createDumpFilePath(config.blobDumpDir, file_name, node->getExecIndex());
+        auto dump_file = createDumpFilePath(blobDumpDir, file_name, node->getExecIndex());
 
         std::cout << "Dump inputs: " << dump_file << '\n';
 
@@ -178,6 +177,7 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
         return;
     }
 
+    const std::filesystem::path blobDumpDir{config.blobDumpDir};
     std::string nodeName = node->getName();
     formatNodeName(nodeName);
 
@@ -194,7 +194,7 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
             file_name = file_name.substr(file_name.size() - 240);
         }
 
-        std::string dump_file = createDumpFilePath(config.blobDumpDir, file_name, node->getExecIndex());
+        auto dump_file = createDumpFilePath(blobDumpDir, file_name, node->getExecIndex());
 
         std::cout << "Dump outputs:  " << dump_file << '\n';
 

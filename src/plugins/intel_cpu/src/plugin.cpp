@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <istream>
 #include <memory>
@@ -107,7 +108,7 @@ static std::string getDeviceFullName() {
             }
             return s.substr(start, end - start + 1);
         };
-        auto read_first_line = [&](const char* path) -> std::string {
+        auto read_first_line = [&](const std::filesystem::path& path) -> std::string {
             std::ifstream f(path);
             if (!f.is_open()) {
                 return {};
