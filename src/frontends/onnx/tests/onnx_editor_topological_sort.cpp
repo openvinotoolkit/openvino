@@ -40,6 +40,7 @@ OPENVINO_TEST(onnx_editor, topological_sort_completely_unsorted_2) {
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 OPENVINO_TEST(onnx_editor, topological_sort_completely_unsorted_2_wstring) {
+    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model(L"model_editor/topological_sort/completely_unsorted_2.onnx", &front_end);
     OV_ASSERT_NO_THROW(front_end->convert(input_model));
