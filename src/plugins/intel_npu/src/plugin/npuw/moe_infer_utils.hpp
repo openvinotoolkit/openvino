@@ -10,10 +10,29 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "perf.hpp"
 
 namespace ov {
 namespace npuw {
 namespace moe {
+
+/**
+ * @brief MoE performance profiling structure.
+ *
+ * Tracks performance metrics for MoE operations during prefill and decoding phases.
+ * Uses ov::npuw::perf::Profile framework for automatic metric collection and reporting.
+ */
+struct MoEProfile {
+    ov::npuw::perf::Profile<ov::npuw::perf::metric<ov::npuw::perf::MSec>> prefill;
+    ov::npuw::perf::Profile<ov::npuw::perf::metric<ov::npuw::perf::MSec>> decoding;
+
+    explicit MoEProfile(bool enable_profile) {
+        prefill.area = "MoE Prefill";
+        decoding.area = "MoE Decoding";
+        prefill.report_on_die = enable_profile;
+        decoding.report_on_die = enable_profile;
+    }
+};
 
 /**
  * @brief Slice a single expert's weight from batched weight tensor.
