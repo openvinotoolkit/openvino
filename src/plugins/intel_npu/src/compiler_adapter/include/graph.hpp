@@ -28,7 +28,7 @@ public:
           const ov::SoPtr<ICompiler>& compiler = {nullptr},
           const bool calledFromWeightlessGraph = false);
 
-    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
+    uint64_t export_main_blob(std::ostream& stream) const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const Config& config) const override;
@@ -66,6 +66,20 @@ public:
 protected:
     bool release_blob(const Config& config);
     std::optional<size_t> determine_batch_size();
+
+    /**
+     * @brief TODO, uses either graphdesc or blobtensor, common utility
+     *
+     * @param graphDescriptor
+     * @param blobTensor
+     * @param stream
+     * @return The size of the written blob, along with its hash if requested.
+     */
+    std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> write_blob_to_stream(
+        GraphDescriptor graphDescriptor,
+        const std::optional<ov::Tensor>& blobTensor,
+        std::ostream& stream,
+        const bool computeHash) const;
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 

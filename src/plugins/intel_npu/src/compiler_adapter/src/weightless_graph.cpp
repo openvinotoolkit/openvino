@@ -181,97 +181,49 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
     initialize(config);
 }
 
-std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::export_blob(std::ostream& stream) const {
+// TODO "Blob size" was the size of the composite before this
+// TODO handle padding correctly
+std::vector<uint64_t> WeightlessGraph::export_init_blobs(std::ostream& stream) const {
     if (_blobIsReleased) {
         OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
                        "its lifetime.");
     }
 
-    size_t blobIndex = 0;
-    std::uint32_t totalResult = 1171117u;
-    totalResult = ((totalResult << 7) + totalResult);
+    std::optional<uint32_t> hashAllInits = std::nullopt;
+    uint64_t totalBlobSize = 0;
 
-    const auto writeToStream = [&](GraphDescriptor _graphDesc,
-                                   const std::optional<ov::Tensor>& blobTensor) -> uint64_t {
-        uint64_t blobSize;
-        const uint8_t* blobRawPtr = nullptr;
-        std::vector<uint8_t> blob;
-
-        if (blobTensor == std::nullopt) {
-            // when compiling the model using Compiler in Driver, the blob is handled by the driver
-            _zeGraphExt->getGraphBinary(_graphDesc, blob, blobRawPtr, blobSize);
-        } else {
-            // in all other cases, the blob is handled by the plugin
-            blobRawPtr = static_cast<const uint8_t*>(blobTensor->data());
-            blobSize = blobTensor->get_byte_size();
-        }
-
-        if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
-            OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
-        }
-        stream.write(reinterpret_cast<const char*>(blobRawPtr), static_cast<std::streamsize>(blobSize));
-
-        if (!stream) {
-            _wgLogger.error("Write blob to stream failed. Blob is broken!");
-            return 0;
-        }
-
-        if (_wgLogger.level() >= ov::log::Level::INFO) {
-            std::uint32_t result = 1171117u;
-            for (const uint8_t* it = blobRawPtr; it != blobRawPtr + blobSize; ++it) {
-                result = ((result << 7) + result) + static_cast<uint32_t>(*it);
-            }
-
-            totalResult += result;
-
-            std::stringstream str;
-            if (blobIndex == MAIN_SCHEDULE_INDEX) {
-                str << "Main blob size " << blobSize << ", hash " << std::hex << result;
-            } else {
-                str << "Init part " << blobIndex << " blob size " << blobSize << ", hash " << std::hex << result;
-            }
-            _wgLogger.info(str.str().c_str());
-        }
-
-        size_t size = utils::align_size_to_standard_page_size(blobSize);
-        size_t paddingSize = size - blobSize;
-        if (paddingSize > 0) {
-            std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
-
-            if (!stream) {
-                _wgLogger.error("Write padding to stream failed. Blob is broken!");
-                return 0;
-            }
-
-            _wgLogger.info("Blob size with padding: %ld", size);
-        }
-
-        return size;
-    };
-
-    // By convention, first write the main part
-    uint64_t mainBlobSize = writeToStream(_graphDesc, _blob);
-    uint64_t totalBlobSize = mainBlobSize;
-    ++blobIndex;
-
-    // Then the init schedules
     std::vector<uint64_t> initSizes;
     for (size_t initIndex = 0; initIndex < _initsGraphDesc.size(); ++initIndex) {
-        uint64_t initBlobSize = writeToStream(_initsGraphDesc.at(initIndex)._handle,
-                                              _initBlobs.has_value() && _initBlobs->at(initIndex)
-                                                  ? std::make_optional(_initBlobs->at(initIndex))
-                                                  : std::nullopt);
-        totalBlobSize += initBlobSize;
-        initSizes.push_back(initBlobSize);
-        ++blobIndex;
+        const auto [size, sizeWithPadding, hash] = write_blob_to_stream(
+            _initsGraphDesc.at(initIndex)._handle,
+            _initBlobs.has_value() && _initBlobs->at(initIndex) ? std::make_optional(_initBlobs->at(initIndex))
+                                                                : std::nullopt,
+            stream,
+            _wgLogger.level() >= ov::log::Level::INFO);
+        totalBlobSize += size;
+        initSizes.push_back(size);
+
+        if (hash.has_value()) {
+            std::stringstream str;
+            str << "Init part " << initIndex << " blob size " << size << ", hash " << std::hex << hash.value();
+            _logger.info(str.str().c_str());
+
+            if (!hashAllInits.has_value()) {
+                hashAllInits = 0;
+            }
+            hashAllInits = hashAllInits.value() + hash.value();
+        }
+        _logger.info("Init part %ld blob size with padding: %ld", initIndex, sizeWithPadding);
     }
 
-    std::stringstream str;
-    str << "Blob size: " << totalBlobSize << ", hash: " << std::hex << totalResult;
-    _wgLogger.info(str.str().c_str());
+    if (hashAllInits.has_value()) {
+        std::stringstream str;
+        str << "All inits total size: " << totalBlobSize << ", hash: " << std::hex << hashAllInits.value();
+        _logger.info(str.str().c_str());
+    }
 
-    _wgLogger.info("Write blob to stream successfully.");
-    return std::make_pair(totalBlobSize, initSizes);
+    _logger.info("Write blob to stream successfully.");
+    return initSizes;
 }
 
 void WeightlessGraph::initialize(const Config& config) {

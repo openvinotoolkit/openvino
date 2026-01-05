@@ -11,14 +11,14 @@ namespace intel_npu {
 
 class ELFMainScheduleSection final : public ISection {
 public:
-    ELFMainScheduleSection(const std::shared_ptr<IGraph>& graph);
+    ELFMainScheduleSection(const std::shared_ptr<Graph>& graph);
 
     void write(std::ostream& stream, BlobWriter* writer) override;
 
     std::optional<uint64_t> get_length() const override;
 
 private:
-    std::shared_ptr<IGraph> m_graph;
+    std::shared_ptr<Graph> m_graph;
 };
 
 class ELFInitSchedulesSection final : public ISection {

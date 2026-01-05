@@ -82,59 +82,72 @@ ze_graph_handle_t Graph::get_handle() const {
     return _graphDesc._handle;
 }
 
-std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std::ostream& stream) const {
-    const uint8_t* blobPtr = nullptr;
-    size_t blobSize;
-    std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
+std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> Graph::write_blob_to_stream(
+    GraphDescriptor graphDescriptor,
+    const std::optional<ov::Tensor>& blobTensor,
+    std::ostream& stream,
+    const bool computeHash) const {
+    uint64_t blobSize;
+    const uint8_t* blobRawPtr = nullptr;
+    std::vector<uint8_t> blob;
 
-    if (_blobIsReleased) {
-        OPENVINO_THROW("Model was imported and released after initialization. Model export is not allowed anymore.");
-    }
-
-    if (_blob ==
-        std::nullopt) {  // when compiling the model using Compiler in Driver, the blob is handled by the driver
-        _zeGraphExt->getGraphBinary(_graphDesc, blobVec, blobPtr, blobSize);
-    } else {  // in all other cases, the blob is handled by the plugin
-        blobPtr = static_cast<const uint8_t*>(_blob->data());
-        blobSize = _blob->get_byte_size();
+    if (!blobTensor.has_value()) {
+        // when compiling the model using Compiler in Driver, the blob is handled by the driver
+        _zeGraphExt->getGraphBinary(graphDescriptor, blob, blobRawPtr, blobSize);
+    } else {
+        // in all other cases, the blob is handled by the plugin
+        blobRawPtr = static_cast<const uint8_t*>(blobTensor->data());
+        blobSize = blobTensor->get_byte_size();
     }
 
     if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
         OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
     }
-    stream.write(reinterpret_cast<const char*>(blobPtr), static_cast<std::streamsize>(blobSize));
+    stream.write(reinterpret_cast<const char*>(blobRawPtr), static_cast<std::streamsize>(blobSize));
 
     if (!stream) {
-        _logger.error("Write blob to stream failed. Blob is broken!");
-        return std::make_pair(0, std::nullopt);
+        OPENVINO_THROW("Write blob to stream failed. Blob is broken!");
     }
 
-    if (_logger.level() >= ov::log::Level::INFO) {
-        std::uint32_t result = 1171117u;
-        for (const uint8_t* it = blobPtr; it != blobPtr + blobSize; ++it) {
-            result = ((result << 7) + result) + static_cast<uint32_t>(*it);
+    std::optional<uint32_t> blobHash = std::nullopt;
+    if (computeHash) {
+        blobHash = 1171117u;
+        for (const uint8_t* it = blobRawPtr; it != blobRawPtr + blobSize; ++it) {
+            blobHash = ((blobHash.value() << 7) + blobHash.value()) + static_cast<uint32_t>(*it);
         }
-
-        std::stringstream str;
-        str << "Blob size: " << blobSize << ", hash: " << std::hex << result;
-        _logger.info(str.str().c_str());
     }
 
-    size_t size = utils::align_size_to_standard_page_size(blobSize);
-    size_t paddingSize = size - blobSize;
+    size_t sizeWithPadding = utils::align_size_to_standard_page_size(blobSize);
+    size_t paddingSize = sizeWithPadding - blobSize;
     if (paddingSize > 0) {
         std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
 
         if (!stream) {
-            _logger.error("Write padding to stream failed. Blob is broken!");
-            return std::make_pair(0, std::nullopt);
+            OPENVINO_THROW("Write padding to stream failed. Blob is broken!");
         }
-
-        _logger.info("Blob size with padding: %ld", size);
     }
 
+    return {blobSize, sizeWithPadding, blobHash};
+}
+
+uint64_t Graph::export_main_blob(std::ostream& stream) const {
+    if (_blobIsReleased) {
+        OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
+                       "its lifetime.");
+    }
+
+    const auto [size, sizeWithPadding, hash] =
+        write_blob_to_stream(_graphDesc, _blob, stream, _logger.level() >= ov::log::Level::INFO);
+
+    if (hash.has_value()) {
+        std::stringstream str;
+        str << "Blob size: " << size << ", hash: " << std::hex << hash.value();
+        _logger.info(str.str().c_str());
+    }
+
+    _logger.info("Blob size with padding: %ld", sizeWithPadding);
     _logger.info("Write blob to stream successfully.");
-    return std::make_pair(size, std::nullopt);
+    return size;
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData,

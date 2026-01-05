@@ -13,7 +13,7 @@ constexpr intel_npu::ISection::SectionID ELF_INIT_SCHEDULES_SECTION_ID = 103;
 
 namespace intel_npu {
 
-ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<IGraph>& graph)
+ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& graph)
     : ISection(ELF_MAIN_SCHEDULE_SECTION_ID),
       m_graph(graph) {}
 
