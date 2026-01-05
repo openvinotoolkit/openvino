@@ -86,23 +86,13 @@ public:
     void register_front_end(const std::string& name, const std::string& library_path);
 
     void register_front_end(const std::string& name, const std::filesystem::path& library_path);
-    ///@}
 
-    /// \brief Registers a frontend and forwards the input to the appropriate overload
-    /// (string path, filesystem path, or factory callback).
-    template <class Type>
-    void register_front_end(const std::string& name, const Type& frontend) {
+    template <class Path, std::enable_if_t<std::is_constructible_v<std::string, Path>>* = nullptr>
+    void register_front_end(const std::string& name, const Path& library_path) {
         // needed due to ambiguity between string and filesystem::path calls
-        if constexpr (std::is_constructible_v<std::string, Type>) {
-            register_front_end(name, std::string(frontend));
-        } else if constexpr (std::is_constructible_v<std::filesystem::path, Type>) {
-            register_front_end(name, std::filesystem::path(frontend));
-        } else {
-            auto fn = static_cast<void (FrontEndManager::*)(const std::string&, FrontEndFactory)>(
-                &FrontEndManager::register_front_end);
-            (this->*fn)(name, frontend);
-        }
+        register_front_end(name, std::string(library_path));
     }
+    ///@}
 
 private:
     class Impl;
