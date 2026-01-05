@@ -100,7 +100,7 @@ protected:
 };
 
 void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, CustomLayerPtr customLayer) {
-    if (p.use_new_shape_infer() == false) {
+    if (!p.use_new_shape_infer()) {
         OPENVINO_ASSERT(op->get_output_size() == 1u, "Custom OP limitation: static model only support one output.");
     }
     auto inputs = p.GetInputInfo(op);
@@ -249,8 +249,8 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
             auto default_format = cldnn::format::get_default_format(op->get_output_partial_shape(i).size());
             if (outputLayouts.size() > 1) {
                 OPENVINO_ASSERT(default_format == outputLayouts[i].format,
-                                "Multiple outputs doesn't support to insert reorder primitive, beacuse following node can't get correct idx when shape infer "
-                                "after inserting new primitive.");
+                                "Multiple outputs with non-default formats are not supported because a reorder primitive cannot be inserted; the subsequent "
+                                "nodes would fail to retrieve the correct output port index during shape inference after the graph transformation.");
             } else {
                 // Handle output reorder
                 auto reorderPrimName = genericLayerName + ProgramBuilder::m_postCustomLayerTag + std::string("_output_") + std::to_string(i);

@@ -155,7 +155,7 @@ public:
 
         ov::Core core;
         float alpha = 1.0, beta = 0.1;
-        size_t output_num = 2; // dynamic model has 2 outputs.
+        const size_t output_num = 2; // dynamic model has 2 outputs.
         auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape{-1, dim1, -1}, "dynamic");
 
         ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_xml}};
@@ -185,8 +185,8 @@ public:
         ASSERT_EQ(found_custom_op_num, expected_output_num);
     }
 
-    void check_output(ov::InferRequest ireq, ov::Tensor& input, float alpha, float beta, size_t ouput_num) {
-        for (size_t j = 0; j < ouput_num; j++) {
+    void check_output(ov::InferRequest ireq, ov::Tensor& input, float alpha, float beta, size_t output_num) {
+        for (size_t j = 0; j < output_num; j++) {
             auto output = ireq.get_output_tensor(j);
             std::vector<float> actual(output.data<float>(), output.data<float>() + output.get_size());
 
@@ -194,7 +194,7 @@ public:
 
             float* inp_data = input.data<float>();
             for (size_t i = 0; i < output.get_size(); i++) {
-                ASSERT_FLOAT_EQ(actual[i], inp_data[i] * alpha + beta + (ouput_num == 1u ? 0 : CONST_BIAS[j]));
+                ASSERT_FLOAT_EQ(actual[i], inp_data[i] * alpha + beta + (output_num == 1u ? 0 : CONST_BIAS[j]));
             }
         }
     }
@@ -313,7 +313,7 @@ public:
 
         ov::Core core;
         float alpha = 1.0, beta = 0.1;
-        size_t output_num = 1; // static model has 1 outputs.
+        const size_t output_num = 1; // static model has 1 outputs.
         auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape(input_shapes[0]), "static");
 
         ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_xml}};

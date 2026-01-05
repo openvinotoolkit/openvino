@@ -245,7 +245,7 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
                                           || ov::is_type<ov::op::v1::VariadicSplit>(prevOp)
                                           || ov::is_type<ov::op::v4::LSTMCell>(prevOp);
 
-        // Custom op also need to maintain output port.
+        // Custom op need to maintain output port index for multiple outputs.
         if (m_custom_layers.find(prevOp->get_type_name()) != m_custom_layers.end()) {
             is_legacy_multiple_outputs = false;
         }
