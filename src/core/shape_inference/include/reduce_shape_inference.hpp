@@ -59,23 +59,9 @@ std::vector<TRShape> reduce_shape_infer(const util::ReductionBase* op,
     auto axes_val = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
 
     if (data_rank.is_static() && axes_val) {
-        // Check if all axes are valid before normalizing - if not, defer validation to runtime
-        const auto rank = data_rank.get_length();
-        bool all_axes_valid = std::all_of(axes_val->begin(), axes_val->end(), [rank](int64_t axis) {
-            return ov::util::is_axis_valid(axis, rank);
-        });
+        ov::util::try_normalize_axes(*axes_val, data_rank, *op);
 
-        if (all_axes_valid) {
-            ov::util::normalize_axes(*axes_val, rank);
-            output_shapes.push_back(util::reduce_shape(data_shape, *axes_val, keep_dims));
-        } else {
-            // Invalid axes detected - return dynamic shape and defer validation to compile/runtime
-            if (keep_dims) {
-                output_shapes.push_back(ov::PartialShape::dynamic(data_shape.rank()));
-            } else {
-                output_shapes.push_back(ov::PartialShape::dynamic());
-            }
-        }
+        output_shapes.push_back(util::reduce_shape(data_shape, *axes_val, keep_dims));
     } else {
         if (keep_dims) {
             output_shapes.push_back(ov::PartialShape::dynamic(data_shape.rank()));
