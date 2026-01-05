@@ -8,6 +8,7 @@
 #include <string>
 
 #include "compiler_impl.hpp"
+#include "compiler_schedules_sections.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
@@ -115,7 +116,8 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const FilteredConfig& config) const {
+                                                       const FilteredConfig& config,
+                                                       const std::shared_ptr<BlobWriter>& blobWriter) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
@@ -142,7 +144,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         _logger.warning("No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
     }
 
-    return std::make_shared<Graph>(
+    auto graph = std::make_shared<Graph>(
         _zeGraphExt,
         _zeroInitStruct,
         graphDesc,
@@ -151,10 +153,18 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         config,
         /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
         _compiler);
+
+    // Tell the blob writer to store the main schedule in the blob at export time: Requirement: understanding the ELF
+    // schedule.
+    blobWriter->append_compatibility_requirement(CRE::PredefinedCapabilityToken::ELF_SCHEDULE);
+    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(graph));
+
+    return graph;
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
-                                                         const FilteredConfig& config) const {
+                                                         const FilteredConfig& config,
+                                                         const std::shared_ptr<BlobWriter>& blobWriter) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
     _logger.debug("compile start");
 
@@ -282,7 +292,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 
     _logger.debug("compile end");
 
-    return std::make_shared<WeightlessGraph>(
+    auto weightlessGraph = std::make_shared<WeightlessGraph>(
         _zeGraphExt,
         _zeroInitStruct,
         mainGraphDesc,
@@ -295,6 +305,15 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         localConfig,
         /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
         _compiler);
+
+    // At export time, all schedules (main + inits) shall be stored in the blob. Requirements: understanding the ELF
+    // schedule & the capability of running the WS pipeline.
+    blobWriter->append_compatibility_requirement(CRE::PredefinedCapabilityToken::ELF_SCHEDULE);
+    blobWriter->append_compatibility_requirement(CRE::PredefinedCapabilityToken::WEIGHTS_SEPARATION);
+    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(weightlessGraph));
+    blobWriter->register_section(std::make_shared<ELFInitSchedulesSection>(weightlessGraph));
+
+    return weightlessGraph;
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::parse(

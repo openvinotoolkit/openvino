@@ -26,10 +26,16 @@ public:
      * @brief All capability codes known in advance. Past codes should be recorded here as well, this helps avoid code
      * collision.
      */
-    enum PredefinedCapabilityToken : Token { CRE_EVALUATION = 100, BATCHING = 101, WEIGHTS_SEPARATION = 102 };
+    enum PredefinedCapabilityToken : Token {
+        CRE_EVALUATION = 100,
+        ELF_SCHEDULE = 101,
+        BATCHING = 102,
+        WEIGHTS_SEPARATION = 103
+    };
 
     static inline const std::unordered_set<Token> DEFAULT_PLUGIN_CAPABILITIES_TOKENS{
         PredefinedCapabilityToken::CRE_EVALUATION,
+        PredefinedCapabilityToken::ELF_SCHEDULE,
         PredefinedCapabilityToken::BATCHING,
         PredefinedCapabilityToken::WEIGHTS_SEPARATION};
 

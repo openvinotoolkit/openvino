@@ -6,6 +6,7 @@
 
 #include <string_view>
 
+#include "compiler_schedules_sections.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
@@ -57,7 +58,8 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const FilteredConfig& config) const {
+                                                       const FilteredConfig& config,
+                                                       const std::shared_ptr<BlobWriter>& blobWriter) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
@@ -94,16 +96,24 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
     networkMeta.name = model->get_friendly_name();
 
-    return std::make_shared<Graph>(_zeGraphExt,
-                                   _zeroInitStruct,
-                                   graphDesc,
-                                   std::move(networkMeta),
-                                   /* blob = */ std::nullopt,
-                                   config);
+    auto graph = std::make_shared<Graph>(_zeGraphExt,
+                                         _zeroInitStruct,
+                                         graphDesc,
+                                         std::move(networkMeta),
+                                         /* blob = */ std::nullopt,
+                                         config);
+
+    // Tell the blob writer to store the main schedule in the blob at export time: Requirement: understanding the ELF
+    // schedule.
+    blobWriter->append_compatibility_requirement(CRE::PredefinedCapabilityToken::ELF_SCHEDULE);
+    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(graph));
+
+    return graph;
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
-                                                         const FilteredConfig& config) const {
+                                                         const FilteredConfig& config,
+                                                         const std::shared_ptr<BlobWriter>& blobWriter) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
@@ -196,16 +206,25 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
         _logger.info("Compilation memory usage: Peak %lld KB", compile_model_mem_end - compile_model_mem_start);
     }
 
-    return std::make_shared<WeightlessGraph>(_zeGraphExt,
-                                             _zeroInitStruct,
-                                             mainGraphHandle,
-                                             std::move(mainNetworkMetadata),
-                                             /* mainBlob = */ std::nullopt,
-                                             initGraphDescriptors,
-                                             std::move(initNetworkMetadata),
-                                             /* initBlobs = */ std::nullopt,
-                                             model,
-                                             config);
+    auto weightlessGraph = std::make_shared<WeightlessGraph>(_zeGraphExt,
+                                                             _zeroInitStruct,
+                                                             mainGraphHandle,
+                                                             std::move(mainNetworkMetadata),
+                                                             /* mainBlob = */ std::nullopt,
+                                                             initGraphDescriptors,
+                                                             std::move(initNetworkMetadata),
+                                                             /* initBlobs = */ std::nullopt,
+                                                             model,
+                                                             config);
+
+    // At export time, all schedules (main + inits) shall be stored in the blob. Requirements: understanding the ELF
+    // schedule & the capability of running the WS pipeline.
+    blobWriter->append_compatibility_requirement(CRE::PredefinedCapabilityToken::ELF_SCHEDULE);
+    blobWriter->append_compatibility_requirement(CRE::PredefinedCapabilityToken::WEIGHTS_SEPARATION);
+    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(weightlessGraph));
+    blobWriter->register_section(std::make_shared<ELFInitSchedulesSection>(weightlessGraph));
+
+    return weightlessGraph;
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
