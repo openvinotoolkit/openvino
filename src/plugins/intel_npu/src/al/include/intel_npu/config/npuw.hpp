@@ -140,6 +140,7 @@ DEFINE_OPT(NPUW_DUMP_SUBS, std::string, "", npuw::dump::subgraphs, RunTime);
 DEFINE_OPT(NPUW_DUMP_SUBS_ON_FAIL, std::string, "", npuw::dump::subgraphs_on_fail, RunTime);
 DEFINE_OPT(NPUW_DUMP_IO, std::string, "", npuw::dump::inputs_outputs, RunTime);
 DEFINE_OPT(NPUW_DUMP_IO_ITERS, bool, false, npuw::dump::io_iters, RunTime);
+DEFINE_OPT(NPUW_ENABLE_MOE_PROFILING, bool, false, npuw::dump::moe_profiling, RunTime);
 DEFINE_OPT(NPUW_LLM, bool, false, npuw::llm::enabled, RunTime);
 DEFINE_OPT(NPUW_LLM_BATCH_DIM, uint32_t, 0, npuw::llm::batch_dim, RunTime);
 DEFINE_OPT(NPUW_LLM_SEQ_LEN_DIM, uint32_t, 2, npuw::llm::seq_len_dim, RunTime);
