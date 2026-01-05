@@ -28,6 +28,23 @@ static constexpr ov::Property<std::string> devices{"NPUW_DEVICES"};
 
 /**
  * @brief
+ * Type: std::string
+ * Select the pipeline to use for the model.
+ * Possible values: "KOKORO", "NONE".
+ * Default value: "NONE"
+ */
+static constexpr ov::Property<std::string> pipeline_id{"NPUW_PIPELINE_ID"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap
+ * Configuration for the selected pipeline.
+ * Default value: empty
+ */
+static constexpr ov::Property<ov::AnyMap> pipeline_config{"NPUW_PIPELINE_CONFIG"};
+
+/**
+ * @brief
  * Type: std::string.
  * Force the specific subgraph to specific device. The device must be present in the NPUW_DEVICES list.
  * Possible values: Comma-separated "Subgraph index:OpenVINO device name" pairs, "last" keyword can be
@@ -700,6 +717,24 @@ namespace text_embed {
 static constexpr ov::Property<bool> enabled{"NPUW_TEXT_EMBED"};
 
 }  // namespace text_embed
+
+namespace kokoro {
+/**
+ * @brief
+ * Type: uint32_t.
+ * Block size for Kokoro model splitting.
+ * Default value: 200.
+ */
+static constexpr ov::Property<uint32_t> block_size{"NPUW_KOKORO_BLOCK_SIZE"};
+
+/**
+ * @brief
+ * Type: uint32_t.
+ * Overlap size for Kokoro model splitting.
+ * Default value: 20.
+ */
+static constexpr ov::Property<uint32_t> overlap_size{"NPUW_KOKORO_OVERLAP_SIZE"};
+}  // namespace kokoro
 
 }  // namespace npuw
 }  // namespace intel_npu

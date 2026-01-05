@@ -150,12 +150,24 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
-    // FIXME Temporary stub to detect kokoro models, will be replaced with pattern \ config option later
-    #if defined(NPU_PLUGIN_DEVELOPER_BUILD) || !defined(NDEBUG)
-    } else if (KokoroCompiledModel::is_kokoro_monolithic_model(model)) {
-        LOG_INFO("ov::npuw::KokoroCompiledModel will be created.");
-        compiled_model = std::make_shared<ov::npuw::KokoroCompiledModel>(model, plugin, config);
-    #endif
+    } else if (config.count(ov::intel_npu::npuw::pipeline_id.name())) {
+        auto pipeline_id = config.at(ov::intel_npu::npuw::pipeline_id.name()).as<std::string>();
+        std::transform(pipeline_id.begin(), pipeline_id.end(), pipeline_id.begin(), ::toupper);
+        
+        auto merge_pipeline_config = [&](ov::AnyMap& cfg) {
+            if (cfg.count(ov::intel_npu::npuw::pipeline_config.name())) {
+                auto pcfg = cfg.at(ov::intel_npu::npuw::pipeline_config.name()).as<ov::AnyMap>();
+                for (auto&& item : pcfg) {
+                    cfg[item.first] = item.second;
+                }
+            }
+        };
+
+        if (pipeline_id == "KOKORO") {
+            LOG_INFO("ov::npuw::KokoroCompiledModel will be created (based on pipeline ID).");
+            merge_pipeline_config(config);
+            compiled_model = std::make_shared<ov::npuw::KokoroCompiledModel>(model, plugin, config);
+        }   
     } else {
         LOG_INFO("ov::npuw::CompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, config);

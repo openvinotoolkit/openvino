@@ -8,6 +8,7 @@
 #include "npuw/logging.hpp"
 #include "kokoro_split.hpp"
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/npuw_private_properties.hpp"
 #include "plugin.hpp"
 
 namespace {
@@ -32,37 +33,22 @@ namespace {
     }
 }
 
-bool ov::npuw::KokoroCompiledModel::is_kokoro_monolithic_model(const std::shared_ptr<ov::Model>& model) {
-    if (!model) {
-        return false;
-    }
-
-    bool has_en = false;
-    bool has_asr = false;
-    bool has_repeat_interleve_range = false;
-
-    for (const auto& op : model->get_ops()) {
-        const auto& name = op->get_friendly_name();
-        if (name == "aten::repeat_interleave/Range") {
-            has_repeat_interleve_range = true;
-        } else if (name == "aten::matmul/MatMul") {
-            has_en = true;
-        } else if (name == "aten::matmul/MatMul_1") {
-            has_asr = true;
-        }
-        if (has_en && has_asr && has_repeat_interleve_range) {
-            return true;
-        }
-    }
-    return false;
-}
-
 ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Model>& model,
                                                    const std::shared_ptr<const ov::IPlugin>& plugin,
                                                    const ov::AnyMap& properties)
     : ov::npuw::ICompiledModel(model, plugin),
       m_name(model->get_friendly_name()) {
     LOG_DEBUG("Creating KokoroCompiledModel");
+
+    auto block_size_it = properties.find(ov::intel_npu::npuw::kokoro::block_size.name());
+    if (block_size_it != properties.end()) {
+        m_kokoro_cfg.block_size = block_size_it->second.as<uint32_t>();
+    }
+
+    auto overlap_size_it = properties.find(ov::intel_npu::npuw::kokoro::overlap_size.name());
+    if (overlap_size_it != properties.end()) {
+        m_kokoro_cfg.overlap_size = overlap_size_it->second.as<uint32_t>();
+    }
 
     // Decompose kokoro model into two static models 
     KokoroSplitResult split_result = KokoroSplit::split_model(model, m_kokoro_cfg);

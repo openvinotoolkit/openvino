@@ -249,8 +249,7 @@ void ov::npuw::KokoroInferRequest::infer() {
         OPENVINO_THROW("Kokoro Model B: no floating-point outputs found");
     }
 
-    // FIXME Temporary 
-    const size_t overlap_size = 10; 
+    const size_t overlap_size = m_kokoro_compiled_model->overlap_size();
     const auto one_side_overlap = static_cast<std::size_t>(overlap_size / 2);
 
     // Block size will stay the same even if overlap is used, but effective input size per block increases
