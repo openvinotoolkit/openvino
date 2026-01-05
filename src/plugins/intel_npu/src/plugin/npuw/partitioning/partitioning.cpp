@@ -2004,20 +2004,6 @@ void Partitioner::transformMoeExperts(const std::string& func_name) {
     // - Extracts K (number of active experts) from router model's TopK node
     // - Generates optimized expert models for prefill and/or decoding stages
     f._moe_experts = ov::npuw::function::MoEExperts::from(f._model, router_model, moe_chunk_size);
-
-    // Report transformation results
-    if (f._moe_experts) {
-        if (moe_chunk_size == 0) {
-            LOG_INFO("Successfully created MoE expert models with dynamic chunking strategy");
-        } else {
-            LOG_INFO("Successfully created MoE expert model with fixed chunk size: " << moe_chunk_size);
-        }
-        f._moe_experts->log_info();
-        LOG_VERB("MoE expert transformation completed for " << func_name);
-    } else {
-        LOG_WARN("Failed to create MoE expert transformation for "
-                 << func_name << " - expert pattern not found or transformation failed");
-    }
 }
 
 void Partitioner::transformMoeDownstream(const std::string& func_name) {
@@ -2045,15 +2031,6 @@ void Partitioner::transformMoeDownstream(const std::string& func_name) {
     // This allows downstream processing to be detected in any function that follows
     // the structural pattern, regardless of how it was originally tagged
     f._moe_experts_downstream = ov::npuw::function::create_moe_downstream(f._model, router_model);
-
-    // Report transformation results
-    if (f._moe_experts_downstream) {
-        LOG_INFO("Successfully created MoE downstream transformation for " << func_name);
-        LOG_DEBUG("  - Reshaped expert output from [" << f._moe_experts_downstream->total_experts_num << ", ...] to ["
-                                                      << f._moe_experts_downstream->active_experts_num << ", ...]");
-    } else {
-        LOG_DEBUG("MoE downstream pattern not found in " << func_name);
-    }
 }
 
 void Partitioner::optimize(const std::string& func_name) {
