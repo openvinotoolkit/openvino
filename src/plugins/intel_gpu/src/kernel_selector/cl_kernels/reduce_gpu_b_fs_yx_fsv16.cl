@@ -190,7 +190,7 @@ KERNEL(reduce_fsv16)(
 #endif
 
     const uint linear_idx = FUNC_CALL(calc_linear_offset)(b, f, y, x);
-    if (linear_idx >= COMPUTATIONAL_OPERATIONS_NUMBER)
+    if (linear_idx >= OUTPUT_LENGTH)
         return;
 
     const uint input_x_pitch = FSV;
