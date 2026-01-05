@@ -22,7 +22,7 @@ list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include"
 )
 
-list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_driver_compiler_adapter
+list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_common openvino_npu_driver_compiler_adapter
       openvino_npu_level_zero_backend openvino_npu_zero_utils openvino_npu_logger_utils)
 
 ov_add_test_target(
@@ -50,8 +50,12 @@ ov_add_test_target(
   openvino::format_reader
   openvino::reference
   openvino::runtime
-  openvino::npu_common
   openvino::npu_al)
+
+if(ENABLE_INTEL_CPU)
+    add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
+    target_compile_definitions(${TARGET_NAME} PRIVATE WITH_CPU_PLUGIN)
+endif()
 
 if(WIN32)
     if(ENABLE_DX12)
@@ -59,7 +63,6 @@ if(WIN32)
         target_link_libraries(${TARGET_NAME} PRIVATE d3d12 dxcore)
     endif()
 endif()
-
 
 set_target_properties(
   ${TARGET_NAME} PROPERTIES FOLDER ${CMAKE_CURRENT_SOURCE_DIR} CXX_STANDARD 17)
@@ -71,7 +74,7 @@ endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
 
-file(GLOB_RECURSE BLOBS "*.blob")
+file(GLOB_RECURSE BLOBS "*.blob" "*.xml" "*.bin")
 file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/intel_npu_blobs)
 add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
                   COMMAND ${CMAKE_COMMAND} -E copy ${BLOBS}

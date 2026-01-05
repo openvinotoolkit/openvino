@@ -66,8 +66,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("serialize IR");
 
-    auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
+    auto serializedIR = driver_compiler_utils::serializeIR(model,
+                                                           compilerVersion,
+                                                           maxOpsetVersion,
+                                                           useBaseModelSerializer(config),
+                                                           _zeGraphExt->isPluginModelHashSupported());
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -103,8 +106,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
                                                          const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
 
-    storeWeightlessCacheAttribute(model);
-
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
     if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 3)) {
         OPENVINO_THROW("Minimum compiler version required for weights separation: 6.3. Found: ",
@@ -123,8 +124,12 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     }
 
     _logger.debug("serialize IR");
-    auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
+    auto serializedIR = driver_compiler_utils::serializeIR(model,
+                                                           compilerVersion,
+                                                           maxOpsetVersion,
+                                                           useBaseModelSerializer(config),
+                                                           true,
+                                                           _zeGraphExt->isPluginModelHashSupported());
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -204,9 +209,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
-    ov::Tensor mainBlob,
+    const ov::Tensor& mainBlob,
     const FilteredConfig& config,
-    std::optional<std::vector<ov::Tensor>> initBlobs,
+    const std::optional<std::vector<ov::Tensor>>& initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
@@ -228,7 +233,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
                                        _zeroInitStruct,
                                        mainGraphDesc,
                                        std::move(networkMeta),
-                                       std::move(mainBlob),
+                                       mainBlob,
                                        config,
                                        blobIsPersistent);
     }
@@ -249,10 +254,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
                                              _zeroInitStruct,
                                              mainGraphDesc,
                                              std::move(networkMeta),
-                                             std::move(mainBlob),
+                                             mainBlob,
                                              initGraphDescriptors,
                                              std::move(initMetadata),
-                                             std::move(initBlobs),
+                                             initBlobs,
                                              model.value(),
                                              config,
                                              blobIsPersistent);

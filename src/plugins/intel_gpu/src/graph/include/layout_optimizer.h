@@ -107,6 +107,47 @@ public:
         int32_t b_fs_zyx_fsv16_network = 0;
         int32_t bs_fs_yx_bsv16_fsv16_network = 0;
         std::map<primitive_type_id, bool> onednn_impls = {};
+
+        void save(BinaryOutputBuffer& ob) const {
+            ob << group_convolution;
+            ob << byxf_onednn_convolution;
+            ob << bfyx_only_layer;
+            ob << fs_b_yx_fsv32_network;
+            ob << b_fs_zyx_fsv32_network;
+            ob << b_fs_yx_fsv16_network;
+            ob << b_fs_zyx_fsv16_network;
+            ob << bs_fs_yx_bsv16_fsv16_network;
+
+            ob << onednn_impls.size();
+            for (const auto& onednn_impl : onednn_impls) {
+                ob << prim_map_storage::instance().get_type_string(onednn_impl.first);
+                ob << onednn_impl.second;
+            }
+        }
+
+        void load(BinaryInputBuffer& ib) {
+            ib >> group_convolution;
+            ib >> byxf_onednn_convolution;
+            ib >> bfyx_only_layer;
+            ib >> fs_b_yx_fsv32_network;
+            ib >> b_fs_zyx_fsv32_network;
+            ib >> b_fs_yx_fsv16_network;
+            ib >> b_fs_zyx_fsv16_network;
+            ib >> bs_fs_yx_bsv16_fsv16_network;
+
+            size_t onednn_impls_size = 0;
+            ib >> onednn_impls_size;
+
+            onednn_impls.clear();
+            for (size_t i = 0; i < onednn_impls_size; ++i) {
+                primitive_id p_id{};
+                bool enabled = false;
+                ib >> p_id;
+                ib >> enabled;
+                auto ptype_id = prim_map_storage::instance().get_type_id(p_id);
+                onednn_impls[ptype_id] = enabled;
+            }
+        }
     };
 
 private:
@@ -228,5 +269,13 @@ public:
     size_t get_total_conv_count();
 
     bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
+
+    void save(BinaryOutputBuffer& ob) const {
+        _optimization_attributes.save(ob);
+    }
+
+    void load(BinaryInputBuffer& ib) {
+        _optimization_attributes.load(ib);
+    }
 };
 }  // namespace cldnn
