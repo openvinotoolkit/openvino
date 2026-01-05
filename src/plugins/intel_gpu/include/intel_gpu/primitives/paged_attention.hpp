@@ -35,6 +35,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         XATTENTION_BLOCK_SIZE = 18,
         XATTENTION_STRIDE = 19,
         SINKS = 20,
+        QQ_BIAS = 21,
     };
 
     static constexpr size_t block_size = 16;
@@ -45,7 +46,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     paged_attention(const primitive_id& id,
                     const std::vector<input_info>& inputs)
         : primitive_base(id, inputs) {
-        OPENVINO_ASSERT((inputs.size() == 21),
+        OPENVINO_ASSERT((inputs.size() == 22),
                         "[GPU] Unexpected inputs number for PagedAttention primitive: ",
                         inputs.size());
     }
@@ -132,5 +133,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool has_xattention = false;
     bool has_sink_input = false;
     bool is_key_by_channel = false;
+    bool has_qq_bias = false;
+    int32_t qq_bias_num = 0;
 };
 }  // namespace cldnn

@@ -1516,6 +1516,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::PrintModelStatistics>();
         }
         manager.run_passes(func);
+        ov::serialize(func, "final_model_after_transformations_pipeline.xml");
     }
 }
 }  // namespace ov::intel_gpu

@@ -65,6 +65,9 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_SINK_INPUT
     const __global SINK_DATA_T* sink_ptr,
 #endif
+#if HAS_QQ_BIAS
+    const __global QQ_BIAS_DATA_T* qq_bias,
+#endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
     __global SOFTMAX_ACCUMULATOR_TYPE* softmax_results,
@@ -78,6 +81,9 @@ KERNEL(pa_sdpa_opt)(
     __global OUTPUT_TYPE* tmp_out
 #if MULTI_TOKENS_PROCESSING
     , __global const int* gws_subseq_mapping
+#if HAS_QQ_BIAS
+    , __global const int* seq_num
+#endif
 #endif
 ) {
     // Input shapes:
@@ -97,7 +103,7 @@ KERNEL(pa_sdpa_opt)(
     // exp_sums: [sequences_num, HEADS_NUM, total_partitions_num]
     // max_logits: [sequences_num, HEADS_NUM, total_partitions_num]
     // tmp_out: [sequences_num, HEADS_NUM, total_partitions_num, V_HEAD_SIZE]
-
+    const uint token_num = get_global_size(0);
     const uint seq_idx = get_global_id(0);
 #if HEADS_PER_WI > 1
     const uint heads_group_idx = get_global_id(1);
@@ -129,6 +135,7 @@ KERNEL(pa_sdpa_opt)(
     const int subsequence_begin = subsequence_begins[subsequence_idx];
     const int subsequence_end = subsequence_begins[subsequence_idx + 1];
     const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
+    const uint past_len = past_lens[subsequence_idx];
 #else
     const uint subsequence_idx = seq_idx;
     const uint seq_len = past_lens[seq_idx] + 1;
@@ -308,11 +315,27 @@ KERNEL(pa_sdpa_opt)(
 #endif
 
 #if SLIDING_WINDOW_SIZE != 0
-            if (token_idx >= seq_len || (seq_len > SLIDING_WINDOW_SIZE && token_idx < (seq_len - SLIDING_WINDOW_SIZE)))
-#else
-            if (token_idx >= seq_len)
-#endif
+            if (token_idx >= seq_len || (seq_len > SLIDING_WINDOW_SIZE && token_idx < (seq_len - SLIDING_WINDOW_SIZE))) {
                 qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
+            } else
+#else
+            if (token_idx >= seq_len) {
+                qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
+            }
+#endif
+#if HAS_QQ_BIAS && MULTI_TOKENS_PROCESSING
+            // token_idx < seq_len, speculative tree mask
+            if (token_idx >= past_len && token_idx < seq_len) {
+                uint spec_offset = token_idx - past_len;
+                uint spec_num = token_num / seq_num[0];
+                uint qq_bias_offset = subsequence_idx * spec_num * spec_num + seq_idx * spec_num + spec_offset;
+                if (seq_idx == 5 && head_num_idx == 0)
+                    printf("sub group id %d, simd id %d, I'm handling kv relation with token %d, relation is %d\n", sgid, sglid, token_idx, qq_bias[qq_bias_offset]);
+                if (qq_bias[qq_bias_offset] == 0) {
+                    qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
+                }
+            }
+#endif
 
             qk_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max, TO_SOFTMAX_ACCUMULATOR_VEC_TYPE(qk_acc));
 

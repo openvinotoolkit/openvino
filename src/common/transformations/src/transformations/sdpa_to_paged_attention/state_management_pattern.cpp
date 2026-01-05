@@ -312,6 +312,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     bool allow_cache_rotation,
     bool allow_score_aggregation,
     bool allow_xattention,
+    bool allow_qq_bias,
     ParameterVector& rotated_block_indices_inputs_for_each_layer,
     ParameterVector& rotation_deltas_inputs_for_each_layer,
     ParameterVector& xattention_threshold_inputs_for_each_layer,
@@ -696,8 +697,18 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                 v0::Constant::create(real_q.get_element_type(), Shape{0, 0, 0, 0}, {}));
         }
 
-        OPENVINO_ASSERT(pa_arguments.size() == 21);
+        if (allow_qq_bias) {
+            OPENVINO_ASSERT(
+                optional_model_wide_params.find("qq_bias") != optional_model_wide_params.end(),
+                "No qq_bias input found. For using QQ bias, the model have to contain "
+                "an additional input (Parameter) called qq_bias.");
+            pa_arguments.insert(pa_arguments.begin() + 21, optional_model_wide_params.at("qq_bias"));
+        } else {
+            pa_arguments.insert(pa_arguments.begin() + 21,
+                                v0::Constant::create(element::f32, Shape{0, 0, 0}, {}));
+        }
 
+        OPENVINO_ASSERT(pa_arguments.size() == 22);
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
         paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;

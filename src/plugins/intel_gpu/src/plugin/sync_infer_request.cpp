@@ -289,7 +289,7 @@ void SyncInferRequest::enqueue() {
     // If dump layers path is set, only runs first inference.
     GPU_DEBUG_IF(!config.get_dump_tensors_path().empty() && config.get_dump_iterations().empty()) {
         GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
-        exit(0);
+        //exit(0);
     }
 
     auto enqueue_end = std::chrono::high_resolution_clock::now();

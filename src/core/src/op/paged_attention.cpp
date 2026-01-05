@@ -79,8 +79,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 21,
-                          "PagedAttensionExtension expects 21 inputs, but it has ",
+                          get_input_size() == 22,
+                          "PagedAttensionExtension expects 22 inputs, but it has ",
                           get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
@@ -105,6 +105,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 18, "xattention_block_size", {0}, {element::i32});
     input_check(this, 19, "xattention_stride", {0}, {element::i32});
     input_check(this, 20, "sinks", {1, 4}, {});
+    input_check(this, 21, "qq_bias", {3}, {});
 
     // value head_size may be not same with key
     auto out_ps = get_input_partial_shape(0);

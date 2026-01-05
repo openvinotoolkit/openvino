@@ -30,6 +30,7 @@ public:
                            bool allow_cache_rotation,
                            bool allow_score_aggregation,
                            bool allow_xattention,
+                           bool allow_qq_bias,
                            ParameterVector& rotated_block_indices_inputs_for_each_layer,
                            ParameterVector& rotation_deltas_inputs_for_each_layer,
                            ParameterVector& xattention_threshold_inputs_for_each_layer,

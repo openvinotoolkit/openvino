@@ -27,12 +27,14 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
                                                      bool use_score_outputs,
                                                      bool allow_score_aggregation,
                                                      bool allow_cache_rotation,
-                                                     bool allow_xattention)
+                                                     bool allow_xattention,
+                                                     bool allow_qq_bias)
     : m_use_per_layer_block_indices_inputs(use_per_layer_block_indices_inputs),
       m_use_score_outputs(use_score_outputs),
       m_allow_score_aggregation(use_score_outputs),
       m_allow_cache_rotation(allow_cache_rotation),
-      m_allow_xattention(allow_xattention) {}
+      m_allow_xattention(allow_xattention),
+      m_allow_qq_bias(allow_qq_bias) {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
@@ -84,6 +86,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
             setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "xattention_block_size");
         optional_model_wide_params["xattention_stride"] =
             setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "xattention_stride");
+    }
+
+    if (m_allow_qq_bias) {
+        optional_model_wide_params["qq_bias"] =
+            setName(std::make_shared<v0::Parameter>(element::u8, PartialShape{-1, -1, -1}), "qq_bias");
     }
 
     auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
@@ -168,6 +175,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   m_allow_cache_rotation,
                                                   m_allow_score_aggregation,
                                                   m_allow_xattention,
+                                                  m_allow_qq_bias,
                                                   rotated_block_indices_inputs_for_each_layer,
                                                   rotation_deltas_inputs_for_each_layer,
                                                   xattention_threshold_inputs_for_each_layer,
@@ -245,6 +253,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->add_parameters(xattention_threshold_inputs_for_each_layer);
         model->add_parameters({optional_model_wide_params["xattention_block_size"]});
         model->add_parameters({optional_model_wide_params["xattention_stride"]});
+    }
+
+    if (m_allow_qq_bias) {
+        model->add_parameters({optional_model_wide_params["qq_bias"]});
     }
 
     model->add_parameters(kv_parameters);
