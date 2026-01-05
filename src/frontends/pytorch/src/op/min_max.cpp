@@ -175,9 +175,11 @@ OutputVector translate_amin(const NodeContext& context) {
     // aten::amin(Tensor self, int[1] dim=[], bool keepdim=False) -> Tensor
 
     // aten::amin.out(Tensor self, int[1] dim=[], bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
-    num_inputs_check(context, 2, 4);
+    num_inputs_check(context, 1, 4);
     auto x = context.get_input(0);
-    auto dims = context.get_input(1);
+    // From torch 2.8, amax dim input is optional
+    // check if dim is provided, if not, get the range of axes to reduce over all dimensions
+    auto dims = !context.input_is_none(1) ? context.get_input(1) : get_axes_range(context, 0);
     bool keep_dims = false;
     if (!context.input_is_none(2)) {
         keep_dims = context.const_input<bool>(2);
@@ -193,9 +195,11 @@ OutputVector translate_amax(const NodeContext& context) {
     // aten::amax(Tensor self, int[1] dim=[], bool keepdim=False) -> Tensor
 
     // aten::amax.out(Tensor self, int[1] dim=[], bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
-    num_inputs_check(context, 2, 4);
+    num_inputs_check(context, 1, 4);
     auto x = context.get_input(0);
-    auto dims = context.get_input(1);
+    // From torch 2.8, amax dim input is optional
+    // check if dim is provided, if not, get the range of axes to reduce over all dimensions
+    auto dims = !context.input_is_none(1) ? context.get_input(1) : get_axes_range(context, 0);
     bool keep_dims = false;
     if (!context.input_is_none(2)) {
         keep_dims = context.const_input<bool>(2);
@@ -213,6 +217,7 @@ OutputVector translate_aminmax(const NodeContext& context) {
 
     auto input = context.get_input(0);
 
+    // From torch 2.8, amax dim input is optional
     // check if dim is provided, if not, get the range of axes to compute min and max
     auto dim = !context.input_is_none(1) ? context.get_input(1) : get_axes_range(context, 0);
 

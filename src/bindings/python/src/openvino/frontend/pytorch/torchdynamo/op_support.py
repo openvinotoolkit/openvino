@@ -257,6 +257,7 @@ class OperatorSupport(OpSupport):
             "torch.ops.aten.unsqueeze_copy.default": None,
             "torch.ops.aten.upsample_nearest2d.default": None,
             "torch.ops.aten.upsample_nearest2d.vec": None,
+            "torch.ops.aten.upsample_bilinear2d": None,
             "torch.ops.aten.upsample_nearest3d.vec": None,
             "torch.ops.aten.var.correction": None,
             "torch.ops.aten.var_mean.correction": None,
@@ -272,7 +273,7 @@ class OperatorSupport(OpSupport):
             "torch.ops.quantized_decomposed.quantize_per_tensor.default": None,
             "torch.ops.quantized_decomposed.quantize_per_channel.default": None,
             "torch.ops.quantized_decomposed.dequantize_per_tensor.default": None,
-            "torch.ops.quantized_decomposed.dequantize_per_channel.default": None
+            "torch.ops.quantized_decomposed.dequantize_per_channel.default": None,
         }
 
         self.enabled_op_names = []
