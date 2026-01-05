@@ -426,13 +426,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
         if (prim_info.type_id == "dynamic_quantize") {
             auto& node = get_network()->get_primitive(prim_info.original_id)->get_node();
             auto dyn_quan = node.as<cldnn::dynamic_quantize>().get_primitive();
-            std::ostringstream oss;
-            for (size_t i = 0; i < dyn_quan->attrs.group_sizes.size(); ++i) {
-                oss << dyn_quan->attrs.group_sizes[i];
-                if (i != dyn_quan->attrs.group_sizes.size() - 1)
-                    oss << ", ";
-            }
-            info["group_sizes"] = oss.str();
+            info["group_sizes"] = ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
             if (dyn_quan->attrs.precomputed_reduction) {
                 info["precomputed_reduction_dt"] = dyn_quan->attrs.precomputed_reduction_dt.c_type_string();
             }
