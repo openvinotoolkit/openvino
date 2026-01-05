@@ -212,8 +212,11 @@ if(NOT (AARCH64 OR ARM))
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/aarch64/*)
+endif()
+
+if(NOT (AARCH64 OR ARM))
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*)
 endif()
 
 if(NOT AARCH64)
@@ -223,7 +226,9 @@ endif()
 
 if (NOT RISCV64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/riscv64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/riscv64/*)
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/riscv64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/riscv64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/riscv64/*)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
@@ -434,6 +439,16 @@ if(BUILD_SHARED_LIBS)
     set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
     ov_build_target_faster(${TARGET_NAME}_obj PCH PCH_EXCLUDE ${PCH_EXCLUDE_FILES})
+endif()
+
+if(OV_CPU_WITH_ACL)
+    target_include_directories(${TARGET_NAME} PRIVATE
+        ${OpenVINO_SOURCE_DIR}/src/inference/include)
+
+    if(BUILD_SHARED_LIBS)
+        target_include_directories(${TARGET_NAME}_obj PRIVATE
+            ${OpenVINO_SOURCE_DIR}/src/inference/include)
+    endif()
 endif()
 
 if(ENABLE_TESTS)

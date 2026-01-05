@@ -13,6 +13,7 @@
 #define UNSUPPORTED_WEI_PRECISIONS           " unsupported wei precisions"
 #define UNSUPPORTED_BIAS_PRECISIONS          " unsupported bias precisions"
 #define UNSUPPORTED_DST_PRECISIONS           " unsupported dst precisions"
+#define UNSUPPORTED_SRC_WEI_PRECISIONS       " unsupported src and wei precisions"
 #define UNSUPPORTED_ISA                      " unsupported isa"
 #define UNSUPPORTED_SRC_RANK                 " unsupported src rank"
 #define UNSUPPORTED_WEI_RANK                 " unsupported wei rank"

@@ -109,7 +109,6 @@ ov::pass::VectorizedMOE2GEMMTransposeWeights::VectorizedMOE2GEMMTransposeWeights
             if (ov::is_type<ov::op::v0::Constant>(transpose_input.get_node_shared_ptr())) {
                 transpose->get_rt_info()["postponed_constant"] = true;
                 ov::pass::disable_constant_folding(transpose);
-                ov::disable_fp16_compression(transpose_input.get_node_shared_ptr());
             }
 
             ov::NodeVector rt_sources{transpose_input.get_node_shared_ptr()};

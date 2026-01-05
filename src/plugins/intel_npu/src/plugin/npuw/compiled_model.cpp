@@ -363,7 +363,15 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             if (compiled_fcn_iter == compiledFunctions.end()) {
                 // A function call: store the model for function call only once...
                 compiledFunctions.insert({subgraph._funcall, id});
-                m_compiled_submodels[id].model = fcn_template._model;
+
+                // For HFA, use the final tile model instead of the original SDPA model
+                // because the original SDPA model won't be compiled
+                if (fcn_template._host_flash_attention) {
+                    m_compiled_submodels[id].model = fcn_template._host_flash_attention.value()._final_tile_model;
+                } else {
+                    m_compiled_submodels[id].model = fcn_template._model;
+                }
+
                 m_compiled_submodels[id].replaced_by = id;  // FIXME: UGLY
 
                 // Fill in the spatial information, if it is present
@@ -377,6 +385,21 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     m_compiled_submodels[id].attention =
                         compiled::Attention(fcn_template._attention.value(), fcn_template._model);
                 }
+
+                if (fcn_template._pyramid_attention) {
+                    LOG_INFO("Creating compiled::PyramidAttention for Subgraph[" << id << "] (function "
+                                                                                 << subgraph._funcall << ")");
+                    m_compiled_submodels[id].pyramid_attention =
+                        compiled::PyramidAttention(fcn_template._pyramid_attention.value());
+                }
+
+                if (fcn_template._host_flash_attention) {
+                    LOG_INFO("Creating compiled::HostFlashAttention for Subgraph[" << id << "] (function "
+                                                                                   << subgraph._funcall << ")");
+                    m_compiled_submodels[id].host_flash_attention =
+                        compiled::HostFlashAttention(fcn_template._host_flash_attention.value());
+                }
+
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
                 // ...and refer to it in other calls
@@ -405,25 +428,24 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // FIXME: a hotfix for a crash where we have too many names in submodel's output
         // Do it just once if that's a function
         if (real_id == id) {
-            remove_long_output_names(m_compiled_submodels[real_id].model);
-            fill_empty_tensor_names(m_compiled_submodels[real_id].model);
+            auto fix_tensor_names = [&](const std::shared_ptr<ov::Model>& model) {
+                remove_long_output_names(model);
+                fill_empty_tensor_names(model);
+            };
+
+            fix_tensor_names(m_compiled_submodels[real_id].model);
+
+            // Ensure all submodels (including pyramid attention) have consistent and valid tensor names
+            // to avoid issues in downstream inference and model serialization.
+            if (const auto& pyramid_attn = m_compiled_submodels[real_id].pyramid_attention) {
+                for (const auto& model : pyramid_attn.value()._models_to_compile) {
+                    fix_tensor_names(model);
+                }
+            }
         }
 
-        if (ov::npuw::util::is_set(id, dump_sub_opt, real_id, end_sub_idx)) {
-            LOG_INFO("Dumping Subgraph[" << id << "]");
-            LOG_BLOCK();
-            if (real_id != id) {
-                LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]" << " as it is a function body for Subgraph[" << id
-                                                   << "]");
-            }
-            const auto model_to_dump = m_compiled_submodels[real_id].model;
-            std::string model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                                          (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall) + ".xml";
-            ov::save_model(model_to_dump, model_dump_path);
-            LOG_INFO("Wrote " << model_dump_path);
-            // Note: keep here naming as it would be the subgraph
-        }  // if(dump)
-    }  // for(orderedSubgraphs)
+        dump_subgraph_model(id, subgraph._funcall, dump_sub_opt);
+    }  // for(orderedSubGraphs)
 
     std::map<std::size_t, std::string> forced_sub_devices{};
     std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
@@ -652,6 +674,34 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, spatial);
     write(stream, attention);
 
+    // Serialize compiled submodels for pyramid attention, except the last one
+    write(stream, pyramid_attention);
+    if (pyramid_attention.has_value()) {
+        size_t num_models = pyramid_attention.value()._compiled_models.size();
+        write(stream, num_models);
+
+        for (size_t i = 0; i < num_models - 1; ++i) {
+            std::stringstream ss;
+            auto compiled_model = pyramid_attention.value()._compiled_models[i];
+            compiled_model->export_model(ss);
+            write(stream, ss.str());
+        }
+    }
+
+    // Serialize host flash attention
+    write(stream, host_flash_attention);
+    if (host_flash_attention.has_value()) {
+        // Serialize compiled tile model
+        if (host_flash_attention.value()._compiled_tile_model) {
+            write(stream, true);
+            std::stringstream ss;
+            host_flash_attention.value()._compiled_tile_model->export_model(ss);
+            write(stream, ss.str());
+        } else {
+            write(stream, false);
+        }
+    }
+
     auto& closure_desc = closure.get();
 
     write(stream, closure_desc.is_remote);
@@ -704,8 +754,10 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     LOG_DEBUG("DONE.");
 }
 
-void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& stream,
-                                                             const ov::npuw::s11n::WeightsContext& ctx) {
+void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
+    std::istream& stream,
+    const ov::npuw::s11n::WeightsContext& ctx,
+    const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx) {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Deserializing CompiledModelDesc...");
@@ -728,6 +780,49 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
 
     read(stream, spatial);
     read(stream, attention);
+
+    read(stream, pyramid_attention);
+    if (pyramid_attention.has_value()) {
+        size_t num_models = 0;
+        read(stream, num_models);
+        pyramid_attention.value()._compiled_models.resize(num_models);
+
+        if (num_models > 0) {
+            // Import all pyramid models except the last one
+            for (size_t i = 0; i < num_models - 1; ++i) {
+                std::string model_str;
+                read(stream, model_str);
+                std::stringstream ss(model_str);
+                pyramid_attention->_compiled_models[i] =
+                    submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device);
+            }
+
+            // Reuse the already compiled model for the last pyramid attention model
+            if (submodel_ctx.compiled_model) {
+                pyramid_attention->_compiled_models[num_models - 1] = submodel_ctx.compiled_model;
+                LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
+            }
+        }
+    }
+
+    // Deserialize host flash attention
+    read(stream, host_flash_attention);
+    if (host_flash_attention.has_value()) {
+        bool has_compiled_model = false;
+        read(stream, has_compiled_model);
+        if (has_compiled_model) {
+            std::string model_str;
+            read(stream, model_str);
+            std::stringstream ss(model_str);
+            host_flash_attention->_compiled_tile_model =
+                submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device);
+            LOG_DEBUG("Imported compiled tile model for host flash attention");
+        }
+
+        // Set reference to the final tile model (which is the main compiled_model for HFA)
+        host_flash_attention->_compiled_final_tile_model = submodel_ctx.compiled_model;
+        LOG_DEBUG("Set compiled final tile model reference for host flash attention");
+    }
 
     auto& closure_desc = closure.get();
 
@@ -1141,8 +1236,15 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         std::shared_ptr<ov::Model> model_ptr;
         // Cache model's constants
         WeightsContext::ConstsCache consts_cache;
+        ov::FileHandleProvider handle_provider = nullptr;
         if (is_weightless) {
-            if (properties.find(ov::weights_path.name()) != properties.end()) {
+            // Check if weights_handle_provider function is provided
+            if (const auto handle_it = properties.find(ov::intel_npu::npuw::weights_handle_provider.name());
+                handle_it != properties.end()) {
+                if (handle_it->second.is<ov::FileHandleProvider>()) {
+                    handle_provider = handle_it->second.as<ov::FileHandleProvider>();
+                }
+            } else if (properties.find(ov::weights_path.name()) != properties.end()) {
                 weights_path = properties.at(ov::weights_path.name()).as<std::string>();
                 NPUW_ASSERT(!weights_path.empty() &&
                             "Empty weights_path. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
@@ -1180,8 +1282,15 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
 
         ov::npuw::s11n::WeightsPtr weights = nullptr;
         if (is_weightless) {
-            if (!weights_path.empty()) {
-                auto mapped_memory = ov::load_mmap_object(weights_path);
+            std::shared_ptr<ov::MappedMemory> mapped_memory;
+            // Use handle_provider if available, otherwise use default mmap with weights_path
+            if (handle_provider) {
+                ov::FileHandle handle = handle_provider();
+                mapped_memory = ov::load_mmap_object(handle);
+            } else if (!weights_path.empty()) {
+                mapped_memory = ov::load_mmap_object(weights_path);
+            }
+            if (mapped_memory) {
                 weights = std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(),
                                                                     mapped_memory->size(),
                                                                     mapped_memory);
@@ -1191,7 +1300,8 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         // FIXME: prolong lifetime of ov::Model for import with MODEL_PTR.
         // Unclear why it's needed, but without saving consts_cache until bank evaluation,
         // the memory is freed somewhere.
-        compiled->m_import_weights_ctx = WeightsContext(weights, weights_path, consts_cache, compiled->m_bf16_consts);
+        compiled->m_import_weights_ctx =
+            WeightsContext(weights, weights_path, consts_cache, compiled->m_bf16_consts, handle_provider);
 
         // Deserialize compiled submodels
         std::size_t subm_size = 0;
@@ -1213,7 +1323,13 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                     plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx]);
             }
             compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
-            compiled->m_compiled_submodels[i].deserialize(stream, compiled->m_import_weights_ctx);
+
+            // Create unified deserialization context for submodels with dynamic mechanisms
+            // (Pyramid Attention, Host Flash Attention, etc.)
+            ov::npuw::s11n::SubmodelDeserializeCtx submodel_ctx(plugin,
+                                                                compiled->m_dev_list[device_idx],
+                                                                compiled->m_compiled_submodels[i].compiled_model);
+            compiled->m_compiled_submodels[i].deserialize(stream, compiled->m_import_weights_ctx, submodel_ctx);
         }
 
         compiled->implement_properties();
@@ -1371,6 +1487,10 @@ void ov::npuw::CompiledModel::detach_memory() {
             LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
             proto_comp_model_desc.model.reset();
         }
+
+        // No need to clear pyramid attention data - it's self-contained!
+        // The _models_to_compile is already cleared in set_compiled_models()
+        // and compiled::PyramidAttention only stores _compiled_models (not original models)
     }
     LOG_INFO("Done");
 }
@@ -1539,6 +1659,12 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
         m_profile["compile/" + device_to_try].record([&]() {
             m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
         });
+
+        // Compile pyramid attention models if present
+        compile_pyramid_attention_models(id, device_to_try);
+
+        // Compile host flash attention model if present
+        compile_host_flash_attention_model(id, device_to_try);
     } catch (const std::exception& ex) {
         LOG_ERROR("Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what());
         dump_on_fail(id, device_to_try, ex.what());
@@ -1551,6 +1677,124 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     // Reached this point - all ok, stop the search
     LOG_INFO("Done (" << device_to_try << ")");
     return true;
+}
+
+void ov::npuw::CompiledModel::compile_pyramid_attention_models(std::size_t id, const std::string& device) {
+    // Check if we have pyramid attention to compile
+    if (!m_compiled_submodels[id].pyramid_attention.has_value()) {
+        return;
+    }
+
+    LOG_INFO("Compiling pyramid attention submodels for Subgraph[" << id << "]...");
+    LOG_BLOCK();
+
+    auto& pyramid_attn = m_compiled_submodels[id].pyramid_attention.value();
+    const auto& pyramid_attn_models = pyramid_attn._models_to_compile;
+    const size_t total_models = pyramid_attn_models.size();
+
+    LOG_INFO("Total pyramid models to compile: " << total_models);
+
+    // Pre-allocate the compiled models vector
+    std::vector<ov::SoPtr<ov::ICompiledModel>> compiled_models(total_models);
+
+    // Compile all pyramid models except the last one in parallel
+    // The last model will reuse the already compiled original model
+    const size_t models_to_compile = total_models > 0 ? total_models - 1 : 0;
+
+    if (models_to_compile > 0) {
+        LOG_INFO("Compiling " << models_to_compile << " pyramid models in parallel...");
+
+        auto compile_one_model = [&](size_t model_id) {
+            try {
+                const auto& model = pyramid_attn_models[model_id];
+                LOG_DEBUG("Compiling pyramid attention submodel[" << model_id << "]: " << model->get_friendly_name());
+
+                auto compiled = compile_submodel(model, device);
+                OPENVINO_ASSERT(compiled, "Failed to compile pyramid attention submodel");
+
+                compiled_models[model_id] = compiled;
+
+                LOG_INFO("Compiled pyramid attention submodel[" << model_id << "]");
+            } catch (const std::exception& ex) {
+                OPENVINO_THROW("Pyramid attention submodel[", model_id, "] compilation failed: ", ex.what());
+            } catch (...) {
+                OPENVINO_THROW("Pyramid attention submodel[", model_id, "] compilation failed with unknown error");
+            }
+        };
+
+        const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
+        if (par_opt) {
+            ov::parallel_for(models_to_compile, compile_one_model);
+        } else {
+            for (std::size_t model_id = 0u; model_id < models_to_compile; model_id++) {
+                compile_one_model(model_id);
+            }
+        }
+    }
+
+    // Handle the last model: reuse the already compiled original model
+    if (total_models > 0) {
+        LOG_INFO("Reusing already compiled original model for pyramid attention submodel[" << (total_models - 1)
+                                                                                           << "] (optimization)");
+        OPENVINO_ASSERT(m_compiled_submodels[id].compiled_model, "Original compiled model should exist");
+        compiled_models[total_models - 1] = m_compiled_submodels[id].compiled_model;
+    }
+
+    // Set compiled models - this also clears _models_to_compile internally
+    LOG_INFO("Setting compiled models into compiled::PyramidAttention...");
+    pyramid_attn.set_compiled_models(std::move(compiled_models));
+
+    LOG_INFO("Pyramid attention compilation complete for Subgraph[" << id << "]");
+}
+
+void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id, const std::string& device) {
+    // Check if we have host flash attention to compile
+    if (!m_compiled_submodels[id].host_flash_attention.has_value()) {
+        return;
+    }
+
+    LOG_INFO("Compiling host flash attention tile models for Subgraph[" << id << "]...");
+    LOG_BLOCK();
+
+    auto& hfa = m_compiled_submodels[id].host_flash_attention.value();
+
+    // Check if we have tile model to compile
+    if (!hfa._tile_model_to_compile) {
+        LOG_WARN("Host flash attention tile model is null, skipping compilation");
+        return;
+    }
+
+    // Note: The final tile model has already been compiled via compile_submodel(m_compiled_submodels[id].model, ...)
+    // because m_compiled_submodels[id].model points to _final_tile_model for HFA
+    // So we only need to compile the regular tile model here
+
+    // Compile regular tile model
+    LOG_INFO("Compiling flash attention regular tile model on " << device);
+    try {
+        auto compiled_tile_model = compile_submodel(hfa._tile_model_to_compile, device);
+        OPENVINO_ASSERT(compiled_tile_model, "Failed to compile host flash attention tile model");
+
+        hfa.set_compiled_tile_model(std::move(compiled_tile_model));
+
+        LOG_INFO("Successfully compiled host flash attention regular tile model");
+    } catch (const std::exception& ex) {
+        LOG_ERROR("Failed to compile host flash attention tile model: " << ex.what());
+        OPENVINO_THROW("Host flash attention tile model compilation failed: ", ex.what());
+    } catch (...) {
+        LOG_ERROR("Failed to compile host flash attention tile model: Unknown error");
+        OPENVINO_THROW("Host flash attention tile model compilation failed with unknown error");
+    }
+
+    // Store the already-compiled final tile model reference
+    // The final tile model was compiled at line ~1676 and stored in compiled_model
+    hfa.set_compiled_final_tile_model(m_compiled_submodels[id].compiled_model);
+
+    LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
+
+    // Memory cleanup notes:
+    // 1. _tile_model_to_compile is released by set_compiled_tile_model()
+    // 2. _final_tile_model_to_compile is released by set_compiled_final_tile_model()
+    // 3. m_compiled_submodels[id].model points to _final_tile_model and will be managed by detach_memory()
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const std::shared_ptr<ov::Model>& submodel,
@@ -1591,6 +1835,59 @@ void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& de
 
     if (ov::npuw::util::is_set(id, dof_opt, real_idx, end_idx)) {
         ov::npuw::dump_failure(m_compiled_submodels[id].model, device_to_try, extra);
+    }
+}
+
+void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
+                                                  const std::string& funcall,
+                                                  const std::string& dump_sub_opt) {
+    const std::size_t end_sub_idx = m_compiled_submodels.size();
+    const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
+
+    if (!ov::npuw::util::is_set(id, dump_sub_opt, real_id, end_sub_idx)) {
+        return;
+    }
+
+    LOG_INFO("Dumping Subgraph[" << id << "]");
+    LOG_BLOCK();
+    if (real_id != id) {
+        LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]" << " as it is a function body for Subgraph[" << id << "]");
+    }
+    const auto model_to_dump = m_compiled_submodels[real_id].model;
+    std::string model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
+                                  (funcall.empty() ? "" : "_" + funcall) + ".xml";
+    ov::save_model(model_to_dump, model_dump_path);
+    LOG_INFO("Wrote " << model_dump_path);
+
+    // Dump pyramid attention models if present
+    if (m_compiled_submodels[id].pyramid_attention) {
+        LOG_INFO("NOTE: Subgraph[" << id << "] has a pyramid attention mechanism.");
+        const auto& pyramid_attention_models = m_compiled_submodels[id].pyramid_attention.value()._models_to_compile;
+        for (std::size_t idx = 0; idx < pyramid_attention_models.size(); ++idx) {
+            std::string pyramid_attention_model_dump_path =
+                m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
+                (funcall.empty() ? "" : "_" + funcall) + "_pyramid_" +
+                ov::npuw::util::fmt(idx, pyramid_attention_models.size()) + ".xml";
+            ov::save_model(pyramid_attention_models[idx], pyramid_attention_model_dump_path);
+            LOG_INFO("Wrote " << pyramid_attention_model_dump_path);
+        }
+    }
+
+    // Dump host flash attention models if present
+    if (m_compiled_submodels[id].host_flash_attention) {
+        LOG_INFO("NOTE: Subgraph[" << id << "] has a host flash attention mechanism.");
+        const auto& hfa_tile_model = m_compiled_submodels[id].host_flash_attention.value()._tile_model_to_compile;
+        std::string hfa_tile_model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
+                                               (funcall.empty() ? "" : "_" + funcall) + "_hfa_tile.xml";
+        ov::save_model(hfa_tile_model, hfa_tile_model_dump_path);
+        LOG_INFO("Wrote " << hfa_tile_model_dump_path);
+
+        const auto& hfa_final_tile_model =
+            m_compiled_submodels[id].host_flash_attention.value()._final_tile_model_to_compile;
+        std::string hfa_final_tile_model_dump_path = m_name + "_" +
+                                                     ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
+                                                     (funcall.empty() ? "" : "_" + funcall) + "_hfa_final_tile.xml";
+        ov::save_model(hfa_final_tile_model, hfa_final_tile_model_dump_path);
     }
 }
 

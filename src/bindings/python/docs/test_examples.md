@@ -132,6 +132,7 @@ Notice that the test name is shared between cases. In a real-life pull request, 
 * Re-use common parts of the code (like multiple lines that create helper object) and move them out to make tests easier to read.
 
 ## See also
+ * [Debugging OpenVINO™ Python API with C++ breakpoints](./debugging_python_api.md)
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO™ bindings README](../../README.md)
  * [Developer documentation](../../../../docs/dev/index.md)

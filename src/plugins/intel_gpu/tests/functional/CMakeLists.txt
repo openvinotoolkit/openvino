@@ -34,7 +34,6 @@ ov_add_test_target(
             funcSharedTests
             OpenCL::NewHeaders # should come before OpenCL::OpenCL
             OpenCL::OpenCL
-        ADD_CPPLINT
         LABELS
             OV GPU
 )

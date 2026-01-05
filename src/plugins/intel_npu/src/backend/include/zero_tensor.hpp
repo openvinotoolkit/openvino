@@ -52,6 +52,9 @@ public:
     void* data() override;
     void* data(const ov::element::Type& type) override;
 
+    void* data_rw() override;
+    void* data_rw(const ov::element::Type& type) override;
+
     const void* data() const override;
     const void* data(const ov::element::Type& type) const override;
 
@@ -69,27 +72,26 @@ public:
     void prevent_reuse();
     bool can_be_reused();
 
-    ~ZeroTensor() override = default;
+    ~ZeroTensor() override;
 
 private:
     void update_strides() const;
-    size_t get_capacity() const;
     size_t get_bytes_capacity() const;
 
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     Logger _logger;
 
+    ov::SoPtr<ov::ITensor> _user_tensor;
+
     ov::element::Type _element_type;
     ov::Shape _shape;
-    ov::Shape _capacity;
+    size_t _bytes_capacity;
     mutable ov::Strides _strides;
     mutable std::once_flag _strides_once;
     void* _ptr = nullptr;
     bool _reset_tensor_memory = false;
     bool _is_input = false;
     bool _can_be_reused = false;
-
-    ov::SoPtr<ov::ITensor> _user_tensor;
 
     std::shared_ptr<ZeroMem> _mem_ref;
 };

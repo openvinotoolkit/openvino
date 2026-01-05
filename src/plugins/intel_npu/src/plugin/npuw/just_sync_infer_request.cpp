@@ -5,19 +5,18 @@
 #include "just_sync_infer_request.hpp"
 
 #include <algorithm>
-#include <future>
-#include <map>
 #include <memory>
 #include <string>
-#include <utility>
 
 #include "compiled_model.hpp"
+#include "host_flash_attention.hpp"
+#include "infer_request_utils.hpp"  // to utilize copy_tensor_by_dim
 #include "logging.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "plugin.hpp"
-#include "util.hpp"
+#include "pyramid_attention.hpp"
 #include "weights_bank.hpp"
 
 ov::npuw::MemAccessSim::MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model) {
@@ -167,6 +166,8 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
             oshape[proto_comp_model_desc.spatial->out_dim] = proto_comp_model_desc.spatial->range;
         }
         const auto& device = m_model->funcall_mem_device(real_idx);
+        // FIXME: handle the lazy way (see BaseSyncInferRequest::get_tensor())
+        // and share between submodels to reduce memory consumption
         TensorPtr new_tensor = m_alloc(oport.get_element_type(), oshape, device);
         NPUW_ASSERT(new_tensor);
 
@@ -197,13 +198,18 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     m_spatial_io.resize(m_num_submodels);
     m_attention_io.resize(m_num_submodels);
+    m_hfa_io.resize(m_num_submodels);
 
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
     bool failover_happened = false;
     bool has_spatial = false;
     bool has_dynamic = false;
+    bool has_pyramid = false;
+    bool has_hfa = false;
     std::size_t dynamic_sub_idx = -1;
+    std::size_t pyramid_sub_idx = -1;
+    std::size_t hfa_sub_idx = -1;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -261,6 +267,29 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 m_attention_io[i].inputs.resize(proto_comp_model_desc.param_base);
             }  // if(dynamic)
 
+            if (proto_comp_model_desc.pyramid_attention) {
+                // Sanity check first
+                if (has_pyramid && pyramid_sub_idx != real_idx) {
+                    OPENVINO_THROW("Only single pyramid attention type is permitted for model");
+                }
+                has_pyramid = true;
+                pyramid_sub_idx = real_idx;
+                m_attention_io[i].inputs.resize(proto_comp_model_desc.param_base);
+            }  // if(pyramid)
+
+            if (proto_comp_model_desc.host_flash_attention) {
+                // Sanity check first
+                if (has_hfa && hfa_sub_idx != real_idx) {
+                    OPENVINO_THROW("Only single flash attention type is permitted for model");
+                }
+                has_hfa = true;
+                hfa_sub_idx = real_idx;
+                m_hfa_io[i].inputs.resize(proto_comp_model_desc.param_base);
+                const auto num_outputs =
+                    proto_comp_model_desc.host_flash_attention.value()._compiled_final_tile_model->outputs().size();
+                m_hfa_io[i].outputs.resize(num_outputs);
+            }  // if(hfa)
+
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto from = LinkFrom{i, out_idx};
                 m_funcall_result[from] = m_func_mem_mgr.get_tensor(from);
@@ -282,6 +311,24 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         m_subrequest_devices[i] = *comp_model_desc.device_it;
         if (is_piped) {
             m_funcall_pipeline[i].subrequest = rqs.at(1);
+        }
+
+        // Create pyramid attention infer requests if this function has pyramid attention
+        // IMPORTANT: Must be created AFTER main infer requests to enable direct reuse:
+        // The last pyramid infer request directly reuses the main infer request object
+        if (comp_model_desc.replaced_by) {
+            const auto real_idx = comp_model_desc.replaced_by.value();
+            auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+            if (proto_comp_model_desc.pyramid_attention) {
+                setup_pyramid_infer_requests(real_idx, is_piped, false);
+            }
+            // Create HFA tile infer requests if this function has host flash attention
+            if (proto_comp_model_desc.host_flash_attention) {
+                setup_hfa_infer_requests(real_idx,
+                                         is_piped,
+                                         /* is_recreate */ false,
+                                         /* enable_hfa_optimizations */ true);
+            }
         }
 
         LOG_INFO("DONE");
@@ -324,7 +371,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }
     }  // if(function_pipelining)
 
-    alloc_io();
+    alloc_quant_gather();
     connect_subrequests();
     init_gio();
 
@@ -383,15 +430,42 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }
         LOG_VERB("Done");
     }
+
+    // Handle pyramid attention
+    if (has_pyramid) {
+        const auto& pyramid_dyn = m_npuw_model->m_compiled_submodels.at(pyramid_sub_idx).pyramid_attention.value();
+        const auto pyramid_count = pyramid_dyn._compiled_models.size();
+        if (!m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_DYN>()) {
+            // Even if the attention is detected and ready to go pyramid,
+            // force it on the full range
+            m_pyramid_selector.reset(new runtime::pyramid_attention::All(pyramid_count));
+        } else {
+            m_pyramid_selector = runtime::pyramid_attention::PositionIDs::find(pyramid_dyn, *this);
+            if (!m_pyramid_selector) {
+                LOG_WARN("Pyramid dynamic capability is enabled, but no run-time features were found.");
+                // Create All selector with the number of pyramid models
+                m_pyramid_selector.reset(new runtime::pyramid_attention::All(pyramid_count));
+            }
+        }
+    }
+
+    if (has_hfa) {
+        const auto& hfa_desc = m_npuw_model->m_compiled_submodels.at(hfa_sub_idx).host_flash_attention.value();
+        const size_t query_size = hfa_desc._sdpa_attention_info._query_size;
+        m_hfa_selector = runtime::host_flash_attention::PositionIDs::find(query_size, *this);
+        if (!m_hfa_selector) {
+            // HFA requires PositionIDs selector - cannot fallback to 'All' like Dynamic/Pyramid
+            // because HFA uses tile-based execution without a full-range infer request
+            OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found.");
+        }
+        LOG_VERB("Done");
+    }
 }
 
 void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                             const ov::SoPtr<ov::ITensor>& tensor) {
-    // Check that it's I/O
-    NPUW_ASSERT(m_port_to_tensor.at(port).persistent);
-
-    // Assigning via .at() to ensure it is a known port
-    m_port_to_tensor.at(port).tensor = tensor;
+    std::unique_lock lock(m_io_storages_mutex);
+    m_port_to_tensor[port] = TensorStorage{tensor, true};
 
     // Check if setting output tensor
     for (std::size_t i = 0; i < m_npuw_model->outputs().size(); ++i) {
@@ -414,7 +488,7 @@ void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& po
     handle_set_remote_input(port, tensor);
 }
 
-ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out_idx) {
+ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out_idx) const {
     const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(out_idx);
     auto funcall_result_iter = m_funcall_result.find(from_submodel);
     if (funcall_result_iter != m_funcall_result.end()) {
@@ -492,6 +566,23 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Preparing to infer...");
     LOG_BLOCK();
 
+    if (m_pyramid_selector) {
+        m_pyramid_selector->prepare(get_history_size());
+
+        // Get the pyramid model ID based on current sequence length (updated in prepare())
+        auto pyramid_id = m_pyramid_selector->pyramid_id();
+
+        for (auto&& id : m_funcall_heads) {
+            auto& comp_model_desc = m_npuw_model->m_compiled_submodels[id];
+            if (comp_model_desc.pyramid_attention.has_value()) {
+                m_subrequests[id] = comp_model_desc.pyramid_infer_requests[pyramid_id];
+                if (is_pipelined(id)) {
+                    m_funcall_pipeline[id].subrequest = comp_model_desc.pyramid_pipeline_requests[pyramid_id];
+                }
+            }
+        }
+    }
+
     // Submit global parameters (if needed) for the first subgraph
     bind_global_parameters(next(0));
 
@@ -510,6 +601,14 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     // So do the dynamic range
     if (m_attention_selector) {
         m_attention_selector->prepare(get_history_size());
+    }
+
+    // HFA selector
+    if (m_hfa_selector) {
+        m_hfa_selector->prepare(get_history_size());
+        if (m_hfa_runtime_ctx) {
+            m_hfa_runtime_ctx->clear_mask_cache();
+        }
     }
 
     // FIXME: attention-specific, needs to be moved out after refactoring
@@ -578,12 +677,15 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
 
     const bool is_spatial = func_desc.spatial.has_value();
     const bool is_dynamic = func_desc.attention.has_value();
+    const bool is_pyramid = func_desc.pyramid_attention.has_value();
+    const bool is_hfa = func_desc.host_flash_attention.has_value();
 
-    const auto non_dynamic_act_in = [](const ov::npuw::compiled::Attention& d, std::size_t in_idx) {
-        const bool not_param = std::none_of(d.params.begin(), d.params.end(), [&](auto&& p) {
+    // Generalized: check if input is neither param nor mask
+    auto is_non_param_mask = [](const auto& info, std::size_t in_idx) {
+        const bool not_param = std::none_of(info.params.begin(), info.params.end(), [&](auto&& p) {
             return p.idx == in_idx;
         });
-        const bool not_mask = in_idx != d.mask_idx;
+        const bool not_mask = in_idx != info.mask_idx;
         return not_param && not_mask;
     };
 
@@ -619,11 +721,23 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 m_spatial_io[real_idx].inputs.at(i) = i_tensor;
             } else if (is_dynamic) {
                 // Set tensor only if it is non-dynamic (dynamic are managed by the infer_dynamic)
-                if (non_dynamic_act_in(*func_desc.attention, i)) {
+                if (is_non_param_mask(*func_desc.attention, i)) {
                     m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                 } else {
                     m_attention_io[idx].inputs.at(i) = i_tensor;
                 }
+            } else if (is_pyramid) {
+                // Pyramid attention
+                auto pyramid_id = m_pyramid_selector->pyramid_id();
+                const auto& info = func_desc.pyramid_attention.value()._attention_infos[pyramid_id];
+                if (is_non_param_mask(info, i)) {
+                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                } else {
+                    m_attention_io[idx].inputs.at(i) = i_tensor;
+                }
+            } else if (is_hfa) {
+                // Host Flash Attention case - defer, use dedicated HFA I/O structure
+                m_hfa_io[idx].inputs.at(i) = i_tensor;
             } else {
                 // Default case
                 m_subrequests[real_idx]->set_tensor(iport, i_tensor);
@@ -635,6 +749,12 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     if (is_dynamic) {
         m_profile["attn(act)"] += ov::npuw::perf::ms_to_run([&]() {
             function_prologue_attn(real_idx, idx);
+        });
+    }
+
+    if (is_pyramid) {
+        m_profile["attn(act)"] += ov::npuw::perf::ms_to_run([&]() {
+            function_prologue_pyramid_attn(real_idx, idx);
         });
     }
 
@@ -656,7 +776,10 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         LOG_DEBUG("Binding result[" << i << "]...");
         auto& oport = func_desc.compiled_model->outputs()[i];
         auto o_tensor = m_funcall_result.at({idx, i});
-        if (!is_spatial) {
+        if (is_hfa) {
+            // HFA case - defer, store in dedicated HFA I/O structure
+            m_hfa_io[idx].outputs.at(i) = o_tensor;
+        } else if (!is_spatial) {
             // Non-spatial case - set immediately
             m_subrequests[real_idx]->set_tensor(oport, o_tensor);
         } else {
@@ -746,6 +869,93 @@ void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, st
     }
 }
 
+void ov::npuw::JustInferRequest::function_prologue_pyramid_attn(std::size_t real_idx, std::size_t idx) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    NPUW_ASSERT(comp_model_desc.pyramid_attention.has_value());
+
+    auto& r = m_subrequests[real_idx];
+    auto pyramid_id = m_pyramid_selector->pyramid_id();
+
+    const auto& dynamic = comp_model_desc.pyramid_attention.value()._attention_infos[pyramid_id];
+    auto mask_iport =
+        comp_model_desc.pyramid_attention.value()._compiled_models[pyramid_id]->inputs()[dynamic.mask_idx];
+
+    const auto& graph_mask = m_attention_io[idx].inputs.at(dynamic.mask_idx);
+    const auto this_case = m_pyramid_selector->this_case();
+    const auto present_len = dynamic.query_size;
+
+    // FIXME: get the right dim
+    const uint32_t kv_dim = 3;
+
+    // Get destination tensor once for all code paths
+    const auto& dst = r->get_tensor(mask_iport);
+
+    // Lambda: copy attention mask segment from source to destination
+    auto copy_mask_segment = [&](std::size_t dst_offset, std::size_t src_offset, std::size_t length) {
+        if (length == 0) {
+            return;
+        }
+        const auto& dst_view = ov::npuw::util::view(dst, kv_dim, dst_offset, length);
+        const auto& src_view = ov::npuw::util::view(graph_mask, kv_dim, src_offset, length);
+        ov::npuw::util::copy_tensor_by_dim(src_view, dst_view, kv_dim, kv_dim);
+    };
+
+    auto pos_id = m_pyramid_selector->length();
+    if (pos_id == -1) {
+        // Pyramid dynamic range couldn't be identified - fallback to default behavior
+        r->set_tensor(mask_iport, graph_mask);
+        return;
+    }
+
+    // Pyramid dynamic range identified
+    const auto past_len = m_pyramid_selector->past_length();
+
+    // Early return: reuse cached attention mask if available
+    if (m_cached_attention_mask) {
+        // All sub models are sharing the same attention mask, we can use the cached attention
+        // mask directly to avoid redundant tensor copy
+        m_subrequests[real_idx]->set_tensor(mask_iport, m_cached_attention_mask);
+        return;
+    }
+
+    // Now set the mask. Here comes very strong chunking & SDPA knowledge again
+    using namespace ov::npuw::runtime;
+    const auto full_mask_shape = graph_mask->get_shape();
+
+    if (this_case == pyramid_attention::Selector::Case::GENERATE) {
+        const auto dst_shape = dst->get_shape();
+
+        // Optimization: if shapes match, use the full mask directly
+        if (dst_shape == full_mask_shape) {
+            r->set_tensor(mask_iport, graph_mask);
+            m_cached_attention_mask = graph_mask;
+            return;
+        }
+
+        // FIXME: No need to copy whole attention mask, just mark the new tokens to valid
+
+        std::size_t dst_present_offset = dst_shape[kv_dim] - present_len;
+
+        // Copy present mask: tail of source -> tail of destination
+        copy_mask_segment(dst_present_offset, full_mask_shape[kv_dim] - present_len, present_len);
+
+        // Copy past mask: head of source [0, dst_present_offset) -> head of destination
+        copy_mask_segment(0, 0, dst_present_offset);
+
+        m_cached_attention_mask = dst;
+    } else if (this_case == pyramid_attention::Selector::Case::PREFILL) {
+        // Copy present mask: tail of source -> [past_len, past_len + present_len)
+        copy_mask_segment(past_len, full_mask_shape[kv_dim] - present_len, present_len);
+
+        // Copy past mask: head of source -> [0, past_len)
+        copy_mask_segment(0, 0, past_len);
+
+        m_cached_attention_mask = dst;
+    } else {
+        NPUW_ASSERT(false && "Unsupported pyramid attention case");
+    }
+}
+
 void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     auto real_idx = comp_model_desc.replaced_by.value_or(idx);
@@ -762,6 +972,19 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     if (is_piped) {
         m_funcall_pipeline[real_idx].subrequest = new_rqs.at(1);
     }
+
+    // Recreate pyramid infer requests if this function has pyramid attention
+    if (comp_model_desc.replaced_by) {
+        auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+        if (proto_comp_model_desc.pyramid_attention) {
+            setup_pyramid_infer_requests(real_idx, is_piped, true);
+        }
+        // Recreate HFA tile infer requests if this function has host flash attention
+        if (proto_comp_model_desc.host_flash_attention) {
+            setup_hfa_infer_requests(real_idx, is_piped, /* is_recreate */ true, /* enable_hfa_optimizations */ true);
+        }
+    }
+
     // After an infer request is recreated, the internal cross-request
     // connections should be re-established (in/out tensors reset properly)
     // Note: these two proceduers do the full I/O reset procedure what's
@@ -769,6 +992,238 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     // but it is a more complex thing and can be implemented separately
     connect_subrequests();
     m_subrequest_devices[idx] = *comp_model_desc.device_it;
+}
+
+void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {
+    auto& submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    if (!submodel_desc.pyramid_attention.has_value()) {
+        return;
+    }
+
+    LOG_INFO((is_recreate ? "Recreating" : "Creating") << " pyramid infer requests...");
+    LOG_BLOCK();
+
+    const auto& pyramid_models = submodel_desc.pyramid_attention.value()._compiled_models;
+    const size_t num_pyramid_models = pyramid_models.size();
+
+    // Clear existing requests if recreating
+    if (is_recreate) {
+        submodel_desc.pyramid_infer_requests.clear();
+        submodel_desc.pyramid_pipeline_requests.clear();
+    }
+
+    // Allocate storage for infer requests
+    submodel_desc.pyramid_infer_requests.resize(num_pyramid_models);
+    if (is_piped) {
+        submodel_desc.pyramid_pipeline_requests.resize(num_pyramid_models);
+    }
+
+    // Create infer requests for all but the last pyramid model
+    for (size_t model_idx = 0; model_idx + 1 < num_pyramid_models; ++model_idx) {
+        try {
+            // Create main infer request
+            submodel_desc.pyramid_infer_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
+            // Create pipeline infer request if pipelined
+            if (is_piped) {
+                submodel_desc.pyramid_pipeline_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
+            }
+        } catch (const std::exception& ex) {
+            LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for pyramid model["
+                                   << model_idx << "]: " << ex.what());
+            NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed");
+        } catch (...) {
+            LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create") << " infer request for pyramid model["
+                                   << model_idx << "]: Unknown error");
+            NPUW_ASSERT(false && "Pyramid model infer request creation/recreation failed with unknown error");
+        }
+
+        // Share input tensors between pyramid and main infer requests
+        const size_t num_inputs = pyramid_models[model_idx]->inputs().size();
+        NPUW_ASSERT(num_inputs == submodel_desc.compiled_model->inputs().size());
+        for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
+            auto pyramid_input = pyramid_models[model_idx]->inputs()[input_idx];
+            auto main_input = submodel_desc.compiled_model->inputs()[input_idx];
+
+            // Get tensor from main infer request and share its memory with the pyramid infer request
+            auto main_tensor_ptr = m_subrequests[real_idx]->get_tensor(main_input)->data();
+            auto pyramid_tensor = submodel_desc.pyramid_infer_requests[model_idx]->get_tensor(pyramid_input);
+            auto shared_tensor = ov::get_tensor_impl(
+                ov::Tensor(pyramid_tensor->get_element_type(), pyramid_tensor->get_shape(), main_tensor_ptr));
+            submodel_desc.pyramid_infer_requests[model_idx]->set_tensor(pyramid_input, shared_tensor);
+
+            // Repeat for pipeline infer request if pipelined
+            if (is_piped) {
+                auto pipeline_tensor = submodel_desc.pyramid_pipeline_requests[model_idx]->get_tensor(pyramid_input);
+                auto pipeline_tensor_ptr = m_funcall_pipeline[real_idx].subrequest->get_tensor(main_input)->data();
+                auto shared_pipeline_tensor = ov::get_tensor_impl(
+                    ov::Tensor(pipeline_tensor->get_element_type(), pipeline_tensor->get_shape(), pipeline_tensor_ptr));
+                submodel_desc.pyramid_pipeline_requests[model_idx]->set_tensor(pyramid_input, shared_pipeline_tensor);
+            }
+        }
+    }
+
+    // For the last pyramid model, reuse the original model's infer requests
+    if (num_pyramid_models > 0) {
+        const size_t last_model_idx = num_pyramid_models - 1;
+        LOG_INFO("Reusing " << (is_recreate ? "recreated " : "") << "original infer requests for last pyramid model["
+                            << last_model_idx << "]");
+        submodel_desc.pyramid_infer_requests[last_model_idx] = m_subrequests[real_idx];
+        if (is_piped) {
+            submodel_desc.pyramid_pipeline_requests[last_model_idx] = m_funcall_pipeline[real_idx].subrequest;
+        }
+    }
+
+    if (!is_recreate && num_pyramid_models > 0) {
+        LOG_INFO("Successfully created " << (num_pyramid_models - 1)
+                                         << " new pyramid infer requests and reused 1 original request");
+    }
+}
+
+void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
+                                                          bool is_piped,
+                                                          bool is_recreate,
+                                                          bool enable_hfa_optimizations) {
+    auto& submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    if (!submodel_desc.host_flash_attention.has_value()) {
+        return;
+    }
+
+    LOG_INFO((is_recreate ? "Recreating" : "Creating") << " HFA tile infer requests...");
+    LOG_BLOCK();
+
+    const auto& hfa = submodel_desc.host_flash_attention.value();
+
+    // Clear existing requests if recreating
+    if (is_recreate) {
+        submodel_desc.hfa_infer_requests.clear();
+        submodel_desc.hfa_pipeline_requests.clear();
+    }
+
+    // Allocate storage for infer requests: [REGULAR_TILE] and [FINAL_TILE]
+    submodel_desc.hfa_infer_requests.resize(CompiledModel::CompiledModelDesc::HFATileIdx::COUNT);
+    if (is_piped) {
+        submodel_desc.hfa_pipeline_requests.resize(CompiledModel::CompiledModelDesc::HFATileIdx::COUNT);
+    }
+
+    // Create infer request for regular tile model
+    try {
+        LOG_INFO("Creating infer request for HFA regular tile model...");
+        submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
+            hfa._compiled_tile_model->create_infer_request();
+        if (is_piped) {
+            submodel_desc.hfa_pipeline_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE] =
+                hfa._compiled_tile_model->create_infer_request();
+        }
+    } catch (const std::exception& ex) {
+        LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create")
+                               << " infer request for HFA regular tile model: " << ex.what());
+        OPENVINO_THROW("HFA regular tile model infer request creation failed: ", ex.what());
+    } catch (...) {
+        LOG_ERROR("Failed to " << (is_recreate ? "recreate" : "create")
+                               << " infer request for HFA regular tile model: Unknown error");
+        OPENVINO_THROW("HFA regular tile model infer request creation failed with unknown error");
+    }
+
+    // For final tile model, reuse the main compiled_model's infer request
+    // because compiled_model points to _compiled_final_tile_model for HFA
+    LOG_INFO("Reusing " << (is_recreate ? "recreated " : "") << "main infer request for HFA final tile model");
+    submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::FINAL_TILE] =
+        m_subrequests[real_idx];
+    if (is_piped) {
+        submodel_desc.hfa_pipeline_requests[CompiledModel::CompiledModelDesc::HFATileIdx::FINAL_TILE] =
+            m_funcall_pipeline[real_idx].subrequest;
+    }
+
+    // Share input tensors between HFA tile models and main infer request
+    // Note: Both tile models have the same input structure
+    const size_t num_inputs = hfa._compiled_tile_model->inputs().size();
+    for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
+        auto tile_input = hfa._compiled_tile_model->inputs()[input_idx];
+        auto final_tile_input = hfa._compiled_final_tile_model->inputs()[input_idx];
+
+        // Directly share tensor from main infer request to regular tile request
+        auto main_tensor = m_subrequests[real_idx]->get_tensor(final_tile_input);
+        submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->set_tensor(
+            tile_input,
+            main_tensor);
+
+        // Repeat for pipeline infer request if pipelined
+        if (is_piped) {
+            auto pipeline_tensor = m_funcall_pipeline[real_idx].subrequest->get_tensor(final_tile_input);
+            submodel_desc.hfa_pipeline_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->set_tensor(
+                tile_input,
+                pipeline_tensor);
+        }
+    }
+
+    LOG_INFO("Successfully " << (is_recreate ? "recreated" : "created")
+                             << " HFA tile infer requests with shared input tensors");
+
+    // Initialize HFA optimizations (mask cache + state double-buffering) if enabled
+    if (enable_hfa_optimizations) {
+        LOG_INFO("HFA optimizations are ENABLED (mask cache + state double-buffering)");
+
+        // Initialize runtime context if needed
+        if (!m_hfa_runtime_ctx) {
+            m_hfa_runtime_ctx.emplace();
+        }
+
+        if (is_recreate) {
+            m_hfa_runtime_ctx->reset();
+        }
+
+        LOG_INFO("Pre-allocating HFA mask tile buffers...");
+
+        // Initialize pre-allocated buffers
+        m_hfa_runtime_ctx->initialize_mask_cache(
+            hfa,
+            *submodel_desc.device_it,
+            [this](const ov::element::Type& dtype, const ov::Shape& shape, const std::string& device) {
+                return allocMem(dtype, shape, device);
+            });
+
+        LOG_INFO("Pre-allocated " << m_hfa_runtime_ctx->num_mask_tile_buffers() << " mask tile buffer(s)");
+
+        // Initialize state buffers and double-buffering for first inference
+        LOG_INFO("Initializing HFA state tensors and double-buffering...");
+
+        // Get pre-cached indices
+        const auto& tile_in = hfa._sdpa_attention_info._tile_input_indices;
+
+        // Get state tensors from regular tile request
+        auto state_acc =
+            submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->get_tensor(
+                hfa._compiled_tile_model->inputs()[tile_in.acc]);
+        auto state_max =
+            submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->get_tensor(
+                hfa._compiled_tile_model->inputs()[tile_in.max]);
+        auto state_sum =
+            submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE]->get_tensor(
+                hfa._compiled_tile_model->inputs()[tile_in.d]);
+
+        // Initialize state tensors with zeros/minus infinity
+        runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(state_acc, state_max, state_sum);
+
+        // Setup double-buffering with initialized state
+        runtime::host_flash_attention::HFARuntimeContext::StateBuffers initial_buffers{state_acc, state_max, state_sum};
+
+        m_hfa_runtime_ctx->initialize_state_buffers(
+            initial_buffers,
+            hfa,
+            *submodel_desc.device_it,
+            [this](const ov::element::Type& dtype, const ov::Shape& shape, const std::string& device) {
+                return allocMem(dtype, shape, device);
+            });
+
+        LOG_INFO("HFA state tensors and double-buffering initialized successfully");
+    } else {
+        LOG_INFO("HFA optimizations are DISABLED - will extract mask tiles on-the-fly without state caching");
+
+        // Clear runtime context if it exists
+        if (m_hfa_runtime_ctx) {
+            m_hfa_runtime_ctx.reset();
+        }
+    }
 }
 
 void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, bool& failover) {
@@ -852,7 +1307,8 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
 
 void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t idx, const std::function<void()>& f) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    if (!comp_model_desc.spatial) {
+
+    if (!comp_model_desc.spatial && !comp_model_desc.host_flash_attention.has_value()) {
         // Normal: trigger request asynchronously, run `f` in this context
         // FIXME: dynamic could hit here too, but it has special logic
         // around execution which makes it harder to run than a plain start_async()
@@ -861,11 +1317,356 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
         f();  // expect noexcept
         r->wait();
     } else {
-        // Spatial... Do the opposite - run f
-        // asynchronously, and meanwhile run the spatial inference
+        // Spatial or HFA: Run f asynchronously while executing spatial/HFA inference
         auto future = std::async(std::launch::async, f);
         unsafe_infer(real_idx, idx);
         future.wait();
+    }
+}
+
+// ====================================================================================================
+// Host Flash Attention (HFA) Helper Functions
+// ====================================================================================================
+
+// Extract tile slice with optional type conversion
+void ov::npuw::JustInferRequest::hfa_extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
+                                                           const ov::SoPtr<ov::ITensor>& dest_tensor,
+                                                           uint32_t sequence_dim,
+                                                           int64_t sequence_offset,
+                                                           int64_t sequence_length,
+                                                           const std::string& tensor_name) {
+    if (!dest_tensor->is_continuous()) {
+        OPENVINO_THROW("HFA tile extraction error: destination tensor for '",
+                       tensor_name,
+                       "' is not continuous - cannot perform direct copy");
+    }
+
+    auto source_view = ov::npuw::util::view(source_tensor, sequence_dim, sequence_offset, sequence_length);
+    const auto dest_type = dest_tensor->get_element_type();
+    const auto source_type = source_tensor->get_element_type();
+
+    if (dest_type == source_type) {
+        ov::npuw::util::copy_tensor_by_dim(source_view, dest_tensor, sequence_dim, sequence_dim);
+    } else {
+        LOG_WARN("Performing type conversion for " << tensor_name << " tile: " << source_type << " -> " << dest_type);
+
+        // Copy to intermediate buffer first
+        auto intermediate_tensor = ov::Tensor(source_type, source_view->get_shape());
+        ov::npuw::util::copy_tensor_by_dim(source_view,
+                                           ov::get_tensor_impl(intermediate_tensor),
+                                           sequence_dim,
+                                           sequence_dim);
+
+        // Convert element-by-element
+        const size_t total_elements = intermediate_tensor.get_size();
+        if (dest_type == ov::element::f32 && source_type == ov::element::f16) {
+            // FP16 -> FP32 conversion
+            auto src_data = intermediate_tensor.data<ov::float16>();
+            auto dst_data = dest_tensor->data<float>();
+            for (size_t i = 0; i < total_elements; ++i) {
+                dst_data[i] = static_cast<float>(src_data[i]);
+            }
+        } else if (dest_type == ov::element::f16 && source_type == ov::element::f32) {
+            // FP32 -> FP16 conversion
+            auto src_data = intermediate_tensor.data<float>();
+            auto dst_data = dest_tensor->data<ov::float16>();
+            for (size_t i = 0; i < total_elements; ++i) {
+                dst_data[i] = static_cast<ov::float16>(src_data[i]);
+            }
+        } else {
+            OPENVINO_THROW("Unsupported type conversion for ", tensor_name, " tile: ", source_type, " -> ", dest_type);
+        }
+    }
+}
+
+// Check if tensor can be reused directly (zero-copy optimization)
+bool ov::npuw::JustInferRequest::hfa_can_reuse_tensor_zero_copy(const ov::SoPtr<ov::ITensor>& source_tensor,
+                                                                const ov::SoPtr<ov::ITensor>& dest_tensor,
+                                                                uint32_t sequence_dim,
+                                                                int64_t sequence_offset,
+                                                                int64_t tile_length) {
+    const auto source_shape = source_tensor->get_shape();
+    const int64_t source_full_length = static_cast<int64_t>(source_shape[sequence_dim]);
+
+    // Zero-copy conditions:
+    // 1. Offset must be 0 (no slicing from middle)
+    // 2. Tile length must match full source length (using entire tensor)
+    // 3. Element types must match (no conversion needed)
+    return (sequence_offset == 0 && tile_length == source_full_length &&
+            dest_tensor->get_element_type() == source_tensor->get_element_type());
+}
+
+// ====================================================================================================
+// Host Flash Attention (HFA) Tiled Inference
+// ====================================================================================================
+//
+// Implements Flash Attention using tile-based processing to reduce memory footprint.
+//
+// Algorithm:
+//   - Split KV cache into tiles of size tile_size
+//   - For tiles [0..N-2]: Use regular_tile_model, output intermediate states (acc, max, d)
+//   - For tile [N-1]: Use final_tile_model, output final result with division + transpose
+//   - Maintain numerically stable online softmax across tiles
+//
+// Optimizations:
+//   - Zero-copy when tile size equals full tensor size
+//   - Pre-cached input/output indices to avoid repeated map lookups
+//   - Automatic FP16/FP32 conversion when needed
+//
+// ====================================================================================================
+
+void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, std::size_t idx) {
+    // ================================================================================================
+    // SECTION 1: Configuration and Validation
+    // ================================================================================================
+
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    auto& hfa_desc = comp_model_desc.host_flash_attention.value();
+
+    NPUW_ASSERT(hfa_desc.is_valid() && "HFA configuration must be valid");
+    NPUW_ASSERT(comp_model_desc.hfa_infer_requests.size() == CompiledModel::CompiledModelDesc::HFATileIdx::COUNT &&
+                "HFA infer requests must be created");
+
+    // Calculate tile configuration
+    const int64_t tile_size = hfa_desc._tile_size;
+    const int64_t total_kv_length = m_hfa_selector->context_length();
+    const int64_t num_tiles = total_kv_length / tile_size;
+
+    NPUW_ASSERT(total_kv_length % tile_size == 0 && "HFA total KV length must be multiple of tile size for now");
+
+    // ================================================================================================
+    // SECTION 2: Input/Output Tensor Extraction
+    // ================================================================================================
+
+    const auto& hfa_inputs = m_hfa_io[idx].inputs;
+    const auto& hfa_outputs = m_hfa_io[idx].outputs;
+    const auto& sdpa_info = hfa_desc._sdpa_attention_info;
+
+    // Use pre-cached SDPA indices
+    const auto& sdpa_in = sdpa_info._sdpa_indices;
+
+    auto past_key_tensor = hfa_inputs.at(sdpa_in.past_key);
+    auto past_value_tensor = hfa_inputs.at(sdpa_in.past_value);
+    auto query_tensor = hfa_inputs.at(sdpa_in.query);
+    auto present_key_tensor = hfa_inputs.at(sdpa_in.present_key);
+    auto attention_mask_tensor = hfa_inputs.at(sdpa_in.attention_mask);
+    auto present_value_tensor = hfa_inputs.at(sdpa_in.present_value);
+
+    auto attention_output_tensor = hfa_outputs.at(0);
+
+    // ================================================================================================
+    // SECTION 3: State Initialization
+    // ================================================================================================
+
+    // Get tile infer requests
+    auto& regular_tile_request =
+        comp_model_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::REGULAR_TILE];
+    auto& final_tile_request =
+        comp_model_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::FINAL_TILE];
+
+    // Use pre-cached indices (populated during compilation)
+    const auto& tile_in = sdpa_info._tile_input_indices;
+    const auto& tile_out = sdpa_info._tile_output_indices;
+
+    // Get pre-initialized state buffers from runtime context (initialized during setup phase)
+    // If optimizations are disabled, get tensors directly from request (no double-buffering)
+    ov::SoPtr<ov::ITensor> state_acc, state_max, state_sum;
+
+    if (m_hfa_runtime_ctx && m_hfa_runtime_ctx->has_state_buffers()) {
+        // Use pre-initialized state from current buffer (double-buffering enabled)
+        const auto& current_buffer = m_hfa_runtime_ctx->get_current_state_buffers();
+
+        state_acc = current_buffer.acc;
+        state_max = current_buffer.max;
+        state_sum = current_buffer.sum;
+
+        regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.acc], state_acc);
+        regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.max], state_max);
+        regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.d], state_sum);
+    } else {
+        // Optimizations disabled: use tensors directly without double-buffering
+        state_acc = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.acc]);
+        state_max = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.max]);
+        state_sum = regular_tile_request->get_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.d]);
+
+        // Initialize state tensors for each inference run (no caching)
+        runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(state_acc, state_max, state_sum);
+    }
+
+    // Set query tensor once (constant across all tiles)
+    regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->inputs()[tile_in.q], query_tensor);
+    final_tile_request->set_tensor(hfa_desc._compiled_final_tile_model->inputs()[tile_in.q], query_tensor);
+
+    // Set output state tensors for regular tile model (will be updated in-place after each tile execution)
+    regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->outputs()[tile_out.acc], state_acc);
+    regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->outputs()[tile_out.max], state_max);
+    regular_tile_request->set_tensor(hfa_desc._compiled_tile_model->outputs()[tile_out.d], state_sum);
+
+    // Set accumulated state tensors as inputs for final tile (will read from regular tiles' outputs)
+    final_tile_request->set_tensor(hfa_desc._compiled_final_tile_model->inputs()[tile_in.acc], state_acc);
+    final_tile_request->set_tensor(hfa_desc._compiled_final_tile_model->inputs()[tile_in.max], state_max);
+    final_tile_request->set_tensor(hfa_desc._compiled_final_tile_model->inputs()[tile_in.d], state_sum);
+
+    // Final attention output
+    final_tile_request->set_tensor(hfa_desc._compiled_final_tile_model->outputs()[0], attention_output_tensor);
+
+    // ================================================================================================
+    // SECTION 4: Tile Processing Loop
+    // ================================================================================================
+
+    // Dimension configuration for tensor slicing
+    const uint32_t K_SEQ_DIM = static_cast<uint32_t>(sdpa_info._k_seq_dim);
+    const uint32_t V_SEQ_DIM = static_cast<uint32_t>(sdpa_info._v_seq_dim);
+    constexpr uint32_t MASK_KV_SEQ_DIM = 3;
+
+    size_t next_available_mask_buffer_idx = 0;  // Track next available pre-allocated mask buffer for cache misses
+
+    // Helper lambda: Process a single tile
+    auto process_tile = [&](auto& request,
+                            auto& model,
+                            const ov::SoPtr<ov::ITensor>& k_source,
+                            const ov::SoPtr<ov::ITensor>& v_source,
+                            int64_t kv_offset,
+                            int64_t mask_offset,
+                            int64_t tile_length,
+                            bool async = false) {
+        // Get tile input buffers
+        auto k_tile_buffer = request->get_tensor(model->inputs()[tile_in.k]);
+        auto v_tile_buffer = request->get_tensor(model->inputs()[tile_in.v]);
+        auto mask_tile_buffer = request->get_tensor(model->inputs()[tile_in.mask]);
+
+        // Extract K tile
+        if (hfa_can_reuse_tensor_zero_copy(k_source, k_tile_buffer, K_SEQ_DIM, kv_offset, tile_length)) {
+            request->set_tensor(model->inputs()[tile_in.k], k_source);
+        } else {
+            hfa_extract_and_copy_tile(k_source, k_tile_buffer, K_SEQ_DIM, kv_offset, tile_length, "K");
+        }
+
+        // Extract V tile
+        if (hfa_can_reuse_tensor_zero_copy(v_source, v_tile_buffer, V_SEQ_DIM, kv_offset, tile_length)) {
+            request->set_tensor(model->inputs()[tile_in.v], v_source);
+        } else {
+            hfa_extract_and_copy_tile(v_source, v_tile_buffer, V_SEQ_DIM, kv_offset, tile_length, "V");
+        }
+
+        // Extract mask tile with caching (if enabled) to avoid redundant extraction
+        if (attention_mask_tensor) {
+            // Check if zero-copy is possible (rare case where full mask matches tile)
+            if (hfa_can_reuse_tensor_zero_copy(attention_mask_tensor,
+                                               mask_tile_buffer,
+                                               MASK_KV_SEQ_DIM,
+                                               mask_offset,
+                                               tile_length)) {
+                request->set_tensor(model->inputs()[tile_in.mask], attention_mask_tensor);
+            } else if (m_hfa_runtime_ctx.has_value()) {
+                // Cache is enabled - try to find cached tile
+                auto cached_tile =
+                    m_hfa_runtime_ctx->find_cached_mask_tile(attention_mask_tensor, mask_offset, tile_length);
+                if (cached_tile) {
+                    // Cache hit - reuse previously extracted tile
+                    request->set_tensor(model->inputs()[tile_in.mask], cached_tile);
+                    LOG_DEBUG("HFA: Cache hit for mask tile [offset=" << mask_offset << ", length=" << tile_length
+                                                                      << "]");
+                } else {
+                    // Cache miss - extract and cache this tile
+                    LOG_DEBUG("HFA: Cache miss for mask tile [offset=" << mask_offset << ", length=" << tile_length
+                                                                       << "], extracting...");
+
+                    // Use pre-allocated mask buffer for this tile
+                    ov::SoPtr<ov::ITensor> cached_mask_tile =
+                        m_hfa_runtime_ctx->get_mask_tile_buffer(next_available_mask_buffer_idx);
+
+                    // Extract mask data into the pre-allocated buffer
+                    hfa_extract_and_copy_tile(attention_mask_tensor,
+                                              cached_mask_tile,
+                                              MASK_KV_SEQ_DIM,
+                                              mask_offset,
+                                              tile_length,
+                                              "Mask");
+
+                    // Cache the extracted tile for future reuse
+                    m_hfa_runtime_ctx->cache_mask_tile(attention_mask_tensor,
+                                                       mask_offset,
+                                                       tile_length,
+                                                       cached_mask_tile);
+
+                    // Use the cached tensor for this inference
+                    request->set_tensor(model->inputs()[tile_in.mask], cached_mask_tile);
+
+                    // Move to next pre-allocated buffer for next cache miss
+                    next_available_mask_buffer_idx++;
+                }
+            } else {
+                // Cache is disabled - extract mask tile on-the-fly directly into tile buffer
+                LOG_DEBUG("HFA: Extracting mask tile on-the-fly [offset=" << mask_offset << ", length=" << tile_length
+                                                                          << "] (cache disabled)");
+                hfa_extract_and_copy_tile(attention_mask_tensor,
+                                          mask_tile_buffer,
+                                          MASK_KV_SEQ_DIM,
+                                          mask_offset,
+                                          tile_length,
+                                          "Mask");
+            }
+        }
+
+        // Execute tile (async mode pre-initializes next state buffer in parallel if optimizations enabled)
+        if (async) {
+            request->start_async();
+            if (m_hfa_runtime_ctx && m_hfa_runtime_ctx->has_state_buffers()) {
+                m_hfa_runtime_ctx->prepare_next_state_buffers();
+            }
+            request->wait();
+        } else {
+            request->infer();
+        }
+    };
+
+    int64_t mask_tile_offset = 0;
+    int64_t kv_tile_offset = 0;
+
+    // Process regular tiles (all but the last one)
+    // Each regular tile processes past KV cache and outputs intermediate states (acc, max, d)
+    for (int64_t tile_idx = 0; tile_idx < num_tiles - 1; ++tile_idx) {
+        process_tile(regular_tile_request,
+                     hfa_desc._compiled_tile_model,
+                     past_key_tensor,
+                     past_value_tensor,
+                     kv_tile_offset,
+                     mask_tile_offset,
+                     tile_size);
+
+        kv_tile_offset += tile_size;
+        mask_tile_offset += tile_size;
+    }
+
+    // Process final tile separately
+    // Final tile processes present KV tokens and produces final attention output
+    if (num_tiles > 0) {
+        const size_t present_seq_length = present_key_tensor->get_shape()[K_SEQ_DIM];
+        const int64_t final_tile_length = static_cast<int64_t>(present_seq_length);
+
+        // Verify that final tile can process entire present KV in one inference
+        NPUW_ASSERT(final_tile_length == tile_size &&
+                    "Final tile must process entire present KV sequence in a single inference. "
+                    "This is guaranteed during compilation (tile_size = query_size = present_seq_length).");
+
+        // Calculate mask offset for final tile (points to tail of mask corresponding to present tokens)
+        const int64_t mask_total_length = attention_mask_tensor->get_shape()[MASK_KV_SEQ_DIM];
+        const int64_t final_mask_offset = mask_total_length - final_tile_length;
+
+        process_tile(final_tile_request,
+                     hfa_desc._compiled_final_tile_model,
+                     present_key_tensor,
+                     present_value_tensor,
+                     0,
+                     final_mask_offset,
+                     final_tile_length,
+                     true);  // async: pre-init next state buffer
+    }
+
+    // Switch to other buffer for next inference (only if optimizations enabled)
+    if (m_hfa_runtime_ctx && m_hfa_runtime_ctx->has_state_buffers()) {
+        m_hfa_runtime_ctx->switch_buffers();
     }
 }
 
@@ -977,6 +1778,8 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
     auto& r = m_subrequests[real_idx];
     if (comp_model_desc.spatial) {
         unsafe_infer_spatial(real_idx, idx);
+    } else if (comp_model_desc.host_flash_attention) {
+        run_hfa_tiled_inference(real_idx, idx);
     } else {
         r->infer();  // Run normally
     }

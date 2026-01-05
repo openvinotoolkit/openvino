@@ -8,28 +8,14 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
+#include <optional>
+
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "zero_types.hpp"
 
 namespace intel_npu {
-
-struct ArgumentDescriptor {
-    ze_graph_argument_properties_3_t info;
-    uint32_t idx;
-    std::string to_string() const {
-        std::stringstream sstream;
-        sstream << "dims_count: " << info.dims_count << " - [";
-        for (uint32_t i = 0; i < std::min<uint32_t>(info.dims_count, ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE); i ++) {
-            sstream << info.dims[i] << ",";
-        }
-        sstream << "]"
-                << ", networkLayout: " << std::to_string(static_cast<size_t>(info.networkLayout))
-                << ", deviceLayout: " << std::to_string(static_cast<size_t>(info.deviceLayout));
-        return sstream.str();
-    }
-};
 
 namespace zeroUtils {
 
@@ -231,6 +217,32 @@ static inline uint64_t get_l0_context_memory_allocation_id(ze_context_handle_t h
     }
 
     return 0;
+}
+
+template <typename Type>
+std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
+    auto itrHandle = params.find(p.name());
+    if (itrHandle == params.end()) {
+        return std::nullopt;
+    }
+
+    return ov::Any(itrHandle->second).as<Type>();
+}
+
+static inline size_t get_capacity_size(const ov::Shape& shape, const ov::Strides& strides) {
+    size_t capacity = 0;
+    const size_t rank = shape.size();
+    for (size_t i = 0; i < rank; ++i) {
+        if (i == rank - 1) {
+            // Last dimension: use shape[i] * stride[i]
+            capacity += shape[i] * strides[i];
+        } else {
+            // Other dimensions: use (shape[i] - 1) * stride[i]
+            capacity += (shape[i] - 1) * strides[i];
+        }
+    }
+
+    return capacity;
 }
 
 }  // namespace zeroUtils

@@ -24,6 +24,7 @@
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
+#include "low_precision/qdq_stripping.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
@@ -166,6 +167,7 @@
 #include "transformations/op_conversions/convert_subtract.hpp"
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
+#include "transformations/op_conversions/convert_weight_compressed_conv1x1_to_matmul.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/group_normalization_decomposition.hpp"
@@ -355,6 +357,24 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     bool enableInt8;
     ov::element::Type infer_precision = ov::element::dynamic;
     bool unroll_loop = config.get_enable_loop_unrolling();
+    auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+    {
+        using namespace ov::pass::low_precision;
+        const auto enableQDQStripping = LowPrecision::isFunctionQuantized(func, std::set<levels>{levels::int16});
+        if (enableQDQStripping) {
+            ov::pass::Manager qdq_stripping_manager("Plugin:GPU:QDQ_Stripping");
+            using namespace ov::element;
+            // QDQ stripping pipeline
+            // 1. Fuse FQ->Convert->DQ to a single FQ
+            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32}, true);
+            // 2. Strip FQ layers with unsupported levels
+            qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
+            qdq_stripping_manager.run_passes(func);
+            is_model_quantized = LowPrecision::isFunctionQuantized(func);
+        }
+    }
+    enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
+
     {
         ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
@@ -394,9 +414,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::enable_constant_folding(node);
             ov::disable_keep_const_precision(node);
         }
-
-        auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
-        enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
 
         manager.register_pass<ov::pass::MarkDequantization>(
             std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
@@ -522,7 +539,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
         manager.register_pass<ov::pass::RMSFusion>(false, true);
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
-
+        manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
         const bool store_original_precision_as_rt_attribute = true;
@@ -874,31 +891,37 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
 
         // Sequences supported by the plugin shouldn't be converted to TensorIterator.
-        // sequence_length input is not supported in all Sequences, so if is_seq_len_provided() == true, we
+        // Real sequence_lengths is not supported in all onednn Sequences, so if is_seq_len_provided() == true, we
         // should always convert to TensorIterator.
-        // RNN/GRU Sequences are not supported in GPU plugin
+        // (WA) We can ignore real sequence_lengths input for batch_size == 1 case when seq_length in first input is dynamic.
+        // This WA applies to GRUSequence only.
+        // RNN Sequence is not supported in GPU plugin and is always converted to TensorIterator
         // LSTM Sequence supported with clip == 0, and activations have default values (sigmoid, tanh, tanh)
+        // GRU Sequence supported with clip == 0, and activations have default values (sigmoid, tanh)
         auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
             const auto& data = node->input(0);
             const auto& data_pshape = data.get_partial_shape();
             auto max_seq_len = data_pshape[1];
-            if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
-                return false;
+
             if (ov::as_type_ptr<const ov::op::v5::RNNSequence>(node)) {
                 return false;
             } else if (const auto &gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
+                bool is_batch_one_with_dynamic_seq_len = data_pshape[0] == 1 && !data_pshape[1].is_static();
                 return gru_seq->get_clip() == 0.0f &&
                     gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
                     max_seq_len != 1 &&
-                    !ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0),
-                                                       gru_seq->get_input_node_shared_ptr(2)) &&
+                    (!ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0),
+                                                        gru_seq->get_input_node_shared_ptr(2)) ||
+                    is_batch_one_with_dynamic_seq_len) &&
                     gru_seq->get_linear_before_reset();
             } else if (const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node)) {
-                return lstm_seq->get_clip() == 0.0f &&
-                       lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
-                       max_seq_len != 1 &&
-                       !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
-                                                          lstm_seq->get_input_node_shared_ptr(3));
+                if (!data_pshape[1].is_static())
+                    return false;
+                return (lstm_seq->get_clip() == 0.0f &&
+                    lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
+                    max_seq_len != 1 &&
+                    !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
+                                                        lstm_seq->get_input_node_shared_ptr(3)));
             }
             return false;
         };
@@ -1312,6 +1335,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
 
+        manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();

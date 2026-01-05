@@ -2,6 +2,11 @@ name: Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tid
 on:
   workflow_dispatch:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   merge_group:
   push:
     branches:
@@ -21,6 +26,7 @@ env:
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
@@ -123,7 +129,8 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+        - /home/runner/secrets/:/secrets:ro
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
@@ -141,6 +148,14 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy
 
     steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        shell: bash
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
@@ -159,7 +174,6 @@ jobs:
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_CPPLINT=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -S ${OPENVINO_REPO} \
@@ -189,7 +203,8 @@ jobs:
       image: ${{ fromJSON(needs.docker_arm.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+        - /home/runner/secrets/:/secrets:ro
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
@@ -207,6 +222,14 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_aarch64
 
     steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        shell: bash
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
@@ -225,7 +248,6 @@ jobs:
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_CPPLINT=OFF \
             -DCMAKE_RULE_MESSAGES=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
@@ -257,7 +279,8 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv_xuantie }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+        - /home/runner/secrets/:/secrets:ro
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
@@ -275,6 +298,14 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_riscv64
 
     steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        shell: bash
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
@@ -294,10 +325,10 @@ jobs:
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_CPPLINT=OFF \
             -DCMAKE_RULE_MESSAGES=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
+            -DTHREADING=SEQ \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 

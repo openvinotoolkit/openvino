@@ -54,7 +54,9 @@ void BatchGatherMatmul::validate_and_infer_types() {
                           ", expected at least 4.");
 
     // Check input B is on constant path
-    NODE_VALIDATION_CHECK(this, ov::op::util::is_on_constant_path(input_value(1)), "Input B must be on constant path.");
+    NODE_VALIDATION_CHECK(this,
+                          ov::op::util::is_on_path<ov::op::v0::Constant>(input_value(1)),
+                          "Input B must be on constant path.");
 
     const auto& a_shape = get_input_partial_shape(0);
     const auto& b_shape = get_input_partial_shape(1);

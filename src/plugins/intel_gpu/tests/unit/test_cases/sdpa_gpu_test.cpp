@@ -282,4 +282,82 @@ TEST_P(sdpa_gpu_test, basic_caching) {
     execute(p, true);
 }
 #endif
+
+TEST(sdpa_gpu_custom, single_token_cond_attn_mask_clamp) {
+    tests::random_generator rg; rg.set_seed(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    if (engine.get_device_info().supports_immad) {
+        return;
+    }
+
+    const int head_size = 32;
+    const int num_heads = 1;
+    const int seq_length_q = 1;
+    const int seq_length_kv = 448;
+    const int batch = 1;
+
+    layout input0_layout({batch, seq_length_q,  num_heads, head_size}, data_types::f16, format::bfyx);
+    layout input1_layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
+    layout input2_layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
+    layout input3_layout({batch, num_heads, 1, seq_length_kv}, data_types::f16, format::bfyx);
+
+    auto input0 = engine.allocate_memory(input0_layout);
+    auto input1 = engine.allocate_memory(input1_layout);
+    auto input2 = engine.allocate_memory(input2_layout);
+    auto input3 = engine.allocate_memory(input3_layout);
+
+
+    auto fill_random = [&](memory::ptr mem) {
+        auto shp = mem->get_layout().get_shape();
+        size_t sz = ov::shape_size(shp);
+        auto data = rg.generate_random_1d<ov::float16>(sz, -1.0f, 1.0f);
+        set_values(mem, data);
+    };
+    fill_random(input0);
+    fill_random(input1);
+    fill_random(input2);
+
+    // attention mask with first position 0, all remaining positions -inf
+    {
+        size_t elems = batch * num_heads * 1 * seq_length_kv;
+        std::vector<ov::float16> mask(elems);
+        for (int kv = 0; kv < seq_length_kv; ++kv) {
+            mask[kv] = kv == 0 ? ov::float16(0.0f) : ov::float16(-std::numeric_limits<float>::infinity());
+        }
+        set_values(input3, mask);
+    }
+
+    topology topology;
+    topology.add(input_layout("input0", input0_layout));
+    topology.add(input_layout("input1", input1_layout));
+    topology.add(input_layout("input2", input2_layout));
+    topology.add(input_layout("input3", input3_layout));
+    topology.add(scaled_dot_product_attention("sdpa", {input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3")},
+                                              false, -1, {0,2,1,3}, {0,2,1,3}, {0,2,1,3}, {0,1,2,3}, {}, false));
+    topology.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"sdpa", {format::type::bfyx, "sdpa_opt"}}
+    }));
+    auto network = get_network(engine, topology, cfg, get_test_stream_ptr(), false);
+    network->set_input_data("input0", input0);
+    network->set_input_data("input1", input1);
+    network->set_input_data("input2", input2);
+    network->set_input_data("input3", input3);
+    auto output = network->execute().at("result").get_memory();
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_FALSE(std::isnan(static_cast<float>(output_ptr[i])));
+    }
+
+    // With only first KV valid, output should approximate value vector at KV index 0.
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(input2, get_test_stream());
+    for (int hs = 0; hs < head_size; ++hs) {
+        ASSERT_NEAR(static_cast<float>(ref_ptr[hs]), static_cast<float>(output_ptr[hs]), 1e-2f);
+    }
+}
 } // namespace
