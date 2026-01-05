@@ -10,6 +10,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <ios>
 #include <istream>
@@ -281,32 +282,24 @@ BlobDumper BlobDumper::read(std::istream& stream) {
     return res;
 }
 
-BlobDumper BlobDumper::read(const std::string& file_path) {
-    std::ifstream file;
-    file.open(file_path);
+BlobDumper BlobDumper::read(const std::filesystem::path& file_path) {
+    std::ifstream file(file_path, std::ios::binary);
     OPENVINO_ASSERT(file.is_open(), "Dumper cannot open file ", file_path);
-
-    auto res = read(file);
-    file.close();
-    return res;
+    return read(file);
 }
 
-void BlobDumper::dump(const std::string& dump_path) const {
-    std::ofstream dump_file;
-    dump_file.open(dump_path, std::ios::binary);
+void BlobDumper::dump(const std::filesystem::path& dump_path) const {
+    std::ofstream dump_file(dump_path, std::ios::binary);
     OPENVINO_ASSERT(dump_file.is_open(), "Dumper cannot create dump file ", dump_path);
 
     dump(dump_file);
-    dump_file.close();
 }
 
-void BlobDumper::dumpAsTxt(const std::string& dump_path) const {
-    std::ofstream dump_file;
-    dump_file.open(dump_path);
+void BlobDumper::dumpAsTxt(const std::filesystem::path& dump_path) const {
+    std::ofstream dump_file(dump_path);
     OPENVINO_ASSERT(dump_file.is_open(), "Dumper cannot create dump file ", dump_path);
 
     dumpAsTxt(dump_file);
-    dump_file.close();
 }
 
 }  // namespace ov::intel_cpu

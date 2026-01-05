@@ -15,6 +15,14 @@
 
 namespace ov {
 
+#ifdef _WIN32
+// Windows uses HANDLE (void*) for file handles
+using FileHandle = void*;
+#else
+// Linux/Unix uses int for file descriptors
+using FileHandle = int;
+#endif
+
 /**
  * @brief This class represents a mapped memory.
  * Instead of reading files, we can map the memory via mmap for Linux or MapViewOfFile for Windows.
@@ -36,6 +44,16 @@ public:
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path);
+
+/**
+ * @brief Returns mapped memory for a file from provided file handle (cross-platform).
+ * Uses mmap on Linux/Unix (with file descriptor) or MapViewOfFile on Windows (with HANDLE).
+ * This allows external control of file access through a callback function.
+ *
+ * @param handle Platform-specific file handle (int fd on Linux, HANDLE on Windows).
+ * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
+ */
+std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 

@@ -17,6 +17,12 @@ protected:
     void insert_converts_after_if_needed(const std::shared_ptr<ov::Node>& node, const ov::element::Type original_et, size_t& output_idx);
 };
 
+class IncreasePositionIdsPrecisionForQwen25VL : public IncreasePositionIdsPrecisionForRoPE {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForQwen25VL");
+    IncreasePositionIdsPrecisionForQwen25VL();
+};
+
 class IncreasePositionIdsPrecisionForLtxVideo : public IncreasePositionIdsPrecisionForRoPE {
 public:
     OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForLtxVideo");

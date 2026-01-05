@@ -8,6 +8,7 @@
 #include <memory>
 #include <utility>
 
+#include "../utils/kernel_generator.hpp"
 #include "paged_attention_inst.h"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
@@ -15,6 +16,22 @@
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
+
+enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
+
+struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
+    PagedAttentionStage stage;
+    size_t num_of_partitions;
+    size_t partition_size;
+    size_t max_context_len;
+    size_t paged_attention_aligned_seq_len;
+    size_t sdpa_opt_seq_len_partition_size;
+
+    size_t paged_attention_snap_kv_tokens;
+    bool use_micro_sdpa = false;
+    bool use_gqa_kernel = false;
+    size_t query_block_size = 16;
+};
 
 struct PagedAttentionOpt : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::paged_attention::opt")

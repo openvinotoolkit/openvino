@@ -8,6 +8,7 @@
 
 #include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
+#include "llm_eagle3_extension.hpp"
 #include "llm_lora_states.hpp"
 #include "llm_prefix_caching.hpp"
 #include "openvino/core/descriptor/output.hpp"
@@ -142,6 +143,9 @@ protected:
     int32_t m_gemma_sliding_window_size = 0;
 
     uint64_t m_tokens_in_present_chunk = 0;
+
+    // Support Eagle3 speculative decoding
+    Eagle3Extension m_eagle3_ext;
 
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;

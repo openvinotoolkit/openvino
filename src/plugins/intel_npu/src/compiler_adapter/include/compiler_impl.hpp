@@ -46,6 +46,15 @@ public:
     std::shared_ptr<void> getLinkedLibrary() const;
 
 private:
+    /**
+     * @brief Compiles the given model according to the given configuration. During the model serialization step, the
+     * "WeightlessCacheAttribute" may be stored within the serialized model if requested.
+     * @note Storing the "WeightlessCacheAttribute" is necessary if the "weights separation" flow is being used.
+     */
+    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
+                               const Config& config,
+                               const bool storeWeightlessCacheAttributeFlag) const;
+
     vcl_log_handle_t _logHandle = nullptr;
     vcl_compiler_handle_t _compilerHandle = nullptr;
     vcl_compiler_properties_t _compilerProperties;

@@ -107,7 +107,7 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
     }
 
     if (prim->bias.is_valid()) {
-        auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, onednn::mem_flags::flatten);
+        auto bias_md = onednn::layout_to_memory_desc_flatten(impl_params.get_input_layout(2), dnnl::memory::format_tag::any);
         return std::make_shared<dnnl::convolution_forward::primitive_desc>(
             engine.get_onednn_engine(),
             dnnl::prop_kind::forward_inference,
@@ -178,7 +178,7 @@ protected:
                 a_zp = a_zp_node.get_attached_memory_ptr();
             }
 
-            dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
+            dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(a_zp->get_layout(), dnnl::memory::format_tag::a);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
             GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: "
@@ -187,7 +187,7 @@ protected:
 
         if (instance.weights_zero_points_term()) {
             auto w_zp = instance.weights_zero_points_memory();
-            dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
+            dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(w_zp->get_layout(), dnnl::memory::format_tag::a);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
             GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: "
@@ -263,7 +263,7 @@ protected:
         auto shape_consistent = onednn::keep_weights_reorder_shape_consistent(source_weights_layout, target_weights_desc);
         OPENVINO_ASSERT(shape_consistent, "[GPU] Input shape and output shape of weight reorder should be same.");
 
-        auto source_weights_desc = onednn::layout_to_memory_desc(source_weights_layout);
+        auto source_weights_desc = onednn::layout_to_memory_desc(source_weights_layout, dnnl::memory::format_tag::undef);
 
         const bool weights_format = true;
         auto traits = convert_memory_desc_to_traits(target_weights_desc, weights_format, grouped_weights);
@@ -352,7 +352,7 @@ public:
                                     *_attrs.get());
             _pd = *prim_desc;
         } else {
-            auto bias_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2), dnnl::memory::format_tag::any, onednn::mem_flags::flatten);
+            auto bias_md = onednn::layout_to_memory_desc_flatten(impl_params->get_input_layout(2), dnnl::memory::format_tag::any);
             auto prim_desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
                                     ib.get_engine().get_onednn_engine(),
                                     dnnl::prop_kind::forward_inference, dnnl::algorithm::convolution_direct,

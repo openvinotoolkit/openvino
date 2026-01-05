@@ -26,10 +26,10 @@ const auto all_models = []() -> std::vector<std::string> {
 
 const auto match_platform =
     !ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM.empty()
-        ? (PARSED_PLATFORMS.find(ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM) !=
-                   PARSED_PLATFORMS.end()
-               ? PLATFORMS.at(
-                     PARSED_PLATFORMS.at(ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM))
+        ? (PARSED_PLATFORMS.find(ov::intel_npu::Platform::standardize(
+               ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM)) != PARSED_PLATFORMS.end()
+               ? PLATFORMS.at(PARSED_PLATFORMS.at(ov::intel_npu::Platform::standardize(
+                     ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM)))
                : "")
         : "";
 
@@ -68,22 +68,27 @@ const auto all_drivers_except_pv = []() -> std::vector<std::string> {
     return drivers;
 }();
 
+const std::vector<ov::AnyMap> config = {{}};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_NPU,
                          OVBlobCompatibilityNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(all_models),
                                             ::testing::Values(match_platform),
                                             ::testing::ValuesIn(all_ov_releases),
-                                            ::testing::ValuesIn(all_drivers_except_pv)),
+                                            ::testing::ValuesIn(all_drivers_except_pv),
+                                            ::testing::ValuesIn(config)),
                          ov::test::utils::appendPlatformTypeTestName<OVBlobCompatibilityNPU>);
 
 #ifdef _WIN32  // Linux supports only ELF backend
-INSTANTIATE_TEST_SUITE_P(smoke_Behavior_NPU,
-                         OVBlobCompatibilityNPU_PV_Driver_No_Throw,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(pv_compatible_models),
-                                            ::testing::Values(match_platform),
-                                            ::testing::ValuesIn(all_ov_releases),
-                                            ::testing::Values(DRIVERS.at(E_DRIVERS::DRIVER_1688))),
-                         ov::test::utils::appendPlatformTypeTestName<OVBlobCompatibilityNPU_PV_Driver_No_Throw>);
+INSTANTIATE_TEST_SUITE_P(
+    compatibility_smoke_Behavior_NPU,
+    compatibility_OVBlobCompatibilityNPU_PV_Driver_No_Throw,
+    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                       ::testing::ValuesIn(pv_compatible_models),
+                       ::testing::Values(match_platform),
+                       ::testing::ValuesIn(all_ov_releases),
+                       ::testing::Values(DRIVERS.at(E_DRIVERS::DRIVER_1688)),
+                       ::testing::ValuesIn(config)),
+    ov::test::utils::appendPlatformTypeTestName<compatibility_OVBlobCompatibilityNPU_PV_Driver_No_Throw>);
 #endif

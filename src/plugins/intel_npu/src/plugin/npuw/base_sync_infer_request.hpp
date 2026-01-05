@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "attention.hpp"
+#include "host_flash_attention.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -146,6 +147,14 @@ protected:
     };
     std::vector<AttentionIO> m_attention_io;
 
+    // Host Flash Attention I/O structure
+    // Stores input and output tensors for HFA tiled inference
+    struct HostFlashAttentionIO {
+        std::vector<ov::SoPtr<ov::ITensor>> inputs;   // # of elements - # of original SDPA model inputs
+        std::vector<ov::SoPtr<ov::ITensor>> outputs;  // # of elements - # of original SDPA model outputs
+    };
+    std::vector<HostFlashAttentionIO> m_hfa_io;
+
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
     // Represents spatial run-time info
@@ -156,6 +165,9 @@ protected:
 
     // Separate selector for pyramid attention
     runtime::pyramid_attention::Selector::Ptr m_pyramid_selector;
+
+    // Host flash attention selector for dynamic execution
+    runtime::host_flash_attention::Selector::Ptr m_hfa_selector;
 
     // This structure tracks how every individual subrequest
     // access the model's top-level (global, public, etc) parameters

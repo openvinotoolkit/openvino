@@ -126,9 +126,10 @@ protected:
         ASSERT_TRUE(inferRequestRef);
 
         generate_inputs(targetStaticShapes.front());
-        for (const auto& input : inputs) {
-            inferRequest.set_tensor(input.first, input.second);
-            inferRequestRef.set_tensor(input.first, input.second);
+        for (const auto& [port, tensor] : inputs) {
+            // Use read-only tensors as inputs, created from `const void*`
+            inferRequest.set_tensor(port, {tensor.get_element_type(), tensor.get_shape(), tensor.data()});
+            inferRequestRef.set_tensor(port, {tensor.get_element_type(), tensor.get_shape(), tensor.data()});
         }
 
         constexpr size_t lora_order = 25lu;

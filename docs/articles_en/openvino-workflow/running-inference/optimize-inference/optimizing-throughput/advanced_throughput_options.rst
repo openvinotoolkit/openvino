@@ -116,9 +116,3 @@ A Few Device-specific Details
   * A batch size can be calculated as "a number of inference requests executed in parallel" divided by the "number of requests that the streams consume":
 
     * For example, if you process 16 cameras (by 16 requests inferenced *simultaneously*) by 2 GPU streams (each can process two requests), the batch size per request is 16/(2*2)=4.
-
-* For the **CPU, always use the streams first!**:
-
-  * On high-end CPUs, using moderate (2-8) batch size *in addition* to the maximum number of streams may further improve the performance.
-
-

@@ -331,10 +331,17 @@ KERNEL(rope_opt)
  const __global INPUT3_TYPE* gather,
 #endif
  __global OUTPUT_TYPE* output) {
+#ifdef REVERSED_GWS
+    const uint b = get_global_id(2);
+    const uint h = get_global_id(1);
+    const uint p = ((uint)get_global_id(0) * VEC_SIZE) / HALF_ROTARY_NDIMS;
+    const uint r = ((uint)get_global_id(0) * VEC_SIZE) % HALF_ROTARY_NDIMS;
+#else
     const uint b = get_global_id(0);
     const uint h = get_global_id(1);
     const uint p = ((uint)get_global_id(2) * VEC_SIZE) / HALF_ROTARY_NDIMS;
     const uint r = ((uint)get_global_id(2) * VEC_SIZE) % HALF_ROTARY_NDIMS;
+#endif
 
 #if ENABLE_TRANSPOSE
     uint input_idx = INPUT0_GET_INDEX(b, p, h, 0);
@@ -405,13 +412,14 @@ uint cos_sin_p = p;
     uint output_idx = OUTPUT_GET_INDEX(b, h, p, 0);
 
 #if VEC_SIZE == 1
-    INPUT0_TYPE in1 = input[input_idx + r];
-    INPUT0_TYPE in2 = input[input_idx + HALF_ROTARY_NDIMS + r];
+    ACCUMULATOR_TYPE in1 = TO_ACCUMULATOR_TYPE(input[input_idx + r]);
+    ACCUMULATOR_TYPE in2 = TO_ACCUMULATOR_TYPE(input[input_idx + HALF_ROTARY_NDIMS + r]);
 
-    output[output_idx + r] = cos[cos_idx + r] * in1 - sin[sin_idx + r] * in2;
+    ACCUMULATOR_TYPE res = cos[cos_idx + r] * in1 - sin[sin_idx + r] * in2;
+    output[output_idx + r] = TO_OUTPUT_TYPE(res);
 
-    output[output_idx + HALF_ROTARY_NDIMS + r] =
-        cos[cos_idx + COS_SIN_TABLE_OFFSET + r] * in2 + sin[sin_idx + COS_SIN_TABLE_OFFSET + r] * in1;
+    res = cos[cos_idx + COS_SIN_TABLE_OFFSET + r] * in2 + sin[sin_idx + COS_SIN_TABLE_OFFSET + r] * in1;
+    output[output_idx + HALF_ROTARY_NDIMS + r] = TO_OUTPUT_TYPE(res);
 #else
     INPUT_VEC_TYPE in1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
     INPUT_VEC_TYPE in2 = *(INPUT_VEC_TYPE*)(input + input_idx + HALF_ROTARY_NDIMS + r);

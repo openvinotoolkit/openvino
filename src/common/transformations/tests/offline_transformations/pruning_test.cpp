@@ -227,7 +227,7 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
         model_ref = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksBasic.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMasksBasic.svg").run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -311,7 +311,7 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
         model_ref = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksDynamicConvolution.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMasksDynamicConvolution.svg")
             .run_on_model(model);
 
     {
@@ -362,7 +362,8 @@ TEST(TransformationTests, PropagateMasksDynamicReshape) {
 
     auto model = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksDynamicReshape.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMasksDynamicReshape.svg")
+            .run_on_model(model);
 
     pass::Manager m;
     m.register_pass<ov::pass::Pruning>();
@@ -406,7 +407,7 @@ TEST(TransformationTests, PropagateMasksDynamicGroupConvolution) {
     auto f = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksDynamicGroupConvolution.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMasksDynamicGroupConvolution.svg")
             .run_on_model(f);
 
     pass::Manager m;
@@ -445,7 +446,7 @@ TEST(TransformationTests, PropagateMasksEmpty) {
     auto f = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksEmpty.svg").run_on_model(f);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMasksEmpty.svg").run_on_model(f);
 
     pass::Manager m;
     m.register_pass<ov::pass::InitMasks>();
@@ -541,7 +542,8 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
         model_ref = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMaskPassThrough.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMaskPassThrough.svg")
+            .run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -632,7 +634,8 @@ TEST_F(TransformationTestsF, NegativePad12PropagateMaskPassThrough) {
         model_ref = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMaskPassThrough.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMaskPassThrough.svg")
+            .run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -783,7 +786,7 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
     }
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksHardDependencies.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMasksHardDependencies.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -934,7 +937,7 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
         model_ref = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksQuantizedGroupConvolution.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMasksQuantizedGroupConvolution.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -1100,7 +1103,8 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
         model_ref = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksQuantizedGroupConvolutionWithShapeOf.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) /
+                            "PropagateMasksQuantizedGroupConvolutionWithShapeOf.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -1232,7 +1236,7 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
         model_ref = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerTensor.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMasksFakeQuantizePerTensor.svg")
             .run_on_model(model);
 
     {
@@ -1316,7 +1320,8 @@ TEST(TransformationTests, PropagateMasksFakeQuantizePerTensor1DScale) {
                                                         Strides(2, 1));
     auto model = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerTensor1DScale.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) /
+                            "PropagateMasksFakeQuantizePerTensor1DScale.svg")
             .run_on_model(model);
 
     {
@@ -1434,7 +1439,7 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
         model_ref = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerChannel.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMasksFakeQuantizePerChannel.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -1577,7 +1582,8 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
     }
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagation.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "TestConcatMaskPropagation.svg")
+            .run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -1719,7 +1725,8 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
         model_ref = std::make_shared<Model>(OutputVector{conv_out}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagationUp.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "TestConcatMaskPropagationUp.svg")
+            .run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -1789,7 +1796,8 @@ TEST(TransformationTests, TestConcatMaskPropagationUpEmpty) {
     auto f = std::make_shared<Model>(OutputVector{add}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagationUpEmpty.svg").run_on_model(f);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "TestConcatMaskPropagationUpEmpty.svg")
+            .run_on_model(f);
 
     pass::Manager m;
     m.register_pass<ov::pass::InitMasks>();
@@ -1850,7 +1858,8 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
     model = std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneConvIsClosingAndInGroup.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PruneConvIsClosingAndInGroup.svg")
+            .run_on_model(model);
     {
         auto input = std::make_shared<opset10::Parameter>(element::f32, inputShapes);
         auto weights = create_constant_with_zeros(
@@ -1964,7 +1973,8 @@ TEST(TransformationTests, PruneBranchingStopOp) {
         std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input}, "RestrictedReduceMeanBranching");
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneBranchingStopOp.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PruneBranchingStopOp.svg")
+            .run_on_model(model);
 
     pass::Manager m;
     m.register_pass<ov::pass::Pruning>();
@@ -2019,7 +2029,7 @@ TEST(TransformationTests, PruneStopOpUp) {
     auto model = std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input}, "StopOpUp");
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneStopOpUp.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PruneStopOpUp.svg").run_on_model(model);
 
     pass::Manager m;
     m.register_pass<ov::pass::Pruning>();
@@ -2086,7 +2096,7 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
         model_ref = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneReducelayerUp.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PruneReducelayerUp.svg").run_on_model(model);
 
     pass::Manager m;
     m.register_pass<ov::pass::InitMasks>();
@@ -2182,7 +2192,8 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
         model_ref = std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneReduceLayerDown.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PruneReduceLayerDown.svg")
+            .run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -2233,7 +2244,8 @@ TEST(TransformationTests, PruneStopReducelayerUp) {
     auto model = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneStopReducelayerUp.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PruneStopReducelayerUp.svg")
+            .run_on_model(model);
 
     pass::Manager m;
     m.register_pass<ov::pass::Pruning>();
@@ -2289,7 +2301,8 @@ TEST(TransformationTests, PruneStopReduceLayerDown) {
         std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input}, "RestrictedReduceMeanBranching");
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneStopReduceLayerDown.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PruneStopReduceLayerDown.svg")
+            .run_on_model(model);
 
     pass::Manager m;
     m.register_pass<ov::pass::Pruning>();
@@ -2363,7 +2376,8 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
         model_ref = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUp.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationReshapeUp.svg")
+            .run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -2472,7 +2486,8 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapeUpWithShapeOf) {
     }
     if (VISUALIZE_TESTS_TREE) {
         const auto postfix = use_shape_of ? "True" : "False";
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUpWithShapeOf" + postfix + ".svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) /
+                            (std::string("MaskPropagationReshapeUpWithShapeOf") + postfix + ".svg"))
             .run_on_model(model);
     }
     {
@@ -2584,7 +2599,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpShapeSubGraph) {
     }
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUpShapeSubGraph.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationReshapeUpShapeSubGraph.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -2676,7 +2691,8 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
     }
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeExtend.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationReshapeExtend.svg")
+            .run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -2782,7 +2798,8 @@ TEST_F(DISABLED_TransformationTestsF, MaskPropagationReshapeDownMul) {
         model_ref = std::make_shared<ov::Model>(OutputVector{last_conv}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeDownMul.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationReshapeDownMul.svg")
+            .run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -2885,7 +2902,8 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDownAdd) {
         model_ref = std::make_shared<ov::Model>(OutputVector{last_conv}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeDownAdd.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationReshapeDownAdd.svg")
+            .run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -2933,7 +2951,8 @@ TEST(TransformationTests, MaskPropagationStopReshapeUp) {
 
     auto model = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationStopReshapeUp.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationStopReshapeUp.svg")
+            .run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -2989,7 +3008,7 @@ TEST(TransformationTests, MaskPropagationStopReshapeDown) {
     auto model = std::make_shared<ov::Model>(OutputVector{last_conv}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationStopReshapeDown.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationStopReshapeDown.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -3047,7 +3066,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeUp) {
         model_ref = std::make_shared<ov::Model>(OutputVector{mul_left}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUnsqueezeUp.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationReshapeUnsqueezeUp.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -3109,7 +3128,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeDown) {
         model_ref = std::make_shared<ov::Model>(OutputVector{mul_left}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUnsqueezeDown.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationReshapeUnsqueezeDown.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -3170,7 +3189,7 @@ TEST(TransformationTests, MaskPropagationWrongDimsElementwise) {
     auto model = std::make_shared<ov::Model>(OutputVector{last_conv}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationWrongDimsElementwise.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationWrongDimsElementwise.svg")
             .run_on_model(model);
 
     pass::Manager m;
@@ -3282,7 +3301,7 @@ TEST_F(TransformationTestsF, PruneSEBlock) {
         model_ref = std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input}, "SEBlock");
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneSEBlock.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PruneSEBlock.svg").run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -3373,7 +3392,8 @@ TEST_F(TransformationTestsF, PropagateMasksLinear) {
         model_ref = std::make_shared<Model>(OutputVector{last_linear}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksLinear.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMasksLinear.svg")
+            .run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -3424,7 +3444,7 @@ TEST(TransformationTests, MaskPropagationMatMulStopEmptyABranch) {
 
     auto model = std::make_shared<ov::Model>(OutputVector{mul_left}, ParameterVector{input});
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationMatMulStopEmptyABranch.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationMatMulStopEmptyABranch.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -3492,7 +3512,7 @@ TEST(TransformationTests, PruneLinearUp) {
     auto model = std::make_shared<ov::Model>(OutputVector{last_linear}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneLinearUp.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PruneLinearUp.svg").run_on_model(model);
 
     pass::Manager m;
     m.register_pass<ov::pass::Pruning>();
@@ -3549,7 +3569,7 @@ TEST(TransformationTests, PruneConvUpShort) {
     auto model = std::make_shared<ov::Model>(OutputVector{last_conv}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneConvUpShort.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PruneConvUpShort.svg").run_on_model(model);
 
     pass::Manager m;
     m.register_pass<ov::pass::Pruning>();
@@ -3623,7 +3643,7 @@ TEST_F(TransformationTestsF, MaskPropagationLinearOuterDims) {
         model_ref = std::make_shared<ov::Model>(OutputVector{last_mul}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationLinearOuterDims.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationLinearOuterDims.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -3702,7 +3722,7 @@ TEST(TransformationTests, MaskPropagationStopLinearOuterDims) {
     auto model = std::make_shared<ov::Model>(OutputVector{last_mul}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationStopLinearOuterDims.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationStopLinearOuterDims.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -3793,7 +3813,7 @@ TEST_F(TransformationTestsF, PruneMasksMatMulColsStopRowsUp) {
         model_ref = std::make_shared<Model>(OutputVector{last_linear}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneMasksMatMulColsStopRowsUp.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PruneMasksMatMulColsStopRowsUp.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -3882,7 +3902,7 @@ TEST_F(TransformationTestsF, PruneMasksMatMulRowsStopColsUp) {
         model_ref = std::make_shared<Model>(OutputVector{last_linear}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneMasksMatMulRowsStopColsUp.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PruneMasksMatMulRowsStopColsUp.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -3978,7 +3998,7 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
         model_ref = std::make_shared<Model>(OutputVector{linear}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateFlattenUp.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateFlattenUp.svg").run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -4052,7 +4072,8 @@ TEST_F(TransformationTestsF, PropagateFlattenDown) {
         model_ref = std::make_shared<ov::Model>(OutputVector{linear}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateFlattenDown.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateFlattenDown.svg")
+            .run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -4110,7 +4131,8 @@ TEST_F(TransformationTestsF, PropagateMasksTranspose) {
         model_ref = std::make_shared<Model>(OutputVector{last_mul}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksTranspose.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMasksTranspose.svg")
+            .run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -4182,7 +4204,7 @@ TEST_F(TransformationTestsF, PropagateMasksTransposeComplex) {
         model_ref = std::make_shared<Model>(OutputVector{last_mul}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksTransposeComplex.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMasksTransposeComplex.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -4222,7 +4244,8 @@ TEST(TransformationTests, PropagateMasksTransposeStop) {
 
     auto model = std::make_shared<Model>(OutputVector{last_mul}, ParameterVector{input});
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksTransposeStop.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMasksTransposeStop.svg")
+            .run_on_model(model);
     {
         pass::Manager m;
         m.register_pass<ov::pass::InitMasks>();
@@ -4346,7 +4369,8 @@ TEST_F(DISABLED_TransformationTestsF, PropagateMasksBroadcastedEltwiseWithInputs
                                                 ParameterVector{input, dummy_eltwise_inputs, dummy_eltwise_weights});
     }
     if (VISUALIZE_TESTS_TREE) {
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksBroadcastedEltwiseWithInputs.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) /
+                            "PropagateMasksBroadcastedEltwiseWithInputs.svg")
             .run_on_model(model);
     }
     {
@@ -4523,7 +4547,7 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
         model_ref = std::make_shared<ov::Model>(OutputVector{last_mul}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE) {
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksBroadcastedEltwise.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "PropagateMasksBroadcastedEltwise.svg")
             .run_on_model(model);
     }
     {
@@ -4686,7 +4710,8 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
         model_ref = std::make_shared<ov::Model>(OutputVector{mul_last}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE) {
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationComplexReshape.svg").run_on_model(model);
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationComplexReshape.svg")
+            .run_on_model(model);
     }
     {
         pass::Manager m;
@@ -4762,7 +4787,7 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
         manager.register_pass<ov::pass::ShrinkWeights>();
         if (VISUALIZE_TESTS_TREE) {
             manager.register_pass<pass::VisualizeTree>(
-                std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationComplexReshapeWithMasks.svg",
+                std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationComplexReshapeWithMasks.svg",
                 modifier);
         }
     }
@@ -4879,7 +4904,8 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapedPassThroughP) {
     }
     if (VISUALIZE_TESTS_TREE) {
         auto postfix = (add_shape_of) ? "True" : "False";
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapedPassThroughP" + postfix + ".svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) /
+                            (std::string("MaskPropagationReshapedPassThroughP") + postfix + ".svg"))
             .run_on_model(model);
     }
     {
@@ -4956,7 +4982,8 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapedPassThroughP) {
     if (VISUALIZE_TESTS_TREE) {
         auto postfix = (add_shape_of) ? "True" : "False";
         manager.register_pass<pass::VisualizeTree>(
-            std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReverseFlattenWithMasks" + postfix + ".svg",
+            std::filesystem::path(VISUALIZE_TREE_ROOT) /
+                (std::string("MaskPropagationReverseFlattenWithMasks") + postfix + ".svg"),
             modifier);
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -5005,8 +5032,8 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseS
     }
     if (VISUALIZE_TESTS_TREE) {
         auto postfix = (reverse_mul) ? "True" : "False";
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) +
-                            "MaskPropagationBroadcastedSameRankEltwiseSwappedLayoutP" + postfix + ".svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) /
+                            (std::string("MaskPropagationBroadcastedSameRankEltwiseSwappedLayoutP") + postfix + ".svg"))
             .run_on_model(model);
     }
     {
@@ -5052,8 +5079,8 @@ TEST(TransformationTests, MaskPropagationBroadcastedEltwiseInputAndWeightsBroadc
     auto model = std::make_shared<ov::Model>(OutputVector{mul_last}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE) {
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) +
-                            "MaskPropagationBroadcastedEltwiseInputAndWeightsBroadcasted.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) /
+                            (std::string("MaskPropagationBroadcastedEltwiseInputAndWeightsBroadcasted") + ".svg"))
             .run_on_model(model);
     }
     {
@@ -5102,7 +5129,7 @@ TEST(TransformationTests, MaskPropagationBroadcastedEltwiseWrongBroadcastingMode
     auto model = std::make_shared<ov::Model>(OutputVector{mul_last}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE) {
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) +
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) /
                             "MaskPropagationBroadcastedEltwiseWrongBroadcastingMode.svg")
             .run_on_model(model);
     }
@@ -5167,7 +5194,7 @@ TEST_F(TransformationTestsF, MaskPropagationMatMulWithSeveralOutputs) {
         model_ref = std::make_shared<ov::Model>(OutputVector{left_matmul, right_matmul}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationMatMulWithSeveralOutputs.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "MaskPropagationMatMulWithSeveralOutputs.svg")
             .run_on_model(model);
     {
         pass::Manager m;
@@ -5198,7 +5225,7 @@ TEST(TransformationTests, CheckReshapeWithNoConstInShape) {
     auto model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input, input_shape});
 
     if (VISUALIZE_TESTS_TREE)
-        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "CheckReshapeWithNoConstInShape.svg")
+        pass::VisualizeTree(std::filesystem::path(VISUALIZE_TREE_ROOT) / "CheckReshapeWithNoConstInShape.svg")
             .run_on_model(model);
 
     pass::Manager m;

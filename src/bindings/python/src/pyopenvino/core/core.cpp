@@ -28,7 +28,10 @@ void regclass_Core(py::module m) {
         "Core class instances, but in this case, the underlying plugins are created multiple times and not shared "
         "between several Core instances. The recommended way is to have a single Core instance per application.";
 
-    cls.def(py::init<const std::string&>(), py::arg("xml_config_file") = "");
+    cls.def(py::init([](const py::object& xml_config_file) {
+                return std::make_shared<ov::Core>(Common::utils::to_fs_path(xml_config_file));
+            }),
+            py::arg("xml_config_file") = "");
 
     cls.def(
         "set_property",
@@ -628,58 +631,42 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "register_plugin",
-        [](ov::Core& self, const std::string& plugin_name, const std::string& device_name) {
-            self.register_plugin(plugin_name, device_name);
-        },
-        py::arg("plugin_name"),
-        py::arg("device_name"),
-        R"(
-                Register a new device and plugin which enable this device inside OpenVINO Runtime.
-
-                :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
-                                    `plugin_name` is wrapped with shared library suffix and prefix to identify
-                                    library full name E.g. on Linux platform plugin name specified as `plugin_name`
-                                    will be wrapped as `libplugin_name.so`.
-                :type plugin_name: str
-                :param device_name: A device name to register plugin for.
-                :type device_name: str
-            )");
-
-    cls.def(
-        "register_plugin",
         [](ov::Core& self,
-           const std::string& plugin_name,
+           const py::object& plugin,
            const std::string& device_name,
            const std::map<std::string, py::object>& config) {
-            auto properties = Common::utils::properties_to_any_map(config);
-            self.register_plugin(plugin_name, device_name, properties);
+            const auto properties = Common::utils::properties_to_any_map(config);
+            self.register_plugin(Common::utils::to_fs_path(plugin), device_name, properties);
         },
-        py::arg("plugin_name"),
+        py::arg("plugin"),
         py::arg("device_name"),
-        py::arg("config"),
+        py::arg("config") = py::dict(),
         R"(
                 Register a new device and plugin which enable this device inside OpenVINO Runtime.
 
-                :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
+                :param plugin: A path (absolute or relative) or name of a plugin. Depending on platform,
                                     `plugin_name` is wrapped with shared library suffix and prefix to identify
                                     library full name E.g. on Linux platform plugin name specified as `plugin_name`
                                     will be wrapped as `libplugin_name.so`.
-                :type plugin_name: str
+                :type plugin: Union[str, bytes, pathlib.Path]
                 :param device_name: A device name to register plugin for.
                 :type device_name: str
                 :param config: Plugin default configuration
                 :type config: dict[str, typing.Any], optional
             )");
 
-    cls.def("register_plugins",
-            &ov::Core::register_plugins,
-            py::arg("xml_config_file"),
-            R"(
+    cls.def(
+        "register_plugins",
+        [](ov::Core& self, const py::object& xml_config_file) {
+            self.register_plugins(Common::utils::to_fs_path(xml_config_file));
+        },
+        py::arg("xml_config_file"),
+        R"(
                 Registers a device plugin to OpenVINO Runtime Core instance using XML configuration
                 file with plugins description.
 
                 :param xml_config_file: A path to .xml file with plugins to register.
-                :type xml_config_file: str
+                :type xml_config_file: Union[str, bytes, pathlib.Path]
             )");
 
     cls.def("unload_plugin",

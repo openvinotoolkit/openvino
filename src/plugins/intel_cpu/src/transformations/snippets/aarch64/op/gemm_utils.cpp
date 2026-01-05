@@ -36,13 +36,20 @@ ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered
 }
 
 size_t get_inner_n_block(const ov::element::Type& precision) {
-    OPENVINO_ASSERT(precision == element::f32, "Only f32 is supported for snippets Matmul");
-    return 8;
+    if (precision == element::f32) {
+        return 8;
+    }
+    if (precision == element::f16) {
+        return 16;
+    }
+    OPENVINO_THROW("Unsupported precision for aarch64 GEMM inner N block: ", precision.get_type_name());
 }
 
 size_t get_k_pad_size(const ov::element::Type& precision) {
-    OPENVINO_ASSERT(precision == element::f32, "Only f32 is supported for snippets Matmul");
-    return 1;
+    if (precision == element::f32 || precision == element::f16) {
+        return 1;
+    }
+    OPENVINO_THROW("Unsupported precision for aarch64 GEMM K pad size: ", precision.get_type_name());
 }
 
 }  // namespace ov::intel_cpu::aarch64::gemm_utils::repacking

@@ -26,7 +26,7 @@ static const std::string name_rms_2 = "rms_2";
 
 // This model creates the exact pattern that DisableFP16CompForGemma3RMSPattern is looking for.
 // (Add, RMS) -> Add -> RMS
-static std::shared_ptr<ov::Model> create_model_to_match() {
+static std::shared_ptr<ov::Model> create_model_to_match(bool use_convert = false) {
     auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 32, 128});
     auto input2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 32, 128});
     auto input3 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 32, 128});
@@ -35,16 +35,28 @@ static std::shared_ptr<ov::Model> create_model_to_match() {
     auto add_m = std::make_shared<ov::op::v1::Add>(input1, input2);
 
     // Pattern part 2: rms_post_m
-    auto rms_const_1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{128}, {1.0f});
-    auto rms_post_m = std::make_shared<ov::op::internal::RMS>(input3, rms_const_1, 1e-5);
+    std::shared_ptr<ov::Node> rms_const_or_convert_1;
+    if (use_convert) {
+        auto const_node_1 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{128}, {1.0f});
+        rms_const_or_convert_1 = std::make_shared<ov::op::v0::Convert>(const_node_1, ov::element::f32);
+    } else {
+        rms_const_or_convert_1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{128}, {1.0f});
+    }
+    auto rms_post_m = std::make_shared<ov::op::internal::RMS>(input3, rms_const_or_convert_1, 1e-5);
     rms_post_m->set_friendly_name(name_rms_1);
 
     // Pattern part 3: add_1_m
     auto add_1_m = std::make_shared<ov::op::v1::Add>(add_m, rms_post_m);
 
     // Pattern part 4: rms_m
-    auto rms_const_2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{128}, {1.0f});
-    auto rms_m = std::make_shared<ov::op::internal::RMS>(add_1_m, rms_const_2, 1e-5);
+    std::shared_ptr<ov::Node> rms_const_or_convert_2;
+    if (use_convert) {
+        auto const_node_2 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{128}, {1.0f});
+        rms_const_or_convert_2 = std::make_shared<ov::op::v0::Convert>(const_node_2, ov::element::f32);
+    } else {
+        rms_const_or_convert_2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{128}, {1.0f});
+    }
+    auto rms_m = std::make_shared<ov::op::internal::RMS>(add_1_m, rms_const_or_convert_2, 1e-5);
     rms_m->set_friendly_name(name_rms_2);
 
     return std::make_shared<ov::Model>(ov::OutputVector{rms_m}, ov::ParameterVector{input1, input2, input3});
@@ -96,6 +108,16 @@ static void run_test(std::shared_ptr<ov::Model> model,
 
 TEST(TransformationTests, DisableFP16CompForRMS_Positive) {
     auto model = create_model_to_match();
+    // In the matching pattern, both rms_1 (rms_post_m) and rms_2 (rms_m) should have FP16 compression disabled.
+    std::unordered_map<std::string, bool> expected_status = {
+        {name_rms_1, true},
+        {name_rms_2, true}
+    };
+    run_test(model, expected_status);
+}
+
+TEST(TransformationTests, DisableFP16CompForRMS_PositiveConvert) {
+    auto model = create_model_to_match(true);
     // In the matching pattern, both rms_1 (rms_post_m) and rms_2 (rms_m) should have FP16 compression disabled.
     std::unordered_map<std::string, bool> expected_status = {
         {name_rms_1, true},

@@ -29,8 +29,8 @@ public:
     void pull();
     void reset() const;
 
-    void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
-    void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t batch_index);
+    void update_graph_arguments(uint32_t index, const std::shared_ptr<ZeroTensor>& tensor);
+    void update_graph_arguments(uint32_t index, const std::shared_ptr<ZeroTensor>& tensor, size_t batch_index);
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
 

@@ -23,7 +23,7 @@ public:
     void set_out_type(int index, const ov::element::Type& output_type);
 
 protected:
-    std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic};
+    std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic, ov::element::dynamic};
 };
 
 }  // namespace op

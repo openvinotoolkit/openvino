@@ -12,10 +12,18 @@ KERNEL(moe_mask_gen)(
     __global OUTPUT2_TYPE* experts_id,
     __global OUTPUT3_TYPE* tokens_lens_per_expert,
     __global OUTPUT4_TYPE* num_actual_used_experts
+#if SET_TOKEN_LEN
+    , const int token_len
+#endif
 )
 {
     const size_t expert_id = get_local_id(0);
+
+#if SET_TOKEN_LEN
+    int num_tokens = token_len;
+#else
     int num_tokens = INPUT0_BATCH_NUM;
+#endif
 
     int num_tokens_per_curr_expert = 0;
     for (int i = 0; i < num_tokens * NUM_EXPERTS_PER_TOKEN; ++i) {

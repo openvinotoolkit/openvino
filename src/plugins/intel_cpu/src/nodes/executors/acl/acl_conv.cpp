@@ -36,6 +36,8 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                const MemoryArgs& memory,
                                                [[maybe_unused]] const ExecutorContext::CPtr& context)
     : weightScale(attrs.dqScales) {
+    OPENVINO_ASSERT(attrs.dqScales.size() == 1, "ACLConvolutionExecutor: per-channel scales are not supported");
+
     MemoryDescPtr srcMemPtr = memory.at(ARG_SRC_0)->getDescPtr();
     MemoryDescPtr weiMemPtr = memory.at(ARG_WEI)->getDescPtr();
     MemoryDescPtr dstMemPtr = memory.at(ARG_DST)->getDescPtr();
@@ -90,14 +92,19 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
 }
 
 bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
-    bool isQuantized = any_of(config.descs.at(ARG_SRC)->getPrecision(), ov::element::u8, ov::element::i8) &&
-                       config.descs.at(ARG_WEI)->getPrecision() == ov::element::i8;
+    VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
+    // isQuantized verifies whether src is u8/i8, weights is i8 and FQ is fused if dst is u8/i8
+    // the last requirement is due to ACL int32 accumulation that needs to be requantized by non-trivial scales
+    const bool quantizedSrc = any_of(config.descs.at(ARG_SRC)->getPrecision(), ov::element::u8, ov::element::i8);
+    const bool quantizedDst = any_of(config.descs.at(ARG_DST)->getPrecision(), ov::element::u8, ov::element::i8);
+    const bool hasQuantizationPostOp = std::any_cast<FakeQuantizePostOp>(config.attrs.postOps.data()) != nullptr;
+    bool isQuantized = quantizedSrc && config.descs.at(ARG_WEI)->getPrecision() == ov::element::i8 &&
+                       (!quantizedDst || hasQuantizationPostOp);
 
     VERIFY(isQuantized, UNSUPPORTED_SRC_PRECISIONS);
     if (config.attrs.withBias) {
         VERIFY(config.descs.at(ARG_BIAS)->getPrecision() == ov::element::i32, UNSUPPORTED_BIAS_PRECISIONS);
     }
-    VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
 
     return true;
 }

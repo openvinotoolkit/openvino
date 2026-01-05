@@ -29,6 +29,14 @@ void* ZeroHostTensor::data(const ov::element::Type&) {
     return _impl->get_original_memory();
 }
 
+void* ZeroHostTensor::data_rw() {
+    return data();
+}
+
+void* ZeroHostTensor::data_rw(const ov::element::Type&) {
+    return data();
+}
+
 const void* ZeroHostTensor::data() const {
     return _impl->get_original_memory();
 }
