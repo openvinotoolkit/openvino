@@ -1026,7 +1026,7 @@ size_t jit_softplus_emitter::get_inputs_num() const {
 }
 
 size_t jit_softplus_emitter::aux_gprs_count() const {
-    return std::max<size_t>(exp_emitter->aux_gprs_count(), 1) + 1;
+    return exp_emitter->aux_gprs_count() + 1;
 }
 
 size_t jit_softplus_emitter::aux_vecs_count() const {
@@ -1051,11 +1051,6 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
 
-    // SoftPlus: softplus(x) = ln(1 + exp(x))
-    // For x >= 0: softplus(x) = x + ln(1 + exp(-x)) to avoid overflow
-    // For x < 0:  softplus(x) = ln(1 + exp(x))
-    // For x > 20: softplus(x) ≈ x
-
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
@@ -1066,7 +1061,6 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto aux4 = VReg(aux_vec_idxs[4]);
     
     auto fp0 = FReg(aux_fp_gpr_idxs[0]);
-    auto tmp = Reg(aux_gpr_idxs[0]);
 
     h->vmv_v_v(aux0, src);
 
@@ -1078,13 +1072,10 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->vmfge_vf(mask_vreg(), aux0, fp0);
     h->vfneg_vv(aux1, aux0, VM::masked);
     
-    h->vmv_v_v(aux1, aux0, VM::unmasked);
+    h->vmflt_vf(mask_vreg(), aux0, fp0);
+    h->vmv_v_v(aux1, aux0, VM::masked);
 
-    auto exp_aux_vec_idxs = aux_vec_idxs;
-    exp_aux_vec_idxs.erase(
-        std::find(exp_aux_vec_idxs.begin(), exp_aux_vec_idxs.end(), static_cast<size_t>(aux0.getIdx())));
-    exp_aux_vec_idxs.erase(
-        std::find(exp_aux_vec_idxs.begin(), exp_aux_vec_idxs.end(), static_cast<size_t>(aux1.getIdx())));
+    auto exp_aux_vec_idxs = std::vector<size_t>(aux_vec_idxs.begin() + 2, aux_vec_idxs.end());
     
     exp_emitter->emit_code({static_cast<size_t>(aux1.getIdx())},
                            {static_cast<size_t>(aux1.getIdx())},
