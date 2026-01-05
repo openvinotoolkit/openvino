@@ -17,7 +17,7 @@ namespace intel_npu {
 // Move sections in directory
 // Create initschedules & main schedule sections. these hold a graph object, call the right "export"
 // Past capabilities
-// Unique SID
+// Unique SID - how do we reinforce this without compromising modularity? Description matching?
 
 class BlobWriter;
 class BlobReader;
