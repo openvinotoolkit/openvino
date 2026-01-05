@@ -6,9 +6,9 @@ import pickle
 import os
 from pathlib import Path
 
-from openvino.runtime import PartialShape
+from openvino import PartialShape
 from openvino.frontend import FrontEndManager, InitializationFailure, TelemetryExtension
-from openvino.runtime.utils.types import get_element_type
+from openvino.utils.types import get_element_type
 
 import numpy as np
 

@@ -9,6 +9,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
@@ -232,6 +233,30 @@ void CheckWeightlessCacheAccuracy::run() {
     }
 }
 
+class CheckWeightlessCacheAccuracyLargeConv : public CheckWeightlessCacheAccuracy {
+
+};
+
+TEST_P(CheckWeightlessCacheAccuracyLargeConv, smoke_CheckWeightlessCacheAccuracyForLargeConv) {
+    //test large conv to meet custom reorder on BMG
+    auto param0 = std::make_shared<ov::op::v0::Parameter>(model_dtype, ov::Shape({1, 256, 24, 24}));
+
+    auto conv1 = ov::test::utils::make_convolution(param0,
+                                                   model_dtype,
+                                                   {3, 3},
+                                                   {1, 1},
+                                                   {1, 1},
+                                                   {1, 1},
+                                                   {1, 1},
+                                                   ov::op::PadType::EXPLICIT,
+                                                   512);
+    auto result = std::make_shared<ov::op::v0::Result>(conv1);
+
+    model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param0});
+    model->set_friendly_name("SingleConv");
+    OV_ASSERT_NO_THROW(run());
+}
+
 TEST_P(CheckWeightlessCacheAccuracy, ReadConcatSplitAssign) {
     OV_ASSERT_NO_THROW(model = ov::test::utils::make_read_concat_split_assign({1, 1, 2, 4}, model_dtype));
     OV_ASSERT_NO_THROW(run());
@@ -299,6 +324,17 @@ const std::vector<ov::element::Type> low_precision_dtypes = {
     ov::element::u4,
     ov::element::i4,
 };
+
+INSTANTIATE_TEST_SUITE_P(smoke_CheckWeightlessCacheAccuracyForLargeConv,
+                         CheckWeightlessCacheAccuracyLargeConv,
+                         ::testing::Combine(::testing::ValuesIn(import_api_types),
+                                            ::testing::Bool(),
+                                            ::testing::ValuesIn(inference_modes),
+                                            ::testing::ValuesIn({ov::element::f16}),
+                                            ::testing::Values(ov::AnyMap{ov::enable_weightless("ON"), ov::cache_mode("OPTIMIZE_SPEED")},
+                                                              ov::AnyMap{ov::cache_mode("OPTIMIZE_SIZE")},
+                                                              ov::AnyMap{ov::enable_weightless("OFF"), ov::cache_mode("OPTIMIZE_SIZE")})),
+                         CheckWeightlessCacheAccuracy::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(smoke_CheckWeightlessCacheAccuracy,
                          CheckWeightlessCacheAccuracy,
