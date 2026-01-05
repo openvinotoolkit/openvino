@@ -28,6 +28,8 @@ public:
 
     ISection(const SectionID section_id);
 
+    virtual ~ISection() = default;
+
     virtual void write(std::ostream& stream, BlobWriter* writer) = 0;
 
     // note necessary, saves some performance if provided

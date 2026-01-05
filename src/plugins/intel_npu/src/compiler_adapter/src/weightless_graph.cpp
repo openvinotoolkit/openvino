@@ -200,8 +200,8 @@ std::vector<uint64_t> WeightlessGraph::export_init_blobs(std::ostream& stream) c
                                                                 : std::nullopt,
             stream,
             _wgLogger.level() >= ov::log::Level::INFO);
-        totalBlobSize += size;
-        initSizes.push_back(size);
+        totalBlobSize += sizeWithPadding;
+        initSizes.push_back(sizeWithPadding);
 
         if (hash.has_value()) {
             std::stringstream str;
@@ -224,6 +224,10 @@ std::vector<uint64_t> WeightlessGraph::export_init_blobs(std::ostream& stream) c
 
     _logger.info("Write blob to stream successfully.");
     return initSizes;
+}
+
+size_t WeightlessGraph::get_number_of_inits() const {
+    return _initsGraphDesc.size();
 }
 
 void WeightlessGraph::initialize(const Config& config) {

@@ -147,7 +147,7 @@ uint64_t Graph::export_main_blob(std::ostream& stream) const {
 
     _logger.info("Blob size with padding: %ld", sizeWithPadding);
     _logger.info("Write blob to stream successfully.");
-    return size;
+    return sizeWithPadding;
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData,

@@ -15,8 +15,6 @@ public:
 
     void write(std::ostream& stream, BlobWriter* writer) override;
 
-    std::optional<uint64_t> get_length() const override;
-
 private:
     std::shared_ptr<Graph> m_graph;
 };
@@ -26,8 +24,6 @@ public:
     ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph);
 
     void write(std::ostream& stream, BlobWriter* writer) override;
-
-    std::optional<uint64_t> get_length() const override;
 
 private:
     std::shared_ptr<WeightlessGraph> m_weightless_graph;

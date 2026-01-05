@@ -39,6 +39,8 @@ public:
      */
     std::vector<uint64_t> export_init_blobs(std::ostream& stream) const;
 
+    size_t get_number_of_inits() const;
+
     /**
      * @brief The same operations performed within "Graph::initialize", but for all handles. In addition to this, the
      * init schedules are run and the result of this is set as inputs to the main compiled model.
