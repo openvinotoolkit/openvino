@@ -674,13 +674,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
 
-    const auto set_cache_dir = localConfig.get<CACHE_DIR>();
-    if (!set_cache_dir.empty()) {
-        const auto compilerType = localConfig.get<COMPILER_TYPE>();
-        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
-        }
-    }
+    // const auto set_cache_dir = localConfig.get<CACHE_DIR>();
+    // if (!set_cache_dir.empty()) {
+    //     const auto compilerType = localConfig.get<COMPILER_TYPE>();
+    //     if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
+    //         OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
+    //     }
+    // }
 
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
