@@ -12,6 +12,7 @@
 
 #include "base_sync_infer_request.hpp"
 #include "host_flash_attention.hpp"
+#include "moe_infer_utils.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -181,42 +182,9 @@ protected:
     // HFA runtime context (holds cached masks, pre-allocated buffers, and state buffers)
     std::optional<runtime::host_flash_attention::HFARuntimeContext> m_hfa_runtime_ctx;
 
-    // MoE prefill performance statistics
-    struct MoEPrefillStats {
-        struct StepStats {
-            size_t count = 0;
-            double total_ms = 0.0;
-            double min_ms = std::numeric_limits<double>::max();
-            double max_ms = 0.0;
-        };
-
-        StepStats parse_router;          // Parse router output
-        StepStats unpack_closure;        // Unpack expert weights
-        StepStats gather_router_scores;  // Gather router scores for chunk
-        StepStats gather_expert_input;   // Gather expert inputs for chunk
-        StepStats expert_inference;      // Expert inference execution
-        StepStats relayout_output;       // Relayout expert output
-        StepStats total_per_expert;      // Total time per expert
-        StepStats total_prefill;         // Total prefill time
-    };
-    MoEPrefillStats m_moe_prefill_stats;
-
-    // MoE decoding performance statistics
-    struct MoEDecodingStats {
-        struct StepStats {
-            size_t count = 0;
-            double total_ms = 0.0;
-            double min_ms = std::numeric_limits<double>::max();
-            double max_ms = 0.0;
-        };
-
-        StepStats parse_router;      // Parse router output
-        StepStats unpack_closure;    // Unpack batch expert weights
-        StepStats set_router_input;  // Set router input tensor
-        StepStats expert_inference;  // Expert inference execution
-        StepStats total_decoding;    // Total decoding time
-    };
-    MoEDecodingStats m_moe_decoding_stats;
+    // MoE performance statistics using ov::npuw::moe::MoEProfile
+    std::optional<ov::npuw::moe::MoEProfile> m_moe_profile;
+    bool m_moe_profiling_enabled = false;
 
     // MoE routing maps (reused across inferences to avoid stack allocation)
     std::map<size_t, std::vector<size_t>> m_moe_token_to_experts;

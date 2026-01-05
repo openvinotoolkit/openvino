@@ -5,17 +5,13 @@
 #include "just_sync_infer_request.hpp"
 
 #include <algorithm>
-#include <chrono>
-#include <fstream>
 #include <memory>
-#include <sstream>
 #include <string>
 
 #include "compiled_model.hpp"
 #include "host_flash_attention.hpp"
 #include "infer_request_utils.hpp"  // to utilize copy_tensor_by_dim
 #include "logging.hpp"
-#include "moe_infer_utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -23,16 +19,18 @@
 #include "pyramid_attention.hpp"
 #include "weights_bank.hpp"
 
-namespace {
-// Helper function to record timing statistics
-template <typename StatsType>
-void record_time(StatsType& stats, double ms) {
-    stats.count++;
-    stats.total_ms += ms;
-    stats.min_ms = std::min(stats.min_ms, ms);
-    stats.max_ms = std::max(stats.max_ms, ms);
-}
-}  // namespace
+// MoE Profiling Macros - Zero-overhead profiling helpers
+// Only execute profiling when m_moe_profiling_enabled is true
+#define MOE_PROFILE_RECORD(profile_area, metric_name, code)         \
+    do {                                                            \
+        if (m_moe_profiling_enabled) {                              \
+            m_moe_profile->profile_area[metric_name].record([&]() { \
+                code;                                               \
+            });                                                     \
+        } else {                                                    \
+            code;                                                   \
+        }                                                           \
+    } while (0)
 
 ov::npuw::MemAccessSim::MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model) {
     LOG_VERB("Running memory access simulation...");
@@ -210,6 +208,10 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                                                             << ", expect a higher memory consumption");
         m_funcall_pipeline.resize(m_num_submodels);
     }
+
+    // Initialize MoE profiling based on configuration
+    m_moe_profiling_enabled = m_npuw_model->m_cfg.get<::intel_npu::NPUW_ENABLE_MOE_PROFILING>();
+    m_moe_profile.emplace(m_moe_profiling_enabled);
 
     m_spatial_io.resize(m_num_submodels);
     m_attention_io.resize(m_num_submodels);
@@ -496,97 +498,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     }
 }
 
-ov::npuw::JustInferRequest::~JustInferRequest() {
-    // Lambda to print statistics
-    auto print_step = [](const std::string& name, size_t count, double total_ms, double min_ms, double max_ms) {
-        if (count > 0) {
-            double avg_ms = total_ms / count;
-            std::cout << "  " << name << ":" << std::endl;
-            std::cout << "    Count: " << count << std::endl;
-            std::cout << "    Total: " << total_ms << " ms" << std::endl;
-            std::cout << "    Avg: " << avg_ms << " ms" << std::endl;
-            std::cout << "    Min: " << min_ms << " ms" << std::endl;
-            std::cout << "    Max: " << max_ms << " ms" << std::endl;
-        }
-    };
-
-    // Print MoE prefill performance statistics if any were collected
-    if (m_moe_prefill_stats.total_prefill.count > 0) {
-        std::cout << "========== MoE Prefill Performance Statistics ==========" << std::endl;
-        print_step("Parse Router Output",
-                   m_moe_prefill_stats.parse_router.count,
-                   m_moe_prefill_stats.parse_router.total_ms,
-                   m_moe_prefill_stats.parse_router.min_ms,
-                   m_moe_prefill_stats.parse_router.max_ms);
-        print_step("Unpack Expert Closure",
-                   m_moe_prefill_stats.unpack_closure.count,
-                   m_moe_prefill_stats.unpack_closure.total_ms,
-                   m_moe_prefill_stats.unpack_closure.min_ms,
-                   m_moe_prefill_stats.unpack_closure.max_ms);
-        print_step("Gather Router Scores",
-                   m_moe_prefill_stats.gather_router_scores.count,
-                   m_moe_prefill_stats.gather_router_scores.total_ms,
-                   m_moe_prefill_stats.gather_router_scores.min_ms,
-                   m_moe_prefill_stats.gather_router_scores.max_ms);
-        print_step("Gather Expert Input",
-                   m_moe_prefill_stats.gather_expert_input.count,
-                   m_moe_prefill_stats.gather_expert_input.total_ms,
-                   m_moe_prefill_stats.gather_expert_input.min_ms,
-                   m_moe_prefill_stats.gather_expert_input.max_ms);
-        print_step("Expert Inference",
-                   m_moe_prefill_stats.expert_inference.count,
-                   m_moe_prefill_stats.expert_inference.total_ms,
-                   m_moe_prefill_stats.expert_inference.min_ms,
-                   m_moe_prefill_stats.expert_inference.max_ms);
-        print_step("Relayout Output",
-                   m_moe_prefill_stats.relayout_output.count,
-                   m_moe_prefill_stats.relayout_output.total_ms,
-                   m_moe_prefill_stats.relayout_output.min_ms,
-                   m_moe_prefill_stats.relayout_output.max_ms);
-        print_step("Total Per Expert",
-                   m_moe_prefill_stats.total_per_expert.count,
-                   m_moe_prefill_stats.total_per_expert.total_ms,
-                   m_moe_prefill_stats.total_per_expert.min_ms,
-                   m_moe_prefill_stats.total_per_expert.max_ms);
-        print_step("Total Prefill",
-                   m_moe_prefill_stats.total_prefill.count,
-                   m_moe_prefill_stats.total_prefill.total_ms,
-                   m_moe_prefill_stats.total_prefill.min_ms,
-                   m_moe_prefill_stats.total_prefill.max_ms);
-        std::cout << "=========================================================" << std::endl;
-    }
-
-    // Print MoE decoding performance statistics if any were collected
-    if (m_moe_decoding_stats.total_decoding.count > 0) {
-        std::cout << "========== MoE Decoding Performance Statistics ==========" << std::endl;
-        print_step("Parse Router Output",
-                   m_moe_decoding_stats.parse_router.count,
-                   m_moe_decoding_stats.parse_router.total_ms,
-                   m_moe_decoding_stats.parse_router.min_ms,
-                   m_moe_decoding_stats.parse_router.max_ms);
-        print_step("Unpack Batch Closure",
-                   m_moe_decoding_stats.unpack_closure.count,
-                   m_moe_decoding_stats.unpack_closure.total_ms,
-                   m_moe_decoding_stats.unpack_closure.min_ms,
-                   m_moe_decoding_stats.unpack_closure.max_ms);
-        print_step("Set Router Input",
-                   m_moe_decoding_stats.set_router_input.count,
-                   m_moe_decoding_stats.set_router_input.total_ms,
-                   m_moe_decoding_stats.set_router_input.min_ms,
-                   m_moe_decoding_stats.set_router_input.max_ms);
-        print_step("Expert Inference",
-                   m_moe_decoding_stats.expert_inference.count,
-                   m_moe_decoding_stats.expert_inference.total_ms,
-                   m_moe_decoding_stats.expert_inference.min_ms,
-                   m_moe_decoding_stats.expert_inference.max_ms);
-        print_step("Total Decoding",
-                   m_moe_decoding_stats.total_decoding.count,
-                   m_moe_decoding_stats.total_decoding.total_ms,
-                   m_moe_decoding_stats.total_decoding.min_ms,
-                   m_moe_decoding_stats.total_decoding.max_ms);
-        std::cout << "=========================================================" << std::endl;
-    }
-}
+ov::npuw::JustInferRequest::~JustInferRequest() = default;
 
 void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                             const ov::SoPtr<ov::ITensor>& tensor) {
@@ -1984,19 +1896,23 @@ void ov::npuw::JustInferRequest::run_moe_infer(std::size_t real_idx, std::size_t
 
     // Parse router scores and populate routing maps
     // Note: parse_selected_experts_from_router() clears the maps internally before populating
-    auto parse_start = std::chrono::high_resolution_clock::now();
-    auto selected_experts = ov::npuw::moe::parse_selected_experts_from_router(m_moe_io[idx].router_scores,
-                                                                              num_experts,
-                                                                              m_moe_token_to_experts,
-                                                                              m_moe_expert_to_tokens);
-    auto parse_end = std::chrono::high_resolution_clock::now();
-    double parse_ms = std::chrono::duration<double, std::milli>(parse_end - parse_start).count();
-
-    // Record parse time for both prefill and decoding
+    std::vector<size_t> selected_experts;
     if (is_decoding) {
-        record_time(m_moe_decoding_stats.parse_router, parse_ms);
+        MOE_PROFILE_RECORD(
+            decoding,
+            "Parse Router Output",
+            selected_experts = ov::npuw::moe::parse_selected_experts_from_router(m_moe_io[idx].router_scores,
+                                                                                 num_experts,
+                                                                                 m_moe_token_to_experts,
+                                                                                 m_moe_expert_to_tokens));
     } else {
-        record_time(m_moe_prefill_stats.parse_router, parse_ms);
+        MOE_PROFILE_RECORD(
+            prefill,
+            "Parse Router Output",
+            selected_experts = ov::npuw::moe::parse_selected_experts_from_router(m_moe_io[idx].router_scores,
+                                                                                 num_experts,
+                                                                                 m_moe_token_to_experts,
+                                                                                 m_moe_expert_to_tokens));
     }
 
     if (selected_experts.empty()) {
@@ -2005,9 +1921,13 @@ void ov::npuw::JustInferRequest::run_moe_infer(std::size_t real_idx, std::size_t
 
     // Dispatch to appropriate inference function
     if (is_decoding) {
-        run_moe_batch_experts_inference(idx, real_idx, selected_experts);
+        MOE_PROFILE_RECORD(decoding,
+                           "Total Decoding",
+                           run_moe_batch_experts_inference(idx, real_idx, selected_experts));
     } else {
-        run_moe_iterative_experts_inference(idx, real_idx, selected_experts);
+        MOE_PROFILE_RECORD(prefill,
+                           "Total Prefill",
+                           run_moe_iterative_experts_inference(idx, real_idx, selected_experts));
     }
 
     LOG_DEBUG("========== MoE Expert Inference Completed ==========");
@@ -2094,7 +2014,6 @@ void ov::npuw::JustInferRequest::run_moe_batch_experts_inference(std::size_t idx
                                                                  std::size_t real_idx,
                                                                  const std::vector<size_t>& selected_experts) {
     LOG_DEBUG("\n[BATCH EXPERTS] Processing single token with " << selected_experts.size() << " experts in parallel");
-    auto batch_start = std::chrono::high_resolution_clock::now();
 
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     auto& r = m_subrequests[real_idx];
@@ -2107,32 +2026,13 @@ void ov::npuw::JustInferRequest::run_moe_batch_experts_inference(std::size_t idx
     }
 
     // Step 1: Unpack all K expert weights at once
-    auto step_start = std::chrono::high_resolution_clock::now();
-    unpack_multiple_experts_closure(idx, r, selected_experts);
-    auto step_end = std::chrono::high_resolution_clock::now();
-    record_time(m_moe_decoding_stats.unpack_closure,
-                std::chrono::duration<double, std::milli>(step_end - step_start).count());
+    MOE_PROFILE_RECORD(decoding, "Unpack Closure", unpack_multiple_experts_closure(idx, r, selected_experts));
 
     // Step 2: Set unrolled router scores for each expert
-    step_start = std::chrono::high_resolution_clock::now();
-    set_unrolled_router_scores(idx, real_idx, selected_experts);
-    step_end = std::chrono::high_resolution_clock::now();
-    record_time(m_moe_decoding_stats.set_router_input,
-                std::chrono::duration<double, std::milli>(step_end - step_start).count());
+    MOE_PROFILE_RECORD(decoding, "Set Router Input", set_unrolled_router_scores(idx, real_idx, selected_experts));
 
     // Step 3: Execute inference once for all K experts in parallel
-    step_start = std::chrono::high_resolution_clock::now();
-    r->infer();
-    step_end = std::chrono::high_resolution_clock::now();
-    record_time(m_moe_decoding_stats.expert_inference,
-                std::chrono::duration<double, std::milli>(step_end - step_start).count());
-
-    // Record total time
-    auto batch_end = std::chrono::high_resolution_clock::now();
-    double batch_total_ms = std::chrono::duration<double, std::milli>(batch_end - batch_start).count();
-    record_time(m_moe_decoding_stats.total_decoding, batch_total_ms);
-
-    LOG_DEBUG("[BATCH EXPERTS] Completed in " << batch_total_ms << " ms");
+    MOE_PROFILE_RECORD(decoding, "Expert Inference", r->infer());
 }
 
 // ====================================================================================================
@@ -2152,7 +2052,6 @@ void ov::npuw::JustInferRequest::run_moe_iterative_experts_inference(std::size_t
                                                                      std::size_t real_idx,
                                                                      const std::vector<size_t>& selected_experts) {
     LOG_DEBUG("\n[ITERATIVE EXPERTS] Processing multiple tokens by iterating through experts");
-    auto iterative_start = std::chrono::high_resolution_clock::now();
 
     // Get references
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
@@ -2180,7 +2079,6 @@ void ov::npuw::JustInferRequest::run_moe_iterative_experts_inference(std::size_t
     // Process each expert sequentially
     for (size_t expert_id : selected_experts) {
         LOG_DEBUG("\n  Processing Expert[" << expert_id << "]...");
-        auto expert_start = std::chrono::high_resolution_clock::now();
 
         // Get tokens assigned to this expert
         const auto& tokens_for_expert = m_moe_expert_to_tokens.at(expert_id);
@@ -2267,76 +2165,51 @@ void ov::npuw::JustInferRequest::run_moe_iterative_experts_inference(std::size_t
             // Important: last_chunk_size is reset to 0 at the start of each expert loop,
             // so the first chunk of a new expert will always trigger unpacking (0 != selected_chunk_size)
             if (selected_chunk_size != last_chunk_size) {
-                auto step_start = std::chrono::high_resolution_clock::now();
-                unpack_single_expert_closure(idx, selected_infer_request, expert_id);
-                auto step_end = std::chrono::high_resolution_clock::now();
-                record_time(m_moe_prefill_stats.unpack_closure,
-                            std::chrono::duration<double, std::milli>(step_end - step_start).count());
+                MOE_PROFILE_RECORD(prefill,
+                                   "Unpack Closure",
+                                   unpack_single_expert_closure(idx, selected_infer_request, expert_id));
                 last_chunk_size = selected_chunk_size;
             }
 
             // Step 2: Gather router scores for this chunk
-            auto step_start = std::chrono::high_resolution_clock::now();
-            ov::npuw::moe::gather_router_scores(router_source,
-                                                selected_router_dest,
-                                                expert_id,
-                                                tokens_for_expert,
-                                                processed_tokens,
-                                                current_chunk_size);
-            auto step_end = std::chrono::high_resolution_clock::now();
-            record_time(m_moe_prefill_stats.gather_router_scores,
-                        std::chrono::duration<double, std::milli>(step_end - step_start).count());
+            MOE_PROFILE_RECORD(prefill,
+                               "Gather Router Scores",
+                               ov::npuw::moe::gather_router_scores(router_source,
+                                                                   selected_router_dest,
+                                                                   expert_id,
+                                                                   tokens_for_expert,
+                                                                   processed_tokens,
+                                                                   current_chunk_size));
 
             // Step 3: Gather expert inputs for this chunk
-            step_start = std::chrono::high_resolution_clock::now();
-            ov::npuw::moe::gather_expert_inputs(expert_input_source,
-                                                selected_expert_input_dest,
-                                                tokens_for_expert,
-                                                processed_tokens,
-                                                current_chunk_size);
-            step_end = std::chrono::high_resolution_clock::now();
-            record_time(m_moe_prefill_stats.gather_expert_input,
-                        std::chrono::duration<double, std::milli>(step_end - step_start).count());
+            MOE_PROFILE_RECORD(prefill,
+                               "Gather Expert Input",
+                               ov::npuw::moe::gather_expert_inputs(expert_input_source,
+                                                                   selected_expert_input_dest,
+                                                                   tokens_for_expert,
+                                                                   processed_tokens,
+                                                                   current_chunk_size));
 
             // Step 4: Execute expert inference
-            step_start = std::chrono::high_resolution_clock::now();
-            selected_infer_request->infer();
-            step_end = std::chrono::high_resolution_clock::now();
-            record_time(m_moe_prefill_stats.expert_inference,
-                        std::chrono::duration<double, std::milli>(step_end - step_start).count());
+            MOE_PROFILE_RECORD(prefill, "Expert Inference", selected_infer_request->infer());
 
             // Step 5: Scatter expert outputs back to global buffer
-            step_start = std::chrono::high_resolution_clock::now();
-            ov::npuw::moe::scatter_expert_outputs(selected_expert_output,
-                                                  m_moe_output_buffer,
-                                                  tokens_for_expert,
-                                                  processed_tokens,
-                                                  current_chunk_size,
-                                                  embed_dim,
-                                                  input_token_count,
-                                                  expert_slots_for_tokens);
-            step_end = std::chrono::high_resolution_clock::now();
-            record_time(m_moe_prefill_stats.relayout_output,
-                        std::chrono::duration<double, std::milli>(step_end - step_start).count());
+            MOE_PROFILE_RECORD(prefill,
+                               "Scatter Output",
+                               ov::npuw::moe::scatter_expert_outputs(selected_expert_output,
+                                                                     m_moe_output_buffer,
+                                                                     tokens_for_expert,
+                                                                     processed_tokens,
+                                                                     current_chunk_size,
+                                                                     embed_dim,
+                                                                     input_token_count,
+                                                                     expert_slots_for_tokens));
 
             // Move to next chunk
             processed_tokens += current_chunk_size;
         }
-
-        // Record expert completion time
-        auto expert_end = std::chrono::high_resolution_clock::now();
-        record_time(m_moe_prefill_stats.total_per_expert,
-                    std::chrono::duration<double, std::milli>(expert_end - expert_start).count());
         LOG_DEBUG("    Expert[" << expert_id << "] completed");
     }
-
-    // Record total iterative processing time
-    auto iterative_end = std::chrono::high_resolution_clock::now();
-    double iterative_total_ms = std::chrono::duration<double, std::milli>(iterative_end - iterative_start).count();
-    record_time(m_moe_prefill_stats.total_prefill, iterative_total_ms);
-
-    LOG_DEBUG("[ITERATIVE EXPERTS] Completed all " << selected_experts.size() << " experts in " << iterative_total_ms
-                                                   << " ms");
 }
 
 void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared) {
