@@ -6,6 +6,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/parameter.hpp"
@@ -339,6 +340,7 @@ TEST(VariablesTest, smoke_padded_tensor_set_get_state_with_convert) {
 }
 
 TEST(TensorTest, smoke_outputTensorShapesForDynamicInput) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto core = ov::Core();
     using namespace ov::preprocess;
     auto p = PrePostProcessor(ov::test::utils::make_split_multi_conv_concat());
