@@ -235,26 +235,6 @@ struct MoEExperts {
         return _param_mapping;
     }
 
-    // Log MoE expert information for debugging
-    void log_info() const {
-        std::cout << "MoE Expert Information:" << std::endl;
-        std::cout << "  Mode: " << (is_single_expert() ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS") << std::endl;
-        std::cout << "  Number of experts: " << _num_experts << std::endl;
-        std::cout << "  Number of active experts: " << _num_active_experts << std::endl;
-        std::cout << "  Expert hidden dimension: " << _expert_hidden_dim << std::endl;
-        std::cout << "  Input token count: " << _input_token_count << std::endl;
-
-        if (is_active_experts()) {
-            std::cout << "  Decoding mode: no chunking" << std::endl;
-        } else {
-            std::cout << "  Prefill mode - Available chunk sizes: ";
-            for (const auto& entry : _transformed_models) {
-                std::cout << entry.first << " ";
-            }
-            std::cout << std::endl;
-        }
-    }
-
     // Factory method to create MoEExperts from a model (for expert pattern only)
     // router_model: Router model to extract actual K from TopK node (required)
     // chunk_size: Token chunk size for prefill processing (default: 128)
