@@ -5,10 +5,7 @@
 #include "moe.hpp"
 
 #include "../../logging.hpp"
-#include "../online/group.hpp"     // online::Group
-#include "../online/snapshot.hpp"  // online::Snapshot
 #include "openvino/op/ops.hpp"
-#include "openvino/pass/pattern/op/label.hpp"  // any_input
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 

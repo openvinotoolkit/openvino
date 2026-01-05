@@ -7,15 +7,13 @@
 #include <memory>
 #include <string>
 
+#include "../online/group.hpp"     // online::Group
+#include "../online/snapshot.hpp"  // online::Snapshot
 #include "openvino/openvino.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace npuw {
-
-namespace online {
-class Snapshot;  // Forward declaration
-}  // namespace online
 
 namespace patterns {
 namespace moe {

@@ -498,8 +498,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     }
 }
 
-ov::npuw::JustInferRequest::~JustInferRequest() = default;
-
 void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                             const ov::SoPtr<ov::ITensor>& tensor) {
     std::unique_lock lock(m_io_storages_mutex);
