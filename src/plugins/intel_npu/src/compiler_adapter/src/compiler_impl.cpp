@@ -353,7 +353,7 @@ struct vcl_allocator_malloc {
 };
 
 NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
-    _logger.debug("[DEBUG MESSAGE] compile start");
+    _logger.debug("compile start");
 
     /// Check the linked vcl version whether supported in plugin
     UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
