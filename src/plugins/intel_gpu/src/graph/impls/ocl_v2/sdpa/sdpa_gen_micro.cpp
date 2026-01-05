@@ -870,10 +870,10 @@ void SDPAMicroGenerator::init_sdpa_configuration(const kernel_impl_params& impl_
 }
 
 KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params) const {
-    std::vector<micro::Package> gemms(3);  // KQ, VS and V0S (original V x S)
+    std::vector<micro::Package> gemms(4);  // KQ, VS, K0Q and V0S
     sdpa_configuration sdpa_config;
     init_sdpa_configuration(params, sdpa_config);
-    init_microkernels(params, sdpa_config, gemms[kq_id], gemms[vs_id], gemms[v0s_id], m_is_prefill, m_is_gqa_single_token);
+    init_microkernels(params, sdpa_config, gemms[kq_id], gemms[vs_id], gemms[k0q_id], gemms[v0s_id], m_is_prefill, m_is_gqa_single_token);
 
     const auto& device_info = params.get_device_info();
     auto jit = get_jit_constants(params, gemms[kq_id], gemms[vs_id]);
@@ -910,6 +910,10 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
     shim_options.microkernelID++;
     shim_options.decorator = "v0s";
     kd.code->jit += generateShim(gemms[v0s_id], micro::HostLanguage::OpenCL_C, shim_options);
+
+    shim_options.microkernelID++;
+    shim_options.decorator = "k0q";
+    kd.code->jit += generateShim(gemms[k0q_id], micro::HostLanguage::OpenCL_C, shim_options);
 
     if (gemms[kq_id].grfMin > 128 || gemms[vs_id].grfMin > 128) {
         kd.code->options += " -cl-intel-256-GRF-per-thread";
@@ -1257,6 +1261,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
             args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // Key cache
             args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // Q
             args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // Value cache
+            args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // Key
             args.push_back({ArgumentDescriptor::Types::INPUT, 2});  // Value
         }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // A
@@ -1388,6 +1393,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                            const sdpa_configuration& configuration,
                                            micro::Package& gemm_kq,
                                            micro::Package& gemm_vs,
+                                           micro::Package& gemm_k0q,
                                            micro::Package& gemm_v0s,
                                            bool is_prefill,
                                            bool is_gqa_single_token) {
@@ -1399,7 +1405,6 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const auto& Q = params.input_layouts[0];
     const auto& K = (is_paged_attention && !is_prefill) ? params.input_layouts[3] : params.input_layouts[1];
     const auto& V = (is_paged_attention && !is_prefill) ? params.input_layouts[4] : params.input_layouts[2];
-    const auto& V0 = params.input_layouts[2];
     auto& out = params.output_layouts[0];
     const auto& out_ps = out.get_partial_shape();
     const auto& device_info = params.get_device_info();
@@ -1586,6 +1591,31 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         throw;
     }
 
+    /* Update for optional third GEMM: K0*Q */
+    opts_kq.scaleA = false;
+    opts_kq.offsetA = false;
+
+    auto problem_k0q = problem;
+    problem_k0q.Ta_ext = convert_type(Q.data_type);
+    problem_k0q.A.layout = micro::MatrixLayout::T;
+    problem_k0q.B.layout = micro::MatrixLayout::Pr;
+    problem_k0q.C.layout = micro::MatrixLayout::T;
+    problem_k0q.A.setAlignment(micro::alignment_for_ld(k_head_size * problem.Ta));
+    problem_k0q.B.setAlignment(64);  // Q is packed in VNNI format in SLM
+    problem_k0q.B.crosspack = 2;
+    problem_k0q.B.tileR = static_cast<uint16_t>(d_max);
+    problem_k0q.B.tileC = static_cast<uint16_t>(get_subgroup_size(device_info.arch));
+
+    GPU_DEBUG_TRACE_DETAIL << "k0q: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
+
+    /* Ask microkernel provider for microkernel */
+    try {
+        gemm_k0q = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_k0q, reqs_kq);
+    } catch (const std::runtime_error& ex) {
+        GPU_DEBUG_TRACE_DETAIL << "Can't create K0Q sdpa_micro kernel: " << ex.what() << "\n";
+        throw;
+    }
+
     /* Set up microkernel options */
     micro::GEMMProtocol::Options opts_vs;
     opts_vs.localB = true;
@@ -1681,7 +1711,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     opts_vs.offsetA = false;
 
     auto problem_v0s = problem;
-    problem_v0s.Ta_ext = convert_type(V0.data_type);
+    problem_v0s.Ta_ext = convert_type(Q.data_type);
     problem_v0s.A.layout = micro::MatrixLayout::N;
 
     problem_v0s.B.layout = micro::MatrixLayout::Pr;
@@ -1699,7 +1729,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     try {
         gemm_v0s = micro::select_gemm_microkernel(opts_vs, hw_info, sizes, problem_v0s, reqs_vs, adjust_vs);
     } catch (const std::runtime_error& ex) {
-        GPU_DEBUG_TRACE_DETAIL << "Can't create VS sdpa_micro kernel: " << ex.what() << "\n";
+        GPU_DEBUG_TRACE_DETAIL << "Can't create V0S sdpa_micro kernel: " << ex.what() << "\n";
         throw;
     }
 }

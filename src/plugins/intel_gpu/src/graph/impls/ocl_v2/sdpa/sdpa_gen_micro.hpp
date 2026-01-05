@@ -53,6 +53,7 @@ private:
                                   const sdpa_configuration& sdpa_config,
                                   micro::Package& gemm_kq,
                                   micro::Package& gemm_vs,
+                                  micro::Package& gemm_k0q,
                                   micro::Package& gemm_v0s,
                                   bool is_prefill,
                                   bool is_gqa_single_token);
@@ -64,7 +65,8 @@ private:
 
     static constexpr size_t kq_id = 0;
     static constexpr size_t vs_id = 1;
-    static constexpr size_t v0s_id = 2;
+    static constexpr size_t k0q_id = 2;
+    static constexpr size_t v0s_id = 3;
     static constexpr size_t prefill_id = 0;
     static constexpr size_t generate_id = 1;
 

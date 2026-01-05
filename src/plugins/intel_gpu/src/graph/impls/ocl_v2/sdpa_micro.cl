@@ -33,7 +33,6 @@
 /* Instantiate tile types and operations */
 typedef ugemm_kq_c_type s_tile_type;
 typedef ugemm_vs_c_type a_tile_type;
-typedef ugemm_v0s_c_type a_tile_type;
 
 DECLARE_2D_TILE(q_tile_type, uint, SUBGROUP_SIZE, D_MAX / 2, 1, 1, q_tile_sg_n)
 
@@ -144,6 +143,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         const global QRY_DATA_T *Q,
         const global VAL_DATA_T *V,
 #if IS_PAGED_ATTENTION && !IS_PREFILL
+        const global QRY_DATA_T *KO,
         const global QRY_DATA_T *V0,
 #endif
         global half *A,
@@ -223,6 +223,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #else
         uint ldk = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         uint ldv = HEAD_SIZE;
+        uint ldk0 = HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
         uint ldv0 = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
         #if IS_KV_COMPRESSED_PA
             #if IS_KEY_BY_CHANNEL
@@ -300,6 +301,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         K += b0_kv * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         V += b0_kv * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+        KO += subsequence_begin * ldk0
+            + b0_kv * HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
         V0 += subsequence_begin * ldv0
             + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
     #endif
@@ -503,25 +506,40 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         /* Calculate S = (K^T) * Q */
 #if IS_PAGED_ATTENTION && IS_PREFILL == 0
-        int k_block_num = k0 / PAGED_ATTENTION_BLOCK_SIZE + sg_i_kq;
-        global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
-                               - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
-        #if IS_KV_COMPRESSED_PA
-            #if IS_KEY_BY_CHANNEL
-                global KEY_DATA_T *K0_scales = K0 + PAGED_ATTENTION_BLOCK_SIZE * (sg_i_kq + 1);
-                global KEY_DATA_T *K0_zp = K0_scales + 2;
-            #else
-                global KEY_DATA_T *K0_scales = K0 + PAGED_ATTENTION_BLOCK_SIZE * (HEAD_SIZE - sg_i_kq);
-                global KEY_DATA_T *K0_zp = K0_scales + 2 * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
-            #endif
-        #endif
+        s_tile_type S_tile;
+        tile_fill(S_tile, 0.0f);
 
-        s_tile_type S_tile
-                = ugemm_kq(K0, ldk, Q_slm, D_MAX, k_chunk, ugemm_kq_wg_tile_n, d, 0,
-                        0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
-        #if IS_KV_COMPRESSED_PA
-                        , (global half *)K0_scales, (global half *)K0_zp, ldkq
-        #endif
+        for (; k0 < past_lens[gws_mapping]; )
+        {
+            int k_block_num = k0 / PAGED_ATTENTION_BLOCK_SIZE + sg_i_kq;
+            global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
+                                - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
+            #if IS_KV_COMPRESSED_PA
+                #if IS_KEY_BY_CHANNEL
+                    global KEY_DATA_T *K0_scales = K0 + PAGED_ATTENTION_BLOCK_SIZE * (sg_i_kq + 1);
+                    global KEY_DATA_T *K0_zp = K0_scales + 2;
+                #else
+                    global KEY_DATA_T *K0_scales = K0 + PAGED_ATTENTION_BLOCK_SIZE * (HEAD_SIZE - sg_i_kq);
+                    global KEY_DATA_T *K0_zp = K0_scales + 2 * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+                #endif
+            #endif
+
+            s_tile_type S_tile1 = ugemm_kq(K0, ldk, Q_slm, D_MAX, k_chunk, ugemm_kq_wg_tile_n, d, 0,
+                           0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
+            #if IS_KV_COMPRESSED_PA
+                           , (global half *)K0_scales, (global half *)K0_zp, ldkq
+            #endif
+                    );
+            tile_binary(S_tile, S_tile1, binary_add);
+            break;
+        }
+
+        for (; k0 >= past_lens[gws_mapping]; ) {
+            s_tile_type S_tile1 = ugemm_k0q(KO, ldk0, Q_slm, D_MAX, (k - past_lens[gws_mapping]), ugemm_kq_wg_tile_n, d, (k0 - past_lens[gws_mapping]),
+                        0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm);
+            tile_binary(S_tile, S_tile1, binary_add);
+            break;
+        }
 #else
         s_tile_type S_tile
                 = ugemm_kq(K, ldk, Q_slm, D_MAX, k, ugemm_kq_wg_tile_n, d, k0,
@@ -538,8 +556,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                         ,
                         ldkq
         #endif
-#endif
                 );
+#endif
 
 #if KEY_SCALES == QUANTIZE_COMMON
 #define k_scale_op(x) ((x)*k_scale)
