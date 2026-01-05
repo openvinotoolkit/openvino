@@ -133,7 +133,7 @@ TEST_F(CoreTests_get_plugin_path_Class, Filename_is_from_workdir_if_exists) {
 
 TEST(CoreTests_get_plugin_path, Use_filename_as_is_if_not_exist_in_workdir) {
     auto lib_name = "test_name.ext";
-    auto abs_path = ov::util::get_plugin_path(lib_name);  // libtest_name.ext.so -> libtest_name.ext.so
+    auto abs_path = ov::util::get_plugin_path(lib_name);  // test_name.ext -> libtest_name.ext.so
     EXPECT_FALSE(abs_path.is_absolute());
 
     auto ref_path = ov::util::make_plugin_library_name(lib_name);
