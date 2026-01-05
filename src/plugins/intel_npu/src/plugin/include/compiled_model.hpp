@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -28,13 +29,15 @@ public:
      * @param profiling Flag indicating if profiling was requested. Setting this to "true" will lead to storing the
      * "compiler" parameter inside the newly created "CompiledModel".
      * @param config Custom configuration object
+     * TODO
      */
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
                   const FilteredConfig& config,
-                  const std::optional<int64_t>& batchSize);
+                  const std::optional<int64_t>& batchSize,
+                  const std::shared_ptr<BlobWriter>& blobWriter);
 
     CompiledModel(const CompiledModel&) = delete;
 
@@ -69,8 +72,9 @@ private:
     std::unique_ptr<Properties> _properties;
 
     std::shared_ptr<IGraph> _graph;
-
     std::optional<int64_t> _batchSize;
+
+    std::shared_ptr<BlobWriter> _blobWriter;
 };
 
 }  //  namespace intel_npu

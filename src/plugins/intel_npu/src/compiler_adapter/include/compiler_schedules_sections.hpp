@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "isection.hpp"
+#include "intel_npu/common/isection.hpp"
 #include "weightless_graph.hpp"
 
 namespace intel_npu {

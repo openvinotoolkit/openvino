@@ -818,7 +818,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     auto compileWithConfig = [&](const auto& modelToCompile, const auto& config, const auto& blobWriter) {
         if (!localConfig.get<WEIGHTLESS_BLOB>()) {
-            return compiler->compile(modelToCompile, config);
+            return compiler->compile(modelToCompile, config, blobWriter);
         } else {
             check_weightless_cache_attribute_occurrence(model);
             return compiler->compileWS(modelToCompile, config, blobWriter);
@@ -861,7 +861,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig, batch);
+        compiledModel =
+            std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig, batch, blobWriter);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -1090,6 +1091,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                                                   const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
 
+    // TODO blobwriter in the parse flow
+    auto blobWriter = std::make_shared<BlobWriter>();
+
     auto npu_plugin_properties = properties;
 
     // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
@@ -1208,7 +1212,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
 
-    return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, batchSize);
+    return std::make_shared<CompiledModel>(modelDummy,
+                                           shared_from_this(),
+                                           device,
+                                           graph,
+                                           localConfig,
+                                           batchSize,
+                                           blobWriter);
 }
 
 void Plugin::register_capability(const CRE::Token capability_id) {

@@ -11,6 +11,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
+#include "io_layouts_section.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -27,13 +28,15 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
                              const FilteredConfig& config,
-                             const std::optional<int64_t>& batchSize)
+                             const std::optional<int64_t>& batchSize,
+                             const std::shared_ptr<BlobWriter>& blobWriter)
     : ICompiledModel(model, plugin),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
-      _batchSize(batchSize) {
+      _batchSize(batchSize),
+      _blobWriter(blobWriter) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
@@ -41,6 +44,27 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     _properties->registerProperties();
 
     configure_stream_executors();
+
+    OV_ITT_TASK_CHAIN(COMPILED_MODEL,
+                      itt::domains::NPUPlugin,
+                      "CompiledModel::CompiledModel",
+                      "register the IOLayoutsSection");
+    // TODO more logs, more ITT traces
+
+    std::vector<ov::Layout> inputLayouts;
+    std::vector<ov::Layout> outputLayouts;
+
+    for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+        inputLayouts.push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
+    for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+        outputLayouts.push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
+
+    _blobWriter->register_section(
+        std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts)));
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
@@ -89,29 +113,10 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
+    // TODO what should _config.get<EXPORT_RAW_BLOB>() do now?
+    // TODO batching section & CRE token
 
-    if (!_config.get<EXPORT_RAW_BLOB>()) {
-        std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
-        std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
-
-        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
-            inputLayouts->push_back(
-                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
-        }
-        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
-            outputLayouts->push_back(
-                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
-        }
-
-        Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
-                                           CURRENT_OPENVINO_VERSION,
-                                           std::move(initBlobSizes),
-                                           _batchSize,
-                                           std::move(inputLayouts),
-                                           std::move(outputLayouts))
-            .write(stream);
-    }
+    _blobWriter->write(stream);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
