@@ -22,7 +22,6 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
     using parent::parent;
     static constexpr int COMMON = 0;
     static constexpr int PER_OC = 2;
-    static constexpr int GROUPED = 3;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::fully_connected_onednn)
 
@@ -30,11 +29,6 @@ private:
     int _ds_group_size;
     dnnl::memory::data_type _ds_data_type;
     dnnl::memory::data_type _dzp_data_type;
-
-    static int get_grouped_mask(size_t shift_size) {
-        uint32_t mask = ((1 << shift_size) - 1) << 2;
-        return GROUPED | mask;
-    }
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -273,7 +267,7 @@ public:
         auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
         int idx = !arg.bias_term() ? 1 : 2;
         int per_oc = PER_OC << shift_size;
-        int grouped = get_grouped_mask(shift_size);
+        int grouped = (1 << prim->input_size) - 1;
 
         bool has_decompression_scale = prim->decompression_scale.is_valid();
         if (has_decompression_scale) {
@@ -371,8 +365,7 @@ public:
             OPENVINO_ASSERT(weight_rank <= 3, "Currently only weights with equal to or less than 3D is supported");
             auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
             int per_oc = PER_OC << shift_size;
-            int grouped = get_grouped_mask(shift_size);
-
+            int grouped = (1 << prim->input_size) - 1;
 
             if (prim->decompression_scale.is_valid()) {
                 auto decompression_scale_idx = ++idx;
