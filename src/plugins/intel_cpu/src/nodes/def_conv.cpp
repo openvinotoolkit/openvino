@@ -1283,7 +1283,10 @@ void DeformableConvolution::prepareParams() {
     }
     descVector.push_back(getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>());
 
-    DefConvKey key = {descVector, defConvAttr, getSelectedPrimitiveDescriptor()->getImplementationType(), context->getCpuParallel()};
+    DefConvKey key = {descVector,
+                      defConvAttr,
+                      getSelectedPrimitiveDescriptor()->getImplementationType(),
+                      context->getCpuParallel()};
 
     const int MB = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims()[0];
     const int OH = getChildEdgeAt(0)->getMemory().getStaticDims()[2];
