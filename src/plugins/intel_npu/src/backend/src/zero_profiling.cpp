@@ -111,7 +111,8 @@ void ProfilingQuery::verifyProfilingProperties() const {
         return std::to_string(ZE_MAJOR_VERSION(version)) + "." + std::to_string(ZE_MINOR_VERSION(version));
     };
 
-    ze_device_profiling_data_properties_t profProp;
+    ze_device_profiling_data_properties_t profProp = {};
+    profProp.stype = ZE_STRUCTURE_TYPE_DEVICE_PROFILING_DATA_PROPERTIES;
     getProfilingProperties(&profProp);
     const auto currentProfilingVersion = ze_profiling_data_ext_version_t::ZE_PROFILING_DATA_EXT_VERSION_CURRENT;
 

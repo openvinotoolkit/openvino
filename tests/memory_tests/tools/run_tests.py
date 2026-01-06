@@ -188,8 +188,7 @@ class TestSession:
                 "device": result.get("device") or device,
                 "framework": framework,
                 "precision": precision,
-                "metrics": sample.as_dict(),
-                "ref_metrics": (refsamples.get(sname) or sample).as_dict()
+                "metrics": sample.as_dict()
             })
             test_report.append(sample_report)
         response = attempt(self.api, "v1/memory/push-2-db-facade", {"data": test_report})
