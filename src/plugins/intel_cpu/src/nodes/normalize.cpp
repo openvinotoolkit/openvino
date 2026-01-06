@@ -1627,7 +1627,10 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
 #endif
     }
     if (attrs.layout == LayoutType::ncsp) {
-        return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims, parallel);
+        return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs,
+                                                                                     kernel_attrs,
+                                                                                     dims,
+                                                                                     parallel);
     }
     OPENVINO_THROW("'NormalizeL2' cannot create Executor");
 }

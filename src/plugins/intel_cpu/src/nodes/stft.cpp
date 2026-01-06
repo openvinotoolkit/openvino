@@ -100,19 +100,19 @@ void transpose_out4d(const uint8_t* in,
                      size_t elem_size,
                      const std::shared_ptr<CpuParallel> cpu_parallel) {
     const std::vector<size_t> axes_order{0, 2, 1, 3};
-    cpu_parallel->parallel_for3d(out_shape[0],
-                   out_shape[1],
-                   out_shape[2],
-                   [in, out, axes_order, &in_shape, &out_shape, elem_size](size_t i, size_t j, size_t k) {
-                       size_t in_indexes[3];
-                       in_indexes[axes_order[0]] = i;
-                       in_indexes[axes_order[1]] = j;
-                       in_indexes[axes_order[2]] = k;
-                       size_t in_off =
-                           ((in_indexes[0] * in_shape[1] + in_indexes[1]) * in_shape[2] + in_indexes[2]) * in_shape[3];
-                       size_t out_off = ((i * out_shape[1] + j) * out_shape[2] + k) * out_shape[3];
-                       cpu_memcpy(out + out_off * elem_size, in + in_off * elem_size, out_shape[3] * elem_size);
-                   });
+    cpu_parallel->parallel_for3d(
+        out_shape[0],
+        out_shape[1],
+        out_shape[2],
+        [in, out, axes_order, &in_shape, &out_shape, elem_size](size_t i, size_t j, size_t k) {
+            size_t in_indexes[3];
+            in_indexes[axes_order[0]] = i;
+            in_indexes[axes_order[1]] = j;
+            in_indexes[axes_order[2]] = k;
+            size_t in_off = ((in_indexes[0] * in_shape[1] + in_indexes[1]) * in_shape[2] + in_indexes[2]) * in_shape[3];
+            size_t out_off = ((i * out_shape[1] + j) * out_shape[2] + k) * out_shape[3];
+            cpu_memcpy(out + out_off * elem_size, in + in_off * elem_size, out_shape[3] * elem_size);
+        });
 }
 }  // namespace
 

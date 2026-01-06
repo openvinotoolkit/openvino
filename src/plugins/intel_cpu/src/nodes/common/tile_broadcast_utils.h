@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "cpu_memory.h"
-#include "cpu_types.h"
 #include "cpu_parallel.hpp"
+#include "cpu_types.h"
 
 namespace ov::intel_cpu {
 

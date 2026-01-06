@@ -135,6 +135,7 @@ private:
                                                                            const dnnl::primitive_attr& kernel_attr,
                                                                            const VectorDims& dims,
                                                                            const std::shared_ptr<CpuParallel> parallel);
+
     protected:
         [[nodiscard]] static float epsApply(const float& modulo, const NormEpsMode mode, const float eps) {
             return mode == NormEpsMode::ADD ? modulo + eps : std::max(modulo, eps);
@@ -161,7 +162,10 @@ private:
             using dst_t = typename std::tuple_element<1, T>::type;
 
             void operator()(NormalizeContext& ctx) {
-                ctx.executor = NormalizeL2Executor::makeExecutor<src_t, dst_t>(ctx.attrs, ctx.kernel_attrs, ctx.dims, ctx.cpu_parallel);
+                ctx.executor = NormalizeL2Executor::makeExecutor<src_t, dst_t>(ctx.attrs,
+                                                                               ctx.kernel_attrs,
+                                                                               ctx.dims,
+                                                                               ctx.cpu_parallel);
             }
         };
     };

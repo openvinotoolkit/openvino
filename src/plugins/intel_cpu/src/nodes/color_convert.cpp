@@ -559,8 +559,7 @@ const jit_uni_converter& jit_converter_get() {
 template <typename T>
 class SinglePlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    explicit SinglePlaneConvert(Node* node, const std::shared_ptr<CpuParallel> parallel)
-        : Converter(node, parallel) {
+    explicit SinglePlaneConvert(Node* node, const std::shared_ptr<CpuParallel> parallel) : Converter(node, parallel) {
         jit_converter_create<T>();
     }
 
@@ -596,8 +595,7 @@ public:
 template <typename T>
 class TwoPlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    explicit TwoPlaneConvert(Node* node, const std::shared_ptr<CpuParallel> parallel)
-        : Converter(node, parallel) {
+    explicit TwoPlaneConvert(Node* node, const std::shared_ptr<CpuParallel> parallel) : Converter(node, parallel) {
         jit_converter_create<T>();
     }
 
@@ -1001,7 +999,7 @@ bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
 
 ColorConvert::ColorConvert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, ColorConvertShapeInferFactory(op)),
-    _cpuParallel(context->getCpuParallel()) {
+      _cpuParallel(context->getCpuParallel()) {
     std::string errorMessage;
     std::tie(algorithm, errorMessage) = getAlgorithmFor(op);
     if (algorithm == Algorithm::Default) {
@@ -1045,8 +1043,8 @@ void ColorConvert::initSupportedPrimitiveDescriptors() {
 }
 
 void ColorConvert::initSupportedNV12Impls() {
-#define SUPPORTED_IMPL(Impl, type, desc_type)                         \
-    [](Node* node, const std::shared_ptr<CpuParallel> cpu_parallel) {                                                  \
+#define SUPPORTED_IMPL(Impl, type, desc_type)                                       \
+    [](Node* node, const std::shared_ptr<CpuParallel> cpu_parallel) {               \
         return new nv12::Impl<type, impl_desc_type::desc_type>(node, cpu_parallel); \
     };
 
@@ -1073,8 +1071,8 @@ void ColorConvert::initSupportedNV12Impls() {
 }
 
 void ColorConvert::initSupportedI420Impls() {
-#define SUPPORTED_IMPL(Impl, type, desc_type)                         \
-    [](Node* node, const std::shared_ptr<CpuParallel> cpu_parallel) {                                                  \
+#define SUPPORTED_IMPL(Impl, type, desc_type)                                       \
+    [](Node* node, const std::shared_ptr<CpuParallel> cpu_parallel) {               \
         return new i420::Impl<type, impl_desc_type::desc_type>(node, cpu_parallel); \
     };
 
@@ -1109,8 +1107,10 @@ void ColorConvert::createPrimitive() {
         const auto precision = cfg.inConfs[0].getMemDesc()->getPrecision();
         const bool isSinglePlane = cfg.inConfs.size() == 1;
 
-        _impl = std::unique_ptr<Converter>(
-            _supportedImpls.at(desc->getImplementationType()).at(algorithm).at(precision).at(isSinglePlane)(this, _cpuParallel));
+        _impl = std::unique_ptr<Converter>(_supportedImpls.at(desc->getImplementationType())
+                                               .at(algorithm)
+                                               .at(precision)
+                                               .at(isSinglePlane)(this, _cpuParallel));
     }
 }
 

@@ -543,33 +543,37 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
         if (interpAttrs.layout == InterpolateLayoutType::planar) {
             srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
             auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
-            cpuParallel->parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
-                const uint8_t* src = src_data_origin + (inShapeBlock[1] * n + inShapeBlock[2] * c +
-                                                        inShapeBlock[3] * d + inShapeBlock[4] * h) *
-                                                           srcDataSize;
-                uint8_t* srcPad =
-                    src_data_pad + (inShapePadBlock[1] * (n + padB0) + inShapePadBlock[2] * (c + padB1) +
-                                    inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) + padB4) *
-                                       srcDataSize;
-                cpu_memcpy(srcPad, src, srcDim5d[4] * srcDataSize);
-            });
+            cpuParallel
+                ->parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
+                    const uint8_t* src = src_data_origin + (inShapeBlock[1] * n + inShapeBlock[2] * c +
+                                                            inShapeBlock[3] * d + inShapeBlock[4] * h) *
+                                                               srcDataSize;
+                    uint8_t* srcPad =
+                        src_data_pad + (inShapePadBlock[1] * (n + padB0) + inShapePadBlock[2] * (c + padB1) +
+                                        inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) + padB4) *
+                                           srcDataSize;
+                    cpu_memcpy(srcPad, src, srcDim5d[4] * srcDataSize);
+                });
             src_data = src_data_pad;
         } else if (interpAttrs.layout == InterpolateLayoutType::by_channel) {
             srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
             auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
-            cpuParallel->parallel_for4d(srcDim5d[0], srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int d, int h, int w) {
-                const uint8_t* src = src_data_origin +
-                                     (inShapeBlock[1] * n +
-                                      (inShapeBlock[3] * d + inShapeBlock[4] * h + inShapeBlock[5] * w) * srcDim5d[1]) *
-                                         srcDataSize;
-                uint8_t* srcPad = src_data_pad + (inShapePadBlock[1] * (n + padB0) +
-                                                  (inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) +
-                                                   inShapePadBlock[5] * (w + padB4)) *
-                                                      srcDimPad5d[1] +
-                                                  padB1) *
-                                                     srcDataSize;
-                cpu_memcpy(srcPad, src, srcDim5d[1] * srcDataSize);
-            });
+            cpuParallel
+                ->parallel_for4d(srcDim5d[0], srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int d, int h, int w) {
+                    const uint8_t* src =
+                        src_data_origin +
+                        (inShapeBlock[1] * n +
+                         (inShapeBlock[3] * d + inShapeBlock[4] * h + inShapeBlock[5] * w) * srcDim5d[1]) *
+                            srcDataSize;
+                    uint8_t* srcPad =
+                        src_data_pad + (inShapePadBlock[1] * (n + padB0) +
+                                        (inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) +
+                                         inShapePadBlock[5] * (w + padB4)) *
+                                            srcDimPad5d[1] +
+                                        padB1) *
+                                           srcDataSize;
+                    cpu_memcpy(srcPad, src, srcDim5d[1] * srcDataSize);
+                });
             src_data = src_data_pad;
         } else if (interpAttrs.layout == InterpolateLayoutType::block) {
             size_t blkSize = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;

@@ -5,9 +5,9 @@
 
 #include <cstddef>
 
+#include "cpu_parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/plain_tensor.hpp"
-#include "cpu_parallel.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
 

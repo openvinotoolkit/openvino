@@ -1233,14 +1233,20 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
         return d;
     };
 
-    cpuParallel->parallel_for5d(G, MB, OC, OH, OW, [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
-        dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] =
-            compKer(static_cast<int>(g),
-                    static_cast<int>(mb),
-                    static_cast<int>(oc),
-                    static_cast<int>(oh),
-                    static_cast<int>(ow));
-    });
+    cpuParallel->parallel_for5d(
+        G,
+        MB,
+        OC,
+        OH,
+        OW,
+        [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
+            dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] =
+                compKer(static_cast<int>(g),
+                        static_cast<int>(mb),
+                        static_cast<int>(oc),
+                        static_cast<int>(oh),
+                        static_cast<int>(ow));
+        });
 }
 
 void DeformableConvolution::prepareParams() {

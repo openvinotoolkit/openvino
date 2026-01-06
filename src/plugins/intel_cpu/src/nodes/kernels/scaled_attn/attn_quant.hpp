@@ -6,8 +6,8 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "utils/plain_tensor.hpp"
 #include "cpu_parallel.hpp"
+#include "utils/plain_tensor.hpp"
 
 namespace ov::Extensions::Cpu {
 struct QuantizeParam {

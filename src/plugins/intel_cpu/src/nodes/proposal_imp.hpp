@@ -4,8 +4,9 @@
 
 #include <array>
 #include <cstddef>
-#include <vector>
 #include <memory>
+#include <vector>
+
 #include "cpu_parallel.hpp"
 
 namespace ov::Extensions::Cpu {

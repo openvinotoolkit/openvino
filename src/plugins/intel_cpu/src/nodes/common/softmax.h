@@ -9,9 +9,9 @@
 #include <cstdint>
 #include <memory>
 
+#include "cpu_parallel.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "cpu_parallel.hpp"
 
 namespace ov::intel_cpu {
 

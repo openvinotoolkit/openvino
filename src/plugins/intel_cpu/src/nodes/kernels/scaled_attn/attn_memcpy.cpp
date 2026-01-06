@@ -162,9 +162,19 @@ void paged_attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
     if (past_k_output.get_precision() == k_input.get_precision()) {
         paged_attn_memcpy_kernel(k_input, v_input, past_k_output, past_v_output, slot_mapping, cpu_parallel);
     } else if (k_input.get_precision() == ov::element::f32 && past_k_output.get_precision() == ov::element::f16) {
-        paged_attn_memcpy_kernel<float, ov::float16>(k_input, v_input, past_k_output, past_v_output, slot_mapping, cpu_parallel);
+        paged_attn_memcpy_kernel<float, ov::float16>(k_input,
+                                                     v_input,
+                                                     past_k_output,
+                                                     past_v_output,
+                                                     slot_mapping,
+                                                     cpu_parallel);
     } else if (k_input.get_precision() == ov::element::f32 && past_k_output.get_precision() == ov::element::bf16) {
-        paged_attn_memcpy_kernel<float, ov::bfloat16>(k_input, v_input, past_k_output, past_v_output, slot_mapping, cpu_parallel);
+        paged_attn_memcpy_kernel<float, ov::bfloat16>(k_input,
+                                                      v_input,
+                                                      past_k_output,
+                                                      past_v_output,
+                                                      slot_mapping,
+                                                      cpu_parallel);
     } else {
         OPENVINO_THROW("unsupport src type: ",
                        k_input.get_precision(),

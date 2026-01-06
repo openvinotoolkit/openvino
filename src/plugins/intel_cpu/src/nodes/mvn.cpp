@@ -2792,74 +2792,77 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
             // mean for this instance in batch
             float C5inv = 1.F / static_cast<float>(C5);
             float mean_temp = 0.0F;
-            mean_temp = mvnAttrs.cpuParallel->parallel_sum3d(CB, D, H, mean_temp, [&](size_t cb, size_t d, size_t h) -> float {
-                size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
+            mean_temp =
+                mvnAttrs.cpuParallel->parallel_sum3d(CB, D, H, mean_temp, [&](size_t cb, size_t d, size_t h) -> float {
+                    size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
-                float mean_internal = 0.0F;
-                /////////////////////////////////
-                //          W           //  |
-                //                      //  |
-                //                      //  |
-                // blk +  +  +  +  +  +  //  |  +
-                //                      //  |
-                //                      //  |
-                //                      // \|/
-                /////////////////////////////////
-                auto thread_idx = static_cast<size_t>(parallel_get_thread_num());
-                if (thread_idx >= threads_num) {
+                    float mean_internal = 0.0F;
+                    /////////////////////////////////
+                    //          W           //  |
+                    //                      //  |
+                    //                      //  |
+                    // blk +  +  +  +  +  +  //  |  +
+                    //                      //  |
+                    //                      //  |
+                    //                      // \|/
+                    /////////////////////////////////
+                    auto thread_idx = static_cast<size_t>(parallel_get_thread_num());
+                    if (thread_idx >= threads_num) {
+                        return mean_internal;
+                    }
+                    auto* mean_buffer_ptr = &mean_buffer[aux_buffer_size * thread_idx];
+                    for (size_t i = 0; i < blk_size; i++) {
+                        mean_buffer_ptr[i] = 0.F;
+                    }
+
+                    auto arg = jit_mvn_call_args();
+                    arg.src = src_data + src_offset * src_data_size;
+                    arg.sum = mean_buffer_ptr;
+                    arg.work_amount = static_cast<size_t>(W);
+                    // real tail number or tail is 0(for full vector block).
+                    arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
+                    arg.oc_off = static_cast<size_t>(cb * blk_size * sizeof(float));  // for tail process
+                    (*mvn_mean_kernel)(&arg);                                         // for W * blk
+
+                    size_t min_cb = (std::min)(blk_size, C - cb * blk_size);
+                    for (size_t i = 0; i < min_cb; i++) {
+                        mean_internal += mean_buffer_ptr[i];
+                    }
                     return mean_internal;
-                }
-                auto* mean_buffer_ptr = &mean_buffer[aux_buffer_size * thread_idx];
-                for (size_t i = 0; i < blk_size; i++) {
-                    mean_buffer_ptr[i] = 0.F;
-                }
-
-                auto arg = jit_mvn_call_args();
-                arg.src = src_data + src_offset * src_data_size;
-                arg.sum = mean_buffer_ptr;
-                arg.work_amount = static_cast<size_t>(W);
-                // real tail number or tail is 0(for full vector block).
-                arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
-                arg.oc_off = static_cast<size_t>(cb * blk_size * sizeof(float));  // for tail process
-                (*mvn_mean_kernel)(&arg);                                         // for W * blk
-
-                size_t min_cb = (std::min)(blk_size, C - cb * blk_size);
-                for (size_t i = 0; i < min_cb; i++) {
-                    mean_internal += mean_buffer_ptr[i];
-                }
-                return mean_internal;
-            });
+                });
             float mean = mean_temp * C5inv;
 
             if (mvnAttrs.normalizeVariance_) {
                 // variance: sum((x-mean)*(x-mean)) for one instance in batch
                 float variance_temp = 0.0F;
-                variance_temp = mvnAttrs.cpuParallel->parallel_sum3d(CB, D, H, variance_temp, [&](size_t cb, size_t d, size_t h) -> float {
-                    size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
+                variance_temp =
+                    mvnAttrs.cpuParallel
+                        ->parallel_sum3d(CB, D, H, variance_temp, [&](size_t cb, size_t d, size_t h) -> float {
+                            size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
-                    float variance_internal = 0.0F;
-                    auto* variance_buffer_ptr =
-                        &variance_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
-                    for (size_t i = 0; i < blk_size; i++) {
-                        variance_buffer_ptr[i] = 0.F;
-                    }
+                            float variance_internal = 0.0F;
+                            auto* variance_buffer_ptr =
+                                &variance_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
+                            for (size_t i = 0; i < blk_size; i++) {
+                                variance_buffer_ptr[i] = 0.F;
+                            }
 
-                    auto arg = jit_mvn_call_args();
-                    arg.src = src_data + src_offset * src_data_size;
-                    arg.mean = (&mean);
-                    arg.variance = variance_buffer_ptr;
-                    arg.work_amount = static_cast<size_t>(W);
-                    arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
-                    arg.oc_off = cb * blk_size * sizeof(float);
-                    arg.post_op_data = post_ops_data_;
-                    (*mvn_variance_kernel)(&arg);
+                            auto arg = jit_mvn_call_args();
+                            arg.src = src_data + src_offset * src_data_size;
+                            arg.mean = (&mean);
+                            arg.variance = variance_buffer_ptr;
+                            arg.work_amount = static_cast<size_t>(W);
+                            arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
+                            arg.oc_off = cb * blk_size * sizeof(float);
+                            arg.post_op_data = post_ops_data_;
+                            (*mvn_variance_kernel)(&arg);
 
-                    size_t min_cb = (std::min)(blk_size, C - cb * blk_size);
-                    for (size_t i = 0; i < min_cb; i++) {
-                        variance_internal += variance_buffer_ptr[i];
-                    }
-                    return variance_internal;
-                });
+                            size_t min_cb = (std::min)(blk_size, C - cb * blk_size);
+                            for (size_t i = 0; i < min_cb; i++) {
+                                variance_internal += variance_buffer_ptr[i];
+                            }
+                            return variance_internal;
+                        });
 
                 float variance = 1.F;
                 if (mvnAttrs.epsMode_ == INSIDE_SQRT) {

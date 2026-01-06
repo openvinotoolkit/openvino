@@ -184,17 +184,20 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     size_t SV = v_src.m_dims[3];
     if (quant_key_by_channel) {
         if (L0 == 0) {
-            cpu_parallel->parallel_for3d(ov::intel_cpu::div_up(L1, key_group_size), B, H, [&](size_t group_id, size_t b, size_t h) {
-                quantize_by_channel<T, intel_cpu::precision_of<T2>::value>(
-                    k_src.ptr<T>(b, h, group_id * key_group_size),
-                    k_dst.ptr<T2>(b, h, group_id * key_group_size),
-                    std::min(key_group_size, L1 - group_id * key_group_size),
-                    S,
-                    k_src.m_strides[2],
-                    k_dst.m_strides[2],
-                    k_scale_zp.ptr<float>(group_id * 2, b, h),
-                    k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
-            });
+            cpu_parallel->parallel_for3d(ov::intel_cpu::div_up(L1, key_group_size),
+                                         B,
+                                         H,
+                                         [&](size_t group_id, size_t b, size_t h) {
+                                             quantize_by_channel<T, intel_cpu::precision_of<T2>::value>(
+                                                 k_src.ptr<T>(b, h, group_id * key_group_size),
+                                                 k_dst.ptr<T2>(b, h, group_id * key_group_size),
+                                                 std::min(key_group_size, L1 - group_id * key_group_size),
+                                                 S,
+                                                 k_src.m_strides[2],
+                                                 k_dst.m_strides[2],
+                                                 k_scale_zp.ptr<float>(group_id * 2, b, h),
+                                                 k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+                                         });
         } else {
             size_t group_id = L0 / key_group_size;
             size_t prev_nums = L0 % key_group_size;

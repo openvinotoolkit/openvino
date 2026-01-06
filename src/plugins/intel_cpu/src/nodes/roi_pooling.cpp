@@ -902,7 +902,8 @@ private:
 };
 
 std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::createROIPoolingNewExecutor(
-    const jit_roi_pooling_params& jpp, const std::shared_ptr<CpuParallel> cpu_parallel) {
+    const jit_roi_pooling_params& jpp,
+    const std::shared_ptr<CpuParallel> cpu_parallel) {
     ROIPoolingContext ctx = {nullptr, jpp, cpu_parallel};
 
     OV_SWITCH(intel_cpu,
@@ -998,7 +999,8 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
 
 template <typename T>
 std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::makeExecutor(
-    const jit_roi_pooling_params& jpp, const std::shared_ptr<CpuParallel> cpu_parallel) {
+    const jit_roi_pooling_params& jpp,
+    const std::shared_ptr<CpuParallel> cpu_parallel) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::sse41)) {
         return std::make_shared<ROIPoolingJitExecutor<T>>(jpp, cpu_parallel);

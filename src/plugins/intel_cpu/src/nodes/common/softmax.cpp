@@ -253,7 +253,9 @@ private:
     }
 };
 #endif
-SoftmaxGeneric::SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPrc, const std::shared_ptr<CpuParallel> cpuParallel)
+SoftmaxGeneric::SoftmaxGeneric(ov::element::Type inpPrc,
+                               ov::element::Type outPrc,
+                               const std::shared_ptr<CpuParallel> cpuParallel)
     : input_prec(inpPrc),
       output_prec(outPrc),
       cpu_parallel(cpuParallel) {

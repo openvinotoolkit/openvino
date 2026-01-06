@@ -2529,7 +2529,8 @@ void Interpolate::prepareParams() {
         return;
     }
 
-    InterpolateKey key = {interpAttrs, src5DDims, dst5DDims, scales5D, dnnl::primitive_attr(), context->getCpuParallel()};
+    InterpolateKey key =
+        {interpAttrs, src5DDims, dst5DDims, scales5D, dnnl::primitive_attr(), context->getCpuParallel()};
     setPostOps(key.attr, dst5DDims);
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutorBase> {

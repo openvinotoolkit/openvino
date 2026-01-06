@@ -804,7 +804,8 @@ void TensorIterator::prepareDynamicBuffers() {
         if (map_rule.axis != -1) {
             auto to_mems = getToMemories(this, map_rule.from);
             auto& from_mem = output_mem[map_rule.to];
-            buffers.emplace_back(std::make_shared<DynamicBuffer>(from_mem, to_mems, map_rule, context->getCpuParallel()));
+            buffers.emplace_back(
+                std::make_shared<DynamicBuffer>(from_mem, to_mems, map_rule, context->getCpuParallel()));
         }
     }
 }
