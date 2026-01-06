@@ -131,10 +131,11 @@ private:
         virtual void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, const void** post_ops_data) = 0;
         virtual ~NormalizeL2Executor() = default;
 
-        static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(const NormalizeL2Attrs& attrs,
-                                                                           const dnnl::primitive_attr& kernel_attr,
-                                                                           const VectorDims& dims,
-                                                                           const std::shared_ptr<CpuParallel>& parallel);
+        static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(
+            const NormalizeL2Attrs& attrs,
+            const dnnl::primitive_attr& kernel_attr,
+            const VectorDims& dims,
+            const std::shared_ptr<CpuParallel>& parallel);
 
     protected:
         [[nodiscard]] static float epsApply(const float& modulo, const NormEpsMode mode, const float eps) {
