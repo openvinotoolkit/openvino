@@ -1377,6 +1377,8 @@ struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, ov:
     }
 
     static ov::intel_npu::WSVersion defaultValue() {
+        // Note: if the compiler-in-plugin is used (intel_npu::compiler_type = intel_npu::CompilerType::PLUGIN), then
+        // the default is actually WSVersion::ONE_SHOT
         return ov::intel_npu::WSVersion::ITERATIVE;
     }
 
@@ -1468,6 +1470,20 @@ struct MODEL_SERIALIZER_VERSION final : OptionBase<MODEL_SERIALIZER_VERSION, ov:
         std::stringstream strStream;
         strStream << val;
         return strStream.str();
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
+struct ENABLE_STRIDES_FOR final : OptionBase<ENABLE_STRIDES_FOR, std::string> {
+    static std::string_view key() {
+        return ov::intel_npu::enable_strides_for.name();
+    }
+
+    static std::string defaultValue() {
+        return {};
     }
 
     static OptionMode mode() {
