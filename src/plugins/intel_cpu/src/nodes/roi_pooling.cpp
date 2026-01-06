@@ -567,7 +567,8 @@ void ROIPooling::prepareParams() {
 template <typename T>
 class ROIPooling::ROIPoolingJitExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
-    explicit ROIPoolingJitExecutor(const jit_roi_pooling_params& jpp, const std::shared_ptr<CpuParallel>& parallel)
+    explicit ROIPoolingJitExecutor(const std::shared_ptr<CpuParallel>& parallel,
+                                   [[maybe_unused]] const jit_roi_pooling_params& jpp)
         : cpuParallel(parallel) {
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
@@ -723,7 +724,7 @@ private:
 template <typename T>
 class ROIPooling::ROIPoolingRefExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
-    explicit ROIPoolingRefExecutor(const jit_roi_pooling_params& _jpp, const std::shared_ptr<CpuParallel>& parallel)
+    explicit ROIPoolingRefExecutor(const std::shared_ptr<CpuParallel>& parallel, const jit_roi_pooling_params& _jpp)
         : jpp(_jpp),
           cpuParallel(parallel) {}
     void exec(const IMemory& srcData, const IMemory& srcRoi, const IMemory& dst) override {
@@ -1003,11 +1004,11 @@ std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::
     const std::shared_ptr<CpuParallel>& cpu_parallel) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::sse41)) {
-        return std::make_shared<ROIPoolingJitExecutor<T>>(jpp, cpu_parallel);
+        return std::make_shared<ROIPoolingJitExecutor<T>>(cpu_parallel, jpp);
     }
 #endif
 
-    return std::make_shared<ROIPoolingRefExecutor<T>>(jpp, cpu_parallel);
+    return std::make_shared<ROIPoolingRefExecutor<T>>(cpu_parallel, jpp);
 }
 
 bool ROIPooling::created() const {
