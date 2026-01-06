@@ -20,7 +20,7 @@ namespace ov::intel_cpu::node {
 
 struct RDFTExecutor {
 public:
-    explicit RDFTExecutor(bool inverse, const std::shared_ptr<CpuParallel> cpu_parallel)
+    explicit RDFTExecutor(bool inverse, const std::shared_ptr<CpuParallel>& cpu_parallel)
         : isInverse(inverse),
           cpuParallel(cpu_parallel) {}
     virtual ~RDFTExecutor() = default;
@@ -40,7 +40,7 @@ public:
                                                      const std::vector<int>& axes);
 
     static std::shared_ptr<RDFTExecutor> build(bool inverse,
-                                               const std::shared_ptr<CpuParallel> cpuParallel,
+                                               const std::shared_ptr<CpuParallel>& cpuParallel,
                                                NodeDesc* primDesc = nullptr);
 
 protected:

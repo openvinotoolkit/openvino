@@ -44,7 +44,7 @@ private:
     void initSupportedNV12Impls();
     void initSupportedI420Impls();
 
-    using ConverterBuilder = std::function<Converter*(Node*, const std::shared_ptr<CpuParallel>)>;
+    using ConverterBuilder = std::function<Converter*(Node*, const std::shared_ptr<CpuParallel>&)>;
     using SupportedImpls = multidim_map<impl_desc_type,       // Implementation type
                                         Algorithm,            // Algorithm: ColorConvertXXX
                                         ov::element::Type_t,  // element type: f32/u8
@@ -53,7 +53,7 @@ private:
 
     std::unique_ptr<Converter> _impl;
     SupportedImpls _supportedImpls;
-    const std::shared_ptr<CpuParallel> _cpuParallel;
+    std::shared_ptr<CpuParallel> _cpuParallel;
 };
 
 class ColorConvert::Converter {

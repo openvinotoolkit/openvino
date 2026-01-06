@@ -1059,7 +1059,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
 DeformableConvolution::DefConvExecutor::DefConvExecutor(
     const DefConvAttr& defConvAttr,
     const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector,
-    const std::shared_ptr<CpuParallel> parallel)
+    const std::shared_ptr<CpuParallel>& parallel)
     : cpuParallel{std::move(parallel)} {
     OPENVINO_ASSERT(any_of(descVector.size(), 4U, 5U),
                     "Deformable Convolution executor got incorrect desc's count (",
@@ -1141,7 +1141,7 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(
 DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(
     const DefConvAttr& defConvAttr,
     const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector,
-    const std::shared_ptr<CpuParallel> parallel)
+    const std::shared_ptr<CpuParallel>& parallel)
     : DefConvExecutor(defConvAttr, descVector, parallel) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {

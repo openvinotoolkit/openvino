@@ -105,7 +105,7 @@ private:
 
         static std::shared_ptr<ROIPoolingExecutor> createROIPoolingNewExecutor(
             const jit_roi_pooling_params& jpp,
-            const std::shared_ptr<CpuParallel> cpu_parallel);
+            const std::shared_ptr<CpuParallel>& cpu_parallel);
 
     protected:
         static std::tuple<int, int, int, int> getBordersForMaxMode(int roi_start_h,
@@ -132,7 +132,7 @@ private:
     private:
         template <typename T>
         static std::shared_ptr<ROIPoolingExecutor> makeExecutor(const jit_roi_pooling_params& jpp,
-                                                                const std::shared_ptr<CpuParallel> cpu_parallel);
+                                                                const std::shared_ptr<CpuParallel>& cpu_parallel);
 
         struct ROIPoolingContext {
             std::shared_ptr<ROIPoolingExecutor> executor;

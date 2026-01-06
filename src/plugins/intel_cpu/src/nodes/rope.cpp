@@ -107,7 +107,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
     std::shared_ptr<CpuParallel> m_cpuParallel;
 
     explicit RoPEExecutorRotateHalf(const op::internal::RoPE::Config& config,
-                                    const std::shared_ptr<CpuParallel> cpuParallel)
+                                    const std::shared_ptr<CpuParallel>& cpuParallel)
         : m_config(config),
           m_cpuParallel(cpuParallel) {
         jit_rotary_compile_params jcp;
@@ -203,7 +203,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
     std::shared_ptr<CpuParallel> m_cpuParallel;
 
     explicit RoPEExecutorInterleaved(const op::internal::RoPE::Config& config,
-                                     const std::shared_ptr<CpuParallel> cpuParallel)
+                                     const std::shared_ptr<CpuParallel>& cpuParallel)
         : m_config(config),
           m_cpuParallel(cpuParallel) {
         jit_rotary_compile_params jcp;
@@ -257,7 +257,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
     std::shared_ptr<CpuParallel> m_cpuParallel;
 
     explicit RoPEExecutorChatGLM(const op::internal::RoPE::Config& config,
-                                 const std::shared_ptr<CpuParallel> cpuParallel)
+                                 const std::shared_ptr<CpuParallel>& cpuParallel)
         : m_config(config),
           m_cpuParallel(cpuParallel) {
         jit_rotary_compile_params jcp;
@@ -374,7 +374,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
     std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
     std::shared_ptr<CpuParallel> m_cpuParallel;
 
-    explicit RoPEExecutorQwen(const op::internal::RoPE::Config& config, const std::shared_ptr<CpuParallel> cpuParallel)
+    explicit RoPEExecutorQwen(const op::internal::RoPE::Config& config, const std::shared_ptr<CpuParallel>& cpuParallel)
         : m_config(config),
           m_cpuParallel(cpuParallel) {
         jit_rotary_compile_params jcp;

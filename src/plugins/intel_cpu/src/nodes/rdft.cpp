@@ -458,7 +458,7 @@ static void fftCopyInverseInputData(float* dst,
                                     size_t inputSize,
                                     size_t signalSize,
                                     bool parallelize,
-                                    const std::shared_ptr<CpuParallel> cpuParallel) {
+                                    const std::shared_ptr<CpuParallel>& cpuParallel) {
     if (!parallelize) {
         cpu_memcpy(dst, src, inputSize * complex_type_size<float>());
         src = src + 2 * inputSize - 4;
@@ -484,7 +484,7 @@ static void fftCopyRealInputData(float* dst,
                                  const float* src,
                                  size_t inputSize,
                                  bool parallelize,
-                                 const std::shared_ptr<CpuParallel> cpuParallel) {
+                                 const std::shared_ptr<CpuParallel>& cpuParallel) {
     if (!parallelize) {
         for (size_t i = 0; i < inputSize; i++) {
             dst[2 * i] = src[i];
@@ -502,7 +502,7 @@ static void fftCopyInverseRealOutput(float* dst,
                                      const float* src,
                                      size_t signalSize,
                                      bool parallelize,
-                                     const std::shared_ptr<CpuParallel> cpuParallel) {
+                                     const std::shared_ptr<CpuParallel>& cpuParallel) {
     if (!parallelize) {
         for (size_t i = 0; i < signalSize; i++) {
             dst[i] = src[2 * i];
@@ -857,7 +857,7 @@ std::vector<std::vector<float>> RDFTExecutor::generateTwiddles(const std::vector
 }
 #if defined(OPENVINO_ARCH_X86_64)
 struct RDFTJitExecutor : public RDFTExecutor {
-    RDFTJitExecutor(bool inverse, NodeDesc* primDesc, const std::shared_ptr<CpuParallel> cpuParallel)
+    RDFTJitExecutor(bool inverse, NodeDesc* primDesc, const std::shared_ptr<CpuParallel>& cpuParallel)
         : RDFTExecutor(inverse, cpuParallel) {
         enum dft_type rdftType = isInverse ? complex_to_real : real_to_complex;
         if (mayiuse(cpu::x64::avx512_core)) {
@@ -971,7 +971,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
 #endif
 
 struct RDFTRefExecutor : public RDFTExecutor {
-    explicit RDFTRefExecutor(bool inverse, const std::shared_ptr<CpuParallel> cpuParallel)
+    explicit RDFTRefExecutor(bool inverse, const std::shared_ptr<CpuParallel>& cpuParallel)
         : RDFTExecutor(inverse, cpuParallel) {}
 
 private:
@@ -1143,7 +1143,7 @@ void RDFT::createPrimitive() {
 }
 
 std::shared_ptr<RDFTExecutor> RDFTExecutor::build(bool inverse,
-                                                  const std::shared_ptr<CpuParallel> cpuParallel,
+                                                  const std::shared_ptr<CpuParallel>& cpuParallel,
                                                   NodeDesc* primDesc) {
     std::shared_ptr<RDFTExecutor> executor;
 #if defined(OPENVINO_ARCH_X86_64)

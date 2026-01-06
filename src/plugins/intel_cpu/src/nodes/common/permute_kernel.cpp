@@ -184,7 +184,7 @@ private:
 
 #endif  // OPENVINO_ARCH_X86_64
 
-PermuteKernel::PermuteKernel(const PermuteParams& params, const std::shared_ptr<CpuParallel> parallel)
+PermuteKernel::PermuteKernel(const PermuteParams& params, const std::shared_ptr<CpuParallel>& parallel)
     : params(params),
       cpu_parallel(parallel) {
     jcp = TransposeExecutor::prepareParams(params);

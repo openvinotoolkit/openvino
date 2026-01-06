@@ -56,7 +56,7 @@ private:
         SplitOptimizedExecutor(const BlockedMemoryDescCPtr& inDesc,
                                const std::vector<BlockedMemoryDescCPtr>& outDescs,
                                size_t axis,
-                               const std::shared_ptr<CpuParallel> parallel);
+                               const std::shared_ptr<CpuParallel>& parallel);
         void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) override;
 
     private:

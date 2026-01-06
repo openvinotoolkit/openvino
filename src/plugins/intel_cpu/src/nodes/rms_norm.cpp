@@ -95,7 +95,7 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
                     size_t data_size,
                     size_t scale_size,
                     float eps,
-                    const std::shared_ptr<CpuParallel> parallel)
+                    const std::shared_ptr<CpuParallel>& parallel)
         : m_precision(precision),
           cpu_parallel(parallel) {
         kernel::jit_rms_compile_params jcp;

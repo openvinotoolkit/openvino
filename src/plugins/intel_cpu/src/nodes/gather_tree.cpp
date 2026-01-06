@@ -139,7 +139,7 @@ GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims
                                                    const VectorDims& parentIdxDims,
                                                    const VectorDims& maxSeqLenDims,
                                                    const VectorDims& dstDims,
-                                                   const std::shared_ptr<CpuParallel> parallel)
+                                                   const std::shared_ptr<CpuParallel>& parallel)
     : maxTime{static_cast<int32_t>(stepIdxDims[0])},
       batchSize{stepIdxDims[1]},
       beamWidth{stepIdxDims[2]},

@@ -75,7 +75,7 @@ bool EltwiseRefKey::operator==(const EltwiseRefKey& rhs) const {
 }
 
 static EltwiseExecutorPtr createRefExecutorByPrecision(const EltwiseRefKey& key,
-                                                       const std::shared_ptr<CpuParallel> cpu_parallel) {
+                                                       const std::shared_ptr<CpuParallel>& cpu_parallel) {
     switch (key.outPrc) {
     case ov::element::i8:
         return std::make_shared<BitwiseRefExecutor<int8_t>>(key, cpu_parallel);
@@ -227,7 +227,7 @@ void EltwiseRefBaseExecutor<T>::offset_in_calc(VectorDims& offset,
 // EltwiseRefExecutor implementation
 template <typename T, typename Enable>
 EltwiseRefExecutor<T, Enable>::EltwiseRefExecutor(const EltwiseRefKey& key,
-                                                  const std::shared_ptr<CpuParallel> cpu_parallel)
+                                                  const std::shared_ptr<CpuParallel>& cpu_parallel)
     : EltwiseRefBaseExecutor<T>(key),
       cpuParallel(cpu_parallel) {}
 
@@ -413,7 +413,7 @@ bool EltwiseRefExecutor<T, Enable>::supports([[maybe_unused]] const EltwiseConfi
 // BitwiseRefExecutor implementation
 template <typename T, typename Enable>
 BitwiseRefExecutor<T, Enable>::BitwiseRefExecutor(const EltwiseRefKey& key,
-                                                  const std::shared_ptr<CpuParallel> cpu_parallel)
+                                                  const std::shared_ptr<CpuParallel>& cpu_parallel)
     : EltwiseRefBaseExecutor<T>(key),
       cpuParallel(cpu_parallel) {}
 

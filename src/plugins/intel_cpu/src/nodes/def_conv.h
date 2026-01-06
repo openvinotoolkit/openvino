@@ -119,7 +119,7 @@ private:
     public:
         DefConvExecutor(const DefConvAttr& defConvAttr,
                         const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector,
-                        const std::shared_ptr<CpuParallel> parallel);
+                        const std::shared_ptr<CpuParallel>& parallel);
 
         virtual void exec(const float* src,
                           const float* offsets,
@@ -147,7 +147,7 @@ private:
     public:
         DefConvRefExecutor(const DefConvAttr& defConvAttr,
                            const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector,
-                           const std::shared_ptr<CpuParallel> parallel)
+                           const std::shared_ptr<CpuParallel>& parallel)
             : DefConvExecutor(defConvAttr, descVector, parallel) {}
 
         void exec(const float* src,
@@ -165,7 +165,7 @@ private:
     public:
         DefConvJitExecutor(const DefConvAttr& defConvAttr,
                            const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector,
-                           const std::shared_ptr<CpuParallel> parallel);
+                           const std::shared_ptr<CpuParallel>& parallel);
 
         void exec(const float* src,
                   const float* offsets,

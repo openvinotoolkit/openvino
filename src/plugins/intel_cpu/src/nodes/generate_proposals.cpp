@@ -60,7 +60,7 @@ void refine_anchors(const float* deltas,
                     const float min_box_W,
                     const float max_delta_log_wh,
                     float coordinates_offset,
-                    const std::shared_ptr<CpuParallel> cpu_parallel) {
+                    const std::shared_ptr<CpuParallel>& cpu_parallel) {
     Indexer4d delta_idx(4, bottom_H, bottom_W);
     Indexer4d score_idx(1, bottom_H, bottom_W);
     Indexer4d proposal_idx(bottom_W, anchors_num, 6);
@@ -128,7 +128,7 @@ void unpack_boxes(const float* p_proposals,
                   float* unpacked_boxes,
                   int* is_dead,
                   int pre_nms_topn,
-                  const std::shared_ptr<CpuParallel> cpu_parallel) {
+                  const std::shared_ptr<CpuParallel>& cpu_parallel) {
     cpu_parallel->parallel_for(pre_nms_topn, [&](size_t i) {
         unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[6 * i + 0];
         unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[6 * i + 1];
@@ -276,7 +276,7 @@ void fill_output_blobs(const float* proposals,
                        const int num_proposals,
                        const size_t num_rois,
                        ov::element::Type roi_num_type,
-                       const std::shared_ptr<CpuParallel> cpu_parallel) {
+                       const std::shared_ptr<CpuParallel>& cpu_parallel) {
     const float* src_x0 = proposals + 0 * num_proposals;
     const float* src_y0 = proposals + 1 * num_proposals;
     const float* src_x1 = proposals + 2 * num_proposals;

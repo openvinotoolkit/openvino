@@ -168,7 +168,7 @@ Roll::RollExecutor::RollExecutor(const VectorDims& dataDims,
                                  const VectorDims& shiftDims,
                                  const VectorDims& axesDims,
                                  const VectorDims& dstDims,
-                                 const std::shared_ptr<CpuParallel> cpuParallel)
+                                 const std::shared_ptr<CpuParallel>& cpuParallel)
     : numOfDims{dataDims.size()},
       blockSize{dataDims.back()},
       numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1UL, std::multiplies<>()) / blockSize},

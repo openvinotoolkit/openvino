@@ -77,7 +77,7 @@ public:
     DynamicBuffer(MemoryPtr from_,
                   std::vector<MemoryPtr> to_,
                   const PortMap& map_rule_,
-                  const std::shared_ptr<CpuParallel> parallel);
+                  const std::shared_ptr<CpuParallel>& parallel);
 
     void execute(const dnnl::engine& eng, int iter);
     void transfer(const Node* node);
@@ -99,7 +99,7 @@ private:
                      size_t dst_stride,
                      size_t count,
                      size_t len,
-                     const std::shared_ptr<CpuParallel> cpu_parallel);
+                     const std::shared_ptr<CpuParallel>& cpu_parallel);
 
     /* variable states */
     size_t len = 1LU;

@@ -248,7 +248,7 @@ private:
 DynamicBuffer::DynamicBuffer(MemoryPtr from_,
                              std::vector<MemoryPtr> to_,
                              const PortMap& map_rule_,
-                             const std::shared_ptr<CpuParallel> parallel)
+                             const std::shared_ptr<CpuParallel>& parallel)
     : from(std::move(from_)),
       to(std::move(to_)),
       map_rule(map_rule_),
@@ -429,7 +429,7 @@ void DynamicBuffer::copy(const uint8_t* src,
                          const size_t dst_stride,
                          const size_t count,
                          const size_t len,
-                         const std::shared_ptr<CpuParallel> cpu_parallel) {
+                         const std::shared_ptr<CpuParallel>& cpu_parallel) {
     cpu_parallel->parallel_for(count, [&](const size_t i) {
         cpu_memcpy(&dst[i * dst_stride], &src[i * src_stride], len);
     });

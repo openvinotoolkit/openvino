@@ -32,7 +32,7 @@ template <typename T>
 void transpose_to_0312(const int MB,
                        const MemoryCPtr& srcMemPtr,
                        MemoryPtr& dstMemPtr,
-                       const std::shared_ptr<CpuParallel> cpuParallel) {
+                       const std::shared_ptr<CpuParallel>& cpuParallel) {
     const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 
@@ -54,7 +54,7 @@ template <typename T>
 void transpose_to_04123(const int MB,
                         const MemoryCPtr& srcMemPtr,
                         MemoryPtr& dstMemPtr,
-                        const std::shared_ptr<CpuParallel> cpuParallel) {
+                        const std::shared_ptr<CpuParallel>& cpuParallel) {
     const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 
@@ -79,7 +79,7 @@ template <typename T>
 void transpose_to_051234(const int MB,
                          const MemoryCPtr& srcMemPtr,
                          MemoryPtr& dstMemPtr,
-                         const std::shared_ptr<CpuParallel> cpuParallel) {
+                         const std::shared_ptr<CpuParallel>& cpuParallel) {
     const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 

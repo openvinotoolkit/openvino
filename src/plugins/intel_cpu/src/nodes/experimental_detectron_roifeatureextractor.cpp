@@ -147,7 +147,7 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
                                 const T* bottom_rois,
                                 const bool aligned,
                                 T* top_data,
-                                const std::shared_ptr<CpuParallel> cpu_parallel) {
+                                const std::shared_ptr<CpuParallel>& cpu_parallel) {
     int roi_cols = 4;
 
     int n_rois = nthreads / channels / pooled_width / pooled_height;

@@ -726,7 +726,7 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
     [[maybe_unused]] const VectorDims& rates,
     [[maybe_unused]] const ExtImgPatcherPadType& padType,
     [[maybe_unused]] const size_t prcSize,
-    const std::shared_ptr<CpuParallel> parallel) {
+    const std::shared_ptr<CpuParallel>& parallel) {
 #if defined(OPENVINO_ARCH_X86_64)
     auto jpp = fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize);
     if (mayiuse(x64::avx512_core)) {
@@ -761,7 +761,7 @@ ExtractImagePatches::ExtractImagePatchesRefExecutor::ExtractImagePatchesRefExecu
     const VectorDims& rates,
     const ExtImgPatcherPadType& padType,
     const size_t prcSize,
-    const std::shared_ptr<CpuParallel> parallel)
+    const std::shared_ptr<CpuParallel>& parallel)
     : jpp(fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize)),
       cpuParallel(parallel) {}
 

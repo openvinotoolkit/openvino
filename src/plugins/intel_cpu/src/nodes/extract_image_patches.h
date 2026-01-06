@@ -106,7 +106,7 @@ private:
                                        const VectorDims& rates,
                                        const ExtImgPatcherPadType& padType,
                                        size_t prcSize,
-                                       const std::shared_ptr<CpuParallel> parallel);
+                                       const std::shared_ptr<CpuParallel>& parallel);
         void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) override;
         void executeOptimizedGeneric(void* src,
                                      void* dst,
@@ -126,7 +126,7 @@ private:
                                        const VectorDims& rates,
                                        const ExtImgPatcherPadType& padType,
                                        size_t prcSize,
-                                       const std::shared_ptr<CpuParallel> parallel);
+                                       const std::shared_ptr<CpuParallel>& parallel);
         void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) override;
         void executeReference(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const;
 

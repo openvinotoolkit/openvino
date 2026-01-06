@@ -98,7 +98,7 @@ void transpose_out4d(const uint8_t* in,
                      const VectorDims& in_shape,
                      const VectorDims& out_shape,
                      size_t elem_size,
-                     const std::shared_ptr<CpuParallel> cpu_parallel) {
+                     const std::shared_ptr<CpuParallel>& cpu_parallel) {
     const std::vector<size_t> axes_order{0, 2, 1, 3};
     cpu_parallel->parallel_for3d(
         out_shape[0],

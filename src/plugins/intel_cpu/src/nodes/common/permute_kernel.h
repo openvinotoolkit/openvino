@@ -61,7 +61,7 @@ struct jit_uni_permute_kernel {
 
 class PermuteKernel {
 public:
-    explicit PermuteKernel(const PermuteParams& params, const std::shared_ptr<CpuParallel> parallel);
+    explicit PermuteKernel(const PermuteParams& params, const std::shared_ptr<CpuParallel>& parallel);
 
     void execute(const uint8_t* src_data, uint8_t* dst_data);
     void execute(const uint8_t* src_data, uint8_t* dst_data, int mb);

@@ -44,7 +44,7 @@ static inline void softmax_many_batches(const float* src_data, float* dst_data, 
 
 class SoftmaxGeneric {
 public:
-    SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPrc, const std::shared_ptr<CpuParallel> cpuParallel);
+    SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPrc, const std::shared_ptr<CpuParallel>& cpuParallel);
 
     void execute(const uint8_t* src_data, uint8_t* dst_data, int B, int C, int H, int W);
 

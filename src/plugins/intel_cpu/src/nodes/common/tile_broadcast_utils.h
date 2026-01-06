@@ -23,7 +23,7 @@ protected:
 
     void optimizedExecute(const MemoryPtr& srcMemory,
                           const MemoryPtr& dstMemory,
-                          const std::shared_ptr<CpuParallel> cpuParallel);
+                          const std::shared_ptr<CpuParallel>& cpuParallel);
 
     VectorDims repeats;
     bool optimizedCase = false;

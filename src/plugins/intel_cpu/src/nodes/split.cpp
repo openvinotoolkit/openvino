@@ -517,7 +517,7 @@ std::vector<uint8_t*> Split::getRawDstMemPtrs() const {
 Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPtr& inDesc,
                                                       const std::vector<BlockedMemoryDescCPtr>& outDescs,
                                                       const size_t axis,
-                                                      const std::shared_ptr<CpuParallel> parallel)
+                                                      const std::shared_ptr<CpuParallel>& parallel)
     : cpuParallel(parallel) {
     // find axis order position
     const auto& order = inDesc->getOrder();

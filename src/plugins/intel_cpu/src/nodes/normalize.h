@@ -134,7 +134,7 @@ private:
         static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(const NormalizeL2Attrs& attrs,
                                                                            const dnnl::primitive_attr& kernel_attr,
                                                                            const VectorDims& dims,
-                                                                           const std::shared_ptr<CpuParallel> parallel);
+                                                                           const std::shared_ptr<CpuParallel>& parallel);
 
     protected:
         [[nodiscard]] static float epsApply(const float& modulo, const NormEpsMode mode, const float eps) {
@@ -146,7 +146,7 @@ private:
         static std::shared_ptr<NormalizeL2Executor> makeExecutor(const NormalizeL2Attrs& attrs,
                                                                  const dnnl::primitive_attr& kernel_attrs,
                                                                  const VectorDims& dims,
-                                                                 const std::shared_ptr<CpuParallel> parallel);
+                                                                 const std::shared_ptr<CpuParallel>& parallel);
 
         struct NormalizeContext {
             std::shared_ptr<NormalizeL2Executor> executor;

@@ -39,7 +39,7 @@ private:
                            const VectorDims& parentIdxDims,
                            const VectorDims& maxSeqLenDims,
                            const VectorDims& dstDims,
-                           const std::shared_ptr<CpuParallel> parallel);
+                           const std::shared_ptr<CpuParallel>& parallel);
         ~GatherTreeExecutor() = default;
 
         template <typename DATA_T>

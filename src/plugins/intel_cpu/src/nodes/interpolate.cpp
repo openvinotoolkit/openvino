@@ -4320,7 +4320,7 @@ Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateA
                                                               VectorDims srcDims,
                                                               VectorDims dstDims,
                                                               const std::vector<float>& dataScales,
-                                                              const std::shared_ptr<CpuParallel> parallel)
+                                                              const std::shared_ptr<CpuParallel>& parallel)
     : mode(interpAttrs.mode),
       coordTransMode(interpAttrs.coordTransMode),
       configured_for_layout(interpAttrs.layout),
@@ -4371,7 +4371,7 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
                                                             const VectorDims& dstDims,
                                                             const std::vector<float>& dataScales,
                                                             [[maybe_unused]] const dnnl::primitive_attr& attr,
-                                                            const std::shared_ptr<CpuParallel> cpuParallel)
+                                                            const std::shared_ptr<CpuParallel>& cpuParallel)
     : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, dataScales, cpuParallel) {
     auto jcp = jit_interpolate_config_params();
     jcp.mode = mode;

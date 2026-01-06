@@ -961,7 +961,7 @@ struct MHASingleToken {
                     const PlainTensor& k_scale_zp,
                     const PlainTensor& v_scale_zp,
                     const PlainTensor& sink_input,
-                    const std::shared_ptr<CpuParallel> cpu_parallel) {
+                    const std::shared_ptr<CpuParallel>& cpu_parallel) {
         auto B = query.size(0);
         auto H = query.size(1);
         auto q_len = query.size(2);

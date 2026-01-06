@@ -38,7 +38,7 @@ private:
                      const VectorDims& shiftDims,
                      const VectorDims& axesDims,
                      const VectorDims& dstDims,
-                     const std::shared_ptr<CpuParallel> cpuParallel);
+                     const std::shared_ptr<CpuParallel>& cpuParallel);
         ~RollExecutor() = default;
 
         template <typename T>

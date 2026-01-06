@@ -84,7 +84,7 @@ struct NormalizeKey {
     NormalizeL2::NormalizeL2Attrs attrs;
     dnnl::primitive_attr kernel_attrs;
     VectorDims dims;
-    const std::shared_ptr<CpuParallel> cpu_parallel;
+    std::shared_ptr<CpuParallel> cpu_parallel;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const NormalizeKey& rhs) const;
@@ -1067,7 +1067,7 @@ public:
     NormalizeL2JitExecutor(const NormalizeL2Attrs& attrs_,
                            const dnnl::primitive_attr& kernel_attrs,
                            const VectorDims& dims,
-                           const std::shared_ptr<CpuParallel> parallel)
+                           const std::shared_ptr<CpuParallel>& parallel)
         : attrs(attrs_),
           cpu_parallel(parallel) {
         OPENVINO_ASSERT(
@@ -1410,7 +1410,7 @@ public:
     NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs,
                                  const dnnl::primitive_attr& kernel_attrs,
                                  VectorDims dims,
-                                 const std::shared_ptr<CpuParallel> parallel)
+                                 const std::shared_ptr<CpuParallel>& parallel)
         : dims(std::move(dims)),
           kernel_attrs(kernel_attrs),
           attrs(attrs),
@@ -1590,7 +1590,7 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
     const NormalizeL2Attrs& attrs,
     const dnnl::primitive_attr& kernel_attrs,
     const VectorDims& dims,
-    const std::shared_ptr<CpuParallel> parallel) {
+    const std::shared_ptr<CpuParallel>& parallel) {
     NormalizeContext ctx = {nullptr, attrs, kernel_attrs, dims, parallel};
 
     OV_SWITCH(intel_cpu,
@@ -1617,7 +1617,7 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
     const NormalizeL2Attrs& attrs,
     const dnnl::primitive_attr& kernel_attrs,
     const VectorDims& dims,
-    const std::shared_ptr<CpuParallel> parallel) {
+    const std::shared_ptr<CpuParallel>& parallel) {
     if (attrs.cornerCase) {
         return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims, parallel);
 #if defined(OPENVINO_ARCH_X86_64)
