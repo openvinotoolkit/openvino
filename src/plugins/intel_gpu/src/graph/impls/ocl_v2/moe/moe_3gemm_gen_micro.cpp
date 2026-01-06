@@ -150,21 +150,32 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     std::lock_guard<std::mutex> l(mtx);
 
     int wei_idx, scale_idx, zp_idx;
+    auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+    size_t group_size = desc->_config.group_size;
     switch (type) {
     case MoE3GemmMicroKernelType::MLP_GATE:
         wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_0);
         scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_0);
         zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_0);
+        if (group_size == std::numeric_limits<size_t>::max()) {
+            group_size = desc->_config.hidden_size;
+        }
         break;
     case MoE3GemmMicroKernelType::MLP_UP:
         wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_1);
         scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_1);
         zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_1);
+        if (group_size == std::numeric_limits<size_t>::max()) {
+            group_size = desc->_config.hidden_size;
+        }
         break;
     case MoE3GemmMicroKernelType::MLP_DOWN:
         wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_2);
         scale_idx = static_cast<int>(MOE3GemmInputIndex::SCALE_2);
         zp_idx = static_cast<int>(MOE3GemmInputIndex::ZP_2);
+        if (group_size == std::numeric_limits<size_t>::max()) {
+            group_size = desc->_config.inter_size;
+        }
         break;
     default:
         OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");
@@ -204,8 +215,6 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     GPU_DEBUG_TRACE_DETAIL << "MoE3GemmMicroGenerator::init_microkernels: " << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "\t m = " << m << ", n = " << n << ", k = " << k << std::endl;
-
-    size_t group_size = weight_shape.size() == 4 ? weight_shape[3] : weight_shape[2];
     GPU_DEBUG_TRACE_DETAIL << "\t weight group size: " << group_size << "\n";
 
     micro::GEMMProblem problem_moe;

@@ -230,8 +230,8 @@ inline void gate_up_gemv_n2x_f16(const __global half* weight, __global half* y, 
             half4 sum0;
             half4 sum1;
             half8 a = as_half8(intel_sub_group_block_read_us8((const __global ushort*)x2 + gk * FAKE_GROUP_SIZE));
-            half8 b = as_half8(intel_sub_group_block_read_us8((const __global ushort*)B + gk * FAKE_GROUP_SIZE);
-            half8 b2= as_half8(intel_sub_group_block_read_us8((const __global ushort*)(B + K + gk * FAKE_GROUP_SIZE));
+            half8 b = as_half8(intel_sub_group_block_read_us8((const __global ushort*)B + gk * FAKE_GROUP_SIZE));
+            half8 b2= as_half8(intel_sub_group_block_read_us8((const __global ushort*)(B + K + gk * FAKE_GROUP_SIZE)));
 
             sum0.s0 = fma(a.s0, b.s0, 0);
             sum0.s1 = fma(a.s1, b.s1, 0);

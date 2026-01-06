@@ -363,20 +363,16 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
 
     auto ref_output = ref.run_reference(hidden_states, routing_weights, w0_data, w1_data, w2_data);
     for (size_t i = 0; i < ref_output.size(); ++i) {
-        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), 1.0f);
+        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), 0.1f);
     }
 }
 
-// INSTANTIATE_TEST_SUITE_P(smoke,
-//                          moe_3gemm_compressed_gpu_random,
-//                          ::testing::Values(Moe3GemmTestParams{1, true, 128, 128, 4, 2, 128},
-//                                            Moe3GemmTestParams{16, true, 128, 128, 4, 2, 128},
-//                                            Moe3GemmTestParams{1, false, 128, 128, 4, 2, 128},
-//                                            Moe3GemmTestParams{16, false, 128, 128, 4, 2, 128}));
-
 INSTANTIATE_TEST_SUITE_P(smoke,
                          moe_3gemm_compressed_gpu_random,
-                         ::testing::Values(Moe3GemmTestParams{1, true, 128, 128, 4, 2, 128}, Moe3GemmTestParams{16, true, 128, 128, 4, 2, 128}));
+                         ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{16, true, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{1, false, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128}));
 
 TEST(moe_3gemm_compressed_gpu, moe_accuracy_test_u4) {
     auto& engine = get_test_engine();
