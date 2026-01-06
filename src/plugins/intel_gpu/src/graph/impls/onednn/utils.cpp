@@ -260,19 +260,6 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
     return ret->first;
 }
 
-void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
-    auto pshape = l.get_partial_shape();
-    ov::Shape new_shape{1, 1};
-    for (size_t i = 0; i < pshape.size(); ++i) {
-        if (i < 2) {
-            new_shape[0] *= pshape[i].get_length();
-        } else {
-            new_shape[1] *= pshape[i].get_length();
-        }
-    }
-    l.set_partial_shape(new_shape);
-}
-
 int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
     int64_t offset = 0;
     auto b_padding = l.data_padding._lower_size[0];

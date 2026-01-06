@@ -22,7 +22,6 @@ namespace onednn {
 template <typename T>
 cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory);
 cldnn::format default_fmt_for_dims(size_t dims, bool is_grouped = false);
-void combine_bf_with_first_spatial_dim(cldnn::layout& l);
 
 // cldnn -> onednn
 dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims = 2, bool is_grouped = false);
