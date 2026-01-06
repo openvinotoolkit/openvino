@@ -166,7 +166,7 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getSubgraphWithFakeQuantize(
         const auto fakeQuantize = makeFakeQuantize(
             getOperations(beforeFakeQuantizeOperations, {parameter}), inputShape, inputType, fakeQuantizeShapes, zeroPoint);
 
-        const auto result = std::make_shared<ov::opset1::Result>(fakeQuantize);
+        const auto result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{fakeQuantize});
         result->set_friendly_name("result");
 
         return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter}, "SubgraphWithFakeQuantizeBody");
@@ -261,7 +261,7 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getSubgraphWithDecomposedFakeQu
         auto decomposed_fq_op_result = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(
             parameter->output(0), ov::element::f32, 1.f, 20.f, 13.4211f, true, true);
 
-        const auto result = std::make_shared<ov::opset1::Result>(decomposed_fq_op_result);
+        const auto result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{decomposed_fq_op_result});
         result->set_friendly_name("result");
 
         return std::make_shared<ov::Model>(
