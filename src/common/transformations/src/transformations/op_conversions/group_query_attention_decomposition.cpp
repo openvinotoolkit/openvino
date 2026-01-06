@@ -99,9 +99,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
         if (node->get_input_size() > 8) {
             position_ids = node->input_value(8).get_node_shared_ptr();
-        }
-        else
-        {
+        } else {
             position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
         }
 
@@ -129,7 +127,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         past_value = register_new_node<v8::Slice>(past_value, current_kv_len_const, past_kv_len_const, one, two);
     } else {
         past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
-        past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two); 
+        past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);
     }
 
     K = construct_kv_cache(past_key, K);
@@ -175,7 +173,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         std::shared_ptr<ov::Node> vert_range =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
         vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
-        if(is_static_input) {
+        if (is_static_input) {
             const auto past_k_node_len = get_dimensions(past_key.get_node_shared_ptr(), {2});
             vert_range = register_new_node<v1::Add>(vert_range, past_k_node_len);
         } else {
@@ -187,7 +185,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         // cf. make_attention_mask@src\plugins\intel_gpu\tests\common\subgraphs_builders.hpp
         std::shared_ptr<ov::Node> minus_inf = nullptr;
         if (T == ov::element::f32)
-            minus_inf = register_new_node(v0::Constant::create(T, ov::Shape{}, {-std::numeric_limits<float>::infinity()}));
+            minus_inf = 
+                register_new_node(v0::Constant::create(T, ov::Shape{}, {-std::numeric_limits<float>::infinity()}));
         else if (T == ov::element::f16)
             minus_inf =
                 register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
