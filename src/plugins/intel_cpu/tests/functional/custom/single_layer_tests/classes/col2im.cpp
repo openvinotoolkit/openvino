@@ -243,7 +243,7 @@ const std::vector<Col2ImSpecificParams> col2ImParamsVector = {
         ov::Shape{0, 0},
         ov::Shape{0, 0}
     },
-Col2ImSpecificParams { // Non-batched default
+    Col2ImSpecificParams { // Non-batched default
         InputShape{{}, {{4, 4}}}, 
         std::vector<int64_t>{3, 3},
         std::vector<int64_t>{2, 2},
