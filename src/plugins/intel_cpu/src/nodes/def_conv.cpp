@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -1060,7 +1061,7 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(
     const DefConvAttr& defConvAttr,
     const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector,
     const std::shared_ptr<CpuParallel>& parallel)
-    : cpuParallel{std::move(parallel)} {
+    : cpuParallel(parallel) {
     OPENVINO_ASSERT(any_of(descVector.size(), 4U, 5U),
                     "Deformable Convolution executor got incorrect desc's count (",
                     descVector.size(),

@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "cpu/primitive_attr_postops.hpp"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "nodes/executors/eltwise_config.hpp"
 #include "nodes/executors/eltwise_executor.hpp"

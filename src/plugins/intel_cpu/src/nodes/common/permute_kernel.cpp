@@ -10,11 +10,11 @@
 #include <string>
 
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "nodes/executors/common/ref_transpose.hpp"
 #include "nodes/executors/transpose.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/parallel.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "utils/cpu_utils.hpp"

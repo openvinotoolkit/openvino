@@ -8,8 +8,8 @@
 #include <cstdint>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_parallel.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/bfloat16.hpp"
 

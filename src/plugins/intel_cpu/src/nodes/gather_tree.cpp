@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "gather_tree.h"
 #include "graph_context.h"
@@ -24,7 +25,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -145,7 +145,7 @@ GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims
       beamWidth{stepIdxDims[2]},
       bbSize{batchSize * beamWidth},
       parentIdxSize{std::accumulate(parentIdxDims.cbegin(), parentIdxDims.cend(), 1LU, std::multiplies<>())},
-      cpuParallel(std::move(parallel)) {
+      cpuParallel(parallel) {
     if (maxTime != static_cast<int32_t>(parentIdxDims[0]) || maxTime != static_cast<int32_t>(dstDims[0]) ||
         batchSize != parentIdxDims[1] || batchSize != dstDims[1] || batchSize != maxSeqLenDims[0] ||
         beamWidth != parentIdxDims[2] || beamWidth != dstDims[2]) {

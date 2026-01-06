@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
@@ -26,7 +27,6 @@
 #include "openvino/core/enum_names.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -726,7 +726,7 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
     [[maybe_unused]] const VectorDims& rates,
     [[maybe_unused]] const ExtImgPatcherPadType& padType,
     [[maybe_unused]] const size_t prcSize,
-    const std::shared_ptr<CpuParallel>& parallel) {
+    [[maybe_unused]] const std::shared_ptr<CpuParallel>& parallel) {
 #if defined(OPENVINO_ARCH_X86_64)
     auto jpp = fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize);
     if (mayiuse(x64::avx512_core)) {

@@ -15,6 +15,7 @@
 #include "cpu_convert.h"
 #include "cpu_memcpy.h"
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "cpu_shape.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -24,7 +25,6 @@
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 

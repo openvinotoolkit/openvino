@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -19,7 +20,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -59,7 +59,7 @@ The functionality is equivalent to following python code:
 */
 template <typename T>
 struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPreprocess::Executor {
-    ExecutorCausalMaskPreprocess(const std::shared_ptr<CpuParallel> parallel) : cpuParallel(parallel) {}
+    ExecutorCausalMaskPreprocess(const std::shared_ptr<CpuParallel>& parallel) : cpuParallel(parallel) {}
     void execute([[maybe_unused]] const dnnl::stream& strm,
                  intel_cpu::Node* pnode,
                  [[maybe_unused]] const intel_cpu::CausalMaskPreprocessNode::Config& config) override {

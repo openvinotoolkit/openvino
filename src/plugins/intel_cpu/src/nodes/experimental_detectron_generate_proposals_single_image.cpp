@@ -28,8 +28,8 @@
 #    include <immintrin.h>
 #endif
 
+#include "cpu_parallel.hpp"
 #include "experimental_detectron_generate_proposals_single_image.h"
-#include "openvino/core/parallel.hpp"
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"
 
 namespace ov::intel_cpu::node {
@@ -60,7 +60,7 @@ void refine_anchors(const float* deltas,
                     const float min_box_W,
                     const float max_delta_log_wh,
                     float coordinates_offset,
-                    std::shared_ptr<CpuParallel> cpuParallel) {
+                    const std::shared_ptr<CpuParallel>& cpuParallel) {
     Indexer4d delta_idx(4, bottom_H, bottom_W);
     Indexer4d score_idx(1, bottom_H, bottom_W);
     Indexer4d proposal_idx(bottom_W, anchors_num, 5);
@@ -126,7 +126,7 @@ void refine_anchors(const float* deltas,
 void unpack_boxes(const float* p_proposals,
                   float* unpacked_boxes,
                   int pre_nms_topn,
-                  std::shared_ptr<CpuParallel> cpuParallel) {
+                  const std::shared_ptr<CpuParallel>& cpuParallel) {
     cpuParallel->parallel_for(pre_nms_topn, [&](size_t i) {
         unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
         unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[5 * i + 1];
@@ -274,7 +274,7 @@ void fill_output_blobs(const float* proposals,
                        const int num_proposals,
                        const int num_rois,
                        const int post_nms_topn,
-                       std::shared_ptr<CpuParallel> cpuParallel) {
+                       const std::shared_ptr<CpuParallel>& cpuParallel) {
     const float* src_x0 = proposals + 0 * num_proposals;
     const float* src_y0 = proposals + 1 * num_proposals;
     const float* src_x1 = proposals + 2 * num_proposals;

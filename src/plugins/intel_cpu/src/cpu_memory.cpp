@@ -23,6 +23,7 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <vector>
 
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -31,7 +32,6 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/reorder.h"
 #include "openvino/core/except.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/system_conf.hpp"

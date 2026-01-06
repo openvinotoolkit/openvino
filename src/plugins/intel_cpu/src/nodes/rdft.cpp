@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"

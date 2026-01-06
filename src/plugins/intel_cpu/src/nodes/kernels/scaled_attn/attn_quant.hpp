@@ -32,7 +32,7 @@ void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                   bool quant_k_by_channel,
                   size_t k_group_size,
                   size_t v_group_size,
-                  const std::shared_ptr<ov::intel_cpu::CpuParallel> cpu_parallel);
+                  const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel);
 
 void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                         const ov::intel_cpu::PlainTensor& v_src,

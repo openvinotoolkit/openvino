@@ -26,6 +26,7 @@
 #include "config.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -38,7 +39,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
@@ -705,7 +705,7 @@ private:
 }  // namespace
 
 void GatherMatmul::execute(const dnnl::stream& strm) {
-    const std::shared_ptr<CpuParallel>& cpu_parallel = context->getCpuParallel();
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto& srcMem = getParentEdgeAt(DATA)->getMemoryPtr();
     const auto& biasMem = getParentEdgeAt(BIAS)->getMemoryPtr();
     const auto& indexMem = getParentEdgeAt(INDICES)->getMemoryPtr();

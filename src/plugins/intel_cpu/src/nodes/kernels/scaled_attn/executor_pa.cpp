@@ -1879,13 +1879,13 @@ struct AttentionExecutor : public PagedAttentionExecutor {
     Xattn _xatt;
 #    endif
 
-    explicit AttentionExecutor(const std::shared_ptr<ov::intel_cpu::CpuParallel> cpu_parallel)
+    explicit AttentionExecutor(const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel)
         : _helper(MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC>(cpu_parallel)),
           _kernel(_helper),
           _cpu_parallel(cpu_parallel) {}
 
     explicit AttentionExecutor(const ov::Extensions::Cpu::PagedAttnQuantParams& params,
-                               const std::shared_ptr<ov::intel_cpu::CpuParallel> cpu_parallel)
+                               const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel)
         : _helper(MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC>(params, cpu_parallel)),
           _kernel(_helper),
           _cpu_parallel(cpu_parallel) {}
@@ -2342,7 +2342,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(
     ov::element::Type key_cache_type,
     ov::element::Type value_cache_type,
     const PagedAttnQuantParams& params,
-    const std::shared_ptr<ov::intel_cpu::CpuParallel> cpu_parallel) {
+    const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel) {
     std::shared_ptr<PagedAttentionExecutor> executor;
     if (params.is_sage_attn) {
         bool s8s8_available = (ov::with_cpu_x86_avx512_core_amx_int8() ||

@@ -17,6 +17,7 @@
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"

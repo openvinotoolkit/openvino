@@ -1409,7 +1409,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                     size_t value_group_size,
                                     bool quant_key_by_channel,
                                     const ov::intel_cpu::PlainTensor& sink_input,
-                                    const std::shared_ptr<ov::intel_cpu::CpuParallel> cpu_parallel) {
+                                    const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel) {
     ov::intel_cpu::PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;
     auto B = query.size(0);
@@ -1728,7 +1728,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       size_t value_group_size,
                       bool quant_key_by_channel,
                       const ov::intel_cpu::PlainTensor& sink_input,
-                      const std::shared_ptr<ov::intel_cpu::CpuParallel> cpu_parallel) {
+                      const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel) {
     if (query.get_precision() == ov::element::bf16) {
         if (present_key.get_precision() == ov::element::u8) {
             mha_single_token_kernel<ov::bfloat16, uint8_t, float>(query,

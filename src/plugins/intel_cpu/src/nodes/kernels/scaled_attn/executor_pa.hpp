@@ -17,6 +17,6 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(
     ov::element::Type key_cache_type,
     ov::element::Type value_cache_type,
     const PagedAttnQuantParams& params,
-    const std::shared_ptr<ov::intel_cpu::CpuParallel> cpu_parallel);
+    const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel);
 
 }  // namespace ov::Extensions::Cpu::XARCH

@@ -27,8 +27,8 @@
 #    include <immintrin.h>
 #endif
 
+#include "cpu_parallel.hpp"
 #include "generate_proposals.h"
-#include "openvino/core/parallel.hpp"
 #include "openvino/op/generate_proposals.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 

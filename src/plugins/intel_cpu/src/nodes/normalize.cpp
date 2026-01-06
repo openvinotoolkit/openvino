@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
@@ -43,7 +44,6 @@
 #include "openvino/core/enum_names.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -1038,7 +1038,7 @@ void NormalizeL2::execute([[maybe_unused]] const dnnl::stream& strm) {
 template <typename in_data_t, typename out_data_t>
 class NormalizeL2::NormalizeL2CornerCaseExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
-    explicit NormalizeL2CornerCaseExecutor(const VectorDims& dims, const std::shared_ptr<CpuParallel> parallel)
+    explicit NormalizeL2CornerCaseExecutor(const VectorDims& dims, const std::shared_ptr<CpuParallel>& parallel)
         : workAmount(std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>())),
           cpu_parallel(parallel) {}
 

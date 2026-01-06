@@ -13,10 +13,10 @@
 #include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "openvino/core/except.hpp"
-#include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 
 using namespace ov::intel_cpu;
