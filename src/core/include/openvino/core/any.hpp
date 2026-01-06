@@ -11,7 +11,9 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <limits>
 #include <string>
+#include <type_traits>
 #include <typeindex>
 #include <typeinfo>
 #include <unordered_map>
@@ -991,10 +993,37 @@ T& Any::as_impl(int) {
         return _temp->as<T>();
     } else if (_impl->is_signed_integral()) {
         auto value = _impl->convert<long long>();
+        if (std::is_integral<T>::value) {
+            if (std::is_unsigned<T>::value) {
+                if (value < 0) {
+                    OPENVINO_THROW("Bad cast from signed negative value to unsigned: ", value);
+                }
+                if (static_cast<unsigned long long>(value) >
+                    static_cast<unsigned long long>(std::numeric_limits<T>::max())) {
+                    OPENVINO_THROW("Bad cast (out of range) from ", value, " to: ", typeid(T).name());
+                }
+            } else {
+                if (value < static_cast<long long>(std::numeric_limits<T>::min()) ||
+                    value > static_cast<long long>(std::numeric_limits<T>::max())) {
+                    OPENVINO_THROW("Bad cast (out of range) from ", value, " to: ", typeid(T).name());
+                }
+            }
+        }
         _temp = std::make_shared<Impl<decay_t<T>>>(static_cast<T>(value));
         return _temp->as<T>();
     } else if (_impl->is_unsigned_integral()) {
         auto value = _impl->convert<unsigned long long>();
+        if (std::is_integral<T>::value) {
+            if (std::is_signed<T>::value) {
+                if (value > static_cast<unsigned long long>(std::numeric_limits<T>::max())) {
+                    OPENVINO_THROW("Bad cast (out of range) from ", value, " to: ", typeid(T).name());
+                }
+            } else {
+                if (value > static_cast<unsigned long long>(std::numeric_limits<T>::max())) {
+                    OPENVINO_THROW("Bad cast (out of range) from ", value, " to: ", typeid(T).name());
+                }
+            }
+        }
         _temp = std::make_shared<Impl<decay_t<T>>>(static_cast<T>(value));
         return _temp->as<T>();
     } else if (_impl->is_floating_point()) {
