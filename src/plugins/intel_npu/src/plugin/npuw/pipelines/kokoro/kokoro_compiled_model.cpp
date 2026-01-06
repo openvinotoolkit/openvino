@@ -35,18 +35,19 @@ namespace {
 
 ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Model>& model,
                                                    const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                   const ov::AnyMap& properties)
+                                                   const ov::AnyMap& properties,
+                                                   const ov::AnyMap& pipeline_config)
     : ov::npuw::ICompiledModel(model, plugin),
       m_name(model->get_friendly_name()) {
     LOG_DEBUG("Creating KokoroCompiledModel");
 
-    auto block_size_it = properties.find(ov::intel_npu::npuw::kokoro::block_size.name());
-    if (block_size_it != properties.end()) {
+    auto block_size_it = pipeline_config.find(ov::intel_npu::npuw::kokoro::block_size.name());
+    if (block_size_it != pipeline_config.end()) {
         m_kokoro_cfg.block_size = block_size_it->second.as<uint32_t>();
     }
 
-    auto overlap_size_it = properties.find(ov::intel_npu::npuw::kokoro::overlap_size.name());
-    if (overlap_size_it != properties.end()) {
+    auto overlap_size_it = pipeline_config.find(ov::intel_npu::npuw::kokoro::overlap_size.name());
+    if (overlap_size_it != pipeline_config.end()) {
         m_kokoro_cfg.overlap_size = overlap_size_it->second.as<uint32_t>();
     }
 
@@ -89,7 +90,7 @@ void ov::npuw::KokoroCompiledModel::export_model(std::ostream& stream) const {
 std::shared_ptr<ov::npuw::KokoroCompiledModel> ov::npuw::KokoroCompiledModel::import_model(
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
-    const ov::AnyMap& properties) {
+    const ov::AnyMap& properties, const ov::AnyMap& pipeline_config) {
     // FIXME Not implemented
     LOG_DEBUG("Importing KokoroCompiledModel");
     OPENVINO_NOT_IMPLEMENTED;

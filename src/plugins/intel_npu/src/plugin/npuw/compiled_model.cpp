@@ -153,20 +153,17 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     } else if (config.count(ov::intel_npu::npuw::pipeline_id.name())) {
         auto pipeline_id = config.at(ov::intel_npu::npuw::pipeline_id.name()).as<std::string>();
         std::transform(pipeline_id.begin(), pipeline_id.end(), pipeline_id.begin(), ::toupper);
+        config.erase(ov::intel_npu::npuw::pipeline_id.name()); // remove to avoid being processed again
         
-        auto merge_pipeline_config = [&](ov::AnyMap& cfg) {
-            if (cfg.count(ov::intel_npu::npuw::pipeline_config.name())) {
-                auto pcfg = cfg.at(ov::intel_npu::npuw::pipeline_config.name()).as<ov::AnyMap>();
-                for (auto&& item : pcfg) {
-                    cfg[item.first] = item.second;
-                }
-            }
-        };
-
+        auto pipeline_config = ov::AnyMap{};
+        auto pipeline_config_it = config.find(ov::intel_npu::npuw::pipeline_config.name());
+        if (pipeline_config_it != config.end()) {
+            pipeline_config = pipeline_config_it->second.as<ov::AnyMap>();
+            config.erase(ov::intel_npu::npuw::pipeline_config.name());
+        }
         if (pipeline_id == "KOKORO") {
             LOG_INFO("ov::npuw::KokoroCompiledModel will be created (based on pipeline ID).");
-            merge_pipeline_config(config);
-            compiled_model = std::make_shared<ov::npuw::KokoroCompiledModel>(model, plugin, config);
+            compiled_model = std::make_shared<ov::npuw::KokoroCompiledModel>(model, plugin, config, pipeline_config);
         }   
     } else {
         LOG_INFO("ov::npuw::CompiledModel will be created.");

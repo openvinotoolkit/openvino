@@ -26,13 +26,15 @@ class KokoroCompiledModel : public ov::npuw::ICompiledModel {
 public:
     KokoroCompiledModel(const std::shared_ptr<ov::Model>& model,
                        const std::shared_ptr<const ov::IPlugin>& plugin,
-                       const ov::AnyMap& properties);
+                       const ov::AnyMap& properties,
+                       const ov::AnyMap& pipeline_config = ov::AnyMap{});
     KokoroCompiledModel() = delete;
 
     void export_model(std::ostream& model) const override;
     static std::shared_ptr<KokoroCompiledModel> import_model(std::istream& stream,
                                                           const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                          const ov::AnyMap& properties);
+                                                          const ov::AnyMap& properties,
+                                                          const ov::AnyMap& pipeline_config = ov::AnyMap{});
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
