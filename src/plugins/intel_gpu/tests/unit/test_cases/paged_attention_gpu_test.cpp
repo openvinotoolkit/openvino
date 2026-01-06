@@ -13,6 +13,7 @@
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
 #include <openvino/reference/xattention.hpp>
+#include <openvino/reference/adaptive_rkv_diversity.hpp>
 
 #include "openvino/runtime/tensor.hpp"
 #include "primitive_inst.h"
@@ -275,7 +276,7 @@ struct PagedAttentionManager {
                             const size_t off = base + static_cast<size_t>(token_idx) * head_size;
                             set_values(test_stream, memory, src_ptr, head_size, off);
                         } else {
-							// Compressed Key cache layout:
+                            // Compressed Key cache layout:
                             // logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
                             // Per (block, head) region starts at block_base_i8, byte-packed as:
                             //   data:  block_base_i8 + t*head_size                 (u8 semantics), size=head_size bytes
@@ -444,11 +445,11 @@ struct PagedAttentionManager {
                             const size_t off = base + static_cast<size_t>(token_idx) * static_cast<size_t>(head_size);
                             set_values(test_stream, memory, src_ptr, head_size, off);
                         } else {
-							// Compressed Value cache layout:
-							// logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
-							// Per (block, head): data at block_base_i8 + t*head_size; scale/zp are fp16 arrays at scale_base_i8/zp_base_i8
-							// (fp16 element offsets: scale_base_i8/2 + t, zp_base_i8/2 + t).
-							// has_xattention uses unsigned [0..255] quant; dequant x ≈ (q - zp) * scale, scale=(max-min)/255, zp=(-min)*255/(max-min).
+                            // Compressed Value cache layout:
+                            // logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
+                            // Per (block, head): data at block_base_i8 + t*head_size; scale/zp are fp16 arrays at scale_base_i8/zp_base_i8
+                            // (fp16 element offsets: scale_base_i8/2 + t, zp_base_i8/2 + t).
+                            // has_xattention uses unsigned [0..255] quant; dequant x ≈ (q - zp) * scale, scale=(max-min)/255, zp=(-min)*255/(max-min).
                             auto [qdata, scale, zp] = quantize_data(src_ptr, head_size, false, has_xattention);
                             int8_t* qptr = reinterpret_cast<int8_t*>(qdata.data());
 
@@ -818,9 +819,10 @@ struct PagedAttentionReference {
     , test_engine(pam.test_engine)
     , test_stream(pam.test_stream) {}
 
-    std::pair<std::vector<ov::float16>, std::vector<ov::float16>> get_reference(bool has_xattention, std::vector<float> threshold) {
+    std::tuple<std::vector<ov::float16>, std::vector<ov::float16>, std::vector<ov::float16>> get_reference(bool has_xattention, std::vector<float> threshold, memory::ptr key_cache_mem = nullptr) {
         std::vector<ov::float16> ref_data_output;
         std::vector<ov::float16> ref_scores_output;
+        std::vector<ov::float16> ref_diversity_output;
 
         for (size_t i = 0; i < pam.subsequence_descs.size(); i++) {
             const auto& subsequence_desc = pam.subsequence_descs[i];
@@ -879,7 +881,11 @@ struct PagedAttentionReference {
                                      subsequence_ref_results.second.end());
         }
 
-        return { ref_data_output, ref_scores_output };
+        if (!pam.adaptive_rkv_evictable_sizes.empty()) {
+            ref_diversity_output = compute_diversity_reference(key_cache_mem);
+        }
+
+        return { ref_data_output, ref_scores_output, ref_diversity_output };
     }
 
 private:
@@ -1249,6 +1255,81 @@ private:
         }
     }
 
+    std::vector<ov::float16> read_key_from_cache(memory::ptr key_cache_mem, size_t seq_idx, int total_tokens) {
+        // Read key vectors from key_cache memory
+        // key_cache layout: [num_blocks, num_kv_heads, head_size, block_size]
+        std::vector<ov::float16> key_data(pam.num_kv_heads * total_tokens * pam.k_head_size);
+
+        const int blocks_start = pam.block_indices_begins[seq_idx];
+        const int blocks_end = pam.block_indices_begins[seq_idx + 1];
+        const int num_blocks = blocks_end - blocks_start;
+
+        const bool is_compressed = pam.kv_cache_compression;
+
+        if (!is_compressed) {
+            // Uncompressed case: read as float16
+            mem_lock<ov::float16, mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
+
+            for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
+                const int physical_block = pam.block_indices[blocks_start + block_idx];
+                const int tokens_in_block = std::min(pam.block_size, total_tokens - block_idx * pam.block_size);
+
+                for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
+                    const int token_idx = block_idx * pam.block_size + token_offset;
+
+                    for (int head_idx = 0; head_idx < pam.num_kv_heads; head_idx++) {
+                        const size_t cache_base = static_cast<size_t>(physical_block) * pam.num_kv_heads * pam.k_head_size * pam.block_size +
+                                                  static_cast<size_t>(head_idx) * pam.k_head_size * pam.block_size;
+
+                        const size_t output_base = static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size +
+                                                   static_cast<size_t>(token_idx) * pam.k_head_size;
+
+                        for (int dim = 0; dim < pam.k_head_size; dim++) {
+                            const size_t cache_offset = cache_base + static_cast<size_t>(dim) * pam.block_size + token_offset;
+                            key_data[output_base + dim] = cache_ptr[cache_offset];
+                        }
+                    }
+                }
+            }
+        }
+        return key_data;
+    }
+
+    std::vector<ov::float16> compute_diversity_reference(memory::ptr key_cache_mem) {
+        std::vector<ov::float16> diversity_output;
+
+        for (size_t seq_idx = 0; seq_idx < pam.subsequence_descs.size(); seq_idx++) {
+            const auto start_size = pam.adaptive_rkv_start_size[seq_idx];
+            const auto evictable_size = pam.adaptive_rkv_evictable_sizes[seq_idx];
+
+            // Read key data from key_cache instead of original key_data
+            const auto& subsequence_desc = pam.subsequence_descs[seq_idx];
+            const auto total_tokens = subsequence_desc.num_tokens + subsequence_desc.past_len;
+
+            // Extract key vectors from key_cache memory
+            std::vector<ov::float16> key_data = read_key_from_cache(key_cache_mem, seq_idx, total_tokens);
+
+            ov::Shape key_shape = {static_cast<size_t>(pam.num_kv_heads),
+                                   static_cast<size_t>(total_tokens),
+                                   static_cast<size_t>(pam.k_head_size)};
+
+            // Use reference implementation
+            ov::reference::AdaptiveRKVDiversityCalculator<ov::float16> calculator(start_size, evictable_size, pam.block_size);
+
+            auto block_diversity = calculator.calculate_block_diversity(key_data.data(), key_shape);
+
+            const size_t num_evictable_blocks = static_cast<size_t>(evictable_size) / static_cast<size_t>(pam.block_size);
+            // Flatten 2D to 1D: [num_evictable_blocks, evictable_size] -> [num_evictable_blocks * evictable_size]
+            for (size_t block_idx = 0; block_idx < num_evictable_blocks; block_idx++) {
+                for (size_t token_idx = 0; token_idx < static_cast<size_t>(evictable_size); token_idx++) {
+                    diversity_output.push_back(block_diversity[block_idx][token_idx]);
+                }
+            }
+        }
+
+        return diversity_output;
+    }
+
     PagedAttentionManager& pam;
     cldnn::engine& test_engine;
     cldnn::stream& test_stream;
@@ -1282,6 +1363,25 @@ public:
                                   p.has_xattention,
                                   p.rotation_config,
                                   p.threshold);
+
+        if (p.has_adaptive_rkv) {
+            pam.adaptive_rkv_diversity_block_set_indices_begins.push_back(0);
+            for (size_t i = 0; i < p.subsequences.size(); i++) {
+                pam.adaptive_rkv_start_size.push_back(p.start_size);
+                pam.adaptive_rkv_evictable_sizes.push_back(p.evictable_size);
+
+                int start_block = p.start_size / p.block_size;
+                int evictable_blocks = p.evictable_size / p.block_size;
+                int global_start_block_idx = pam.block_indices_begins[i] + start_block;
+
+                for (int b = 0; b < evictable_blocks; b++) {
+                    pam.adaptive_rkv_diversity_block_set_indices.push_back(global_start_block_idx + b);
+                }
+
+                int prev_begin = pam.adaptive_rkv_diversity_block_set_indices_begins.back();
+                pam.adaptive_rkv_diversity_block_set_indices_begins.push_back(prev_begin + evictable_blocks);
+            }
+        }
 
         if (p.kv_cache_compression)
             tolerance = 25e-3;
@@ -1447,9 +1547,14 @@ public:
         pa_prim.heads_num = p.num_heads;
         pa_prim.scale_val = pam.get_default_scale();
         pa_prim.has_alibi = false;
-        pa_prim.num_outputs = p.scores_mode == ScoresMode::DISABLED ? 1 : 2;
+
+        int num_outputs = 1;
+        if (p.scores_mode != ScoresMode::DISABLED) num_outputs++;
+        if (p.has_adaptive_rkv) num_outputs++;
+        pa_prim.num_outputs = num_outputs;
         pa_prim.has_rotated_blocks = p.rotation_config.apply_rotation;
         pa_prim.has_score_aggregation = p.scores_mode == ScoresMode::SNAPKV;
+        pa_prim.has_adaptive_rkv = p.has_adaptive_rkv;
         pa_prim.sliding_window = p.sliding_window_size;
         pa_prim.is_key_by_channel = (p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
         if (p.has_xattention) {
@@ -1477,8 +1582,13 @@ public:
             reorder("output_data", input_info("paged_attention", 0), format::bfyx, data_types::f16)
         );
 
+        int output_idx = 1;
         if (p.scores_mode != ScoresMode::DISABLED) {
-            topology.add(reorder("output_scores", input_info("paged_attention", 1), format::bfyx, data_types::f16));
+            topology.add(reorder("output_scores", input_info("paged_attention", output_idx), format::bfyx, data_types::f16));
+            output_idx++;
+        }
+        if (p.has_adaptive_rkv) {
+            topology.add(reorder("output_diversity", input_info("paged_attention", output_idx), format::bfyx, data_types::f16));
         }
 
         {
@@ -1537,44 +1647,58 @@ public:
 
         cldnn::memory::ptr output_data_mem = nullptr;
         cldnn::memory::ptr output_scores_mem = nullptr;
+        cldnn::memory::ptr output_diversity_mem = nullptr;
 
         output_data_mem = outputs.at("output_data").get_memory();
         if (p.scores_mode != ScoresMode::DISABLED) {
             output_scores_mem = outputs.at("output_scores").get_memory();
         }
-        auto ref_data = PagedAttentionReference(pam).get_reference(p.has_xattention, p.threshold);
+        if (p.has_adaptive_rkv) {
+            output_diversity_mem = outputs.at("output_diversity").get_memory();
+        }
+        auto ref_data = PagedAttentionReference(pam).get_reference(p.has_xattention, p.threshold, key_cache_mem);
         if (p.has_xattention) {
             compare_xattention(output_data_mem, output_scores_mem, ref_data);
         } else {
-            compare(output_data_mem, output_scores_mem, ref_data);
+            compare(output_data_mem, output_scores_mem, output_diversity_mem, ref_data);
         }
     }
 
-    void compare(memory::ptr data_output_mem, memory::ptr scores_output_mem, std::pair<std::vector<ov::float16>, std::vector<ov::float16>> ref_data) {
+    void compare(memory::ptr data_output_mem, memory::ptr scores_output_mem, memory::ptr diversity_output_mem, std::tuple<std::vector<ov::float16>, std::vector<ov::float16>, std::vector<ov::float16>> ref_data) {
         if (data_output_mem) {
-            ASSERT_EQ(data_output_mem->count(), ref_data.first.size());
+            ASSERT_EQ(data_output_mem->count(), std::get<0>(ref_data).size());
             mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, get_test_stream());
             for (size_t i = 0; i < data_output_mem->count(); i++) {
-                ASSERT_NEAR(mem_ptr[i], ref_data.first[i], tolerance) << " at index=" << i;
+                ASSERT_NEAR(mem_ptr[i], std::get<0>(ref_data)[i], tolerance) << " at index=" << i;
             }
         }
 
         if (scores_output_mem) {
-            ASSERT_EQ(scores_output_mem->count(), ref_data.second.size());
+            ASSERT_EQ(scores_output_mem->count(), std::get<1>(ref_data).size());
             mem_lock<ov::float16, mem_lock_type::read> mem_ptr(scores_output_mem, get_test_stream());
             for (size_t i = 0; i < scores_output_mem->count(); i++) {
-                ASSERT_NEAR(mem_ptr[i], ref_data.second[i], tolerance) << " at index=" << i;
+                ASSERT_NEAR(mem_ptr[i], std::get<1>(ref_data)[i], tolerance) << " at index=" << i;
+            }
+        }
+
+        if (diversity_output_mem) {
+            ASSERT_EQ(diversity_output_mem->count(), std::get<2>(ref_data).size());
+            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(diversity_output_mem, get_test_stream());
+            // Use relaxed tolerance for diversity due to float16 (GPU) vs float32 (Reference) precision differences
+            float diversity_tolerance = tolerance * 10.0f;  // 0.02 for diversity
+            for (size_t i = 0; i < diversity_output_mem->count(); i++) {
+                ASSERT_NEAR(mem_ptr[i], std::get<2>(ref_data)[i], diversity_tolerance) << " at index=" << i;
             }
         }
     }
 
-    void compare_xattention(memory::ptr data_output_mem, memory::ptr scores_output_mem, std::pair<std::vector<ov::float16>, std::vector<ov::float16>> ref_data) {
+    void compare_xattention(memory::ptr data_output_mem, memory::ptr scores_output_mem, std::tuple<std::vector<ov::float16>, std::vector<ov::float16>, std::vector<ov::float16>> ref_data) {
         if (data_output_mem) {
-            ASSERT_EQ(data_output_mem->count(), ref_data.first.size());
+            ASSERT_EQ(data_output_mem->count(), std::get<0>(ref_data).size());
             mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, get_test_stream());
             int mismatch_count = 0;
             for (size_t i = 0; i < data_output_mem->count(); i++) {
-                if (std::fabs(static_cast<float>(mem_ptr[i]) - static_cast<float>(ref_data.first[i])) > tolerance) {
+                if (std::fabs(static_cast<float>(mem_ptr[i]) - static_cast<float>(std::get<0>(ref_data)[i])) > tolerance) {
                     mismatch_count++;
                 }
             }
@@ -1582,11 +1706,11 @@ public:
         }
 
         if (scores_output_mem) {
-            ASSERT_EQ(scores_output_mem->count(), ref_data.second.size());
+            ASSERT_EQ(scores_output_mem->count(), std::get<1>(ref_data).size());
             mem_lock<ov::float16, mem_lock_type::read> mem_ptr(scores_output_mem, get_test_stream());
             int mismatch_count = 0;
             for (size_t i = 0; i < scores_output_mem->count(); i++) {
-                if (std::fabs(static_cast<float>(mem_ptr[i]) - static_cast<float>(ref_data.second[i])) > tolerance) {
+                if (std::fabs(static_cast<float>(mem_ptr[i]) - static_cast<float>(std::get<1>(ref_data)[i])) > tolerance) {
                     mismatch_count++;
                 }
             }
@@ -1618,6 +1742,9 @@ struct paged_attention_test_params {
     ScoresMode scores_mode;
     CacheRotationDescriptor rotation_config;
     bool disable_flashattn_v2;
+    bool has_adaptive_rkv = false;
+    int start_size = 0;
+    int evictable_size = 0;
 };
 
 class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -1636,6 +1763,13 @@ TEST_P(xattention_test, basic) {
     execute(p);
 }
 
+class adaptive_rkv_diversity_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(adaptive_rkv_diversity_test, basic) {
+    auto p = GetParam();
+
+    execute(p);
+}
+
 const auto ENABLE_CACHE_COMPRESSION = true;
 const auto DISABLE_CACHE_COMPRESSION = false;
 const auto DISABLE_SCORES = ScoresMode::DISABLED;
@@ -1648,6 +1782,8 @@ const auto STATIC_INPUT_PAD = false;
 const auto DYNAMIC_INPUT_PAD = true;
 const auto ENABLE_FA_V2 = false;
 const auto DISABLE_FA_V2 = true;
+const auto ENABLE_DIVERSITY = true;
+const auto DISABLE_DIVERSITY = false;
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     /* with scores output, use SnapKV */
@@ -1770,7 +1906,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing:
     paged_attention_test_params{ {{1008, 692}}, 32, 32, 128, 128, 16, {100.0}, 128, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
     paged_attention_test_params{ {{1008, 792}}, 32, 32, 128, 128, 16, {100.0}, 256, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
     paged_attention_test_params{ {{1, 34}, {2, 20}, {10, 34}}, 2, 2, 64, 64, 16, {100.0}, 10, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
-	/* Per-Block rotation cases with  Per-Channel quantization*/
+    /* Per-Block rotation cases with  Per-Channel quantization*/
     paged_attention_test_params{ {{16, 32}}, 2, 2, 32, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token, per block rotate
     paged_attention_test_params{ {{8, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token, per block rotate
     paged_attention_test_params{ {{256, 56}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token, per block rotate
@@ -1819,4 +1955,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::Values
     paged_attention_test_params{ {{1, 32}},   2, 2, 64, 64, 256, {0.9}, 0, true, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd toke
     paged_attention_test_params{ {{1, 1023}},   2, 2, 64, 64, 256, {0.9}, 0, true, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
     paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 256, {0.9}, 0, true, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_adaptive_rkv, adaptive_rkv_diversity_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // Small evictable_size tests
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, 32 },
+    paged_attention_test_params{ {{128, 0}}, 4, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, 64 },
+
+    // Multi-sequence tests
+    paged_attention_test_params{ {{64, 0}, {96, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, 48 },
 }));
