@@ -104,7 +104,6 @@ public:
     void configure_model() override {
         ov::preprocess::PrePostProcessor p(function);
         {
-            auto& params = function->get_parameters();
             if (inType != ov::element::Type_t::dynamic) {
                 p.input(0).tensor().set_element_type(inType);
             }
