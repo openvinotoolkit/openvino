@@ -10,6 +10,7 @@
 
 #ifdef GPU_DEBUG_CONFIG
 
+#include "impls/ocl/kernels_cache.hpp"
 #include "to_string_utils.h"
 #include "loop_inst.h"
 #include "condition_inst.h"

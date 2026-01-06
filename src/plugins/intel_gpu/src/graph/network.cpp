@@ -754,6 +754,30 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
     NETWORK_DEBUG(*this);
 
+    kernel_impl_params params;
+
+    static std::map<std::string, kernel::ptr> compiled_marker_kernels;
+    
+    auto kernel_name = "network_marker_start_p" + std::to_string(get_program()->get_id()) + "_n" + std::to_string(get_id());
+    
+    kernel::ptr kernel;
+    auto it = compiled_marker_kernels.find(kernel_name);
+    if (it == compiled_marker_kernels.end()) {
+        auto kernel_str = std::make_shared<kernel_string>();
+        kernel_str->str = "__kernel void " + kernel_name + "() {}";
+        kernel_str->entry_point = kernel_name;
+        auto &kernels_cache = get_program()->get_kernels_cache();
+        auto kernels = kernels_cache.compile(params, {kernel_str});
+        kernel = kernels[params][0].first;
+        compiled_marker_kernels[kernel_name] = kernel;
+    } else {
+        kernel = it->second;
+    }
+    
+    auto ret = get_program()->get_kernels_cache().validate_simple_kernel_execution(kernel, get_program()->get_id(), get_id(), get_current_iteration_num());
+    GPU_DEBUG_TRACE << ret << std::endl;
+
+
     // Wait for previous execution completion
     reset_execution(false);
 
@@ -807,6 +831,26 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
             ev = inst->get_impl_params()->out_event;
 
         result.emplace(id, network_output(ev, inst->output_memory_ptr(0), get_stream_ptr(), inst->get_output_layout(0)));
+    }
+
+    {
+        auto kernel_name = "network_marker_finish_p" + std::to_string(get_program()->get_id()) + "_n" + std::to_string(get_id());
+        
+        kernel::ptr kernel;
+        auto it = compiled_marker_kernels.find(kernel_name);
+        if (it == compiled_marker_kernels.end()) {
+            auto kernel_str = std::make_shared<kernel_string>();
+            kernel_str->str = "__kernel void " + kernel_name + "() {}";
+            kernel_str->entry_point = kernel_name;
+            auto &kernels_cache = get_program()->get_kernels_cache();
+            auto kernels = kernels_cache.compile(params, {kernel_str});
+            kernel = kernels[params][0].first;
+            compiled_marker_kernels[kernel_name] = kernel;
+        } else {
+            kernel = it->second;
+        }
+        auto ret = get_program()->get_kernels_cache().validate_simple_kernel_execution(kernel, get_program()->get_id(), get_id(), get_current_iteration_num());
+        GPU_DEBUG_TRACE << ret << std::endl;
     }
     return result;
 }
