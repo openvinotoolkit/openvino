@@ -5,6 +5,7 @@
 #include "ref_opt_transpose.hpp"
 
 #include <cstddef>
+#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 
