@@ -548,7 +548,7 @@ class Core:
     """
     openvino.Core class represents OpenVINO runtime Core entity. User applications can create several Core class instances, but in this case, the underlying plugins are created multiple times and not shared between several Core instances. The recommended way is to have a single Core instance per application.
     """
-    def __init__(self, xml_config_file: str = '') -> None:
+    def __init__(self, xml_config_file: typing.Any = '') -> None:
         ...
     def __repr__(self) -> str:
         ...
@@ -905,41 +905,27 @@ class Core:
                     :return: A model.
                     :rtype: openvino.Model
         """
-    @typing.overload
-    def register_plugin(self, plugin_name: str, device_name: str) -> None:
+    def register_plugin(self, plugin: typing.Any, device_name: str, config: collections.abc.Mapping[str, typing.Any] = {}) -> None:
         """
                         Register a new device and plugin which enable this device inside OpenVINO Runtime.
         
-                        :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
+                        :param plugin: A path (absolute or relative) or name of a plugin. Depending on platform,
                                             `plugin_name` is wrapped with shared library suffix and prefix to identify
                                             library full name E.g. on Linux platform plugin name specified as `plugin_name`
                                             will be wrapped as `libplugin_name.so`.
-                        :type plugin_name: str
-                        :param device_name: A device name to register plugin for.
-                        :type device_name: str
-        """
-    @typing.overload
-    def register_plugin(self, plugin_name: str, device_name: str, config: collections.abc.Mapping[str, typing.Any]) -> None:
-        """
-                        Register a new device and plugin which enable this device inside OpenVINO Runtime.
-        
-                        :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
-                                            `plugin_name` is wrapped with shared library suffix and prefix to identify
-                                            library full name E.g. on Linux platform plugin name specified as `plugin_name`
-                                            will be wrapped as `libplugin_name.so`.
-                        :type plugin_name: str
+                        :type plugin: Union[str, bytes, pathlib.Path]
                         :param device_name: A device name to register plugin for.
                         :type device_name: str
                         :param config: Plugin default configuration
                         :type config: dict[str, typing.Any], optional
         """
-    def register_plugins(self, xml_config_file: str) -> None:
+    def register_plugins(self, xml_config_file: typing.Any) -> None:
         """
                         Registers a device plugin to OpenVINO Runtime Core instance using XML configuration
                         file with plugins description.
         
                         :param xml_config_file: A path to .xml file with plugins to register.
-                        :type xml_config_file: str
+                        :type xml_config_file: Union[str, bytes, pathlib.Path]
         """
     @typing.overload
     def set_property(self, properties: collections.abc.Mapping[str, typing.Any]) -> None:
@@ -4870,7 +4856,7 @@ class Tensor:
         
                     Returns numpy array with corresponding shape and dtype.
         
-                    For tensors with OpenVINO specific element type, such as u1, u4 or i4
+                    For tensors with OpenVINO specific element type, such as u1, u2, u4 or i4
                     it returns linear array, with uint8 / int8 numpy dtype.
         
                     For tensors with string element type, returns a numpy array of bytes
@@ -5026,6 +5012,7 @@ class Type:
     string: typing.ClassVar[Type]  # value = <Type: 'string'>
     u1: typing.ClassVar[Type]  # value = <Type: 'uint1_t'>
     u16: typing.ClassVar[Type]  # value = <Type: 'uint16_t'>
+    u2: typing.ClassVar[Type]  # value = <Type: 'uint2_t'>
     u32: typing.ClassVar[Type]  # value = <Type: 'uint32_t'>
     u4: typing.ClassVar[Type]  # value = <Type: 'uint4_t'>
     u64: typing.ClassVar[Type]  # value = <Type: 'uint64_t'>

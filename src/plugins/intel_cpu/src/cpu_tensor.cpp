@@ -125,6 +125,19 @@ const void* Tensor::data(const element::Type& element_type) const {
     return m_memptr->getData();
 }
 
+void* Tensor::data_rw() {
+    return m_memptr->getData();
+}
+
+void* Tensor::data_rw(const element::Type& element_type) {
+    OPENVINO_ASSERT(is_pointer_representable(get_element_type(), element_type),
+                    "Tensor data with element type ",
+                    get_element_type(),
+                    ", is not representable as pointer to ",
+                    element_type);
+    return m_memptr->getData();
+}
+
 /**
  * @brief Creates tensor on graph memory
  *
