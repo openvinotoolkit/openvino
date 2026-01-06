@@ -29,6 +29,13 @@ public:
         if (typed_desc()->has_score_aggregation)
             input_ports.insert(PagedAttentionInputIdx::SCORE_AGGREGATION);
 
+        if (typed_desc()->has_adaptive_rkv) {
+            input_ports.insert(PagedAttentionInputIdx::ADAPTIVE_RKV_START_SIZE);
+            input_ports.insert(PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES);
+            input_ports.insert(PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES);
+            input_ports.insert(PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS);
+        }
+
         return input_ports;
     }
 

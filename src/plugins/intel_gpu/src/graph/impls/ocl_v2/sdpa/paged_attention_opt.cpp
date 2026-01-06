@@ -94,11 +94,11 @@ inline size_t get_generate_stage_block_size(size_t head_size) {
 inline bool can_use_gqa_kernel(const kernel_impl_params& params, const PagedAttentionStage& stage, size_t paged_attention_max_len) {
     // Apply GQA only if there is a single subsequence in the request,
     // as multiple subsequences might have significantly different lengths
+    const auto desc = params.typed_desc<paged_attention>();
     const auto max_subsequences_num = 1;
-    const auto has_scores_output = params.output_layouts.size() > 1;
+    const auto has_scores_output = desc->has_scores_output();
     const auto scores_calc_only = (stage == PagedAttentionStage::PREFILL) && has_scores_output;
     const auto multi_tokens_mode = stage == PagedAttentionStage::MIXED;
-    const auto desc = params.typed_desc<paged_attention>();
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
     const auto& past_lens = params.input_layouts[PagedAttentionInputIdx::PAST_LENS];
     const auto subsequences_num = past_lens.get_partial_shape()[0].get_length();
@@ -297,7 +297,7 @@ public:
             jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
             jit.make("HAS_SINK_INPUT", 1);
         }
-        if (params.output_layouts.size() > 1) {
+        if (desc->has_scores_output()) {
             jit.make("PAGED_ATTENTION_SCORES_OUTPUT", 1);
             if (desc->has_score_aggregation) {
                 jit.make("HAS_SCORE_AGGREGATION", 1);
@@ -384,7 +384,7 @@ public:
         const auto desc = params.typed_desc<paged_attention>();
         const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
-        const auto has_scores_output = params.output_layouts.size() > 1;
+        const auto has_scores_output = desc->has_scores_output();
         const auto has_sink_input = desc->has_sink_input;
         if (params.is_dynamic()) {
             args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
@@ -498,7 +498,7 @@ public:
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});  // past_lens
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
-        const auto has_scores_output = params.output_layouts.size() > 1;
+        const auto has_scores_output = desc->has_scores_output();
         add_intermediate_inputs(args, has_scores_output, false, desc->has_score_aggregation);
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // total_partitions_num
@@ -576,7 +576,7 @@ public:
         const auto desc = params.typed_desc<paged_attention>();
         const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
-        const auto has_scores_output = params.output_layouts.size() > 1;
+        const auto has_scores_output = desc->has_scores_output();
 
         if (params.is_dynamic()) {
             args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
@@ -648,7 +648,7 @@ public:
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});  // subsequence_begins
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
-        const auto has_scores_output = params.output_layouts.size() > 1;
+        const auto has_scores_output = desc->has_scores_output();
         add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation);
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // total_partitions_num
@@ -701,12 +701,13 @@ public:
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override {
         Arguments args;
 
+        const auto desc = params.typed_desc<paged_attention>();
+
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});           // past_lens
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});  // subsequence_begins
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 1});                                          // out scores
 
-        const auto has_scores_output = params.output_layouts.size() > 1;
-        const auto desc = params.typed_desc<paged_attention>();
+        const auto has_scores_output = desc->has_scores_output();
         add_intermediate_inputs(args, has_scores_output, false, desc->has_score_aggregation);
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // total_partitions_num
@@ -732,6 +733,72 @@ public:
             const auto is_mixed_mode = rtp->stage == PagedAttentionStage::MIXED;
             scalars[0].t = ScalarDescriptor::Types::UINT32;
             scalars[0].v.u32 = static_cast<uint32_t>(is_mixed_mode);
+        }};
+    }
+};
+
+class AdaptiveRKVDiversityGenerator : public KernelGenerator {
+public:
+    AdaptiveRKVDiversityGenerator() : KernelGenerator("pa_adaptive_rkv_diversity_ref") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
+        auto jit = make_base_jit_constants(params);
+
+        const auto& in_offsets_map = params.in_port_to_shape_info_offset;
+        const auto& out_offsets_map = params.out_port_to_shape_info_offset;
+
+        constexpr static std::array input_ids = {PagedAttentionInputIdx::KEY_CACHE,
+                                                 PagedAttentionInputIdx::ADAPTIVE_RKV_START_SIZE,
+                                                 PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES,
+                                                 PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES,
+                                                 PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS};
+
+        for (size_t i = 0; i < input_ids.size(); i++) {
+            const size_t tensor_id = input_ids.at(i);
+            jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+        }
+
+        constexpr size_t diversity_output_id = 2;
+        jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[diversity_output_id], out_offsets_map.at(diversity_output_id)));
+
+        const auto desc = params.typed_desc<paged_attention>();
+        jit.make("K_HEAD_SIZE", desc->k_head_size);
+        jit.make("HEADS_NUM", desc->heads_num);
+        jit.make("KV_HEADS_NUM", desc->kv_heads_num);
+        jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+        jit.make("SUBGROUP_SIZE", subgroup_size);
+    
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override {
+        Arguments args;
+
+        if (params.is_dynamic()) {
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
+
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ADAPTIVE_RKV_START_SIZE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES});
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES});
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
+
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            assert(!params.is_dynamic());
+            auto& wgs = kd.params.workGroups;
+
+            const auto& evictable_sizes = params.input_layouts[PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES];
+            const size_t batch_size = static_cast<size_t>(evictable_sizes.get_partial_shape()[0].get_length());
+
+            wgs.global = {batch_size * subgroup_size, 1, 1};
+            wgs.local = {subgroup_size, 1, 1};
         }};
     }
 };
@@ -1085,6 +1152,7 @@ public:
     Stage::Ptr pa_sdpa_opt = make_stage<PagedAttentionSDPAOptGeneratorMultiToken>();
     Stage::Ptr kv_cache_rotate = make_stage<KVCacheRotateGenerator>();
     Stage::Ptr pa_scores_calc = make_stage<PagedAttentionGeneratorScoresCalculation>();
+    Stage::Ptr pa_diversity_calc = make_stage<AdaptiveRKVDiversityGenerator>();
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
     Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
@@ -1094,8 +1162,9 @@ public:
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
     explicit PagedAttentionOptImpl(const kernel_impl_params& params) : PagedAttentionOptImpl() {
         const auto desc = params.typed_desc<paged_attention>();
-        const bool has_scores_output = params.output_layouts.size() > 1;
+        const bool has_scores_output = desc->has_scores_output();
         const bool has_rotated_blocks = desc->has_rotated_blocks;
+        const bool has_adaptive_rkv = desc->has_adaptive_rkv;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         const bool use_micro_sdpa = supports_micro_sdpa(params);
@@ -1120,6 +1189,10 @@ public:
 
         if (has_scores_output) {
             add_stage(pa_scores_calc, params);
+        }
+
+        if (has_adaptive_rkv) {
+            add_stage(pa_diversity_calc, params);
         }
     }
 
@@ -1153,7 +1226,7 @@ public:
             return false;
         }
 
-        if (params.output_layouts.size() > 1 || desc->has_score_aggregation) {
+        if (desc->has_scores_output() || desc->has_score_aggregation) {
             return false;
         }
 
@@ -1251,8 +1324,9 @@ public:
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         const auto& params = *instance.get_impl_params();
         const auto desc = params.typed_desc<paged_attention>();
-        const bool has_scores_output = params.output_layouts.size() > 1;
+        const bool has_scores_output = desc->has_scores_output();
         const bool has_rotated_blocks = desc->has_rotated_blocks;
+        const bool has_adaptive_rkv = desc->has_adaptive_rkv;
 
         update_stages_flags(instance);
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
@@ -1296,6 +1370,10 @@ public:
 
         if (has_scores_output) {
             res_event = {execute_stage(res_event, instance, pa_scores_calc)};
+        }
+
+        if (has_adaptive_rkv && rt_params->stage == PagedAttentionStage::PREFILL) {
+            res_event = {execute_stage(res_event, instance, pa_diversity_calc)};
         }
 
         return res_event[0];
@@ -1403,7 +1481,7 @@ public:
         auto buf_elements_count = static_cast<int64_t>(total_tokens * desc->heads_num * num_of_partitions);
         auto tmp_out_elements_count = static_cast<int64_t>(total_tokens * desc->heads_num * desc->v_head_size * num_of_partitions);
 
-        const bool has_scores_output = params.output_layouts.size() > 1;
+        const bool has_scores_output = desc->has_scores_output();
         if (has_scores_output) {
             const auto& past_lens = params.input_layouts[PagedAttentionInputIdx::PAST_LENS];
             auto subsequences_number = past_lens.get_partial_shape()[0].get_length();
