@@ -23,7 +23,7 @@ from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from openvino.frontend.pytorch.torchdynamo import decompositions
 from openvino.frontend.pytorch.torchdynamo.decompositions import get_aot_decomposition_list, get_inf_decomposition_list
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
-from openvino.frontend.pytorch.torchdynamo.execute import execute, execute_cached
+from openvino.frontend.pytorch.torchdynamo.execute import execute, execute_cached, clear_caches
 from openvino.frontend.pytorch.torchdynamo.compile import cached_model_name, openvino_compile_cached_model
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_model_caching, _get_decompositions, _get_aot_autograd
 
