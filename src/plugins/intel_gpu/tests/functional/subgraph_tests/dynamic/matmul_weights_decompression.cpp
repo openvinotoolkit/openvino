@@ -615,6 +615,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_input_4d,
                                             ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(true),
+                                            ::testing::Values(false),
                                             ::testing::Values(0),
                                             ::testing::Values(1.0f)),
                          MatmulWeightsDecompression::get_test_case_name);
