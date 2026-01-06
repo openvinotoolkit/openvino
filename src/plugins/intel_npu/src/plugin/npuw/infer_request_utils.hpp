@@ -33,13 +33,9 @@ void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
                         uint32_t kv_dim_src,
                         uint32_t kv_dim_dst);
 
-void copy_inplace_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst);
+void copy_inplace_generic_rows(const ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor);
 
-void copy_inplace_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor);
-
-void copy_inplace(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor);
-
-void copy_tensor_inplace_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
+void copy_tensor_inplace_by_dim(const ov::SoPtr<ov::ITensor> src_tensor,
                                 ov::SoPtr<ov::ITensor> dst_tensor,
                                 uint32_t kv_dim_src,
                                 uint32_t kv_dim_dst);
