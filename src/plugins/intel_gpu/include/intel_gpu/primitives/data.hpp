@@ -424,8 +424,8 @@ struct data : public primitive_base<data> {
             } else {
                 const size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
                 auto& strm = ib.get_engine().get_service_stream();
-                if (ib.canZeroCopy()) {
-                    const auto data = ib.readView(data_size);
+                if (auto dib = dynamic_cast<DirectBinaryInputBuffer*>(&ib); dib) {
+                    const auto data = dib->readView(data_size);
                     mem->copy_from(strm, data);
                 } else if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
                     std::vector<uint8_t> _buf(data_size);
