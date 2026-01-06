@@ -265,23 +265,20 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
 std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisions(
     const std::shared_ptr<ov::Node>& node) {
-    std::set<std::vector<element::Type>> supported = {
-        {element::f32, element::f32},
-        {element::i32, element::i32}
-    };
-    
+    std::set<std::vector<element::Type>> supported = {{element::f32, element::f32}, {element::i32, element::i32}};
+
     // Only enable u8 wrap-around for pure u8->u8 arithmetic (issue #33164).
     // QDQ/dequantization patterns (u8 input, f32/i32 output) must NOT use u8 execution.
     if (node) {
         const auto in0 = node->get_input_element_type(0);
         const auto in1 = node->get_input_element_type(1);
         const auto out = node->get_output_element_type(0);
-        
+
         if (in0 == element::u8 && in1 == element::u8 && out == element::u8) {
             supported.insert({element::u8, element::u8});
         }
     }
-    
+
     return supported;
 }
 

@@ -5,6 +5,10 @@
 // Regression test for GitHub issue #33164:
 // u8 Subtract must wrap around (e.g., 3 - 4 = 255), not saturate to 0.
 // https://github.com/openvinotoolkit/openvino/issues/33164
+//
+// Additionally, tests ensure that TypeRelaxed subtract with u8 inputs but
+// f32/i32 output does NOT use wrap-around (must give negative values).
+// This catches regressions in LPT/dequantization patterns.
 
 #include <gtest/gtest.h>
 
@@ -12,6 +16,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/openvino.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 namespace ov {
 namespace test {
@@ -137,6 +142,140 @@ TEST_F(SubtractU8WrapAroundTest, WrapAroundBehavior4D) {
         EXPECT_EQ(output_data[i], expected[i])
             << "4D tensor mismatch at index " << i << ": got " << static_cast<int>(output_data[i]) << ", expected "
             << static_cast<int>(expected[i]);
+    }
+}
+
+// ============================================================================
+// TypeRelaxed tests: u8 inputs with non-u8 output (dequantization patterns)
+// These tests ensure that the u8 wrap-around path is NOT used when output
+// type is f32 or i32 (typical in LPT/QDQ patterns).
+// ============================================================================
+
+// u8 inputs, but output overridden to f32: MUST NOT wrap, should give negatives.
+// This test would have caught the CI failure "unsupported src_prc: u8" crash.
+TEST_F(SubtractU8WrapAroundTest, U8Inputs_F32Output_NoWrap_NoCrash) {
+    auto a = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{4});
+    auto b = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{4});
+
+    // Create a TypeRelaxed subtract: u8 inputs, f32 output
+    // This simulates dequantization subtract patterns in LPT
+    using TRSub = ov::op::TypeRelaxed<ov::op::v1::Subtract>;
+    auto sub = std::make_shared<TRSub>(
+        ov::element::TypeVector{ov::element::f32, ov::element::f32},  // origin input types for inference
+        ov::element::TypeVector{ov::element::f32},                    // overridden output type
+        a,
+        b);
+
+    auto result = std::make_shared<ov::op::v0::Result>(sub);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{a, b});
+
+    auto compiled_model = core->compile_model(model, "CPU");
+    auto infer_request = compiled_model.create_infer_request();
+
+    std::vector<uint8_t> input_a = {3, 0, 1, 5};
+    std::vector<uint8_t> input_b = {4, 1, 2, 3};
+
+    auto tensor_a = ov::Tensor(ov::element::u8, {4}, input_a.data());
+    auto tensor_b = ov::Tensor(ov::element::u8, {4}, input_b.data());
+
+    infer_request.set_tensor(a, tensor_a);
+    infer_request.set_tensor(b, tensor_b);
+    infer_request.infer();
+
+    auto out = infer_request.get_output_tensor(0);
+    ASSERT_EQ(out.get_element_type(), ov::element::f32);
+
+    auto* out_data = out.data<float>();
+    // With proper dequantization semantics, these should be NEGATIVE values
+    // NOT wrap-around values like 255
+    std::vector<float> expected = {-1.f, -1.f, -1.f, 2.f};
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        EXPECT_FLOAT_EQ(out_data[i], expected[i])
+            << "index=" << i << ": got " << out_data[i] << ", expected " << expected[i]
+            << ". TypeRelaxed u8->f32 subtract must NOT use wrap-around.";
+    }
+}
+
+// Same idea, but output overridden to i32.
+TEST_F(SubtractU8WrapAroundTest, U8Inputs_I32Output_NoWrap_NoCrash) {
+    auto a = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{4});
+    auto b = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{4});
+
+    // Create a TypeRelaxed subtract: u8 inputs, i32 output
+    using TRSub = ov::op::TypeRelaxed<ov::op::v1::Subtract>;
+    auto sub = std::make_shared<TRSub>(
+        ov::element::TypeVector{ov::element::i32, ov::element::i32},  // origin input types for inference
+        ov::element::TypeVector{ov::element::i32},                    // overridden output type
+        a,
+        b);
+
+    auto result = std::make_shared<ov::op::v0::Result>(sub);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{a, b});
+
+    auto compiled_model = core->compile_model(model, "CPU");
+    auto infer_request = compiled_model.create_infer_request();
+
+    std::vector<uint8_t> input_a = {3, 0, 1, 5};
+    std::vector<uint8_t> input_b = {4, 1, 2, 3};
+
+    infer_request.set_tensor(a, ov::Tensor(ov::element::u8, {4}, input_a.data()));
+    infer_request.set_tensor(b, ov::Tensor(ov::element::u8, {4}, input_b.data()));
+    infer_request.infer();
+
+    auto out = infer_request.get_output_tensor(0);
+    ASSERT_EQ(out.get_element_type(), ov::element::i32);
+
+    auto* out_data = out.data<int32_t>();
+    // With proper dequantization semantics, these should be NEGATIVE values
+    std::vector<int32_t> expected = {-1, -1, -1, 2};
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        EXPECT_EQ(out_data[i], expected[i]) << "index=" << i << ": got " << out_data[i] << ", expected " << expected[i]
+                                            << ". TypeRelaxed u8->i32 subtract must NOT use wrap-around.";
+    }
+}
+
+// Test with larger vector to exercise JIT vectorized path for TypeRelaxed
+TEST_F(SubtractU8WrapAroundTest, U8Inputs_F32Output_LargeVector) {
+    const size_t size = 64;  // Large enough to trigger vectorized JIT path
+
+    auto a = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{size});
+    auto b = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{size});
+
+    using TRSub = ov::op::TypeRelaxed<ov::op::v1::Subtract>;
+    auto sub = std::make_shared<TRSub>(ov::element::TypeVector{ov::element::f32, ov::element::f32},
+                                       ov::element::TypeVector{ov::element::f32},
+                                       a,
+                                       b);
+
+    auto result = std::make_shared<ov::op::v0::Result>(sub);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{a, b});
+
+    auto compiled_model = core->compile_model(model, "CPU");
+    auto infer_request = compiled_model.create_infer_request();
+
+    std::vector<uint8_t> input_a(size);
+    std::vector<uint8_t> input_b(size);
+    std::vector<float> expected(size);
+
+    for (size_t i = 0; i < size; ++i) {
+        input_a[i] = static_cast<uint8_t>(i % 10);        // 0-9 repeating
+        input_b[i] = static_cast<uint8_t>((i % 10) + 1);  // 1-10 repeating
+        // Expected: proper subtraction with negative results
+        expected[i] = static_cast<float>(static_cast<int>(input_a[i]) - static_cast<int>(input_b[i]));
+    }
+
+    infer_request.set_tensor(a, ov::Tensor(ov::element::u8, {size}, input_a.data()));
+    infer_request.set_tensor(b, ov::Tensor(ov::element::u8, {size}, input_b.data()));
+    infer_request.infer();
+
+    auto out = infer_request.get_output_tensor(0);
+    auto* out_data = out.data<float>();
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        EXPECT_FLOAT_EQ(out_data[i], expected[i])
+            << "index=" << i << ": got " << out_data[i] << ", expected " << expected[i];
     }
 }
 

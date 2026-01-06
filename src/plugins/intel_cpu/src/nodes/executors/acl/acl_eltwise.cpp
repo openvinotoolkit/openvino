@@ -299,9 +299,15 @@ bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         break;
     case Algorithm::EltwiseSubtract: {
         // For u8, Subtract must wrap (e.g. 3 - 4 = 255), not saturate to 0.
+        // Only use wrap-around for pure u8->u8 subtract (issue #33164).
+        // QDQ patterns with u8 input but f32/i32 output must saturate.
         // See https://github.com/openvinotoolkit/openvino/issues/33164
-        const auto convert_policy =
-            (dstDescs[0]->getPrecision() == ov::element::u8) ? ConvertPolicy::WRAP : ConvertPolicy::SATURATE;
+
+        const bool is_u8_u8_to_u8 = (srcDescs[0]->getPrecision() == ov::element::u8) &&
+                                    (srcDescs[1]->getPrecision() == ov::element::u8) &&
+                                    (dstDescs[0]->getPrecision() == ov::element::u8);
+
+        const auto convert_policy = is_u8_u8_to_u8 ? ConvertPolicy::WRAP : ConvertPolicy::SATURATE;
 
         if (!NEArithmeticSubtraction::validate(srcTensorsInfo.data(),
                                                &srcTensorsInfo[1],
