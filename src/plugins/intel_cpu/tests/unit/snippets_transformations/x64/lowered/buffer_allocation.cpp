@@ -113,7 +113,7 @@ protected:
 
         const auto relu2 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu1);
 
-        const auto body = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(relu2), ov::ParameterVector{parameter0, parameter1, parameter2});
+        const auto body = std::make_shared<ov::Model>(std::make_shared<ov::snippets::op::Result>(ov::OutputVector{relu2}), ov::ParameterVector{parameter0, parameter1, parameter2});
 
         MarkOp(load_reshape, {subtensor_scalar}, {subtensor_scalar});
         MarkOp(store, {subtensor_scalar}, {subtensor_scalar});
@@ -184,7 +184,7 @@ protected:
 
         const auto relu2 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu1);
 
-        const auto body = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(relu2), ov::ParameterVector{parameter0, parameter1, parameter2});
+        const auto body = std::make_shared<ov::Model>(std::make_shared<ov::snippets::op::Result>(ov::OutputVector{relu2}), ov::ParameterVector{parameter0, parameter1, parameter2});
 
         MarkOp(load_reshape, {subtensor_scalar}, {subtensor_scalar});
         MarkOp(store, {subtensor_scalar}, {subtensor_scalar});

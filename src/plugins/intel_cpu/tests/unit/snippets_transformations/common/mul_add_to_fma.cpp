@@ -78,7 +78,8 @@ protected:
         auto c = scalar_input || add_input_idx == 0 ? data2 : data0;
 
         auto fma = std::make_shared<ov::intel_cpu::FusedMulAdd>(a, b, c);
-        return std::make_shared<ov::Model>(OutputVector{fma}, parameters);
+        auto snippets_result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{fma});
+        return std::make_shared<ov::Model>(OutputVector{snippets_result}, parameters);
     }
 
     void validate_function(const std::shared_ptr<Model> &m) const override {

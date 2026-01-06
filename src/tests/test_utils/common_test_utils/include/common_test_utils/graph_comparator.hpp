@@ -223,19 +223,6 @@ public:
         }
 
         for (auto r : f->get_results()) {
-            // Check that old tensor names for results were preserved
-            const auto& ref_tensor_names = m_result_tensor_names.at(r.get());
-            const auto& cur_tensor_names = r->input_value(0).get_names();
-            for (const auto& ref_name : ref_tensor_names) {
-                // if (cur_tensor_names.count(ref_name) == 0) {
-                //     std::stringstream ss;
-                //     auto node = r->input_value(0).get_node();
-                //     ss << "Tensor name: " << ref_name << " is missing in " << node->get_type_info() << " ";
-                //     ss << "output(" << r->input_value(0).get_index() << ")";
-                //     OPENVINO_THROW(ss.str());
-                // }
-            }
-
             if (m_result_friendly_names_check) {
                 // Check that result input node names are preserved
                 bool is_multi_output = m_result_node_names.at(r.get()).second;
