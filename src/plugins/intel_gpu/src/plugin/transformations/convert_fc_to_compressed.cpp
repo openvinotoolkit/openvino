@@ -122,9 +122,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
 
         if (fc_input_b->get_output_partial_shape(0).size() != weight_shape.size()) {
-            OPENVINO_ASSERT(weight_shape.size() < 3);
             if (has_transpose) {
-                OPENVINO_ASSERT(weight_shape.size() == 2);
                 std::swap(weight_shape[0], weight_shape[1]);
             }
             std::shared_ptr<ov::Node> weight_shape_const =
