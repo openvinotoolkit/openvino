@@ -340,7 +340,10 @@ TEST(VariablesTest, smoke_padded_tensor_set_get_state_with_convert) {
 }
 
 TEST(TensorTest, smoke_outputTensorShapesForDynamicInput) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    // Issue: 126388
+    #if defined(_WIN32)
+        GTEST_SKIP();
+    #endif
     auto core = ov::Core();
     using namespace ov::preprocess;
     auto p = PrePostProcessor(ov::test::utils::make_split_multi_conv_concat());
