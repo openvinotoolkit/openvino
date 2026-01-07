@@ -270,6 +270,18 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 static constexpr ov::Property<uint64_t> moe_fixed_token_chunk_size{"NPUW_MOE_FIXED_TOKEN_CHUNK_SIZE"};
 
 /**
+ * @brief Configure MoE request pool size per layer for caching expert configurations.
+ *
+ * Controls the number of pre-allocated inference requests per MoE layer to cache
+ * different expert combinations. Using LRU eviction when pool is full.
+ * Setting to 0 disables the MoE request cache entirely.
+ *
+ * Type: std::size_t.
+ * Default value: 8 (cache up to 8 expert configurations per layer).
+ */
+static constexpr ov::Property<std::size_t> moe_pool_size{"NPUW_MOE_POOL_SIZE"};
+
+/**
  * @brief
  * Type: std::string.
  * Select attention optimization mode when attention block detected.

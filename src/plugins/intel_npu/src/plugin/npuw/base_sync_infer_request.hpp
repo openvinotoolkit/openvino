@@ -13,6 +13,7 @@
 
 #include "attention.hpp"
 #include "host_flash_attention.hpp"
+#include "moe_infer_utils.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -212,6 +213,7 @@ protected:
     void unpack_closure(std::size_t idx, RqPtr request);
     void unpack_single_expert_closure(std::size_t idx, RqPtr request, size_t expert_id);
     void unpack_multiple_experts_closure(std::size_t idx, RqPtr request, const std::vector<size_t>& expert_ids);
+
     virtual void bind_global_params(std::size_t idx, RqPtr request);
     virtual void bind_global_results(std::size_t idx, RqPtr request);
     void alloc_quant_gather_tensors(std::size_t idx, RqPtr request);
@@ -250,6 +252,14 @@ protected:
     std::size_t real(std::size_t idx) const;
 
     RqPtrs m_ref_subrequests;
+
+    // MoE Request Cache: Manages cached inference requests for expert combinations
+    // Encapsulates pool management, LRU eviction, and hit rate statistics
+    std::unique_ptr<ov::npuw::moe::RequestCache> m_moe_cache;
+    // MoE pool size is now configurable via NPUW_MOE_POOL_SIZE option
+
+    // Initialize MoE request pools (called during setup)
+    void initialize_moe_request_pools();
 
     using now_t = std::optional<std::size_t>;
     now_t now_idx() const;
