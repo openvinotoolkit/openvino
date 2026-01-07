@@ -7,9 +7,9 @@
 #include "intel_gpu/primitives/activation.hpp"
 #include "primitive_inst.h"
 
-namespace ov::intel_gpu {
-
 using namespace cldnn;
+
+namespace {
 
 std::function<bool(const program_node& node)> not_in_shape_flow_and_ocl_supported_dtype() {
     return [](const program_node& node) {
@@ -18,6 +18,10 @@ std::function<bool(const program_node& node)> not_in_shape_flow_and_ocl_supporte
         return !node.is_in_shape_of_subgraph() && !one_of(data_types::i64, {in_layout.data_type, out_layout.data_type});
     };
 }
+
+}  // namespace
+
+namespace ov::intel_gpu {
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<activation>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
