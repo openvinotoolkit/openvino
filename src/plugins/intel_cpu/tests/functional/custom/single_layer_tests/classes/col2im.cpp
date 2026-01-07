@@ -186,7 +186,7 @@ const std::vector<Col2ImSpecificParams> col2ImParamsVector = {
                          ov::Shape{3, 3},
                          ov::Shape{3, 3}},
     Col2ImSpecificParams{// Batched default
-                         InputShape{{-1, -1, -1}, {{1, 4, 4}, {1, 8, 8}}},
+                         InputShape{{-1, -1, -1}, {{1, 4, 4}, {1, 8, 4}, {1, 12, 4}}},
                          std::vector<int64_t>{3, 3},
                          std::vector<int64_t>{2, 2},
                          ov::Strides{1, 1},
@@ -194,7 +194,7 @@ const std::vector<Col2ImSpecificParams> col2ImParamsVector = {
                          ov::Shape{0, 0},
                          ov::Shape{0, 0}},
     Col2ImSpecificParams{// Batched dilations
-                         InputShape{{-1, -1, -1}, {{1, 4, 9}, {1, 12, 4}}},
+                         InputShape{{-1, -1, -1}, {{1, 4, 9}, {1, 8, 9}, {1, 12, 9}}},
                          std::vector<int64_t>{5, 5},
                          std::vector<int64_t>{2, 2},
                          ov::Strides{1, 1},
@@ -202,7 +202,7 @@ const std::vector<Col2ImSpecificParams> col2ImParamsVector = {
                          ov::Shape{0, 0},
                          ov::Shape{0, 0}},
     Col2ImSpecificParams{// Batched pads
-                         InputShape{{-1, -1, -1}, {{1, 4, 9}, {2, 8, 16}}},
+                         InputShape{{-1, -1, -1}, {{1, 4, 9}, {1, 8, 9}, {1, 12, 9}}},
                          std::vector<int64_t>{2, 2},
                          std::vector<int64_t>{2, 2},
                          ov::Strides{1, 1},
@@ -210,7 +210,7 @@ const std::vector<Col2ImSpecificParams> col2ImParamsVector = {
                          ov::Shape{1, 1},
                          ov::Shape{1, 1}},
     Col2ImSpecificParams{// Batched strides
-                         InputShape{{-1, -1, -1}, {{1, 4, 4}, {1, 8, 12}}},
+                         InputShape{{-1, -1, -1}, {{1, 4, 4}, {1, 8, 4}, {1, 12, 4}}},
                          std::vector<int64_t>{4, 4},
                          std::vector<int64_t>{2, 2},
                          ov::Strides{2, 2},
@@ -218,7 +218,7 @@ const std::vector<Col2ImSpecificParams> col2ImParamsVector = {
                          ov::Shape{0, 0},
                          ov::Shape{0, 0}},
     Col2ImSpecificParams{// Non-batched default
-                         InputShape{{-1, -1}, {{4, 4}, {8, 8}}},
+                         InputShape{{-1, -1}, {{4, 4}, {8, 4}, {12, 4}}},
                          std::vector<int64_t>{3, 3},
                          std::vector<int64_t>{2, 2},
                          ov::Strides{1, 1},
@@ -226,7 +226,7 @@ const std::vector<Col2ImSpecificParams> col2ImParamsVector = {
                          ov::Shape{0, 0},
                          ov::Shape{0, 0}},
     Col2ImSpecificParams{// Non-batched dilations
-                         InputShape{{-1, -1}, {{4, 9}, {12, 5}}},
+                         InputShape{{-1, -1}, {{4, 9}, {8, 9}, {12, 9}}},
                          std::vector<int64_t>{5, 5},
                          std::vector<int64_t>{2, 2},
                          ov::Strides{1, 1},
@@ -234,7 +234,7 @@ const std::vector<Col2ImSpecificParams> col2ImParamsVector = {
                          ov::Shape{0, 0},
                          ov::Shape{0, 0}},
     Col2ImSpecificParams{// Non-batched pads
-                         InputShape{{-1, -1}, {{4, 9}, {8, 15}}},
+                         InputShape{{-1, -1}, {{4, 9}, {8, 9}, {12, 9}}},
                          std::vector<int64_t>{2, 2},
                          std::vector<int64_t>{2, 2},
                          ov::Strides{1, 1},
@@ -242,7 +242,7 @@ const std::vector<Col2ImSpecificParams> col2ImParamsVector = {
                          ov::Shape{1, 1},
                          ov::Shape{1, 1}},
     Col2ImSpecificParams{// Non-batched strides
-                         InputShape{{-1, -1}, {{4, 4}, {4, 10}}},
+                         InputShape{{-1, -1}, {{4, 4}, {8, 4}, {12, 4}}},
                          std::vector<int64_t>{4, 4},
                          std::vector<int64_t>{2, 2},
                          ov::Strides{2, 2},
