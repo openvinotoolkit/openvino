@@ -109,7 +109,7 @@ std::shared_ptr<ov::Node> concat_any(const ov::OutputVector& inputs, int64_t axi
 
     auto concat = util::make_try_fold<v0::Concat>(normalized, axis);
     concat->get_rt_info()["packed_GQA"] = true;
-    
+
     return concat;
 }
 
@@ -124,7 +124,8 @@ bool PackGQA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<ov::pass::MergeKVCaches>();
     manager.register_pass<ov::pass::Serialize>("PackGQA_MergeKVCaches.xml", "PackGQA_MergeKVCaches.bin");
     manager.register_pass<ov::pass::MergeTwoUnrolledRoPEConcat>();
-    manager.register_pass<ov::pass::Serialize>("PackGQA_MergeTwoUnrolledRoPEConcat.xml", "PackGQA_MergeTwoUnrolledRoPEConcat.bin");
+    manager.register_pass<ov::pass::Serialize>("PackGQA_MergeTwoUnrolledRoPEConcat.xml",
+                                               "PackGQA_MergeTwoUnrolledRoPEConcat.bin");
     manager.register_pass<ov::pass::MergeMatMulBiasConcat>();
     manager.register_pass<ov::pass::MergeDQConcat>();
     manager.register_pass<ov::pass::ConcatFusion>();
@@ -155,10 +156,8 @@ std::shared_ptr<ov::Node> skip_node(const std::shared_ptr<ov::Node>& node) {
     return node;
 };
 
-
 // Helper function to extract scale node (supports both Divide and Multiply)
 static std::shared_ptr<ov::Node> get_scale(const std::shared_ptr<ov::Node>& input_node) {
-
     if (auto div = ov::as_type_ptr<v1::Divide>(input_node)) {
         return div;
     }
@@ -274,7 +273,7 @@ MergeTwoUnrolledSDPAAdd::MergeTwoUnrolledSDPAAdd() {
         auto qk2 = as_type_ptr<v0::MatMul>(qk2_node);
         if (!compare_nodes(qk1, qk2))
             return false;
-        
+
         // Extract Q, K, V, P, B from both SDPAs
         OutputVector q_inputs = {qk1->input_value(0), qk2->input_value(0)};
         OutputVector k_inputs = {qk1->input_value(1), qk2->input_value(1)};
@@ -285,7 +284,7 @@ MergeTwoUnrolledSDPAAdd::MergeTwoUnrolledSDPAAdd() {
         // Concatenate along head axis (1)
         size_t head_axis = 1;
         size_t rank = 4;  // Assuming 4D tensors [batch, heads, seq_len, dim]
-        
+
         auto Q = concat_any(q_inputs, head_axis, rank);
         auto K = concat_any(k_inputs, head_axis, rank);
         auto V = concat_any(v_inputs, head_axis, rank);
@@ -336,15 +335,14 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
         pattern_nodes nodes;
         auto input = pattern::any_input();
         nodes.input = pattern::wrap_type<v1::Reshape>({input, pattern::any_input()});
-        nodes.split =
-            pattern::wrap_type<v1::VariadicSplit>({nodes.input, pattern::any_input(), pattern::any_input()});
+        nodes.split = pattern::wrap_type<v1::VariadicSplit>({nodes.input, pattern::any_input(), pattern::any_input()});
         nodes.split->set_output_size(2);
         nodes.angle_r = pattern::wrap_type<v0::Negative>({nodes.split->output(1)});
         nodes.concat = pattern::wrap_type<v0::Concat>({nodes.angle_r, nodes.split->output(0)});
         nodes.mul_r = pattern::wrap_type<v1::Multiply>({nodes.concat, pattern::any_input()});
         nodes.mul_l = pattern::wrap_type<v1::Multiply>({nodes.input, pattern::any_input()});
         nodes.add = pattern::wrap_type<v1::Add>({nodes.mul_l, nodes.mul_r});
-        nodes.reshape = pattern::wrap_type<v1::Reshape,v1::Transpose>({nodes.add, pattern::any_input()});
+        nodes.reshape = pattern::wrap_type<v1::Reshape, v1::Transpose>({nodes.add, pattern::any_input()});
         nodes.output = std::make_shared<pattern::op::Or>(OutputVector{nodes.reshape, nodes.add});
 
         return nodes;
@@ -352,9 +350,9 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
 
     auto rope_lhs = create_rope_pattern();
     auto rope_rhs = create_rope_pattern();
-    
+
     auto concat = pattern::wrap_type<v0::Concat>({rope_lhs.output, rope_rhs.output});
-    
+
     auto m = std::make_shared<pattern::Matcher>(concat, "MergeTwoUnrolledRoPEConcat");
     register_matcher(m, [=](pattern::Matcher& matcher) {
         auto pm = matcher.get_pattern_value_map();
@@ -362,37 +360,37 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
         auto concat_node = std::dynamic_pointer_cast<v0::Concat>(matcher.get_match_root());
         if (!concat_node || !concat_node->get_rt_info().count("packed_GQA"))
             return false;
-            
+
         // Optional reshapes
         auto post_reshape_lhs = pm[rope_lhs.reshape].get_node_shared_ptr();
         auto post_reshape_rhs = pm[rope_rhs.reshape].get_node_shared_ptr();
         if (static_cast<bool>(post_reshape_lhs) != static_cast<bool>(post_reshape_rhs)) {
             return false;
         }
-            
+
         auto add_lhs = as_type_ptr<v1::Add>(pm[rope_lhs.add].get_node_shared_ptr());
         auto add_rhs = as_type_ptr<v1::Add>(pm[rope_rhs.add].get_node_shared_ptr());
         if (!add_lhs || !add_rhs)
             return false;
-            
+
         // extract Concat nodes from both RoPE patterns
         auto concat_lhs = as_type_ptr<v0::Concat>(pm[rope_lhs.concat].get_node_shared_ptr());
         auto concat_rhs = as_type_ptr<v0::Concat>(pm[rope_rhs.concat].get_node_shared_ptr());
         if (!concat_lhs || !concat_rhs)
             return false;
-        
+
         // Extract optional angle nodes (Negative)
         auto angle_lhs = ov::as_type_ptr<v0::Negative>(concat_lhs->input_value(0).get_node_shared_ptr());
         auto angle_rhs = ov::as_type_ptr<v0::Negative>(concat_rhs->input_value(0).get_node_shared_ptr());
         if (!compare_nodes(angle_lhs, angle_rhs))
             return false;
-        
+
         // extract Split nodes from both RoPE patterns
         auto split_lhs = as_type_ptr<v1::VariadicSplit>(pm[rope_lhs.split].get_node_shared_ptr());
         auto split_rhs = as_type_ptr<v1::VariadicSplit>(pm[rope_rhs.split].get_node_shared_ptr());
         if (!split_lhs || !split_rhs)
             return false;
-        
+
         // Extract Multiply nodes from both RoPE patterns
         auto mul_down_1_lhs = as_type_ptr<v1::Multiply>(pm[rope_lhs.mul_l].get_node_shared_ptr());
         auto mul_down_2_lhs = as_type_ptr<v1::Multiply>(pm[rope_lhs.mul_r].get_node_shared_ptr());
@@ -411,43 +409,62 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
 
         auto input_fused =
             concat_any(ov::OutputVector{reshape_lhs->input_value(0), reshape_rhs->input_value(0)}, head_axis, rank);
-            
+        if (!input_fused) {
+            return false;
+        }
+
         auto mul_down_1_lhs_input = mul_down_1_lhs->input_value(1);
         auto mul_down_2_lhs_input = mul_down_2_lhs->input_value(1);
         auto mul_down_1_rhs_input = mul_down_1_rhs->input_value(1);
         auto mul_down_2_rhs_input = mul_down_2_rhs->input_value(1);
 
-        auto mul_down_input_l_fused = concat_any(ov::OutputVector{mul_down_1_lhs_input, mul_down_1_rhs_input}, head_axis, rank);
-        auto mul_down_input_r_fused = concat_any(ov::OutputVector{mul_down_2_lhs_input, mul_down_2_rhs_input}, head_axis, rank);
-
-            
+        auto mul_down_input_l_fused =
+            concat_any(ov::OutputVector{mul_down_1_lhs_input, mul_down_1_rhs_input}, head_axis, rank);
+        if (!mul_down_input_l_fused) {
+            return false;
+        }
+        auto mul_down_input_r_fused =
+            concat_any(ov::OutputVector{mul_down_2_lhs_input, mul_down_2_rhs_input}, head_axis, rank);
+        if (!mul_down_input_r_fused) {
+            return false;
+        }
+        concat_any(ov::OutputVector{mul_down_1_lhs_input, mul_down_1_rhs_input}, head_axis, rank);
+        if (!mul_down_input_l_fused) {
+            return false;
+        }
+        auto mul_down_input_r_fused =
+            concat_any(ov::OutputVector{mul_down_2_lhs_input, mul_down_2_rhs_input}, head_axis, rank);
+        if (!mul_down_input_r_fused) {
+            return false;
+        }
         auto reshape_shape = v0::Constant::create(element::i64,
-                                            Shape{input_fused->get_output_shape(0).size()},
-                                            input_fused->get_output_shape(0));
+                                                  Shape{input_fused->get_output_shape(0).size()},
+                                                  input_fused->get_output_shape(0));
         auto reshape_fused = reshape_lhs->copy_with_new_inputs({input_fused, reshape_shape});
         copy_runtime_info({reshape_lhs, reshape_rhs}, reshape_fused);
-        
-        auto split_fused = split_lhs->copy_with_new_inputs({reshape_fused, split_lhs->input_value(1), split_lhs->input_value(2)});
+
+        auto split_fused =
+            split_lhs->copy_with_new_inputs({reshape_fused, split_lhs->input_value(1), split_lhs->input_value(2)});
         copy_runtime_info({split_lhs, split_rhs}, split_fused);
-        
+
         auto scale_fused = angle_lhs->copy_with_new_inputs({split_fused->output(1)});
-        copy_runtime_info({angle_lhs, angle_rhs}, scale_fused);   
-        
+        copy_runtime_info({angle_lhs, angle_rhs}, scale_fused);
+
         auto concat_fused = concat_lhs->copy_with_new_inputs({scale_fused, split_fused->output(0)});
-        copy_runtime_info({concat_lhs, concat_rhs}, concat_fused); 
-    
+        copy_runtime_info({concat_lhs, concat_rhs}, concat_fused);
+
         auto mul_down_l_fused = mul_down_1_lhs->copy_with_new_inputs({reshape_fused, mul_down_input_l_fused});
         copy_runtime_info({mul_down_1_lhs, mul_down_1_rhs}, mul_down_l_fused);
-        
+
         auto mul_down_r_fused = mul_down_2_lhs->copy_with_new_inputs({concat_fused, mul_down_input_r_fused});
         copy_runtime_info({mul_down_2_lhs, mul_down_2_rhs}, mul_down_r_fused);
-        
+
         auto add_fused = add_lhs->copy_with_new_inputs({mul_down_l_fused, mul_down_r_fused});
         copy_runtime_info({add_lhs, add_rhs}, add_fused);
 
-        auto output_node = post_reshape_lhs 
-            ? post_reshape_lhs->copy_with_new_inputs({add_fused, post_reshape_lhs->input_value(1)})
-            : add_fused;
+        auto output_node = post_reshape_lhs
+                               ? post_reshape_lhs->copy_with_new_inputs({add_fused, post_reshape_lhs->input_value(1)})
+                               : add_fused;
 
         replace_node(concat_node, output_node);
 
