@@ -1063,7 +1063,7 @@ void network::set_variables_state_info(const std::string& variable_id,
 
     [[maybe_unused]] const auto [_, inserted] = info.m_primitives.insert(p);
     if (inserted && releasable_var) {
-        info.m_releasable_variables.emplace_back(releasable_var);
+        info.m_release_variable_inst.emplace_back(releasable_var);
     }
     info.transpose_required = transpose_required;
 }

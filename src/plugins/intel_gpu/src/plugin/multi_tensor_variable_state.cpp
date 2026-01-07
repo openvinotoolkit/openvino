@@ -35,11 +35,11 @@ VariableStateIndirectKVCache::VariableStateIndirectKVCache(const VariableStateIn
                                                            size_t beam_axis,
                                                            size_t concat_axis)
     : MultiTensorState { {info}, context, shape_predictor}
-    , m_owners(info.m_releasable_variables)
     , m_beam_axis(beam_axis)
     , m_concat_axis(concat_axis) {
     cldnn::layout beam_table_layout(get_beam_table_shape(info.m_layout.get_partial_shape()), ov::element::i32, cldnn::format::bfyx);
     VariableStateInfo beam_table_state_info(info.m_id + "/beam_table", beam_table_layout);
+    beam_table_state_info.m_release_variable_inst = info.m_release_variable_inst;
     m_hidden_states.push_back(std::make_shared<VariableState>(beam_table_state_info, context, shape_predictor));
     OPENVINO_ASSERT(m_hidden_states.size() == 2, "[GPU] VariableStateIndirectKVCache expects 2 internal states to be initialized");
 }
@@ -47,11 +47,6 @@ VariableStateIndirectKVCache::VariableStateIndirectKVCache(const VariableStateIn
 void VariableStateIndirectKVCache::reset() {
     for (auto& state : m_hidden_states) {
         state->reset();
-    }
-    for (auto& owner : m_owners) {
-        if (const auto prim = owner.lock(); prim) {
-            prim->release_variable();
-        }
     }
     m_is_set = false;
 }

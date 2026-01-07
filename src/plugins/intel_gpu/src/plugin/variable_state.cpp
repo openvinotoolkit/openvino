@@ -20,6 +20,7 @@ VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::P
     , m_layout(info.m_layout)
     , m_user_specified_type(info.m_user_specified_type)
     , m_shape_predictor(shape_predictor)
+    , m_prim_inst(info.m_release_variable_inst)
     , m_transpose_required(info.transpose_required)
     , m_initial_layout(info.m_layout) {
     update_device_buffer();
@@ -28,6 +29,11 @@ VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::P
 void VariableState::reset() {
     m_is_set = false;
     set_layout(m_initial_layout);
+    for (auto& user : m_prim_inst) {
+        if (const auto prim = user.lock(); prim) {
+            prim->release_variable();
+        }
+    }
 }
 
 cldnn::memory::ptr VariableState::get_memory() const {

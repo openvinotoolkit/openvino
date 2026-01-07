@@ -43,7 +43,7 @@ void read_value_inst::release_variable() {
     // does not need to keep reference in outputs after execution
     if (!can_be_optimized() || !get_network().has_variable(variable_id()))
         return;
-    for (size_t i = 0; i < _outputs.size() && i < 3; ++i) {
+    for (size_t i = 0; i < _outputs.size(); ++i) {
         auto& output = _outputs[i];
         output.reset();
     }
