@@ -113,7 +113,6 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, Upda
             block_shape[orders[0]] = -1;
             block_shape[orders[1]] = _head_nums;
             block_shape[orders[2]] = _block_size;
-            // [TEST]
             block_shape[orders[3]] = _head_size;
 
             return block_shape;
