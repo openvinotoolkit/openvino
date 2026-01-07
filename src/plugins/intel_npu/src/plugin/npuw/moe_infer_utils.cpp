@@ -4,6 +4,9 @@
 
 #include "moe_infer_utils.hpp"
 
+#include <iomanip>
+#include <iostream>
+
 #include "logging.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -246,6 +249,162 @@ void scatter_expert_outputs(const ov::SoPtr<ov::ITensor>& expert_output,
             OPENVINO_THROW("MoE: Unsupported element type for chunk output relayout: ", elem_type);
         }
     }
+}
+
+// ====================================================================================================
+// MoE Request Cache Implementation
+// ====================================================================================================
+
+RequestCache::RequestCache(size_t num_layers, size_t pool_size_per_layer) : m_pool_size_per_layer(pool_size_per_layer) {
+    m_pool.resize(num_layers);
+    m_cache_lookup.resize(num_layers);
+    m_free_list.resize(num_layers);
+    m_lru_index.resize(num_layers);
+}
+
+RequestCache::~RequestCache() {
+    print_statistics();
+}
+
+void RequestCache::initialize_layer(size_t sublayer_idx, std::vector<RqPtr>&& requests) {
+    NPUW_ASSERT(requests.size() == m_pool_size_per_layer && "Request count must match pool size");
+    NPUW_ASSERT(sublayer_idx < m_pool.size() && "Invalid sublayer index");
+
+    auto& pool = m_pool[sublayer_idx];
+    auto& free_list = m_free_list[sublayer_idx];
+
+    pool.reserve(m_pool_size_per_layer);
+    free_list.reserve(m_pool_size_per_layer);
+
+    for (size_t i = 0; i < m_pool_size_per_layer; ++i) {
+        PoolEntry entry;
+        entry.request = std::move(requests[i]);
+        entry.is_configured = false;
+        entry.last_use_iter = 0;
+        pool.push_back(std::move(entry));
+        free_list.push_back(i);  // All entries start as free
+    }
+
+    LOG_DEBUG("MoE Cache: Initialized layer " << sublayer_idx << " with " << m_pool_size_per_layer << " pool entries");
+}
+
+RequestCache::RqPtr RequestCache::find(size_t sublayer_idx, const std::vector<size_t>& expert_ids) {
+    NPUW_ASSERT(sublayer_idx < m_cache_lookup.size() && "Invalid sublayer index");
+
+    m_total_queries++;
+
+    auto& lookup = m_cache_lookup[sublayer_idx];
+    std::string cache_key = make_cache_key(expert_ids);
+
+    auto it = lookup.find(cache_key);
+    if (it != lookup.end()) {
+        // Cache HIT
+        m_cache_hits++;
+        size_t pool_idx = it->second;
+        auto& pool = m_pool[sublayer_idx];
+        auto& entry = pool[pool_idx];
+
+        LOG_VERB("MoE Cache HIT for sublayer[" << sublayer_idx << "] experts: " << cache_key);
+
+        // Update LRU timestamp using m_total_queries (monotonically increasing)
+        auto& lru_index = m_lru_index[sublayer_idx];
+        lru_index.erase({entry.last_use_iter, pool_idx});
+        entry.last_use_iter = m_total_queries;
+        lru_index.insert({entry.last_use_iter, pool_idx});
+
+        return entry.request;
+    }
+
+    // Cache MISS
+    LOG_VERB("MoE Cache MISS for sublayer[" << sublayer_idx << "] experts: " << cache_key);
+    return nullptr;
+}
+
+std::pair<RequestCache::RqPtr, size_t> RequestCache::get_idle_or_lru(size_t sublayer_idx) {
+    NPUW_ASSERT(sublayer_idx < m_pool.size() && "Invalid sublayer index");
+
+    auto& pool = m_pool[sublayer_idx];
+    auto& free_list = m_free_list[sublayer_idx];
+    auto& lru_index = m_lru_index[sublayer_idx];
+    auto& lookup = m_cache_lookup[sublayer_idx];
+
+    // Priority 1: Use free (unconfigured) request if available
+    if (!free_list.empty()) {
+        size_t pool_idx = free_list.back();
+        free_list.pop_back();
+        LOG_VERB("MoE Cache: Allocated free pool entry " << pool_idx << " for sublayer " << sublayer_idx);
+        return {pool[pool_idx].request, pool_idx};
+    }
+
+    // Priority 2: Evict LRU entry
+    NPUW_ASSERT(!lru_index.empty() && "LRU index should not be empty when free list is empty");
+
+    auto lru_it = lru_index.begin();  // Oldest entry (smallest timestamp)
+    size_t pool_idx = lru_it->second;
+    auto& entry = pool[pool_idx];
+
+    // Remove old cache entry
+    std::string old_key = make_cache_key(entry.expert_ids);
+    lookup.erase(old_key);
+    lru_index.erase(lru_it);
+
+    // Mark as unconfigured (will be reconfigured by caller)
+    entry.is_configured = false;
+    entry.expert_ids.clear();
+
+    LOG_VERB("MoE Cache: Evicted LRU pool entry " << pool_idx << " (old key: " << old_key << ")");
+    return {entry.request, pool_idx};
+}
+
+void RequestCache::register_request(size_t sublayer_idx, size_t pool_idx, const std::vector<size_t>& expert_ids) {
+    NPUW_ASSERT(sublayer_idx < m_pool.size() && "Invalid sublayer index");
+    NPUW_ASSERT(pool_idx < m_pool[sublayer_idx].size() && "Invalid pool index");
+
+    auto& pool = m_pool[sublayer_idx];
+    auto& lookup = m_cache_lookup[sublayer_idx];
+    auto& lru_index = m_lru_index[sublayer_idx];
+
+    auto& entry = pool[pool_idx];
+
+    // Update entry state
+    entry.expert_ids = expert_ids;
+    entry.is_configured = true;
+    // last_use_iter will be set by next find() call
+
+    // Register in cache lookup
+    std::string cache_key = make_cache_key(expert_ids);
+    lookup[cache_key] = pool_idx;
+
+    // Add to LRU index (with timestamp 0, will be updated on first use)
+    lru_index.insert({entry.last_use_iter, pool_idx});
+
+    LOG_VERB("MoE Cache: Registered pool entry " << pool_idx << " with key: " << cache_key);
+}
+
+std::pair<uint64_t, uint64_t> RequestCache::get_statistics() const {
+    return {m_total_queries, m_cache_hits};
+}
+
+void RequestCache::print_statistics() const {
+    if (m_total_queries > 0) {
+        double hit_rate = static_cast<double>(m_cache_hits) / m_total_queries * 100.0;
+        std::cout << "[MoE Cache Statistics]" << std::endl;
+        std::cout << "  Total Queries: " << m_total_queries << std::endl;
+        std::cout << "  Cache Hits:    " << m_cache_hits << std::endl;
+        std::cout << "  Cache Misses:  " << (m_total_queries - m_cache_hits) << std::endl;
+        std::cout << "  Hit Rate:      " << std::fixed << std::setprecision(2) << hit_rate << "%" << std::endl;
+    }
+}
+
+std::string RequestCache::make_cache_key(const std::vector<size_t>& expert_ids) const {
+    std::string key;
+    key.reserve(expert_ids.size() * 4);
+    for (size_t i = 0; i < expert_ids.size(); ++i) {
+        if (i > 0)
+            key += ",";
+        key += std::to_string(expert_ids[i]);
+    }
+    return key;
 }
 
 }  // namespace moe

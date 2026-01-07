@@ -141,6 +141,115 @@ void scatter_expert_outputs(const ov::SoPtr<ov::ITensor>& expert_output,
                             size_t input_token_count,
                             const std::vector<size_t>& expert_slots_for_tokens);
 
+/**
+ * @brief MoE Request Cache - LRU cache for expert inference requests.
+ *
+ * Manages a fixed-size pool of pre-configured inference requests per MoE sublayer.
+ * Caches requests by expert combination to avoid redundant weight configuration.
+ * Uses LRU eviction when pool is full.
+ */
+class RequestCache {
+public:
+    using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;
+
+    /**
+     * @brief Construct a new Request Cache.
+     *
+     * @param num_layers Total number of sublayers (indexed 0 to num_layers-1)
+     * @param pool_size_per_layer Number of cached requests per MoE layer
+     */
+    RequestCache(size_t num_layers, size_t pool_size_per_layer);
+
+    /**
+     * @brief Destructor - prints cache statistics on destruction.
+     */
+    ~RequestCache();
+
+    /**
+     * @brief Find cached request for expert combination.
+     *
+     * @param sublayer_idx Sublayer index
+     * @param expert_ids Expert IDs (order preserved, not sorted)
+     * @return RqPtr Cached request if found, nullptr on cache miss
+     */
+    RqPtr find(size_t sublayer_idx, const std::vector<size_t>& expert_ids);
+
+    /**
+     * @brief Get idle or least-recently-used request from pool.
+     *
+     * Returns an unconfigured request from free list (if available),
+     * or evicts the LRU entry and returns it for reconfiguration.
+     *
+     * @param sublayer_idx Sublayer index
+     * @return std::pair<RqPtr, size_t> {request, pool_index}
+     */
+    std::pair<RqPtr, size_t> get_idle_or_lru(size_t sublayer_idx);
+
+    /**
+     * @brief Register configured request to cache.
+     *
+     * Associates the given pool entry with the expert combination.
+     * Removes entry from free list and adds to LRU index.
+     *
+     * @param sublayer_idx Sublayer index
+     * @param pool_idx Index in the pool
+     * @param expert_ids Expert IDs this request is configured for
+     */
+    void register_request(size_t sublayer_idx, size_t pool_idx, const std::vector<size_t>& expert_ids);
+
+    /**
+     * @brief Initialize request pool for a specific MoE sublayer.
+     *
+     * Pre-allocates inference requests for the given sublayer.
+     * Must be called before using find/get_idle_or_lru for this sublayer.
+     *
+     * @param sublayer_idx Sublayer index
+     * @param requests Pre-allocated inference requests for this layer
+     */
+    void initialize_layer(size_t sublayer_idx, std::vector<RqPtr>&& requests);
+
+    /**
+     * @brief Get cache hit rate statistics.
+     *
+     * @return std::pair<uint64_t, uint64_t> {total_queries, cache_hits}
+     */
+    std::pair<uint64_t, uint64_t> get_statistics() const;
+
+    /**
+     * @brief Print cache statistics to log.
+     */
+    void print_statistics() const;
+
+private:
+    struct PoolEntry {
+        RqPtr request;                   // Inference request
+        std::vector<size_t> expert_ids;  // Expert IDs currently configured
+        uint64_t last_use_iter;          // LRU timestamp
+        bool is_configured;              // Whether request has valid configuration
+    };
+
+    size_t m_pool_size_per_layer;
+
+    // Pool storage: indexed by sublayer_idx
+    std::vector<std::vector<PoolEntry>> m_pool;
+
+    // Fast lookup: sublayer_idx -> (expert_ids_key -> pool_idx)
+    std::vector<std::unordered_map<std::string, size_t>> m_cache_lookup;
+
+    // Free list: sublayer_idx -> list of unconfigured pool indices
+    std::vector<std::vector<size_t>> m_free_list;
+
+    // LRU index: sublayer_idx -> sorted set of (last_use_iter, pool_idx)
+    std::vector<std::set<std::pair<uint64_t, size_t>>> m_lru_index;
+
+    // Statistics
+    mutable uint64_t m_total_queries = 0;
+    mutable uint64_t m_cache_hits = 0;
+
+    // Helper: Convert expert_ids to cache key string
+    std::string make_cache_key(const std::vector<size_t>& expert_ids) const;
+};
+
 }  // namespace moe
 }  // namespace npuw
 }  // namespace ov

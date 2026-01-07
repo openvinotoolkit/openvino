@@ -134,7 +134,10 @@ protected:
                                                int64_t tile_length);
 
     // MoE helper functions
-    void set_unrolled_router_scores(std::size_t idx, std::size_t real_idx, const std::vector<size_t>& selected_experts);
+    void set_unrolled_router_scores(std::size_t idx,
+                                    std::size_t real_idx,
+                                    const std::vector<size_t>& selected_experts,
+                                    RqPtr& request);
 
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
