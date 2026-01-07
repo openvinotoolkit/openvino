@@ -19,6 +19,8 @@
 using namespace ov::pass;
 using namespace ov::op;
 
+#define ENABLE_DEBUG true
+
 ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func)
     : m_config(config),
       m_update_shape_func(std::move(func)) {
@@ -103,6 +105,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                 }
             }
             size_t group_num = _head_size / _group_size;
+            // Update head_size and block_size by precision and quantizing channel mode
             m_update_shape_func(precision, bychannel, group_num, _head_size, _block_size);
 
             auto block_shape = ov::PartialShape::dynamic(4);
@@ -110,15 +113,20 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
             block_shape[orders[1]] = _head_nums;
             block_shape[orders[2]] = _block_size;
             // [TEST]
-            // block_shape[orders[3]] = _head_size;
-            block_shape[orders[3]] = _head_size * 0.6;
+            block_shape[orders[3]] = _head_size;
 
             return block_shape;
         };
         auto key_cache_precision = format_cache_precision(m_config.keyCachePrecision, m_config.inferencePrecision);
         auto value_cache_precision = format_cache_precision(m_config.valueCachePrecision, m_config.inferencePrecision);
-        key_cache->set_element_type(key_cache_precision);
-        value_cache->set_element_type(value_cache_precision);
+        if (key_cache_precision.bitwidth() == 4 || value_cache_precision.bitwidth() == 4) {
+            // Packing 2 elements into 1-Byte along continuous groups in K_HEAD or V_HEAD
+            key_cache->set_element_type(ov::element::i8);
+            value_cache->set_element_type(ov::element::i8);
+        } else {
+            key_cache->set_element_type(key_cache_precision);
+            value_cache->set_element_type(value_cache_precision);
+        }
         bool status = false;
         if (pa_op->get_rt_info().count("num_k_heads") && pa_op->get_rt_info().count("k_head_size") &&
             pa_op->get_rt_info().count("num_v_heads") && pa_op->get_rt_info().count("v_head_size")) {
@@ -136,6 +144,15 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                                                             m_config.valueCacheGroupSize,
                                                             m_config.valueCacheQuantBychannel,
                                                             m_config.valueCacheDimOrder);
+            #if ENABLE_DEBUG
+                std::cout << "    -- key_cache_shape :  " << key_cache_shape.to_string()
+                            << ", selected kv cache dt : " << key_cache_precision
+                            << ", key_cache precision : " << key_cache->get_element_type();
+                std::cout << "    -- value_cache_shape : " << value_cache_shape.to_string()
+                            << ", selected kv cache dt : " << value_cache_precision
+                            << ", value_cache precision : " << value_cache->get_element_type()
+                            << std::endl;
+            #endif
 
             key_cache->set_partial_shape(key_cache_shape);
             value_cache->set_partial_shape(value_cache_shape);

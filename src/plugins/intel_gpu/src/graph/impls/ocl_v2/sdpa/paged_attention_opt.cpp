@@ -27,6 +27,7 @@
 #include "common_tools.h"
 
 bool int4_compressed = true;
+#define ENABLE_DEBUG true
 
 namespace ov::intel_gpu::ocl {
 namespace {
@@ -38,7 +39,7 @@ constexpr size_t subgroup_size = 16;
 
 inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
-    if (data_type_traits::is_i8_u8(key_cache_layout.data_type)) {
+    if (data_type_traits::is_i8_u8(key_cache_layout.data_type) || data_type_traits::is_i4_u4(key_cache_layout.data_type)) {
         return true;
     } else {
         return false;
@@ -257,7 +258,8 @@ public:
         jit.make("SUBGROUP_SIZE", subgroup_size);
         jit.make("SLIDING_WINDOW_SIZE", desc->sliding_window);
 
-        bool is_kv_compressed = get_kv_compressed(params);
+        const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+        const bool is_kv_compressed = get_kv_compressed(params);
         jit.make("IS_KV_COMPRESSED", is_kv_compressed);
         jit.make("XE2_QK_MULTIPLICATION", params.get_device_info().arch == gpu_arch::xe2);
         jit.make("SG_SCALE_FACTOR", get_pa_sg_number_scale_factor(params.get_device_info(), desc->k_head_size, SDPAStage::SINGLE_TOKEN, is_kv_compressed));
@@ -267,11 +269,14 @@ public:
             jit.make("PACKED_K_HEAD_SIZE", kernel_selector::Align(desc->k_head_size, subgroup_size)/2);
             auto& kv_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
             auto scales_zp_size = get_element_size(kv_dt) * 2;  // scale + zp
-            if (int4_compressed) {
-                // scales_zp_size = get_element_size(kv_dt) * 2;
-                // INT4 compressed type decompresses 2 tokens at once
+            if (data_type_traits::is_i4_u4(kv_cache_dt)) {
+                // INT4 compression is packing elements along groups in head which has different scalea and zp
                 scales_zp_size = get_element_size(kv_dt) * 4;
+                jit.make("IS_INT4_COMPRESSED", true);
+            } else {
+                jit.make("IS_INT4_COMPRESSED", false);
             }
+
             jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
 
             if (is_key_by_channel) {
@@ -287,11 +292,6 @@ public:
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
             jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size, subgroup_size*2)/2) + scales_zp_size);
             jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size, subgroup_size*2)/2));
-            // [TEST]
-            if (int4_compressed)
-                jit.make("IS_INT4_COMPRESSED", true);
-            else
-                jit.make("IS_INT4_COMPRESSED", false);
         } else {
             jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
@@ -793,6 +793,7 @@ protected:
         jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(1), params.input_layouts[value_cache_id], in_offsets_map.at(value_cache_id)));
 
         const auto desc = params.typed_desc<paged_attention>();
+        const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
         const auto is_key_by_channel = desc->is_key_by_channel;
         OPENVINO_ASSERT(is_key_by_channel == (params.get_program().get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL),
                         "[GPU] Paged Attention key cache quantization mode mismatch: prim.key_cache_by_channel : ",
@@ -816,10 +817,12 @@ protected:
             jit.make("PACKED_K_HEAD_SIZE", kernel_selector::Align(desc->k_head_size, subgroup_size)/2);
             auto data_type = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;  // key tensor data size
             auto scales_zp_size = get_element_size(data_type) * 2;                         // scale + zp
-            if (int4_compressed) {
-                // scales_zp_size = get_element_size(data_type) * 2;
-                // INT4 compressed type decompresses 2 tokens at once
+            if (data_type_traits::is_i4_u4(kv_cache_dt)) {
+                // INT4 compression is packing elements along groups in head which has different scalea and zp
                 scales_zp_size = get_element_size(data_type) * 4;
+                jit.make("IS_INT4_COMPRESSED", true);
+            } else {
+                jit.make("IS_INT4_COMPRESSED", false);
             }
             jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
 
@@ -837,16 +840,16 @@ protected:
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
             jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size, subgroup_size*2)/2) + scales_zp_size);
             jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size, subgroup_size*2)/2));
-            // [TEST]
-            if (int4_compressed)
-                jit.make("IS_INT4_COMPRESSED", true);
-            else
-                jit.make("IS_INT4_COMPRESSED", false);
 
-            // [DEBUG]
-            std::cout << ">>>>>>>>>>>> pa_kv_cache_update_ref : K_HEAD_SIZE(" << desc->k_head_size << "), ADJUSTED_K_HEAD_SIZE("
-                        << desc->k_head_size << " + " << scales_zp_size << "), IS_INT4_COMPRESSED(" << int4_compressed
-                        << ")" << std::endl;
+            #if ENABLE_DEBUG
+                const uint packed_adj_k_head_size = (is_key_by_channel) ?
+                                                (kernel_selector::Align(desc->k_head_size, subgroup_size)/2) :
+                                                ((kernel_selector::Align(desc->k_head_size, subgroup_size)/2) + scales_zp_size);
+                std::cout << ">> K_HEAD_SIZE " << desc->k_head_size << ", PACKED_ADJUSTED_K_HEAD_SIZE : " << packed_adj_k_head_size
+                            << ", V_HEAD_SIZE " << desc->v_head_size << ", PACKED_V_HEAD_SIZE : " << (kernel_selector::Align(desc->v_head_size, subgroup_size*2)/2)
+                            << ", data_type of kv-input : " << data_type << ", kv_cache_dt : " << kv_cache_dt
+                            << std::endl;
+            #endif
         } else {
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
             jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
@@ -908,7 +911,8 @@ protected:
                 size_t head_size_partition = get_num_k_head_size_partitions(desc->is_key_by_channel, desc->k_head_size);
                 // one group in global(2) handles 2 partition to unpack INT4 compression when it's not 'is_prefill_stage'
                 // error if head_size_partition is not even
-                if (int4_compressed && head_size_partition != 1)
+                const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+                if (data_type_traits::is_i4_u4(kv_cache_dt) && head_size_partition != 1)
                     wgs.global = {static_cast<size_t>(sequences_number), heads_number, subgroup_size * head_size_partition / 2};
                 else
                     wgs.global = {static_cast<size_t>(sequences_number), heads_number, subgroup_size * head_size_partition};

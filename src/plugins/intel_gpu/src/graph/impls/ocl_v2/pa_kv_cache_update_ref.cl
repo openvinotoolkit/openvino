@@ -1057,12 +1057,14 @@ KERNEL(pa_kv_cache_update)(
                 }
             }
             #else // IS_KV_COMPRESSED
-            #if ENABLE_DEBUG && 0
+            #if ENABLE_DEBUG
+            {
                 if ((sglid == 0 || sglid == 15) &&
                     (uint)get_global_id(0) == 0 && (uint)get_global_id(1) == 0 && (uint)get_global_id(2) == 0) {
                     printf("\t>> comp_v_offset(%u) : block_v_base_offset(%u) PACKED_V_HEAD_SIZE(%u) V_HEAD_SIZE(%u) PAGED_ATTENTION_BLOCK_SIZE(%u) \n",
                                 comp_v_offset, block_v_base_offset, (uint)PACKED_V_HEAD_SIZE, (uint)V_HEAD_SIZE, (uint)PAGED_ATTENTION_BLOCK_SIZE);
                 }
+            }
             #endif
             {
                 // Key per token
