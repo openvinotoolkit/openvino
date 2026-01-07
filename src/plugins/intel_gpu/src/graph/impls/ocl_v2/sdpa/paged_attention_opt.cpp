@@ -768,7 +768,8 @@ protected:
         jit.make("KV_HEADS_NUM", desc->kv_heads_num);
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         jit.make("SUBGROUP_SIZE", subgroup_size);
-    
+
+        jit.add(make_type_jit_constants("ACCUMULATOR", softmax_accumulator_type));
         return jit;
     }
 

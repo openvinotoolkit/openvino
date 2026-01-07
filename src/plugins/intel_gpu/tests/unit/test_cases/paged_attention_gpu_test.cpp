@@ -584,45 +584,15 @@ struct PagedAttentionManager {
     }
 
     memory::ptr get_adaptive_rkv_evictable_sizes_memory() {
-        auto mem = get_memory_from_vec(adaptive_rkv_evictable_sizes);
-        auto layout = mem->get_layout();
-        layout.set_partial_shape(ov::PartialShape{ 1 });
-
-        if (adaptive_rkv_evictable_sizes.empty()) {
-            auto empty_layout = mem->get_layout();
-            empty_layout.set_partial_shape(ov::PartialShape{ 0 });
-            return test_engine.reinterpret_buffer(*mem, empty_layout);
-        }
-
-        return test_engine.reinterpret_buffer(*mem, layout);
+        return get_memory_from_vec(adaptive_rkv_evictable_sizes);
     }
 
     memory::ptr get_adaptive_rkv_diversity_block_set_indices_memory() {
-        auto mem = get_memory_from_vec(adaptive_rkv_diversity_block_set_indices);
-        auto layout = mem->get_layout();
-        layout.set_partial_shape(ov::PartialShape{ 1 });
-
-        if (adaptive_rkv_diversity_block_set_indices.empty()) {
-            auto empty_layout = mem->get_layout();
-            empty_layout.set_partial_shape(ov::PartialShape{ 0 });
-            return test_engine.reinterpret_buffer(*mem, empty_layout);
-        }
-
-        return test_engine.reinterpret_buffer(*mem, layout);
+        return get_memory_from_vec(adaptive_rkv_diversity_block_set_indices);
     }
 
     memory::ptr get_adaptive_rkv_diversity_block_set_indices_begins_memory() {
-        auto mem = get_memory_from_vec(adaptive_rkv_diversity_block_set_indices_begins);
-        auto layout = mem->get_layout();
-        layout.set_partial_shape(ov::PartialShape{ 1 });
-
-        if (adaptive_rkv_diversity_block_set_indices_begins.empty()) {
-            auto empty_layout = mem->get_layout();
-            empty_layout.set_partial_shape(ov::PartialShape{ 0 });
-            return test_engine.reinterpret_buffer(*mem, empty_layout);
-        }
-
-        return test_engine.reinterpret_buffer(*mem, layout);
+        return get_memory_from_vec(adaptive_rkv_diversity_block_set_indices_begins);
     }
 
     float get_default_scale() {
