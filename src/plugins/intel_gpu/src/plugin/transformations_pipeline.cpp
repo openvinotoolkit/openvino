@@ -208,6 +208,8 @@
 #include "openvino/util/log.hpp"
 
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
+
+#define ENABLE_DEBUG true
 namespace {
 template<typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
@@ -675,6 +677,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             kv_cache_config.valueCacheQuantBychannel = false;
             kv_cache_config.valueCacheGroupSize = 0;
 
+            #if ENABLE_DEBUG
+            {
+                std::cout << ">>>> ConvertPagedAttnInputs : get_kv_cache_precision " << kv_cache_precision
+                        << " -- keyCacheQuantBychannel : " << kv_cache_config.keyCacheQuantBychannel
+                        << ", keyCacheGroupSize : " << kv_cache_config.keyCacheGroupSize
+                        << ", inferencePrecision : " << kv_cache_config.inferencePrecision
+                        << std::endl;
+            }
+            #endif
+
             manager.register_pass<ov::pass::ConvertPagedAttnInputs>(kv_cache_config,
                 [&infer_precision](const ov::element::Type& precision,
                 const bool bychannel,
@@ -688,11 +700,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                             // [TEST]
                             // block_size += infer_precision.size() * 2;
                             block_size += infer_precision.size() * 4;
+                        } else if (precision == ov::element::i4 || precision == ov::element::u4) {
+                            head_size /= 2;
+                            block_size += infer_precision.size() * 4;
                         }
                     } else {
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
                             // [TEST]
                             // head_size += infer_precision.size() * 2 * group_num;
+                            head_size += infer_precision.size() * 4 * group_num;
+                        } else if (precision == ov::element::i4 || precision == ov::element::u4) {
+                            head_size /= 2;
                             head_size += infer_precision.size() * 4 * group_num;
                         }
                     }
@@ -1428,10 +1446,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
+
         auto kv_cache_compression_dt = config.get_kv_cache_precision();
         manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt, device_info.supports_immad);
-
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
+        #if ENABLE_DEBUG
+        {
+            std::cout << ">>>> KVCacheCompression : get_kv_cache_precision " << kv_cache_compression_dt << " ---------------" << std::endl;
+        }
+        #endif
 
         // This pass should be done after asymmetric quantization matching as it can move zp subtraction upper in the graph
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovPerChannel>();
