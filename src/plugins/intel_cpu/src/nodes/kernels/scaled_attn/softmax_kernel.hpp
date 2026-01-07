@@ -1443,7 +1443,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                                     scale_add2_reduce_max<true, true, false>,
                                                     scale_add2_reduce_max<true, true, true>};
     int dispatch = (alibi ? 0b100 : 0) | (attn_mask ? 0b010 : 0) | (causal_mask ? 0b001 : 0);
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (len == 0) {
         if (dst_precision == ov::element::f32) {
             if (total_size > 0) {
@@ -1456,7 +1456,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
         }
         return;
     }
-#endif
+#    endif
     ov::float16 max = std::numeric_limits<ov::float16>::lowest();
     if (attn_mask_prec == ov::element::f32) {
         funcs_fp32[dispatch](a,
@@ -1491,7 +1491,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
     }
 
     ov::float16 sum = 0.0f;
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     const float max_f = static_cast<float>(max);
     if (!std::isfinite(max_f)) {
         size_t inf_count = 0;
@@ -1526,7 +1526,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
         }
         return;
     }
-#endif
+#    endif
     if (dst_precision == ov::element::f32) {
         exp_reduce_sum_f32(a, max, len, sum);
         ov::float16 scalar = 1.0f / sum;

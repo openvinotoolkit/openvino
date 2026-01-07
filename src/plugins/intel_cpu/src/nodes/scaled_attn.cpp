@@ -6,11 +6,11 @@
 
 #include <cassert>
 #include <cfloat>
-#include <cstdlib>
 #include <cmath>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -705,7 +705,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 }
             }
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
             auto run_f32_path = [&]() {
                 std::vector<float> q_f32(m_cnt * head_size);
                 std::vector<float> k_f32(kv_len * head_size);
@@ -905,7 +905,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                     return;
                 }
             }
-#endif
+#    endif
 
             arm_compute::Tensor qkTensor;
             arm_compute::TensorInfo qkInfo;
@@ -922,7 +922,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                                 kStrides);
 
             auto qk = reinterpret_cast<T*>(qkTensor.buffer());
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
             const size_t qk_row_stride = qkInfo.strides_in_bytes()[1] / sizeof(T);
             std::vector<float> qk_row_f32;
             if constexpr (std::is_same_v<T, ov::float16>) {
@@ -943,12 +943,12 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 }
                 qk_row_f32.resize(kv_len);
             }
-#endif
+#    endif
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
                 uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
                 if constexpr (std::is_same_v<T, ov::float16>) {
                     T* qk_row = qk + (m - m_start) * qk_row_stride;
                     for (size_t n = 0; n < kv_len; n++) {
@@ -985,7 +985,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                                  precision,
                                  nullptr);
                 }
-#else
+#    else
                 attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * kv_len),
                              qk + (m - m_start) * kv_len,
                              d_scale,
@@ -999,20 +999,20 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                              attn_mask_precision,
                              precision,
                              nullptr);
-#endif
+#    endif
             }
             arm_compute::TensorInfo outInfo;
             arm_compute::Tensor outTensor;
 
             auto out = has_out_transpose ? &output_emb.at<T>({b, m_start, h * head_size_v})
                                          : &output_emb.at<T>({b, h, m_start});
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
             const int row_dim = has_out_transpose ? 1 : 2;
             const int col_dim = has_out_transpose ? 2 : 3;
             auto strides = arm_compute::Strides({output_emb.stride_bytes(col_dim), output_emb.stride_bytes(row_dim)});
-#else
+#    else
             auto strides = arm_compute::Strides({output_emb.stride_bytes(1), output_emb.stride_bytes(2)});
-#endif
+#    endif
             GemmKernel out_gemm(m_cnt, kv_len, head_size_v, false, precision);
 
             arm_compute::Strides vStrides({present_value.stride_bytes(3), present_value.stride_bytes(2)});
@@ -1590,18 +1590,18 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                             auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
                             uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
                             ov::Extensions::Cpu::XARCH::attn_softmax(scores.data(),
-                                                                      scores.data(),
-                                                                      d_scale,
-                                                                      nullptr,
-                                                                      attn_mask_row,
-                                                                      nullptr,
-                                                                      false,
-                                                                      ncausal,
-                                                                      kv_len,
-                                                                      ov::element::f32,
-                                                                      attn_mask_prec,
-                                                                      ov::element::f32,
-                                                                      nullptr);
+                                                                     scores.data(),
+                                                                     d_scale,
+                                                                     nullptr,
+                                                                     attn_mask_row,
+                                                                     nullptr,
+                                                                     false,
+                                                                     ncausal,
+                                                                     kv_len,
+                                                                     ov::element::f32,
+                                                                     attn_mask_prec,
+                                                                     ov::element::f32,
+                                                                     nullptr);
 
                             for (size_t s = 0; s < head_size_v; s++) {
                                 float sum = 0.0f;
@@ -1612,8 +1612,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                                     output_emb.at<ov::float16>({b, m, h * head_size_v + s}) =
                                         static_cast<ov::float16>(sum);
                                 } else {
-                                    output_emb.at<ov::float16>({b, h, m, s}) =
-                                        static_cast<ov::float16>(sum);
+                                    output_emb.at<ov::float16>({b, h, m, s}) = static_cast<ov::float16>(sum);
                                 }
                             }
                         }
