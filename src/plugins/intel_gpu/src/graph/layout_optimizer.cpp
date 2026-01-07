@@ -239,12 +239,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
           prev_output_layout.spatial(1) == 1)) && is_input_reorder(prev, next))
         return true;
 
-    if (next.is_type<quantize>() && (fmt_prev == format::bfyx || fmt_prev == format::bfzyx)) {
-        if (prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
-            return true;
-        if (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||
-            fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::b_fs_yx_fsv4)
-            return true;
+    if (next.is_type<quantize>()) {
+        if ((fmt_prev == format::bfyx || fmt_prev == format::bfzyx)) {
+            if (prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
+                return true;
+            if (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||
+                fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::b_fs_yx_fsv4)
+                return true;
+        }
         if (use_onednn_impls && prev.get_users().size() == 1)
             return true;
     }
