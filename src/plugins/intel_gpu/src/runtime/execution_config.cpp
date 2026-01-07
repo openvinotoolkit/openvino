@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/execution_config.hpp"
-
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/model.hpp"
@@ -44,6 +43,7 @@ ov::RTMap get_rt_info(const ov::Model& model) {
     return rt_info;
 }
 
+
 bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     if (op->is_dynamic()) {
         return true;
@@ -53,7 +53,9 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     // E.g. static input shapes: sorted:[8], values:[2,3,4] are prefectly fine,
     // but sorted:[8,1,1,1], values:[2,3,4,1] is not valid.
     // Similar case for STFT and ISTFT
-    if (ov::is_type<ov::op::v15::SearchSorted>(op) || ov::is_type<ov::op::v15::STFT>(op) || ov::is_type<ov::op::v16::ISTFT>(op) ||
+    if (ov::is_type<ov::op::v15::SearchSorted>(op)||
+        ov::is_type<ov::op::v15::STFT>(op) ||
+        ov::is_type<ov::op::v16::ISTFT>(op) ||
         ov::is_type<ov::op::v16::SparseFillEmptyRows>(op))
         return true;
 
@@ -64,17 +66,6 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
         const auto body_function = std::static_pointer_cast<ov::op::v5::Loop>(op)->get_function();
         if (body_function->is_dynamic())
             return true;
-    }
-
-    if (ov::is_type<ov::op::v0::Parameter>(op)) {
-        if (op->get_output_element_type(0) == ov::element::i64) {
-            auto param_consumers = op->get_users();
-            if (!param_consumers.empty()) {
-                return !std::any_of(param_consumers.begin(), param_consumers.end(), [](auto& input) {
-                    return ov::is_type<ov::op::v0::Result>(input);
-                });
-            }
-        }
     }
 
     if (ov::is_type<ov::op::v5::GRUSequence>(op) || ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
@@ -126,9 +117,9 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     return false;
 }
 
-}  // namespace
+} // namespace
 
-ExecutionConfig::ExecutionConfig() : ov::PluginConfig() {}
+ExecutionConfig::ExecutionConfig() : ov::PluginConfig() { }
 
 ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig() {
     m_user_properties = other.m_user_properties;
@@ -260,7 +251,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
     } else if (get_value_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) {
         GPU_DEBUG_COUT << "[Warning] Value cache quantization mode BY_CHANNEL is not supported for GPU plugin. "
-                       << "Switching to BY_TOKEN mode." << std::endl;
+            << "Switching to BY_TOKEN mode." << std::endl;
         m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
     }
     // Disable FlashAttn V2 online softmax tricks by default for non-LLMs.
@@ -291,9 +282,9 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
 
     // Enable dynamic quantization by default for non-systolic platforms
     if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && get_dynamic_quantization_group_size() == 0) {
-        if (info.supports_immad)
+         if (info.supports_immad)
             m_dynamic_quantization_group_size = std::numeric_limits<uint64_t>::max();
-        else
+         else
             m_dynamic_quantization_group_size = 32;
     }
 
@@ -310,7 +301,7 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     // For now we apply config file only for build with debug caps, but it can be updated in the future to allow
     // reading release options for any build type
     apply_config_options(context->get_device_name(), get_debug_config());
-#endif  // ENABLE_DEBUG_CAPS
+#endif // ENABLE_DEBUG_CAPS
 }
 
 void ExecutionConfig::apply_hints(const cldnn::device_info& info) {
