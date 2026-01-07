@@ -297,18 +297,38 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
     // Get actual dtype from OpenVINO type:
     auto ov_type = t.get_element_type();
     auto dtype = Common::type_helpers::get_dtype(ov_type);
+
+    // Try to get mutable data pointer first, fall back to const if tensor is read-only
+    const void* data_ptr = nullptr;
+    bool is_const_tensor = false;
+
+    try {
+        data_ptr = t.data();
+    } catch (const ov::Exception&) {
+        // Tensor is read-only, use const data pointer
+        data_ptr = std::as_const(t).data();
+        is_const_tensor = true;
+    }
+
     // Return the array as a view:
     if (is_shared) {
+        py::array result;
         if (ov_type.bitwidth() < Common::values::min_bitwidth) {
-            return py::array(dtype, t.get_byte_size(), t.data(), py::cast(t));
+            result = py::array(dtype, t.get_byte_size(), data_ptr, py::cast(t));
+        } else {
+            result = py::array(dtype, t.get_shape(), t.get_strides(), data_ptr, py::cast(t));
         }
-        return py::array(dtype, t.get_shape(), t.get_strides(), t.data(), py::cast(t));
+        // Mark array as read-only if tensor is const
+        if (is_const_tensor) {
+            py::detail::array_proxy(result.ptr())->flags &= ~py::detail::npy_api::NPY_ARRAY_WRITEABLE_;
+        }
+        return result;
     }
     // Return the array as a copy:
     if (ov_type.bitwidth() < Common::values::min_bitwidth) {
-        return py::array(dtype, t.get_byte_size(), t.data());
+        return py::array(dtype, t.get_byte_size(), data_ptr);
     }
-    return py::array(dtype, t.get_shape(), t.get_strides(), t.data());
+    return py::array(dtype, t.get_shape(), t.get_strides(), data_ptr);
 }
 
 py::array array_from_constant_copy(ov::op::v0::Constant&& c) {

@@ -183,3 +183,21 @@ def test_read_tensor_data_null_shape_throws(tmp_path: Path, mmap: bool) -> None:
     null_shape = ov.PartialShape([0, ov.Dimension.dynamic(), 3, 4])
     with pytest.raises(RuntimeError):
         ov.read_tensor_data(path, element_type=ov.Type.f32, shape=null_shape, mmap=mmap)
+
+
+@pytest.mark.parametrize("mmap", [True, False])
+def test_read_tensor_data_returns_readonly_array(tmp_path: Path, mmap: bool) -> None:
+    """Test that tensors from read_tensor_data have read-only numpy arrays."""
+    shape = (2, 3, 4)
+    data = np.random.uniform(0.0, 1.0, size=np.prod(shape)).astype(np.float32).reshape(shape)
+    path = tmp_path / "tensor.bin"
+    data.tofile(path)
+
+    tensor = ov.read_tensor_data(path, element_type=ov.Type.f32, shape=ov.PartialShape(list(shape)), mmap=mmap)
+
+    # Verify the numpy array is read-only
+    assert not tensor.data.flags.writeable
+
+    # Verify attempting to write raises an error
+    with pytest.raises(ValueError, match="read-only"):
+        tensor.data[0, 0, 0] = 999.0
