@@ -8,7 +8,7 @@
 #include <string>
 #include <sstream>
 
-#define ENABLE_DEBUG true
+#define ENABLE_DEBUG 0
 
 
 namespace cldnn {
@@ -48,9 +48,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
     auto expected_block_size = desc->has_xattention ? paged_attention::block_size_xattn : paged_attention::block_size;
     if (key_cache_compressed && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
         if (data_type_traits::is_i8_u8(key_cache_dt))
-            // [TEST]
-            // expected_block_size += 4;
-            expected_block_size += 8;
+            expected_block_size += 4;
         else
             expected_block_size += 8;
     }

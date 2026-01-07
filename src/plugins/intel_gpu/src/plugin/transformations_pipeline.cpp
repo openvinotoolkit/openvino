@@ -206,7 +206,7 @@
 
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 
-#define ENABLE_DEBUG true
+#define ENABLE_DEBUG 0
 namespace {
 template<typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
@@ -669,18 +669,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     if (bychannel) {
                         // TODO: need to handle group size != block size case
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
-                            // [TEST]
-                            // block_size += infer_precision.size() * 2;
-                            block_size += infer_precision.size() * 4;
+                            block_size += infer_precision.size() * 2;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
                             head_size /= 2;
                             block_size += infer_precision.size() * 4;
                         }
                     } else {
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
-                            // [TEST]
-                            // head_size += infer_precision.size() * 2 * group_num;
-                            head_size += infer_precision.size() * 4 * group_num;
+                            head_size += infer_precision.size() * 2 * group_num;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
                             head_size /= 2;
                             head_size += infer_precision.size() * 4 * group_num;

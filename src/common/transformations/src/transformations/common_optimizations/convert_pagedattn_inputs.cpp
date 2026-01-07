@@ -19,7 +19,7 @@
 using namespace ov::pass;
 using namespace ov::op;
 
-#define ENABLE_DEBUG true
+#define ENABLE_DEBUG 0
 
 ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func)
     : m_config(config),
@@ -112,7 +112,6 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
             block_shape[orders[0]] = -1;
             block_shape[orders[1]] = _head_nums;
             block_shape[orders[2]] = _block_size;
-            // [TEST]
             block_shape[orders[3]] = _head_size;
 
             return block_shape;

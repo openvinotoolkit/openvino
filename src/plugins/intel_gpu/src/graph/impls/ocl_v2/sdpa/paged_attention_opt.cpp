@@ -26,8 +26,7 @@
 #include "sdpa_gen_opt.hpp"
 #include "common_tools.h"
 
-bool int4_compressed = true;
-#define ENABLE_DEBUG true
+#define ENABLE_DEBUG 0
 
 namespace ov::intel_gpu::ocl {
 namespace {
