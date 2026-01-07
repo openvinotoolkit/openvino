@@ -10,21 +10,21 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 endif()
 
 ov_add_test_target(
-    NAME ${TARGET_NAME}
-    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDENCIES
-    openvino_template_plugin
-    LINK_LIBRARIES
-    openvino::funcSharedTests
-    openvino::runtime::dev
-    INCLUDES
-    "${OpenVINOTemplatePlugin_SOURCE_DIR}/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"
-    DEFINES
-    IN_OV_COMPONENT
-    ADD_CLANG_FORMAT
-    LABELS
-    OV UNIT TEMPLATE
+        NAME ${TARGET_NAME}
+        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        DEPENDENCIES
+            openvino_template_plugin
+        LINK_LIBRARIES
+            openvino::funcSharedTests
+            openvino::runtime::dev
+        INCLUDES
+            "${OpenVINOTemplatePlugin_SOURCE_DIR}/include"
+            "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"
+        DEFINES
+            IN_OV_COMPONENT            
+        ADD_CLANG_FORMAT
+        LABELS
+            OV UNIT TEMPLATE
 )
 
 find_package(OpenCV QUIET COMPONENTS core imgproc)

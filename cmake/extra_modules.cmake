@@ -40,8 +40,8 @@ function(ov_generate_dev_package_config)
                                   NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
     configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
-        "${CMAKE_BINARY_DIR}/OpenVINODeveloperPackageConfig-version.cmake"
-        @ONLY)
+                   "${CMAKE_BINARY_DIR}/OpenVINODeveloperPackageConfig-version.cmake" 
+                   @ONLY)
 
     #
     # OpenVINODeveloperPackageConfig.cmake for installation tree
@@ -59,8 +59,8 @@ function(ov_generate_dev_package_config)
                                   NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
     configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
-        "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig-version.cmake"
-        @ONLY)
+                   "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig-version.cmake" 
+                   @ONLY)
 
     install(FILES "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig.cmake"
                   "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig-version.cmake"
@@ -121,8 +121,8 @@ endif()\n")
         endforeach()
 
         configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
-            "${OpenVINODeveloperPackage_DIR}/OpenVINODeveloperPackageConfig-version.cmake"
-            @ONLY)
+                       "${OpenVINODeveloperPackage_DIR}/OpenVINODeveloperPackageConfig-version.cmake" 
+                       @ONLY)
     endfunction()
 
     _ov_generate_fake_developer_package("openvino")
@@ -183,5 +183,6 @@ ov_generate_dev_package_config()
 _ov_register_extra_modules()
 
 # we need to generate final ov_plugins.hpp with all the information about plugins
-ov_generate_plugins_hpp()# we need to generate final ov_frontends.hpp with all the information about frontends
+ov_generate_plugins_hpp()
+# we need to generate final ov_frontends.hpp with all the information about frontends
 ov_generate_frontends_hpp()

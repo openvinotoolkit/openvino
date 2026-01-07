@@ -4,26 +4,27 @@
 
 # Function to download and extract files
 # download vcl prebuilt package info:
-# vcl version: 7.5.0
-# release: npu_ud_2025_48_rc1
-# storage localtion: https://storage.openvinotoolkit.org/dependencies/thirdparty
-# WINDOWS: npu_compiler_vcl_windows_2022-7_5_0-a1ae54e9.zip
-# LINUX:
-# ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_5_0-a1ae54e9.tar.gz
-# ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_5_0-a1ae54e9.tar.gz
+#     vcl version: 7.5.0
+#     release: npu_ud_2025_48_rc1
+#     storage localtion: https://storage.openvinotoolkit.org/dependencies/thirdparty
+#     WINDOWS: npu_compiler_vcl_windows_2022-7_5_0-a1ae54e9.zip
+#     LINUX: 
+#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_5_0-a1ae54e9.tar.gz
+#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_5_0-a1ae54e9.tar.gz
 function(download_and_extract url zip_file extracted_dir modify_proxy)
+
     # Check if the prebuilt Plugin compiler libraries not exist
     if(NOT EXISTS "${extracted_dir}")
         # Download the prebuilt Plugin compiler libraries, if failure, show error message and exit
         if(NOT "${url}" STREQUAL "")
             if(modify_proxy STREQUAL "MODIFY")
                 # Update proxy to enable download for windows url
-                set(original_NO_PROXY $ENV{NO_PROXY})
+            set(original_NO_PROXY $ENV{NO_PROXY})
                 set(original_no_proxy $ENV{no_proxy})
                 set(ENV{NO_PROXY} "")
                 set(ENV{no_proxy} "")
             endif()
-
+            
             message(STATUS "${url} is not empty")
             message(STATUS "Downloading prebuilt Plugin compiler libraries from ${url}")
             file(DOWNLOAD "${url}" "${zip_file}"
@@ -39,7 +40,6 @@ function(download_and_extract url zip_file extracted_dir modify_proxy)
             endif()
 
             list(GET download_status 0 download_result)
-
             if(NOT download_result EQUAL 0)
                 message(FATAL_ERROR "Download failed!\nStatus: ${download_status}\nLog: ${log_output}")
             else()
@@ -48,7 +48,6 @@ function(download_and_extract url zip_file extracted_dir modify_proxy)
         endif()
 
         message(STATUS "Unzipping prebuilt Plugin compiler libraries to ${extracted_dir}")
-
         # Determine extraction method based on file extension
         if("${zip_file}" MATCHES "\\.zip$")
             file(ARCHIVE_EXTRACT INPUT "${zip_file}" DESTINATION "${extracted_dir}")
@@ -57,7 +56,6 @@ function(download_and_extract url zip_file extracted_dir modify_proxy)
                 file(MAKE_DIRECTORY "${extracted_dir}")
                 message(STATUS "Directory ${extracted_dir} created to unzip.")
             endif()
-
             execute_process(COMMAND tar -xzf "${zip_file}" -C "${extracted_dir}")
         elseif("${zip_file}" MATCHES "\\.deb$")
             execute_process(COMMAND dpkg-deb -x "${zip_file}" "${extracted_dir}")
@@ -84,14 +82,14 @@ function(download_and_extract url zip_file extracted_dir modify_proxy)
                 execute_process(
                     COMMAND "${WINRAR_EXECUTABLE}" x -y -o+ "${zip_file}" "${extracted_dir}"
                     RESULT_VARIABLE result
-                    OUTPUT_VARIABLE output
+                    OUTPUT_VARIABLE output 
                     ERROR_VARIABLE error
                 )
 
                 if(result EQUAL 0)
                     message(STATUS "Extraction successful: ${output}")
                 else()
-                    # file(REMOVE_RECURSE "${extracted_dir}")
+                    #file(REMOVE_RECURSE "${extracted_dir}")
                     message(STATUS "Extraction failed: ${error}")
                 endif()
             else()
@@ -100,7 +98,6 @@ function(download_and_extract url zip_file extracted_dir modify_proxy)
         else()
             message(FATAL_ERROR "Unsupported file extension for extraction: ${zip_file}")
         endif()
-
         file(REMOVE "${zip_file}")
     else()
         message(STATUS "Prebuilt Plugin compiler libraries already exist, skip download")
@@ -114,7 +111,6 @@ if(ENABLE_INTEL_NPU_COMPILER)
     set(PLUGIN_COMPILER_VERSION_PATCH 0)
     set(PLUGIN_COMPILER_VERSION "${PLUGIN_COMPILER_VERSION_MAJOR}_${PLUGIN_COMPILER_VERSION_MINOR}_${PLUGIN_COMPILER_VERSION_PATCH}")
     message(STATUS "The prebuilt compiler version is ${PLUGIN_COMPILER_VERSION_MAJOR}.${PLUGIN_COMPILER_VERSION_MINOR}.${PLUGIN_COMPILER_VERSION_PATCH}")
-
     if(WIN32)
         set(PLUGIN_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/plugin_compiler_lib/win")
         set(PLUGIN_COMPILER_LIBS_URL "https://storage.openvinotoolkit.org/dependencies/thirdparty/windows/npu_compiler_vcl_windows_2022-7_5_0-a1ae54e9.zip")
@@ -178,8 +174,7 @@ if(ENABLE_INTEL_NPU_COMPILER)
                     message(STATUS "Copying prebuilt Plugin compiler libraries libopenvino_intel_npu_compiler.so to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for Ubuntu 24.04")
                 endif()
             else()
-                message(STATUS "This is a different Linux distribution: ${OS_NAME}, skip downloading prebuilt Plugin compiler libraries. Can not use plugin compiler libraries!")
-
+            message(STATUS "This is a different Linux distribution: ${OS_NAME}, skip downloading prebuilt Plugin compiler libraries. Can not use plugin compiler libraries!")
                 # Other Linux-specific settings or actions
             endif()
         endif()
