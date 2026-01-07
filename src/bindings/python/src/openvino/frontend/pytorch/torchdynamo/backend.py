@@ -55,11 +55,14 @@ if hasattr(torch._dynamo.config, "inline_inbuilt_nn_modules"):
 
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs, options=None):
+    logger.info("torch.compile backend selected: OpenVINO")
     if _get_aot_autograd(options):
+        logger.info("OpenVINO AOT Autograd: enabled")
         global openvino_options
         openvino_options = options
         decompositions = _get_decompositions(options) + get_inf_decomposition_list() + get_aot_decomposition_list()
         return aot_autograd(fw_compiler=fx_openvino, bw_compiler=fx_openvino, decompositions=get_decompositions(decompositions))(subgraph, example_inputs)
+    logger.info("OpenVINO AOT Autograd: disabled")
     return fx_openvino(subgraph, example_inputs, options)
 
 if "openvino" not in torch.compiler.list_backends():
@@ -82,6 +85,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
             maybe_fs_cached_name = cached_model_name(model_hash_str + "_fs", _get_device(options), example_inputs, _get_cache_dir(options))
             if os.path.isfile(maybe_fs_cached_name + ".xml") and os.path.isfile(maybe_fs_cached_name + ".bin"):
                 # Model is fully supported and already cached. Run the cached OV model directly.
+                logger.info("Reusing cached OpenVINO model (fully supported graph)")
                 compiled_model = openvino_compile_cached_model(maybe_fs_cached_name, options, *example_inputs)
 
                 def _call(*args):
@@ -132,7 +136,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
             _call._boxed_call = True  # type: ignore[attr-defined]
         return _call
     except Exception as e:
-        logger.debug(f"Failed in OpenVINO execution: {e}")
+        logger.warning(f"OpenVINO compilation failed, falling back to TorchInductor. Reason: {str(e)}")
         return compile_fx(subgraph, example_inputs)
 
 
