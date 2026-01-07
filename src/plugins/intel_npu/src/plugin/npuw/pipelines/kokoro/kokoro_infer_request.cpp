@@ -24,22 +24,19 @@
 namespace {
 std::string safe_any_name(const ov::Output<const ov::Node>& port) {
     const auto& names = port.get_names();
-    for (const auto& name: names) {
-        std::cout << name << std::endl;
-    }
     if (!names.empty()) {
         return port.get_any_name();
     }
     return {};
 }
 
-void print_missing_ports(std::vector<std::string>& missing) {
-    if (!missing.empty()) {
+void throw_if_missing(const std::vector<std::string>& missing_ports) {
+    if (!missing_ports.empty()) {
         std::stringstream ss;
         ss << "Can't match ports: ";
-        for (std::size_t i = 0; i < missing.size(); ++i) {
+        for (std::size_t i = 0; i < missing_ports.size(); ++i) {
             if (i) ss << ", ";
-            ss << (missing[i].empty() ? "<unnamed>" : missing[i]);
+            ss << (missing_ports[i].empty() ? "<unnamed>" : missing_ports[i]);
         }
         OPENVINO_THROW(ss.str());
     }
@@ -138,17 +135,17 @@ void ov::npuw::KokoroInferRequest::infer() {
     // 1) Match inputs from original model to model a
     {
         const auto a_inputs = m_model_a_request->get_compiled_model()->inputs();
-        std::vector<std::string> missing;
+        std::vector<std::string> missing_ports;
 
         for (const auto& a_in : a_inputs) {
             auto original_port = ov::npuw::util::find_port_by_names(original_inputs, a_in.get_names());
             if (!original_port.has_value()) {
-                missing.push_back(safe_any_name(a_in));
+                missing_ports.push_back(safe_any_name(a_in));
                 continue;
             }
             m_model_a_request->set_tensor(a_in, get_tensor(original_port.value()));
         } 
-        print_missing_ports(missing);
+        throw_if_missing(missing_ports);
         m_model_a_request->infer();
     }
 
@@ -216,7 +213,7 @@ void ov::npuw::KokoroInferRequest::infer() {
 
     // Feed static Model B inputs once (wouldn't change between iterations)
     {
-        std::vector<std::string> missing;
+        std::vector<std::string> missing_ports;
 
         for (const auto& b_in : b_inputs) {
             const auto port_names = b_in.get_names();
@@ -227,12 +224,12 @@ void ov::npuw::KokoroInferRequest::infer() {
 
             auto original_port = ov::npuw::util::find_port_by_names(original_inputs, b_in.get_names());
             if (!original_port.has_value()) {
-                missing.push_back(*port_names.begin());
+                missing_ports.push_back(*port_names.begin());
                 continue;
             }
             m_model_b_request->set_tensor(b_in, get_tensor(original_port.value()));
         } 
-        print_missing_ports(missing);
+        throw_if_missing(missing_ports);
     }
     
     // Pick audio output = first floating output (f16/f32)

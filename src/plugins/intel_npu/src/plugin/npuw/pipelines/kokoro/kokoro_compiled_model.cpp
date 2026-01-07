@@ -13,7 +13,7 @@
 
 namespace {
     // Remove all options "NPUW_.*"
-    ov::AnyMap remove_all_npuw_parameters(const ov::AnyMap& properties) {
+    ov::AnyMap without_npuw_params(const ov::AnyMap& properties) {
         ov::AnyMap result;
         for (const auto& item : properties) {
             if (item.first.find("NPUW") == std::string::npos) {
@@ -54,18 +54,18 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
     // Decompose kokoro model into two static models 
     KokoroSplitResult split_result = KokoroSplit::split_model(model, m_kokoro_cfg);
 
-    LOG_DEBUG("Compiling kokoro model A.");
+    LOG_DEBUG("Compiling kokoro model A...");
     // Model A doesn't require decomposition, so it should be handled by CPU or NPU plugin 
     if (is_cpu_only(properties)) {
         auto core = plugin->get_core();
         m_model_a_compiled = core->compile_model(split_result.model_a, "CPU", ov::AnyMap{});
     } else {
         // Plugin don't have to know about NPUW parameters 
-        ov::AnyMap model_a_properties = remove_all_npuw_parameters(properties);
+        ov::AnyMap model_a_properties = without_npuw_params(properties);
         m_model_a_compiled = plugin->compile_model(split_result.model_a, model_a_properties);
     }
     
-    LOG_DEBUG("Compiling kokoro model B.");
+    LOG_DEBUG("Compiling kokoro model B...");
     ov::AnyMap properties_model_b = properties;
 
     // Enforce offloading to CPU for non-accurate subgraphs

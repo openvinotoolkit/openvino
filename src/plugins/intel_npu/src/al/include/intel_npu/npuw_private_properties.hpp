@@ -725,7 +725,7 @@ namespace kokoro {
  * Block size for Kokoro model splitting.
  * Default value: 200.
  */
-static constexpr ov::Property<uint32_t> block_size{"NPUW_KOKORO_BLOCK_SIZE"};
+static constexpr ov::Property<uint32_t> block_size{"KOKORO_BLOCK_SIZE"};
 
 /**
  * @brief
@@ -733,7 +733,7 @@ static constexpr ov::Property<uint32_t> block_size{"NPUW_KOKORO_BLOCK_SIZE"};
  * Overlap size for Kokoro model splitting.
  * Default value: 20.
  */
-static constexpr ov::Property<uint32_t> overlap_size{"NPUW_KOKORO_OVERLAP_SIZE"};
+static constexpr ov::Property<uint32_t> overlap_size{"KOKORO_OVERLAP_SIZE"};
 }  // namespace kokoro
 
 }  // namespace npuw
