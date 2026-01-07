@@ -13,6 +13,15 @@
 #include "openvino/core/except.hpp"
 
 namespace ov::util {
+/**
+ * @brief Represents OpenVINO version with major, minor, patch, tweak, and build numbers.
+ *
+ * This structure parses and stores version information following the pattern:
+ * MAJOR.MINOR.PATCH[.TWEAK]-BUILD-...
+ * or a standalone build number.
+ *
+ * The version components can be compared using standard comparison operators.
+ */
 struct Version {
     size_t major = 0;
     size_t minor = 0;
@@ -76,6 +85,12 @@ struct Version {
     }
 };
 
+/**
+ * @brief Policy for determining version compatibility between two versions.
+ *
+ * This structure defines the maximum allowed difference for each version component.
+ * By default, all differences are allowed.
+ */
 struct VersionCompatibilityPolicy {
     size_t max_major_diff = std::numeric_limits<size_t>::max();
     size_t max_minor_diff = std::numeric_limits<size_t>::max();
@@ -84,6 +99,20 @@ struct VersionCompatibilityPolicy {
     size_t max_build_diff = std::numeric_limits<size_t>::max();
 };
 
+/**
+ * @brief Checks if two versions are compatible based on the given policy.
+ *
+ * This function determines whether an older version is compatible with a newer version
+ * by checking if the difference in each version component (major, minor, patch, tweak, build)
+ * is within the limits specified by the compatibility policy.
+ *
+ * @param older_version The older version to check compatibility for.
+ * @param newer_version The newer version to compare against.
+ * @param policy The compatibility policy defining maximum allowed differences for each version component.
+ *               Default policy allows all differences.
+ * @return true if the versions are compatible according to the policy, false otherwise.
+ *         Returns false if older_version is actually greater than newer_version.
+ */
 inline bool is_version_compatible(const Version& older_version,
                                   const Version& newer_version,
                                   const VersionCompatibilityPolicy& policy = {}) {
