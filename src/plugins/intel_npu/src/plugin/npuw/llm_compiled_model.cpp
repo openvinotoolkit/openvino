@@ -1259,6 +1259,15 @@ void update_config_for_whisper(ov::AnyMap& config) {
     config.erase("NPUW_SLICE_OUT");
 }
 
+bool is_int8_model(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& op: model->get_ops()) {
+        if (op->get_element_type() == ov::element::i8 ||
+            op->get_element_type() == ov::element::u8)
+            return true;
+    }
+    return false;
+}
+
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     std::map<std::string, std::string> result;
     for (auto&& value : params) {
@@ -1484,6 +1493,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
         m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
+
+        if (auto it = other_props.find("NPUW_FUNCALL_FOR_ALL");
+            it != other_props.end() && it->second.as<bool>() == true && is_int8_model(model)) {
+            other_props.at("NPUW_FUNCALL_FOR_ALL") = "NO";
+            other_props.at("NPUW_FOLD") = "NO";
+            LOG_INFO("WS is disabled for Whisper int8 model!");
+        }
     }
 
     m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
