@@ -103,7 +103,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     bool supports_ip_version = supports_extension(extensions, ZE_DEVICE_IP_VERSION_EXT_NAME, ZE_DEVICE_IP_VERSION_VERSION_1_0);
     bool supports_mutable_list = supports_extension(extensions, ZE_MUTABLE_COMMAND_LIST_EXP_NAME, ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_0);
     bool supports_pci_properties = supports_extension(extensions, ZE_PCI_PROPERTIES_EXT_NAME, ZE_PCI_PROPERTIES_EXT_VERSION_1_0);
-    bool supports_cb_events = supports_extension(extensions, ZEX_COUNTER_BASED_EVENT_EXT_NAME, ZEX_COUNTER_BASED_EVENT_VERSION_1_0);
+    bool supports_counter_based_events = supports_extension(extensions, ZEX_COUNTER_BASED_EVENT_EXT_NAME, ZEX_COUNTER_BASED_EVENT_VERSION_1_0);
     bool supports_cp_offload =
         supports_extension(extensions, ZEX_INTEL_QUEUE_COPY_OPERATIONS_OFFLOAD_HINT_EXP_NAME, ZEX_INTEL_QUEUE_COPY_OPERATIONS_OFFLOAD_HINT_EXP_VERSION_1_0);
     bool supports_dp_properties =
@@ -208,7 +208,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_fp16_denorms = info.supports_fp16 && (device_module_properties.fp16flags & ZE_DEVICE_FP_FLAG_DENORM) != 0;
 
     info.supports_cp_offload = supports_cp_offload;
-    info.supports_cb_events = supports_cb_events;
+    info.supports_counter_based_events = supports_counter_based_events;
 
     info.supports_imad = (device_module_properties.flags & ZE_DEVICE_MODULE_FLAG_DP4A) != 0;
     info.supports_immad = supports_dp_properties && (dp_properties.flags & ZE_INTEL_DEVICE_MODULE_EXP_FLAG_DPAS) != 0;

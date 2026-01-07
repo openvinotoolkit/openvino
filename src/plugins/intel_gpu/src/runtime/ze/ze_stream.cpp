@@ -9,7 +9,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
 
-#include "ze_cb_event_factory.hpp"
+#include "ze_counter_based_event_factory.hpp"
 #include "ze_event_factory.hpp"
 #include "ze_events.hpp"
 #include "ze_empty_event.hpp"
@@ -213,8 +213,8 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     }
 
     OV_ZE_EXPECT(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_command_list));
-    if (m_queue_type == QueueTypes::in_order && info.supports_cb_events) {
-        m_ev_factory = std::make_unique<ze_cb_event_factory>(engine, config.get_enable_profiling());
+    if (m_queue_type == QueueTypes::in_order && info.supports_counter_based_events) {
+        m_ev_factory = std::make_unique<ze_counter_based_event_factory>(engine, config.get_enable_profiling());
     } else {
         m_ev_factory = std::make_unique<ze_event_factory>(engine, config.get_enable_profiling());
     }
