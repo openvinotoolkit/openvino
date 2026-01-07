@@ -10,6 +10,8 @@
 #include "primitive_inst.h"
 #include "variable.hpp"
 
+#include <optional>
+
 namespace cldnn {
 
 template <>
@@ -95,11 +97,17 @@ public:
     void update_shape_info_tensor(const kernel_impl_params& params) override;
     void release_variable() override;
 
+    // KV cache trim length - set during shape inference when update_kv is enabled
+    void set_trim_length(int64_t trim_length) { m_trim_length = trim_length; }
+    int64_t get_trim_length() const { return m_trim_length; }
+    static std::optional<int64_t> compute_trim_length(const kernel_impl_params& impl_param, const kv_cache& desc);
+
     typed_primitive_inst(network& network, const kv_cache_node& desc);
     typed_primitive_inst(network& network) : parent(network), memory_state::releasable_variable("") {}
 
 private:
     size_t kv_cache_id = 0;
+    int64_t m_trim_length = 0;
 };
 
 using kv_cache_inst = typed_primitive_inst<kv_cache>;

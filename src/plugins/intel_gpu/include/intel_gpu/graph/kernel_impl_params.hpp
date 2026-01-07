@@ -79,10 +79,6 @@ struct kernel_impl_params final {
     std::vector<size_t> output_size;
     std::vector<size_t> img_size;
 
-    // KV cache trim length - set at runtime during shape inference
-    // Marked as mutable to allow modification even when kernel_impl_params is passed as const reference
-    mutable int64_t kv_cache_trim_length = 0;
-
     std::map<size_t, size_t> in_port_to_shape_info_offset = {};
     std::map<size_t, size_t> out_port_to_shape_info_offset = {};
 

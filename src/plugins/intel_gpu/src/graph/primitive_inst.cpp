@@ -38,6 +38,7 @@
 #include "gather_inst.h"
 #include "broadcast_inst.h"
 #include "dynamic_quantize_inst.h"
+#include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "swiglu_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "lora_inst.h"
@@ -60,6 +61,7 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include "utils.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <impls/onednn/utils.hpp>
@@ -514,7 +516,13 @@ void primitive_inst::update_shape() {
     }
 
     if (get_node().is_type<kv_cache>()) {
+        auto& kv_inst = downcast<kv_cache_inst>(*this);
+        kv_inst.set_trim_length(0);
+
         auto desc = get_node().as<kv_cache>().get_primitive();
+        if (const auto trim_length = kv_cache_inst::compute_trim_length(*_impl_params, *desc))
+            kv_inst.set_trim_length(*trim_length);
+
         auto var_mem_size = get_network().get_variable(desc->variable_info.variable_id).get_actual_mem_size();
         // Need to trigger realloc_if_needed
         if (var_mem_size < _impl_params->get_output_layout(0).get_linear_size())
@@ -1450,6 +1458,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     if (!get_node().is_type<kv_cache>())
         return;
 
+    auto& kv_inst = downcast<kv_cache_inst>(*this);
     _impl_params->_can_be_optimized = false;
 
     if (_impl_params->get_input_layout(0).count() == 0) {
@@ -1474,12 +1483,12 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial present_layout : " << present_layout.to_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial past_layout : " << past_layout.to_string() << std::endl;
-    if (desc->update_kv && _impl_params->kv_cache_trim_length > 0) {
-        GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " kv cache trim_length : " << _impl_params->kv_cache_trim_length << std::endl;
+    if (desc->update_kv && kv_inst.get_trim_length() > 0) {
+        GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " kv cache trim_length : " << kv_inst.get_trim_length() << std::endl;
         auto trimmed_past_shape = past_layout.get_shape();
-        trimmed_past_shape[sequence_axis] -= _impl_params->kv_cache_trim_length;
+        trimmed_past_shape[sequence_axis] -= kv_inst.get_trim_length();
         past_layout.set_partial_shape(trimmed_past_shape);
-        auto past_layout_pad = past_layout.data_padding._upper_size[sequence_axis] + _impl_params->kv_cache_trim_length;
+        auto past_layout_pad = past_layout.data_padding._upper_size[sequence_axis] + kv_inst.get_trim_length();
         kv_cache_inst::update_pad(past_layout, past_layout_pad, sequence_axis);
     }
     auto max_pad = kv_cache_inst::get_max_pad(past_layout, _deps[0].first->_max_output_layout_count[0], sequence_axis, "past_layout");
