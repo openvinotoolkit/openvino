@@ -23,7 +23,6 @@ module.exports = defineConfig([
       parser: tseslint.parser,
       parserOptions: {
         projectService: true,
-        project: "./tsconfig.json",
         tsconfigRootDir: path.resolve(),
       },
     },

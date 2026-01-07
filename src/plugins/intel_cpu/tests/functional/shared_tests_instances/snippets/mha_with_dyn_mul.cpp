@@ -36,12 +36,7 @@ std::vector<std::vector<ov::test::InputShape>> transposedShape_4D_WithMul {
     }
 };
 
-// Transpose is moved outside of Subgraph on ARM64
-#if defined(OPENVINO_ARCH_ARM64)
-static constexpr size_t expected_nodes_mha_with_dyn_mul = 4;
-#else
 static constexpr size_t expected_nodes_mha_with_dyn_mul = 2;
-#endif
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHA_4D_WithDynamicMul,

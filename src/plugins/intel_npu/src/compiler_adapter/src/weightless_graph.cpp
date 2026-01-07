@@ -275,6 +275,11 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 }
 
 void WeightlessGraph::initialize(const Config& config) {
+    if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
+        // To ensure that does not throw an issue when subsequently calling `_zeroInitStruct->getDevice()`
+        return;
+    }
+
     // Simplified version for init schedules
     const size_t numberOfInits = _initsGraphDesc.size();
     _initsCommandQueueOrdinals.resize(numberOfInits);
@@ -576,7 +581,7 @@ void WeightlessGraph::release_init_blob(const size_t initIndex) {
     }
 
     ze_graph_properties_2_t properties = {};
-    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_2;
     _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_initsGraphDesc.at(initIndex)._handle, &properties);
 
     if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {

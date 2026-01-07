@@ -204,7 +204,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, 
     }
 }
 DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
-    return DispatchDataFunc{[this](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         assert(!params.is_dynamic());
 
         auto* rtp = static_cast<MoEGemmRuntimeParams*>(rt_params);
@@ -328,7 +328,7 @@ KernelData MoEGemmMicroGenerator::get_kernel_data(const kernel_impl_params& para
     kd.params.local_memory_args.clear();
     if (slm_size > 0) {
         kd.params.local_memory_args.push_back(slm_size);
-        kd.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, slm_size});
+        kd.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
     }
     return kd;
 }

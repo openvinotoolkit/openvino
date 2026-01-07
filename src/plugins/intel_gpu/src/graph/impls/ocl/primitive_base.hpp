@@ -237,7 +237,7 @@ protected:
                             typed_primitive_inst<PType>& instance) override {
         stream& stream = instance.get_network().get_stream();
         if (instance.can_be_optimized()) {
-            return stream.aggregate_events(events, false, instance.is_output());
+            return stream.aggregate_events(events, events.size() > 1, instance.is_output());
         }
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;

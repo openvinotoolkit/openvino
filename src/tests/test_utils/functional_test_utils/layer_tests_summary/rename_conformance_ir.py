@@ -19,7 +19,7 @@ import errno
 logger = get_logger('rename_conformance_ir')
 
 try:
-    from openvino.runtime import Core
+    from openvino import Core
 except:
     script_dir, _ = os.path.split(os.path.abspath(__file__))
     ov_bin_path = get_ov_path(script_dir, None, True)

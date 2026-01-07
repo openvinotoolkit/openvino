@@ -20,17 +20,18 @@ namespace type_helpers {
 
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
     static const std::map<ov::element::Type, py::dtype> ov_type_to_dtype_mapping = {
-        {ov::element::f16, py::dtype("float16")},  {ov::element::bf16, py::dtype("float16")},
-        {ov::element::f32, py::dtype("float32")},  {ov::element::f64, py::dtype("float64")},
-        {ov::element::i8, py::dtype("int8")},      {ov::element::i16, py::dtype("int16")},
-        {ov::element::i32, py::dtype("int32")},    {ov::element::i64, py::dtype("int64")},
-        {ov::element::u8, py::dtype("uint8")},     {ov::element::u16, py::dtype("uint16")},
-        {ov::element::u32, py::dtype("uint32")},   {ov::element::u64, py::dtype("uint64")},
-        {ov::element::boolean, py::dtype("bool")}, {ov::element::u1, py::dtype("uint8")},
-        {ov::element::u4, py::dtype("uint8")},     {ov::element::nf4, py::dtype("uint8")},
-        {ov::element::i4, py::dtype("int8")},      {ov::element::f8e4m3, py::dtype("uint8")},
-        {ov::element::f8e5m2, py::dtype("uint8")}, {ov::element::string, py::dtype("bytes_")},
-        {ov::element::f4e2m1, py::dtype("uint8")}, {ov::element::f8e8m0, py::dtype("uint8")},
+        {ov::element::f16, py::dtype("float16")},   {ov::element::bf16, py::dtype("float16")},
+        {ov::element::f32, py::dtype("float32")},   {ov::element::f64, py::dtype("float64")},
+        {ov::element::i8, py::dtype("int8")},       {ov::element::i16, py::dtype("int16")},
+        {ov::element::i32, py::dtype("int32")},     {ov::element::i64, py::dtype("int64")},
+        {ov::element::u8, py::dtype("uint8")},      {ov::element::u16, py::dtype("uint16")},
+        {ov::element::u32, py::dtype("uint32")},    {ov::element::u64, py::dtype("uint64")},
+        {ov::element::boolean, py::dtype("bool")},  {ov::element::u1, py::dtype("uint8")},
+        {ov::element::u2, py::dtype("uint8")},      {ov::element::u4, py::dtype("uint8")},
+        {ov::element::nf4, py::dtype("uint8")},     {ov::element::i4, py::dtype("int8")},
+        {ov::element::f8e4m3, py::dtype("uint8")},  {ov::element::f8e5m2, py::dtype("uint8")},
+        {ov::element::string, py::dtype("bytes_")}, {ov::element::f4e2m1, py::dtype("uint8")},
+        {ov::element::f8e8m0, py::dtype("uint8")},
     };
     return ov_type_to_dtype_mapping;
 }
@@ -271,6 +272,8 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
     case ov::element::boolean:
         return array.cast<py::array_t<bool, py::array::c_style | py::array::forcecast>>();
     case ov::element::u1:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u2:
         return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
     // need to create a view on array to cast it correctly
     case ov::element::f16:
