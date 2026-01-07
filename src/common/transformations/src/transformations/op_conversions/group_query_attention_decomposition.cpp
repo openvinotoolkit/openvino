@@ -185,7 +185,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         // cf. make_attention_mask@src\plugins\intel_gpu\tests\common\subgraphs_builders.hpp
         std::shared_ptr<ov::Node> minus_inf = nullptr;
         if (T == ov::element::f32)
-            minus_inf = 
+            minus_inf =
                 register_new_node(v0::Constant::create(T, ov::Shape{}, {-std::numeric_limits<float>::infinity()}));
         else if (T == ov::element::f16)
             minus_inf =
