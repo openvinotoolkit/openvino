@@ -66,25 +66,21 @@ std::shared_ptr<ov::Node> build_ROPE(const std::shared_ptr<ov::Node>& proj_bias,
         Constant::create(
             element::i64,
             Shape{4},
-            {static_cast<int64_t>(batch), static_cast<int64_t>(seq_len), int64_t(-1), static_cast<int64_t>(head_size)}),
+            {static_cast<int64_t>(batch), int64_t(-1), static_cast<int64_t>(seq_len), static_cast<int64_t>(head_size)}),
         false);
-    auto transpose = std::make_shared<Transpose>(reshape, Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
     size_t half = seq_len / 2;
     auto axis = Constant::create(element::i64, Shape{}, {2});
     auto split_lengths = Constant::create(element::i64, Shape{2}, {half, half});
-    auto split = std::make_shared<VariadicSplit>(transpose, axis, split_lengths);
-    auto mul_1 =
-        std::make_shared<Multiply>(split->output(0),
-                                   Constant::create(element::f32, Shape{batch, pack_size, half, head_size}, {1.0f}));
-    auto concat = std::make_shared<Concat>(OutputVector{mul_1, split->output(1)}, 2);
+    auto split = std::make_shared<VariadicSplit>(reshape, axis, split_lengths);
+    auto angle = std::make_shared<Negative>(split->output(1));
+    auto concat = std::make_shared<Concat>(OutputVector{angle, split->output(1)}, 2);
     auto mul_2 =
         std::make_shared<Multiply>(concat,
                                    Constant::create(element::f32, Shape{batch, pack_size, seq_len, head_size}, {1.0f}));
     auto back_mul =
         std::make_shared<Multiply>(reshape,
-                                   Constant::create(element::f32, Shape{batch, seq_len, pack_size, head_size}, {1.0f}));
-    auto transpose_2 = std::make_shared<Transpose>(back_mul, Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
-    auto rotated = std::make_shared<Add>(transpose_2, mul_2);
+                                   Constant::create(element::f32, Shape{batch, pack_size, seq_len, head_size}, {1.0f}));
+    auto rotated = std::make_shared<Add>(back_mul, mul_2);
     return rotated;
 }
 
@@ -93,10 +89,7 @@ std::shared_ptr<ov::Node> build_sdpa(const std::shared_ptr<ov::Node>& q,
                                      const std::shared_ptr<ov::Node>& v,
                                      size_t seq_len,
                                      size_t head_size) {
-    auto kT = std::make_shared<Transpose>(k, Constant::create(element::i64, Shape{4}, {0, 1, 3, 2}));
-    auto scale = 1.0f / std::sqrt(static_cast<float>(head_size));
-    auto scaled_k = std::make_shared<Multiply>(kT, Constant::create(element::f32, Shape{1}, {scale}));
-    auto qk = std::make_shared<MatMul>(q, scaled_k);
+    auto qk = std::make_shared<MatMul>(q, k, false, true);
     auto bias = Constant::create(element::f32, Shape{1, 1, 1, seq_len}, {0.0f});
     auto add = std::make_shared<Add>(qk, bias);
     auto softmax = std::make_shared<Softmax>(add, -1);
@@ -108,7 +101,6 @@ std::shared_ptr<ov::Node> build_post_sdpa(const std::shared_ptr<ov::Node>& attn_
                                           size_t batch,
                                           size_t seq_len,
                                           size_t hidden_size) {
-    // auto transpose = std::make_shared<Transpose>(attn_out, Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
     auto reshape = std::make_shared<Reshape>(
         attn_out,
         Constant::create(
