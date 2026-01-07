@@ -94,6 +94,37 @@ TEST_P(VariadicSplitTransformation, CompareFunctions) {
 }
 
 const std::vector<VariadicSplitTransformationTestValues> testValues = {
+
+    //FP32 inputs
+    {{1, 3, 16, 16},
+     std::int64_t{2},
+     std::vector<size_t>{10, 6},
+     LayerTransformation::createParamsF32F32(),
+     // ActualValues
+     {ov::element::f16, {{ov::element::f16}, {128.f}, {3.f}}},
+     // ExpectedValues
+     {ov::element::f16,
+      {},
+      ov::element::f16,
+      {
+          {{ov::element::f16}, {128.f}, {3.f}},
+          {{ov::element::f16}, {128.f}, {3.f}},
+      }}},
+    //FP16 inputs
+    {{1, 3, 16, 16},
+     std::int64_t{2},
+     std::vector<size_t>{10, 6},
+     LayerTransformation::createParamsF16F16(),
+     // ActualValues
+     {ov::element::f16, {{ov::element::f16}, {128.f}, {3.f}}},
+     // ExpectedValues
+     {ov::element::f16,
+      {},
+      ov::element::f16,
+      {
+          {{ov::element::f16}, {128.f}, {3.f}},
+          {{ov::element::f16}, {128.f}, {3.f}},
+      }}},
     // U8 per tensor quantization
     {{1, 3, 16, 16},
      std::int64_t{2},

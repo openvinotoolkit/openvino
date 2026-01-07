@@ -84,6 +84,14 @@ TestTransformationParams LayerTransformation::createParamsU8I8AndI8() {
     return TestTransformationParams(true, { ov::element::u8, ov::element::i8 }, { ov::element::i8 });
 }
 
+TestTransformationParams LayerTransformation::createParamsF16F16() {
+    return TestTransformationParams(true, { ov::element::f16 }, { ov::element::f16 });
+}
+
+TestTransformationParams LayerTransformation::createParamsF32F32() {
+    return TestTransformationParams(true, { ov::element::f32 }, { ov::element::f32 });
+}
+
 ov::pass::low_precision::LayerTransformation::Params TestTransformationParams::toParams(const TestTransformationParams& params) {
     return ov::pass::low_precision::LayerTransformation::Params(
         params.updatePrecisions,
