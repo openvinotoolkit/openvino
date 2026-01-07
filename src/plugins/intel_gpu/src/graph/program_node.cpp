@@ -1319,6 +1319,19 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
         bool cur_ops_pair_is_optimized = false;
 
         if (can_try_optimize) {
+            auto update_buf_inplace = [&](memory::ptr mem_ptr, size_t elem_count, auto fn) {
+                auto& stream = mem_ptr->get_engine()->get_service_stream();
+                if (mem_ptr->get_allocation_type() != allocation_type::usm_device) {
+                    mem_lock<float, mem_lock_type::read_write> lock(mem_ptr, stream);
+                    fn(&lock[0], elem_count);
+                } else {
+                    std::vector<float> host(elem_count);
+                    mem_ptr->copy_to(stream, host.data(), true);
+                    fn(host.data(), elem_count);
+                    mem_ptr->copy_from(stream, host.data(), true);
+                }
+            };
+
             if (eltw_and_eltw) {
                 dnnl::algorithm cur_alg, prev_alg;
                 float cur_alpha, prev_alpha, cur_beta, prev_beta;
@@ -1366,8 +1379,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
                 auto bin_ops_can_be_optimized =
                     cur_node.is_type<data>() && cur_node.is_constant() && cur_node.get_users().size() == 1 &&
-                    desc.get_data_type() == dnnl_f32 &&
-                    cur_node.as<data>().get_attached_memory_ptr()->get_allocation_type() != allocation_type::usm_device;
+                    desc.get_data_type() == dnnl_f32;
 
                 auto bin_add_and_eltw = alpha == 1.0f && type_is_binary_add(cur_type) && bin_ops_can_be_optimized;
                 auto bin_mul_and_eltw = beta == 0.f && type_is_binary_mul(cur_type) && bin_ops_can_be_optimized;
@@ -1376,20 +1388,21 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                     memory::ptr cur_bin_mem_ptr = cur_node.as<data>().get_attached_memory_ptr();
                     if (cur_bin_mem_ptr == nullptr)
                         throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for bin + eltw");
-                    auto& stream = cur_bin_mem_ptr->get_engine()->get_service_stream();
-                    mem_lock<float, mem_lock_type::read_write> bin_and_eltw_lock(cur_bin_mem_ptr, stream);
-
-                    size_t cur_bin_mem_size = cur_node.get_output_layout().count();
 
                     // Update all binary coefficients
-                    if (bin_add_and_eltw) {
-                        for (size_t data_idx = 0; data_idx < cur_bin_mem_size; data_idx++) {
-                            bin_and_eltw_lock[data_idx] += beta;
-                        }
-                    } else {
-                        for (size_t data_idx = 0; data_idx < cur_bin_mem_size; data_idx++) {
-                            bin_and_eltw_lock[data_idx] *= alpha;
-                        }
+                    if (!get_program().is_loaded_from_cache()) {
+                        size_t cur_bin_mem_size = cur_node.get_output_layout().count();
+                        update_buf_inplace(cur_bin_mem_ptr, cur_bin_mem_size, [&](float* buf, size_t n) {
+                            if (bin_add_and_eltw) {
+                                for (size_t data_idx = 0; data_idx < n; data_idx++) {
+                                    buf[data_idx] += beta;
+                                }
+                            } else {
+                                for (size_t data_idx = 0; data_idx < n; data_idx++) {
+                                    buf[data_idx] *= alpha;
+                                }
+                            }
+                        });
                     }
 
                     // Marked previous eltwise operation as 'optimized' (it will be ignored on the next iteration of cycle)
@@ -1410,8 +1423,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
                 auto bin_ops_can_be_optimized =
                     prev_node.is_type<data>() && prev_node.is_constant() && prev_node.get_users().size() == 1 &&
-                    desc.get_data_type() == dnnl_f32 &&
-                    prev_node.as<data>().get_attached_memory_ptr()->get_allocation_type() != allocation_type::usm_device;
+                    desc.get_data_type() == dnnl_f32;
 
                 auto eltw_and_bin_add = alpha == 1.0f && type_is_binary_add(prev_type) && bin_ops_can_be_optimized;
                 auto eltw_and_bin_mul = beta == 0.f && type_is_binary_mul(prev_type) && bin_ops_can_be_optimized;
@@ -1420,20 +1432,21 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                     memory::ptr prev_bin_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
                     if (prev_bin_mem_ptr == nullptr)
                         throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for eltw + bin");
-                    auto& stream = prev_bin_mem_ptr->get_engine()->get_service_stream();
-                    mem_lock<float, mem_lock_type::read_write> eltw_and_bin_lock(prev_bin_mem_ptr, stream);
-
-                    size_t prev_bin_mem_size = prev_node.get_output_layout().count();
 
                     // Update all binary coefficients
-                    if (eltw_and_bin_add) {
-                        for (size_t data_idx = 0; data_idx < prev_bin_mem_size; data_idx++) {
-                            eltw_and_bin_lock[data_idx] += beta;
-                        }
-                    } else {
-                        for (size_t data_idx = 0; data_idx < prev_bin_mem_size; data_idx++) {
-                            eltw_and_bin_lock[data_idx] *= alpha;
-                        }
+                    if (!get_program().is_loaded_from_cache()) {
+                        size_t prev_bin_mem_size = prev_node.get_output_layout().count();
+                        update_buf_inplace(prev_bin_mem_ptr, prev_bin_mem_size, [&](float* buf, size_t n) {
+                            if (eltw_and_bin_add) {
+                                for (size_t data_idx = 0; data_idx < n; data_idx++) {
+                                    buf[data_idx] += beta;
+                                }
+                            } else {
+                                for (size_t data_idx = 0; data_idx < n; data_idx++) {
+                                    buf[data_idx] *= alpha;
+                                }
+                            }
+                        });
                     }
 
                     // Marked current eltwise operation as 'optimized' (it will be ignored on the next iteration of cycle)
@@ -1450,19 +1463,19 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 p_ops.get_params_eltwise(cur_post_op_idx, alg, alpha, beta);
 
                 // Eltwise can be inserted into the output_scale if cur_beta is equal to 0.f
-                if (beta == 0.f && prev_node.get_output_layout().data_type == data_types::f32 &&
-                    prev_node.as<data>().get_attached_memory_ptr()->get_allocation_type() != allocation_type::usm_device) {
+                if (beta == 0.f && prev_node.get_output_layout().data_type == data_types::f32) {
                     memory::ptr prev_scale_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
                     if (prev_scale_mem_ptr == nullptr)
                         throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for eltw + scale");
-                    auto& stream = prev_scale_mem_ptr->get_engine()->get_service_stream();
-                    mem_lock<float, mem_lock_type::read_write> eltw_and_scale_lock(prev_scale_mem_ptr, stream);
-
-                    size_t prev_scale_mem_size = prev_node.get_output_layout().count();
 
                     // Update all scale coefficients
-                    for (size_t data_idx = 0; data_idx < prev_scale_mem_size; data_idx++) {
-                        eltw_and_scale_lock[data_idx] *= alpha;
+                    if (!get_program().is_loaded_from_cache()) {
+                        size_t prev_scale_mem_size = prev_node.get_output_layout().count();
+                        update_buf_inplace(prev_scale_mem_ptr, prev_scale_mem_size, [&](float* buf, size_t n) {
+                            for (size_t data_idx = 0; data_idx < n; data_idx++) {
+                                buf[data_idx] *= alpha;
+                            }
+                        });
                     }
 
                     // Marked current eltwise operation as 'optimized' (it will be ignored on the next iteration of cycle)
@@ -1640,8 +1653,9 @@ void program_node::create_onednn_primitive_attributes(
                     post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
                     update_onednn_post_op_list(op_type, dep_idx, fmt, false, dims, dt);
                 } else {
-                    auto mem_flag = cldnn::format::is_blocked(get_output_layout().format) ? onednn::mem_flags::need_blocked : onednn::mem_flags::None;
-                    auto mem_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::undef, mem_flag);
+                    auto mem_desc = cldnn::format::is_blocked(get_output_layout().format)
+                        ? onednn::layout_to_memory_desc_blocked(in, dnnl::memory::format_tag::undef)
+                        : onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::undef);
                     post_ops.append_binary(alg, mem_desc);
                     update_onednn_post_op_list(op_type, dep_idx, onednn::convert_data_format(in.format), false,
                             mem_desc.get_dims(), mem_desc.get_data_type());
@@ -1679,17 +1693,8 @@ void program_node::create_onednn_primitive_attributes(
             // ********************************* Common case with output range usage ********************************* //
             const auto& q_param = desc.get_typed_fuse_params<QuantizeFuseParams>();
             if (q_param->_per_tensor_output_range && q_param->_out_lo < q_param->_out_hi) {
-                auto generate_onednn_memory_desc = [this](const cldnn::layout& lay) -> dnnl::memory::desc {
-                    if (this->is_type<gemm>() || this->is_type<fully_connected>()) {
-                        return onednn::layout_to_memory_desc(lay, onednn::get_default_data_format(lay));
-                    } else {
-                        auto mem_flag = cldnn::format::is_blocked(this->get_output_layout().format) ?
-                            onednn::mem_flags::need_blocked : onednn::mem_flags::None;
-                        return onednn::layout_to_memory_desc(lay, dnnl::memory::format_tag::undef, mem_flag);
-                    }
-                };
-
-
+                bool is_fc_or_gemm = this->is_type<gemm>() || this->is_type<fully_connected>();
+                bool is_output_blocked = cldnn::format::is_blocked(this->get_output_layout().format);
                 // 1. pre-scale & pre-shift
                 {
                     if (q_param->_per_tensor_input_scale && q_param->_per_tensor_input_shift) {
@@ -1703,7 +1708,7 @@ void program_node::create_onednn_primitive_attributes(
                             auto in_scale = get_input_layout(dep_idx++);
                             resize_layout_for_fc(this, in_scale);
 
-                            dnnl::memory::desc in_scale_desc = generate_onednn_memory_desc(in_scale);
+                            dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, is_fc_or_gemm, is_output_blocked);
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                             update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, onednn::get_default_data_format(in_scale), false,
                                                        in_scale_desc.get_dims(), in_scale_desc.get_data_type());
@@ -1717,7 +1722,7 @@ void program_node::create_onednn_primitive_attributes(
                                 auto in_shift = get_input_layout(dep_idx++);
                                 resize_layout_for_fc(this, in_shift);
 
-                                dnnl::memory::desc in_shift_desc = generate_onednn_memory_desc(in_shift);
+                                dnnl::memory::desc in_shift_desc = onednn::layout_to_memory_desc(in_shift, is_fc_or_gemm, is_output_blocked);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, onednn::get_default_data_format(in_shift), false,
                                                            in_shift_desc.get_dims(), in_shift_desc.get_data_type());
@@ -1751,7 +1756,7 @@ void program_node::create_onednn_primitive_attributes(
                                 auto out_scale = get_input_layout(dep_idx++);
                                 resize_layout_for_fc(this, out_scale);
 
-                                dnnl::memory::desc out_scale_desc = generate_onednn_memory_desc(out_scale);
+                                dnnl::memory::desc out_scale_desc = onednn::layout_to_memory_desc(out_scale, is_fc_or_gemm, is_output_blocked);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, onednn::get_default_data_format(out_scale), false,
                                                            out_scale_desc.get_dims(), out_scale_desc.get_data_type());

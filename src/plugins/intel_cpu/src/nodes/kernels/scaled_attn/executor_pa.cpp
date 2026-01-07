@@ -34,6 +34,7 @@
 #include "paged_attn_kernel.hpp"
 #include "sage_attn.hpp"
 #include "softmax_kernel.hpp"
+#include "transpose.hpp"
 #include "transpose_kernel.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
@@ -69,135 +70,6 @@ using namespace ov::intel_cpu;
 #        define prefetch_bytes(bytes, sel, advance, src)
 
 #    endif
-
-// N must be multiple of 16
-template <typename TDST,
-          ov::element::Type_t SRC_PREC,
-          std::enable_if_t<(none_of(SRC_PREC, ov::element::i8, ov::element::u8, ov::element::u4)), bool> = true>
-void transpose_16NxK(TDST* dst,
-                     void* src,
-                     [[maybe_unused]] TDST* tmp,
-                     const size_t N,
-                     const size_t K,
-                     const size_t block_size,
-                     const size_t dst_stride,
-                     const size_t src_stride,
-                     [[maybe_unused]] const size_t group_size,
-                     [[maybe_unused]] const bool quant_key_bychannel) {
-    size_t k = 0;
-    auto* src_ptr = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
-    // zero padding unsued blocks before transpose
-    for (size_t n = N; n < block_size; n++) {
-        memset(src_ptr + n * src_stride, 0, K * sizeof(typename ov::element_type_traits<SRC_PREC>::value_type));
-    }
-    for (; k + 16 <= K; k += 16) {
-        for (size_t n = 0; n < block_size; n += 16) {
-            transpose_16x16_kernel(dst + n, src_ptr + n * src_stride, dst_stride, src_stride);
-        }
-
-        dst += 16 * dst_stride;
-        src_ptr += 16;
-    }
-    if (k < K) {
-        for (size_t n = 0; n < block_size; n += 16) {
-            transpose_16xK_kernel(dst + n, src_ptr + n * src_stride, K - k, dst_stride, src_stride);
-        }
-    }
-}
-#    if defined(HAVE_AVX512F)
-template <typename T,
-          ov::element::Type_t SRC_PREC,
-          typename std::enable_if<any_of(SRC_PREC, ov::element::bf16, ov::element::f16) &&
-                                      (SRC_PREC == precision_of<T>::value),
-                                  bool>::type = true>
-static void transpose_16NxK(T* dst,
-                            T* src,
-                            T* tmp,
-                            const size_t N,
-                            const size_t K,
-                            const size_t block_size,
-                            const size_t dst_stride,
-                            const size_t src_stride,
-                            const size_t group_size,
-                            const bool quant_key_bychannel) {
-    // will treat as uint32_t transpose
-    auto s = reinterpret_cast<uint32_t*>(src);
-    auto d = reinterpret_cast<uint32_t*>(dst);
-    transpose_16NxK<uint32_t, ov::element::u32>(d,
-                                                s,
-                                                reinterpret_cast<uint32_t*>(0),
-                                                N,
-                                                K >> 1,
-                                                block_size,
-                                                dst_stride,
-                                                src_stride >> 1,
-                                                group_size,
-                                                false);
-}
-#    endif
-
-template <typename TDST,
-          ov::element::Type_t SRC_PREC,
-          std::enable_if_t<any_of(SRC_PREC, ov::element::i8, ov::element::u8, ov::element::u4), bool> = true>
-void transpose_16NxK(TDST* dst,
-                     void* src,
-                     TDST* tmp,
-                     const size_t N,
-                     const size_t K,
-                     const size_t block_size,
-                     const size_t dst_stride,
-                     const size_t src_stride,
-                     const size_t group_size,
-                     const bool quant_key_bychannel) {
-    // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
-    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto* s = reinterpret_cast<uint8_t*>(src);
-    constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
-    constexpr size_t param_count = SRC_PREC == ov::element::i8 ? 1 : 2;
-    auto t = tmp;
-    // if group_size not set, the whole row is used as a group
-    if (quant_key_bychannel) {
-        if constexpr (any_of(SRC_PREC, ov::element::u8, ov::element::u4)) {
-            auto* p_scales = reinterpret_cast<float*>(s);
-            auto* p_zps = p_scales + K;
-            s = s + sizeof(float) * 2 * K;
-            attn_dequant_by_channel_kernel<TDST,
-                                           SRC_PREC>(s, t, N, K, K / sub_byte_multiplier, src_stride, p_scales, p_zps);
-        } else {
-            static_assert(SRC_PREC == ov::element::i8, "i8 doesn't support by-channel quantization");
-        }
-    } else {
-        for (size_t n = 0; n < N; n++) {
-            size_t src_offset = 0;
-            size_t dst_offset = 0;
-            while (dst_offset < K) {
-                auto* params = reinterpret_cast<float*>(s + src_offset);
-                attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + sizeof(float) * param_count,
-                                                    t + dst_offset,
-                                                    group_size,
-                                                    params);
-                src_offset += group_size / sub_byte_multiplier + sizeof(float) * param_count;
-                dst_offset += group_size;
-            }
-            s += src_offset;
-            t += src_stride;
-        }
-    }
-    for (size_t n = N; n < block_size; n++) {
-        memset(tmp + n * src_stride, 0, sizeof(TDST) * K);
-    }
-    transpose_16NxK<TDST, precision_of<TDST>::value>(dst,
-                                                     tmp,
-                                                     reinterpret_cast<TDST*>(0),
-                                                     block_size,
-                                                     K,
-                                                     block_size,
-                                                     dst_stride,
-                                                     src_stride,
-                                                     0,
-                                                     false);
-}
 
 // dequant f16/u8 to float
 template <typename T,
@@ -2026,9 +1898,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
               int32_t& xattention_block_size,
               int32_t& xattention_stride,
               PlainTensor& sinks,
+              int32_t& adaptive_rkv_start_size,
+              PlainTensor& adaptive_rkv_evictable_sizes,
+              PlainTensor& adaptive_rkv_diversity_block_set_indices,
+              PlainTensor& adaptive_rkv_diversity_block_set_indices_begins,
               PlainTensor& output_emb,
               PlainTensor& output_score,
-              std::vector<PlainTensor>& sparse_attention_mask) {
+              std::vector<PlainTensor>& sparse_attention_mask,
+              PlainTensor& output_arkv_similarity) {
         q.reset(inputs[ID_Q]);  // [B_token, H * S]
         k.reset(inputs[ID_K]);
         v.reset(inputs[ID_V]);
@@ -2050,7 +1927,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         size_t inputs_size = inputs.size();
-        OPENVINO_ASSERT(inputs_size == 21);
+        OPENVINO_ASSERT(inputs_size == 25);
         if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
             rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
         }
@@ -2072,8 +1949,24 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             sinks.reset(inputs[ID_SINKS]);  // [1, 64, 1, 1]
         }
 
+        adaptive_rkv_start_size = *inputs[ID_ADAPTIVE_RKV_START_SIZE]->getDataAs<int32_t>();
+
+        if (!inputs[ID_ADAPTIVE_RKV_EVICTABLE_SIZES]->getShape().hasZeroDims()) {
+            adaptive_rkv_evictable_sizes.reset(inputs[ID_ADAPTIVE_RKV_EVICTABLE_SIZES]);  // [B_seq]
+            if (!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]->getShape().hasZeroDims()) {
+                OPENVINO_ASSERT(!inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS]->getShape().hasZeroDims());
+                adaptive_rkv_diversity_block_set_indices.reset(
+                    inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES]);  // [num_adaptive_rkv_diversity_blocks]
+                adaptive_rkv_diversity_block_set_indices_begins.reset(
+                    inputs[ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS]);  // [num_adaptive_rkv_diversity_blocks]
+            }
+
+            OPENVINO_ASSERT(outputs.size() >= 3);
+            output_arkv_similarity.reset(outputs[2]);
+        }
+
         output_emb.reset(outputs[0]);
-        if (outputs.size() == 2) {
+        if (outputs.size() >= 2) {
             output_score.reset(outputs[1]);
         }
 
@@ -2216,6 +2109,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             sinks.assert_dims({1, H, 1, 1});
         }
 
+        if (adaptive_rkv_evictable_sizes) {
+            OPENVINO_ASSERT(adaptive_rkv_start_size >= 0);
+            adaptive_rkv_evictable_sizes.assert_dims({B_seq});
+            if (adaptive_rkv_diversity_block_set_indices) {
+                adaptive_rkv_diversity_block_set_indices_begins.assert_dims({B_seq + 1});
+            }
+        }
+
         output_emb.assert_dims({B_token, H * SV});
         output_emb = output_emb.reshape({B_token, 1, H * SV});
 
@@ -2344,8 +2245,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         PlainTensor sinks;
 
+        int32_t adaptive_rkv_start_size = 0;
+        PlainTensor adaptive_rkv_evictable_sizes;
+        PlainTensor adaptive_rkv_diversity_block_set_indices;
+        PlainTensor adaptive_rkv_diversity_block_set_indices_begins;
+
         PlainTensor output_emb;
         PlainTensor output_score;
+        PlainTensor output_arkv_similarity;
 
         std::vector<PlainTensor>
             sparse_attention_mask;  // Each vector element corresponds to a batch, and each PlainTensor corresponds to a
@@ -2374,9 +2281,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              xattention_block_size,
              xattention_stride,
              sinks,
+             adaptive_rkv_start_size,
+             adaptive_rkv_evictable_sizes,
+             adaptive_rkv_diversity_block_set_indices,
+             adaptive_rkv_diversity_block_set_indices_begins,
              output_emb,
              output_score,
-             sparse_attention_mask);
+             sparse_attention_mask,
+             output_arkv_similarity);
 
         if (rotated_block_indices) {
             // Rotate kv cache currently doesn't support quantized cache.

@@ -84,6 +84,19 @@ public:
         return m_ptr;
     }
 
+    void* data_rw() override {
+        return m_ptr;
+    }
+
+    void* data_rw(const element::Type& element_type) override {
+        OPENVINO_ASSERT(is_pointer_representable(element_type),
+                        "Tensor data with element type ",
+                        get_element_type(),
+                        ", is not representable as pointer to ",
+                        element_type);
+        return m_ptr;
+    }
+
     const element::Type& get_element_type() const override {
         return m_element_type;
     }
@@ -157,11 +170,11 @@ public:
 
     using ViewTensor::data;
 
-    [[noreturn]] void* data() override {
+    [[noreturn]] void* data_rw() override {
         OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data()'");
     }
 
-    [[noreturn]] void* data(const element::Type& element_type) override {
+    [[noreturn]] void* data_rw(const element::Type& element_type) override {
         OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data(element_type)'");
     }
 };
@@ -231,7 +244,11 @@ public:
 
     using StridedViewTensor::data;
 
-    [[noreturn]] void* data(const element::Type& element_type) override {
+    [[noreturn]] void* data_rw() override {
+        OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data()'");
+    }
+
+    [[noreturn]] void* data_rw(const element::Type& element_type) override {
         OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data()'");
     }
 };
@@ -466,6 +483,14 @@ public:
 
     const void* data(const element::Type& element_type) const override {
         return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+    }
+
+    void* data_rw() override {
+        return static_cast<uint8_t*>(m_owner->data_rw()) + m_offset;
+    }
+
+    void* data_rw(const element::Type& element_type) override {
+        return static_cast<uint8_t*>(m_owner->data_rw(element_type)) + m_offset;
     }
 };
 
