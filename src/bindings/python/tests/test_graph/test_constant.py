@@ -12,6 +12,7 @@ from openvino.helpers import pack_data, unpack_data
 
 import pytest
 from enum import Enum
+import platform
 
 
 class DataGetter(Enum):
@@ -228,6 +229,7 @@ def test_cant_change_data_in_const():
         (False),
     ],
 )
+@pytest.mark.skipif(platform.machine() in ["aarch64"], reason="CVS-177547")
 def test_init_bf16_direct(ov_type, numpy_dtype, shared_flag):
     data = np.random.rand(4) + 1.5
     data = data.astype(numpy_dtype)
