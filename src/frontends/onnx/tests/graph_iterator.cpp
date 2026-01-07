@@ -5,14 +5,23 @@
 
 #include <onnx/onnx_pb.h>
 
+#include <algorithm>
+#include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <map>
+#include <unordered_map>
+#include <system_error>
 #include <openvino/frontend/graph_iterator.hpp>
+#include <openvino/frontend/input_model.hpp>
+#include <openvino/frontend/exception.hpp>
 #include <openvino/openvino.hpp>
 
 #include "../frontend/src/core/graph_iterator_proto.hpp"
 #include "load_from.hpp"
 #include "onnx_utils.hpp"
 #include "utils.hpp"
+#include "common_test_utils/common_utils.hpp"
 
 using ::ONNX_NAMESPACE::ModelProto;
 using ::ONNX_NAMESPACE::Version;
@@ -127,4 +136,91 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalMMAP) {
     ASSERT_NE(iter->get_mmap_cache(), nullptr);
     ASSERT_EQ(iter->get_mmap_cache()->size(), 1);  // MMAP handle must be in cache after work finished
     ASSERT_EQ(model->get_ordered_ops().size(), 6);
+}
+
+TEST_P(FrontEndLoadFromTest, tensor_place_uses_model_dir_for_external_data) {
+    const std::string model_name = "external_data/external_data.onnx";
+    const auto path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name}).string();
+
+    const auto original_dir = std::filesystem::path(path).parent_path();
+    const auto temp_root = std::filesystem::temp_directory_path() / ov::test::utils::generateTestFilePrefix();
+    ASSERT_NO_THROW(std::filesystem::create_directories(temp_root));
+    struct TempDirGuard {
+        std::filesystem::path dir;
+        ~TempDirGuard() {
+            if (dir.empty()) {
+                return;
+            }
+            std::error_code ec;
+            std::filesystem::remove_all(dir, ec);
+        }
+    } temp_dir_guard{temp_root};
+
+    const auto temp_model_path = (temp_root / std::filesystem::path(path).filename()).string();
+
+    ModelProto model_proto;
+    {
+        std::ifstream input(path, std::ios::binary);
+        ASSERT_TRUE(input.is_open()) << "Could not open model: " << path;
+        ASSERT_TRUE(model_proto.ParseFromIstream(&input)) << "Could not parse model: " << path;
+    }
+
+    std::unordered_map<std::string, std::filesystem::path> relocation_plan;
+    bool updated_location = false;
+    auto* initializers = model_proto.mutable_graph()->mutable_initializer();
+    for (auto& tensor : *initializers) {
+        for (auto& entry : *tensor.mutable_external_data()) {
+            if (entry.key() == "location" && !entry.value().empty()) {
+                const std::filesystem::path original_location(entry.value());
+                const auto file_name = original_location.filename().string();
+                ASSERT_FALSE(file_name.empty())
+                    << "External data location entry has no file name component: " << entry.value();
+                const auto source_path = original_location.is_absolute() ? original_location
+                                                                         : original_dir / original_location;
+                relocation_plan.try_emplace(file_name, source_path);
+                entry.set_value(file_name);
+                updated_location = true;
+            }
+        }
+    }
+    ASSERT_TRUE(updated_location) << "External data tensor with location entry was not found";
+
+    for (const auto& [file_name, source_path] : relocation_plan) {
+        ASSERT_TRUE(std::filesystem::exists(source_path))
+            << "External data file is missing in the original model directory: " << source_path;
+        const auto destination_path = temp_root / file_name;
+        ASSERT_NO_THROW(std::filesystem::copy_file(source_path,
+                                                   destination_path,
+                                                   std::filesystem::copy_options::overwrite_existing));
+    }
+
+    {
+        std::ofstream output(temp_model_path, std::ios::binary | std::ios::trunc);
+        ASSERT_TRUE(output.is_open()) << "Could not overwrite model: " << temp_model_path;
+        ASSERT_TRUE(model_proto.SerializeToOstream(&output)) << "Could not serialize model: " << temp_model_path;
+    }
+
+    auto iter = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(
+        ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::Internal_Stream);
+    iter->initialize(temp_model_path);
+    iter->reset();
+
+    auto graph_iter = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iter);
+    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework("onnx"));
+    ASSERT_NE(m_frontEnd, nullptr);
+    ASSERT_TRUE(m_frontEnd->supported(graph_iter));
+
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(graph_iter));
+    ASSERT_NE(m_inputModel, nullptr);
+
+    ASSERT_NO_THROW({
+        try {
+            auto model = m_frontEnd->convert(m_inputModel);
+            ASSERT_NE(model, nullptr);
+        } catch (const std::exception& ex) {
+            std::cerr << "convert failed: " << ex.what() << std::endl;
+            throw;
+        }
+    });
 }

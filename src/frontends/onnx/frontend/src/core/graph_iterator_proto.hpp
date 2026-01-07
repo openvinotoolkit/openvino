@@ -122,7 +122,7 @@ public:
     std::map<std::string, std::string> get_metadata() const override;
 
     std::string get_model_dir() const {
-        return *m_model_dir;
+        return m_model_dir ? *m_model_dir : std::string{};
     }
 
     GraphIteratorProtoMemoryManagementMode get_memory_management_mode() const {

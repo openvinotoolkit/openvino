@@ -141,6 +141,7 @@ public:
 
     detail::MappedMemoryHandles get_mmap_cache();
     detail::LocalStreamHandles get_stream_cache();
+    std::string get_model_dir() const;
 
 protected:
     int64_t m_input_idx = -1, m_output_idx = -1;

@@ -291,10 +291,9 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
 }
 
 GraphIteratorProto::GraphIteratorProto(const GraphIteratorProtoMemoryManagementMode mode)
-    : m_graph(nullptr),
-      m_parent(nullptr),
-      m_model_dir(nullptr),
-      m_mode(mode),
+        : m_graph(nullptr),
+            m_parent(nullptr),
+            m_mode(mode),
       m_mmap_cache{mode == External_MMAP ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
                                          : nullptr},
       m_stream_cache{mode == External_Stream ? std::make_shared<std::map<std::string, std::shared_ptr<std::ifstream>>>()

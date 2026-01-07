@@ -5,6 +5,7 @@
 #include "core/tensor.hpp"
 
 #include "input_model.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ov {
 namespace frontend {
@@ -19,10 +20,18 @@ detail::LocalStreamHandles TensorONNXPlace::get_stream_cache() {
     return model_onnx->get_stream_cache();
 }
 
+std::string TensorONNXPlace::get_model_dir() const {
+    const auto model_onnx = dynamic_cast<const unify::InputModel*>(&m_input_model);
+    if (!model_onnx) {
+        return {};
+    }
+    return model_onnx->get_model_dir();
+}
+
 Tensor::Tensor(const std::shared_ptr<TensorONNXPlace>& tensor_place) {
     m_tensor_proto = nullptr;
     m_shape = tensor_place->get_partial_shape().get_shape();
-    m_model_dir = "";
+    m_model_dir = tensor_place->get_model_dir();
     m_mmap_cache = tensor_place->get_mmap_cache();
     m_tensor_place = tensor_place;
 }

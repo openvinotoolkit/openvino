@@ -129,7 +129,10 @@ set_property(TEST ov_onnx_frontend_tests PROPERTY LABELS OV UNIT ONNX_FE)
 add_dependencies(ov_onnx_frontend_tests openvino_template_extension)
 
 
-target_include_directories(ov_onnx_frontend_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(ov_onnx_frontend_tests PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../frontend/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../onnx_common/include")
 
 target_compile_definitions(ov_onnx_frontend_tests
     PRIVATE

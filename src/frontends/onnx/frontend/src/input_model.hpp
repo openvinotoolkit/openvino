@@ -152,6 +152,7 @@ public:
     bool is_enabled_mmap() const;
     detail::MappedMemoryHandles get_mmap_cache() const;
     detail::LocalStreamHandles get_stream_cache() const;
+    std::string get_model_dir() const;
 };
 }  // namespace unify
 
