@@ -199,17 +199,17 @@ Napi::Value TensorWrap::set_shape(const Napi::CallbackInfo& info) {
     return info.Env().Undefined();
 }
 
-Napi::Value TensorWrap::copy_to(const Napi::CallbackInfo& info) {
+void TensorWrap::copy_to(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     try {
         OPENVINO_ASSERT(info.Length() == 1, "copyTo() must receive one argument, which is the destination Tensor.");
-        OPENVINO_ASSERT(ov::js::validate_value<TensorWrap>(env, info[0]), "The argument must be a Tensor object.");
+        OPENVINO_ASSERT(!info[0].IsUndefined() && !info[0].IsNull(), "The argument must be a Tensor object.");
+        OPENVINO_ASSERT(ov::js::validate_value<TensorWrap>(env, info[0]), "Invalid argument");
         auto dst_tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
         _tensor.copy_to(dst_tensor_wrap->_tensor);
     } catch (const std::exception& e) {
         reportError(env, e.what());
     }
-    return env.Undefined();
 }
 
 Napi::Value TensorWrap::get_element_type(const Napi::CallbackInfo& info) {

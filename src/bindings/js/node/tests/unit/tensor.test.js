@@ -261,7 +261,6 @@ describe("ov.Tensor tests", () => {
       { type: ov.element.u16, TypedArray: Uint16Array, name: "u16" },
     ];
 
-    // Parametrized tests for different data types
     elementTypes.forEach(({ type, TypedArray, name }) => {
       test(`should copy data with ${name} type`, () => {
         const sourceData = new TypedArray(name === "i64" ? [1n, 2n, 3n, 4n] : [1, 2, 3, 4]);
@@ -274,8 +273,6 @@ describe("ov.Tensor tests", () => {
         assert.deepStrictEqual(Array.from(destData), Array.from(sourceData));
       });
     });
-
-    // Parametrized tests for different shapes
     const shapes = [
       { shape: [2, 3], size: 6, name: "2D" },
       { shape: [2, 2, 2], size: 8, name: "3D" },
@@ -300,8 +297,6 @@ describe("ov.Tensor tests", () => {
       });
     });
 
-    // --- MODIFIED ERROR HANDLING TESTS ---
-
     test("should throw error when argument is missing", () => {
       const sourceTensor = new ov.Tensor(ov.element.f32, [2, 2]);
 
@@ -310,7 +305,6 @@ describe("ov.Tensor tests", () => {
           sourceTensor.copyTo();
         },
         {
-          // Use a RegExp to check if the message *contains* the expected text
           message: /copyTo\(\) must receive one argument, which is the destination Tensor\./,
         },
       );
@@ -324,7 +318,6 @@ describe("ov.Tensor tests", () => {
           sourceTensor.copyTo({});
         },
         {
-          // Use a RegExp to check for the "Invalid argument" text
           message: /Invalid argument/,
         },
       );
@@ -338,13 +331,10 @@ describe("ov.Tensor tests", () => {
           sourceTensor.copyTo(null);
         },
         {
-          // Use a RegExp to check for the expected text, escaping the period
           message: /The argument must be a Tensor object\./,
         },
       );
     });
-
-    // --- END OF MODIFIED TESTS ---
 
     test("should verify data independence after copy", () => {
       const sourceData = new Float32Array([1.0, 2.0, 3.0, 4.0]);
@@ -356,11 +346,9 @@ describe("ov.Tensor tests", () => {
       const modifiedSourceData = new Float32Array([10.0, 20.0, 30.0, 40.0]);
       sourceTensor.data = modifiedSourceData;
 
-      // Verify destination tensor still has original data
       const destData = destTensor.getData();
       assert.deepStrictEqual(Array.from(destData), [1.0, 2.0, 3.0, 4.0]);
 
-      // Verify source tensor has modified data
       const sourceDataAfterModification = sourceTensor.getData();
       assert.deepStrictEqual(Array.from(sourceDataAfterModification), [10.0, 20.0, 30.0, 40.0]);
     });
