@@ -15,7 +15,6 @@ from openvino import (
     PartialShape,
     CompiledModel,
     tensor_from_file,
-    read_tensor_data,
     compile_model,
     serialize,
 )
@@ -174,28 +173,6 @@ def test_read_model_from_tensor(request, tmp_path):
     tensor = tensor_from_file(bin_path)
     model = core.read_model(model=model, weights=tensor)
     assert isinstance(model, Model)
-
-
-def test_read_tensor_data_defaults_and_args(tmp_path):
-    data = np.arange(16, dtype=np.uint8)
-    bin_path = tmp_path / "tensor.bin"
-    data.tofile(bin_path)
-
-    tensor = read_tensor_data(bin_path)
-    assert isinstance(tensor, Tensor)
-    assert tensor.get_element_type() == Tensor(data).get_element_type()
-    assert tensor.get_shape() == [data.size]
-    assert np.array_equal(tensor.data, data)
-
-    tensor_offset = read_tensor_data(
-        bin_path,
-        element_type=Tensor(data).get_element_type(),
-        shape=PartialShape.dynamic(1),
-        offset_in_bytes=4,
-        mmap=False,
-    )
-    assert tensor_offset.get_shape() == [data.size - 4]
-    assert np.array_equal(tensor_offset.data, data[4:])
 
 
 def test_read_model_with_wrong_input():

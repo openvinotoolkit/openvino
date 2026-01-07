@@ -95,10 +95,14 @@ def test_read_tensor_data_too_big_offset_throws(tmp_path: Path, mmap: bool) -> N
     file_size = path.stat().st_size
     assert file_size == data.nbytes
 
-    # offset + data_size > file_size
     with pytest.raises(RuntimeError):
-        ov.read_tensor_data(path, element_type=ov.Type.f32, shape=ov.PartialShape(list(shape)), offset_in_bytes=1, mmap=mmap)
-    # offset == file_size
+        ov.read_tensor_data(
+            path,
+            element_type=ov.Type.f32,
+            shape=ov.PartialShape(list(shape)),
+            offset_in_bytes=1,
+            mmap=mmap)
+
     with pytest.raises(RuntimeError):
         ov.read_tensor_data(
             path,
@@ -107,7 +111,7 @@ def test_read_tensor_data_too_big_offset_throws(tmp_path: Path, mmap: bool) -> N
             offset_in_bytes=file_size,
             mmap=mmap,
         )
-    # offset > file_size
+
     with pytest.raises(RuntimeError):
         ov.read_tensor_data(
             path,
@@ -116,6 +120,22 @@ def test_read_tensor_data_too_big_offset_throws(tmp_path: Path, mmap: bool) -> N
             offset_in_bytes=file_size + 1,
             mmap=mmap,
         )
+
+
+def test_read_tensor_data_default_all_args(tmp_path: Path) -> None:
+    """Test main use case: only path specified, all other args use defaults."""
+    data = np.arange(24, dtype=np.uint8)
+    path = tmp_path / "tensor.bin"
+    data.tofile(path)
+
+    # Main use case - only specify path
+    tensor = ov.read_tensor_data(path)
+
+    assert isinstance(tensor, ov.Tensor)
+    assert tensor.get_element_type() == ov.Type.u8  # default element type
+    assert tensor.get_shape() == [data.size]  # dynamic shape inferred from file
+    assert not tensor.data.flags.writeable  # read-only
+    assert np.array_equal(tensor.data, data)
 
 
 @pytest.mark.parametrize("mmap", [True, False])
