@@ -95,13 +95,12 @@ void Col2Im::executeDynamicImpl(const dnnl::stream& strm) {
     size_t W = static_cast<size_t>(output_size_ptr[1]);
 
     ov::Shape output_shape;
-    if (data_rank == 2) { // Case of Non-batched inputs
+    if (data_rank == 2) {  // Case of Non-batched inputs
         size_t C = data_shape[0] / kernel_prod;
         output_shape = {C, H, W};
         redefineOutputMemory({output_shape});
         execute(strm);
-    }
-    else if (data_rank == 3) { // Case of Batched inputs
+    } else if (data_rank == 3) {  // Case of Batched inputs
         size_t N = data_shape[0];
         size_t C = data_shape[1] / kernel_prod;
         output_shape = {N, C, H, W};
