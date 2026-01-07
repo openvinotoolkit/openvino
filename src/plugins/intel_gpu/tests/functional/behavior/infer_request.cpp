@@ -6,7 +6,6 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/parameter.hpp"
