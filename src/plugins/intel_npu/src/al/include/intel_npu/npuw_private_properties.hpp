@@ -29,11 +29,11 @@ static constexpr ov::Property<std::string> devices{"NPUW_DEVICES"};
 /**
  * @brief
  * Type: std::string
- * Select the pipeline to use for the model.
+ * Select the npuw mode to use for the model.
  * Possible values: "KOKORO", "NONE".
  * Default value: "NONE"
  */
-static constexpr ov::Property<std::string> pipeline_id{"NPUW_PIPELINE_ID"};
+static constexpr ov::Property<std::string> mode{"NPUW_MODE"};
 
 /**
  * @brief
