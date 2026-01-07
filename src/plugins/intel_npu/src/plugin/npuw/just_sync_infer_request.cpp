@@ -789,13 +789,9 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                     // Expert inputs: decoding sets directly, prefill defers for chunking
                     if (moe._expert_input_param_idx.has_value() && i == moe._expert_input_param_idx.value()) {
                         const bool is_decoding = (moe.input_token_count == 1);
-                        if (is_decoding) {
-                            // For decoding, set expert input tensor directly
-                            m_subrequests[real_idx]->set_tensor(iport, i_tensor);
-                        } else {
-                            // For prefill, record the expert input tensor (token embeddings) for later chunk processing
-                            m_moe_io[idx].expert_input = i_tensor;
-                        }
+                        // For decoding, save expert input tensor for cache request binding
+                        // For prefill, save expert input tensor for chunk processing
+                        m_moe_io[idx].expert_input = i_tensor;
                         continue;
                     }
 
@@ -854,9 +850,10 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         auto& oport = func_desc.compiled_model->outputs()[i];
         auto o_tensor = m_funcall_result.at({idx, i});
         if (func_desc.moe_experts) {
-            // MoE: Decoding outputs final result directly; Prefill outputs intermediate per-expert result
-            // (scatter_expert_outputs relayouts to global buffer)
-            m_subrequests[real_idx]->set_tensor(oport, o_tensor);
+            // MoE case - defer, store in dedicated MoE I/O structure
+            // For decoding, defer output tensor binding for cache lookup later
+            // For prefill, o_tensor is not used (will be relayouted from expert outputs)
+            m_moe_io[idx].outputs.at(i) = o_tensor;
         } else if (is_hfa) {
             // HFA case - defer, store in dedicated HFA I/O structure
             m_hfa_io[idx].outputs.at(i) = o_tensor;
@@ -1937,9 +1934,9 @@ void ov::npuw::JustInferRequest::run_moe_infer(std::size_t real_idx, std::size_t
 
 void ov::npuw::JustInferRequest::set_unrolled_router_scores(std::size_t idx,
                                                             std::size_t real_idx,
-                                                            const std::vector<size_t>& selected_experts) {
+                                                            const std::vector<size_t>& selected_experts,
+                                                            RqPtr& request) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    auto& r = m_subrequests[real_idx];
     const auto& moe_experts = comp_model_desc.moe_experts.value();
     const auto num_active_experts = moe_experts.num_active_experts;
 
@@ -1978,7 +1975,7 @@ void ov::npuw::JustInferRequest::set_unrolled_router_scores(std::size_t idx,
         size_t unrolled_param_idx = unrolled_router_indices[k];
 
         const auto& router_iport = comp_model_desc.compiled_model->inputs()[unrolled_param_idx];
-        auto router_tensor = r->get_tensor(router_iport);
+        auto router_tensor = request->get_tensor(router_iport);
 
         // Copy router score from source[expert_id] to dest[0]
         if (elem_type == ov::element::f16) {
@@ -2014,7 +2011,6 @@ void ov::npuw::JustInferRequest::run_moe_batch_experts_inference(std::size_t idx
     LOG_DEBUG("\n[BATCH EXPERTS] Processing single token with " << selected_experts.size() << " experts in parallel");
 
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    auto& r = m_subrequests[real_idx];
     const auto& moe_experts = comp_model_desc.moe_experts.value();
     const auto num_active_experts = moe_experts.num_active_experts;
 
@@ -2023,14 +2019,60 @@ void ov::npuw::JustInferRequest::run_moe_batch_experts_inference(std::size_t idx
         NPUW_ASSERT(false && "Batch experts mode: number of selected experts does not match num_active_experts");
     }
 
-    // Step 1: Unpack all K expert weights at once
-    MOE_PROFILE_RECORD(decoding, "Unpack Closure", unpack_multiple_experts_closure(idx, r, selected_experts));
+    // Step 1: Try to find cached request (O(1) lookup) - if cache is enabled
+    // Note: Use idx (not real_idx) because:
+    //   - Cache is indexed by idx (each function call has its own pool)
+    //   - Different function call sites may have different closure data
+    RqPtr request = nullptr;
+    size_t pool_idx = 0;
 
-    // Step 2: Set unrolled router scores for each expert
-    MOE_PROFILE_RECORD(decoding, "Set Router Input", set_unrolled_router_scores(idx, real_idx, selected_experts));
+    if (m_moe_cache) {
+        request = m_moe_cache->find(idx, selected_experts);
+    }
 
-    // Step 3: Execute inference once for all K experts in parallel
-    MOE_PROFILE_RECORD(decoding, "Expert Inference", r->infer());
+    if (!request) {
+        // Cache MISS or cache disabled: Get idle/LRU request or create new
+        if (m_moe_cache) {
+            auto [idle_request, idx_in_pool] = m_moe_cache->get_idle_or_lru(idx);
+            request = idle_request;
+            pool_idx = idx_in_pool;
+        } else {
+            // Cache disabled - use the regular subrequest
+            request = m_subrequests[real_idx];
+        }
+
+        // Step 2: Configure expert weights
+        MOE_PROFILE_RECORD(decoding, "Unpack Closure", unpack_multiple_experts_closure(idx, request, selected_experts));
+
+        // Step 3: Register to cache for future hits (only if cache enabled)
+        if (m_moe_cache) {
+            m_moe_cache->register_request(idx, pool_idx, selected_experts);
+        }
+    }
+
+    // Step 4: Bind input/output tensors to cached request (must bind every time as these tensors change)
+    // 4.1: Bind expert input (token embeddings)
+    if (moe_experts._expert_input_param_idx.has_value()) {
+        const auto expert_input_idx = moe_experts._expert_input_param_idx.value();
+        const auto& expert_input_port = comp_model_desc.compiled_model->inputs()[expert_input_idx];
+        auto expert_input_tensor = m_moe_io[idx].expert_input;
+        NPUW_ASSERT(expert_input_tensor && "Expert input tensor not available");
+        request->set_tensor(expert_input_port, expert_input_tensor);
+    }
+
+    // 4.2: Bind output tensor (from m_moe_io, set in function_prologue)
+    const auto& output_port = comp_model_desc.compiled_model->outputs()[0];
+    auto output_tensor = m_moe_io[idx].outputs.at(0);
+    NPUW_ASSERT(output_tensor && "MoE output tensor not available");
+    request->set_tensor(output_port, output_tensor);
+
+    // Step 5: Set unrolled router scores (always needed, even on cache hit)
+    MOE_PROFILE_RECORD(decoding,
+                       "Set Router Input",
+                       set_unrolled_router_scores(idx, real_idx, selected_experts, request));
+
+    // Step 6: Execute inference once for all K experts in parallel
+    MOE_PROFILE_RECORD(decoding, "Expert Inference", request->infer());
 }
 
 // ====================================================================================================
