@@ -103,7 +103,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         throw std::runtime_error(ss.str());
     }
     auto memory_mode = graph_iterator->get_memory_management_mode();
-    // Remove iwhen cache map will use path instead string.
+    // Remove when cache map will use path instead string.
     const auto full_path_str = ov::util::path_to_string(full_path);
     if (ext_location == "*/_ORT_MEM_ADDR_/*") {
         // Specific ONNX Runtime Case when it passes a model with self-managed data
