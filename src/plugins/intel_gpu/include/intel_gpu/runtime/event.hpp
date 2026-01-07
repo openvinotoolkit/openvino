@@ -11,7 +11,6 @@
 #include <utility>
 #include <utility>
 #include <functional>
-#include <optional>
 
 namespace cldnn {
 struct user_event;
@@ -33,8 +32,9 @@ public:
         _profiling_captured = false;
         _profiling_info.clear();
     }
-    // Set event profiling data instead of retrieving it from event object
-    void set_profiling(uint64_t duration_nsec) {
+    /// @brief Set event profiling data instead of retrieving it from event object
+    /// @param duration_nsec duration in nanoseconds
+    void set_profiling_duration(uint64_t duration_nsec) {
         auto stage = instrumentation::profiling_stage::executing;
         auto duration = std::chrono::nanoseconds(duration_nsec);
         auto period = std::make_shared<instrumentation::profiling_period_basic>(duration);

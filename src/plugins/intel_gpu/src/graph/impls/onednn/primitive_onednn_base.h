@@ -555,7 +555,7 @@ protected:
                 if (!duration.empty()) {
                     OPENVINO_ASSERT(duration.size() == 1, "[GPU] oneDNN profiling data is expected to have info only for single primitive ",
                                                       "actual number is ", duration.size());
-                    event->set_profiling(duration[0]);
+                    event->set_profiling_duration(duration[0]);
                 }
 
             } else {
