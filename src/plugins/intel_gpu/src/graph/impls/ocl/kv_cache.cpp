@@ -230,8 +230,10 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             kernel_offset += _kernels_data[s].kernels.size();
         }
         for (size_t kd_idx = 0; kd_idx < _kernels_data[stage].kernels.size(); ++kd_idx) {
-            if (_kernels_data[stage].kernels[kd_idx].skip_execution)
+            if (_kernels_data[stage].kernels[kd_idx].skip_execution) {
+                GPU_DEBUG_TRACE_DETAIL << "Skip stage " << stage << " kernel " << kd_idx << std::endl;
                 continue;
+            }
 
             size_t idx_final = kernel_offset + kd_idx;
             // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
