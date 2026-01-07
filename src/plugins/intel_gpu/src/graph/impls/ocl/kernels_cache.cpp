@@ -381,7 +381,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     }
 }
 
-kernel::ptr kernels_cache::get_kernel_from_cached_kernels(std::string id, const engine& e) const {
+kernel::ptr kernels_cache::get_kernel_from_cached_kernels(std::string id) const {
     auto res = _cached_kernels.find(id);
     OPENVINO_ASSERT(_cached_kernels.end() != res, "[GPU] Kernel " + id + " not found in the cached kernel cache!");
 
