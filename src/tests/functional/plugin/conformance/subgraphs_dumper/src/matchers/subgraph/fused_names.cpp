@@ -24,7 +24,7 @@ void FusedNamesExtractor::set_target_device(const std::string& _device) {
                                                std::string("openvino_template_plugin") + OV_BUILD_POSTFIX);
         if (!ov::util::file_exists(plugin_path)) {
             throw std::runtime_error("[ WARNING ][ GRAPH CACHE ] Plugin: " + ov::util::path_to_string(plugin_path) +
-                                     " does not exists!");
+                                     " does not exist!");
         }
         ov::util::core->register_plugin(plugin_path, _device);
         available_devices = ov::util::core->get_available_devices();
