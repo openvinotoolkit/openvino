@@ -34,23 +34,22 @@ __attribute__((reqd_work_group_size(SUBGROUP_SIZE, 1, 1)))
 KERNEL(pa_adaptive_rkv_diversity)(
     OPTIONAL_SHAPE_INFO_ARG
     __global const INPUT0_TYPE* key_cache,              // [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE, BLOCK_SIZE]
-    __global const INPUT1_TYPE* start_sizes,            // [batch_size]
-    __global const INPUT2_TYPE* evictable_sizes,        // [batch_size]
-    __global const INPUT3_TYPE* block_indices,          // [total_evictable_blocks]
-    __global const INPUT4_TYPE* block_indices_begins,   // [batch_size + 1]
-    __global OUTPUT_TYPE* diversity_output              // [total_diversity_scores]
+    __global const INPUT1_TYPE* evictable_sizes,        // [batch_size]
+    __global const INPUT2_TYPE* block_indices,          // [total_evictable_blocks]
+    __global const INPUT3_TYPE* block_indices_begins,   // [batch_size + 1]
+    __global OUTPUT_TYPE* diversity_output,             // [total_diversity_scores]
+#ifdef USE_GLOBAL_BUFFERS
+    __global ACCUMULATOR_TYPE* similarity_matrix,       // global buffer for similarity matrix
+    __global ACCUMULATOR_TYPE* aggregated_similarities, // global buffer for aggregated similarities
+    __global ACCUMULATOR_TYPE* row_means,               // global buffer for row means
+    __global ACCUMULATOR_TYPE* block_sums,              // global buffer for block sums
+#endif
+    const int start_size                                // scalar
 ) {
     const uint batch_idx = get_group_id(0);
     const uint sglid = get_sub_group_local_id();
-
-    const int start_size = start_sizes[batch_idx];
     const int evictable_size = evictable_sizes[batch_idx];
     const int num_evictable_blocks = evictable_size / PAGED_ATTENTION_BLOCK_SIZE;
-
-    if (sglid == 0 && batch_idx == 0) {
-        printf("[DEBUG] batch_idx=%d, start_size=%d, evictable_size=%d, num_evictable_blocks=%d\n",
-               batch_idx, start_size, evictable_size, num_evictable_blocks);
-    }
 
     if (num_evictable_blocks == 0)
         return;
@@ -72,26 +71,49 @@ KERNEL(pa_adaptive_rkv_diversity)(
     if (num_evictable_blocks_for_batch != num_evictable_blocks)
         return;
 
-    // Allocate local memory
+#ifdef USE_GLOBAL_BUFFERS
+    // Use fixed-size allocation per batch for simplicity and efficiency
+    // Each batch gets MAX_EVICTABLE_SIZE^2 space regardless of actual size
+    const int max_matrix_size = MAX_EVICTABLE_SIZE * MAX_EVICTABLE_SIZE;
+
+    // Calculate offsets using fixed batch stride
+    int batch_matrix_offset = batch_idx * max_matrix_size;
+    int batch_vector_offset = batch_idx * MAX_EVICTABLE_SIZE;
+
+    // Offset pointers to this batch's region
+    __global ACCUMULATOR_TYPE* similarity_matrix_batch = similarity_matrix + batch_matrix_offset;
+    __global ACCUMULATOR_TYPE* aggregated_similarities_batch = aggregated_similarities + batch_matrix_offset;
+    __global ACCUMULATOR_TYPE* row_means_batch = row_means + batch_vector_offset;
+    __global ACCUMULATOR_TYPE* block_sums_batch = block_sums + batch_vector_offset;
+#else
+    // Local memory fallback (limited to ~64KB SLM)
+    __local ACCUMULATOR_TYPE similarity_matrix_batch[4096];           // 64×64 matrix (max for local memory)
+    __local ACCUMULATOR_TYPE aggregated_similarities_batch[4096];     // 64×64 aggregated matrix
+    __local ACCUMULATOR_TYPE row_means_batch[256];                    // Row means vector (max 256 tokens)
+    __local ACCUMULATOR_TYPE block_sums_batch[256];                   // Block sum vector (max 256 tokens)
+#endif
+
+    // Keep normalized_key_i in local memory (small, frequently reused)
     __local ACCUMULATOR_TYPE normalized_key_i[K_HEAD_SIZE];
-    __local ACCUMULATOR_TYPE similarity_matrix[4096];           // 64*64 max evictable_size
-    __local ACCUMULATOR_TYPE aggregated_similarities[4096];     // After head aggregation
-    __local ACCUMULATOR_TYPE row_means[256];                    // Max evictable_size
-    __local ACCUMULATOR_TYPE block_sums[256];                   // Max evictable_size for intermediate storage
+
+    // Set appropriate memory fence based on buffer type
+#ifdef USE_GLOBAL_BUFFERS
+    const cl_mem_fence_flags mem_fence = CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE;
+#else
+    const cl_mem_fence_flags mem_fence = CLK_LOCAL_MEM_FENCE;
+#endif
 
     // Initialize aggregated similarities (full matrix)
     for (int i = sglid; i < evictable_size * evictable_size; i += SUBGROUP_SIZE) {
-        aggregated_similarities[i] = 0.0f;
+        aggregated_similarities_batch[i] = 0.0f;
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    // Process each head - threshold BEFORE aggregation
+    barrier(mem_fence);
     for (uint head_idx = 0; head_idx < KV_HEADS_NUM; head_idx++) {
         // Initialize similarity matrix for this head
         for (int i = sglid; i < evictable_size * evictable_size; i += SUBGROUP_SIZE) {
-            similarity_matrix[i] = 0.0f;
+            similarity_matrix_batch[i] = 0.0f;
         }
-        barrier(CLK_LOCAL_MEM_FENCE);
+        barrier(mem_fence);
 
         // Compute cosine similarity matrix for evictable region
         // Exploit symmetry: only compute upper triangle (token_j >= token_i), then mirror
@@ -138,50 +160,50 @@ KERNEL(pa_adaptive_rkv_diversity)(
 
                 // Write to both upper and lower triangle (exploiting symmetry)
                 if (sglid == 0) {
-                    similarity_matrix[token_i * evictable_size + token_j] = similarity;
-                    similarity_matrix[token_j * evictable_size + token_i] = similarity;
+                    similarity_matrix_batch[token_i * evictable_size + token_j] = similarity;
+                    similarity_matrix_batch[token_j * evictable_size + token_i] = similarity;
                 }
             }
         }
 
         // Fill diagonal with 0 for this head
         for (int i = sglid; i < evictable_size; i += SUBGROUP_SIZE) {
-            similarity_matrix[i * evictable_size + i] = 0.0f;
+            similarity_matrix_batch[i * evictable_size + i] = 0.0f;
         }
-        barrier(CLK_LOCAL_MEM_FENCE);
+        barrier(mem_fence);
 
         // Compute row-wise mean for this head
         for (int row = sglid; row < evictable_size; row += SUBGROUP_SIZE) {
             ACCUMULATOR_TYPE row_sum = 0.0f;
             for (int col = 0; col < evictable_size; col++) {
-                row_sum += similarity_matrix[row * evictable_size + col];
+                row_sum += similarity_matrix_batch[row * evictable_size + col];
             }
-            row_means[row] = row_sum / (ACCUMULATOR_TYPE)evictable_size;
+            row_means_batch[row] = row_sum / (ACCUMULATOR_TYPE)evictable_size;
         }
-        barrier(CLK_LOCAL_MEM_FENCE);
+        barrier(mem_fence);
 
         // Apply threshold for this head: set values below mean to 0
         for (int idx = sglid; idx < evictable_size * evictable_size; idx += SUBGROUP_SIZE) {
             int row = idx / evictable_size;
-            ACCUMULATOR_TYPE val = similarity_matrix[idx];
-            if (val < row_means[row]) {
-                similarity_matrix[idx] = 0.0f;
+            ACCUMULATOR_TYPE val = similarity_matrix_batch[idx];
+            if (val < row_means_batch[row]) {
+                similarity_matrix_batch[idx] = 0.0f;
             }
         }
-        barrier(CLK_LOCAL_MEM_FENCE);
+        barrier(mem_fence);
 
         // Accumulate thresholded values across heads
         for (int idx = sglid; idx < evictable_size * evictable_size; idx += SUBGROUP_SIZE) {
-            aggregated_similarities[idx] += similarity_matrix[idx];
+            aggregated_similarities_batch[idx] += similarity_matrix_batch[idx];
         }
-        barrier(CLK_LOCAL_MEM_FENCE);
+        barrier(mem_fence);
     }
 
     // Reduce mean across heads
     for (int idx = sglid; idx < evictable_size * evictable_size; idx += SUBGROUP_SIZE) {
-        aggregated_similarities[idx] /= (ACCUMULATOR_TYPE)KV_HEADS_NUM;
+        aggregated_similarities_batch[idx] /= (ACCUMULATOR_TYPE)KV_HEADS_NUM;
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(mem_fence);
 
     // Block sum (negative sum): sum block_size rows for each block
     // Output: flattened 2D [num_evictable_blocks, evictable_size]
@@ -194,18 +216,18 @@ KERNEL(pa_adaptive_rkv_diversity)(
                 int row = row_start + row_offset;
                 if (row < evictable_size) {
                     // Negative sum (as in reference)
-                    sum -= aggregated_similarities[row * evictable_size + col];
+                    sum -= aggregated_similarities_batch[row * evictable_size + col];
                 }
             }
-            block_sums[col] = sum;
+            block_sums_batch[col] = sum;
         }
-        barrier(CLK_LOCAL_MEM_FENCE);
+        barrier(mem_fence);
 
         // Write all block_sums directly to output (flattened 2D: [num_evictable_blocks, evictable_size])
         for (int col = sglid; col < evictable_size; col += SUBGROUP_SIZE) {
             const int output_offset = diversity_output_offset + block_idx * evictable_size + col;
-            diversity_output[output_offset] = (OUTPUT_TYPE)block_sums[col];
+            diversity_output[output_offset] = (OUTPUT_TYPE)block_sums_batch[col];
         }
-        barrier(CLK_LOCAL_MEM_FENCE);
+        barrier(mem_fence);
     }
 }

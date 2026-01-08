@@ -749,7 +749,6 @@ protected:
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
 
         constexpr static std::array input_ids = {PagedAttentionInputIdx::KEY_CACHE,
-                                                 PagedAttentionInputIdx::ADAPTIVE_RKV_START_SIZE,
                                                  PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES,
                                                  PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES,
                                                  PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS};
@@ -769,6 +768,11 @@ protected:
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         jit.make("SUBGROUP_SIZE", subgroup_size);
 
+        // Enable global memory buffers for large evictable_size support
+        jit.make("USE_GLOBAL_BUFFERS", 1);
+        // Maximum evictable_size supported by global buffers (must match buffer allocation)
+        jit.make("MAX_EVICTABLE_SIZE", 512);
+
         jit.add(make_type_jit_constants("ACCUMULATOR", softmax_accumulator_type));
         return jit;
     }
@@ -781,11 +785,23 @@ protected:
         }
 
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ADAPTIVE_RKV_START_SIZE});
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES});
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
+
+        // Adaptive RKV diversity buffers (only with scores output)
+        // Allocated after all scores buffers: base index 8 (no aggregation) or 9 (with aggregation)
+        const auto desc = params.typed_desc<paged_attention>();
+        if (desc->has_adaptive_rkv) {
+            const uint32_t diversity_base_idx = desc->has_score_aggregation ? 9 : 8;
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, diversity_base_idx + 0});  // similarity_matrix
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, diversity_base_idx + 1});  // aggregated_similarities
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, diversity_base_idx + 2});  // row_means
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, diversity_base_idx + 3});  // block_sums
+        }
+
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // start_size scalar
 
         return args;
     }
@@ -794,12 +810,22 @@ protected:
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
+            auto& scalars = kd.params.scalars;
+            scalars.resize(1);
 
             const auto& evictable_sizes = params.input_layouts[PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES];
             const size_t batch_size = static_cast<size_t>(evictable_sizes.get_partial_shape()[0].get_length());
 
             wgs.global = {batch_size * subgroup_size, 1, 1};
             wgs.local = {subgroup_size, 1, 1};
+
+            // Set start_size scalar
+            const auto& memory_deps = params.memory_deps;
+            const auto start_size_mem = memory_deps.at(PagedAttentionInputIdx::ADAPTIVE_RKV_START_SIZE);
+            mem_lock<int32_t, mem_lock_type::read> start_size_lock(start_size_mem, *params.strm);
+
+            scalars[0].t = ScalarDescriptor::Types::INT32;
+            scalars[0].v.s32 = start_size_lock[0];
         }};
     }
 };
@@ -1393,47 +1419,56 @@ public:
         /*
          * Internal buffers allocation owners and users (numbers represent unique buffers names,
          * not the real indexes in _intermediates_memory structure):
-         * +--------------------------------------------------+-----------------------+--------------------+
-         * | Stage                                            | Allocates & uses      | Reuses             |
-         * +--------------------------------------------------+-----------------------+--------------------+
-         * | KV_CACHE_UPDATE                                  | [0, 1, 2]             |                    |
-         * +--------------------------------------------------+-----------------------+--------------------+
-         * | SDPA (1st token)                                 |                       | [0, 1, 2]          |
-         * +--------------------------------------------------+-----------------------+--------------------+
-         * | PA_SDPA (2nd+ token)                             | [5, 6, 7]             |                    |
-         * +--------------------------------------------------+-----------------------+--------------------+
-         * | PA_SDPA (mixed mode)                             | [5, 6, 7, 8]          |                    |
-         * +--------------------------------------------------+-----------------------+--------------------+
-         * | SDPA (1st token) + scores output                 |                       | [0, 1, 2, 3, 4]    |
-         * +--------------------------------------------------+-----------------------+--------------------+
-         * | PA_SDPA (2nd+ token) + scores output             | [3, 4, 5, 6, 7]       |                    |
-         * +--------------------------------------------------+-----------------------+--------------------+
-         * | PA_SDPA (mixed mode) + scores output             | [3, 4, 5, 6, 7, 8]    |                    |
-         * +--------------------------------------------------+-----------------------+--------------------+
-         * | SDPA (1st token) + scores output aggregation     |                       | [0, 1, 2, 3, 4, 5] |
-         * +--------------------------------------------------+-----------------------+--------------------+
-         * | PA_SDPA (2nd+ token) + scores output aggregation | [3, 4, 5, 6, 7, 8]    |                    |
-         * +--------------------------------------------------+-----------------------+--------------------+
-         * | PA_SDPA (mixed mode) + scores output aggregation | [3, 4, 5, 6, 7, 8, 9] |                    |
-         * +--------------------------------------------------+-----------------------+--------------------+
-         * | SDPA (1st token, micro-kernel)                   | [last (8/9/10)]       |                    |
-         * +--------------------------------------------------+-----------------------+--------------------+
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | Stage                                                      | Allocates & uses      | Reuses             |
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | KV_CACHE_UPDATE                                            | [0, 1, 2]             |                    |
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | SDPA (1st token)                                           |                       | [0, 1, 2]          |
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | PA_SDPA (2nd+ token)                                       | [5, 6, 7]             |                    |
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | PA_SDPA (mixed mode)                                       | [5, 6, 7, 8]          |                    |
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | SDPA (1st token) + scores output                           |                       | [0, 1, 2, 3, 4]    |
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | PA_SDPA (2nd+ token) + scores output                       | [3, 4, 5, 6, 7]       |                    |
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | PA_SDPA (mixed mode) + scores output                       | [3, 4, 5, 6, 7, 8]    |                    |
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | SDPA (1st token) + scores output aggregation               |                       | [0, 1, 2, 3, 4, 5] |
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | PA_SDPA (2nd+ token) + scores output aggregation           | [3, 4, 5, 6, 7, 8]    |                    |
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | PA_SDPA (mixed mode) + scores output aggregation           | [3, 4, 5, 6, 7, 8, 9] |                    |
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | SDPA (1st token, micro-kernel)                             | [last (8/9/10)]       |                    |
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | Adaptive RKV Diversity (scores output)                     | [8, 9, 10, 11]        |                    |
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | Adaptive RKV Diversity (scores output + aggregation)       | [9, 10, 11, 12]       |                    |
+         * +------------------------------------------------------------+-----------------------+--------------------+
          *
          * Description:
-         * 0, 1, 2 - Buffers used for proper blocks distribution for kv_cache_update and
-         *           sdpa_opt (1st token calculation) block configuration over target_seq_len dimension.
-         *           Filled in paged_attention_inst::on_execute() call.
-         * 3, 4    - Optional buffers used for PA scores output calculation, storing intermediate
-         *           softmax values by partitions (filled in PA/SDPA kernels) and sequence length offsets
-         *           for each subsequence (filled in paged_attention_inst::on_execute() call).
-         * 5, 6, 7 - Used for 2nd+ PA calculation (for softmax exp_sums, max_logits, and intermediate output).
-         *           Filled in PA/SDPA kernels.
-         * 8       - Optional buffer used for mixed PA execution mode, mapping gws idx to subsequence id.
-         *           Filled in paged_attention_inst::on_execute() call.
-         * last    - Used for defining query block index for the currently processing subsequence and mapping
-         *           gws index to subsequence idx. Values stored in pairs like:
-         *           [block_idx0, subsequence_idx0, block_idx1, subsequence_idx0, ..., block_idx0, subsequence_idx1].
-         *           Filled in paged_attention_inst::on_execute() call for sdpa-micro kernel only.
+         * 0, 1, 2    - Buffers used for proper blocks distribution for kv_cache_update and
+         *              sdpa_opt (1st token calculation) block configuration over target_seq_len dimension.
+         *              Filled in paged_attention_inst::on_execute() call.
+         * 3, 4       - Optional buffers used for PA scores output calculation, storing intermediate
+         *              softmax values by partitions (filled in PA/SDPA kernels) and sequence length offsets
+         *              for each subsequence (filled in paged_attention_inst::on_execute() call).
+         * 5, 6, 7    - Used for 2nd+ PA calculation (for softmax exp_sums, max_logits, and intermediate output).
+         *              Filled in PA/SDPA kernels.
+         * 8          - Optional buffer used for mixed PA execution mode, mapping gws idx to subsequence id.
+         *              Filled in paged_attention_inst::on_execute() call.
+         * 8-11/9-12  - Optional buffers for Adaptive RKV diversity calculation (similarity_matrix, 
+         *              aggregated_similarities, row_means, block_sums). Allocated when has_adaptive_rkv=true,
+         *              regardless of stage. Actual kernel execution determined at runtime by evictable_sizes.
+         *              Index range depends on score_aggregation: without=[8-11], with=[9-12].
+         *              Filled in pa_diversity_calc kernel.
+         * last       - Used for defining query block index for the currently processing subsequence and mapping
+         *              gws index to subsequence idx. Values stored in pairs like:
+         *              [block_idx0, subsequence_idx0, block_idx1, subsequence_idx0, ..., block_idx0, subsequence_idx1].
+         *              Filled in paged_attention_inst::on_execute() call for sdpa-micro kernel only.
          */
 
         std::vector<BufferDescriptor> internal_buffers;
@@ -1551,6 +1586,26 @@ public:
             internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable);
         }
 #endif
+
+        // Adaptive RKV Diversity buffers (allocated when enabled, execution determined by runtime evictable_sizes)
+        const bool has_adaptive_rkv = desc->has_adaptive_rkv;
+        if (has_adaptive_rkv) {
+            const auto& evictable_sizes_layout = params.input_layouts[PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES];
+            const auto batch_size = evictable_sizes_layout.get_partial_shape()[0].get_length();
+
+            const size_t max_evictable_size = 512;
+            const size_t max_matrix_size = max_evictable_size * max_evictable_size;
+
+            size_t total_matrix_elements = batch_size * max_matrix_size;
+            size_t total_vector_elements = batch_size * max_evictable_size;
+
+            // similarity_matrix, aggregated_similarities, row_means, block_sums
+            internal_buffers.emplace_back(total_matrix_elements * sizeof(float), indexes_dt);
+            internal_buffers.emplace_back(total_matrix_elements * sizeof(float), indexes_dt);
+            internal_buffers.emplace_back(total_vector_elements * sizeof(float), indexes_dt);
+            internal_buffers.emplace_back(total_vector_elements * sizeof(float), indexes_dt);
+        }
+
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: internal_buffers.size = " << internal_buffers.size() << std::endl;
         for (size_t i = 0; i < internal_buffers.size(); i++) {
             GPU_DEBUG_TRACE_DETAIL << "\tinternal_buffers[" << i << "] = " << internal_buffers[i].m_layout.to_short_string() << std::endl;

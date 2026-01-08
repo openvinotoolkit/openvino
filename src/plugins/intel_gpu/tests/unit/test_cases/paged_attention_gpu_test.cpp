@@ -119,7 +119,7 @@ struct PagedAttentionManager {
 
     std::vector<ov::float16> sinks;
 
-    std::vector<int> adaptive_rkv_start_size;
+    int adaptive_rkv_start_size = 0;
     std::vector<int> adaptive_rkv_evictable_sizes;
     std::vector<int> adaptive_rkv_diversity_block_set_indices;
     std::vector<int> adaptive_rkv_diversity_block_set_indices_begins;
@@ -580,7 +580,10 @@ struct PagedAttentionManager {
     }
 
     memory::ptr get_adaptive_rkv_start_size_memory() {
-        return get_memory_from_vec(adaptive_rkv_start_size);
+        auto mem = test_engine.allocate_memory({{}, data_types::i32, format::bfyx});
+        mem_lock<int> lock(mem, test_stream);
+        lock[0] = adaptive_rkv_start_size;
+        return mem;
     }
 
     memory::ptr get_adaptive_rkv_evictable_sizes_memory() {
@@ -1269,7 +1272,7 @@ private:
         std::vector<ov::float16> diversity_output;
 
         for (size_t seq_idx = 0; seq_idx < pam.subsequence_descs.size(); seq_idx++) {
-            const auto start_size = pam.adaptive_rkv_start_size[seq_idx];
+            const auto start_size = pam.adaptive_rkv_start_size;
             const auto evictable_size = pam.adaptive_rkv_evictable_sizes[seq_idx];
 
             // Read key data from key_cache instead of original key_data
@@ -1336,8 +1339,8 @@ public:
 
         if (p.has_adaptive_rkv) {
             pam.adaptive_rkv_diversity_block_set_indices_begins.push_back(0);
+            pam.adaptive_rkv_start_size = p.start_size;
             for (size_t i = 0; i < p.subsequences.size(); i++) {
-                pam.adaptive_rkv_start_size.push_back(p.start_size);
                 pam.adaptive_rkv_evictable_sizes.push_back(p.evictable_size);
 
                 int start_block = p.start_size / p.block_size;
@@ -1654,7 +1657,16 @@ public:
         if (diversity_output_mem) {
             ASSERT_EQ(diversity_output_mem->count(), std::get<2>(ref_data).size());
             mem_lock<ov::float16, mem_lock_type::read> mem_ptr(diversity_output_mem, get_test_stream());
-            // Use relaxed tolerance for diversity due to float16 (GPU) vs float32 (Reference) precision differences
+
+            // const auto& ref_diversity = std::get<2>(ref_data);
+            // std::cout << "[GPU] Diversity output (" << ref_diversity.size() << " values):" << std::endl;
+            // for (size_t i = 0; i < ref_diversity.size(); i++) {
+            //     std::cout << "  [" << i << "] GPU=" << static_cast<float>(mem_ptr[i]) 
+            //               << ", Ref=" << static_cast<float>(ref_diversity[i]) << std::endl;
+            // }
+
+            // Use relaxed tolerance for diversity due to float32 accumulator (GPU) vs float16 (Reference) intermediate calculation differences
+            // GPU uses ACCUMULATOR_TYPE=float32 for dot products, while reference uses float16 throughout
             float diversity_tolerance = tolerance * 10.0f;  // 0.02 for diversity
             for (size_t i = 0; i < diversity_output_mem->count(); i++) {
                 ASSERT_NEAR(mem_ptr[i], std::get<2>(ref_data)[i], diversity_tolerance) << " at index=" << i;
@@ -1934,4 +1946,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_rkv, adaptive_rkv_diversity_test, ::test
 
     // Multi-sequence tests
     paged_attention_test_params{ {{64, 0}, {96, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, 48 },
+
+    // Large evictable_size tests
+    paged_attention_test_params{ {{192, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 48, 96 },
+    paged_attention_test_params{ {{256, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 64, 128 },
+    paged_attention_test_params{ {{512, 0}}, 4, 2, 128, 128, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 128, 256 },
 }));
