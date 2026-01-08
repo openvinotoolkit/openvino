@@ -28,14 +28,12 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
                              const FilteredConfig& config,
-                             const std::optional<int64_t>& batchSize,
                              const std::shared_ptr<BlobWriter>& blobWriter)
     : ICompiledModel(model, plugin),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
-      _batchSize(batchSize),
       _blobWriter(blobWriter) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 

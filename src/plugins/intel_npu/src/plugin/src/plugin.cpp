@@ -6,6 +6,7 @@
 
 #include <fstream>
 
+#include "batch_size_section.hpp"
 #include "compiled_model.hpp"
 #include "compiler_adapter_factory.hpp"
 #include "driver_compiler_adapter.hpp"
@@ -859,10 +860,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
+    if (batch.has_value()) {
+        blobWriter->append_compatibility_requirement(CRE::PredefinedCapabilityToken::BATCHING);
+        blobWriter->register_section(std::make_shared<BatchSizeSection>(batch.value()));
+    }
+
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
         compiledModel =
-            std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig, batch, blobWriter);
+            std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig, blobWriter);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -1212,20 +1218,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
 
-    return std::make_shared<CompiledModel>(modelDummy,
-                                           shared_from_this(),
-                                           device,
-                                           graph,
-                                           localConfig,
-                                           batchSize,
-                                           blobWriter);
+    return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, blobWriter);
 }
 
-void Plugin::register_capability(const CRE::Token capability_id) {
+void Plugin::register_capability(const CRE::Token capability_id) const {
     _capabilitiesIDs.insert(capability_id);
 }
 
-std::unordered_set<CRE::Token> Plugin::get_capabilities_ids() {
+std::unordered_set<CRE::Token> Plugin::get_capabilities_ids() const {
     return _capabilitiesIDs;
 }
 

@@ -36,7 +36,6 @@ public:
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
                   const FilteredConfig& config,
-                  const std::optional<int64_t>& batchSize,
                   const std::shared_ptr<BlobWriter>& blobWriter);
 
     CompiledModel(const CompiledModel&) = delete;
@@ -72,7 +71,6 @@ private:
     std::unique_ptr<Properties> _properties;
 
     std::shared_ptr<IGraph> _graph;
-    std::optional<int64_t> _batchSize;
 
     std::shared_ptr<BlobWriter> _blobWriter;
 };

@@ -65,9 +65,9 @@ public:
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
 
-    void register_capability(const CRE::Token capability_id);
+    void register_capability(const CRE::Token capability_id) const;
 
-    std::unordered_set<CRE::Token> get_capabilities_ids();
+    std::unordered_set<CRE::Token> get_capabilities_ids() const;
 
 private:
     void init_options();
@@ -105,7 +105,7 @@ private:
     mutable Logger _logger;
     std::shared_ptr<Metrics> _metrics;
     std::unique_ptr<Properties> _properties;
-    std::unordered_set<CRE::Token> _capabilitiesIDs;
+    mutable std::unordered_set<CRE::Token> _capabilitiesIDs;
 
     static std::atomic<int> _compiledModelLoadCounter;
     mutable std::mutex _mutex;
