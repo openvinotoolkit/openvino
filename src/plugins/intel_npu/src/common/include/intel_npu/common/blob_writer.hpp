@@ -18,6 +18,8 @@ class BlobWriter {
 public:
     BlobWriter();
 
+    BlobWriter(BlobReader blob_reader);
+
     void register_section(const std::shared_ptr<ISection>& section);
 
     void register_offset_in_table(const SectionID id, const uint64_t offset);
@@ -35,7 +37,10 @@ private:
     std::vector<std::shared_ptr<ISection>> m_registered_sections;
     std::unordered_map<SectionID, uint64_t> m_offsets_table;
     std::shared_ptr<CRESection> m_cre;
-    // TODO
+
+    /**
+     * @brief TODO
+     */
     std::optional<std::streampos> m_stream_base = std::nullopt;
 };
 

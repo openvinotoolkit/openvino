@@ -4,6 +4,7 @@
 
 #include "intel_npu/common/blob_writer.hpp"
 
+#include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/offsets_table.hpp"
 
 namespace {
@@ -18,6 +19,10 @@ namespace intel_npu {
 
 BlobWriter::BlobWriter() : m_cre(std::make_shared<CRESection>()) {
     register_section(m_cre);
+}
+
+BlobWriter::BlobWriter(BlobReader blob_reader) {
+    // TODO after reader is done, while constructing the compiledModel
 }
 
 void BlobWriter::register_section(const std::shared_ptr<ISection>& section) {

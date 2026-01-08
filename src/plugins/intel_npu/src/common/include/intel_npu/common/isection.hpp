@@ -9,7 +9,10 @@
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 #include <vector>
+
+#include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
 
@@ -18,6 +21,8 @@ namespace intel_npu {
 // Unique SID - how do we reinforce this without compromising modularity? Description matching?
 
 using SectionID = uint16_t;
+using BlobSource = std::variant<std::reference_wrapper<std::istream>,
+                                std::reference_wrapper<const ov::Tensor>>;  // TODO find a better place
 
 class BlobWriter;
 class BlobReader;
@@ -43,8 +48,6 @@ public:
 
     // note necessary, saves some performance if provided
     virtual std::optional<uint64_t> get_length() const;
-
-    // virtual void read(BlobReader* reader) = 0;
 
     SectionID get_section_id() const;
 
