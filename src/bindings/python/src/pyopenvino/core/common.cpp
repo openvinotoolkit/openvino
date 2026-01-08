@@ -300,7 +300,7 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
     auto dtype = Common::type_helpers::get_dtype(ov_type);
 
     auto data_ptr = std::as_const(t).data();
-    auto is_const_tensor = ov::is_tensor_read_only(t);
+    auto is_read_only = ov::is_tensor_read_only(t);
 
     // Return the array as a view:
     if (is_shared) {
@@ -310,8 +310,8 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
         } else {
             result = py::array(dtype, t.get_shape(), t.get_strides(), data_ptr, py::cast(t));
         }
-        // Mark array as read-only if tensor is const
-        if (is_const_tensor) {
+        if (is_read_only) {
+            // Mark array as read-only
             py::detail::array_proxy(result.ptr())->flags &= ~py::detail::npy_api::NPY_ARRAY_WRITEABLE_;
         }
         return result;
