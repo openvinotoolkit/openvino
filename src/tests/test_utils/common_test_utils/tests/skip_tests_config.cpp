@@ -10,3 +10,11 @@
 std::vector<std::string> disabledTestPatterns() {
     return std::vector<std::string>{};
 }
+
+bool is_model_cache_enabled() {
+    return false;
+}
+
+std::vector<std::string> model_cache_disabled_test_patterns() {
+    return std::vector<std::string>{};
+}

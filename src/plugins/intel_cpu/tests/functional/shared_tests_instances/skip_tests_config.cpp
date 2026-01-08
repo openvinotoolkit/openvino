@@ -691,3 +691,34 @@ std::vector<std::string> disabledTestPatterns() {
 
     return retVector;
 }
+
+bool is_model_cache_enabled() {
+    return true;
+}
+
+std::vector<std::string> model_cache_disabled_test_patterns() {
+    std::vector<std::string> res_vector{
+        R"(.*CustomOp.*)",
+        R"(.*SequenceCPUTest.*)",
+        R"(.*ConvertFqRnnToQuantizedRnn.*)",
+        R"(.*IntertactionCPUTest.*)",
+        R"(.*MoESubgraphTest.*)",
+        R"(.*MoECompressedWeightsSubgraphTest.*)",
+        R"(.*RecurrentCellTransformation.*)",
+        R"(.*MemoryLayerTest.*)",
+        R"(.*RoPETestGPTOSS.*)",
+        R"(.*SimpleIfTest.*)",
+        R"(.*SimpleIf2OutTest.*)",
+        R"(.*SimpleIfNotConstConditionTest.*)",
+        R"(.*SimpleIfNotConstConditionUnusedOutputPortsTest.*)",
+        R"(.*AdaPoolLayerCPUTest.*)",
+        R"(.*ConvertCPULayerTest.*)",
+        R"(.*ConcatLayerCPUTest.*)",
+        R"(.*GroupDeconvolutionLayerCPUTest.*)",
+        R"(.*NmsLayerCPUTest.*)",
+        R"(.*OneHotLayerCPUTest.*)",
+        R"(.*TensorIteratorTest.*)",
+    };
+
+    return res_vector;
+}

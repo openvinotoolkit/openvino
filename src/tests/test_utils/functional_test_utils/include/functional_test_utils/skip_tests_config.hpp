@@ -12,6 +12,10 @@
 
 std::vector<std::string> disabledTestPatterns();
 
+bool is_model_cache_enabled();
+
+std::vector<std::string> model_cache_disabled_test_patterns();
+
 namespace ov {
 namespace test {
 namespace utils {
@@ -19,6 +23,8 @@ namespace utils {
 extern bool disable_tests_skipping;
 
 bool current_test_is_disabled();
+
+bool current_test_model_cache_is_disabled();
 
 }  // namespace utils
 }  // namespace test
