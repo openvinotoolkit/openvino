@@ -111,7 +111,7 @@ jobs:
       # Tests
       #
 
-      - name: Python ONNX operators tests (GraphIterator default)
+      - name: Python ONNX operators tests
         if: (fromJSON(inputs.affected-components).Python_API.test ||
              fromJSON(inputs.affected-components).ONNX_FE.test) &&
              runner.arch != 'ARM64' # Ticket: 123325
@@ -121,7 +121,7 @@ jobs:
             --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.graph_iterator_enabled.xml \
             --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
 
-      - name: Python ONNX operators tests (ONNX_ITERATOR=0)
+      - name: Python ONNX operators tests ONNX_ITERATOR=disabled (legacy implementation)
         if: (fromJSON(inputs.affected-components).Python_API.test ||
              fromJSON(inputs.affected-components).ONNX_FE.test) &&
              runner.arch != 'ARM64' # Ticket: 123325
