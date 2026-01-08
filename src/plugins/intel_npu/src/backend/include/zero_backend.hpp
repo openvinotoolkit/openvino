@@ -32,7 +32,7 @@ public:
 
     void* getContext() const override;
 
-    void updateInfo(const ov::AnyMap& properties, const Config& config) override;
+    void updateInfo(const ov::AnyMap& properties) override;
 
     const std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const override;
 

@@ -134,20 +134,20 @@ void* ZeroEngineBackend::getContext() const {
     return _initStruct->getContext();
 }
 
-void ZeroEngineBackend::updateInfo(const ov::AnyMap& properties, const Config& config) {
+void ZeroEngineBackend::updateInfo(const ov::AnyMap& properties) {
     if (properties.count(ov::log::level.name()) != 0) {
-        _logger.setLevel(config.get<LOG_LEVEL>());
+        _logger.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
     }
 
     if (properties.count(ov::intel_npu::disable_idle_memory_prunning.name()) != 0) {
-        if (config.get<DISABLE_IDLE_MEMORY_PRUNING>()) {
+        if (properties.at(ov::intel_npu::disable_idle_memory_prunning.name()).as<bool>()) {
             _initStruct->setContextOptions(ZE_NPU_CONTEXT_OPTION_IDLE_OPTIMIZATIONS);
         }
     }
 
     if (_devices.size() > 0) {
         for (auto& dev : _devices) {
-            dev.second->updateInfo(properties, config);
+            dev.second->updateInfo(properties);
         }
     }
 }

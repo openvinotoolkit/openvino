@@ -35,7 +35,7 @@ public:
     std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
                                                          const Config& config) override;
 
-    void updateInfo(const ov::AnyMap& properties, const Config& config) override;
+    void updateInfo(const ov::AnyMap& properties) override;
 
     ZeroDevice& operator=(const ZeroDevice&) = delete;
     ZeroDevice(const ZeroDevice&) = delete;

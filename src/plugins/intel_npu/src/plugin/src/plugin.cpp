@@ -134,13 +134,9 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     return result;
 }
 
-void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
-    auto it = propertiesMap.find(std::string(LOG_LEVEL::key()));
-    if (it != propertiesMap.end()) {
-        std::istringstream is(it->second);
-        ov::log::Level level;
-        is >> level;
-        Logger::global().setLevel(level);
+void update_log_level(const ov::AnyMap& properties) {
+    if (properties.count(ov::log::level.name()) != 0) {
+        Logger::global().setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
     }
 }
 
@@ -507,10 +503,15 @@ void Plugin::filter_global_config_safe(const std::optional<ov::intel_npu::Compil
     }
 }
 
-FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,
+FilteredConfig Plugin::fork_local_config(const ov::AnyMap& properties,
                                          const std::unique_ptr<ICompilerAdapter>& compiler,
                                          OptionMode mode) const {
-    update_log_level(rawConfig);
+    update_log_level(properties);
+
+    if (_backend != nullptr) {
+        _backend->updateInfo(properties);
+    }
+
     // create a copy of the global config
     std::unique_ptr<FilteredConfig>
         localConfigPtr;  // no default constructor from FilteredConfig, needed to switch to ptr
@@ -519,6 +520,8 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
         localConfigPtr = std::make_unique<FilteredConfig>(_globalConfig);
     }
     bool compiler_changed = false;
+
+    const std::map<std::string, std::string> rawConfig = any_copy(properties);
 
     // Check if compiler was changed
     // 1. Check for compiler change
@@ -610,7 +613,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     }
     // Init backends if needed
     if (_backend != nullptr) {
-        _backend->updateInfo(properties, _globalConfig);
+        _backend->updateInfo(properties);
     }
 }
 
@@ -668,15 +671,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         localProperties.erase(modelSerializerVersionKey);
     }
 
-    const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
-    update_log_level(localPropertiesMap);
+    update_log_level(localProperties);
 
     // create compiler
     CompilerAdapterFactory compilerAdapterFactory;
     auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-    auto localConfig = fork_local_config(localPropertiesMap, compiler);
+    auto localConfig = fork_local_config(localProperties, compiler);
 
     const auto setCacheDir = localConfig.get<CACHE_DIR>();
     if (!setCacheDir.empty()) {
@@ -1034,11 +1036,10 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         npu_plugin_properties.erase(modelSerializerVersionKey);
     }
     exclude_model_ptr_from_map(npu_plugin_properties);
-    const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
-    update_log_level(propertiesMap);
+    update_log_level(npu_plugin_properties);
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
-    auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::CompileTime);
+    auto localConfig = fork_local_config(npu_plugin_properties, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
@@ -1095,13 +1096,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     auto originalModel = exclude_model_ptr_from_map(npu_plugin_properties);
 
     CompilerAdapterFactory compilerAdapterFactory;
-    const auto propertiesMap = any_copy(npu_plugin_properties);
-    update_log_level(propertiesMap);
+    update_log_level(npu_plugin_properties);
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
-    auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
+    auto localConfig = fork_local_config(npu_plugin_properties, compiler, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
