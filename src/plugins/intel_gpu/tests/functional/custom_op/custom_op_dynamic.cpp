@@ -92,8 +92,8 @@ public:
     }
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
-        float* pBias0 = inputs[1].data<float>();
-        float* pBias1 = inputs[2].data<float>();
+        const float* pBias0 = inputs[1].data<float>();
+        const float* pBias1 = inputs[2].data<float>();
 
         const auto& in = inputs[0];
         auto& out0 = outputs[0];
