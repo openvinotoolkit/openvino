@@ -127,11 +127,13 @@ public:
 class XAttentionEstimateGeneratorBase : public KernelGenerator {
 public:
     explicit XAttentionEstimateGeneratorBase(std::string_view kernel_name, size_t xattn_block_size, std::string_view stage_suffix = "_cm")
-        : KernelGenerator(kernel_name, stage_suffix), _xattn_block_size(xattn_block_size) {}
+        : KernelGenerator(kernel_name, stage_suffix),
+          _xattn_block_size(xattn_block_size) {}
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
         return KernelGenerator::get_build_options(params) + get_pa_build_options();
     }
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
+
 protected:
     size_t _xattn_block_size;
 };
