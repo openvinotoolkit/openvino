@@ -40,6 +40,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/variant_visitor.hpp"
 #include "openvino/util/weights_path.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
@@ -405,20 +406,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::variant<std::istre
     ov::CacheMode cache_mode = config.get_cache_mode();
     ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
 
-    std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr;
-    if (model.index() == 0) {
-        auto& stream = *std::get<0>(model);
-        ib_ptr = encryption_callbacks.decrypt
-                     ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(stream, context_impl->get_engine(), encryption_callbacks.decrypt)
-                     : std::make_unique<cldnn::BinaryInputBuffer>(stream, context_impl->get_engine());
-    } else {
-        auto& tensor = *std::get<1>(model);
-        SharedStreamBuffer buf{tensor.data(), tensor.get_byte_size()};
-        std::istream stream(&buf);
-        ib_ptr = encryption_callbacks.decrypt
-                     ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(stream, context_impl->get_engine(), encryption_callbacks.decrypt)
-                     : std::make_unique<cldnn::DirectBinaryInputBuffer>(tensor.data<char>(), tensor.get_byte_size(), context_impl->get_engine());
-    }
+    const auto ib_ptr = std::visit(ov::util::VariantVisitor{
+        [&encryption_callbacks, &context_impl](std::istream* stream) -> std::unique_ptr<cldnn::BinaryInputBuffer> {
+            return encryption_callbacks.decrypt
+                       ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(*stream, context_impl->get_engine(), encryption_callbacks.decrypt)
+                       : std::make_unique<cldnn::BinaryInputBuffer>(*stream, context_impl->get_engine());
+        },
+        [&encryption_callbacks, &context_impl](const ov::Tensor* tensor) -> std::unique_ptr<cldnn::BinaryInputBuffer> {
+            if (encryption_callbacks.decrypt) {
+                SharedStreamBuffer buf{tensor->data(), tensor->get_byte_size()};
+                std::istream stream(&buf);
+                return std::make_unique<cldnn::EncryptedBinaryInputBuffer>(stream, context_impl->get_engine(), encryption_callbacks.decrypt);
+            } else {
+                return std::make_unique<cldnn::DirectBinaryInputBuffer>(tensor->data<char>(), tensor->get_byte_size(), context_impl->get_engine());
+            }
+        }}, model);
     auto& ib = *ib_ptr;
 
     ov::CacheMode loaded_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;

@@ -50,9 +50,9 @@ public:
     virtual ~BinaryInputBuffer() = default;
 
     virtual void read(void* const data, std::streamsize size) {
+        OPENVINO_ASSERT(_stream != nullptr);
         auto const read_size = _stream->rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
-        OPENVINO_ASSERT(read_size == size,
-            "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
+        OPENVINO_ASSERT(read_size == size, "[GPU] Failed to read ", size, " bytes from stream! Read ", read_size);
     }
 
     void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }
@@ -80,9 +80,7 @@ public:
         const auto read_size = std::min<std::streamsize>(size_ - offset, size);
         std::memcpy(data, data_ + offset, read_size);
         offset += read_size;
-        OPENVINO_ASSERT(
-            read_size == size,
-            "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
+        OPENVINO_ASSERT(read_size == size, "[GPU] Failed to read ", size, " bytes from stream! Read ", read_size);
     }
 
     const char* readView(std::streamsize size) {
