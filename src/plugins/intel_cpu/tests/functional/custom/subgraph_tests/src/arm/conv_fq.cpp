@@ -176,12 +176,12 @@ const element::Type expectedConvPrecByUnsignedFQRange = element::f32;
 #endif
 
 std::vector<QuantizationParams> quantizationParams{
-    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, false, false}, //per-tensor
-    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, false, true},  //per-tensor with bias
-    {{{0.f}, {2.55f}, {0.f}, {2.55f}}, {}, expectedConvPrecByUnsignedFQRange, false, false},     //per-tensor
-    {{{0.f}, {2.55f}, {0.f}, {2.55f}}, {}, expectedConvPrecByUnsignedFQRange, false, true},      //per-tensor with bias
-    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, true, false},  //per channel
-    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, true, true},   //per channel with bias
+    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, false, false}, //i8, per-tensor
+    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, false, true},  //i8, per-tensor, with bias
+    {{{0.f}, {2.55f}, {0.f}, {2.55f}}, {}, expectedConvPrecByUnsignedFQRange, false, false},     //u8, per-tensor
+    {{{0.f}, {2.55f}, {0.f}, {2.55f}}, {}, expectedConvPrecByUnsignedFQRange, false, true},      //u8, per-tensor, with bias
+    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, true, false},  //i8, per channel
+    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, true, true},   //i8, per channel, with bias
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU,
