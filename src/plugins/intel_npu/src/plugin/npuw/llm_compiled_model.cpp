@@ -1261,9 +1261,9 @@ void update_config_for_whisper(ov::AnyMap& config) {
 
 bool is_int8_model(const std::shared_ptr<ov::Model>& model) {
     for (const auto& op: model->get_ops()) {
-        if (op->get_element_type() == ov::element::i8 ||
-            op->get_element_type() == ov::element::u8)
+        if (op->get_element_type() == ov::element::i8 || op->get_element_type() == ov::element::u8) {
             return true;
+        }
     }
     return false;
 }
