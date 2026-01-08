@@ -149,7 +149,7 @@ private:
         // copy.
         std::string str(bytes, 0);
         const auto read_size_str = buf->sgetn(str.data(), str.size());
-        OPENVINO_ASSERT(read_size_str == bytes);
+        OPENVINO_ASSERT(read_size_str > 0 && static_cast<size_t>(read_size_str) == bytes);
 
         auto plaintext = decrypt(str);
 
