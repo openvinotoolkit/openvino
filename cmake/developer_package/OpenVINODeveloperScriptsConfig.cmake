@@ -121,6 +121,7 @@ if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
     # 'Ninja Multi-Config' specific, see:
     # https://cmake.org/cmake/help/latest/variable/CMAKE_DEFAULT_BUILD_TYPE.html
     set(CMAKE_DEFAULT_BUILD_TYPE "Release" CACHE STRING "CMake default build type")
+    set(CMAKE_NINJA_FORCE_RESPONSE_FILE TRUE CACHE INTERNAL "Force Ninja to use response files.")
 elseif(NOT OV_GENERATOR_MULTI_CONFIG)
     if(NOT CMAKE_BUILD_TYPE)
         # default value
