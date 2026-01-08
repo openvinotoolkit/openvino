@@ -61,25 +61,40 @@ bool is_graph_iterator_enabled() {
 
     std::string value(env_value);
     // Remove whitespace
-    value.erase(std::remove_if(value.begin(), value.end(), [](unsigned char ch) { return std::isspace(ch); }),
+    value.erase(std::remove_if(value.begin(),
+                               value.end(),
+                               [](unsigned char ch) {
+                                   return std::isspace(ch);
+                               }),
                 value.end());
     // Convert to lowercase
     std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
         return static_cast<char>(std::tolower(ch));
     });
 
-    static const std::unordered_map<std::string, bool> valid_values = {
-        {"1", true}, {"true", true}, {"on", true}, {"enable", true},
-        {"0", false}, {"false", false}, {"off", false}, {"disable", false}
-    };
+    static const std::unordered_map<std::string, bool> valid_values = {{"1", true},
+                                                                       {"true", true},
+                                                                       {"on", true},
+                                                                       {"enable", true},
+                                                                       {"0", false},
+                                                                       {"false", false},
+                                                                       {"off", false},
+                                                                       {"disable", false}};
 
     auto it = valid_values.find(value);
     if (it != valid_values.end()) {
+        if (!it->second) {
+            OPENVINO_WARN(
+                "DEPRECATED: Disabling ONNX graph iterator via ONNX_ITERATOR environment variable is deprecated and "
+                "will be removed in a future release. The graph iterator will become mandatory.");
+        }
         return it->second;
     }
 
     // Unknown value - print error and default to enabled
-    OPENVINO_WARN("Unknown value for ONNX_ITERATOR environment variable: '", env_value, "'. "
+    OPENVINO_WARN("Unknown value for ONNX_ITERATOR environment variable: '",
+                  env_value,
+                  "'. "
                   "Expected 1 (enable) or 0 (disable). "
                   "Defaulting to enabled.");
     return true;
