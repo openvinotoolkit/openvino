@@ -4,6 +4,7 @@
 
 #include "col2im.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -89,10 +90,10 @@ void Col2Im::executeDynamicImpl(const dnnl::stream& strm) {
     const auto* kernel_size_ptr = kernel_size_mem->getDataAs<const int32_t>();
 
     // 4. calculate output_shape
-    size_t kernel_prod = static_cast<size_t>(kernel_size_ptr[0] * kernel_size_ptr[1]);
+    auto kernel_prod = static_cast<size_t>(kernel_size_ptr[0]) * static_cast<size_t>(kernel_size_ptr[1]);
 
-    size_t H = static_cast<size_t>(output_size_ptr[0]);
-    size_t W = static_cast<size_t>(output_size_ptr[1]);
+    auto H = static_cast<size_t>(output_size_ptr[0]);
+    auto W = static_cast<size_t>(output_size_ptr[1]);
 
     ov::Shape output_shape;
     if (data_rank == 2) {  // Case of Non-batched inputs
