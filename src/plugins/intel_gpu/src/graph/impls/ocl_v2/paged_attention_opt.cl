@@ -345,7 +345,7 @@ KERNEL(pa_sdpa_opt)(
         // Final max value after reduction across of all SG and WI
         unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
             #ifdef HAS_SINK_INPUT
-            const uint head_idx = get_global_id(1);
+            const uint head_idx = get_global_id(1) * QUERIES_PER_WI + q_idx;
             const SOFTMAX_ACCUMULATOR_TYPE qk_max_tmp = sub_group_reduce_max(GET_VECTOR_ELEMENT(qk_max, q_idx));
             GET_VECTOR_ELEMENT(qk_max, q_idx) = qk_max_tmp > sink_ptr[head_idx] ? qk_max_tmp : sink_ptr[head_idx];
             #else
@@ -398,7 +398,7 @@ KERNEL(pa_sdpa_opt)(
         unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
             GET_VECTOR_ELEMENT(exp_sum, q_idx) = sub_group_reduce_add(GET_VECTOR_ELEMENT(exp_sum, q_idx));
             #ifdef HAS_SINK_INPUT
-            const uint head_idx = get_global_id(1);
+            const uint head_idx = get_global_id(1) * QUERIES_PER_WI + q_idx;
             GET_VECTOR_ELEMENT(exp_sum, q_idx) += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[head_idx] - GET_VECTOR_ELEMENT(qk_max, q_idx))));
             #endif
         }
