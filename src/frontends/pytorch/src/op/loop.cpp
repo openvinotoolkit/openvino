@@ -132,7 +132,7 @@ OutputVector translate_while_loop_fx(const NodeContext& context) {
 
     // Create trip_count (large number for while loop)
     auto trip_count =
-        ov::opset10::Constant::create(ov::element::i64, ov::Shape{}, {std::numeric_limits<int64_t>::max()});
+        ov::opset10::Constant::create(ov::element::i64, ov::Shape{}, {std::numeric_limits<int32_t>::max()});
 
     // Create initial condition (true)
     auto init_cond = ov::opset10::Constant::create(ov::element::boolean, ov::Shape{}, {true});
