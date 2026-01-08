@@ -274,7 +274,7 @@ auto inline update_out_tensor_name(const std::shared_ptr<ov::snippets::op::Subgr
     bool not_set = true;
     for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
         for (const auto& in : subgraph->get_output_target_inputs(i)) {
-            if (ov::is_type<snippets::op::Result>(in.get_node())) {
+            if (ov::is_type<ov::op::v0::Result>(in.get_node())) {
                 const auto& body_result = subgraph->body_ptr()->get_output_op(i);
                 const auto& body_result_input = body_result->get_input_source_output(0);
                 ov::snippets::op::Subgraph::fill_empty_output_names(subgraph->output(i), body_result_input);
