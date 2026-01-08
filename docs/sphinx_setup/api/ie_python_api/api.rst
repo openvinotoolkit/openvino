@@ -75,6 +75,24 @@ OpenVINO Python API
    :toctree: _autosummary
    :template: custom-module-template.rst
 
+   openvino.op
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.opset1
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
+   openvino.opset8
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+
    openvino.frontend
 
 .. autosummary::
