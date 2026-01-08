@@ -88,7 +88,7 @@ static EltwiseExecutorPtr createRefExecutorByPrecision(const EltwiseRefKey& key)
         return std::make_shared<BitwiseRefExecutor<int32_t>>(key);
     case ov::element::i64:
     case ov::element::u64:
-        // Tips: The convert precision pass convert u64/i64 to i32, so u64 eltwise should not be needed.
+        // Note: The convert precision pass converts u64/i64 to i32, so u64 eltwise should not be needed.
         return std::make_shared<EltwiseRef64bExecutor<int64_t>>(key);
     case ov::element::f16:
         return std::make_shared<EltwiseRefExecutor<dnnl::impl::float16_t>>(key);
