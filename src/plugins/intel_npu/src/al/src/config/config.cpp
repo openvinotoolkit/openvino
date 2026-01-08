@@ -50,7 +50,7 @@ int32_t OptionParser<int32_t>::parse(std::string_view val) {
     try {
         return std::stol(val.data());
     } catch (...) {
-        OPENVINO_THROW("Value '%s' is not a valid INT32 option", val.data());
+        OPENVINO_THROW("Value '", val.data(), "' is not a valid INT32 option");
     }
 }
 
@@ -58,7 +58,7 @@ uint32_t OptionParser<uint32_t>::parse(std::string_view val) {
     try {
         return std::stoul(val.data());
     } catch (...) {
-        OPENVINO_THROW("Value '%s' is not a valid UINT32 option", val.data());
+        OPENVINO_THROW("Value '", val.data(), "' is not a valid UINT32 option");
     }
 }
 
