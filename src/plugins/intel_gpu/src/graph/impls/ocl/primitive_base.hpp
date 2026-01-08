@@ -136,6 +136,9 @@ protected:
     }
 
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
+        if (is_cpu()) {
+            return;
+        }
         _kernels.clear();
         if (!_kernel_data.kernels.empty()) {
             auto compiled_kernels = kernels_cache.get_kernels(params);
@@ -150,6 +153,9 @@ protected:
     }
 
     void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
+        if (is_cpu()) {
+            return;
+        }
         _kernels.clear();
 
         _kernels.reserve(cached_kernel_ids.size());
@@ -191,7 +197,7 @@ protected:
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
-        if (instance.can_be_optimized()) {
+        if (instance.can_be_optimized() || is_cpu()) {
             return;
         }
 
@@ -295,6 +301,8 @@ protected:
     }
 
     void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
+        if (is_cpu())
+            return;
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
         _kernels.clear();
