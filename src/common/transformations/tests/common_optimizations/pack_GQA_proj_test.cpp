@@ -16,7 +16,8 @@
 #include "transformations/common_optimizations/pack_GQA.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 
-using namespace ov;
+namespace ov::test {
+    
 using namespace ov::opset10;
 
 std::shared_ptr<ov::Node> build_l2_norm(const std::shared_ptr<ov::Node>& input, size_t batch, size_t head_size) {
@@ -102,16 +103,14 @@ std::shared_ptr<ov::Model> build_model_gqa_pack_mha(size_t batch,
                                                     size_t seq_len,
                                                     size_t head_size,
                                                     size_t num_heads,
-                                                    size_t num_groups,
-                                                    size_t pack_size = 1) {
+                                                    size_t num_groups) {
     OPENVINO_ASSERT(num_heads % num_groups == 0, "num_heads must be divisible by num_groups");
 
     const size_t d_model = 64;
-    const size_t d_head = d_model / num_heads;  // 64 / 6 = 10
     const ov::Shape input_shape{batch, seq_len, d_model};
-    const ov::Shape proj_shape{d_model, num_heads * d_head};
-    const ov::Shape bias_shape{batch, 1, num_heads * d_head};  // {batch, 1, num_heads * d_head}
-    const ov::Shape rope_shape{batch, pack_size, seq_len, head_size};
+    const ov::Shape proj_shape{d_model, head_size};
+    const ov::Shape bias_shape{batch, 1, head_size};
+    const ov::Shape rope_shape{batch, 1, seq_len, head_size};
     const ov::Shape sdpa_bias_shape{batch, 1, 1, seq_len};
     const ov::Shape post_sdpa_weights_shape{d_model, head_size};
 
@@ -190,3 +189,5 @@ TEST_F(TransformationTestsF, PackGQA) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
+
+}  // namespace test

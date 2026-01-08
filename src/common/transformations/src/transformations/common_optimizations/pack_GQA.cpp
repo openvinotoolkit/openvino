@@ -26,7 +26,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/concat_fusion.hpp"
-#include "transformations/utils/block_collection.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::op;
