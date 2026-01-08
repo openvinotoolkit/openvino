@@ -132,18 +132,15 @@ memory_ptr ze_engine::create_subbuffer(const memory& memory, const layout& new_l
     if (new_layout.format.is_image_2d()) {
         OPENVINO_NOT_IMPLEMENTED;
     }
-    if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
-        auto& new_buf = reinterpret_cast<const ze::gpu_usm&>(memory);
-        auto ptr = new_buf.get_buffer().get();
-        auto sub_buffer = ze::UsmMemory(get_context(), get_device(), ptr, byte_offset);
-        return std::make_shared<ze::gpu_usm>(this,
-                                 new_layout,
-                                 sub_buffer,
-                                 memory.get_allocation_type(),
-                                 memory.get_mem_tracker());
-    } else {
-        OPENVINO_THROW("[GPU] Trying to create subbuffer for non usm memory");
-    }
+    OPENVINO_ASSERT(!memory_capabilities::is_usm_type(memory.get_allocation_type()), "[GPU] Trying to create subbuffer for non usm memory");
+    auto& new_buf = reinterpret_cast<const ze::gpu_usm&>(memory);
+    auto ptr = new_buf.get_buffer().get();
+    auto sub_buffer = ze::UsmMemory(get_context(), get_device(), ptr, byte_offset);
+    return std::make_shared<ze::gpu_usm>(this,
+                             new_layout,
+                             sub_buffer,
+                             memory.get_allocation_type(),
+                             memory.get_mem_tracker());
 }
 
 bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {

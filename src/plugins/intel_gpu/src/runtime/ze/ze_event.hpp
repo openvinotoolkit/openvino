@@ -20,9 +20,7 @@ public:
         , m_factory(factory)
         , m_event(ev) {
             // Ensure event handle is not null
-            if (ev == nullptr) {
-                OPENVINO_THROW("[GPU] Trying to create event with null handle");
-            }
+            OPENVINO_ASSERT(ev != nullptr, "[GPU] Trying to create event with null handle");
         }
     ze_event(const ze_event &) = delete;
     ze_event& operator=(const ze_event &) = delete;
