@@ -519,8 +519,6 @@ protected:
 
         const size_t nElements = from->get_size();
 
-        // IMPORTANT: reference must follow original util.cpp unpack_f8f16() semantics:
-        //   to[idx] = float(from[idx]) * scale[idx / from_shape[1]]
         const auto& from_shape_local = from->get_shape();
         ASSERT_GE(from_shape_local.size(), 2u);
 
