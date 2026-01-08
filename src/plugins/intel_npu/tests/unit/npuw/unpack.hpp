@@ -104,99 +104,6 @@ void unpack_i4f16(const int8_t* in, int8_t* out, int size) {
     }
 }
 
-void unpack_f8e4m3f16(const int8_t* in, int8_t* out, int size) {
-    // f8 layout: 1 sign | 4 exponent (bias=7) | 3 mantissa
-    // f16 layout: 1 sign | 5 exponent (bias=15) | 10 mantissa
-    // Mapping: if normal -> exp16 = exp8 + 8, man16 = man8 << 7
-    // Zero / subnormal (exp8==0) -> treat as 0
-    // Inf/NaN (exp8==0xF): map to Inf/NaN (simplified: mantissa==0 -> Inf else NaN payload)
-    uint16_t* hFloatOut = reinterpret_cast<uint16_t*>(out);
-    for (int i = 0; i < size; ++i) {
-        uint8_t v = static_cast<uint8_t>(in[i]);
-        uint16_t sign = (v & 0x80) ? 0x8000 : 0x0000;
-        uint8_t exp8 = (v >> 3) & 0x0F;
-        uint8_t man8 = v & 0x07;
-
-        uint16_t h;
-        if (exp8 == 0) {
-            // zero / subnormal -> flush to zero
-            h = sign;
-        } else if (exp8 == 0x0F) {
-            // Inf / NaN
-            if (man8 == 0) {
-                h = sign | 0x7C00; // Inf
-            } else {
-                h = sign | 0x7C00 | (static_cast<uint16_t>(man8) << 7); // NaN payload
-            }
-        } else {
-            uint16_t exp16 = static_cast<uint16_t>(exp8 + 8); // bias adjust
-            uint16_t man16 = static_cast<uint16_t>(man8) << 7;
-            h = sign | (exp16 << 10) | man16;
-        }
-        hFloatOut[i] = h;
-    }
-}
-
-void unpack_f8e5m2f16(const int8_t* in, int8_t* out, int size) {
-    // f8 layout: 1 sign | 5 exponent (bias=15) | 2 mantissa
-    // Mapping: normal -> same exponent, mantissa << 8
-    // Zero/subnormal exp==0 -> zero; Inf/NaN exp==0x1F
-    uint16_t* hFloatOut = reinterpret_cast<uint16_t*>(out);
-    for (int i = 0; i < size; ++i) {
-        uint8_t v = static_cast<uint8_t>(in[i]);
-        uint16_t sign = (v & 0x80) ? 0x8000 : 0x0000;
-        uint8_t exp8 = (v >> 2) & 0x1F;
-        uint8_t man8 = v & 0x03;
-
-        uint16_t h;
-        if (exp8 == 0) {
-            h = sign; // flush subnormals to zero
-        } else if (exp8 == 0x1F) {
-            if (man8 == 0) {
-                h = sign | 0x7C00; // Inf
-            } else {
-                h = sign | 0x7C00 | (static_cast<uint16_t>(man8) << 8); // NaN payload
-            }
-        } else {
-            uint16_t exp16 = exp8;           // same bias
-            uint16_t man16 = static_cast<uint16_t>(man8) << 8;
-            h = sign | (exp16 << 10) | man16;
-        }
-        hFloatOut[i] = h;
-    }
-}
-
-void unpack_f8e8m0f16(const int8_t* in, int8_t* out, int size) {
-    // f8 layout: 1 sign | 7 exponent (bias=127) | 0 mantissa
-    // Mapping: exp16 = exp8 - 112 (clamp to [0,31]), mantissa = 0
-    // Zero exp8==0 -> zero, exp8==0x7F -> Inf
-    uint16_t* hFloatOut = reinterpret_cast<uint16_t*>(out);
-    for (int i = 0; i < size; ++i) {
-        uint8_t v = static_cast<uint8_t>(in[i]);
-        uint16_t sign = (v & 0x80) ? 0x8000 : 0x0000;
-        uint8_t exp8 = v & 0x7F;
-
-        uint16_t h;
-        if (exp8 == 0) {
-            h = sign; // zero
-        } else if (exp8 == 0x7F) {
-            h = sign | 0x7C00; // Inf
-        } else {
-            int16_t expAdj = static_cast<int16_t>(exp8) - 112; // exp8 - (127 - 15)
-            if (expAdj <= 0) {
-                // underflow -> zero
-                h = sign;
-            } else if (expAdj >= 0x1F) {
-                // overflow -> Inf
-                h = sign | 0x7C00;
-            } else {
-                h = sign | (static_cast<uint16_t>(expAdj) << 10);
-            }
-        }
-        hFloatOut[i] = h;
-    }
-}
-
 /*u4 order*/
 void unpack_u4f32(const int8_t* in, float* out, int size) {
     for (int i = 0; i < size / 2; i++) {
@@ -610,36 +517,41 @@ protected:
     void make_ref_output() override {
         if (isNegative()) return;
 
-        size_t nElements = from->get_size();
+        const size_t nElements = from->get_size();
 
-        const size_t nOutputElementsPerScale = ref_output.size() / (toType.bitwidth() / 8) / scale->get_size();
+        // IMPORTANT: reference must follow original util.cpp unpack_f8f16() semantics:
+        //   to[idx] = float(from[idx]) * scale[idx / from_shape[1]]
+        const auto& from_shape_local = from->get_shape();
+        ASSERT_GE(from_shape_local.size(), 2u);
+
+        const auto* scale_f32 = reinterpret_cast<const float*>(scale->data());
+        auto* ref_f16_bits = reinterpret_cast<uint16_t*>(ref_output.data());
+
+        const size_t row_stride = from_shape_local[1];
 
         if (from->get_element_type() == ov::element::f8e4m3) {
-            details::unpack_f8e4m3f16(input.data(), ref_output.data(), static_cast<int>(nElements));
-        } else if(from->get_element_type() == ov::element::f8e5m2) {
-            details::unpack_f8e5m2f16(input.data(), ref_output.data(), static_cast<int>(nElements));
-        } else if(from->get_element_type() == ov::element::f8e8m0) {
-            details::unpack_f8e8m0f16(input.data(), ref_output.data(), static_cast<int>(nElements));
-        }
-
-        // lets apply per channel scale
-        uint16_t * pRef = reinterpret_cast<uint16_t*>(ref_output.data());
-        uint16_t * pScale_f16 = reinterpret_cast<uint16_t*>(scale->data());
-        float * pScale_f32 = reinterpret_cast<float*>(scale->data());
-
-        for (size_t i = 0; i < scale->get_size(); i++) {
-            for (size_t sc = 0; sc != nOutputElementsPerScale; sc++) {
-                float ref_scaled = details::half_to_float(pRef[0]);
-                if (scaleType == ov::element::f32) {
-                    ref_scaled *= pScale_f32[0];
-                } else if (scaleType == ov::element::f16) {
-                    ref_scaled *= details::half_to_float(pScale_f16[0]);
-                }
-                *pRef = details::float_to_half(ref_scaled);
-                pRef++;
+            const auto* src = reinterpret_cast<const ov::float8_e4m3*>(input.data());
+            for (size_t idx = 0; idx < nElements; ++idx) {
+                const float v = static_cast<float>(src[idx]);
+                const float s = scale_f32[idx / row_stride];
+                ref_f16_bits[idx] = details::float_to_half(v * s);
             }
-            pScale_f32++;
-            pScale_f16++;
+        } else if (from->get_element_type() == ov::element::f8e5m2) {
+            const auto* src = reinterpret_cast<const ov::float8_e5m2*>(input.data());
+            for (size_t idx = 0; idx < nElements; ++idx) {
+                const float v = static_cast<float>(src[idx]);
+                const float s = scale_f32[idx / row_stride];
+                ref_f16_bits[idx] = details::float_to_half(v * s);
+            }
+        } else if (from->get_element_type() == ov::element::f8e8m0) {
+            const auto* src = reinterpret_cast<const ov::float8_e8m0*>(input.data());
+            for (size_t idx = 0; idx < nElements; ++idx) {
+                const float v = static_cast<float>(src[idx]);
+                const float s = scale_f32[idx / row_stride];
+                ref_f16_bits[idx] = details::float_to_half(v * s);
+            }
+        } else {
+            FAIL() << "Unexpected from element type in UnpackF8WithScaleTestsBase";
         }
     }
 
@@ -651,7 +563,7 @@ TEST_P(UnpackF8WithScaleTests, f8_scale) {
     ASSERT_NO_THROW_IF(!isNegative(),
                        ov::npuw::util::unpack(from, scale, to, ov::npuw::util::UnpackOptions{useParallelFor, nPartitions, strictPartitions}));
     if (!isNegative()) {
-        ASSERT_TRUE(details::fp16ArraysMatch(output, ref_output, input));
+        ASSERT_TRUE(details::fp16ArraysMatch(output, ref_output, input, false));
     }
 }
 

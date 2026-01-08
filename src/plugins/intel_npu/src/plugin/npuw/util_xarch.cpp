@@ -39,103 +39,113 @@ inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
 }
 
-// f8e4m3 -> f16
-// Layout f8e4m3: 1 sign | 4 exp (bias=7) | 3 mantissa
-// Layout f16:    1 sign | 5 exp (bias=15) | 10 mantissa
-// Normal: exp16 = exp8 + (15 - 7) = exp8 + 8, mantissa <<= 7
-// Zero/Subnormal: flushed to 0
-// Inf/NaN: exp8==0xF -> exp16=0x1F, mantissa preserved (payload) if non-zero
+// OpenVINO core semantics for e4m3: mag = LUT[bits & 0x7F], sign by bit7.
+// Implement with AVX2 gather from 128-entry float LUT, then cvtps_ph.
 inline __m256i f8e4m3tof16(__m128i vf8) {
-    __m256i vf8_16 = _mm256_cvtepu8_epi16(vf8);
-    const __m256i sm = _mm256_set1_epi16(0x80);
-    const __m256i em = _mm256_set1_epi16(0x78);
-    const __m256i mm = _mm256_set1_epi16(0x07);
+    alignas(32) static constexpr float k_f8e4m3_lut[128] = {
+        0.0f,       0.001953125f, 0.00390625f, 0.005859375f,
+        0.0078125f, 0.009765625f, 0.01171875f, 0.013671875f,
+        0.015625f,  0.017578125f, 0.01953125f, 0.021484375f,
+        0.0234375f, 0.025390625f, 0.02734375f, 0.029296875f,
+        0.03125f,   0.03515625f,  0.0390625f,  0.04296875f,
+        0.046875f,  0.05078125f,  0.0546875f,  0.05859375f,
+        0.0625f,    0.0703125f,   0.078125f,   0.0859375f,
+        0.09375f,   0.1015625f,   0.109375f,   0.1171875f,
+        0.125f,     0.140625f,    0.15625f,    0.171875f,
+        0.1875f,    0.203125f,    0.21875f,    0.234375f,
+        0.25f,      0.28125f,     0.3125f,     0.34375f,
+        0.375f,     0.40625f,     0.4375f,     0.46875f,
+        0.5f,       0.5625f,      0.625f,      0.6875f,
+        0.75f,      0.8125f,      0.875f,      0.9375f,
+        1.0f,       1.125f,       1.25f,       1.375f,
+        1.5f,       1.625f,       1.75f,       1.875f,
+        2.0f,       2.25f,        2.5f,        2.75f,
+        3.0f,       3.25f,        3.5f,        3.75f,
+        4.0f,       4.5f,         5.0f,        5.5f,
+        6.0f,       6.5f,         7.0f,        7.5f,
+        8.0f,       9.0f,         10.0f,       11.0f,
+        12.0f,      13.0f,        14.0f,       15.0f,
+        16.0f,      18.0f,        20.0f,       22.0f,
+        24.0f,      26.0f,        28.0f,       30.0f,
+        32.0f,      36.0f,        40.0f,       44.0f,
+        48.0f,      52.0f,        56.0f,       60.0f,
+        64.0f,      72.0f,        80.0f,       88.0f,
+        96.0f,      104.0f,       112.0f,      120.0f,
+        128.0f,     144.0f,       160.0f,      176.0f,
+        192.0f,     208.0f,       224.0f,      240.0f,
+        256.0f,     288.0f,       320.0f,      352.0f,
+        384.0f,     416.0f,       448.0f,      std::numeric_limits<float>::quiet_NaN(),
+    };
 
-    __m256i sign = _mm256_and_si256(vf8_16, sm);
-    __m256i exp_raw = _mm256_srli_epi16(_mm256_and_si256(vf8_16, em), 3);  // 0..15
-    __m256i man = _mm256_and_si256(vf8_16, mm);
+    __m256i u16 = _mm256_cvtepu8_epi16(vf8);
 
-    __m256i zero = _mm256_cmpeq_epi16(exp_raw, _mm256_setzero_si256());
-    __m256i maxe = _mm256_cmpeq_epi16(exp_raw, _mm256_set1_epi16(0x0F));
+    const __m256i sign_m = _mm256_set1_epi16(0x80);
+    const __m256i idx_m = _mm256_set1_epi16(0x7F);
 
-    // Normal exponent bias adjust (+8)
-    __m256i exp_norm = _mm256_add_epi16(exp_raw, _mm256_set1_epi16(8));
-    exp_norm = _mm256_andnot_si256(_mm256_or_si256(zero, maxe), exp_norm);
+    __m256i sign16 = _mm256_and_si256(u16, sign_m);
+    __m256i idx16 = _mm256_and_si256(u16, idx_m);
 
-    // Inf/NaN exponent (0x1F)
-    __m256i exp_inf = _mm256_and_si256(maxe, _mm256_set1_epi16(0x1F));
-    __m256i exp16 = _mm256_or_si256(exp_norm, exp_inf);
+    __m256i sign_nonzero = _mm256_cmpgt_epi16(sign16, _mm256_setzero_si256());
 
-    // Mantissa: normal / NaN payload (<<7), zero/subnormal flushed
-    __m256i man16 = _mm256_slli_epi16(man, 7);
-    man16 = _mm256_andnot_si256(zero, man16);
+    __m128i idx16_lo = _mm256_castsi256_si128(idx16);
+    __m128i idx16_hi = _mm256_extracti128_si256(idx16, 1);
+    __m256i idx32_lo = _mm256_cvtepu16_epi32(idx16_lo);
+    __m256i idx32_hi = _mm256_cvtepu16_epi32(idx16_hi);
 
-    __m256i sign16 = _mm256_slli_epi16(_mm256_srli_epi16(sign, 7), 15);
-    __m256i exp16w = _mm256_slli_epi16(exp16, 10);
-    return _mm256_or_si256(sign16, _mm256_or_si256(exp16w, man16));
+    __m256 mag_lo = _mm256_i32gather_ps(k_f8e4m3_lut, idx32_lo, 4);
+    __m256 mag_hi = _mm256_i32gather_ps(k_f8e4m3_lut, idx32_hi, 4);
+
+    __m256i sign32_lo = _mm256_slli_epi32(_mm256_cvtepi16_epi32(_mm256_castsi256_si128(sign_nonzero)), 31);
+    __m256i sign32_hi = _mm256_slli_epi32(_mm256_cvtepi16_epi32(_mm256_extracti128_si256(sign_nonzero, 1)), 31);
+
+    __m256 v_lo = _mm256_xor_ps(mag_lo, _mm256_castsi256_ps(sign32_lo));
+    __m256 v_hi = _mm256_xor_ps(mag_hi, _mm256_castsi256_ps(sign32_hi));
+
+    __m128i h0 = _mm256_cvtps_ph(v_lo, _MM_FROUND_TO_NEAREST_INT);
+    __m128i h1 = _mm256_cvtps_ph(v_hi, _MM_FROUND_TO_NEAREST_INT);
+    return _mm256_set_m128i(h1, h0);
 }
 
-// f8e5m2 -> f16
-// Layout f8e5m2: 1 sign | 5 exp (bias=15) | 2 mantissa
-// Same bias -> exponent unchanged; mantissa <<= 8
-// Zero/Subnormal: flushed to 0
-// Inf/NaN: exp8==0x1F -> exp16=0x1F, payload kept if mantissa!=0
 inline __m256i f8e5m2tof16(__m128i vf8) {
-    __m256i vf8_16 = _mm256_cvtepu8_epi16(vf8);
-    const __m256i sm = _mm256_set1_epi16(0x80);
-    const __m256i em = _mm256_set1_epi16(0x7C);
-    const __m256i mm = _mm256_set1_epi16(0x03);
-
-    __m256i sign = _mm256_and_si256(vf8_16, sm);
-    __m256i exp_raw = _mm256_srli_epi16(_mm256_and_si256(vf8_16, em), 2);  // 0..31
-    __m256i man = _mm256_and_si256(vf8_16, mm);
-
-    __m256i zero = _mm256_cmpeq_epi16(exp_raw, _mm256_setzero_si256());
-    __m256i maxe = _mm256_cmpeq_epi16(exp_raw, _mm256_set1_epi16(0x1F));
-
-    // Normal exponent (unchanged), mask out specials
-    __m256i exp_norm = _mm256_andnot_si256(_mm256_or_si256(zero, maxe), exp_raw);
-    __m256i exp_inf = _mm256_and_si256(maxe, _mm256_set1_epi16(0x1F));
-    __m256i exp16 = _mm256_or_si256(exp_norm, exp_inf);
-
-    // Mantissa <<=8; zero/subnormals flushed
-    __m256i man16 = _mm256_slli_epi16(man, 8);
-    man16 = _mm256_andnot_si256(zero, man16);
-
-    __m256i sign16 = _mm256_slli_epi16(_mm256_srli_epi16(sign, 7), 15);
-    __m256i exp16w = _mm256_slli_epi16(exp16, 10);
-    return _mm256_or_si256(sign16, _mm256_or_si256(exp16w, man16));
+    const __m256i b16 = _mm256_cvtepu8_epi16(vf8);
+    return _mm256_slli_epi16(b16, 8);
 }
 
-// f8e8m0 -> f16
-// Layout f8e8m0: 1 sign | 8 exp (bias=127) | 0 mantissa
-// Mapping: exp16 = exp8 - (127 - 15) = exp8 - 112
-// Underflow (exp8 -112 <= 0) -> 0; Overflow / max exp -> Inf
-// No mantissa
 inline __m256i f8e8m0tof16(__m128i vf8) {
-    __m256i vf8_16 = _mm256_cvtepu8_epi16(vf8);
-    const __m256i sm = _mm256_set1_epi16(0x80);
-    const __m256i em = _mm256_set1_epi16(0x7F);
+    __m256i u16 = _mm256_cvtepu8_epi16(vf8);
 
-    __m256i sign = _mm256_and_si256(vf8_16, sm);
-    __m256i exp_raw = _mm256_and_si256(vf8_16, em);                       // 0..127
-    __m256i exp_adj = _mm256_sub_epi16(exp_raw, _mm256_set1_epi16(112));  // bias delta
+    __m128i u16_lo = _mm256_castsi256_si128(u16);
+    __m128i u16_hi = _mm256_extracti128_si256(u16, 1);
+    __m256i u32_lo = _mm256_cvtepu16_epi32(u16_lo);
+    __m256i u32_hi = _mm256_cvtepu16_epi32(u16_hi);
 
-    __m256i underflow = _mm256_cmpgt_epi16(_mm256_setzero_si256(), exp_adj);
-    __m256i zero = _mm256_cmpeq_epi16(exp_raw, _mm256_setzero_si256());
-    __m256i maxe = _mm256_cmpeq_epi16(exp_raw, _mm256_set1_epi16(127));
-    __m256i overflow = _mm256_cmpgt_epi16(exp_adj, _mm256_set1_epi16(30));  // >30 => exp16>0x1F
-    __m256i inf_mask = _mm256_or_si256(maxe, overflow);
+    const __m256i ff = _mm256_set1_epi32(0xFF);
+    const __m256i zz = _mm256_setzero_si256();
 
-    __m256i specials = _mm256_or_si256(_mm256_or_si256(underflow, zero), inf_mask);
-    __m256i exp_norm = _mm256_andnot_si256(specials, exp_adj);
-    __m256i exp_inf = _mm256_and_si256(inf_mask, _mm256_set1_epi16(0x1F));
-    __m256i exp16 = _mm256_or_si256(exp_norm, exp_inf);
-    exp16 = _mm256_andnot_si256(_mm256_or_si256(underflow, zero), exp16);
+    __m256i is_ff_lo = _mm256_cmpeq_epi32(u32_lo, ff);
+    __m256i is_ff_hi = _mm256_cmpeq_epi32(u32_hi, ff);
+    __m256i is_00_lo = _mm256_cmpeq_epi32(u32_lo, zz);
+    __m256i is_00_hi = _mm256_cmpeq_epi32(u32_hi, zz);
 
-    __m256i sign16 = _mm256_slli_epi16(_mm256_srli_epi16(sign, 7), 15);
-    __m256i exp16w = _mm256_slli_epi16(exp16, 10);
-    return _mm256_or_si256(sign16, exp16w);
+    __m256i fbits_lo = _mm256_slli_epi32(u32_lo, 23);
+    __m256i fbits_hi = _mm256_slli_epi32(u32_hi, 23);
+
+    const __m256i qnan_bits = _mm256_set1_epi32(0x7FC00000);
+
+    const __m256i zero_fbits = _mm256_setzero_si256();
+
+    fbits_lo = _mm256_blendv_epi8(fbits_lo, zero_fbits, is_00_lo);
+    fbits_hi = _mm256_blendv_epi8(fbits_hi, zero_fbits, is_00_hi);
+
+    fbits_lo = _mm256_blendv_epi8(fbits_lo, qnan_bits, is_ff_lo);
+    fbits_hi = _mm256_blendv_epi8(fbits_hi, qnan_bits, is_ff_hi);
+
+    __m256 f_lo = _mm256_castsi256_ps(fbits_lo);
+    __m256 f_hi = _mm256_castsi256_ps(fbits_hi);
+
+    __m128i h0 = _mm256_cvtps_ph(f_lo, _MM_FROUND_TO_NEAREST_INT);
+    __m128i h1 = _mm256_cvtps_ph(f_hi, _MM_FROUND_TO_NEAREST_INT);
+    return _mm256_set_m128i(h1, h0);
 }
 
 inline int32_t pack_4bit_avx2_reduction(__m256i ymm) {
