@@ -623,4 +623,11 @@ size_t get_tensor_data_offset(const ov::ITensor& tensor) {
     return 0;
 }
 
+bool is_tensor_read_only(const ov::Tensor& tensor) {
+    auto impl = get_tensor_impl(tensor);
+    if (std::dynamic_pointer_cast<ViewTensor>(impl._ptr)) {
+        return true;
+    }
+    return false;
+}
 }  // namespace ov

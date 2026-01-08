@@ -8,6 +8,7 @@
 
 #include "Python.h"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/common_util.hpp"
 #include "pyopenvino/core/remote_tensor.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -298,17 +299,8 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
     auto ov_type = t.get_element_type();
     auto dtype = Common::type_helpers::get_dtype(ov_type);
 
-    // Try to get mutable data pointer first, fall back to const if tensor is read-only
-    const void* data_ptr = nullptr;
-    bool is_const_tensor = false;
-
-    try {
-        data_ptr = t.data();
-    } catch (const ov::Exception&) {
-        // Tensor is read-only, use const data pointer
-        data_ptr = std::as_const(t).data();
-        is_const_tensor = true;
-    }
+    auto data_ptr = std::as_const(t).data();
+    auto is_const_tensor = ov::is_tensor_read_only(t);
 
     // Return the array as a view:
     if (is_shared) {
