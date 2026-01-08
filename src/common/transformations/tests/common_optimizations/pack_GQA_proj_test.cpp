@@ -179,18 +179,12 @@ TEST_F(TransformationTestsF, PackGQA) {
     {
         model = build_model_gqa_pack_mha(batch, seq_len, head_size, 8, 2);
         ov::pass::Manager manager;
-        manager.register_pass<ov::pass::Serialize>("pack_GQA_test_model.xml", "pack_GQA_test_model.bin");
         manager.register_pass<ov::pass::PackGQA>();
-        // manager.register_pass<ov::pass::SDPAFusion>();
-        manager.register_pass<ov::pass::Serialize>("pack_GQA_test_model_result.xml", "pack_GQA_test_model_result.bin");
         manager.run_passes(model);
     }
 
     {
-        ov::pass::Manager manager_ref;
         model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, 8);
-        manager_ref.register_pass<ov::pass::Serialize>("pack_GQA_test_model_ref.xml", "pack_GQA_test_model_ref.bin");
-        manager_ref.run_passes(model_ref);
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);

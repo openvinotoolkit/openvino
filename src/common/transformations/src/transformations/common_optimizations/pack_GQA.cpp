@@ -25,7 +25,6 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/serialize.hpp"
 #include "transformations/common_optimizations/concat_fusion.hpp"
 #include "transformations/utils/block_collection.hpp"
 #include "transformations/utils/utils.hpp"
@@ -117,20 +116,15 @@ std::shared_ptr<ov::Node> concat_any(const ov::OutputVector& inputs, int64_t axi
 
 bool PackGQA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(PackGQA);
+    
     ov::pass::Manager manager(get_pass_config(), "PackGQA");
-
-    manager.register_pass<ov::pass::Serialize>("PackGQA_before.xml", "PackGQA_before.bin");
+    
     manager.register_pass<ov::pass::MergeTwoUnrolledSDPAAdd>();
     manager.register_pass<ov::pass::MergeKVCaches>();
-    manager.register_pass<ov::pass::Serialize>("PackGQA_MergeKVCaches.xml", "PackGQA_MergeKVCaches.bin");
     manager.register_pass<ov::pass::MergeTwoUnrolledRoPEConcat>();
-    manager.register_pass<ov::pass::Serialize>("PackGQA_MergeTwoUnrolledRoPEConcat.xml",
-                                               "PackGQA_MergeTwoUnrolledRoPEConcat.bin");
     manager.register_pass<ov::pass::MergeMatMulBiasConcat>();
     manager.register_pass<ov::pass::MergeDQConcat>();
     manager.register_pass<ov::pass::ConcatFusion>();
-    // manager.register_pass<ov::pass::ConstantFolding>();
-    manager.register_pass<ov::pass::Serialize>("PackGQA_after.xml", "PackGQA_after.bin");
 
     return manager.run_passes(model);
 }
