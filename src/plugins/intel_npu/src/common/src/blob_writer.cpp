@@ -17,7 +17,9 @@ constexpr uint32_t FORMAT_VERSION = 0x30000;  // 3.0;
 
 namespace intel_npu {
 
-BlobWriter::BlobWriter() : m_cre(std::make_shared<CRESection>()) {
+BlobWriter::BlobWriter()
+    : m_cre(std::make_shared<CRESection>()),
+      m_offsets_table(std::make_shared<std::unordered_map<SectionID, uint64_t>>()) {
     register_section(m_cre);
 }
 
@@ -36,8 +38,8 @@ void BlobWriter::append_compatibility_requirement(const CRE::Token requirement_t
 }
 
 void BlobWriter::register_offset_in_table(const SectionID id, const uint64_t offset) {
-    OPENVINO_ASSERT(!m_offsets_table.count(id));
-    m_offsets_table[id] = offset;
+    OPENVINO_ASSERT(!m_offsets_table->count(id));
+    (*m_offsets_table)[id] = offset;
 }
 
 std::streamoff BlobWriter::get_stream_relative_position(std::ostream& stream) const {

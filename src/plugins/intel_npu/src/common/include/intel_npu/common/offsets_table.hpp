@@ -12,14 +12,18 @@ namespace intel_npu {
 
 class OffsetsTableSection final : public ISection {
 public:
-    OffsetsTableSection(const std::unordered_map<SectionID, uint64_t>& offsets_table);
+    OffsetsTableSection(const std::shared_ptr<std::unordered_map<SectionID, uint64_t>>& offsets_table);
 
     void write(std::ostream& stream, BlobWriter* writer) override;
 
     std::optional<uint64_t> get_length() const override;
 
+    std::shared_ptr<std::unordered_map<SectionID, uint64_t>> get_table() const;
+
+    static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
+
 private:
-    std::reference_wrapper<const std::unordered_map<SectionID, uint64_t>> m_offsets_table;
+    std::shared_ptr<std::unordered_map<SectionID, uint64_t>> m_offsets_table;
 };
 
 }  // namespace intel_npu

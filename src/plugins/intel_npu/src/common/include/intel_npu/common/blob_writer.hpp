@@ -35,7 +35,7 @@ private:
 
     std::unordered_set<SectionID> m_registered_sections_ids;
     std::vector<std::shared_ptr<ISection>> m_registered_sections;
-    std::unordered_map<SectionID, uint64_t> m_offsets_table;
+    std::shared_ptr<std::unordered_map<SectionID, uint64_t>> m_offsets_table;
     std::shared_ptr<CRESection> m_cre;
 
     /**

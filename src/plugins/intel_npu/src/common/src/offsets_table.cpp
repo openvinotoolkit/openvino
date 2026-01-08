@@ -9,19 +9,23 @@
 
 namespace intel_npu {
 
-OffsetsTableSection::OffsetsTableSection(const std::unordered_map<SectionID, uint64_t>& offsets_table)
+OffsetsTableSection::OffsetsTableSection(const std::shared_ptr<std::unordered_map<SectionID, uint64_t>>& offsets_table)
     : ISection(PredefinedSectionID::OFFSETS_TABLE),
       m_offsets_table(offsets_table) {}
 
 void OffsetsTableSection::write(std::ostream& stream, BlobWriter* writer) {
-    for (const auto& [key, value] : m_offsets_table.get()) {
+    for (const auto& [key, value] : *m_offsets_table) {
         stream.write(reinterpret_cast<const char*>(key), sizeof(key));
         stream.write(reinterpret_cast<const char*>(value), sizeof(value));
     }
 }
 
 std::optional<uint64_t> OffsetsTableSection::get_length() const {
-    return m_offsets_table.get().size() * (sizeof(SectionID) + sizeof(uint64_t));
+    return m_offsets_table->size() * (sizeof(SectionID) + sizeof(uint64_t));
+}
+
+std::shared_ptr<std::unordered_map<SectionID, uint64_t>> OffsetsTableSection::get_table() const {
+    return m_offsets_table;
 }
 
 }  // namespace intel_npu

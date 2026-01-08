@@ -75,8 +75,7 @@ public:
 
     void append_to_expression(const std::vector<CRE::Token>& requirement_tokens);
 
-    static std::shared_ptr<ISection> read(const BlobSource& source,
-                                          const std::unordered_map<SectionID, uint64_t>& offsets_table);
+    static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
 
 private:
     CRE m_cre;

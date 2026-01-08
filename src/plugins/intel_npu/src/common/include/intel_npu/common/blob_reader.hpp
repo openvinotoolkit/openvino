@@ -22,10 +22,8 @@ public:
 
     void read();
 
-    void register_reader(
-        const SectionID section_id,
-        std::function<std::shared_ptr<ISection>(const BlobSource&, const std::unordered_map<SectionID, uint64_t>&)>
-            reader);
+    void register_reader(const SectionID section_id,
+                         std::function<std::shared_ptr<ISection>(BlobReader*, const size_t)> reader);
 
     std::shared_ptr<ISection> retrieve_section(const SectionID section_id);
 
@@ -34,14 +32,17 @@ private:
 
     void read_data_from_source(char* destination, const size_t size);
 
+    size_t get_cursor_position();
+
+    void move_cursor(const size_t offset);
+
     BlobSource m_source;
-    std::unordered_map<SectionID, uint64_t> m_offsets_table;
+    std::shared_ptr<std::unordered_map<SectionID, uint64_t>> m_offsets_table;
     std::unordered_map<SectionID, std::shared_ptr<ISection>> m_parsed_sections;
-    std::unordered_map<
-        SectionID,
-        std::function<std::shared_ptr<ISection>(const BlobSource&, const std::unordered_map<SectionID, uint64_t>&)>>
-        m_readers;
-    size_t m_cursor_offset;
+    std::unordered_map<SectionID, std::function<std::shared_ptr<ISection>(BlobReader*, const size_t)>> m_readers;
+
+    size_t m_cursor;
+    std::streampos m_stream_base;
 };
 
 }  // namespace intel_npu
