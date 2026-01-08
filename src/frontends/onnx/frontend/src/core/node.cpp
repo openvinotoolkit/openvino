@@ -234,10 +234,14 @@ ov::Any Node::get_attribute_value(const std::string& name) const {
             return static_cast<double>(attribute_value.as<float>());
         } else if (attribute_value.is<std::vector<float>>()) {
             const auto& float_values = attribute_value.as<std::vector<float>>();
-            std::vector<double> double_values(float_values.size());
-            std::transform(float_values.begin(), float_values.end(), double_values.begin(), [](float v) {
-                return static_cast<double>(v);
-            });
+            std::vector<double> double_values;
+            double_values.reserve(float_values.size());
+            std::transform(float_values.begin(),
+                           float_values.end(),
+                           std::back_inserter(double_values),
+                           [](float v) -> double {
+                               return v;
+                           });
             return double_values;
         }
         return attribute_value;
