@@ -239,6 +239,7 @@ OP_CONVERTER(translate_scaled_dot_product_attention);
 OP_CONVERTER(translate_scatter);
 OP_CONVERTER(translate_scatter_add);
 OP_CONVERTER(translate_scatter_reduce);
+OP_CONVERTER(translate_segment_mean_csr);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
@@ -815,6 +816,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
+        {"torch_scatter::segment_mean_csr", op::translate_segment_mean_csr},
     };
 };
 
