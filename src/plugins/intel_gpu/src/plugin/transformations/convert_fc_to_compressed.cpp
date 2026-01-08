@@ -121,12 +121,22 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         std::shared_ptr<ov::Node> fc_input_bias = pattern_map.at(bias_m).get_node_shared_ptr();
         std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
 
-        if (fc_input_b->get_output_partial_shape(0).size() != weight_shape.size()) {
+        if (fc_input_b->get_output_partial_shape(0).size() != fc_input_scale->get_shape().size()) {
+            OPENVINO_ASSERT(!pattern_map.count(weights_const_m));
+            ov::Shape weight_shape_final(fc_input_scale->get_shape().size(), 1);
+            for (size_t i = weight_shape.size() - 1, idx = fc_input_scale->get_shape().size() - 1; ; --i) {
+                if (weight_shape[i] > 1) {
+                    weight_shape_final[idx--] = weight_shape[i];
+                }
+                if (i == 0) {
+                    break;
+                }
+            }
             if (has_transpose) {
-                std::swap(weight_shape[0], weight_shape[1]);
+                std::swap(weight_shape_final[0], weight_shape_final[1]);
             }
             std::shared_ptr<ov::Node> weight_shape_const =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{weight_shape.size()}, weight_shape);
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{weight_shape_final.size()}, weight_shape_final);
             fc_input_b = std::make_shared<ov::op::v1::Reshape>(fc_input_b, weight_shape_const, false);
             result_nodes.push_back(weight_shape_const);
             result_nodes.push_back(fc_input_b);
