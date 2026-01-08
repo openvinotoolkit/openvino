@@ -64,6 +64,10 @@ if(ARM_COMPUTE_INCLUDE_DIR OR ARM_COMPUTE_LIB_DIR)
                 $<TARGET_PROPERTY:${acl_library},INTERFACE_INCLUDE_DIRECTORIES>)
     endforeach()
 
+    if(ARM_COMPUTE_INCLUDE_DIR)
+        set(ACL_INCLUDE_DIR "${ARM_COMPUTE_INCLUDE_DIR}")
+    endif()
+
 # ------------------------------------------------------------------------------
 # Mode 2: Build ACL using CMake
 # ------------------------------------------------------------------------------
@@ -73,19 +77,29 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
 
     function(ov_build_compute_library)
         # Configure ComputeLibrary build
-        set(BUILD_SHARED_LIBS OFF)
+        set(ARM_COMPUTE_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
         set(ARM_COMPUTE_GRAPH_ENABLED OFF CACHE BOOL "" FORCE)
-        set(OPENMP OFF CACHE BOOL "" FORCE)
-        set(CPPTHREADS OFF CACHE BOOL "" FORCE)
+        set(ARM_COMPUTE_ENABLE_OPENMP OFF CACHE BOOL "" FORCE)
+        set(ARM_COMPUTE_ENABLE_CPPTHREADS OFF CACHE BOOL "" FORCE)
 
         # SVE is not supported on Darwin
-        if(CMAKE_HOST_APPLE)
+        if(APPLE)
             set(ENABLE_SVE OFF CACHE BOOL "" FORCE)
             set(ARM_COMPUTE_ENABLE_SVE OFF CACHE BOOL "" FORCE)
+            set(ARM_COMPUTE_ENABLE_SVE2 OFF CACHE BOOL "" FORCE)
             set(ARM_COMPUTE_ENABLE_SVEF32MM OFF CACHE BOOL "" FORCE)
         endif()
 
+        # Multi-ISA support with SME
+        if(NOT ARM AND OV_CPU_AARCH64_USE_MULTI_ISA)
+            add_compile_definitions(ENABLE_SME ARM_COMPUTE_ENABLE_SME ARM_COMPUTE_ENABLE_SME2)
+        endif()
+
         add_subdirectory(${ARM_COMPUTE_SOURCE_DIR} ${ARM_COMPUTE_BINARY_DIR} EXCLUDE_FROM_ALL)
+
+        if(NOT TARGET arm_compute::arm_compute)
+            add_library(arm_compute::arm_compute ALIAS arm_compute)
+        endif()
 
         add_library(ArmCompute::Half INTERFACE IMPORTED GLOBAL)
         set_target_properties(ArmCompute::Half PROPERTIES
@@ -96,13 +110,14 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
 
     # Setup for oneDNN integration
     set(ACL_FOUND ON)
-    set(ACL_LIBRARIES arm_compute_core ArmCompute::Half)
+    set(ACL_LIBRARIES ArmCompute::Core ArmCompute::Half)
 
     foreach(acl_library IN LISTS ACL_LIBRARIES)
         list(APPEND ACL_INCLUDE_DIRS
                 $<TARGET_PROPERTY:${acl_library},INTERFACE_INCLUDE_DIRECTORIES>)
     endforeach()
 
+    set(ACL_INCLUDE_DIR "${ARM_COMPUTE_SOURCE_DIR}")
     set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
 
 # ------------------------------------------------------------------------------
