@@ -129,7 +129,7 @@ public:
     ~MkDirGuard() {
         if (!m_dir.empty()) {
             ov::test::utils::removeFilesWithExt<ov::test::opt::FORCE>(m_dir, "blob");
-            ov::test::utils::removeDir(m_dir);
+            std::filesystem::remove_all(m_dir);
         }
     }
 };
