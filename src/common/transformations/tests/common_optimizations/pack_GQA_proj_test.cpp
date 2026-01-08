@@ -60,7 +60,7 @@ std::shared_ptr<ov::Node> build_ROPE(const std::shared_ptr<ov::Node>& input, con
     std::vector<int64_t> rope_shape_vec(rope_shape.begin(), rope_shape.end());
     auto reshape_const = Constant::create(element::i64, Shape{rope_shape.size()}, rope_shape_vec);
     auto reshape = std::make_shared<Reshape>(input, reshape_const, false);
-    
+
     size_t seg_len = rope_shape[2];
     auto axis = Constant::create(element::i64, Shape{}, {2});
     auto split_lengths = Constant::create(element::i64, Shape{2}, {seg_len / 2, seg_len / 2});
@@ -85,7 +85,9 @@ std::shared_ptr<ov::Node> build_sdpa(const std::shared_ptr<ov::Node>& q,
     return attn;
 }
 
-std::shared_ptr<ov::Node> build_post_sdpa(const std::shared_ptr<ov::Node>& input, const ov::Shape& proj_shape, const ov::Shape& weights_shape ) {
+std::shared_ptr<ov::Node> build_post_sdpa(const std::shared_ptr<ov::Node>& input,
+                                          const ov::Shape& proj_shape,
+                                          const ov::Shape& weights_shape) {
     auto reshape = input;
     if (proj_shape != input->get_output_shape(0)) {
         auto reshape_const = Constant::create(element::i64, Shape{proj_shape.size()}, proj_shape);
@@ -112,7 +114,7 @@ std::shared_ptr<ov::Model> build_model_gqa_pack_mha(size_t batch,
     const ov::Shape rope_shape{batch, pack_size, seq_len, head_size};
     const ov::Shape sdpa_bias_shape{batch, 1, 1, seq_len};
     const ov::Shape post_sdpa_weights_shape{d_model, head_size};
-    
+
     const size_t heads_per_group = num_heads / num_groups;
 
     auto input = std::make_shared<Parameter>(element::f32, input_shape);
@@ -143,11 +145,11 @@ std::shared_ptr<ov::Model> build_model_gqa_pack_mha_ref(size_t batch,
                                                         size_t head_size,
                                                         size_t num_heads) {
     const size_t d_model = 64;
-    const ov::Shape input_shape{batch, seq_len, d_model};                                                        
-    
+    const ov::Shape input_shape{batch, seq_len, d_model};
+
     auto input = std::make_shared<Parameter>(element::f32, input_shape);
     auto norm = build_l2_norm(input, batch, head_size);
-    
+
     const ov::Shape proj_shape{batch, num_heads, d_model, head_size};
     const ov::Shape bias_shape{batch, num_heads, 1, d_model};
     const ov::Shape sdpa_bias_shape{batch, num_heads, 1, seq_len};
@@ -155,16 +157,16 @@ std::shared_ptr<ov::Model> build_model_gqa_pack_mha_ref(size_t batch,
     auto q_proj = build_qkv_projection(norm, proj_shape, bias_shape);
     auto k_proj = build_qkv_projection(norm, proj_shape, bias_shape);
     auto v_proj = build_qkv_projection(norm, proj_shape, bias_shape);
-    
+
     const ov::Shape rope_shape{batch, num_heads, seq_len, head_size};
     auto q = build_ROPE(q_proj, rope_shape);
     auto k = build_ROPE(k_proj, rope_shape);
-    
+
     auto attn_out = build_sdpa(q, k, v_proj, sdpa_bias_shape);
-    
+
     const ov::Shape weights_shape{batch, num_heads, d_model, head_size};
     auto projected = build_post_sdpa(attn_out, rope_shape, weights_shape);
-    
+
     auto reduced = std::make_shared<ReduceSum>(projected, Constant::create(element::i64, Shape{1}, {1}), false);
     auto residual = std::make_shared<Add>(reduced, input);
 
@@ -183,9 +185,7 @@ TEST_F(TransformationTestsF, PackGQA) {
         manager.run_passes(model);
     }
 
-    {
-        model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, 8);
-    }
+    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, 8); }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);

@@ -116,9 +116,9 @@ std::shared_ptr<ov::Node> concat_any(const ov::OutputVector& inputs, int64_t axi
 
 bool PackGQA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(PackGQA);
-    
+
     ov::pass::Manager manager(get_pass_config(), "PackGQA");
-    
+
     manager.register_pass<ov::pass::MergeTwoUnrolledSDPAAdd>();
     manager.register_pass<ov::pass::MergeKVCaches>();
     manager.register_pass<ov::pass::MergeTwoUnrolledRoPEConcat>();
@@ -520,7 +520,7 @@ MergeMatMulBiasConcat::MergeMatMulBiasConcat() {
                 concat_any(OutputVector{convert_lhs->input_value(0), convert_rhs->input_value(0)}, head_axis, rank);
             input_fused = convert_lhs->copy_with_new_inputs({convert_const_fused});
         }
-        
+
         auto subtract_lhs = ov::as_type_ptr<v1::Subtract>(pm[mm_bias_lhs.subtract].get_node_shared_ptr());
         auto subtract_rhs = ov::as_type_ptr<v1::Subtract>(pm[mm_bias_rhs.subtract].get_node_shared_ptr());
         if (subtract_lhs && subtract_rhs) {
