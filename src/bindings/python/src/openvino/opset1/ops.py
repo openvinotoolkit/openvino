@@ -2338,17 +2338,9 @@ def reduce_logical_and(
 
     :param node:           The tensor we want to reduce.
     :param reduction_axes: The axes to eliminate through AND operation.
-                           Each axis must be in the range [-rank, rank-1] where rank is the
-                           input tensor rank. If reduction_axes contains constant values that
-                           are out of this range, a RuntimeError will be raised immediately
-                           during node creation.
     :param keep_dims:      If set to True it holds axes that are used for reduction.
     :param name:           Optional name for output node.
     :return: The new node performing reduction operation.
-
-    .. note::
-        Axis validation is performed at node creation time when reduction_axes are constant.
-        Out-of-range axes will raise a RuntimeError immediately, not at model compilation time.
     """
     return _get_node_factory_opset1().create(
         "ReduceLogicalAnd",
@@ -2368,17 +2360,9 @@ def reduce_logical_or(
 
     :param node:           The tensor we want to reduce.
     :param reduction_axes: The axes to eliminate through OR operation.
-                           Each axis must be in the range [-rank, rank-1] where rank is the
-                           input tensor rank. If reduction_axes contains constant values that
-                           are out of this range, a RuntimeError will be raised immediately
-                           during node creation.
     :param keep_dims:      If set to True it holds axes that are used for reduction.
     :param name:           Optional name for output node.
     :return: The new node performing reduction operation.
-
-    .. note::
-        Axis validation is performed at node creation time when reduction_axes are constant.
-        Out-of-range axes will raise a RuntimeError immediately, not at model compilation time.
     """
     return _get_node_factory_opset1().create(
         "ReduceLogicalOr",
@@ -2398,17 +2382,8 @@ def reduce_max(
 
     :param node:           The tensor we want to max-reduce.
     :param reduction_axes: The axes to eliminate through max operation.
-                           Each axis must be in the range [-rank, rank-1] where rank is the
-                           input tensor rank. If reduction_axes contains constant values that
-                           are out of this range, a RuntimeError will be raised immediately
-                           during node creation.
     :param keep_dims:      If set to True it holds axes that are used for reduction.
-    :param name:           Optional name for output node.
-    :return: The new node performing max-reduction operation.
-
-    .. note::
-        Axis validation is performed at node creation time when reduction_axes are constant.
-        Out-of-range axes will raise a RuntimeError immediately, not at model compilation time.
+    :param name: Optional name for output node.
     """
     return _get_node_factory_opset1().create(
         "ReduceMax",
@@ -2428,17 +2403,9 @@ def reduce_mean(
 
     :param node:           The tensor we want to mean-reduce.
     :param reduction_axes: The axes to eliminate through mean operation.
-                           Each axis must be in the range [-rank, rank-1] where rank is the
-                           input tensor rank. If reduction_axes contains constant values that
-                           are out of this range, a RuntimeError will be raised immediately
-                           during node creation.
     :param keep_dims:      If set to True it holds axes that are used for reduction.
     :param name:           Optional name for output node.
     :return: The new node performing mean-reduction operation.
-
-    .. note::
-        Axis validation is performed at node creation time when reduction_axes are constant.
-        Out-of-range axes will raise a RuntimeError immediately, not at model compilation time.
     """
     return _get_node_factory_opset1().create(
         "ReduceMean",
@@ -2458,17 +2425,8 @@ def reduce_min(
 
     :param node:           The tensor we want to min-reduce.
     :param reduction_axes: The axes to eliminate through min operation.
-                           Each axis must be in the range [-rank, rank-1] where rank is the
-                           input tensor rank. If reduction_axes contains constant values that
-                           are out of this range, a RuntimeError will be raised immediately
-                           during node creation.
     :param keep_dims:      If set to True it holds axes that are used for reduction
     :param name:           Optional name for output node.
-    :return: The new node performing min-reduction operation.
-
-    .. note::
-        Axis validation is performed at node creation time when reduction_axes are constant.
-        Out-of-range axes will raise a RuntimeError immediately, not at model compilation time.
     """
     return _get_node_factory_opset1().create(
         "ReduceMin",
@@ -2488,17 +2446,9 @@ def reduce_prod(
 
     :param node:           The tensor we want to product-reduce.
     :param reduction_axes: The axes to eliminate through product operation.
-                           Each axis must be in the range [-rank, rank-1] where rank is the
-                           input tensor rank. If reduction_axes contains constant values that
-                           are out of this range, a RuntimeError will be raised immediately
-                           during node creation.
     :param keep_dims:      If set to True it holds axes that are used for reduction
     :param name:           Optional name for output node.
     :return: The new node performing product-reduction operation.
-
-    .. note::
-        Axis validation is performed at node creation time when reduction_axes are constant.
-        Out-of-range axes will raise a RuntimeError immediately, not at model compilation time.
     """
     return _get_node_factory_opset1().create(
         "ReduceProd",
@@ -2518,17 +2468,9 @@ def reduce_sum(
 
     :param node:           The node providing data for operation.
     :param reduction_axes: The axes to eliminate through summation.
-                           Each axis must be in the range [-rank, rank-1] where rank is the
-                           input tensor rank. If reduction_axes contains constant values that
-                           are out of this range, a RuntimeError will be raised immediately
-                           during node creation.
     :param keep_dims:      If set to True it holds axes that are used for reduction
     :param name:           The optional new name for output node.
     :return: The new node performing summation along `reduction_axes` element-wise.
-
-    .. note::
-        Axis validation is performed at node creation time when reduction_axes are constant.
-        Out-of-range axes will raise a RuntimeError immediately, not at model compilation time.
     """
     return _get_node_factory_opset1().create(
         "ReduceSum",
