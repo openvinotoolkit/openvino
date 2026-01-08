@@ -11,8 +11,6 @@
 
 namespace {
 
-constexpr intel_npu::ISection::SectionID CRE_SECTION_ID = 100;
-
 const std::unordered_set<intel_npu::CRE::Token> OPERATORS{intel_npu::CRE::AND, intel_npu::CRE::OR};
 
 inline bool and_function(bool a, bool b) {
@@ -122,7 +120,7 @@ bool CRE::check_compatibility(const std::unordered_set<CRE::Token>& plugin_capab
     return evaluate(expression_iterator, plugin_capabilities, Delimiter::SIZE);
 }
 
-CRESection::CRESection() : ISection(CRE_SECTION_ID) {}
+CRESection::CRESection() : ISection(PredefinedSectionID::CRE) {}
 
 void CRESection::append_to_expression(const CRE::Token requirement_token) {
     m_cre.append_to_expression(requirement_token);

@@ -10,17 +10,10 @@
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/utils/utils.hpp"
 
-namespace {
-
-constexpr intel_npu::ISection::SectionID ELF_MAIN_SCHEDULE_SECTION_ID = 102;
-constexpr intel_npu::ISection::SectionID ELF_INIT_SCHEDULES_SECTION_ID = 103;
-
-}  // namespace
-
 namespace intel_npu {
 
 ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& graph)
-    : ISection(ELF_MAIN_SCHEDULE_SECTION_ID),
+    : ISection(PredefinedSectionID::ELF_MAIN_SCHEDULE),
       m_graph(graph) {}
 
 void ELFMainScheduleSection::write(std::ostream& stream, BlobWriter* writer) {
@@ -36,7 +29,7 @@ void ELFMainScheduleSection::write(std::ostream& stream, BlobWriter* writer) {
 }
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph)
-    : ISection(ELF_INIT_SCHEDULES_SECTION_ID),
+    : ISection(PredefinedSectionID::ELF_INIT_SCHEDULES),
       m_weightless_graph(weightless_graph) {}
 
 void ELFInitSchedulesSection::write(std::ostream& stream, BlobWriter* writer) {

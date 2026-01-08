@@ -7,17 +7,11 @@
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
 
-namespace {
-
-constexpr intel_npu::ISection::SectionID IO_LAYOUTS_SECTION_ID = 104;
-
-}  // namespace
-
 namespace intel_npu {
 
 IOLayoutsSection::IOLayoutsSection(const std::vector<ov::Layout>& input_layouts,
                                    const std::vector<ov::Layout>& output_layouts)
-    : ISection(IO_LAYOUTS_SECTION_ID),
+    : ISection(PredefinedSectionID::IO_LAYOUTS),
       m_input_layouts(std::move(input_layouts)),
       m_output_layouts(std::move(output_layouts)) {}
 

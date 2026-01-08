@@ -15,17 +15,26 @@ namespace intel_npu {
 
 // TODOs: fix the circular dependencies
 // Move sections in directory
-// Create initschedules & main schedule sections. these hold a graph object, call the right "export"
-// Past capabilities
 // Unique SID - how do we reinforce this without compromising modularity? Description matching?
+
+using SectionID = uint16_t;
 
 class BlobWriter;
 class BlobReader;
 
+namespace PredefinedSectionID {
+enum {
+    CRE = 100,
+    OFFSETS_TABLE = 101,
+    ELF_MAIN_SCHEDULE = 102,
+    ELF_INIT_SCHEDULES = 103,
+    IO_LAYOUTS = 104,
+    BATCH_SIZE = 105,
+};
+};
+
 class ISection {
 public:
-    using SectionID = uint16_t;
-
     ISection(const SectionID section_id);
 
     virtual ~ISection() = default;

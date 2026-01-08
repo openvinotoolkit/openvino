@@ -30,7 +30,7 @@ void BlobWriter::append_compatibility_requirement(const CRE::Token requirement_t
     m_cre->append_to_expression(requirement_token);
 }
 
-void BlobWriter::register_offset_in_table(const ISection::SectionID id, const uint64_t offset) {
+void BlobWriter::register_offset_in_table(const SectionID id, const uint64_t offset) {
     OPENVINO_ASSERT(!m_offsets_table.count(id));
     m_offsets_table[id] = offset;
 }
@@ -58,7 +58,7 @@ void BlobWriter::write(std::ostream& stream) {
     // The region of non-persistent format (list of key-length-payload sections, any order & no restrictions w.r.t. the
     // content of the payload)
     for (const std::shared_ptr<ISection>& section : m_registered_sections) {
-        const ISection::SectionID section_id = section->get_section_id();
+        const SectionID section_id = section->get_section_id();
 
         // All sections registered within the BlobWriter are automatically added to the table of offsets
         register_offset_in_table(section_id, get_stream_relative_position(stream));
@@ -97,7 +97,7 @@ void BlobWriter::write(std::ostream& stream) {
 
     // Write the table of offsets
     OffsetsTableSection offsets_table_section(m_offsets_table);
-    const ISection::SectionID section_id = offsets_table_section.get_section_id();
+    const SectionID section_id = offsets_table_section.get_section_id();
     const uint64_t length = offsets_table_section.get_length().value();
     stream.write(reinterpret_cast<const char*>(&section_id), sizeof(section_id));
     stream.write(reinterpret_cast<const char*>(&length), sizeof(length));

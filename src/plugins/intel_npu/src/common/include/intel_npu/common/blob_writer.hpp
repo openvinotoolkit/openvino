@@ -20,7 +20,7 @@ public:
 
     void register_section(const std::shared_ptr<ISection>& section);
 
-    void register_offset_in_table(const ISection::SectionID id, const uint64_t offset);
+    void register_offset_in_table(const SectionID id, const uint64_t offset);
 
     void write(std::ostream& stream);
 
@@ -31,9 +31,9 @@ public:
 private:
     void write_persistent_format_region();
 
-    std::unordered_set<ISection::SectionID> m_registered_sections_ids;
+    std::unordered_set<SectionID> m_registered_sections_ids;
     std::vector<std::shared_ptr<ISection>> m_registered_sections;
-    std::unordered_map<ISection::SectionID, uint64_t> m_offsets_table;
+    std::unordered_map<SectionID, uint64_t> m_offsets_table;
     std::shared_ptr<CRESection> m_cre;
     // TODO
     std::optional<std::streampos> m_stream_base = std::nullopt;
