@@ -42,6 +42,7 @@ protected:
     virtual void configure_model();
     virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
     virtual void init_thresholds();
+    virtual void models_cache();
 
     void compare_models_param_res(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref);
     void compare_nodes(const std::shared_ptr<ov::Node>& node1, const std::shared_ptr<ov::Node>& node2, std::ostream& err_log);
@@ -50,12 +51,7 @@ protected:
     void init_input_shapes(const std::vector<InputShape>& shapes);
     void set_callback_exception(std::function<void(const std::exception& exp)> callback) { callback_exception = callback; }
 
-    void TearDown() override {
-        if (this->HasFailure() && !is_reported) {
-            summary.setDeviceName(targetDevice);
-            summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
-        }
-    }
+    void TearDown() override;
 
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     std::string targetDevice;
@@ -87,7 +83,9 @@ protected:
     ov::test::utils::OpSummary& summary = ov::test::utils::OpSummary::getInstance();
     bool is_report_stages = false;
     bool is_reported = false;
+    bool m_check_models_caching = true;
     double rel_influence_coef = 1.f;
+    ov::TensorVector m_expected_outputs;  // Stores reference outputs for reusing.
 
     virtual std::vector<ov::Tensor> calculate_refs();
     virtual std::vector<ov::Tensor> get_plugin_outputs();

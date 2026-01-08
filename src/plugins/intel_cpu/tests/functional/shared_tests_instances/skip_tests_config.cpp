@@ -689,3 +689,34 @@ std::vector<std::string> disabledTestPatterns() {
 
     return retVector;
 }
+
+bool is_model_cache_enabled() {
+    return true;
+}
+
+const std::vector<std::regex>& model_cache_disabled_test_patterns() {
+    const static std::vector<std::regex> res_vector{
+        std::regex(R"(.*CustomOp.*)"),
+        std::regex(R"(.*SequenceCPUTest.*)"),
+        std::regex(R"(.*ConvertFqRnnToQuantizedRnn.*)"),
+        std::regex(R"(.*IntertactionCPUTest.*)"),
+        std::regex(R"(.*MoESubgraphTest.*)"),
+        std::regex(R"(.*MoECompressedWeightsSubgraphTest.*)"),
+        std::regex(R"(.*RecurrentCellTransformation.*)"),
+        std::regex(R"(.*MemoryLayerTest.*)"),
+        std::regex(R"(.*RoPETestGPTOSS.*)"),
+        std::regex(R"(.*SimpleIfTest.*)"),
+        std::regex(R"(.*SimpleIf2OutTest.*)"),
+        std::regex(R"(.*SimpleIfNotConstConditionTest.*)"),
+        std::regex(R"(.*SimpleIfNotConstConditionUnusedOutputPortsTest.*)"),
+        std::regex(R"(.*AdaPoolLayerCPUTest.*)"),
+        std::regex(R"(.*ConvertCPULayerTest.*)"),
+        std::regex(R"(.*ConcatLayerCPUTest.*)"),
+        std::regex(R"(.*GroupDeconvolutionLayerCPUTest.*)"),
+        std::regex(R"(.*NmsLayerCPUTest.*)"),
+        std::regex(R"(.*OneHotLayerCPUTest.*)"),
+        std::regex(R"(.*TensorIteratorTest.*)"),
+    };
+
+    return res_vector;
+}

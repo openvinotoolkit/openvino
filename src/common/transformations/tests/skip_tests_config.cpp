@@ -13,3 +13,12 @@ std::vector<std::string> disabledTestPatterns() {
         ".*TransformationTests\\.ConstFoldingPriorBox.*",
     };
 }
+
+bool is_model_cache_enabled() {
+    return false;
+}
+
+const std::vector<std::regex>& model_cache_disabled_test_patterns() {
+    const static std::vector<std::regex> res_vector{};
+    return res_vector;
+}
