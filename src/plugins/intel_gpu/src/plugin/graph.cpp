@@ -23,9 +23,6 @@
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
 
-#include "intel_gpu/primitives/dynamic_quantize.hpp"
-#include "dynamic_quantize_inst.h"
-
 #include <list>
 #include <set>
 #include <unordered_set>
@@ -238,7 +235,6 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "concatenation", "Concat" },
                 { "convolution", "Convolution" },
                 { "deformable_convolution", "DeformableConvolution" },
-                { "dynamic_quantize", "DynamicQuantize" },
                 { "crop", "Crop" },
                 { "custom_gpu_primitive", "CustomGPUPrimitive" },
                 { "data", "Const" },
@@ -422,15 +418,6 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
             }
         }
         info[ov::exec_model_info::PERF_COUNTER] = exec_time;
-
-        if (prim_info.type_id == "dynamic_quantize") {
-            auto& node = get_network()->get_primitive(prim_info.original_id)->get_node();
-            auto dyn_quan = node.as<cldnn::dynamic_quantize>().get_primitive();
-            info["group_sizes"] = ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
-            if (dyn_quan->attrs.precomputed_reduction) {
-                info["precomputed_reduction_dt"] = dyn_quan->attrs.precomputed_reduction_dt.c_type_string();
-            }
-        }
 
         for (auto&& kvp : info) {
             return_node->get_rt_info()[kvp.first] = kvp.second;

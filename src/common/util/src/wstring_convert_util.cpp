@@ -6,7 +6,6 @@
 
 #include <cstdint>
 #include <stdexcept>
-
 #ifdef _WIN32
 #    include <windows.h>
 #endif
@@ -19,12 +18,12 @@ constexpr auto codepoint_2nd_shift = 6U;
 constexpr auto codepoint_3rd_shift = 12U;
 constexpr auto codepoint_4th_shift = 18U;
 
-std::string wstring_to_string(const std::wstring_view wstr) {
+std::string wstring_to_string(const std::wstring& wstr) {
 #    ifdef _WIN32
-    const auto wstr_size = static_cast<int>(wstr.size());
-    const auto size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.data(), wstr_size, NULL, 0, NULL, NULL);
-    std::string result(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, wstr.data(), wstr_size, result.data(), size_needed, NULL, NULL);
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
+    std::string strTo(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
+    return strTo;
 #    else
     std::string result;
     result.reserve(wstr.size() * (sizeof(wchar_t) >= 4 ? 4 : 3));  // Worst case for UTF-8
@@ -55,17 +54,18 @@ std::string wstring_to_string(const std::wstring_view wstr) {
         }
     }
     result.shrink_to_fit();
-#    endif
     return result;
+#    endif
 }
 
-std::wstring string_to_wstring(const std::string_view string) {
-    const char* str = string.data();
+std::wstring string_to_wstring(const std::string& string) {
+    const char* str = string.c_str();
 #    ifdef _WIN32
-    const auto str_size = static_cast<int>(string.size());
-    const auto size_needed = MultiByteToWideChar(CP_UTF8, 0, str, str_size, NULL, 0);
-    std::wstring result(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, str, str_size, result.data(), size_needed);
+    int strSize = static_cast<int>(std::strlen(str));
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
+    std::wstring wstrTo(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
+    return wstrTo;
 #    else
 
     const auto check_utf8_seq_size = [](const char* first, const char* last, const std::ptrdiff_t seq_size) {
@@ -105,8 +105,8 @@ std::wstring string_to_wstring(const std::string_view string) {
         result.push_back(static_cast<wchar_t>(codepoint));
     }
 
-#    endif
     return result;
+#    endif
 }
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 }  // namespace ov::util

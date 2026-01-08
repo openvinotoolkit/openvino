@@ -5,11 +5,10 @@
 #include "program_dump_graph.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "to_string_utils.h"
-#include "json_object.h"
-
+#include "data_inst.h"
 #include "condition_inst.h"
 #include "data_inst.h"
-#include "dynamic_quantize_inst.h"
+#include "json_object.h"
 
 #include <algorithm>
 #include <vector>
@@ -215,17 +214,6 @@ void dump_graph_init(std::ofstream& graph,
 
         return out;
     };
-    const auto dump_prim_additional_info = [](const program_node* ptr) {
-        std::ostringstream oss;
-        if (ptr->is_type<dynamic_quantize>()) {
-            auto dyn_quan = ptr->as<dynamic_quantize>().get_primitive();
-            oss << "\n" << "group_sizes: " << ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
-            if (dyn_quan->attrs.precomputed_reduction) {
-                oss << "\n" << "precomputed_reduction_dt: " << dyn_quan->attrs.precomputed_reduction_dt;
-            }
-        }
-        return oss.str();
-    };
 
     graph << "digraph cldnn_program {\n";
     for (auto& node : program.get_processing_order()) {
@@ -256,7 +244,6 @@ void dump_graph_init(std::ofstream& graph,
         }
         graph << "\n" + dump_mem_info(node);
         graph << "\n" + dump_mem_preferred_info(node);
-        graph << "\n" + dump_prim_additional_info(node);
         graph << "\"";
 #ifdef __clang__
 #pragma clang diagnostic pop
