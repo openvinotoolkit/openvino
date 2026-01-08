@@ -428,15 +428,7 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
         if (!mul_down_input_r_fused) {
             return false;
         }
-        concat_any(ov::OutputVector{mul_down_1_lhs_input, mul_down_1_rhs_input}, head_axis, rank);
-        if (!mul_down_input_l_fused) {
-            return false;
-        }
-        auto mul_down_input_r_fused =
-            concat_any(ov::OutputVector{mul_down_2_lhs_input, mul_down_2_rhs_input}, head_axis, rank);
-        if (!mul_down_input_r_fused) {
-            return false;
-        }
+
         auto reshape_shape = v0::Constant::create(element::i64,
                                                   Shape{input_fused->get_output_shape(0).size()},
                                                   input_fused->get_output_shape(0));
@@ -447,10 +439,10 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
             split_lhs->copy_with_new_inputs({reshape_fused, split_lhs->input_value(1), split_lhs->input_value(2)});
         copy_runtime_info({split_lhs, split_rhs}, split_fused);
 
-        auto scale_fused = angle_lhs->copy_with_new_inputs({split_fused->output(1)});
-        copy_runtime_info({angle_lhs, angle_rhs}, scale_fused);
+        auto angle_fused = angle_lhs->copy_with_new_inputs({split_fused->output(1)});
+        copy_runtime_info({angle_lhs, angle_rhs}, angle_fused);
 
-        auto concat_fused = concat_lhs->copy_with_new_inputs({scale_fused, split_fused->output(0)});
+        auto concat_fused = concat_lhs->copy_with_new_inputs({angle_fused, split_fused->output(0)});
         copy_runtime_info({concat_lhs, concat_rhs}, concat_fused);
 
         auto mul_down_l_fused = mul_down_1_lhs->copy_with_new_inputs({reshape_fused, mul_down_input_l_fused});
@@ -477,6 +469,7 @@ MergeMatMulBiasConcat::MergeMatMulBiasConcat() {
 
     struct pattern_nodes {
         std::shared_ptr<Node> convert;
+        std::shared_ptr<Node> subtract;
         std::shared_ptr<Node> multiply;
         std::shared_ptr<Node> matmul;
         std::shared_ptr<Node> add;
@@ -487,7 +480,8 @@ MergeMatMulBiasConcat::MergeMatMulBiasConcat() {
     auto create_matmul_bias_pattern = [&](const std::shared_ptr<Node>& input) {
         pattern_nodes nodes;
         nodes.convert = pattern::optional<v0::Convert>({pattern::any_input()});
-        nodes.multiply = pattern::optional<v1::Multiply>({nodes.convert, pattern::any_input()});
+        nodes.subtract = pattern::optional<v1::Subtract>({nodes.convert, pattern::any_input()});
+        nodes.multiply = pattern::optional<v1::Multiply>({nodes.subtract, pattern::any_input()});
         nodes.matmul = pattern::wrap_type<v0::MatMul>({input, nodes.multiply});
         nodes.add = pattern::wrap_type<v1::Add>({nodes.matmul, pattern::any_input()});
         auto reshape = pattern::wrap_type<v1::Reshape, v0::Unsqueeze>({nodes.add, pattern::any_input()});
@@ -532,17 +526,25 @@ MergeMatMulBiasConcat::MergeMatMulBiasConcat() {
                 concat_any(OutputVector{convert_lhs->input_value(0), convert_rhs->input_value(0)}, head_axis, rank);
             input_fused = convert_lhs->copy_with_new_inputs({convert_const_fused});
         }
+        
+        auto subtract_lhs = ov::as_type_ptr<v1::Subtract>(pm[mm_bias_lhs.subtract].get_node_shared_ptr());
+        auto subtract_rhs = ov::as_type_ptr<v1::Subtract>(pm[mm_bias_rhs.subtract].get_node_shared_ptr());
+        if (subtract_lhs && subtract_rhs) {
+            auto subtract_const_fused =
+                concat_any(OutputVector{subtract_lhs->input_value(0), subtract_rhs->input_value(0)}, head_axis, rank);
+            input_fused = subtract_lhs->copy_with_new_inputs({subtract_const_fused, subtract_lhs->input_value(1)});
+        }
 
         auto scale_lhs = ov::as_type_ptr<v1::Multiply>(pm[mm_bias_lhs.multiply].get_node_shared_ptr());
         auto scale_rhs = ov::as_type_ptr<v1::Multiply>(pm[mm_bias_rhs.multiply].get_node_shared_ptr());
         if (scale_lhs && scale_rhs) {
-            auto scale_fused =
-                concat_any(OutputVector{scale_lhs->input_value(1), scale_rhs->input_value(1)}, head_axis, rank);
+            // auto scale_fused =
+            //     concat_any(OutputVector{scale_lhs->input_value(1), scale_rhs->input_value(1)}, head_axis, rank);
             if (!input_fused) {
                 OutputVector multiply_inputs = {scale_lhs->input_value(0), scale_rhs->input_value(0)};
                 input_fused = concat_any(multiply_inputs, head_axis, rank);
             }
-            input_fused = scale_lhs->copy_with_new_inputs({input_fused, scale_fused});
+            input_fused = scale_lhs->copy_with_new_inputs({input_fused, scale_lhs->input_value(1)});
         }
 
         if (!input_fused) {
