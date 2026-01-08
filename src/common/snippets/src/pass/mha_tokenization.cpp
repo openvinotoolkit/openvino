@@ -33,6 +33,7 @@
 #include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/brgemm.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/tokenization.hpp"
@@ -469,6 +470,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
             }
 
             const auto subgraph = tokenize_ordered_nodes(ordered_ops);
+            op::update_out_tensor_name(subgraph);
             // mark the Subgraph as Completed to not allow Snippets to include any nodes into the MHA Subgraph in common
             // Tokenization
             SetSnippetsSubgraphType(subgraph, SnippetsSubgraphType::Completed);
