@@ -422,49 +422,12 @@ struct data : public primitive_base<data> {
             if (is_alloc_host_accessible(_allocation_type)) {
                 ib >> make_data(mem->buffer_ptr(), data_size);
             } else {
-                const size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
                 auto& strm = ib.get_engine().get_service_stream();
-                if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
-                    std::vector<uint8_t> _buf(data_size);
-                    ib >> make_data(_buf.data(), data_size);
-                    mem->copy_from(strm, _buf.data());
-                } else {
-                    std::vector<uint8_t> _buf1(DATA_BLOCK_SIZE);
-                    std::vector<uint8_t> _buf2(DATA_BLOCK_SIZE);
-                    bool buf_flag = true;
-                    event::ptr ev1, ev2;
-                    ev1 = ev2 = nullptr;
-                    size_t dst_offset = 0;
-                    while (dst_offset < data_size) {
-                        const bool is_blocking = false;
-                        const size_t src_offset = 0;
-                        size_t copy_size =
-                            (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
-                        if (buf_flag) {
-                            ib >> make_data(_buf1.data(), copy_size);
-                            if (ev2 != nullptr) {
-                                ev2->wait();
-                                ev2 = nullptr;
-                            }
-                            ev1 = mem->copy_from(strm, _buf1.data(), src_offset, dst_offset, copy_size, is_blocking);
-                        } else {
-                            ib >> make_data(_buf2.data(), copy_size);
-                            if (ev1 != nullptr) {
-                                ev1->wait();
-                                ev1 = nullptr;
-                            }
-                            ev2 = mem->copy_from(strm, _buf2.data(), src_offset, dst_offset, copy_size, is_blocking);
-                        }
-                        dst_offset += DATA_BLOCK_SIZE;
-                        buf_flag = !buf_flag;
-                    }
-                    if (ev2 != nullptr) {
-                        ev2->wait();
-                    }
-                    if (ev1 != nullptr) {
-                        ev1->wait();
-                    }
-                }
+                const void* pWeight;
+
+                // Returns a ptr to the prim weights in mem
+                ib.get_data_ptr(&pWeight, data_size);
+                mem->copy_from(strm, pWeight);
             }
         }
     }

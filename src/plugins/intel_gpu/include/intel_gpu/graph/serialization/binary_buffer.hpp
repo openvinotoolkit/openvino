@@ -11,6 +11,7 @@
 #include "buffer.hpp"
 #include "helpers.hpp"
 #include "bind.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 namespace cldnn {
 struct memory;
@@ -53,6 +54,15 @@ public:
         auto const read_size = _stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
         OPENVINO_ASSERT(read_size == size,
             "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
+    }
+
+    /*@brief Gets a ptr to the primitive weights in mem
+    * @param ppData Ptr containing a ptr to weights in mem
+    * @param size Primitive size
+    */
+    virtual void get_data_ptr(const void** ppData, std::streamsize size) {
+        const auto read_size = (dynamic_cast<ov::SharedStreamBuffer*>(_stream.rdbuf()))->sget_data_ptr(ppData, size);
+        OPENVINO_ASSERT(read_size == size, "[GPU] Failed to get " + std::to_string(size) + " bytes from stream! Got " + std::to_string(read_size));
     }
 
     void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }

@@ -36,11 +36,23 @@ public:
     explicit SharedStreamBuffer(const void* data, size_t size)
         : SharedStreamBuffer(reinterpret_cast<const char*>(data), size) {}
 
+    std::streamsize sget_data_ptr(const void** ppData, std::streamsize count) {
+        return xsget_data_ptr(ppData, count);
+    }
+
 protected:
     // override std::streambuf methods
     std::streamsize xsgetn(char* s, std::streamsize count) override {
         auto real_count = std::min<std::streamsize>(m_size - m_offset, count);
         std::memcpy(s, m_data + m_offset, real_count);
+        m_offset += real_count;
+        return real_count;
+    }
+
+    // gets a ptr to the weights in mem (shared buffer) and forwards the buffer offset by count
+    virtual std::streamsize xsget_data_ptr(const void** ppData, std::streamsize count) {
+        auto real_count = std::min<std::streamsize>(m_size - m_offset, count);
+        *ppData = m_data + m_offset;
         m_offset += real_count;
         return real_count;
     }
