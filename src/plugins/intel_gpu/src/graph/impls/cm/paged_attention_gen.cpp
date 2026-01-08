@@ -420,8 +420,16 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     jit.make("KV_HEADS_NUM", desc->kv_heads_num);
     jit.make("Q_STEP", get_q_step(xe_arch, true));
 
+    constexpr int32_t MaxRepeatCount = 8;
+    int32_t q_heads_per_kv_head = static_cast<int32_t>(desc->heads_num / desc->kv_heads_num);
+    int32_t q_head_chunks_per_kv_head = ceil_div(q_heads_per_kv_head, MaxRepeatCount);
+    int32_t q_head_chunk_size = static_cast<int32_t>(desc->heads_num / (desc->kv_heads_num * q_head_chunks_per_kv_head));
+    jit.make("Q_head_chunks_per_kv_head", q_head_chunks_per_kv_head);
+    jit.make("Q_head_chunk_size", q_head_chunk_size);
+
     if (get_kv_compressed(params)) {
         jit.make("KV_CACHE_COMPRESSION", 1);
+        jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", 1);
     } else {
         jit.make("KV_CACHE_COMPRESSION", 0);
     }

@@ -37,13 +37,6 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
             return false;
         }
 
-        // TODO: Remove this limitation when PA CM kernel supports more "heads_num / kv_heads_num" cases.
-        // PA 2nd token CM kernel only supports case of "heads_num / kv_heads_num <= 8"
-        if (desc->heads_num / desc->kv_heads_num > 8) {
-            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because heads_num / kv_heads_num > 8. " << std::endl;
-            return false;
-        }
-
         auto& engine = node.get_program().get_engine();
         const auto& config = node.get_program().get_config();
         const auto& info = engine.get_device_info();
