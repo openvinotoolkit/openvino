@@ -809,4 +809,280 @@ void sdpa_kernel(
     }
 }
 
+template<bool use_causal_mask, int num_heads, int num_kv_heads, int head_size, int is_qkv_fused = 0>
+void CM_INLINE sdpa_kernel_mma(
+  uint slm_K,
+  uint slm_V,
+  int wg_local_id,
+  int local_size,
+  int q_start,
+  int kv_stop,
+  int q_len,
+  int kv_len,
+  SurfaceIndex query [[type("buffer_t")]],
+  SurfaceIndex key [[type("buffer_t")]],
+  SurfaceIndex value [[type("buffer_t")]],
+  SurfaceIndex output [[type("buffer_t")]],
+  uint q_off,
+  uint k_off,
+  uint v_off,
+  uint o_off) {
+
+  constexpr uint o_pitch = (num_heads * head_size * sizeof(half));
+  constexpr uint q_pitch = is_qkv_fused ? ((num_heads + num_kv_heads * 2) * head_size * sizeof(half)) : o_pitch;
+  constexpr uint kv_pitch = is_qkv_fused ? q_pitch : (num_kv_heads * head_size * sizeof(half));
+
+  vector<float, q_step> cur_max;
+  vector<float, q_step> cur_sum;
+
+  cur_max = -3e38f;
+  cur_sum = 0;
+
+  matrix<half, head_size / REG_K, REG_K* REG_N> rQ;
+  auto q_tokens_left = q_len;
+  static_assert(q_step == REG_N);
+  static_assert(kv_step == REG_K);
+
+  if (q_tokens_left < 0) q_tokens_left = 0;
+  if (q_tokens_left > q_step) q_tokens_left = q_step;
+
+  if (q_tokens_left > 0) {
+    // load as many as possible given one address
+    if constexpr (head_size == 128 || head_size == 64) {
+      matrix<uint, q_step, head_size / 2> QmatI32;
+      cm_load_2d(QmatI32, query, q_off, q_pitch);
+#pragma unroll
+      for (int k = 0, ri = 0; k < head_size / 2; k += REG_K / 2, ri++) {
+        Transpose2DMatrix(QmatI32.select<q_step, 1, REG_K / 2, 1>(0, k), rQ[ri].format<uint, REG_K / 2, q_step>());
+        rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+      }
+    }
+    else {
+#pragma unroll
+      for (int k = 0, ri = 0; k < head_size / 2; k += REG_K / 2, ri++) {
+        matrix<uint, q_step, REG_K / 2> QmatI32;
+        cm_load_2d(QmatI32, query, q_off + k * sizeof(uint), q_pitch);
+        Transpose2DMatrix(QmatI32, rQ[ri].format<uint, REG_K / 2, q_step>());
+        rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+      }
+    }
+  }
+
+  constexpr int num_P_tiles = REG_N / REG_M;
+  matrix <float, head_size / REG_N * num_P_tiles, REG_M* REG_N> rO;
+  int causal_left = q_start;
+  rO = 0.0f;
+
+  constexpr uint slm_buff_size = kv_step * head_size * sizeof(half);
+  int slm_buff_id_write = 0;
+  int slm_buff_id_read = 0;
+
+  auto load_slm_KV = [&](int kv_pos) {
+    //if (kv_pos < 1024000) return;
+    int kv_tokens = kv_stop - kv_pos;
+    if (kv_tokens <= 0) return;
+    uint slm_offset = (slm_buff_id_write & 3) * slm_buff_size;
+    slm_buff_id_write++;
+
+    // non-tail branch is faster
+    if (wg_local_id < local_size / 2) {
+      //if (kv_pos > 1024000) {
+      matrix<half, 2 * REG_M, REG_K> temp;
+      for (int k = REG_K * wg_local_id; k < head_size; k += REG_K * (local_size / 2)) {
+        cm_load_2d(temp, key, k_off + k * sizeof(half), kv_pitch);
+        cm_slm_block_write(slm_K,
+          slm_offset + k * 2 * REG_M * sizeof(half),
+          temp.format<half>());
+      }
+    }
+    else {
+      //if (kv_pos > 1024000) {
+      // read 16x16 XMX-B matrix (1x REG_N in Xe2, 2x REG_N in Xe1)
+      constexpr int VK_STEP = 16;
+      static_assert((VK_STEP % REG_N) == 0);
+      matrix<half, REG_K, VK_STEP> temp2;
+      matrix<half, REG_K / 2, REG_N * 2> temp_vnni;
+      //b2dV.set_block_y(kv_pos);
+
+      static_assert((head_size % VK_STEP) == 0);
+#pragma unroll
+      for (int k = VK_STEP * (wg_local_id - local_size / 2); k < head_size; k += VK_STEP * (local_size / 2)) {
+        cm_load_2d(temp2, value, v_off + k * sizeof(half), kv_pitch);
+
+#pragma unroll
+        for (int p = 0; p < VK_STEP / REG_N; p++) {
+          temp_vnni.select<REG_K / 2, 1, REG_N, 2>(0, 0) = temp2.select<REG_K / 2, 2, REG_N, 1>(0, p * REG_N);
+          temp_vnni.select<REG_K / 2, 1, REG_N, 2>(0, 1) = temp2.select<REG_K / 2, 2, REG_N, 1>(1, p * REG_N);
+          // show(temp_vnni);
+          cm_slm_block_write(slm_V, slm_offset + (k + p * REG_N) * REG_K * sizeof(half), temp_vnni.format<half>());
+        }
+      }
+    }
+    k_off += kv_step * kv_pitch;
+    v_off += kv_step * kv_pitch;
+    // printf(" diff= %lu\n", get_clock() - clk0);
+    };
+
+  load_slm_KV(0);
+  load_slm_KV(kv_step);
+
+  cm_slm_fence(CM_LOCAL_BARRIER);
+  cm_sbarrier(1);
+
+  for (int kv_pos = 0; kv_pos < kv_stop; kv_pos += kv_step,
+    slm_buff_id_read++) {
+    //
+    //  load0->0, signal1, 
+    //  [load1->1, wait2, signal2, read0]
+    //  [load2->2, wait3, signal3, read1]
+    //  [load3->3, wait4, signal4, read2]  
+    //  [load4->0, wait5, signal5, read3]  
+    //
+    //  after wait4, all workers have reached signal3, so:
+    //     - all workers have finished load2 & read0. 
+    //     - we can start to load 4 into SLM slot 0 (i & 3) safely 
+    //     - we can start to read 2 ((i-2) & 3) safely
+    //
+    cm_fence(CM_LOCAL_BARRIER);
+    cm_sbarrier(0);
+
+    load_slm_KV(kv_pos + 2 * kv_step);
+
+    if (kv_pos + kv_step < kv_stop)
+      cm_sbarrier(1);
+
+    //if (kv_pos < 1024000) continue;
+    uint slm_offset = (slm_buff_id_read & 3) * slm_buff_size;
+
+    //=========================================================== 1807 ~ 3247
+    //# St = k @ Qt
+    matrix<float, kv_step, q_step> St = mma_KQ(slm_K, rQ, slm_offset);
+
+    if constexpr (use_causal_mask) {
+      if (causal_left < kv_step) {
+        vector<float, q_step> cmask = 0.0f;
+        int p = causal_left + 1;
+        int v = 0;
+        for (; p < 0; p++) {
+          cmask[v] = -3.4e38f;
+          if (v < q_step - 1) v++;
+        }
+        for (; p < kv_step; p++) {
+          cmask[v] = -3.4e38f;
+          St[p] = cm_add<float>(St[p], cmask);
+          if (v < q_step - 1) v++;
+        }
+        //if (wg_local_id == 0) show(St);return;
+      }
+      causal_left -= kv_step;
+    }
+
+    // mask off k-tails
+    int kv_tokens = kv_stop - kv_pos;
+    for (int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
+
+    //show(St);
+    auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+
+    matrix<half, REG_N, REG_K> P;
+    Transpose2DMatrix(St, P);
+    vector<float, REG_N * REG_K> P3 = P.format<half>();
+    if (kv_pos == 0) {
+//      auto P3 = P.format<half>();
+      vector<float, REG_K / 2 * REG_N * 2> VmatFp32;
+#pragma unroll
+      for (int k = 0, ri = 0; k < head_size; k += REG_N, ri += num_P_tiles) {
+        matrix<half, REG_K / 2, REG_N * 2> Vmat;
+        cm_slm_block_read(slm_V, GENX_NONE, slm_offset + REG_K * k * sizeof(half), Vmat.format<half>());
+        VmatFp32 = Vmat;
+#pragma unroll
+        for (int p = 0; p < num_P_tiles; p++) {
+#pragma unroll
+          for (int32_t depth = 0; depth < SystolicDepth; depth++) {
+#pragma unroll
+            for (int32_t nCol = 0; nCol < REG_M; nCol++) {
+              rO.row(ri + p).select<REG_N, 1>(nCol * REG_N) +=
+                VmatFp32.select<REG_N, 2>(depth * REG_N * 2 + 0) * P3[p * REG_M * REG_K + nCol * REG_K + 2 * depth];
+            }
+          }
+
+#pragma unroll
+          for (int32_t depth = 0; depth < SystolicDepth; depth++) {
+#pragma unroll
+            for (int32_t nCol = 0; nCol < REG_M; nCol++) {
+              rO.row(ri + p).select<REG_N, 1>(nCol * REG_N) +=
+                VmatFp32.select<REG_N, 2>(depth * REG_N * 2 + 1) * P3[p * REG_M * REG_K + nCol * REG_K + 2 * depth + 1];
+            }
+          }
+          //show(rO[ri + p].format<float, REG_M, REG_N>());
+        }
+      }
+    }
+    else {
+      vector<float, REG_K / 2 * REG_N * 2> VmatFp32;
+#pragma unroll
+      for (int k = 0, ri = 0; k < head_size; k += REG_N, ri += num_P_tiles) {
+        matrix<half, REG_K / 2, REG_N * 2> Vmat;
+        cm_slm_block_read(slm_V, GENX_NONE, slm_offset + REG_K * k * sizeof(half), Vmat.format<half>());
+        VmatFp32 = Vmat;
+        //# compensate cur_O
+        //  matrix <float, head_size/REG_K*2, REG_M*REG_N> rO;
+#pragma unroll
+        for (int p = 0; p < num_P_tiles; p++) {
+          auto cO = rO[ri + p].format<float, REG_M, REG_N>();
+#pragma unroll
+          for (int r = 0; r < REG_M; r++)
+            cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r + p * REG_M]);
+        }
+
+        //show(rO[ri].format<float, REG_M, REG_N>());
+
+        //# show(cur_O.format<float, 2*REG_M, REG_N>()); return;
+#pragma unroll
+        for (int p = 0; p < num_P_tiles; p++) {
+#pragma unroll
+          for (int32_t depth = 0; depth < SystolicDepth; depth++) {
+#pragma unroll
+            for (int32_t nCol = 0; nCol < REG_M; nCol++) {
+              rO.row(ri + p).select<REG_N, 1>(nCol * REG_N) +=
+                VmatFp32.select<REG_N, 2>(depth * REG_N * 2 + 0) * P3[p * REG_M * REG_K + nCol * REG_K + 2 * depth];
+            }
+          }
+
+#pragma unroll
+          for (int32_t depth = 0; depth < SystolicDepth; depth++) {
+#pragma unroll
+            for (int32_t nCol = 0; nCol < REG_M; nCol++) {
+              rO.row(ri + p).select<REG_N, 1>(nCol * REG_N) +=
+                VmatFp32.select<REG_N, 2>(depth * REG_N * 2 + 1) * P3[p * REG_M * REG_K + nCol * REG_K + 2 * depth + 1];
+            }
+          }
+          //if (kv_pos == args_verbose) show(rO[ri + p].format<float, REG_M, REG_N>());
+        }
+        // if (kv_pos == args_verbose) show(cur_O.format<float, 2*REG_M, REG_N>());
+      }
+    }
+  }
+
+  if (q_tokens_left > 0) {
+    //# save cur_O/cur_sum.transpose(0, 1)
+    matrix<half, num_P_tiles* REG_M, REG_N> cur_O_f16;
+    cur_sum = cm_inv(cur_sum);
+
+#pragma unroll
+    for (int k = 0, ri = 0; k < head_size; k += REG_N, ri += num_P_tiles) {
+#pragma unroll
+      for (int p = 0; p < num_P_tiles; p++) {
+        auto cO = rO[ri + p].format<float, REG_M, REG_N>();
+#pragma unroll
+        for (int r = 0; r < cO.n_rows(); r++) {
+          cur_O_f16[r + p * REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p * REG_M]);
+        }
+      }
+      // if (i == args_verbose) show(cur_O_f16);
+      cm_store_2d(cur_O_f16, output, o_off + k * sizeof(half), o_pitch);
+    }
+  }
+}
+
 #endif  // !CM_HAS_LSC_UNTYPED_2D

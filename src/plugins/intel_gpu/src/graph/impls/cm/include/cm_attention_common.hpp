@@ -38,7 +38,6 @@ constexpr float scale_factor = CMFLA_SCALE_FACTOR;
 
 static_assert(q_step == 16 || q_step == 8);
 static_assert(kv_step == 16);
-static_assert(CM_HAS_DPAS);
 
 #define DEBUG_SHOW 1
 #if !DEBUG_SHOW
@@ -304,6 +303,69 @@ inline void ugemm_PV1(uint slm_V, matrix_ref<half, REG_N, REG_K> P, vector_ref<f
         }
         // if (kv_pos == args_verbose) show(cur_O.format<float, 2*REG_M, REG_N>());
     }
+}
+
+template<int num_Qt, int _q_step = REG_N, int _kv_step = REG_K>
+inline matrix<float, _kv_step, _q_step> mma_KQ(uint slm_K, matrix_ref<half, num_Qt, REG_K* REG_N> Qt, uint slm_offset = 0) {
+  matrix<float, _kv_step, _q_step> St;
+  constexpr int num_K = _kv_step / REG_M;
+//  auto St2 = St.format<float, num_K, REG_M* REG_N>();
+  auto St2 = St.format<float>();
+  St2 = 0;
+  matrix<half, num_K, REG_M* REG_K> Kmat;
+  cm_slm_block_read(slm_K, GENX_NONE, slm_offset, Kmat.format<half>());
+  vector<float, REG_M* REG_K> QmatFp32;
+  vector<float, REG_M* REG_K> KmatFp32;
+#pragma unroll
+  for (int k = 0; k < num_K; k++) {
+    KmatFp32 = Kmat.row(k);
+    QmatFp32 = Qt.row(0);
+#pragma unroll
+    for (int32_t depth = 0; depth < SystolicDepth; depth++) {
+#pragma unroll
+      for (int32_t nCol = 0; nCol < REG_M; nCol++) {
+        St2.select<REG_N, 1>(k * REG_M * REG_N + nCol * REG_N) +=
+          QmatFp32.select<REG_N, 2>(depth * REG_N * 2 + 0) * KmatFp32[nCol * REG_K + 2 * depth];
+      }
+    }
+
+#pragma unroll
+    for (int32_t depth = 0; depth < SystolicDepth; depth++) {
+#pragma unroll
+      for (int32_t nCol = 0; nCol < REG_M; nCol++) {
+        St2.select<REG_N, 1>(k * REG_M * REG_N + nCol * REG_N) +=
+          QmatFp32.select<REG_N, 2>(depth * REG_N * 2 + 1) * KmatFp32[nCol * REG_K + 2 * depth + 1];
+      }
+    }
+  }
+
+#pragma unroll
+  for (int ri = 1; ri < num_Qt; ri++) {
+    QmatFp32 = Qt.row(ri);
+    cm_slm_block_read(slm_K, GENX_NONE, slm_offset + ri * Kmat.n_elems() * sizeof(half), Kmat.format<half>());
+#pragma unroll
+    for (int k = 0; k < num_K; k++) {
+      KmatFp32 = Kmat.row(k);
+#pragma unroll
+      for (int32_t depth = 0; depth < SystolicDepth; depth++) {
+#pragma unroll
+        for (int32_t nCol = 0; nCol < REG_M; nCol++) {
+          St2.select<REG_N, 1>(k * REG_M * REG_N + nCol * REG_N) +=
+            QmatFp32.select<REG_N, 2>(depth * REG_N * 2 + 0) * KmatFp32[nCol * REG_K + 2 * depth];
+        }
+      }
+
+#pragma unroll
+      for (int32_t depth = 0; depth < SystolicDepth; depth++) {
+#pragma unroll
+        for (int32_t nCol = 0; nCol < REG_M; nCol++) {
+          St2.select<REG_N, 1>(k * REG_M * REG_N + nCol * REG_N) +=
+            QmatFp32.select<REG_N, 2>(depth * REG_N * 2 + 1) * KmatFp32[nCol * REG_K + 2 * depth + 1];
+        }
+      }
+    }
+  }
+  return St;
 }
 
 template<typename T, int rows, int cols>

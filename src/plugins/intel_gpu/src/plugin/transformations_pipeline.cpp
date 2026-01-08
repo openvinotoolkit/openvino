@@ -386,10 +386,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->set_callback<ov::pass::SDPAToVLSDPA>(
                 [&](const_node_ptr &) -> bool {
                     auto& engine = m_context->get_engine();
-                    const auto& info = engine.get_device_info();
-                    if (!(info.supports_immad)) { // CM optimized for systolic-array architectures
-                        return true;
-                    }
 
 #ifdef GPU_DEBUG_CONFIG
                     if (!config.get_use_cm()) {
