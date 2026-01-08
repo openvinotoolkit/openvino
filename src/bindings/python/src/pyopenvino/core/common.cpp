@@ -407,7 +407,10 @@ std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
     switch (self.get_element_type()) {
     case i4:
     case u1:
+    case u2:
+    case u3:
     case u4:
+    case u6:
     case nf4:
     case f4e2m1:
         return _get_byte_strides(self.get_shape(), 8);
