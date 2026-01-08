@@ -47,7 +47,7 @@ public:
 
     size_t get_expression_length() const;
 
-    size_t write(std::ostream& stream);
+    void write(std::ostream& stream);
 
     bool check_compatibility(const std::unordered_set<CRE::Token>& plugin_capabilities);
 

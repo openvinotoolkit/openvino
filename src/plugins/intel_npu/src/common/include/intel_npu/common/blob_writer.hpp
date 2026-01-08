@@ -26,8 +26,7 @@ public:
 
     void append_compatibility_requirement(const CRE::Token requirement_token);
 
-    size_t cursor;
-    size_t stream_base;
+    std::streamoff get_stream_relative_position(std::ostream& stream) const;
 
 private:
     void write_persistent_format_region();
@@ -36,6 +35,8 @@ private:
     std::vector<std::shared_ptr<ISection>> m_registered_sections;
     std::unordered_map<ISection::SectionID, uint64_t> m_offsets_table;
     std::shared_ptr<CRESection> m_cre;
+    // TODO
+    std::optional<std::streampos> m_stream_base = std::nullopt;
 };
 
 }  // namespace intel_npu

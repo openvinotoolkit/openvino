@@ -21,8 +21,6 @@ BatchSizeSection::BatchSizeSection(const int64_t batch_size)
 
 void BatchSizeSection::write(std::ostream& stream, BlobWriter* writer) {
     stream.write(reinterpret_cast<const char*>(&m_batch_size), sizeof(m_batch_size));
-    writer->cursor +=
-        sizeof(m_batch_size);  // TODO maybe the cursor should be moved "automatically" to the end after this call
 }
 
 std::optional<uint64_t> BatchSizeSection::get_length() const {

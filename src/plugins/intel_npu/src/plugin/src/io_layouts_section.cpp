@@ -26,7 +26,6 @@ void IOLayoutsSection::write(std::ostream& stream, BlobWriter* writer) {
     const uint64_t number_of_output_layouts = m_output_layouts.size();
     stream.write(reinterpret_cast<const char*>(&number_of_input_layouts), sizeof(number_of_input_layouts));
     stream.write(reinterpret_cast<const char*>(&number_of_output_layouts), sizeof(number_of_output_layouts));
-    writer->cursor += sizeof(number_of_input_layouts) + sizeof(number_of_output_layouts);
 
     const auto write_layouts = [&](const std::vector<ov::Layout>& layouts) {
         for (const ov::Layout& layout : layouts) {
@@ -34,7 +33,6 @@ void IOLayoutsSection::write(std::ostream& stream, BlobWriter* writer) {
             const uint16_t string_length = static_cast<uint16_t>(layout_string.size());
             stream.write(reinterpret_cast<const char*>(&string_length), sizeof(string_length));
             stream.write(layout_string.c_str(), string_length);
-            writer->cursor += sizeof(string_length) + string_length;
         }
     };
 

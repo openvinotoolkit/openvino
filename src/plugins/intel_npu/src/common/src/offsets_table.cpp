@@ -24,8 +24,6 @@ void OffsetsTableSection::write(std::ostream& stream, BlobWriter* writer) {
         stream.write(reinterpret_cast<const char*>(key), sizeof(key));
         stream.write(reinterpret_cast<const char*>(value), sizeof(value));
     }
-
-    writer->cursor += get_length().value();
 }
 
 std::optional<uint64_t> OffsetsTableSection::get_length() const {

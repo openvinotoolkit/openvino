@@ -29,9 +29,8 @@ namespace intel_npu {
 
 CRE::CRE() : m_expression({CRE::AND}) {}
 
-size_t CRE::write(std::ostream& stream) {
+void CRE::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(m_expression.data()), m_expression.size());
-    return m_expression.size();
 }
 
 void CRE::append_to_expression(const CRE::Token requirement_token) {
@@ -134,7 +133,7 @@ void CRESection::append_to_expression(const std::vector<CRE::Token>& requirement
 }
 
 void CRESection::write(std::ostream& stream, BlobWriter* writer) {
-    writer->cursor += m_cre.write(stream);
+    m_cre.write(stream);
 }
 
 std::optional<uint64_t> CRESection::get_length() const {
