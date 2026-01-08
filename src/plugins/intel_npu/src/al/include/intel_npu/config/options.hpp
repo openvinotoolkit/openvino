@@ -420,28 +420,6 @@ struct CACHING_PROPERTIES final : OptionBase<CACHING_PROPERTIES, std::string> {
     }
 };
 
-struct INTERNAL_SUPPORTED_PROPERTIES final : OptionBase<INTERNAL_SUPPORTED_PROPERTIES, std::string> {
-    static std::string_view key() {
-        return ov::internal::supported_properties.name();
-    }
-
-    static std::string defaultValue() {
-        return {};
-    }
-
-    static bool isPublic() {
-        return false;
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
-    }
-
-    static OptionMode mode() {
-        return OptionMode::Both;
-    }
-};
-
 // BATCH_MODE is required to maintain backward/forward compatibility
 struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     static std::string_view key() {
@@ -846,7 +824,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static ov::intel_npu::CompilerType parse(std::string_view val) {
-        if (val == "PLUGIN" || val == "MLIR") {
+        if (val == "PLUGIN") {
             return ov::intel_npu::CompilerType::PLUGIN;
         } else if (val == "DRIVER") {
             return ov::intel_npu::CompilerType::DRIVER;
@@ -1313,6 +1291,46 @@ struct DISABLE_VERSION_CHECK final : OptionBase<DISABLE_VERSION_CHECK, bool> {
     }
 };
 
+struct EXPORT_RAW_BLOB final : OptionBase<EXPORT_RAW_BLOB, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::export_raw_blob.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    static std::string_view envVar() {
+        return "OV_NPU_EXPORT_RAW_BLOB";
+    }
+#endif
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
+struct IMPORT_RAW_BLOB final : OptionBase<IMPORT_RAW_BLOB, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::import_raw_blob.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    static std::string_view envVar() {
+        return "OV_NPU_IMPORT_RAW_BLOB";
+    }
+#endif
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTINGS, std::string> {
     static std::string_view key() {
         return ov::intel_npu::batch_compiler_mode_settings.name();
@@ -1359,6 +1377,8 @@ struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, ov:
     }
 
     static ov::intel_npu::WSVersion defaultValue() {
+        // Note: if the compiler-in-plugin is used (intel_npu::compiler_type = intel_npu::CompilerType::PLUGIN), then
+        // the default is actually WSVersion::ONE_SHOT
         return ov::intel_npu::WSVersion::ITERATIVE;
     }
 
@@ -1419,6 +1439,51 @@ struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, b
 
     static bool defaultValue() {
         return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
+struct MODEL_SERIALIZER_VERSION final : OptionBase<MODEL_SERIALIZER_VERSION, ov::intel_npu::ModelSerializerVersion> {
+    static std::string_view key() {
+        return ov::intel_npu::model_serializer_version.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::intel_npu::ModelSerializerVersion";
+    }
+
+    static ov::intel_npu::ModelSerializerVersion defaultValue() {
+        return ov::intel_npu::ModelSerializerVersion::AUTO;
+    }
+
+    static ov::intel_npu::ModelSerializerVersion parse(std::string_view val) {
+        std::istringstream stringStream = std::istringstream(std::string(val));
+        ov::intel_npu::ModelSerializerVersion version;
+        stringStream >> version;
+        return version;
+    }
+
+    static std::string toString(const ov::intel_npu::ModelSerializerVersion& val) {
+        std::stringstream strStream;
+        strStream << val;
+        return strStream.str();
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
+struct ENABLE_STRIDES_FOR final : OptionBase<ENABLE_STRIDES_FOR, std::string> {
+    static std::string_view key() {
+        return ov::intel_npu::enable_strides_for.name();
+    }
+
+    static std::string defaultValue() {
+        return {};
     }
 
     static OptionMode mode() {

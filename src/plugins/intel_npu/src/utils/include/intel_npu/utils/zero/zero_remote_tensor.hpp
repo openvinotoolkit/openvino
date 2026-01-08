@@ -24,10 +24,10 @@ public:
                      const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                      const ov::element::Type& element_type,
                      const ov::Shape& shape,
-                     ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
-                     ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
-                     const void* mem = nullptr,
-                     const std::optional<ov::intel_npu::FileDescriptor>& file_descriptor = std::nullopt);
+                     ov::intel_npu::TensorType zero_tensor_type = ov::intel_npu::TensorType::BINDED,
+                     ov::intel_npu::MemType memory_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
+                     const void* memory = nullptr,
+                     const std::optional<ov::intel_npu::FileDescriptor>& file_desc = std::nullopt);
 
     /**
      * @brief Returns additional information associated with tensor
@@ -63,6 +63,16 @@ public:
      */
     const ov::Strides& get_strides() const override;
 
+    void copy_to(const std::shared_ptr<ov::ITensor>& dst,
+                 size_t src_offset,
+                 size_t dst_offset,
+                 const ov::Shape& roi_shape) const override;
+
+    void copy_from(const std::shared_ptr<const ov::ITensor>& src,
+                   size_t src_offset,
+                   size_t dst_offset,
+                   const ov::Shape& roi_shape) override;
+
     /**
      * @return The remote context
      */
@@ -71,7 +81,7 @@ public:
     void* get_original_memory() const;
     ze_context_handle_t get_zero_context_handle() const;
 
-    ~ZeroRemoteTensor() override = default;
+    ~ZeroRemoteTensor() override;
 
 private:
     void allocate(const size_t bytes);

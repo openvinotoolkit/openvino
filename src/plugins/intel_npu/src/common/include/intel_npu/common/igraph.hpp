@@ -33,7 +33,10 @@ public:
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const Config& config) const = 0;
 
-    virtual void set_argument_value(uint32_t argi, const void* argv) const = 0;
+    virtual void set_argument_value(uint32_t id, const void* data) const = 0;
+    virtual void set_argument_value_with_strides(uint32_t id,
+                                                 const void* data,
+                                                 const std::vector<size_t>& strides) const = 0;
 
     virtual void initialize(const Config& config) = 0;
 
@@ -53,6 +56,10 @@ public:
         return _mutex;
     }
 
+    bool init_completed() {
+        return _init_completed;
+    }
+
     virtual void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) = 0;
     virtual const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const = 0;
     virtual void resize_last_submitted_event(size_t batch) = 0;
@@ -68,6 +75,7 @@ protected:
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
     // first inference starts running
     std::mutex _mutex;
+    bool _init_completed = false;
 };
 
 }  // namespace intel_npu

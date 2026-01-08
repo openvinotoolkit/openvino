@@ -149,17 +149,25 @@ std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector
     return _compiler->process_profiling_output(profData, blob, config);
 }
 
-void Graph::set_argument_value(uint32_t argi, const void* argv) const {
+void Graph::set_argument_value(uint32_t id, const void* data) const {
     if (_zeGraphExt == nullptr) {
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
     }
-    _zeGraphExt->setGraphArgumentValue(_graphDesc, argi, argv);
+    _zeGraphExt->setGraphArgumentValue(_graphDesc, id, data);
+}
+
+void Graph::set_argument_value_with_strides(uint32_t id, const void* data, const std::vector<size_t>& strides) const {
+    if (_zeGraphExt == nullptr) {
+        OPENVINO_THROW("Zero compiler adapter wasn't initialized");
+    }
+    _zeGraphExt->setGraphArgumentValueWithStrides(_graphDesc, id, data, strides);
 }
 
 void Graph::initialize(const Config& config) {
     _logger.debug("Graph initialize start");
 
-    if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr) {
+    if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
+        // To ensure that no issues are thrown during subsequent calls.
         return;
     }
 
@@ -208,6 +216,8 @@ void Graph::initialize(const Config& config) {
 
         _lastSubmittedEvent.resize(numberOfCommandLists);
     }
+    // To ensure that the initialization of the graph does not exit prematurely due to nullptrs
+    _init_completed = true;
 }
 
 bool Graph::release_blob(const Config& config) {
@@ -218,7 +228,7 @@ bool Graph::release_blob(const Config& config) {
     }
 
     ze_graph_properties_2_t properties = {};
-    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_2;
     _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_graphDesc._handle, &properties);
 
     if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
