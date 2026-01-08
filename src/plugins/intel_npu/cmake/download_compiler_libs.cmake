@@ -126,9 +126,15 @@ if(ENABLE_INTEL_NPU_COMPILER)
             COPYONLY
         )
         set(PLUGIN_COMPILER_LIB "${PLUGIN_COMPILER_LIB_PATH}/openvino_intel_npu_compiler.dll")
+        # The destinations are the same. CMAKE_BUILD_TYPE is added based on the option USE_BUILD_TYPE_SUBFOLDER
+        if(USE_BUILD_TYPE_SUBFOLDER)
+            set(NPU_COMPILER_LIB_DESTINATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+        else()
+            set(NPU_COMPILER_LIB_DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}")
+        endif()
         file(COPY "${PLUGIN_COMPILER_LIB}"
-            DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}")
-        message(STATUS "Copying prebuilt Plugin compiler libraries openvino_intel_npu_compiler.dll to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for windows")
+            DESTINATION "${NPU_COMPILER_LIB_DESTINATION}")
+        message(STATUS "Copying prebuilt Plugin compiler libraries openvino_intel_npu_compiler.dll to ${NPU_COMPILER_LIB_DESTINATION} for windows")
     else()
         # Check if the operating system is Linux and not macOS
         if(UNIX AND NOT APPLE)
@@ -181,5 +187,5 @@ if(ENABLE_INTEL_NPU_COMPILER)
     endif()
 
     install(FILES ${PLUGIN_COMPILER_LIB}
-        DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_INTERNAL_COMPONENT})
+        DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
 endif()
