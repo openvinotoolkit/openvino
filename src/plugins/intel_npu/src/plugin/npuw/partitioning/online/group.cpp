@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporationov::npuw::
+// Copyright (C) 2018-2026 Intel Corporationov::npuw::
 // SPDX-License-Identifier: Apache-2.0
 //
 
