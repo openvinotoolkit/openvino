@@ -724,3 +724,93 @@ TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionForQwen25VL) {
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
+
+TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionForGPTOSS) {
+    {
+        auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ 3, -1, -1 });
+        auto input_convert = std::make_shared<ov::op::v0::Convert>(position_ids, ov::element::i32);
+        auto input_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(input_convert,
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int64_t>{0}));
+        auto convert_2 = std::make_shared<ov::op::v0::Convert>(input_unsqueeze, ov::element::f16);
+
+        auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(input_convert, ov::element::i32);
+        auto gather_0 = std::make_shared<ov::op::v8::Gather>(shape_of,
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int64_t>{1}),
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int64_t>{0}));
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int64_t>{1}),
+                gather_0,
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int64_t>{64}),
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int64_t>{1})}, 0);
+        auto broadcast = std::make_shared<ov::op::v3::Broadcast>(
+            std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 1, 64, 1}), concat);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(broadcast, convert_2);
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul,
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int64_t>{0, 1, 3, 2}));
+
+        auto cos = std::make_shared<ov::op::v0::Cos>(transpose);
+        auto sin = std::make_shared<ov::op::v0::Sin>(transpose);
+
+        auto mul_cos_scale = std::make_shared<ov::op::v1::Multiply>(cos,
+            std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1}));
+        auto unsqueeze_cos = std::make_shared<ov::op::v0::Unsqueeze>(mul_cos_scale,
+            std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{}, std::vector<int64_t>{0}));
+
+        auto mul_sin_scale = std::make_shared<ov::op::v1::Multiply>(sin,
+            std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1}));
+        auto unsqueeze_sin = std::make_shared<ov::op::v0::Unsqueeze>(mul_sin_scale,
+            std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{}, std::vector<int64_t>{0}));
+
+        auto input_2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, -1, 28, 128});
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{input_2, unsqueeze_cos, unsqueeze_sin},
+                ov::op::internal::RoPE::Config());
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{position_ids, input_2});
+        manager.register_pass<IncreasePositionIdsPrecisionForGPTOSS>();
+    }
+    {
+        auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ 3, -1, -1 });
+        auto input_convert = std::make_shared<ov::op::v0::Convert>(position_ids, ov::element::i32);
+        auto input_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(input_convert,
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int64_t>{0}));
+        auto convert_2 = std::make_shared<ov::op::v0::Convert>(input_unsqueeze, ov::element::f32);
+
+        auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(input_convert, ov::element::i32);
+        auto gather_0 = std::make_shared<ov::op::v8::Gather>(shape_of,
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int64_t>{1}),
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int64_t>{0}));
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int64_t>{1}),
+                gather_0,
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int64_t>{64}),
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int64_t>{1})}, 0);
+        auto broadcast = std::make_shared<ov::op::v3::Broadcast>(
+            std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 1, 64, 1}), concat);
+        auto convert_broadcast = std::make_shared<ov::op::v0::Convert>(broadcast, ov::element::f32);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(convert_broadcast, convert_2);
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul,
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int64_t>{0, 1, 3, 2}));
+
+        auto cos = std::make_shared<ov::op::v0::Cos>(transpose);
+        auto sin = std::make_shared<ov::op::v0::Sin>(transpose);
+
+        auto mul_cos_scale = std::make_shared<ov::op::v1::Multiply>(
+            std::make_shared<ov::op::v0::Convert>(cos, ov::element::f32),
+            std::make_shared<ov::op::v0::Convert>(std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1}), ov::element::f32));
+        auto unsqueeze_cos = std::make_shared<ov::op::v0::Unsqueeze>(mul_cos_scale,
+            std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{}, std::vector<int64_t>{0}));
+
+        auto mul_sin_scale = std::make_shared<ov::op::v1::Multiply>(
+            std::make_shared<ov::op::v0::Convert>(sin, ov::element::f32),
+            std::make_shared<ov::op::v0::Convert>(std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1}), ov::element::f32));
+        auto unsqueeze_sin = std::make_shared<ov::op::v0::Unsqueeze>(mul_sin_scale,
+            std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{}, std::vector<int64_t>{0}));
+
+        auto input_2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, -1, 28, 128});
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{input_2, unsqueeze_cos, unsqueeze_sin},
+                ov::op::internal::RoPE::Config());
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{position_ids, input_2});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
