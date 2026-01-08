@@ -29,4 +29,21 @@ bool current_test_is_disabled() {
     return false;
 }
 
+bool current_test_model_cache_is_disabled() {
+    if (!is_model_cache_enabled() || disable_tests_skipping) {
+        return false;
+    }
+
+    const auto fullName = ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() + std::string(".") +
+                          ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+    for (const auto& pattern : model_cache_disabled_test_patterns()) {
+        std::regex re(pattern);
+        if (std::regex_match(fullName, re))
+            return true;
+    }
+
+    return false;
+}
+
 }  // namespace ov::test::utils
