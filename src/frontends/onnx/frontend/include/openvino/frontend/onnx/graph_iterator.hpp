@@ -50,6 +50,9 @@ public:
     /// \brief Retrieves metadata associated with the graph.
     virtual std::map<std::string, std::string> get_metadata() const = 0;
 
+    /// \brief Returns the directory path where the model is located.
+    virtual std::string get_model_dir() const = 0;
+
     /// \brief Destructor
     virtual ~GraphIterator();
 };

@@ -10,18 +10,18 @@
 #include <fstream>
 #include <iostream>
 #include <map>
-#include <unordered_map>
-#include <system_error>
+#include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/graph_iterator.hpp>
 #include <openvino/frontend/input_model.hpp>
-#include <openvino/frontend/exception.hpp>
 #include <openvino/openvino.hpp>
+#include <system_error>
+#include <unordered_map>
 
 #include "../frontend/src/core/graph_iterator_proto.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "load_from.hpp"
 #include "onnx_utils.hpp"
 #include "utils.hpp"
-#include "common_test_utils/common_utils.hpp"
 
 using ::ONNX_NAMESPACE::ModelProto;
 using ::ONNX_NAMESPACE::Version;
@@ -49,6 +49,10 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingSimpleGraphIterator) {
 
         std::map<std::string, std::string> get_metadata() const override {
             return {};
+        }
+
+        std::string get_model_dir() const override {
+            return "";
         }
 
         ~SimpleIterator() override {};
@@ -176,8 +180,8 @@ TEST_P(FrontEndLoadFromTest, tensor_place_uses_model_dir_for_external_data) {
                 const auto file_name = original_location.filename().string();
                 ASSERT_FALSE(file_name.empty())
                     << "External data location entry has no file name component: " << entry.value();
-                const auto source_path = original_location.is_absolute() ? original_location
-                                                                         : original_dir / original_location;
+                const auto source_path =
+                    original_location.is_absolute() ? original_location : original_dir / original_location;
                 relocation_plan.try_emplace(file_name, source_path);
                 entry.set_value(file_name);
                 updated_location = true;
