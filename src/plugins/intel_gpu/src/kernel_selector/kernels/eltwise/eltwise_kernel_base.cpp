@@ -252,19 +252,19 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                         if (ew.mode == EltwiseMode::MODULU)
                             op += input0_str + " % " + input1_str;
                         else
-                            op += cast_type + mode + "(" + input0_str + ", " + input1_str + ")";
+                            op += "f" + mode + "(" + cast_type + "(" + input0_str + "), " + cast_type + "(" + input1_str + "))";
                     } else {
                         // input_0 == int && input_1 != int
-                        op += cast_type + "f" + mode + "(convert_float(" + input0_str + "), " + input1_str + ")";
+                        op += "f" + mode + "(" + cast_type + "(convert_float(" + input0_str + ")), " + cast_type + "(" + input1_str + "))";
                     }
                 } else if (input_1_type == kernel_selector::Datatype::INT8 ||
                            input_1_type == kernel_selector::Datatype::INT32 ||
                            input_1_type == kernel_selector::Datatype::INT64) {
                     // input_0 != int && input_1 == int
-                    op += cast_type + "f" + mode + "(" + input0_str + ", convert_float(" + input1_str + "))";
+                    op += "f" + mode + "(" + cast_type + "(" + input0_str + "), " + cast_type + "(convert_float(" + input1_str + ")))";
                 } else {
                     // input_0 != int && input_1 != int
-                    op += cast_type + "f" + mode + "(" + input0_str + ", " + input1_str + ")";
+                    op += "f" + mode + "(" + cast_type + "(" + input0_str + "), " + cast_type + "(" + input1_str + "))";
                 }
             } break;
             case EltwiseMode::POW:
