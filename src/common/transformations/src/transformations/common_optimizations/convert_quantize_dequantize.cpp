@@ -133,17 +133,19 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize(
         if (!ov::op::util::get_single_value(output_high, out_high_val))
             return false;
 
-#define PRECISION_LIMITS_FOR(type)                                                                      \
-    {ov::element::type}, {                                                                              \
-        static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::min()),    \
-            static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::max()) \
-    }
+#define PRECISION_LIMITS_FOR(type) \
+    { ov::element::type, \
+        std::make_pair<float,float>( \
+        static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::min()), \
+            static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::max()))}
 
-        static const std::unordered_map<ov::element::Type_t, std::pair<float, float>> supported_intervals{
-            {PRECISION_LIMITS_FOR(i8)},
-            {PRECISION_LIMITS_FOR(u8)},
-            {PRECISION_LIMITS_FOR(i16)},
-            {PRECISION_LIMITS_FOR(u16)}};
+        static const std::unordered_map<ov::element::Type_t, std::pair<float, float>> supported_intervals
+        {
+            PRECISION_LIMITS_FOR(i8),
+            PRECISION_LIMITS_FOR(u8),
+            PRECISION_LIMITS_FOR(i16),
+            PRECISION_LIMITS_FOR(u16)
+        };
 #undef PRECISION_LIMITS_FOR
 
         const auto& type = convert1.get_element_type();
