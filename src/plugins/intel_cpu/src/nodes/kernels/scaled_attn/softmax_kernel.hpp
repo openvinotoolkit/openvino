@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -568,15 +568,9 @@ inline void scale_add2_reduce_max(ov::float16* a,
     svbool_t pg_f16 = svptrue_b16();
     svbool_t pg_u8 = svptrue_b8();
     svbool_t pg_u16 = svptrue_b16();
-    size_t inc = vec_len_f16_sve();
+    size_t vec_len = svcnth();
 
-    while (i < size) {
-        if (size - i < vec_len_f16_sve()) {
-            inc = size - i;
-            pg_f16 = svwhilelt_b16(0, static_cast<int>(inc));
-            pg_u8 = svwhilelt_b8(0, static_cast<int>(inc));
-            pg_u16 = svwhilelt_b16(0, static_cast<int>(inc));
-        }
+    for (; i + vec_len <= size; i += vec_len) {
         v_a = svld1_f16(pg_f16, reinterpret_cast<const float16_t*>(a + i));
         v_a = svmul_f16_z(pg_f16, v_a, v_scale);
 
@@ -589,28 +583,27 @@ inline void scale_add2_reduce_max(ov::float16* a,
             static_assert(std::is_same_v<T, float> || std::is_same_v<T, ov::float16>,
                           "attn_mask must be float or float16 type.");
             if constexpr (std::is_same_v<T, float>) {
-                // SVE f32->f16 needs even/odd lane handling; gather mask with stride-2 to align fp16 lanes.
                 svfloat16_t zero = svdup_n_f16(0.0f);
-                size_t inc_low = (inc + 1) / 2;
-                size_t inc_high = inc / 2;
+                size_t inc_low = (vec_len + 1) / 2;
+                size_t inc_high = vec_len / 2;
                 svbool_t pg_f32_low = svwhilelt_b32(0, static_cast<int>(inc_low));
                 svbool_t pg_f32_high = svwhilelt_b32(0, static_cast<int>(inc_high));
 
-                svfloat16_t low_f16 = svtrn1_f16(v_a, zero);
-                svfloat16_t high_f16 = svtrn2_f16(v_a, zero);
-                svfloat32_t low_f32 = svcvt_f32_f16_z(pg_f32_low, low_f16);
-                svfloat32_t high_f32 = svcvt_f32_f16_z(pg_f32_high, high_f16);
+                svfloat16_t low_f16 = svzip1_f16(v_a, zero);
+                svfloat16_t high_f16 = svzip2_f16(v_a, zero);
+                svfloat32_t low_f32 = svcvt_f32_f16_x(pg_f32_low, low_f16);
+                svfloat32_t high_f32 = svcvt_f32_f16_x(pg_f32_high, high_f16);
 
                 svuint32_t idx_even = svindex_u32(0, 2);
                 svuint32_t idx_odd = svindex_u32(1, 2);
                 svfloat32_t mask_low = svld1_gather_u32index_f32(pg_f32_low, attn_mask + i, idx_even);
                 svfloat32_t mask_high = svld1_gather_u32index_f32(pg_f32_high, attn_mask + i, idx_odd);
-                low_f32 = svadd_f32_z(pg_f32_low, low_f32, mask_low);
-                high_f32 = svadd_f32_z(pg_f32_high, high_f32, mask_high);
+                low_f32 = svadd_f32_x(pg_f32_low, low_f32, mask_low);
+                high_f32 = svadd_f32_x(pg_f32_high, high_f32, mask_high);
 
-                svfloat16_t low_f16_out = svcvt_f16_f32_z(pg_f32_low, low_f32);
-                svfloat16_t high_f16_out = svcvt_f16_f32_z(pg_f32_high, high_f32);
-                v_a = svtrn1_f16(low_f16_out, high_f16_out);
+                svfloat16_t low_f16_out = svcvt_f16_f32_x(pg_f32_low, low_f32);
+                svfloat16_t high_f16_out = svcvt_f16_f32_x(pg_f32_high, high_f32);
+                v_a = svuzp1(low_f16_out, high_f16_out);
             } else if constexpr (std::is_same_v<T, ov::float16>) {
                 svfloat16_t v_mask = svld1_f16(pg_f16, reinterpret_cast<const float16_t*>(attn_mask + i));
                 v_a = svadd_f16_z(pg_f16, v_a, v_mask);
@@ -627,9 +620,8 @@ inline void scale_add2_reduce_max(ov::float16* a,
 
         v_max = svmax_f16_z(pg_f16, v_max, v_a);
         svst1_f16(pg_f16, reinterpret_cast<float16_t*>(a + i), v_a);
-        i += inc;
     }
-    max = svmaxv_f16(pg_f16, v_max);
+    max = svmaxv_f16(svptrue_b16(), v_max);
 #    elif defined(HAVE_NEON_FP16)
     float16x8_t v_max = vdupq_n_f16(min_f16);
     float16x8_t v_scale = vdupq_n_f16(static_cast<float16_t>(scale));
@@ -882,43 +874,31 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
 inline void exp_reduce_sum_f32(ov::float16* a, const ov::float16 max, const size_t size, ov::float16& sum) {
     size_t i = 0;
 #    if defined(HAVE_SVE)
-    // Convert f16 to f32 via even/odd split so all fp16 lanes participate, then recombine results.
     svfloat32_t v_max = svdup_n_f32(static_cast<float>(max));
     svfloat32_t v_sum = svdup_n_f32(0.0f);
-    svfloat16_t zero = svdup_n_f16(0.0f);
-    size_t inc = vec_len_f16_sve();
 
-    while (i < size) {
-        if (size - i < vec_len_f16_sve()) {
-            inc = size - i;
-        }
-        svbool_t pg_f16 = svwhilelt_b16(0, static_cast<int>(inc));
-        size_t inc_low = (inc + 1) / 2;
-        size_t inc_high = inc / 2;
-        svbool_t pg_f32_low = svwhilelt_b32(0, static_cast<int>(inc_low));
-        svbool_t pg_f32_high = svwhilelt_b32(0, static_cast<int>(inc_high));
+    svbool_t pg_f32 = svptrue_b32();
+    svbool_t pg_f16 = svptrue_b16();
+    svfloat16_t zero = svdup_n_f16(0.0);
 
+    for (; i + svcnth() <= size; i += svcnth()) {
         svfloat16_t v_a_f16 = svld1_f16(pg_f16, reinterpret_cast<const float16_t*>(a + i));
-        svfloat16_t low_f16 = svtrn1_f16(v_a_f16, zero);
-        svfloat16_t high_f16 = svtrn2_f16(v_a_f16, zero);
+        auto v_a_f16_low = svzip1_f16(v_a_f16, zero);
+        auto v_a_f16_high = svzip2_f16(v_a_f16, zero);
+        auto v_a_low = svcvt_f32_f16_x(pg_f16, v_a_f16_low);
+        auto v_a_high = svcvt_f32_f16_x(pg_f16, v_a_f16_high);
 
-        svfloat32_t low_f32 = svcvt_f32_f16_z(pg_f32_low, low_f16);
-        svfloat32_t high_f32 = svcvt_f32_f16_z(pg_f32_high, high_f16);
+        v_a_low = svsub_f32_x(pg_f32, v_a_low, v_max);
+        v_a_high = svsub_f32_x(pg_f32, v_a_high, v_max);
+        v_a_low = exp_ps_sve(pg_f32, v_a_low);
+        v_a_high = exp_ps_sve(pg_f32, v_a_high);
+        v_sum = svadd_f32_x(pg_f32, v_sum, v_a_low);
+        v_sum = svadd_f32_x(pg_f32, v_sum, v_a_high);
 
-        low_f32 = svsub_f32_z(pg_f32_low, low_f32, v_max);
-        high_f32 = svsub_f32_z(pg_f32_high, high_f32, v_max);
-
-        svfloat32_t low_exp_f32 = exp_ps_sve(pg_f32_low, low_f32);
-        svfloat32_t high_exp_f32 = exp_ps_sve(pg_f32_high, high_f32);
-
-        v_sum = svadd_f32_m(pg_f32_low, v_sum, low_exp_f32);
-        v_sum = svadd_f32_m(pg_f32_high, v_sum, high_exp_f32);
-
-        svfloat16_t low_exp_f16 = svcvt_f16_f32_z(pg_f32_low, low_exp_f32);
-        svfloat16_t high_exp_f16 = svcvt_f16_f32_z(pg_f32_high, high_exp_f32);
-        svfloat16_t v_result = svtrn1_f16(low_exp_f16, high_exp_f16);
-        svst1_f16(pg_f16, reinterpret_cast<float16_t*>(a + i), v_result);
-        i += inc;
+        svfloat16_t v_result_low = svcvt_f16_f32_x(pg_f32, v_a_low);
+        svfloat16_t v_result_high = svcvt_f16_f32_x(pg_f32, v_a_high);
+        auto result = svuzp1(v_result_low, v_result_high);
+        svst1_f16(pg_f16, reinterpret_cast<float16_t*>(a + i), result);
     }
     float total_sum = svaddv_f32(svptrue_b32(), v_sum);
 #    else
