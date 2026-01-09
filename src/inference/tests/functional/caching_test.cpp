@@ -128,8 +128,8 @@ public:
 
     ~MkDirGuard() {
         if (!m_dir.empty()) {
-            ov::test::utils::removeFilesWithExt(m_dir, "blob");
-            ov::test::utils::removeDir(m_dir);
+            ov::test::utils::removeFilesWithExt<ov::test::opt::FORCE>(m_dir, "blob");
+            std::filesystem::remove_all(m_dir);
         }
     }
 };
@@ -255,6 +255,10 @@ public:
             EXPECT_TRUE(Mock::VerifyAndClearExpectations(model.get()));
         }
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockPlugin.get()));
+        comp_models.clear();
+        m_models.clear();
+        m_model.reset();
+        mockPlugin.reset();
         ov::test::utils::removeIRFiles(modelName, weightsName);
     }
 
@@ -1396,9 +1400,8 @@ TEST_P(CachingTest, TestCacheDirCreateRecursive) {
             EXPECT_NO_THROW(m_testFunction(core));
         });
     }
-    ov::test::utils::removeFilesWithExt(newCacheDir2, "blob");
-    ov::test::utils::removeDir(newCacheDir2);
-    ov::test::utils::removeDir(newCacheDir1);
+    std::filesystem::remove_all(newCacheDir2);
+    std::filesystem::remove_all(newCacheDir1);
 }
 
 TEST_P(CachingTest, TestDeviceArchitecture) {
