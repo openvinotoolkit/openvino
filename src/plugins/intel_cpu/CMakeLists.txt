@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -439,6 +439,16 @@ if(BUILD_SHARED_LIBS)
     set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
     ov_build_target_faster(${TARGET_NAME}_obj PCH PCH_EXCLUDE ${PCH_EXCLUDE_FILES})
+endif()
+
+if(OV_CPU_WITH_ACL)
+    target_include_directories(${TARGET_NAME} PRIVATE
+        ${OpenVINO_SOURCE_DIR}/src/inference/include)
+
+    if(BUILD_SHARED_LIBS)
+        target_include_directories(${TARGET_NAME}_obj PRIVATE
+            ${OpenVINO_SOURCE_DIR}/src/inference/include)
+    endif()
 endif()
 
 if(ENABLE_TESTS)

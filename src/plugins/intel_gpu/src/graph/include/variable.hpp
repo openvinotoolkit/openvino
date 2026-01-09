@@ -24,5 +24,11 @@ private:
     ov::element::Type m_user_specified_type;
 };
 
+class releasable_variable : public variable {
+public:
+    using variable::variable;
+    virtual void release_variable() = 0;
+};
+
 } // namespace memory_state
 } // namespace cldnn

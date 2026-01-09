@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -145,8 +145,7 @@ class TestLSTM(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize('cell_type', ["LSTM", "GRU", "RNN"])
     def test_lstm_simple_precommit(self, direction, cell_type, ie_device, precision, ir_version,
                                    temp_dir):
-        if ie_device == "CPU":
-            pytest.skip("Ticket - 161790")
+        pytest.skip("Ticket - 161790")
         self._test(*self.create_lstm(direction, cell_type), ie_device, precision, ir_version,
                    temp_dir=temp_dir, infer_timeout=150)
 

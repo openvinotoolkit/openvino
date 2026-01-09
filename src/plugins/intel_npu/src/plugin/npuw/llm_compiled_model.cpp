@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "llm_compiled_model.hpp"
@@ -789,6 +789,17 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
     for (std::size_t i = ov::npuw::LLMInferRequest::layer_ids::kStartOutputKVCacheLayers; i < model->outputs().size();
          ++i) {
         auto kvout = model->output(i);
+
+        // Skip outputs that are not KV cache (e.g., last_hidden_state)
+        // KV cache outputs follow the pattern: present.{layer}.key or present.{layer}.value
+        const auto& output_name = kvout.get_any_name();
+        bool is_kv_cache =
+            (output_name.find("present") != std::string::npos) &&
+            (output_name.find("key") != std::string::npos || output_name.find("value") != std::string::npos);
+        if (!is_kv_cache) {
+            continue;
+        }
+
         auto kvrslt = kvout.get_node();
         auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
         auto kvval = kvcat->inputs()[1].get_source_output();
@@ -831,6 +842,7 @@ void patch_phi3_sliding_mask(const std::shared_ptr<ov::Model>& model) {
         model->validate_nodes_and_infer_types();
     }
 }
+
 }  // namespace
 
 class CutLMHead : public ov::pass::MatcherPass {
@@ -971,6 +983,8 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
             new_shape[0] = 1;  // batch_dim
+        } else if (ov::npuw::matchEagle3HiddenStatesString(input_name)) {
+            new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, input_size);
         } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
         } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
@@ -1447,6 +1461,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
     auto use_whisper_key = pop_option(other_props, std::string("NPUW_WHISPER"));
+    auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
     // Solely used for serialization at the moment
     m_non_llm_props = other_props;
 
@@ -1469,6 +1484,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
         m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
+    }
+
+    m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
+    if (m_is_eagle) {
+        LOG_INFO("Eagle3 speculative decoding mode enabled");
     }
 
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
@@ -1622,6 +1642,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const bool prefill_attn_pyramid = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
     const bool generate_attn_pyramid = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
 
+    const bool prefill_attn_hfa = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA;
+    const bool generate_attn_hfa = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA;
+
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
         LOG_DEBUG("Check and apply opt layout");
@@ -1701,6 +1724,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
 
+    // Convert LLM-specific attention hints to NPUW_ATTN
+    if (npuw_llm_props.count("NPUW_LLM_PREFILL_ATTENTION_HINT")) {
+        prefill_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_PREFILL_ATTENTION_HINT"];
+    }
+    if (npuw_llm_props.count("NPUW_LLM_GENERATE_ATTENTION_HINT")) {
+        generate_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_GENERATE_ATTENTION_HINT"];
+    }
+
     // Generate a random weights bank name unique to this LLMCompiledModel object
     auto weights_bank_name = ov::npuw::util::generate_random_string();
     LOG_VERB("Generated a unique weights bank name: " << weights_bank_name);
@@ -1715,10 +1746,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
         {"NPUW_UNFOLD_IREQS", "NO"},
     };
-    if (prefill_attn_dyn || prefill_attn_pyramid) {
+    if (prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa) {
         merge_config_with(prefill_config, dyn_attn_opts);
     }
-    if (generate_attn_dyn || generate_attn_pyramid) {
+    if (generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa) {
         merge_config_with(generate_config, dyn_attn_opts);
     }
 
@@ -1766,12 +1797,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::pass::GraphRewrite rewr;
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
-        if (generate_attn_dyn || generate_attn_pyramid) {
+        if (generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa) {
             for (auto& model_variant : generate_model_variants) {
                 rewr.run_on_model(model_variant);
             }
         }
-        if (prefill_attn_dyn || prefill_attn_pyramid) {
+        if (prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa) {
             rewr.run_on_model(prefill_model);
         }
 
@@ -1916,6 +1947,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_prefix_caching_max_num_blocks);
         write(model_stream, m_gemma_sliding_window_size);
         write(model_stream, m_is_whisper);
+        write(model_stream, m_is_eagle);
 
         // Write config
         write(model_stream, m_cfg);
@@ -2140,6 +2172,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_prefix_caching_max_num_blocks);
         read(model_stream, compiled->m_gemma_sliding_window_size);
         read(model_stream, compiled->m_is_whisper);
+        read(model_stream, compiled->m_is_eagle);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
@@ -2255,6 +2288,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT, getString),
                           BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
-                          BIND(npuw::whisper::enabled, NPUW_WHISPER, get)});
+                          BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
+                          BIND(npuw::eagle::enabled, NPUW_EAGLE, get)});
 #undef BIND
 }
