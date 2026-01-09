@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "graph/include/primitive_inst.h"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -325,6 +326,42 @@ void test_variables_are_preserved_across_inferences(bool is_caching_test) {
 
 TEST(variable_test_common, variables_are_preserved_across_inferences) {
     test_variables_are_preserved_across_inferences<int>(false);
+}
+
+TEST(variable_test_common, variables_release) {
+    auto& engine = get_test_engine();
+
+    const layout variable_layout{{ 1 }, data_types::f32, format::bfyx};
+    const auto input_data = engine.allocate_memory(variable_layout);
+    std::vector<float> inputs = { 70.0f };
+    set_values(input_data, inputs);
+
+    topology topology;
+    topology.add(input_layout("input", input_data->get_layout()));
+    topology.add(read_value{"read_value", {input_info("input")}, "v0", {variable_layout}});
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto read_value_inst = network->get_primitive("read_value");
+    VariableStateInfo var_info{"v0", variable_layout};
+    var_info.m_release_variable_inst.emplace_back(std::dynamic_pointer_cast<memory_state::releasable_variable>(read_value_inst));
+    auto variable = std::make_shared<VariableState>(var_info, context, network->get_shape_predictor());
+    network->set_variable("v0", variable);
+    network->set_input_data("input", input_data);
+
+    const auto outputs = network->execute();
+
+    const auto output_count = read_value_inst->outputs_memory_count();
+    for (size_t i = 0; i < output_count; ++i) {
+        ASSERT_TRUE(read_value_inst->output_memory_ptr(i));
+    }
+
+    variable->reset();
+    for (size_t i = 0; i < output_count; ++i) {
+        ASSERT_FALSE(read_value_inst->output_memory_ptr(i));
+    }
 }
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
