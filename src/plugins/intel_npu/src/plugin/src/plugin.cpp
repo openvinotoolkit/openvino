@@ -10,6 +10,7 @@
 #include "compiled_model.hpp"
 #include "compiler_adapter_factory.hpp"
 #include "driver_compiler_adapter.hpp"
+#include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
@@ -920,25 +921,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     }
 
     try {
-        const bool skipCompatibility =
-            (npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end())
-                ? npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
-                : _globalConfig.get<DISABLE_VERSION_CHECK>();
-        const bool importRawBlob =
-            (npu_plugin_properties.find(IMPORT_RAW_BLOB::key().data()) != npu_plugin_properties.end())
-                ? npu_plugin_properties[IMPORT_RAW_BLOB::key().data()].as<bool>()
-                : _globalConfig.get<IMPORT_RAW_BLOB>();
-        std::unique_ptr<MetadataBase> metadata = nullptr;
-        size_t blobSize = MetadataBase::getFileSize(stream);
-
-        if (!importRawBlob && !skipCompatibility) {
-            // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
-            // passes compatibility checks.
-            metadata = read_metadata_from(stream);
-            blobSize = metadata->get_blob_size();
-        } else {
-            _logger.info("Blob compatibility check skipped.");
-        }
+        size_t blobSize = BlobReader::get_npu_region_size(stream);
 
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
@@ -946,7 +929,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
         }
         stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
-        return parse(tensor, std::move(metadata), npu_plugin_properties);
+        return parse(tensor, npu_plugin_properties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -981,27 +964,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     }
 
     try {
-        const bool skipCompatibility =
-            (npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end())
-                ? npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
-                : _globalConfig.get<DISABLE_VERSION_CHECK>();
-        const bool importRawBlob =
-            (npu_plugin_properties.find(IMPORT_RAW_BLOB::key().data()) != npu_plugin_properties.end())
-                ? npu_plugin_properties[IMPORT_RAW_BLOB::key().data()].as<bool>()
-                : _globalConfig.get<IMPORT_RAW_BLOB>();
-        std::unique_ptr<MetadataBase> metadata = nullptr;
-        size_t blobSize = compiled_blob.get_byte_size();
+        size_t blobSize = BlobReader::get_npu_region_size(compiled_blob);
 
-        if (!importRawBlob && !skipCompatibility) {
-            metadata = read_metadata_from(compiled_blob);
-            blobSize = metadata->get_blob_size();
-        } else {
-            _logger.info("Blob compatibility check skipped.");
-        }
         const ov::Tensor roiTensor(compiled_blob,
                                    ov::Coordinate{0},
                                    ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
-        return parse(roiTensor, std::move(metadata), npu_plugin_properties);
+        return parse(roiTensor, npu_plugin_properties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -1092,9 +1060,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return supportedOpsMap;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
-                                                  std::unique_ptr<MetadataBase> metadata,
-                                                  const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
 
     // TODO blobwriter in the parse flow

@@ -15,14 +15,10 @@ constexpr uint32_t FORMAT_VERSION = 0x30000;  // 3.0;
 
 namespace intel_npu {
 
-BlobReader::BlobReader(std::istream& source) : m_source(source), m_stream_base(source.tellg()) {}
-
 BlobReader::BlobReader(const ov::Tensor& source) : m_source(source), m_cursor(0) {}
 
-void BlobReader::register_reader(
-    const SectionID section_id,
-    std::function<std::shared_ptr<ISection>(const BlobSource&, const std::unordered_map<SectionID, uint64_t>&)>
-        reader) {
+void BlobReader::register_reader(const SectionID section_id,
+                                 std::function<std::shared_ptr<ISection>(BlobReader*, const size_t)> reader) {
     m_readers[section_id] = reader;
 }
 
@@ -34,42 +30,33 @@ std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID section_i
     return nullptr;
 }
 
-// TODO test the windows debug build works properly if using the "better" implementation
 // TODO allow reinterpreting instead of copying
-void BlobReader::read_data_from_source(char* destination, const size_t size) {
-    if (const std::reference_wrapper<std::istream>* stream =
-            std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
-        stream->get().read(destination, size);
-    } else if (const std::reference_wrapper<const ov::Tensor>* tensor =
-                   std::get_if<std::reference_wrapper<const ov::Tensor>>(&m_source)) {
-        std::memcpy(destination, tensor->get().data<const char>() + m_cursor, size);
-        m_cursor += size;
-    }
+void BlobReader::copy_data_from_source(char* destination, const size_t size) {
+    std::memcpy(destination, m_source.get().data<const char>() + m_cursor, size);
+    m_cursor += size;
+}
+
+template <class T>
+void BlobReader::interpret_data_from_source(T& destination) {
+    destination = reinterpret_cast<T>(m_source.get().data<const char>());
+    m_cursor += sizeof(&T);
 }
 
 size_t BlobReader::get_cursor_position() {
-    if (const std::reference_wrapper<std::istream>* stream =
-            std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
-        return stream->get().tellg() - m_stream_base;
-    }
     return m_cursor;
 }
 
 void BlobReader::move_cursor(const size_t offset) {
-    if (const std::reference_wrapper<std::istream>* stream =
-            std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
-        stream->get().seekg(static_cast<size_t>(m_stream_base) + offset);
-    }
     m_cursor = offset;
 }
 
 void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_ids) {
     std::string magic_bytes(MAGIC_BYTES.size(), 0);
-    read_data_from_source(const_cast<char*>(magic_bytes.c_str()), MAGIC_BYTES.size());
+    copy_data_from_source(const_cast<char*>(magic_bytes.c_str()), MAGIC_BYTES.size());
     OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES);
 
     uint32_t format_version;
-    read_data_from_source(reinterpret_cast<char*>(&format_version), sizeof(format_version));
+    copy_data_from_source(reinterpret_cast<char*>(&format_version), sizeof(format_version));
     OPENVINO_ASSERT(format_version == FORMAT_VERSION);
 
     // Step 1: Read the table of offsets
@@ -77,19 +64,19 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
     uint64_t section_length;
 
     uint64_t offsets_table_location;
-    read_data_from_source(reinterpret_cast<char*>(&offsets_table_location), sizeof(offsets_table_location));
+    copy_data_from_source(reinterpret_cast<char*>(&offsets_table_location), sizeof(offsets_table_location));
 
     // Also read the size of the NPU region
     uint64_t npu_region_size;
-    read_data_from_source(reinterpret_cast<char*>(&npu_region_size), sizeof(npu_region_size));
+    copy_data_from_source(reinterpret_cast<char*>(&npu_region_size), sizeof(npu_region_size));
     const size_t where_the_region_of_persistent_format_starts = get_cursor_position();
 
     // TODO bound checking
     move_cursor(offsets_table_location);
-    read_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
+    copy_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
     OPENVINO_ASSERT(section_id == PredefinedSectionID::OFFSETS_TABLE);
 
-    read_data_from_source(reinterpret_cast<char*>(&section_length), sizeof(section_length));
+    copy_data_from_source(reinterpret_cast<char*>(&section_length), sizeof(section_length));
     m_parsed_sections[PredefinedSectionID::OFFSETS_TABLE] = OffsetsTableSection::read(this, section_length);
     m_offsets_table =
         std::dynamic_pointer_cast<OffsetsTableSection>(m_parsed_sections.at(PredefinedSectionID::OFFSETS_TABLE))
@@ -99,10 +86,10 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
     OPENVINO_ASSERT(m_offsets_table->count(PredefinedSectionID::CRE));
     move_cursor(m_offsets_table->at(PredefinedSectionID::CRE));
 
-    read_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
+    copy_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
     OPENVINO_ASSERT(section_id == PredefinedSectionID::CRE);
 
-    read_data_from_source(reinterpret_cast<char*>(&section_length), sizeof(section_length));
+    copy_data_from_source(reinterpret_cast<char*>(&section_length), sizeof(section_length));
     m_parsed_sections[PredefinedSectionID::CRE] = CRESection::read(this, section_length);  // TODO also evaluate within
     std::dynamic_pointer_cast<CRESection>(m_parsed_sections.at(PredefinedSectionID::CRE))
         ->check_compatibility(plugin_capabilities_ids);
@@ -111,8 +98,8 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
     move_cursor(where_the_region_of_persistent_format_starts);
 
     while (get_cursor_position() < npu_region_size) {
-        read_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
-        read_data_from_source(reinterpret_cast<char*>(&section_length), sizeof(section_length));
+        copy_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
+        copy_data_from_source(reinterpret_cast<char*>(&section_length), sizeof(section_length));
 
         if (!m_readers.count(section_id)) {
             // Unknown region, skip
@@ -122,6 +109,29 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
 
         m_parsed_sections[section_id] = m_readers.at(section_id)(this, section_length);
     }
+}
+
+size_t BlobReader::get_npu_region_size(std::istream& stream) {
+    uint64_t npu_region_size;
+    auto position_before = stream.tellg();
+
+    // Magic bytes -> format version -> table offsets location -> NPU region size
+    stream.seekg(MAGIC_BYTES.size() + sizeof(FORMAT_VERSION) + sizeof(uint64_t), std::ios_base::cur);
+    stream.read(reinterpret_cast<char*>(&npu_region_size), sizeof(npu_region_size));
+    stream.seekg(position_before);
+
+    return npu_region_size;
+}
+
+size_t BlobReader::get_npu_region_size(const ov::Tensor& tensor) {
+    uint64_t npu_region_size;
+
+    // Magic bytes -> format version -> table offsets location -> NPU region size
+    std::memcpy(reinterpret_cast<char*>(&npu_region_size),
+                tensor.data<const char>() + MAGIC_BYTES.size() + sizeof(FORMAT_VERSION) + sizeof(uint64_t),
+                sizeof(npu_region_size));
+
+    return npu_region_size;
 }
 
 }  // namespace intel_npu
