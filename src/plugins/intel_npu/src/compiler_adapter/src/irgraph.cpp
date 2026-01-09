@@ -82,12 +82,15 @@ void IRGraph::GraphArguments::setArgumentProperty(uint32_t argi,
         }
 
         // size_t stridesSize = strides.size();
-        for (int64_t i = 0; i < _inputs[argi].dimsCount; i++) {
-            _inputs[argi].strides[i] = strides[i];
+        if (strides.empty()) {
+            // Need stride based on element but not byte, so calc here
+            _inputs[argi].updateStride();
+        } else {
+            for (int64_t i = 0; i < _inputs[argi].dimsCount; i++) {
+                _inputs[argi].strides[i] = strides[i];
+            }
         }
 
-        // Need stride based on element but not byte
-        _inputs[argi].updateStride();
         oss.clear();
         oss.str("");
         oss << _inputs[argi];
@@ -108,12 +111,15 @@ void IRGraph::GraphArguments::setArgumentProperty(uint32_t argi,
             }
 
             // size_t stridesSize = strides.size();
-            for (int64_t i = 0; i < _outputs[idx].dimsCount; i++) {
-                _outputs[idx].strides[i] = strides[i];
+            if (strides.empty()) {
+                // Need stride based on element but not byte, calc here
+                _outputs[idx].updateStride();
+            } else {
+                for (int64_t i = 0; i < _outputs[idx].dimsCount; i++) {
+                    _outputs[idx].strides[i] = strides[i];
+                }
             }
 
-            // Need stride based on element but not byte
-            _outputs[idx].updateStride();
             oss.clear();
             oss.str("");
             oss << _outputs[idx];

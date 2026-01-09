@@ -22,8 +22,29 @@
 #    include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #    include "intel_npu/utils/zero/zero_types.hpp"
 
-namespace intel_npu {
+namespace {
+std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, size_t element_size) {
+    std::vector<size_t> element_strides(strides_in_bytes.size());
+    std::transform(strides_in_bytes.rbegin(),
+                   strides_in_bytes.rend(),
+                   element_strides.begin(),
+                   [element_size](size_t byte_stride) {
+                       OPENVINO_ASSERT(byte_stride % element_size == 0,
+                                       "Stride ",
+                                       byte_stride,
+                                       " bytes is not aligned to element size ",
+                                       element_size,
+                                       " bytes. Strides must be multiples of element size.");
 
+                       return byte_stride / element_size;
+                   });
+
+    return element_strides;
+};
+
+}  // namespace
+
+namespace intel_npu {
 DynamicPipeline::DynamicPipeline(const Config& config,
                                  const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                  const std::shared_ptr<IGraph>& graph,
@@ -42,7 +63,7 @@ _levelZeroOutputTensors(output_tensors)*/
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
 
     _logger.debug("DynamicPipeline - initialize started, number_of_command_lists %i", _number_of_command_lists);
-
+    // TODO: not support now
     // if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
     //     _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
     //     _graph->resize_last_submitted_event(_number_of_command_lists);
@@ -109,6 +130,7 @@ _levelZeroOutputTensors(output_tensors)*/
 
         size_t io_index = 0;
         for (const auto& desc : _graph->get_metadata().inputs) {
+            // TODO: Not support now
             // if (desc.isMainInputWeights) {
             //     // These values were set while running the "WeightlessGraph::init" method
             //     continue;
@@ -117,34 +139,56 @@ _levelZeroOutputTensors(output_tensors)*/
             if (input_tensors.at(io_index).size() > 1) {
                 _logger.debug("DynamicPipeline - set args for input index: %zu", io_index);
                 // Can remove
-                irGraph->set_argument_property(desc.indexUsedByDriver,
-                                               input_tensors.at(io_index).at(i)->data(),
-                                               input_tensors.at(io_index).at(i)->get_strides(),
-                                               input_tensors.at(io_index).at(i)->get_shape());
+                // irGraph->set_argument_property(desc.indexUsedByDriver,
+                //                                input_tensors.at(io_index).at(i)->data(),
+                //                                input_tensors.at(io_index).at(i)->get_strides(),
+                //                                input_tensors.at(io_index).at(i)->get_shape());
+                const auto& tensor = input_tensors.at(io_index).at(i);
 
-                graphArguments.setArgumentProperty(desc.indexUsedByDriver,
-                                                   input_tensors.at(io_index).at(i)->data(),
-                                                   input_tensors.at(io_index).at(i)->get_strides(),
-                                                   input_tensors.at(io_index).at(i)->get_shape());
-
+                if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() ||
+                    tensor->get_strides().empty()) {
+                    irGraph->set_argument_value(desc.indexUsedByDriver, tensor->data());
+                    graphArguments.setArgumentProperty(desc.indexUsedByDriver,
+                                                       tensor->data(),
+                                                       tensor->get_strides(),
+                                                       tensor->get_shape());
+                } else {
+                    irGraph->set_argument_value_with_strides(
+                        desc.indexUsedByDriver,
+                        tensor->data(),
+                        get_strides(tensor->get_strides(), tensor->get_element_type().size()));
+                    graphArguments.setArgumentProperty(
+                        desc.indexUsedByDriver,
+                        tensor->data(),
+                        get_strides(tensor->get_strides(), tensor->get_element_type().size()),
+                        tensor->get_shape());
+                }
                 ++io_index;
                 continue;
             }
 
             _logger.debug(" update tensor property for input desc index: %d", desc.indexUsedByDriver);
-            irGraph->set_argument_property(
-                desc.indexUsedByDriver,
-                static_cast<unsigned char*>(input_tensors.at(io_index).at(0)->data()) +
-                    (i * input_tensors.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists,
-                input_tensors.at(io_index).at(0)->get_strides(),
-                input_tensors.at(io_index).at(0)->get_shape());
-
-            graphArguments.setArgumentProperty(
-                desc.indexUsedByDriver,
-                static_cast<unsigned char*>(input_tensors.at(io_index).at(0)->data()) +
-                    (i * input_tensors.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists,
-                input_tensors.at(io_index).at(0)->get_strides(),
-                input_tensors.at(io_index).at(0)->get_shape());
+            const auto& tensor = input_tensors.at(io_index).at(0);
+            if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
+                irGraph->set_argument_value(desc.indexUsedByDriver,
+                                            static_cast<unsigned char*>(tensor->data()) +
+                                                (i * tensor->get_byte_size()) / _number_of_command_lists);
+                graphArguments.setArgumentProperty(desc.indexUsedByDriver,
+                                                   static_cast<unsigned char*>(tensor->data()) +
+                                                       (i * tensor->get_byte_size()) / _number_of_command_lists,
+                                                   tensor->get_strides(),
+                                                   tensor->get_shape());
+            } else {
+                irGraph->set_argument_value(
+                    desc.indexUsedByDriver,
+                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
+                    get_strides(tensor->get_strides(), tensor->get_element_type().size()));
+                graphArguments.setArgumentProperty(
+                    desc.indexUsedByDriver,
+                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
+                    get_strides(tensor->get_strides(), tensor->get_element_type().size()),
+                    tensor->get_shape());
+            }
 
             ++io_index;
         }
@@ -152,19 +196,39 @@ _levelZeroOutputTensors(output_tensors)*/
         io_index = 0;
         for (const auto& desc : _graph->get_metadata().outputs) {
             _logger.debug("DynamicPipeline - update tensor property for output desc index: %d", desc.indexUsedByDriver);
-            irGraph->set_argument_property(
-                desc.indexUsedByDriver,
-                static_cast<unsigned char*>(output_tensors.at(io_index)->data()) +
-                    (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists,
-                output_tensors.at(io_index)->get_strides(),
-                output_tensors.at(io_index)->get_shape());
+            const auto& tensor = output_tensors.at(io_index);
+            if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
+                irGraph->set_argument_value(desc.indexUsedByDriver,
+                                            static_cast<unsigned char*>(tensor->data()) +
+                                                (i * tensor->get_byte_size()) / _number_of_command_lists);
+                graphArguments.setArgumentProperty(desc.indexUsedByDriver,
+                                                   static_cast<unsigned char*>(tensor->data()) +
+                                                       (i * tensor->get_byte_size()) / _number_of_command_lists,
+                                                   tensor->get_strides(),
+                                                   tenosr->get_shape());
+            } else {
+                irGraph->set_argument_value(
+                    desc.indexUsedByDriver,
+                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]));
+                graphArguments.setArgumentProperty(
+                    desc.indexUsedByDriver,
+                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
+                    get_strides(tensor->get_strides(), tensor->get_element_type().size()),
+                    tenosr->get_shape());
+            }
+            // irGraph->set_argument_property(
+            //     desc.indexUsedByDriver,
+            //     static_cast<unsigned char*>(output_tensors.at(io_index)->data()) +
+            //         (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists,
+            //     output_tensors.at(io_index)->get_strides(),
+            //     output_tensors.at(io_index)->get_shape());
 
-            graphArguments.setArgumentProperty(
-                desc.indexUsedByDriver,
-                static_cast<unsigned char*>(output_tensors.at(io_index)->data()) +
-                    (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists,
-                output_tensors.at(io_index)->get_strides(),
-                output_tensors.at(io_index)->get_shape());
+            // graphArguments.setArgumentProperty(
+            //     desc.indexUsedByDriver,
+            //     static_cast<unsigned char*>(output_tensors.at(io_index)->data()) +
+            //         (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists,
+            //     output_tensors.at(io_index)->get_strides(),
+            //     output_tensors.at(io_index)->get_shape());
 
             ++io_index;
         }
@@ -396,8 +460,8 @@ std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
         _logger.debug("InferRequest::get_profiling_info complete with _npu_profiling->getNpuInferStatistics().");
         return _npu_profiling->getNpuInferStatistics();
     }
-    // /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
-    // if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::MLIR) {
+    /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
+    // if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN) {
     // For plugin compiler retreive raw profiling data from backend and delegate
     // processing to the compiler
     _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
@@ -407,25 +471,6 @@ std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
     //     return _profiling_query->getLayerStatistics();
     // }
 }
-
-std::vector<size_t> DynamicPipeline::get_strides(const std::vector<size_t>& strides_in_bytes, size_t element_size) const {
-    std::vector<size_t> element_strides(strides_in_bytes.size());
-    std::transform(strides_in_bytes.rbegin(),
-                   strides_in_bytes.rend(),
-                   element_strides.begin(),
-                   [element_size](size_t byte_stride) {
-                       OPENVINO_ASSERT(byte_stride % element_size == 0,
-                                       "Stride ",
-                                       byte_stride,
-                                       " bytes is not aligned to element size ",
-                                       element_size,
-                                       " bytes. Strides must be multiples of element size.");
-
-                       return byte_stride / element_size;
-                   });
-
-    return element_strides;
-};
 
 }  // namespace intel_npu
 
