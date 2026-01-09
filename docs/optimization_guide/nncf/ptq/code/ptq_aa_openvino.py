@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #! [dataset]
@@ -23,7 +23,7 @@ from sklearn.metrics import accuracy_score
 import openvino
 
 
-def validate(model: openvino.CompiledModel, 
+def validate(model: openvino.CompiledModel,
              validation_loader: torch.utils.data.DataLoader) -> float:
     predictions = []
     references = []
