@@ -440,14 +440,24 @@ void ZeroInitStructsHolder::getExtensionFunctionAddress(const std::string& name,
     }
 }
 
-void ZeroInitStructsHolder::setContextOptions(const uint32_t options) {
-    std::lock_guard<std::mutex> lock(_mutex);
-    _context_options |= options;
-
+void ZeroInitStructsHolder::setContextProperties() {
+    std::cout << "_context_options: " << _context_options << std::endl;
     ze_context_properties_npu_ext_t context_properties_npu_ext = {ZE_STRUCTURE_TYPE_CONTEXT_PROPERTIES_NPU_EXT,
                                                                   nullptr,
                                                                   _context_options};
     _context_npu_dditable_ext_decorator->pfnSetProperties(_context, &context_properties_npu_ext);
+}
+
+void ZeroInitStructsHolder::clearContextOptions(const uint32_t options) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    _context_options &= ~options;
+    setContextProperties();
+}
+
+void ZeroInitStructsHolder::setContextOptions(const uint32_t options) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    _context_options |= options;
+    setContextProperties();
 }
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {

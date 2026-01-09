@@ -141,6 +141,8 @@ void ZeroEngineBackend::updateInfo(const ov::AnyMap& properties) {
 
     if (properties.count(ov::intel_npu::disable_idle_memory_prunning.name()) != 0) {
         if (properties.at(ov::intel_npu::disable_idle_memory_prunning.name()).as<bool>()) {
+            _initStruct->clearContextOptions(ZE_NPU_CONTEXT_OPTION_IDLE_OPTIMIZATIONS);
+        } else {
             _initStruct->setContextOptions(ZE_NPU_CONTEXT_OPTION_IDLE_OPTIMIZATIONS);
         }
     }

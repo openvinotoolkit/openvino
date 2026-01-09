@@ -73,6 +73,7 @@ public:
     }
 
     void setContextOptions(const uint32_t options);
+    void clearContextOptions(const uint32_t options);
 
     static const std::shared_ptr<ZeroInitStructsHolder> getInstance();
 
@@ -83,6 +84,7 @@ public:
 private:
     void initNpuDriver();
     void getExtensionFunctionAddress(const std::string& name, const uint32_t version, void** function_address);
+    void setContextProperties();
 
     // keep zero_api alive until context is destroyed
     std::shared_ptr<ZeroApi> _zero_api;
