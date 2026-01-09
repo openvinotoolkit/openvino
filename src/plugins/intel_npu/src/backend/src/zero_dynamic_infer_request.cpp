@@ -264,12 +264,13 @@ void ZeroDynamicInferRequest::create_pipeline() {
     _logger.debug("ZeroDynamicInferRequest::create_pipeline - constructing pipeline");
 
     // Construct pipeline
-    _pipeline = std::make_unique<Pipeline>(_config,
-                                           _initStructs,
-                                           _graph,
-                                           _levelZeroInputTensors,
-                                           _levelZeroOutputTensors,
-                                           batchSize.has_value() ? batchSize.value() : utils::DEFAULT_BATCH_SIZE);
+    _pipeline =
+        std::make_unique<DynamicPipeline>(_config,
+                                          _initStructs,
+                                          _graph,
+                                          _levelZeroInputTensors,
+                                          _levelZeroOutputTensors,
+                                          batchSize.has_value() ? batchSize.value() : utils::DEFAULT_BATCH_SIZE);
 
     _logger.debug("ZeroDynamicInferRequest::create_pipeline - SyncInferRequest completed");
 }
@@ -419,6 +420,7 @@ void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
 
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "update_graph_arguments");
             if (_graph->get_blob_type() == BlobType::LLVM &&
+                levelZeroTensor->get_byte_size() > tensor->get_byte_size()) {
                 _pipeline->update_graph_arguments(foundPort.is_input()
                                                       ? _metadata.inputs.at(foundPort.idx).indexUsedByDriver
                                                       : _metadata.outputs.at(foundPort.idx).indexUsedByDriver,
