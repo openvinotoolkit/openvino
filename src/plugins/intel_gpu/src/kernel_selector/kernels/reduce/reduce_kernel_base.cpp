@@ -27,6 +27,22 @@ bool ReduceKernelBase::Validate(const Params& p) const {
 
 JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
+
+    const auto& output = params.outputs[0];
+    if (output.is_dynamic()) {
+        DimensionAccessHelperJit dims(output);
+        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({dims.x(),
+                                                                                              dims.y(),
+                                                                                              dims.z(),
+                                                                                              dims.w(),
+                                                                                              dims.u(),
+                                                                                              dims.v(),
+                                                                                              dims.f(),
+                                                                                              dims.b()})));
+    } else {
+        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", params.outputs[0].LogicalSize()));
+    }
+
     jit.AddConstant(MakeJitConstant("REDUCE_" + toString(params.reduceMode) + "_MODE", 1));
     jit.AddConstant(MakeJitConstant("KEEP_DIMS", params.keepDims));
 

@@ -845,31 +845,39 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
 inline void exp_reduce_sum_f32(ov::float16* a, const ov::float16 max, const size_t size, ov::float16& sum) {
     size_t i = 0;
 #    if defined(HAVE_SVE)
+    svfloat32_t v_a;
     svfloat32_t v_max = svdup_n_f32(static_cast<float>(max));
     svfloat32_t v_sum = svdup_n_f32(0.0f);
 
     svbool_t pg_f32 = svptrue_b32();
     svbool_t pg_f16 = svptrue_b16();
     svfloat16_t zero = svdup_n_f16(0.0);
+    size_t inc = vec_len_f32_sve();
 
-    for (; i + svcnth() <= size; i += svcnth()) {
+    while (i < size) {
+        if (size - i < vec_len_f16_sve())
+            pg_f16 = svwhilelt_b16(0, static_cast<int>(size - i));
+        if (size - i < vec_len_f32_sve()) {
+            pg_f32 = svwhilelt_b32(0, static_cast<int>(size - i));
+            inc = size - i;
+        }
+        // Load 16 elements and interleave with zeros so we have 8 elements with 0 in high parts
         svfloat16_t v_a_f16 = svld1_f16(pg_f16, reinterpret_cast<const float16_t*>(a + i));
-        auto v_a_f16_low = svzip1_f16(v_a_f16, zero);
-        auto v_a_f16_high = svzip2_f16(v_a_f16, zero);
-        auto v_a_low = svcvt_f32_f16_x(pg_f16, v_a_f16_low);
-        auto v_a_high = svcvt_f32_f16_x(pg_f16, v_a_f16_high);
+        v_a_f16 = svzip1_f16(v_a_f16, zero);
 
-        v_a_low = svsub_f32_x(pg_f32, v_a_low, v_max);
-        v_a_high = svsub_f32_x(pg_f32, v_a_high, v_max);
-        v_a_low = exp_ps_sve(pg_f32, v_a_low);
-        v_a_high = exp_ps_sve(pg_f32, v_a_high);
-        v_sum = svadd_f32_x(pg_f32, v_sum, v_a_low);
-        v_sum = svadd_f32_x(pg_f32, v_sum, v_a_high);
+        // Convert to f32 and perform required operations
+        v_a = svcvt_f32_f16_z(pg_f16, v_a_f16);
+        v_a = svsub_f32_z(pg_f32, v_a, v_max);
+        v_a = exp_ps_sve(pg_f32, v_a);
+        v_sum = svadd_f32_z(pg_f32, v_sum, v_a);
 
-        svfloat16_t v_result_low = svcvt_f16_f32_x(pg_f32, v_a_low);
-        svfloat16_t v_result_high = svcvt_f16_f32_x(pg_f32, v_a_high);
-        auto result = svuzp1(v_result_low, v_result_high);
-        svst1_f16(pg_f16, reinterpret_cast<float16_t*>(a + i), result);
+        // Convert to f16 and compact non-zero elements (even indices) to the low part
+        // so that we can store them in the result using svwhilelt
+        svfloat16_t v_result = svcvt_f16_f32_z(pg_f32, v_a);
+        v_result = svtbl_f16(v_result, svindex_u16(0, 2));
+
+        svst1_f16(svwhilelt_b16(0, static_cast<int>(inc)), reinterpret_cast<float16_t*>(a + i), v_result);
+        i += inc;
     }
     float total_sum = svaddv_f32(svptrue_b32(), v_sum);
 #    else

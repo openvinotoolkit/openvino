@@ -86,10 +86,6 @@ jobs:
               const user = context.payload.comment.user.login;
 
               if (comment === ".take") {
-                if (!issue.labels?.some(l => l.name.toLowerCase() === LABEL)) {
-                  console.log(`Issue #${issue.number} - not a good first issue, ignoring .take command`);
-                  return;
-                }
                 await github.rest.issues.addAssignees({
                   owner: context.repo.owner,
                   repo: context.repo.repo,

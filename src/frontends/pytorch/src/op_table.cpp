@@ -161,7 +161,6 @@ OP_CONVERTER(translate_log2);
 OP_CONVERTER(translate_log10);
 OP_CONVERTER(translate_logsumexp);
 OP_CONVERTER(translate_loop);
-OP_CONVERTER(translate_while_loop_fx);
 OP_CONVERTER(translate_lstm);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_masked_scatter);
@@ -240,6 +239,7 @@ OP_CONVERTER(translate_scaled_dot_product_attention);
 OP_CONVERTER(translate_scatter);
 OP_CONVERTER(translate_scatter_add);
 OP_CONVERTER(translate_scatter_reduce);
+OP_CONVERTER(translate_segment_mean_csr);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
@@ -816,6 +816,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
+        {"torch_scatter::segment_mean_csr", op::translate_segment_mean_csr},
     };
 };
 
@@ -1116,8 +1117,6 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"quantized_decomposed.dequantize_per_tensor.default", op::skip_node},
         {"quantized_decomposed.dequantize_per_channel.default", op::skip_node},
         {"inlined.constant.default", op::translate_constant},  // this is a custom ov type
-        // Higher-order operations
-        {"while_loop", op::translate_while_loop_fx},  // torch.ops.higher_order.while_loop
     };
 };
 

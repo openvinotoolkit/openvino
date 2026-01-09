@@ -145,7 +145,8 @@ class TestLSTM(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize('cell_type', ["LSTM", "GRU", "RNN"])
     def test_lstm_simple_precommit(self, direction, cell_type, ie_device, precision, ir_version,
                                    temp_dir):
-        pytest.skip("Ticket - 161790")
+        if ie_device == "CPU":
+            pytest.skip("Ticket - 161790")
         self._test(*self.create_lstm(direction, cell_type), ie_device, precision, ir_version,
                    temp_dir=temp_dir, infer_timeout=150)
 
