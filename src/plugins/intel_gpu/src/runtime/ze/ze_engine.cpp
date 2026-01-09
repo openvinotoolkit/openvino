@@ -162,7 +162,7 @@ std::shared_ptr<kernel_builder> ze_engine::create_kernel_builder() const {
 
 void* ze_engine::get_user_context() const {
     auto& casted = downcast<ze_device>(*_device);
-    return static_cast<void*>(casted.get_driver());
+    return static_cast<void*>(casted.get_context());
 }
 
 stream::ptr ze_engine::create_stream(const ExecutionConfig& config) const {
