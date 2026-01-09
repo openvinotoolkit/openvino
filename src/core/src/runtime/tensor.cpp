@@ -205,7 +205,7 @@ ov::Tensor wrap_obj_to_viewtensor(const std::shared_ptr<void>& shared_obj,
     return view_tensor;
 }
 
-Tensor read_tensor_data_mmap_impl(const std::shared_ptr<ov::MappedMemory>& mapped_memory,
+Tensor read_tensor_data_mmap_impl(std::shared_ptr<ov::MappedMemory> mapped_memory,
                                   const ov::element::Type& element_type,
                                   const ov::PartialShape& partial_shape,
                                   size_t offset_in_bytes) {
@@ -247,13 +247,8 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
 Tensor read_tensor_data(ov::FileHandle file_handle,
                         const ov::element::Type& element_type,
                         const ov::PartialShape& partial_shape,
-                        size_t offset_in_bytes,
-                        bool mmap) {
+                        size_t offset_in_bytes) {
     OPENVINO_ASSERT(element_type != ov::element::string);
-    if (!mmap) {
-        OPENVINO_THROW("Reading tensor data from FileHandle is supported only with mmap=true option");
-    }
-
     auto mapped_memory = ov::load_mmap_object(file_handle);
     return read_tensor_data_mmap_impl(mapped_memory, element_type, partial_shape, offset_in_bytes);
 }

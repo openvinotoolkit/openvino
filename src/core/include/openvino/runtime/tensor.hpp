@@ -335,11 +335,9 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
 /// \param element_type Element type, when not specified the it is assumed as element::u8.
 /// \param shape Shape for resulting tensor.
 /// \param offset_in_bytes Read file starting from specified offset.
-/// \param mmap Use mmap that postpones real read from file until data is accessed. Does not support mmap=false mode.
 OPENVINO_API
 Tensor read_tensor_data(ov::FileHandle file_handle,
                         const element::Type& element_type = element::u8,
                         const PartialShape& shape = PartialShape::dynamic(1),
-                        std::size_t offset_in_bytes = 0,
-                        bool mmap = true);
+                        std::size_t offset_in_bytes = 0);
 }  // namespace ov
