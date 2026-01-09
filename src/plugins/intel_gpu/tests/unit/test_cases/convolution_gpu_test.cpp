@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11281,7 +11281,7 @@ TEST(convolution_gpu_onednn, dyn_conv4d_reshape6d_pattern) {
     conv_fsv.output_paddings = {padding({ 0, 0, 0, 0 }, 0.f)};
     topology.add(conv_fsv);
 
-    
+
     auto const_shape = engine.allocate_memory({ov::PartialShape{6}, data_types::i32, format::bfwzyx});
     set_values<int32_t>(const_shape, {1, 32, 1, 1, 6, 6});
     topology.add(data("const", const_shape));
@@ -12303,7 +12303,7 @@ TEST(group_convolution_f16_fw_gpu, with_weights_as_input) {
 
     // Input: 1x64x31x31 to get 23x23 output with 9x9 kernel and no padding
     auto input = engine.allocate_memory({{ 1, 64, 31, 31 }, data_types::f16, format::bfyx });
-    
+
     // Weights input: [64, 1, 9, 9] - 64 groups, 1 output per group, 1 input per group, 9x9 kernel
     auto input_weights = engine.allocate_memory({ {64, 1, 9, 9}, data_types::f32, format::bfyx });
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 KERNEL(stft_ref)(
     OPTIONAL_SHAPE_INFO_ARG
-    const __global INPUT0_TYPE* restrict signal, 
+    const __global INPUT0_TYPE* restrict signal,
     const __global INPUT1_TYPE* restrict window,
     const __global INPUT2_TYPE* restrict frame_size_buff,
     const __global INPUT3_TYPE* restrict frame_step_buff,
@@ -17,7 +17,7 @@ KERNEL(stft_ref)(
     const size_t FREQS = OUTPUT_FEATURE_NUM;
 #else
     const size_t FREQS = OUTPUT_SIZE_Y;
-#endif 
+#endif
 
     const size_t blocksPerFreq = (FREQS + FREQ_PER_BLOCK-1)/FREQ_PER_BLOCK;
     const size_t batch = get_global_id(0);
@@ -38,7 +38,7 @@ KERNEL(stft_ref)(
 
     // Preload into shared mem:
     for(size_t i = get_local_linear_id()*4; i < window_size; i+= block_size*4) {
-        // NOTE: Vectorization by internal unrolling loop, in order to compiler to 
+        // NOTE: Vectorization by internal unrolling loop, in order to compiler to
         // decide it if can use vectorized vectorized instructions,
         // which may depend on data type, pointer alignment etc).
         #pragma unroll
@@ -74,7 +74,7 @@ KERNEL(stft_ref)(
         dft_power.s2 *= (float)(freq_id + 2);
         dft_power.s3 *= (float)(freq_id + 3);
 
-        // For bigger window_size kernel is sin cos bound: Probably there is some external 
+        // For bigger window_size kernel is sin cos bound: Probably there is some external
         // unit to calc sin cos, which is overloaded with commands(each thread issues 8 such instructions).
         // TODO: Implement fft for those cases.
         for(int i = get_sub_group_local_id(); i < window_size; i+= get_sub_group_size()) {
@@ -105,7 +105,7 @@ KERNEL(stft_ref)(
 #endif
             if ( (get_sub_group_local_id() % 2) == 0)
                 output[output_idx] = (OUTPUT_TYPE)freq_val_real[get_sub_group_local_id()/2];
-            else 
+            else
                 output[output_idx] = (OUTPUT_TYPE)freq_val_img[get_sub_group_local_id()/2];
         }
     }

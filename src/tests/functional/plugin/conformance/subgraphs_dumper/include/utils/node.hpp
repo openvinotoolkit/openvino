@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -37,7 +37,7 @@ get_input_info_by_node(const std::shared_ptr<ov::Node>& node);
 
 // replace all input node by parameters and constants instead of non input mode types
 // if `!is_save_const` replace only by parameters
-// if `!is_copy_const_node` do not create new node with constants only as inputs 
+// if `!is_copy_const_node` do not create new node with constants only as inputs
 std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
                                      bool is_save_const = false,
                                      bool is_copy_const_node = false,
@@ -122,7 +122,7 @@ inline size_t get_node_priority_by_version(const std::shared_ptr<ov::Node>& node
 
     return priority;
 }
-                                
+
 inline bool is_node_to_skip(const std::shared_ptr<ov::Node>& node) {
     return ov::op::util::is_parameter(node) ||
            ov::op::util::is_constant(node) ||

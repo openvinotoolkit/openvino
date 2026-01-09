@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
@@ -23,7 +23,7 @@ def progressbar(it_num, message="", progress_bar_size=60, out=stdout):
         return
     def show(sym_pos):
         x = int(progress_bar_size * sym_pos / max_len)
-        print("{}[{}{}] {}/{}".format(message, "#"*x, "."*(progress_bar_size-x), sym_pos, max_len), 
+        print("{}[{}{}] {}/{}".format(message, "#"*x, "."*(progress_bar_size-x), sym_pos, max_len),
                 end='\r', file=out, flush=True)
     show(0)
     for i, item in enumerate(it_num):

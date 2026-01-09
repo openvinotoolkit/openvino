@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -9,7 +9,7 @@ GitHub API for controlling organization
 
 import re
 import sys
-import time 
+import time
 from pathlib import Path
 from collections.abc import Iterable
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -28,11 +28,11 @@ def equal_logical_xor(name : str, x, y, z):
         exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.
         exe.run(paddle.static.default_startup_program())
-            
+
         outs = exe.run(
             feed={'x': x, 'y': y, 'z': z},
             fetch_list=[out])
-            
+
         saveModel(name, exe, feed_vars=[node_x, node_y, node_z], fetchlist=[out],
             inputs=[x, y, z], outputs=[outs[0]], target_dir=sys.argv[1])
 

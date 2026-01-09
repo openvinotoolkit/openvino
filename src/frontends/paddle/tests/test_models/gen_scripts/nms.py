@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # helper for multiclass/matrix_nms paddle model generator
@@ -105,7 +105,7 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
         else:
             index = np.array(output_lod.pop(0)).astype(data_feeder.convert_dtype(
                 output[2].dtype)) if output[2] is not None else None
-            
+
         feed_vars = [node_boxes, node_scores]
         if node_rois_num is not None:
             feed_vars.append(node_rois_num)

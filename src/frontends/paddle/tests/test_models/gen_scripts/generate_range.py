@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -12,7 +12,7 @@ import sys
 def paddle_range(name : str, x, start, end, step, out_type):
     import paddle
     paddle.enable_static()
-    
+
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')
         # Range op only support fill_constant input, since dynamic op is not supported in ov
@@ -48,4 +48,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()     
+    main()

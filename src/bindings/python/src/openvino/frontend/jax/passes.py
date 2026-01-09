@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -44,7 +44,7 @@ def dot_general_param_pass(param_name: str, jax_eqn):
         contract_dimensions = param[0]
         assert len(contract_dimensions) == 2
         res['contract_dimensions'] = [list(contract_dimensions[0]), list(contract_dimensions[1])]
-        
+
         batch_dimensions = param[1]
         assert len(batch_dimensions) == 2
         lhs_length = len(batch_dimensions[0])
@@ -54,7 +54,7 @@ def dot_general_param_pass(param_name: str, jax_eqn):
             res['batch_dimensions'] = [list(batch_dimensions[0]), list(batch_dimensions[1])]
     return res
 
-# mapping from primitive to pass 
+# mapping from primitive to pass
 param_passes = {
     'dot_general': dot_general_param_pass,
 }

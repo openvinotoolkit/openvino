@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import math
@@ -303,7 +303,7 @@ class YOLORegion(ClassProvider):
                                                                         B=1, C=self.classes, H=IH, W=IW)
 
             if self.do_softmax:
-                data[layer] = dst_data.reshape((B, -1)) 
+                data[layer] = dst_data.reshape((B, -1))
             else:
                 data[layer] = dst_data.reshape((B, C, IH, IW))
 

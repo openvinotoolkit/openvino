@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -26,7 +26,7 @@ class TestFlip(PytorchLayerTest):
 
             def forward(self, x):
                 return torch.flip(x, self.dim)
-            
+
             def forward_out(self, x, y):
                 return torch.flip(x, self.dim, out=y), y
 

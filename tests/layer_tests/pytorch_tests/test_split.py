@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -112,7 +112,7 @@ class TestSplitWithSizesCopy(PytorchLayerTest):
 
         class aten_split_with_sizes_copy(torch.nn.Module):
             def __init__(self):
-                super(aten_split_with_sizes_copy, self).__init__()                
+                super(aten_split_with_sizes_copy, self).__init__()
 
             def forward(self, x, y):
                 return torch.split_with_sizes_copy(x, [y.shape[0]], dim=0)

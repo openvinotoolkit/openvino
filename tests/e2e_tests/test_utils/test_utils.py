@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import csv
@@ -403,11 +403,11 @@ class BrokenTest:
 @contextmanager
 def log_timestamp(action):
     """
-    Function adds timestamp for the start and the end of the action 
-    :param action: name of action for logging 
+    Function adds timestamp for the start and the end of the action
+    :param action: name of action for logging
     """
     log.debug(f'{datetime.fromtimestamp(datetime.now().timestamp(), tz=None)}: Started {action}')
-    yield 
+    yield
     log.debug(f'{datetime.fromtimestamp(datetime.now().timestamp(), tz=None)}: Finished {action}')
 
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -63,7 +63,7 @@ class TestComplexSelect(CommonTFLayerTest):
         for part in ['x_real:0', 'x_imag:0', 'y_real:0', 'y_imag:0']:
             inputs_data[part] = 4 * rng.random(inputs_info[part]).astype(np.float32) - 2
         return inputs_data
-    
+
     def create_complex_select_net(self, cond_shape, x_shape, y_shape):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
@@ -81,7 +81,7 @@ class TestComplexSelect(CommonTFLayerTest):
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
         return tf_net, None
-    
+
     test_data_basic = [
         dict(cond_shape=[], x_shape=[], y_shape=[]),
         dict(cond_shape=[], x_shape=[3, 2, 4], y_shape=[3, 2, 4]),

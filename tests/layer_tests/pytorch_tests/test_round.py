@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -26,7 +26,7 @@ class TestRound(PytorchLayerTest):
                 super(aten_round, self).__init__()
                 if out:
                     self.forward = self.forward_out
-                 
+
 
             def forward(self, x):
                 return torch.round(x)
@@ -67,7 +67,7 @@ class TestRoundScalar(PytorchLayerTest):
                     self.forward = self.forward_int
                 else:
                     self.forward = self.forward_float
-                 
+
 
             def forward_int(self, x:int):
                 return torch.round(x)

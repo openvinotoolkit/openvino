@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -15,7 +15,7 @@ class TestRad2Deg(PytorchLayerTest):
         class aten_rad2deg(torch.nn.Module):
             def forward(self, x):
                 return torch.rad2deg(x)
-        ref_net = None  
+        ref_net = None
         return aten_rad2deg(), ref_net, "aten::rad2deg"
 
     @pytest.mark.parametrize("input_shape", [(3, 3)])

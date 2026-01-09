@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,7 +56,7 @@ public:
     get_matched_ops_in_graphs(const std::shared_ptr<ov::Model>& subgraph,
                               const std::shared_ptr<ov::Model>& graph,
                               bool is_check_inputs = false) const;
-                                
+
     void set_match_coefficient(float _match_coefficient);
     float get_match_coefficient() { return match_coefficient; }
     void set_shape_strict_match(bool is_shape_strict_match);

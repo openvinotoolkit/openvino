@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -214,7 +214,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
         // addr went beyond due to prefetch so move it back to correct location.
         weight_addr -= PREFETCH * OSV_SIZE;
     }
-    
+
 
     uint out_split_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
     uint out_addr = OUTPUT_OFFSET;
