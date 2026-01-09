@@ -79,9 +79,9 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
     uint64_t offsets_table_location;
     read_data_from_source(reinterpret_cast<char*>(&offsets_table_location), sizeof(offsets_table_location));
 
-    // Also read the number of sections found in the region of volatile format
-    uint64_t number_of_sections;
-    read_data_from_source(reinterpret_cast<char*>(&number_of_sections), sizeof(number_of_sections));
+    // Also read the size of the NPU region
+    uint64_t npu_region_size;
+    read_data_from_source(reinterpret_cast<char*>(&npu_region_size), sizeof(npu_region_size));
     const size_t where_the_region_of_persistent_format_starts = get_cursor_position();
 
     // TODO bound checking
@@ -110,7 +110,7 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
     // Step 3: Parse all known sections
     move_cursor(where_the_region_of_persistent_format_starts);
 
-    while (number_of_sections--) {
+    while (get_cursor_position() < npu_region_size) {
         read_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
         read_data_from_source(reinterpret_cast<char*>(&section_length), sizeof(section_length));
 

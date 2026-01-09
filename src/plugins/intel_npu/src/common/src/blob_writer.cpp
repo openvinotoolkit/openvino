@@ -62,10 +62,10 @@ void BlobWriter::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&offsets_table_location),
                  sizeof(offsets_table_location));  // placeholder
 
-    // Stop condition for the BlobReader: the number of sections
-    uint64_t number_of_sections = 0;
-    stream.write(reinterpret_cast<const char*>(&number_of_sections),
-                 sizeof(number_of_sections));  // placeholder
+    // Stop condition for the BlobReader: the size of the data written here
+    uint64_t npu_region_size = 0;
+    stream.write(reinterpret_cast<const char*>(&npu_region_size),
+                 sizeof(npu_region_size));  // placeholder
 
     // The region of non-persistent format (list of key-length-payload sections, any order & no restrictions w.r.t. the
     // content of the payload)
@@ -73,7 +73,6 @@ void BlobWriter::write(std::ostream& stream) {
         const std::shared_ptr<ISection>& section = m_registered_sections.front();
         m_registered_sections.pop();
         const SectionID section_id = section->get_section_id();
-        ++number_of_sections;
 
         // All sections registered within the BlobWriter are automatically added to the table of offsets
         register_offset_in_table(section_id, get_stream_relative_position(stream));
@@ -104,16 +103,8 @@ void BlobWriter::write(std::ostream& stream) {
         stream.seekp(0, std::ios_base::end);
     }
 
-    // We know the location of the table of offsets. Go back to the beginning and write it.
-    offsets_table_location = get_stream_relative_position(stream);
-    stream.seekp(will_come_back_to_this_at_the_end);
-    stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
-
-    // Also write the number of sections
-    stream.write(reinterpret_cast<const char*>(&number_of_sections), sizeof(number_of_sections));
-
     // Write the table of offsets
-    stream.seekp(0, std::ios_base::end);
+    offsets_table_location = get_stream_relative_position(stream);
 
     OffsetsTableSection offsets_table_section(m_offsets_table);
     const SectionID section_id = offsets_table_section.get_section_id();
@@ -121,6 +112,15 @@ void BlobWriter::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&section_id), sizeof(section_id));
     stream.write(reinterpret_cast<const char*>(&length), sizeof(length));
     offsets_table_section.write(stream, this);
+
+    npu_region_size = get_stream_relative_position(stream);
+
+    // Go back to the beginning and write the location of the offsets table
+    stream.seekp(will_come_back_to_this_at_the_end);
+    stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
+
+    // Also write the size of the whole NPU region
+    stream.write(reinterpret_cast<const char*>(&npu_region_size), sizeof(npu_region_size));
 }
 
 }  // namespace intel_npu
