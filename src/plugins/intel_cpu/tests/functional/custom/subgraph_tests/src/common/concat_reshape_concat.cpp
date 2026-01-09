@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,9 +33,9 @@
                        Concat
                           |
                         Softmax
-                          
+
                         Result
-  
+
   The main purpose of this test is checking the code path when all the nodes except Softmax use "in-place" memory mode.
   Softmax is used as a model of an arbitrary subgraph preceding the pattern.
 */
