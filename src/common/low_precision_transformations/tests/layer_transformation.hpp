@@ -53,8 +53,6 @@ public:
     static TestTransformationParams createParamsU8I8();
     static TestTransformationParams createParamsI8I8();
     static TestTransformationParams createParamsU8I8AndI8();
-    static TestTransformationParams createParamsF16F16();
-    static TestTransformationParams createParamsF32F32();
 
     static std::string toString(const TestTransformationParams& params);
 
