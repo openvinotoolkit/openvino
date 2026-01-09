@@ -449,7 +449,9 @@ inline float32x4_t exp_ps_neon_f32(const float32x4_t& src) {
 
     const auto z = vmlaq_f32(shift, src, inv_ln2);
     auto n = z - shift;
-    const auto scale = vreinterpretq_f32_u32(vreinterpretq_u32_f32(z) << 23);  // 2^n
+    const auto scale_bits = vshlq_n_u32(vreinterpretq_u32_f32(z), 23);
+    const auto exponent_delta = vdupq_n_u32(static_cast<uint32_t>(1u << 23));
+    const auto scale = vreinterpretq_f32_u32(vsubq_u32(scale_bits, exponent_delta));  // 2^(n-1)
 
     const auto r_hi = vfmaq_f32(src, n, neg_ln2_hi);
     const auto r = vfmaq_f32(r_hi, n, neg_ln2_lo);
@@ -463,6 +465,8 @@ inline float32x4_t exp_ps_neon_f32(const float32x4_t& src) {
     const auto p12345 = vfmaq_f32(p1, p2345, r2);
 
     auto poly = vfmaq_f32(scale, p12345, scale);
+    const auto two = vdupq_n_f32(2.0f);
+    poly = vmulq_f32(poly, two);
     poly = vbslq_f32(vcltq_f32(src, min_input), zero, poly);
     poly = vbslq_f32(vcgtq_f32(src, max_input), inf, poly);
 
