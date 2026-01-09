@@ -17,7 +17,7 @@
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 
 namespace ov::test {
-    
+
 using namespace ov::opset10;
 
 std::shared_ptr<ov::Node> build_l2_norm(const std::shared_ptr<ov::Node>& input, size_t batch, size_t head_size) {
@@ -190,4 +190,4 @@ TEST_F(TransformationTestsF, PackGQA) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-}  // namespace test
+}  // namespace ov::test
