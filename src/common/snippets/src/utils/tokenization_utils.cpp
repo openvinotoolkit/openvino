@@ -394,7 +394,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const TokenizationConf
                     if (first_side_consumer) {
                         auto& input_subgraph_body = clones[subgraph];
                         body_results.push_back(std::make_shared<snippets::op::Result>(
-                            OutputVector{input_subgraph_body->get_results()[output.get_index()]->input_value(0)}));
+                            input_subgraph_body->get_results()[output.get_index()]->input_value(0)));
                         subgraph_result_inputs.emplace_back();
 
                         first_side_consumer = false;
@@ -415,8 +415,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const TokenizationConf
     }
 
     for (const auto& output : node->outputs()) {
-        body_results.push_back(
-            std::make_shared<snippets::op::Result>(OutputVector{body_node->output(output.get_index())}));
+        body_results.push_back(std::make_shared<snippets::op::Result>(body_node->output(output.get_index())));
         subgraph_result_inputs.push_back(output.get_target_inputs());
     }
 
@@ -551,8 +550,7 @@ std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::Nod
         // Note: since we need to save only original consumers,
         // subgraph_result_inputs must be taken before result creation
         subgraph_result_inputs.push_back(output.get_target_inputs());
-        body_results.push_back(
-            std::make_shared<snippets::op::Result>(OutputVector{last_node->output(output.get_index())}));
+        body_results.push_back(std::make_shared<snippets::op::Result>(last_node->output(output.get_index())));
     }
 
     auto body = op::create_body(last_node->get_friendly_name(), body_results, body_parameters);

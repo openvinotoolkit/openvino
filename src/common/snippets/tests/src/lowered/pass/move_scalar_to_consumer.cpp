@@ -27,7 +27,7 @@ TEST_F(LoweredPassTestsF, MoveScalarToConsumer) {
         auto relu = linear_ir->push_node<ov::opset10::Relu>(relu_scalar.second);
         auto add1 = linear_ir->push_node<ov::opset10::Add>(add_scalar.second, add_scalar.second);
         auto add2 = linear_ir->push_node<ov::opset10::Add>(add1.second, add_scalar.second);
-        auto result = linear_ir->push_node<ov::snippets::op::Result>(OutputVector{add2.second});
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(add2.second);
     }
     pipeline.register_pass<MoveScalarToConsumer>();
     {
@@ -36,7 +36,7 @@ TEST_F(LoweredPassTestsF, MoveScalarToConsumer) {
         auto add_scalar = linear_ir_ref->push_node<ov::snippets::op::Scalar>(input_precision, scalar_shape, 42.f);
         auto add1 = linear_ir_ref->push_node<ov::opset10::Add>(add_scalar.second, add_scalar.second);
         auto add2 = linear_ir_ref->push_node<ov::opset10::Add>(add1.second, add_scalar.second);
-        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(OutputVector{add2.second});
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(add2.second);
     }
 }
 }  // namespace snippets

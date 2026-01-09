@@ -8,10 +8,10 @@
 #include <iterator>
 
 #include "openvino/core/type.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/op/result.hpp"
 
 namespace ov::snippets::lowered::pass {
 
@@ -29,7 +29,7 @@ bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
         const auto& forward_it = std::prev(expr_it.base());
         const auto& expr = *expr_it;
         const auto& node = expr->get_node();
-        if (!ov::is_type<snippets::op::Result>(node)) {
+        if (!ov::is_type<ov::op::v0::Result>(node)) {
             continue;
         }
 

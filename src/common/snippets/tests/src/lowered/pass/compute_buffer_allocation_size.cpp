@@ -83,7 +83,7 @@ TEST_F(ComputeBufferAllocationSizeTest, BrgemmAddBrgemmSplitM) {
         auto buffer2 = lir->push_node<ov::snippets::op::Buffer>(add.second);
         auto brgemm2 = lir->push_node<ov::snippets::op::Brgemm>(buffer2.second, param3.second);
         init_expr_descriptors(*brgemm2.first, {brgemm_a_subtensor, brgemm_b_subtensor, brgemm_c_subtensor});
-        auto result = lir->push_node<ov::snippets::op::Result>(OutputVector{brgemm2.second});
+        auto result = lir->push_node<ov::snippets::op::Result>(brgemm2.second);
 
         const auto& loop_manager = lir->get_loop_manager();
 
@@ -200,7 +200,7 @@ TEST_F(ComputeBufferAllocationSizeTest, BrgemmAddBrgemmSplitMN) {
         auto buffer2 = lir->push_node<ov::snippets::op::Buffer>(add.second);
         auto brgemm2 = lir->push_node<ov::snippets::op::Brgemm>(buffer2.second, param3.second);
         init_expr_descriptors(*brgemm2.first, {brgemm_a_subtensor, brgemm_b_subtensor, brgemm_c_subtensor});
-        auto result = lir->push_node<ov::snippets::op::Result>(OutputVector{brgemm2.second});
+        auto result = lir->push_node<ov::snippets::op::Result>(brgemm2.second);
 
         const auto& loop_manager = lir->get_loop_manager();
 

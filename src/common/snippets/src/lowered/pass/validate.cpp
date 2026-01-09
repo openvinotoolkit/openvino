@@ -14,6 +14,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
@@ -25,7 +26,6 @@
 #include "snippets/op/loop.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/op/perf_count.hpp"
-#include "snippets/op/result.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {
@@ -67,7 +67,7 @@ void validate_parameter(const ExpressionPtr& expr, [[maybe_unused]] const Linear
 }
 
 void validate_result(const ExpressionPtr& expr, [[maybe_unused]] const LinearIR& linear_ir) {
-    OPENVINO_ASSERT(ov::is_type<snippets::op::Result>(expr->get_node()), "Result validation expects Result op");
+    OPENVINO_ASSERT(ov::is_type<ov::op::v0::Result>(expr->get_node()), "Result validation expects Result op");
     const auto& shape_infer_seq = utils::get_first_parent_shape_infer_expr_seq(expr);
     const auto& expr_val = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
     const auto source = expr_val->get_input_port_connector(0)->get_source();
@@ -148,7 +148,7 @@ void validate_loop_end(const ExpressionPtr& expr, const LinearIR& linear_ir) {
 Validate::Validate() {
     m_validation_map = {
         {ov::op::v0::Parameter::get_type_info_static(), validate_parameter},
-        {snippets::op::Result::get_type_info_static(), validate_result},
+        {ov::op::v0::Result::get_type_info_static(), validate_result},
         {ov::snippets::op::Buffer::get_type_info_static(), validate_buffer},
         {ov::snippets::op::LoopEnd::get_type_info_static(), validate_loop_end},
     };
@@ -169,7 +169,7 @@ bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lo
 #ifdef SNIPPETS_DEBUG_CAPS
             ov::is_type_any_of<snippets::op::PerfCountBegin, snippets::op::PerfCountEnd>(node) ||
 #endif  // SNIPPETS_DEBUG_CAPS
-            ov::is_type_any_of<op::LoopEnd, snippets::op::Result>(node);
+            ov::is_type_any_of<op::LoopEnd, ov::op::v0::Result>(node);
 
         OPENVINO_ASSERT(expr->get_output_count() == node->get_output_size() || bypass_output_size_check,
                         "Incorrect count of output port descriptors!");
