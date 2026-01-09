@@ -148,11 +148,11 @@ std::shared_ptr<ISection> CRESection::read(BlobReader* blob_reader, const size_t
 
     // We expect the expression to start with "AND". The ctor also places this token at the beginning.
     CRE::Token token;
-    blob_reader->read_data_from_source(reinterpret_cast<char*>(&token), sizeof(token));
+    blob_reader->copy_data_from_source(reinterpret_cast<char*>(&token), sizeof(token));
     OPENVINO_ASSERT(token == CRE::AND);
 
     while (--number_of_tokens) {
-        blob_reader->read_data_from_source(reinterpret_cast<char*>(&token), sizeof(token));
+        blob_reader->copy_data_from_source(reinterpret_cast<char*>(&token), sizeof(token));
         cre_section->append_to_expression(token);
     }
 

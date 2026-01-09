@@ -16,6 +16,10 @@ ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& gra
     : ISection(PredefinedSectionID::ELF_MAIN_SCHEDULE),
       m_graph(graph) {}
 
+ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor main_schedule)
+    : ISection(PredefinedSectionID::ELF_MAIN_SCHEDULE),
+      m_main_schedule(main_schedule) {}
+
 void ELFMainScheduleSection::write(std::ostream& stream, BlobWriter* writer) {
     // At import time, position "cursor = 0" is guaranteed to be aligned to the standard page size (4096). Therefore, we
     // only need to make sure the value of the cursor is a multiple of 4096 before writting any schedule.
@@ -28,9 +32,22 @@ void ELFMainScheduleSection::write(std::ostream& stream, BlobWriter* writer) {
     m_graph->export_main_blob(stream);
 }
 
+void ELFMainScheduleSection::set_graph(const std::shared_ptr<Graph>& graph) {
+    m_graph = graph;
+    m_main_schedule = ov::Tensor();  // Don't need this anymore
+}
+
+std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReader* blob_reader, const size_t section_length) {
+    return std::make_shared<ELFMainScheduleSection>(blob_reader->get_roi_tensor(section_length));
+}
+
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph)
     : ISection(PredefinedSectionID::ELF_INIT_SCHEDULES),
       m_weightless_graph(weightless_graph) {}
+
+ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>& init_schedules)
+    : ISection(PredefinedSectionID::ELF_INIT_SCHEDULES),
+      m_init_schedules(std::move(init_schedules)) {}
 
 void ELFInitSchedulesSection::write(std::ostream& stream, BlobWriter* writer) {
     const uint64_t number_of_inits = m_weightless_graph->get_number_of_inits();
@@ -56,6 +73,30 @@ void ELFInitSchedulesSection::write(std::ostream& stream, BlobWriter* writer) {
     for (const uint64_t init_size : init_sizes) {
         stream.write(reinterpret_cast<const char*>(&init_size), sizeof(init_size));
     }
+}
+
+void ELFInitSchedulesSection::set_graph(const std::shared_ptr<WeightlessGraph>& weightless_graph) {
+    m_weightless_graph = weightless_graph;
+    m_init_schedules = std::vector<ov::Tensor>();  // Don't need this anymore
+}
+
+std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReader* blob_reader, const size_t section_length) {
+    uint64_t number_of_inits;
+    blob_reader->copy_data_from_source(reinterpret_cast<char*>(&number_of_inits), sizeof(number_of_inits));
+
+    std::vector<uint64_t> init_sizes;
+    uint64_t value;
+    while (number_of_inits--) {
+        blob_reader->copy_data_from_source(reinterpret_cast<char*>(&value), sizeof(value));
+        init_sizes.push_back(value);
+    }
+
+    std::vector<ov::Tensor> init_schedules;
+    for (const auto& init_size : init_sizes) {
+        init_schedules.push_back(blob_reader->get_roi_tensor(section_length));
+    }
+
+    return std::make_shared<ELFInitSchedulesSection>(init_schedules);
 }
 
 }  // namespace intel_npu

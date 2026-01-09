@@ -42,6 +42,11 @@ void BlobReader::interpret_data_from_source(T& destination) {
     m_cursor += sizeof(&T);
 }
 
+ov::Tensor BlobReader::get_roi_tensor(const size_t size) {
+    m_cursor += size;
+    return ov::Tensor(m_source, ov::Coordinate{m_cursor - size}, ov::Coordinate{m_cursor});
+}
+
 size_t BlobReader::get_cursor_position() {
     return m_cursor;
 }

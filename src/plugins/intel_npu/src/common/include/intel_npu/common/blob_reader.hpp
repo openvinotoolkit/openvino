@@ -30,6 +30,8 @@ public:
     template <class T>
     void interpret_data_from_source(T& destination);
 
+    ov::Tensor get_roi_tensor(const size_t size);
+
     static size_t get_npu_region_size(std::istream& stream);
 
     static size_t get_npu_region_size(const ov::Tensor& tensor);

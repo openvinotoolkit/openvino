@@ -35,8 +35,8 @@ std::shared_ptr<ISection> OffsetsTableSection::read(BlobReader* blob_reader, con
     uint64_t offset;
 
     while (number_of_sections_in_table--) {
-        blob_reader->read_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
-        blob_reader->read_data_from_source(reinterpret_cast<char*>(&offset), sizeof(offset));
+        blob_reader->copy_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
+        blob_reader->copy_data_from_source(reinterpret_cast<char*>(&offset), sizeof(offset));
         (*offsets_table)[section_id] = offset;
     }
 
