@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstring>
 #include <sstream>
 #include <stdexcept>
 #include <type_traits>
