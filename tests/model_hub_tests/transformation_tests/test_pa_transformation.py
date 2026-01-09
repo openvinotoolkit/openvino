@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from huggingface_hub import snapshot_download
@@ -58,7 +58,7 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
                 shape = input.get_partial_shape()
                 for i in range(shape.rank.get_length()):
                     # PagedAttention uses key_cache and value_cache inputs with all 4 dims being dynamic
-                    assert shape[i].is_dynamic, "Dimension {i} of input '{name}' in '{model_id}' is not dynamic: {shape}" 
+                    assert shape[i].is_dynamic, "Dimension {i} of input '{name}' in '{model_id}' is not dynamic: {shape}"
 
     interesting_input_patterns = {}
     interesting_output_patterns = {}
