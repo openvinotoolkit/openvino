@@ -22,9 +22,9 @@ classifiers = [
     "Operating System :: OS Independent",
     "License :: OSI Approved :: Apache Software License"
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
-  "numpy>=1.16.6,<2.2.0",
+  "numpy>=1.16.6,<2.5.0",
 ]
 
 [project.scripts]
