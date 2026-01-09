@@ -828,8 +828,6 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"<built-in function mul>", op::translate_mul},
         {"<built-in function neg>", op::translate_neg},
         {"<built-in function sub>", op::translate_sub},
-        // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
-        {"cond", op::translate_cond_fx},
         {"aten._adaptive_avg_pool1d.default", op::translate_adaptive_avg_pool1d},
         {"aten._adaptive_avg_pool2d.default", op::translate_adaptive_avg_pool2d},
         {"aten._adaptive_avg_pool3d.default", op::translate_adaptive_avg_pool3d},
@@ -1119,8 +1117,9 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"quantized_decomposed.dequantize_per_tensor.default", op::skip_node},
         {"quantized_decomposed.dequantize_per_channel.default", op::skip_node},
         {"inlined.constant.default", op::translate_constant},  // this is a custom ov type
-        // Higher-order operations
-        {"while_loop", op::translate_while_loop_fx},  // torch.ops.higher_order.while_loop
+        // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
+        {"cond", op::translate_cond_fx},
+        {"while_loop", op::translate_while_loop_fx},
     };
 };
 
