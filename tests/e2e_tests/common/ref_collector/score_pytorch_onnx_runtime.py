@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -15,12 +15,12 @@ class PyTorchToOnnxRunner:
     log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
     """
     Base class for converting PyTorch models to ONNX format and infering with ONNX Runtime
-    
+
     PyTorch net objects doesn't fully support pickling https://github.com/pytorch/pytorch/issues/49260 and running with
     caffe2 after dumping to ONNX https://github.com/pytorch/pytorch/issues/49752
-    
+
     To get and infer PyTorch pretrained or torchvision model with multiprocessing to avoid potential crashing of main
-    process, net is converted to ONNX format and inferred with OnnxInfer class. 
+    process, net is converted to ONNX format and inferred with OnnxInfer class.
     """
     def __init__(self, config):
         """
