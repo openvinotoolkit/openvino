@@ -48,4 +48,17 @@ std::optional<uint64_t> IOLayoutsSection::get_length() const {
     return SIZE_OF_COUNTS + get_layouts_length(m_input_layouts) + get_layouts_length(m_output_layouts);
 }
 
+std::vector<ov::Layout> IOLayoutsSection::get_input_layouts() const {
+    return m_input_layouts;
+}
+
+std::vector<ov::Layout> IOLayoutsSection::get_output_layouts() const {
+    return m_output_layouts;
+}
+
+std::shared_ptr<ISection> IOLayoutsSection::read(BlobReader* blob_reader, const size_t section_length) {
+    // TODO do not fail if unable to parse
+    // TODO generalize "do not fail if unable to parse" depending on whether or not the field is mandatory?
+}
+
 }  // namespace intel_npu

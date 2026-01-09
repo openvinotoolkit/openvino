@@ -19,6 +19,12 @@ public:
 
     std::optional<uint64_t> get_length() const override;
 
+    std::vector<ov::Layout> get_input_layouts() const;
+
+    std::vector<ov::Layout> get_output_layouts() const;
+
+    static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
+
 private:
     std::vector<ov::Layout> m_input_layouts;
     std::vector<ov::Layout> m_output_layouts;

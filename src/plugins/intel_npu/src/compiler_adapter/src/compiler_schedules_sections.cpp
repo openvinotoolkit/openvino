@@ -37,6 +37,10 @@ void ELFMainScheduleSection::set_graph(const std::shared_ptr<Graph>& graph) {
     m_main_schedule = ov::Tensor();  // Don't need this anymore
 }
 
+ov::Tensor ELFMainScheduleSection::get_schedule() const {
+    return m_main_schedule;
+}
+
 std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReader* blob_reader, const size_t section_length) {
     return std::make_shared<ELFMainScheduleSection>(blob_reader->get_roi_tensor(section_length));
 }
@@ -78,6 +82,10 @@ void ELFInitSchedulesSection::write(std::ostream& stream, BlobWriter* writer) {
 void ELFInitSchedulesSection::set_graph(const std::shared_ptr<WeightlessGraph>& weightless_graph) {
     m_weightless_graph = weightless_graph;
     m_init_schedules = std::vector<ov::Tensor>();  // Don't need this anymore
+}
+
+std::vector<ov::Tensor> ELFInitSchedulesSection::get_schedules() const {
+    return m_init_schedules;
 }
 
 std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReader* blob_reader, const size_t section_length) {

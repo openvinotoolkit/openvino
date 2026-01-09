@@ -23,7 +23,7 @@ BlobWriter::BlobWriter()
     register_section(m_cre);
 }
 
-BlobWriter::BlobWriter(BlobReader blob_reader) {
+BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader) {
     // TODO after reader is done, while constructing the compiledModel
 }
 

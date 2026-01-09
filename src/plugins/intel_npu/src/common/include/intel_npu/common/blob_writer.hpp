@@ -18,7 +18,7 @@ class BlobWriter {
 public:
     BlobWriter();
 
-    BlobWriter(BlobReader blob_reader);
+    BlobWriter(const std::shared_ptr<BlobReader>& blob_reader);
 
     void register_section(const std::shared_ptr<ISection>& section);
 

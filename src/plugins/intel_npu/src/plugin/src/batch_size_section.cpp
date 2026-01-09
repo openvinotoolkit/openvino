@@ -21,4 +21,8 @@ std::optional<uint64_t> BatchSizeSection::get_length() const {
     return sizeof(m_batch_size);
 }
 
+int64_t BatchSizeSection::get_batch_size() const {
+    return m_batch_size;
+}
+
 }  // namespace intel_npu

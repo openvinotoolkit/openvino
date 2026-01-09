@@ -19,6 +19,8 @@ public:
 
     void set_graph(const std::shared_ptr<Graph>& graph);
 
+    ov::Tensor get_schedule() const;
+
     static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
 
 private:
@@ -35,6 +37,8 @@ public:
     void write(std::ostream& stream, BlobWriter* writer) override;
 
     void set_graph(const std::shared_ptr<WeightlessGraph>& weightless_graph);
+
+    std::vector<ov::Tensor> get_schedules() const;
 
     static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
 

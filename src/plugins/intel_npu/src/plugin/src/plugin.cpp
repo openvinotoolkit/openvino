@@ -9,6 +9,7 @@
 #include "batch_size_section.hpp"
 #include "compiled_model.hpp"
 #include "compiler_adapter_factory.hpp"
+#include "compiler_schedules_section.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
@@ -19,6 +20,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "io_layouts_section.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
 #include "npuw/serialization.hpp"
@@ -1063,9 +1065,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
 
-    // TODO blobwriter in the parse flow
-    auto blobWriter = std::make_shared<BlobWriter>();
-
+    auto blobReader = std::make_shared<BlobReader>(tensorBig);
     auto npu_plugin_properties = properties;
 
     // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
@@ -1094,39 +1094,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
             "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
     }
 
-    uint64_t mainSize = tensorBig.get_byte_size();
-    std::optional<std::vector<uint64_t>> initSizes;
-    std::optional<int64_t> batchSize = std::nullopt;
+    blobReader->read(_capabilitiesIDs);
+    auto mainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
+        blobReader->retrieve_section(PredefinedSectionID::ELF_MAIN_SCHEDULE));
+    auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
+        blobReader->retrieve_section(PredefinedSectionID::ELF_INIT_SCHEDULES));
+    auto batchSizeSection =
+        std::dynamic_pointer_cast<BatchSizeSection>(blobReader->retrieve_section(PredefinedSectionID::BATCH_SIZE));
+    auto ioLayoutsSection =
+        std::dynamic_pointer_cast<IOLayoutsSection>(blobReader->retrieve_section(PredefinedSectionID::IO_LAYOUTS));
 
-    if (metadata) {
-        size_t accumulator = 0;
-        initSizes = metadata->get_init_sizes();
-        mainSize = initSizes.has_value()
-                       ? metadata->get_blob_size() - std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
-                       : metadata->get_blob_size();
-        batchSize = metadata->get_batch_size();
-    } else {
-        _logger.info("Blob compatibility check skipped.");
-    }
-
-    const ov::Tensor tensorMain(tensorBig,
-                                ov::Coordinate{0},
-                                ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
-
-    std::vector<ov::Tensor> tensorsInits;
-    const bool weightsSeparationEnabled = initSizes.has_value();
+    const std::optional<int64_t> batchSize =
+        batchSizeSection != nullptr ? std::make_optional<int64_t>(batchSizeSection->get_batch_size()) : std::nullopt;
+    const bool weightsSeparationEnabled = initSchedulesSection != nullptr;
 
     if (weightsSeparationEnabled) {
-        // Read the init compiled models as well
-        size_t cursorPosition = mainSize;
-        for (uint64_t initSize : initSizes.value()) {
-            const ov::Tensor tensorInit(tensorBig,
-                                        ov::Coordinate{cursorPosition},
-                                        ov::Coordinate{cursorPosition + initSize});
-            tensorsInits.push_back(tensorInit);
-            cursorPosition += initSize;
-        }
-
         // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
         if (!originalModel) {
             if (!localConfig.get<WEIGHTS_PATH>().empty()) {
@@ -1159,21 +1141,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
         check_weightless_cache_attribute_occurrence(originalModel);
     }
 
-    const std::optional<std::vector<ov::Tensor>> initBlobs =
-        weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt;
-
-    auto graph = compiler->parse(tensorMain,
-                                 localConfig,
-                                 initBlobs,
-                                 weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
+    auto graph = compiler->parse(
+        mainScheduleSection->get_main_schedule(),
+        localConfig,
+        weightsSeparationEnabled ? std::make_optional(initSchedulesSection->get_init_schedules()) : std::nullopt,
+        weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =
         create_dummy_model(graph->get_metadata().inputs,
                            graph->get_metadata().outputs,
                            batchSize,
-                           metadata ? metadata->get_input_layouts() : std::nullopt,
-                           metadata ? metadata->get_output_layouts() : std::nullopt);
+                           ioLayoutsSection != nullptr ? ioLayoutsSection->get_input_layouts() : std::nullopt,
+                           ioLayoutsSection != nullptr ? ioLayoutsSection->get_output_layouts() : std::nullopt);
 
     if (batchSize.has_value()) {
         if (batchSize.value() > 0) {
@@ -1183,6 +1163,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
     }
 
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
+
+    // Allows re-exporting the model
+    auto blobWriter = std::make_shared<BlobWriter>(blobReader);
 
     return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, blobWriter);
 }

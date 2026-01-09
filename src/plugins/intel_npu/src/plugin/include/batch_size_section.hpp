@@ -19,6 +19,8 @@ public:
 
     std::optional<uint64_t> get_length() const override;
 
+    int64_t get_batch_size() const;
+
 private:
     int64_t m_batch_size;
 };
