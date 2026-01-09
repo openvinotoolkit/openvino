@@ -18,34 +18,32 @@ struct KokoroSplitResult {
 };
 
 struct KokoroConfig {
-    uint32_t block_size = 200;
-    uint32_t overlap_size = 20;
+    uint64_t block_size = 200;
+    uint64_t overlap_size = 20;
 };
 
 class KokoroCompiledModel : public ov::npuw::ICompiledModel {
 public:
     KokoroCompiledModel(const std::shared_ptr<ov::Model>& model,
                        const std::shared_ptr<const ov::IPlugin>& plugin,
-                       const ov::AnyMap& properties,
-                       const ov::AnyMap& pipeline_config = ov::AnyMap{});
+                       const ov::AnyMap& properties);
     KokoroCompiledModel() = delete;
 
     void export_model(std::ostream& model) const override;
     static std::shared_ptr<KokoroCompiledModel> import_model(std::istream& stream,
                                                           const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                          const ov::AnyMap& properties,
-                                                          const ov::AnyMap& pipeline_config = ov::AnyMap{});
+                                                          const ov::AnyMap& properties);
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
     void set_property(const ov::AnyMap& properties) override;
     ov::Any get_property(const std::string& name) const override;
 
-    uint32_t block_size() const noexcept {
+    uint64_t block_size() const noexcept {
         return m_kokoro_cfg.block_size;
     }
 
-    uint32_t overlap_size() const noexcept {
+    uint64_t overlap_size() const noexcept {
         return m_kokoro_cfg.overlap_size;
     }
 
@@ -54,7 +52,9 @@ public:
 
 private:
     KokoroConfig m_kokoro_cfg;
-    
+    std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
+    ::intel_npu::Config m_cfg;
+
     std::shared_ptr<ov::ISyncInferRequest> create_kokoro_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 

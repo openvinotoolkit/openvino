@@ -31,25 +31,58 @@ namespace {
         }
         return false;
     }
+
+    void split_kokoro_properties(const ov::AnyMap& properties,
+                      ov::AnyMap& npu_plugin_properties,
+                      ov::AnyMap& npuw_path_properties) {
+        for (auto it = properties.begin(); it != properties.end(); ++it) {
+            if (it->first.find("NPUW_KOKORO") != it->first.npos) {
+                npuw_path_properties.insert(*it);
+            } else {
+                npu_plugin_properties.insert(*it);
+            }
+        }
+    }
+
+    std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
+        std::map<std::string, std::string> result;
+        for (auto&& value : params) {
+            if (value.second.is<std::string>()) {
+                result.emplace(value.first, value.second.as<std::string>());
+            } else if (value.second.is<bool>()) {
+                result.emplace(value.first, value.second.as<bool>() ? "YES" : "NO");
+            } else {
+                std::stringstream ss;
+                value.second.print(ss);
+                result.emplace(value.first, ss.str());
+            }
+        }
+        return result;
+    }
 }
 
 ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Model>& model,
                                                    const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                   const ov::AnyMap& properties,
-                                                   const ov::AnyMap& pipeline_config)
+                                                   const ov::AnyMap& properties)
     : ov::npuw::ICompiledModel(model, plugin),
-      m_name(model->get_friendly_name()) {
+      m_name(model->get_friendly_name()),
+      m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
+      m_cfg(m_options_desc) {
     LOG_DEBUG("Creating KokoroCompiledModel");
 
-    auto block_size_it = pipeline_config.find(ov::intel_npu::npuw::kokoro::block_size.name());
-    if (block_size_it != pipeline_config.end()) {
-        m_kokoro_cfg.block_size = block_size_it->second.as<uint32_t>();
-    }
+    ::intel_npu::registerNPUWKokoroOptions(*m_options_desc);
+    
+    // Split properties to separate Kokoro specific options and NPU plugin options
+    ov::AnyMap npuw_kokoro_props;
+    ov::AnyMap other_props;
+    split_kokoro_properties(properties, other_props, npuw_kokoro_props);
 
-    auto overlap_size_it = pipeline_config.find(ov::intel_npu::npuw::kokoro::overlap_size.name());
-    if (overlap_size_it != pipeline_config.end()) {
-        m_kokoro_cfg.overlap_size = overlap_size_it->second.as<uint32_t>();
-    }
+    m_cfg.parseEnvVars();
+    m_cfg.update(any_copy(npuw_kokoro_props));
+
+    // Get configuration from m_cfg, which now has defaults, env vars and user properties merged
+    m_kokoro_cfg.block_size = m_cfg.get<::intel_npu::NPUW_KOKORO_BLOCK_SIZE>();
+    m_kokoro_cfg.overlap_size = m_cfg.get<::intel_npu::NPUW_KOKORO_OVERLAP_SIZE>();
 
     // Decompose kokoro model into two static models 
     KokoroSplitResult split_result = KokoroSplit::split_model(model, m_kokoro_cfg);
@@ -90,7 +123,7 @@ void ov::npuw::KokoroCompiledModel::export_model(std::ostream& stream) const {
 std::shared_ptr<ov::npuw::KokoroCompiledModel> ov::npuw::KokoroCompiledModel::import_model(
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
-    const ov::AnyMap& properties, const ov::AnyMap& pipeline_config) {
+    const ov::AnyMap& properties) {
     // FIXME Not implemented
     LOG_DEBUG("Importing KokoroCompiledModel");
     OPENVINO_NOT_IMPLEMENTED;

@@ -140,7 +140,8 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     LOG_BLOCK();
     std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
-
+    auto use_kokoro_key = ov::intel_npu::npuw::kokoro::enabled.name();
+    
     // Drop CACHE_DIR from the config
     // If it's present we will be utilizing *CompiledModel's import
     // and not the underlying models and submodels
@@ -150,21 +151,9 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
-    } else if (config.count(ov::intel_npu::npuw::mode.name())) {
-        auto mode = config.at(ov::intel_npu::npuw::mode.name()).as<std::string>();
-        std::transform(mode.begin(), mode.end(), mode.begin(), ::toupper);
-        config.erase(ov::intel_npu::npuw::mode.name()); // remove to avoid being processed again
-        
-        auto pipeline_config = ov::AnyMap{};
-        auto pipeline_config_it = config.find(ov::intel_npu::npuw::pipeline_config.name());
-        if (pipeline_config_it != config.end()) {
-            pipeline_config = pipeline_config_it->second.as<ov::AnyMap>();
-            config.erase(ov::intel_npu::npuw::pipeline_config.name());
-        }
-        if (mode == "KOKORO") {
-            LOG_INFO("ov::npuw::KokoroCompiledModel will be created (based on pipeline ID).");
-            compiled_model = std::make_shared<ov::npuw::KokoroCompiledModel>(model, plugin, config, pipeline_config);
-        }   
+    } else if (properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true) {
+        LOG_INFO("ov::npuw::KokoroCompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::KokoroCompiledModel>(model, plugin, config);
     } else {
         LOG_INFO("ov::npuw::CompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, config);
