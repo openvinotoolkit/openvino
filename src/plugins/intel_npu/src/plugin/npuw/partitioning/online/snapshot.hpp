@@ -56,6 +56,9 @@ public:
 
     void stripTag(const std::string& tag);
 
+    // Passes to detect corner cases
+    bool isRegularResultCase() const;
+
     // Utility
     std::shared_ptr<own::ade::Graph> getGraph() const;
     const detail::OVPortsMap& getPortsMap() const;
