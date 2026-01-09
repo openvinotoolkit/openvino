@@ -2696,7 +2696,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_activation_celu) {
                                      -FLT_MAX}};
 
     const auto inf = std::numeric_limits<float>::infinity();
-    std::vector<float> output{-3.194527864456177,
+    std::vector<float> output{-3.194527864456177f,
                               0.0f,
                               1.f,
                               10.f,
@@ -2704,8 +2704,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_activation_celu) {
                               -inf,
                               1000.0f,
                               -inf,
-                              1.175494350822288e-38,
-                              7.346839692639297e-40,
+                              1.175494350822288e-38f,
+                              7.346839692639297e-40f,
                               0.0f,
                               inf,
                               -inf};
