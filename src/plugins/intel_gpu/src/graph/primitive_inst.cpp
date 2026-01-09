@@ -2593,7 +2593,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         (node.is_shape_infer_dep() && device_info.dev_type == device_type::integrated_gpu);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
 
-    auto alloc_type = use_lockable_memory ? lockable_mem_type
+	static bool force_lockable_mem_type = getenv("OPENVINO_FORCE_LOCKABLE_MEM_TYPE") != nullptr;
+    auto alloc_type = force_lockable_mem_type || use_lockable_memory ? lockable_mem_type
                     : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
 
     if (is_internal) {
