@@ -16,6 +16,7 @@
 #include "acl_utils.hpp"
 #include "cpu_memory.h"
 #include "nodes/executors/memory_arguments.hpp"
+#include "openvino/core/except.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
@@ -75,15 +76,18 @@ ACLCommonExecutor::ACLCommonExecutor() {
 }
 
 bool ACLCommonExecutor::update(const MemoryArgs& memory) {
+    DEBUG_LOG("ACLCommonExecutor::update called");
     // Initialize ACL tensors params
     ACLShapes aclMemoryShapes;
     ACLTypes aclDataType{};
     ACLLayouts aclDataLayout{};
     for (const auto& cpu_mem_ptr : memory) {
-        if (cpu_mem_ptr.second->getSize() == 0) {
+        if (cpu_mem_ptr.second->getDesc().empty()) {
+            DEBUG_LOG("ACLCommonExecutor: Skipping empty memory for arg ", cpu_mem_ptr.first);
             continue;
         }
         const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
+        DEBUG_LOG("ACLCommonExecutor: Initializing tensor params for index ", static_cast<int>(index));
         initACLTensorParams(cpu_mem_ptr.second,
                             aclTensorAttrs,
                             aclMemoryShapes[index],
@@ -102,7 +106,10 @@ bool ACLCommonExecutor::update(const MemoryArgs& memory) {
     // Validate arm_compute::TensorInfo objects for specific ACL function
     auto tensorsInfoValidateStatus = validateTensorsInfo(aclMemoryInfos);
     if (!tensorsInfoValidateStatus) {
-        DEBUG_LOG("ACL operator validation failed: ", tensorsInfoValidateStatus.error_description());
+        // On ARM, some shapes/dtypes may not have an optimized ACL kernel.
+        // Treat this as "unsupported by this executor" to enable fallback
+        // to alternative implementations instead of asserting.
+        DEBUG_LOG("ACL validation failed, fallback: ", tensorsInfoValidateStatus.error_description());
         return false;
     }
 
@@ -127,7 +134,22 @@ void ACLCommonExecutor::execute(const MemoryArgs& memory) {
     for (const auto& cpu_mem_ptr : memory) {
         const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
         if (aclTensorAttrs.memoryUsageIndicator[index]) {
-            aclMemoryTensors[index]->allocator()->import_memory(memory.at(cpu_mem_ptr.first)->getData());
+            OPENVINO_ASSERT(aclMemoryTensors[index] != nullptr,
+                            "ACLCommonExecutor: aclMemoryTensors[",
+                            static_cast<int>(index),
+                            "] is null");
+
+            auto* data_ptr = memory.at(cpu_mem_ptr.first)->getData();
+            OPENVINO_ASSERT(data_ptr != nullptr,
+                            "ACLCommonExecutor: memory data pointer is null for index ",
+                            static_cast<int>(index));
+
+            DEBUG_LOG("ACLCommonExecutor: Importing memory for index ",
+                      static_cast<int>(index),
+                      ", data_ptr=",
+                      data_ptr);
+
+            aclMemoryTensors[index]->allocator()->import_memory(data_ptr);
         }
     }
     iFunction->run();
