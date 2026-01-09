@@ -74,13 +74,15 @@ struct DynamicPipeline {
                     _binding._inputs[arg_index].sizes[i] = shapes[i];
                 }
 
-                // size_t stridesSize = strides.size();
-                for (int64_t i = 0; i < _binding._inputs[arg_index].dimsCount; i++) {
-                    _binding._inputs[arg_index].strides[i] = strides[i];
+                if (!strides.empty()) {
+                    // size_t stridesSize = strides.size();
+                    for (int64_t i = 0; i < _binding._inputs[arg_index].dimsCount; i++) {
+                        _binding._inputs[arg_index].strides[i] = strides[i];
+                    }
+                } else {
+                    // Need stride based on element but not byte
+                    _binding._inputs[arg_index].updateStride();
                 }
-
-                // Need stride based on element but not byte
-                _binding._inputs[arg_index].updateStride();
 
                 oss.clear();
                 oss.str("");
@@ -100,14 +102,15 @@ struct DynamicPipeline {
                         _binding._outputs[output_index].sizes[i] = shapes[i];
                     }
 
-                    // size_t stridesSize = strides.size();
-                    for (int64_t i = 0; i < _binding._outputs[output_index].dimsCount; i++) {
-                        _binding._outputs[output_index].strides[i] = strides[i];
+                    if (!strides.empty()) {
+                        // size_t stridesSize = strides.size();
+                        for (int64_t i = 0; i < _binding._outputs[output_index].dimsCount; i++) {
+                            _binding._outputs[output_index].strides[i] = strides[i];
+                        }
+                    } else {
+                        // Need stride based on element but not byte
+                        _binding._outputs[output_index].updateStride();
                     }
-
-                    // Need stride based on element but not byte
-                    _binding._outputs[output_index].updateStride();
-
                     oss.clear();
                     oss.str("");
                     oss << _binding._outputs[output_index];
@@ -145,15 +148,12 @@ public:
     void pull();
     void reset() const;
     void update_graph_arguments(uint32_t index,
-                                const void* arg_data,
-                                size_t byte_size,
-                                [[maybe_unused]] const ov::Strides& strides,
-                                [[maybe_unused]] const ov::Shape& shapes);
-    void update_graph_arguments_batching(uint32_t arg_index,
-                                         const void* arg_data,
-                                         [[maybe_unused]] const ov::Strides& strides,
-                                         [[maybe_unused]] const ov::Shape& shapes,
-                                         size_t batch_index);
+                                const std::shared_ptr<ZeroTensor>& tensor,
+                                std::shared_ptr<ov::ITensor> userTensor);
+    void update_graph_arguments(uint32_t index,
+                                const std::shared_ptr<ZeroTensor>& tensor,
+                                std::shared_ptr<ov::ITensor> userTensor,
+                                size_t batch_index);
 
     virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
 

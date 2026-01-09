@@ -44,14 +44,13 @@ private:
 
     /**
      * @brief Allocates a tensor on host and stores the reference inside multiple attributes.
-     * @param descriptor Tensor's metadata
      * @param index The index which the allocated tensor shall use.
      * @param isInput Determines the containers in which the newly allocated tensors will be stored.
+     * @param allocator If provided, the tensor uses the custom allocator instead of using the default one.
      * @param batchSize If provided, the value of the shape on the 0th axis is overriden with this value.
      * @return Pointer towards the allocated tensor
      */
-    std::shared_ptr<ZeroTensor> allocate_tensor(const IODescriptor& descriptor,
-                                                const size_t index,
+    std::shared_ptr<ZeroTensor> allocate_tensor(const size_t index,
                                                 const bool isInput,
                                                 const std::optional<std::size_t> batchSize = std::nullopt) const;
 
@@ -59,20 +58,6 @@ private:
 
     void update_pipeline_if_memory_changed();
     void update_states_if_memory_changed();
-
-    /**
-     * @brief Allocates a tensor on host and stores the reference inside multiple attributes.
-     * @param descriptor Tensor's metadata
-     * @param index The index which the allocated tensor shall use.
-     * @param isInput Determines the containers in which the newly allocated tensors will be stored.
-     * @param batchSize If provided, the value of the shape on the 0th axis is overriden with this value.
-     * @return Pointer towards the allocated tensor
-     */
-    std::shared_ptr<ZeroTensor> allocate_tensor_for_pipeline(
-        const IODescriptor& descriptor,
-        const size_t index,
-        const bool isInput,
-        const std::optional<std::size_t> batchSize = std::nullopt) const;
 
     IODescriptor prepare_io_descriptor_with_user_info(const IODescriptor& descriptor, bool isInput);
 
@@ -93,7 +78,6 @@ private:
 
     bool _pipelineIsCreated = false;
     bool _dynamicBatchValueChanged = false;
-    bool _externalMemoryStandardAllocationSupported = false;
 };
 
 }  //  namespace intel_npu
