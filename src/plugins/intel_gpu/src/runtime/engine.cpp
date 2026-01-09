@@ -339,4 +339,15 @@ bool engine::check_allocatable(const layout& layout, allocation_type type) {
     return true;
 }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::engine& engine::get_onednn_engine() const {
+    OPENVINO_ASSERT(_onednn_engine, "[GPU] Can't get onednn engine handle as it was not initialized. Please check that create_onednn_engine() was called");
+    return *_onednn_engine;
+}
+#endif
+
+stream& engine::get_service_stream() const {
+    return *_service_stream;
+}
+
 }  // namespace cldnn

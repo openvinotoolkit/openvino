@@ -142,7 +142,7 @@ public:
     virtual stream_ptr create_stream(const ExecutionConfig& config, void *handle) const = 0;
 
     /// Returns service stream which can be used during program build and optimizations
-    virtual stream& get_service_stream() const = 0;
+    virtual stream& get_service_stream() const;
 
     virtual std::shared_ptr<kernel_builder> create_kernel_builder() const = 0;
 
@@ -157,7 +157,7 @@ public:
     virtual void create_onednn_engine(const ExecutionConfig& config) = 0;
 
     /// Returns onednn engine object which shares device and context with current engine
-    virtual dnnl::engine& get_onednn_engine() const = 0;
+    virtual dnnl::engine& get_onednn_engine() const;
 #endif
 
     /// Factory method which creates engine object with impl configured by @p engine_type
@@ -177,6 +177,12 @@ protected:
     engine(const device::ptr device);
     const device::ptr _device;
     bool enable_large_allocations = false;
+    std::unique_ptr<stream> _service_stream;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::mutex onednn_mutex;
+    std::shared_ptr<dnnl::engine> _onednn_engine;
+#endif
 
     std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _memory_usage_data{};
     std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _peak_memory_usage_data{};

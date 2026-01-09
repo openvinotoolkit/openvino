@@ -71,11 +71,6 @@ void ocl_engine::create_onednn_engine(const ExecutionConfig& config) {
 #endif
     }
 }
-
-dnnl::engine& ocl_engine::get_onednn_engine() const {
-    OPENVINO_ASSERT(_onednn_engine, "[GPU] Can't get onednn engine handle as it was not initialized. Please check that create_onednn_engine() was called");
-    return *_onednn_engine;
-}
 #endif
 
 const cl::Context& ocl_engine::get_cl_context() const {
@@ -279,10 +274,6 @@ stream::ptr ocl_engine::create_stream(const ExecutionConfig& config) const {
 
 stream::ptr ocl_engine::create_stream(const ExecutionConfig& config, void* handle) const {
     return std::make_shared<ocl_stream>(*this, config, handle);
-}
-
-stream& ocl_engine::get_service_stream() const {
-    return *_service_stream;
 }
 
 std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runtime_types runtime_type) {

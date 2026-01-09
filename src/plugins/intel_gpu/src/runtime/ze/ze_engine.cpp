@@ -45,11 +45,6 @@ void ze_engine::create_onednn_engine(const ExecutionConfig& config) {
         _onednn_engine = std::make_shared<dnnl::engine>(dnnl::l0_interop::make_engine(casted->get_driver(), casted->get_device(), casted->get_context()));
     }
 }
-
-dnnl::engine& ze_engine::get_onednn_engine() const {
-    OPENVINO_ASSERT(_onednn_engine, "[GPU] Can't get onednn engine handle as it was not initialized. Please check that create_onednn_engine() was called");
-    return *_onednn_engine;
-}
 #endif
 
 const ze_driver_handle_t ze_engine::get_driver() const {
@@ -171,10 +166,6 @@ stream::ptr ze_engine::create_stream(const ExecutionConfig& config) const {
 
 stream::ptr ze_engine::create_stream(const ExecutionConfig& config, void* handle) const {
     OPENVINO_NOT_IMPLEMENTED;
-}
-
-stream& ze_engine::get_service_stream() const {
-    return *_service_stream;
 }
 
 std::shared_ptr<cldnn::engine> ze_engine::create(const device::ptr device, runtime_types runtime_type) {
