@@ -18,7 +18,7 @@ void ze_event::reset() {
 }
 
 void ze_event::wait_impl() {
-    OV_ZE_EXPECT(zeEventHostSynchronize(m_event, default_timeout));
+    OV_ZE_EXPECT(zeEventHostSynchronize(m_event, endless_wait));
 }
 
 void ze_event::set_impl() {

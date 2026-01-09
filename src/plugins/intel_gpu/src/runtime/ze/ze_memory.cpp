@@ -118,7 +118,7 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type = mem_lock_type::re
                                     nullptr,
                                     0,
                                     nullptr));
-            OV_ZE_EXPECT(zeCommandListHostSynchronize(_ze_stream.get_queue(), default_timeout));
+            OV_ZE_EXPECT(zeCommandListHostSynchronize(_ze_stream.get_queue(), endless_wait));
             _mapped_ptr = _host_buffer.get();
         } else {
             _mapped_ptr = _buffer.get();

@@ -344,7 +344,7 @@ void ze_stream::flush() const {
 }
 
 void ze_stream::finish() const {
-    OV_ZE_EXPECT(zeCommandListHostSynchronize(m_command_list, default_timeout));
+    OV_ZE_EXPECT(zeCommandListHostSynchronize(m_command_list, endless_wait));
 }
 
 void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {

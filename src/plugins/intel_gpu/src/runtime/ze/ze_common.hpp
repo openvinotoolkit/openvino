@@ -32,7 +32,7 @@
 namespace cldnn {
 namespace ze {
 
-static constexpr uint64_t default_timeout = std::numeric_limits<uint64_t>::max();
+static constexpr uint64_t endless_wait = std::numeric_limits<uint64_t>::max();
 static constexpr ze_module_format_t ze_module_format_oclc = (ze_module_format_t) 3U;
 
 }  // namespace ze
