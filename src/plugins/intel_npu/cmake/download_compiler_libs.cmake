@@ -97,6 +97,7 @@ if(ENABLE_INTEL_NPU_COMPILER)
     set(PLUGIN_COMPILER_VERSION_PATCH 0)
     set(PLUGIN_COMPILER_VERSION "${PLUGIN_COMPILER_VERSION_MAJOR}_${PLUGIN_COMPILER_VERSION_MINOR}_${PLUGIN_COMPILER_VERSION_PATCH}")
     message(STATUS "The prebuilt compiler version is ${PLUGIN_COMPILER_VERSION_MAJOR}.${PLUGIN_COMPILER_VERSION_MINOR}.${PLUGIN_COMPILER_VERSION_PATCH}")
+    # The destinations are the same. CMAKE_BUILD_TYPE is added based on the option USE_BUILD_TYPE_SUBFOLDER
     if(USE_BUILD_TYPE_SUBFOLDER)
         set(NPU_COMPILER_LIB_DESTINATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
     else()
@@ -117,7 +118,6 @@ if(ENABLE_INTEL_NPU_COMPILER)
             COPYONLY
         )
         set(PLUGIN_COMPILER_LIB "${PLUGIN_COMPILER_LIB_PATH}/openvino_intel_npu_compiler.dll")
-        # The destinations are the same. CMAKE_BUILD_TYPE is added based on the option USE_BUILD_TYPE_SUBFOLDER
         file(COPY "${PLUGIN_COMPILER_LIB}"
             DESTINATION "${NPU_COMPILER_LIB_DESTINATION}")
         message(STATUS "Copying prebuilt Plugin compiler libraries openvino_intel_npu_compiler.dll to ${NPU_COMPILER_LIB_DESTINATION} for windows")
