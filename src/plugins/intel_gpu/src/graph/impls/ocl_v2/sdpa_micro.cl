@@ -510,7 +510,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         s_tile_type S_tile;
         tile_fill(S_tile, 0.0f);
 
-        if (k0 < past_lens[gws_mapping]) {
+        for (;k0 < past_lens[gws_mapping];) {
     #endif
             int k_block_num = k0 / PAGED_ATTENTION_BLOCK_SIZE + sg_i_kq;
             global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
@@ -538,10 +538,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     );
     #if !IS_GQA_SINGLE_TOKEN
             tile_binary(S_tile, S_tile1, binary_add);
-        } else {
+            break;
+        }
+
+        for (; k0 >= past_lens[gws_mapping];) {
             s_tile_type S_tile1 = ugemm_kcq(Kc, ldkc, Q_slm, D_MAX, (k - past_lens[gws_mapping]), ugemm_kq_wg_tile_n, d, (k0 - past_lens[gws_mapping]),
                         0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm);
             tile_binary(S_tile, S_tile1, binary_add);
+            break;
         }
     #endif
 #else

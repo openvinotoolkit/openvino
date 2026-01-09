@@ -1602,7 +1602,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
 
     if (!is_prefill && !is_gqa_single_token) {
-        /* Update for optional GEMM: KC*Q */
+        /* Update for optional GEMM: Kc*Q */
         opts_kq.scaleA = false;
         opts_kq.offsetA = false;
 
@@ -1623,7 +1623,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         try {
             gemm_kcq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kcq, reqs_kq);
         } catch (const std::runtime_error& ex) {
-            GPU_DEBUG_TRACE_DETAIL << "Can't create K0Q sdpa_micro kernel: " << ex.what() << "\n";
+            GPU_DEBUG_TRACE_DETAIL << "Can't create KcQ sdpa_micro kernel: " << ex.what() << "\n";
             throw;
         }
     }
@@ -1742,7 +1742,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         try {
             gemm_vcs = micro::select_gemm_microkernel(opts_vs, hw_info, sizes, problem_vcs, reqs_vs, adjust_vs);
         } catch (const std::runtime_error& ex) {
-            GPU_DEBUG_TRACE_DETAIL << "Can't create V0S sdpa_micro kernel: " << ex.what() << "\n";
+            GPU_DEBUG_TRACE_DETAIL << "Can't create VcS sdpa_micro kernel: " << ex.what() << "\n";
             throw;
         }
     }

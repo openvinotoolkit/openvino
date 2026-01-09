@@ -65,8 +65,8 @@ private:
 
     static constexpr size_t kq_id = 0;
     static constexpr size_t vs_id = 1;
-    static constexpr size_t kcq_id = 2;     // kc - key from current input
-    static constexpr size_t vcs_id = 3;     // vc - value from current input
+    static constexpr size_t kcq_id = 2;  // kc - key from current input
+    static constexpr size_t vcs_id = 3;  // vc - value from current input
     static constexpr size_t prefill_id = 0;
     static constexpr size_t generate_id = 1;
 
