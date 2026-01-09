@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -64,11 +64,11 @@ class TestHannWindow(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("window_size", [2, 10, 32])
     @pytest.mark.parametrize(("dtype", "out", "out_dtype", "periodic"), [
-        [None, False, None, None], 
+        [None, False, None, None],
         [None, True, "float32", None],
         [None, True, "float64", None],
-        [None, True, "float32", False],  
-        [None, True, "float64", False], 
+        [None, True, "float32", False],
+        [None, True, "float64", False],
         [None, True, "float32", True],
         [None, True, "float64", True],
         [None, False, "", False],
@@ -81,5 +81,5 @@ class TestHannWindow(PytorchLayerTest):
         ["float64", False, "", True],
         ])
     def test_hann_window(self, window_size, dtype, out, out_dtype,  periodic, ie_device, precision, ir_version):
-        self._test(*self.create_model(periodic, dtype, out), ie_device, precision, 
+        self._test(*self.create_model(periodic, dtype, out), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={"window_size": window_size, "out": out, "out_dtype": out_dtype})

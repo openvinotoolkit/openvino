@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -268,10 +268,9 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                             _post_ops.append_binary(aalgorithm,
                                 dnnl::memory::desc(fused_desc.at(idx).dims, fused_desc.at(idx).dt, fused_desc.at(idx).tag));
                         } else {
-                            dnnl::memory::desc md = onednn::layout_to_memory_desc(
-                                                            impl_params->get_input_layout(fused_desc.at(idx).mem_dep),
-                                                            fused_desc.at(idx).tag,
-                                                            (fused_desc.at(idx).flatten ? onednn::mem_flags::flatten : onednn::mem_flags::None));
+                            dnnl::memory::desc md = fused_desc.at(idx).flatten
+                                ? onednn::layout_to_memory_desc_flatten(impl_params->get_input_layout(fused_desc.at(idx).mem_dep), fused_desc.at(idx).tag)
+                                : onednn::layout_to_memory_desc(impl_params->get_input_layout(fused_desc.at(idx).mem_dep), fused_desc.at(idx).tag);
 
                             _post_ops.append_binary(aalgorithm, md);
                         }

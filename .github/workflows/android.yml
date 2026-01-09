@@ -107,7 +107,8 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_android }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+        - /home/runner/secrets/:/secrets:ro
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER
     env:
       TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
@@ -138,6 +139,14 @@ jobs:
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_android_${{ matrix.arch }}_release
     steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        shell: bash
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
@@ -256,7 +265,7 @@ jobs:
       # Upload build logs and artifacts
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
           name: build_logs_${{ matrix.arch }}
@@ -298,14 +307,14 @@ jobs:
         working-directory: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Upload CPU test binaries
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ov_cpu_tests_android_${{ matrix.arch }}
           path: ${{ env.INSTALL_TEST_DIR }}/
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO runtime package (Android)
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ov_android_package_${{ matrix.arch }}
           path: ${{ env.INSTALL_DIR }}/
@@ -413,7 +422,7 @@ jobs:
             adb pull /data/local/tmp/ov_test/unit_test_results.xml ./unit_test_results.xml || { echo "Warning: Could not pull unit test results"; adb shell "ls -la /data/local/tmp/ov_test/"; adb shell "cat /data/local/tmp/ov_test/unit_test_results.xml" || echo "No unit test results file"; }
 
       - name: Upload unit test results
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
           name: cpu_unit_tests_results_android_x64
@@ -512,7 +521,7 @@ jobs:
             adb pull /data/local/tmp/ov_test_func/intel64/Release/func_test_results.xml ./func_test_results.xml || { echo "Warning: Could not pull functional test results"; adb shell "ls -la /data/local/tmp/ov_test_func/intel64/Release/"; adb shell "cat /data/local/tmp/ov_test_func/intel64/Release/func_test_results.xml" || echo "No functional test results file"; }
 
       - name: Upload functional test results
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
           name: cpu_func_tests_results_android_x64
