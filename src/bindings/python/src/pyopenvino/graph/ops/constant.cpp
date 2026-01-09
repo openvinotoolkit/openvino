@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -228,7 +228,7 @@ void regclass_graph_op_Constant(py::module m) {
             In such cases if `dtype` is used, function also creates a copy and
             unpacks the data.
 
-            Note: can be used to upcast BF16 data type to float32 or float64. 
+            Note: can be used to upcast BF16 data type to float32 or float64.
 
             :param dtype: Targeted data type.
             :type dtype: numpy.dtype, optional, keyword-only
