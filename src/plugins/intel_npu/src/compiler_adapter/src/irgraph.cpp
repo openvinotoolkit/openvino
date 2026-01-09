@@ -64,31 +64,19 @@ void IRGraph::GraphArguments::setArgumentValue(uint32_t argi, const void* argv) 
     }
 }
 
-void IRGraph::GraphArguments::setArgumentProperty(uint32_t argi,
-                                                  const void* argv,
-                                                  const ov::Strides& strides,
-                                                  const ov::Shape& shapes) {
-    _logger.debug("setArgumentProperty for index %d", argi);
+void IRGraph::GraphArguments::setArgumentValueWithStrides(uint32_t argi,
+                                                          const void* argv,
+                                                          const std::vector<size_t>& strides) {
+    _logger.debug("setArgumentValueWithStrides for index %d", argi);
     if (argi < _inputs.size()) {
         std::ostringstream oss;
         oss << _inputs[argi];
-        _logger.debug("setArgumentProperty for index %d (input %d)", argi, argi);
+        _logger.debug("setArgumentValueWithStrides for index %d (input %d)", argi, argi);
         _logger.debug("Before change: %s", oss.str().c_str());
         _inputs[argi].basePtr = _inputs[argi].data = const_cast<void*>(argv);
-        // Add check here
-        // size_t shapesSize = shapes.size();
-        for (int64_t i = 0; i < _inputs[argi].dimsCount; i++) {
-            _inputs[argi].sizes[i] = shapes[i];
-        }
 
-        if (!strides.empty()) {
-            // size_t stridesSize = strides.size();
-            for (int64_t i = 0; i < _inputs[argi].dimsCount; i++) {
-                _inputs[argi].strides[i] = strides[i];
-            }
-        } else {
-            // Need stride based on element but not byte, so calc here
-            _inputs[argi].updateStride();
+        for (int64_t i = 0; i < _inputs[argi].dimsCount; i++) {
+            _inputs[argi].strides[i] = strides[i];
         }
 
         oss.clear();
@@ -98,26 +86,16 @@ void IRGraph::GraphArguments::setArgumentProperty(uint32_t argi,
 
     } else {
         auto idx = argi - _inputs.size();
-        _logger.debug("setArgumentValue for index %d (output %d)", argi, idx);
+        _logger.debug("setArgumentValueWithStrides for index %d (output %d)", argi, idx);
         if (idx < _outputs.size()) {
             std::ostringstream oss;
             oss << _outputs[idx];
             _logger.debug("Before change: %s", oss.str().c_str());
             _outputs[idx].basePtr = _outputs[idx].data = const_cast<void*>(argv);
 
-            // size_t shapesSize = shapes.size();
+            // size_t stridesSize = strides.size();
             for (int64_t i = 0; i < _outputs[idx].dimsCount; i++) {
-                _outputs[idx].sizes[i] = shapes[i];
-            }
-
-            if (!strides.empty()) {
-                // size_t stridesSize = strides.size();
-                for (int64_t i = 0; i < _outputs[idx].dimsCount; i++) {
-                    _outputs[idx].strides[i] = strides[i];
-                }
-            } else {
-                // Need stride based on element but not byte, calc here
-                _outputs[idx].updateStride();
+                _outputs[idx].strides[i] = strides[i];
             }
 
             oss.clear();
@@ -138,10 +116,7 @@ public:
     void prepareMetadata(NetworkMetadata& metadata);
     void initializeIRGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata);
     void setArgumentValue(uint32_t argi, const void* argv) override;
-    void setArgumentProperty(uint32_t argi,
-                             const void* argv,
-                             const ov::Strides strides,
-                             const ov::Shape& shapes) override;
+    void setArgumentValueWithStrides(uint32_t argi, const void* argv, const std::vector<size_t>& strides) override;
     void initializeGraph(uint64_t command_queue_group_ordinal) override;
     uint64_t getNumSubgraphs() override {
         return _engineProperties.numOfSubGraphs;
@@ -396,10 +371,7 @@ void IRGraphImpl::setArgumentValue(uint32_t argi, const void* argv) {
     }
 }
 
-void IRGraphImpl::setArgumentProperty(uint32_t argi,
-                                      const void* argv,
-                                      const ov::Strides strides,
-                                      const ov::Shape& shapes) {
+void IRGraphImpl::setArgumentValueWithStrides(uint32_t argi, const void* argv, const std::vector<size_t>& strides) {
     _logger.debug("setArgumentProperty for index %d", argi);
     auto& inputs = _binding._inputs;
     if (argi < inputs.size()) {
@@ -408,19 +380,12 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
         _logger.debug("setArgumentProperty for index %d (input %d)", argi, argi);
         _logger.debug("Before change: %s", oss.str().c_str());
         inputs[argi].basePtr = inputs[argi].data = const_cast<void*>(argv);
-        // Add check here
-        // size_t shapesSize = shapes.size();
-        for (int64_t i = 0; i < inputs[argi].dimsCount; i++) {
-            inputs[argi].sizes[i] = shapes[i];
-        }
 
         // size_t stridesSize = strides.size();
         for (int64_t i = 0; i < inputs[argi].dimsCount; i++) {
             inputs[argi].strides[i] = strides[i];
         }
 
-        // Need stride based on element but not byte
-        inputs[argi].updateStride();
         oss.clear();
         oss.str("");
         oss << inputs[argi];
@@ -436,18 +401,10 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
             _logger.debug("Before change: %s", oss.str().c_str());
             outputs[idx].basePtr = outputs[idx].data = const_cast<void*>(argv);
 
-            // size_t shapesSize = shapes.size();
-            for (int64_t i = 0; i < outputs[idx].dimsCount; i++) {
-                outputs[idx].sizes[i] = shapes[i];
-            }
-
             // size_t stridesSize = strides.size();
             for (int64_t i = 0; i < outputs[idx].dimsCount; i++) {
                 outputs[idx].strides[i] = strides[i];
             }
-
-            // Need stride based on element but not byte
-            outputs[idx].updateStride();
 
             oss.clear();
             oss.str("");
@@ -666,21 +623,18 @@ void IRGraph::set_argument_value(uint32_t argi, const void* argv) const {
     _impl->setArgumentValue(argi, argv);
 }
 
-ze_graph_handle_t IRGraph::get_handle() const {
-    _logger.warning("IRGraph does not support get_handle() method.");
-    return nullptr;
-}
-
-void IRGraph::set_argument_property(uint32_t argi,
-                                    const void* argv,
-                                    const ov::Strides& strides,
-                                    const ov::Shape& shapes) const {
+void IRGraph::set_argument_value_with_strides(uint32_t id, const void* data, const std::vector<size_t>& strides) const {
     if (_impl == nullptr) {
         _logger.warning("Graph handle is null, dynamic pipeline to handle set_argument_value");
         return;
     }
 
-    _impl->setArgumentProperty(argi, argv, strides, shapes);
+    _impl->setArgumentValueWithStrides(id, data, strides);
+}
+
+ze_graph_handle_t IRGraph::get_handle() const {
+    _logger.warning("IRGraph does not support get_handle() method.");
+    return nullptr;
 }
 
 void IRGraph::initialize(const Config& config) {

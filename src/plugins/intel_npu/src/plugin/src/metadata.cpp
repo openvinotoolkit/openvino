@@ -302,6 +302,8 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
     case METADATA_VERSION_2_3:
         return std::make_unique<Metadata<METADATA_VERSION_2_3>>(blobSize);
+    case METADATA_VERSION_2_4:
+        return std::make_unique<Metadata<METADATA_VERSION_2_4>>(blobSize);
     default:
         return nullptr;
     }
@@ -358,7 +360,6 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
 
     uint32_t metaVersion;
     stream.read(reinterpret_cast<char*>(&metaVersion), sizeof(metaVersion));
-
     std::unique_ptr<MetadataBase> storedMeta;
     try {
         storedMeta = create_metadata(metaVersion, blobDataSize);

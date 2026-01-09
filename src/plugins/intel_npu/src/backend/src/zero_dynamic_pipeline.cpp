@@ -138,30 +138,21 @@ _levelZeroOutputTensors(output_tensors)*/
 
             if (input_tensors.at(io_index).size() > 1) {
                 _logger.debug("DynamicPipeline - set args for input index: %zu", io_index);
-                // Can remove
-                // irGraph->set_argument_property(desc.indexUsedByDriver,
-                //                                input_tensors.at(io_index).at(i)->data(),
-                //                                input_tensors.at(io_index).at(i)->get_strides(),
-                //                                input_tensors.at(io_index).at(i)->get_shape());
                 const auto& tensor = input_tensors.at(io_index).at(i);
 
                 if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() ||
                     tensor->get_strides().empty()) {
                     irGraph->set_argument_value(desc.indexUsedByDriver, tensor->data());
-                    graphArguments.setArgumentProperty(desc.indexUsedByDriver,
-                                                       tensor->data(),
-                                                       tensor->get_strides(),
-                                                       tensor->get_shape());
+                    graphArguments.setArgumentValue(desc.indexUsedByDriver, tensor->data());
                 } else {
                     irGraph->set_argument_value_with_strides(
                         desc.indexUsedByDriver,
                         tensor->data(),
                         get_strides(tensor->get_strides(), tensor->get_element_type().size()));
-                    graphArguments.setArgumentProperty(
+                    graphArguments.setArgumentValueWithStrides(
                         desc.indexUsedByDriver,
                         tensor->data(),
-                        get_strides(tensor->get_strides(), tensor->get_element_type().size()),
-                        tensor->get_shape());
+                        get_strides(tensor->get_strides(), tensor->get_element_type().size()));
                 }
                 ++io_index;
                 continue;
@@ -173,21 +164,18 @@ _levelZeroOutputTensors(output_tensors)*/
                 irGraph->set_argument_value(desc.indexUsedByDriver,
                                             static_cast<unsigned char*>(tensor->data()) +
                                                 (i * tensor->get_byte_size()) / _number_of_command_lists);
-                graphArguments.setArgumentProperty(desc.indexUsedByDriver,
-                                                   static_cast<unsigned char*>(tensor->data()) +
-                                                       (i * tensor->get_byte_size()) / _number_of_command_lists,
-                                                   tensor->get_strides(),
-                                                   tensor->get_shape());
+                graphArguments.setArgumentValue(desc.indexUsedByDriver,
+                                                static_cast<unsigned char*>(tensor->data()) +
+                                                    (i * tensor->get_byte_size()) / _number_of_command_lists);
             } else {
-                irGraph->set_argument_value(
+                irGraph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
                     get_strides(tensor->get_strides(), tensor->get_element_type().size()));
-                graphArguments.setArgumentProperty(
+                graphArguments.setArgumentValueWithStrides(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    get_strides(tensor->get_strides(), tensor->get_element_type().size()),
-                    tensor->get_shape());
+                    get_strides(tensor->get_strides(), tensor->get_element_type().size()));
             }
 
             ++io_index;
@@ -201,35 +189,20 @@ _levelZeroOutputTensors(output_tensors)*/
                 irGraph->set_argument_value(desc.indexUsedByDriver,
                                             static_cast<unsigned char*>(tensor->data()) +
                                                 (i * tensor->get_byte_size()) / _number_of_command_lists);
-                graphArguments.setArgumentProperty(desc.indexUsedByDriver,
-                                                   static_cast<unsigned char*>(tensor->data()) +
-                                                       (i * tensor->get_byte_size()) / _number_of_command_lists,
-                                                   tensor->get_strides(),
-                                                   tensor->get_shape());
+                graphArguments.setArgumentValue(desc.indexUsedByDriver,
+                                                static_cast<unsigned char*>(tensor->data()) +
+                                                    (i * tensor->get_byte_size()) / _number_of_command_lists);
             } else {
-                irGraph->set_argument_value(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]));
-                graphArguments.setArgumentProperty(
+                irGraph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    get_strides(tensor->get_strides(), tensor->get_element_type().size()),
-                    tensor->get_shape());
+                    tensor->get_strides());
+
+                graphArguments.setArgumentValueWithStrides(
+                    desc.indexUsedByDriver,
+                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
+                    get_strides(tensor->get_strides(), tensor->get_element_type().size()));
             }
-            // irGraph->set_argument_property(
-            //     desc.indexUsedByDriver,
-            //     static_cast<unsigned char*>(output_tensors.at(io_index)->data()) +
-            //         (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists,
-            //     output_tensors.at(io_index)->get_strides(),
-            //     output_tensors.at(io_index)->get_shape());
-
-            // graphArguments.setArgumentProperty(
-            //     desc.indexUsedByDriver,
-            //     static_cast<unsigned char*>(output_tensors.at(io_index)->data()) +
-            //         (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists,
-            //     output_tensors.at(io_index)->get_strides(),
-            //     output_tensors.at(io_index)->get_shape());
-
             ++io_index;
         }
 
