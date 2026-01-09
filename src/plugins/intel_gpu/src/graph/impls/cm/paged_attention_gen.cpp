@@ -592,6 +592,7 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("SG_N", SG_N);
     jit.make("BLOCK_SG_M", BLOCK_SG_M);
     jit.make("BLOCK_SG_N", BLOCK_SG_N);
+    jit.make("BLOCK_WG_K", desc->k_head_size % 64 == 0 ? 64 : 32);  // GEMM QK kernel unrolls HEAD_SIZE with a step of BLOCK_WG_K
     jit.make("BLOCK_SIZE", block_size);
     jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
     jit.add(make_jit_constant("INV_S", scale_factor_i));
