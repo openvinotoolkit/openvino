@@ -32,13 +32,21 @@ constexpr bool INPUT = true;
 constexpr bool OUTPUT = false;
 
 std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
+                                                   const ov::PartialShape& ioShape,
                                                    const std::shared_ptr<ov::ITensor>& tensor,
                                                    const std::optional<size_t> batchSize) {
     if (tensor == nullptr && !batchSize.has_value()) {
         return std::nullopt;
     }
 
-    if (!desc.shapeFromIRModel.has_value() || !desc.shapeFromIRModel.value().is_dynamic()) {
+    if (!ioShape.size()) {
+        return std::nullopt;
+    }
+
+    auto batchFromModel = ioShape[intel_npu::utils::BATCH_AXIS];
+    auto batchModelFromIR =
+        desc.shapeFromIRModel.has_value() && desc.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS].is_dynamic();
+    if (!batchFromModel.is_dynamic() && !batchModelFromIR) {
         return std::nullopt;
     }
 
@@ -50,11 +58,26 @@ std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
         return std::nullopt;
     }
 
-    if ((*desc.shapeFromIRModel)[intel_npu::utils::BATCH_AXIS].is_dynamic()) {
-        return tensor->get_shape()[intel_npu::utils::BATCH_AXIS];
+    return tensor->get_shape()[intel_npu::utils::BATCH_AXIS];
+}
+
+void* get_tensor_data_ptr(const std::shared_ptr<ov::ITensor>& tensor) {
+    if (auto userRemoteTensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)) {
+        if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
+            return userZeroRemoteTensor->get_original_memory();
+        } else {
+            std::optional<void*> memHandleObject =
+                zeroUtils::extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
+            OPENVINO_ASSERT(memHandleObject.has_value(),
+                            "Remote tensor does not have parameter with key ",
+                            ov::intel_npu::mem_handle.name());
+            return static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_data_offset(*userRemoteTensor);
+        }
+    } else {
+        return tensor->data();
     }
 
-    return std::nullopt;
+    return nullptr;
 }
 
 }  // namespace
@@ -84,6 +107,10 @@ ZeroDynamicInferRequest::ZeroDynamicInferRequest(const std::shared_ptr<ZeroInitS
         }
 
         get_level_zero_input(ioIndex) = allocate_tensor_for_pipeline(inputDescriptor, ioIndex, INPUT);
+
+        if (inputDescriptor.isStateInput) {
+            add_state(inputDescriptor, ioIndex);
+        }
 
         ++ioIndex;
     }
@@ -239,13 +266,13 @@ void ZeroDynamicInferRequest::create_pipeline() {
 
     _logger.debug("ZeroDynamicInferRequest::create_pipeline - constructing pipeline");
 
-    _pipeline =
-        std::make_unique<DynamicPipeline>(_config,
-                                          _initStructs,
-                                          _graph,
-                                          _levelZeroInputTensors,
-                                          _levelZeroOutputTensors,
-                                          batchSize.has_value() ? batchSize.value() : utils::DEFAULT_BATCH_SIZE);
+    // Construct pipeline
+    _pipeline = std::make_unique<Pipeline>(_config,
+                                           _initStructs,
+                                           _graph,
+                                           _levelZeroInputTensors,
+                                           _levelZeroOutputTensors,
+                                           batchSize.has_value() ? batchSize.value() : utils::DEFAULT_BATCH_SIZE);
 
     _logger.debug("ZeroDynamicInferRequest::create_pipeline - SyncInferRequest completed");
 }
@@ -305,7 +332,7 @@ std::shared_ptr<ZeroTensor> ZeroDynamicInferRequest::allocate_tensor_for_pipelin
 }
 
 void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
-    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "set_tensor");
+    OV_ITT_TASK_CHAIN(ZERO_SET_TENSOR, itt::domains::LevelZeroBackend, "set_tensor", "set_tensor");
     std::ostringstream oss;
     oss << tensor->get_strides();
     _logger.debug("set user tensor: tensor shape: %s, stride: %s, size: %zu",
@@ -324,54 +351,17 @@ void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
         OPENVINO_THROW("Failed to set tensor. ", ex.what());
     }
 
-    /* // Update graphDescriptor
-     std::vector<ArgumentDescriptor> inputPros = _graphInputDescriptors;
-     std::vector<ArgumentDescriptor> outputPros = _graphOutputDescriptors;
-
-     const ov::Shape& shape = tensor->get_shape();
-     if (foundPort.is_input()) {
-         inputPros[foundPort.idx].info.dims_count = shape.size();
-         for (size_t i = 0; i < shape.size(); i++) {
-             inputPros[foundPort.idx].info.dims[i] = shape[i];
-         }
-     } else {
-         if (outputPros[foundPort.idx].info.dims_count != shape.size()) {
-             OPENVINO_THROW("Output tensor shape size not match, expected size: ",
-                            outputPros[foundPort.idx].info.dims_count,
-                            ", got size: ",
-                            shape.size());
-         }
-     }
-
-     intel_npu::IRGraph* irGraph = dynamic_cast<intel_npu::IRGraph*>(_graph.get());
-     if (irGraph) {
-         irGraph->predict_output_shape(inputPros, outputPros);
-     }
-
-     // If set output tensor, need check size
-     size_t preferedOutputSize = 1;
-     if (foundPort.is_output()) {
-         for (size_t i = 0; i < _graphOutputDescriptors[foundPort.idx].info.dims_count; i++) {
-             preferedOutputSize *= _graphOutputDescriptors[foundPort.idx].info.dims[i];
-         }
-         if (preferedOutputSize != tensor->get_size()) {
-             OPENVINO_THROW("Output tensor shape size not match, expected size: ",
-                            preferedOutputSize,
-                            ", got size: ",
-                            tensor->get_size());
-         }
-     }*/
-
     if (foundPort.is_input()) {
         _logger.debug("update input tensor");
         if (get_user_input(foundPort.idx)._ptr == tensor._ptr) {
-            // Got set_tensor with the same object - do nothing
+            // set_tensor called with the same tensor object; no action needed
             _logger.debug("ZeroDynamicInferRequest::set_tensor - got the same tensor, do nothing");
             return;
         }
 
+        auto ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
         auto batchSizeCandidate =
-            determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), tensor._ptr, std::nullopt);
+            determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
 
         if (batchSizeCandidate.has_value()) {
             if (!_dynamicBatchValueChanged) {
@@ -463,15 +453,6 @@ void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
 
                 auto batch = _graph->get_batch_size();
-                // levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input(), batch);
-
-                /*IODescriptor descriptor =
-                    foundPort.is_input() ? _metadata.inputs.at(foundPort.idx) : _metadata.outputs.at(foundPort.idx);
-                if (!foundPort.is_input()) {
-                    // For output, need update descriptor shape with predicted shape
-                    ov::Shape predictedShape;
-                    descriptor.shapeFromCompiler = shape;
-                }*/
                 levelZeroTensor = allocate_tensor_for_pipeline(
                     foundPort.is_input() ? _metadata.inputs.at(foundPort.idx) : _metadata.outputs.at(foundPort.idx),
                     foundPort.idx,
@@ -491,20 +472,6 @@ void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                 }
             }
         }
-
-        // TODO: Need to use predicted output shape to check existing output tensors
-        // for (ArgumentDescriptor desc : _graphOutputDescriptors) {
-        //     size_t size = 1;
-        //     for (size_t i = 0; i < desc.info.dims_count; i++) {
-        //         size *= desc.info.dims[i];
-        //     }
-        //     if (size < tensor->get_size()) {
-        //         OPENVINO_THROW("Output tensor size not match, expected size: ",
-        //                        size,
-        //                        ", got size: ",
-        //                        tensor->get_size());
-        //     }
-        // }
 
         if (_pipelineIsCreated && updateCommandListArg && !_dynamicBatchValueChanged) {
             _logger.debug("ZeroInferRequest::infer_async - update command list");
@@ -534,11 +501,12 @@ void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
             }
         }
     }
+    // If command list updates are not supported, fallback to copying tensors every time.
 }
 
 void ZeroDynamicInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                                           const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
-    OV_ITT_TASK_CHAIN(SET_TENSORS, itt::domains::LevelZeroBackend, "set_tensors", "set_tensors");
+    OV_ITT_TASK_CHAIN(ZERO_SET_TENSORS, itt::domains::LevelZeroBackend, "set_tensors", "set_tensors");
     if (tensors.size() == 1) {
         set_tensor(port, tensors[0]);
         return;
@@ -554,7 +522,9 @@ void ZeroDynamicInferRequest::set_tensors(const ov::Output<const ov::Node>& port
 
     _logger.debug("ZeroDynamicInferRequest::set_tensors: %zu", tensors.size());
 
-    auto batchSizeCandidate = determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), nullptr, tensors.size());
+    auto ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
+    auto batchSizeCandidate =
+        determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, nullptr, tensors.size());
 
     // Check if batch has been changed
     if (batchSizeCandidate.has_value()) {
@@ -732,7 +702,6 @@ void ZeroDynamicInferRequest::update_pipeline_if_memory_changed() {
 
             _logger.debug("Update input graph descriptor with the new tensor");
             OPENVINO_ASSERT(levelZeroTensor.at(SINGLE_TENSOR)->data(), "Empty buffer");
-
             _pipeline->update_graph_arguments(_metadata.inputs.at(ioIndex).indexUsedByDriver,
                                               levelZeroTensor.at(SINGLE_TENSOR)->data(),
                                               levelZeroTensor.at(SINGLE_TENSOR)->get_byte_size(),
@@ -766,7 +735,6 @@ void ZeroDynamicInferRequest::update_pipeline_if_memory_changed() {
 
             _logger.debug("Update output graph descriptor with the new tensor");
             OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
-
             _pipeline->update_graph_arguments(_metadata.outputs.at(ioIndex).indexUsedByDriver,
                                               levelZeroTensor->data(),
                                               levelZeroTensor->get_byte_size(),
@@ -920,24 +888,7 @@ void ZeroDynamicInferRequest::infer_async() {
         if (is_batched_input(inputIndex)) {
             if (batch_size.has_value()) {
                 for (size_t i = 0; i < userTensor.size(); i++) {
-                    void* userBuffer;
-                    if (auto userRemoteTensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(userTensor.at(i)._ptr)) {
-                        if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
-                            userBuffer = userZeroRemoteTensor->get_original_memory();
-                        } else {
-                            std::optional<void*> memHandleObject =
-                                zeroUtils::extract_object(userRemoteTensor->get_properties(),
-                                                          ov::intel_npu::mem_handle);
-                            OPENVINO_ASSERT(memHandleObject.has_value(),
-                                            "Remote tensor does not have mem_handle property for input index: ",
-                                            inputIndex);
-                            userBuffer = static_cast<uint8_t*>(memHandleObject.value()) +
-                                         ov::get_tensor_data_offset(userRemoteTensor);
-                        }
-                    } else {
-                        userBuffer = userTensor.at(i)->data();
-                    }
-
+                    void* userBuffer = get_tensor_data_ptr(userTensor.at(i)._ptr);
                     void* levelZeroBuffer = get_level_zero_input(inputIndex, i)->data();
 
                     if (userBuffer != levelZeroBuffer) {
@@ -963,14 +914,13 @@ void ZeroDynamicInferRequest::infer_async() {
                               get_level_zero_input(inputIndex)->get_byte_size());
                 size_t copied_bytes_from_user = 0;
                 for (size_t i = 0; i < userTensor.size(); i++) {
-                    auto shapeBegin = get_level_zero_input(inputIndex)->get_shape();
-                    shapeBegin[utils::BATCH_AXIS] = i;
-                    auto shapeEnd = get_level_zero_input(inputIndex)->get_shape();
-                    shapeEnd[utils::BATCH_AXIS] = i + 1;
-                    auto roiTensor = ov::make_tensor(get_level_zero_input(inputIndex), shapeBegin, shapeEnd);
+                    auto viewTensor =
+                        ov::make_tensor(get_level_zero_input(inputIndex)->get_element_type(),
+                                        get_level_zero_input(inputIndex)->get_shape(),
+                                        static_cast<unsigned char*>(get_level_zero_input(inputIndex)->data()) +
+                                            (i * userTensor.at(i)->get_byte_size()));
 
-                    userTensor.at(i)->copy_to(roiTensor);
-
+                    userTensor.at(i)->copy_to(viewTensor);
                     copied_bytes_from_user += userTensor.at(i)->get_byte_size();
                 }
                 OPENVINO_ASSERT(get_level_zero_input(inputIndex)->get_byte_size() == copied_bytes_from_user,
@@ -986,22 +936,7 @@ void ZeroDynamicInferRequest::infer_async() {
             continue;
         }
 
-        void* userBuffer;
-        if (auto userRemoteTensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(userTensor.at(SINGLE_TENSOR)._ptr)) {
-            if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
-                userBuffer = userZeroRemoteTensor->get_original_memory();
-            } else {
-                std::optional<void*> memHandleObject =
-                    zeroUtils::extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
-                OPENVINO_ASSERT(memHandleObject.has_value(),
-                                "Remote tensor does not have mem_handle property for input index: ",
-                                inputIndex);
-                userBuffer =
-                    static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_data_offset(userRemoteTensor);
-            }
-        } else {
-            userBuffer = userTensor.at(SINGLE_TENSOR)->data();
-        }
+        void* userBuffer = get_tensor_data_ptr(userTensor.at(SINGLE_TENSOR)._ptr);
         void* levelZeroBuffer = get_level_zero_input(inputIndex)->data();
 
         if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
@@ -1045,22 +980,7 @@ void ZeroDynamicInferRequest::get_result() {
             tensorToBeReshaped->set_shape(actualDims);
         }
 
-        void* userBuffer;
-        if (auto userRemoteTensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(userTensor._ptr)) {
-            if (auto userZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userRemoteTensor)) {
-                userBuffer = userZeroRemoteTensor->get_original_memory();
-            } else {
-                std::optional<void*> memHandleObject =
-                    zeroUtils::extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
-                OPENVINO_ASSERT(memHandleObject.has_value(),
-                                "Remote tensor does not have mem_handle property for output index: ",
-                                outputIndex);
-                userBuffer =
-                    static_cast<uint8_t*>(memHandleObject.value()) + ov::get_tensor_data_offset(userRemoteTensor);
-            }
-        } else {
-            userBuffer = userTensor->data();
-        }
+        void* userBuffer = get_tensor_data_ptr(userTensor._ptr);
         void* levelZeroBuffer = _levelZeroOutputTensors.at(outputIndex)->data();
 
         if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
