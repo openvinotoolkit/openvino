@@ -28,7 +28,7 @@ BlobWriter::BlobWriter(BlobReader blob_reader) {
 }
 
 void BlobWriter::register_section(const std::shared_ptr<ISection>& section) {
-    m_registered_sections.push_back(section);
+    m_registered_sections.push(section);
     OPENVINO_ASSERT(!m_registered_sections_ids.count(section->get_section_id()));
     m_registered_sections_ids.insert(section->get_section_id());
 }
@@ -62,10 +62,18 @@ void BlobWriter::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&offsets_table_location),
                  sizeof(offsets_table_location));  // placeholder
 
+    // Stop condition for the BlobReader: the number of sections
+    uint64_t number_of_sections = 0;
+    stream.write(reinterpret_cast<const char*>(&number_of_sections),
+                 sizeof(number_of_sections));  // placeholder
+
     // The region of non-persistent format (list of key-length-payload sections, any order & no restrictions w.r.t. the
     // content of the payload)
-    for (const std::shared_ptr<ISection>& section : m_registered_sections) {
+    while (!m_registered_sections.empty()) {
+        const std::shared_ptr<ISection>& section = m_registered_sections.front();
+        m_registered_sections.pop();
         const SectionID section_id = section->get_section_id();
+        ++number_of_sections;
 
         // All sections registered within the BlobWriter are automatically added to the table of offsets
         register_offset_in_table(section_id, get_stream_relative_position(stream));
@@ -100,9 +108,13 @@ void BlobWriter::write(std::ostream& stream) {
     offsets_table_location = get_stream_relative_position(stream);
     stream.seekp(will_come_back_to_this_at_the_end);
     stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
-    stream.seekp(0, std::ios_base::end);
+
+    // Also write the number of sections
+    stream.write(reinterpret_cast<const char*>(&number_of_sections), sizeof(number_of_sections));
 
     // Write the table of offsets
+    stream.seekp(0, std::ios_base::end);
+
     OffsetsTableSection offsets_table_section(m_offsets_table);
     const SectionID section_id = offsets_table_section.get_section_id();
     const uint64_t length = offsets_table_section.get_length().value();
