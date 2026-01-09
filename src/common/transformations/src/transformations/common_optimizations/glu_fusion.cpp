@@ -17,9 +17,6 @@
 #include "ov_ops/glu.hpp"
 #include "transformations/utils/utils.hpp"
 
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
@@ -28,8 +25,6 @@ namespace op_util = ov::op::util;
 namespace ov::pass {
 
 GLUFusion::GLUFusion() {
-    using ov::pass::pattern::op::Or;
-
     auto last_dim_static = [](const ov::Output<ov::Node>& output) {
         auto out_ps = output.get_node()->get_output_partial_shape(0);
         return out_ps.rank().is_static() && out_ps[out_ps.rank().get_length() - 1].is_static() && out_ps.size() <= 5;
@@ -37,23 +32,23 @@ GLUFusion::GLUFusion() {
 
     // Detect GLU decomposition pattern
     // GLU(Xw, Xv, beta) = (Xw * (1.0 + exp(-beta * Xw))) * Xv
-    auto data_m = ov::pass::pattern::any_input(last_dim_static);
+    auto data_m = pattern::any_input(last_dim_static);
 
     // VariadicSplit(X, axis, split_lengths) = Xw, Xv
-    auto axis_const_m = wrap_type<v0::Constant>();
-    auto split_lengths_const_m = wrap_type<v0::Constant>();
-    auto variadic_split_m = wrap_type<v1::VariadicSplit>({data_m, axis_const_m, split_lengths_const_m});
+    auto axis_const_m = pattern::wrap_type<v0::Constant>();
+    auto split_lengths_const_m = pattern::wrap_type<v0::Constant>();
+    auto variadic_split_m = pattern::wrap_type<v1::VariadicSplit>({data_m, axis_const_m, split_lengths_const_m});
     variadic_split_m->set_output_size(2);
 
     // Swish(Xw) = Xw * (1.0 + exp(-beta * Xw))
-    auto swish_m = wrap_type<v4::Swish>({variadic_split_m->output(0)});
-    auto gelu_m = wrap_type<v7::Gelu>({variadic_split_m->output(0)});
+    auto swish_m = pattern::wrap_type<v4::Swish>({variadic_split_m->output(0)});
+    auto gelu_m = pattern::wrap_type<v7::Gelu>({variadic_split_m->output(0)});
 
     // Mul(Xw, Xv) = Swish(Xw) * Xv
-    auto glu_m = std::make_shared<Or>(OutputVector{swish_m, gelu_m});
-    auto mul_m = wrap_type<v1::Multiply>({glu_m, variadic_split_m->output(1)});
+    auto glu_m = std::make_shared<pattern::op::Or>(OutputVector{swish_m, gelu_m});
+    auto mul_m = pattern::wrap_type<v1::Multiply>({glu_m, variadic_split_m->output(1)});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         OPENVINO_ASSERT(pattern_map.count(mul_m));
         OPENVINO_ASSERT(pattern_map.count(swish_m) || pattern_map.count(gelu_m));
@@ -126,7 +121,7 @@ GLUFusion::GLUFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(mul_m, "GLUFusion");
+    auto m = std::make_shared<pattern::Matcher>(mul_m, "GLUFusion");
     this->register_matcher(m, callback);
 }
 

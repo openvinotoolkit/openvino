@@ -25,9 +25,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/augru_cell.hpp"
 
-using namespace std;
-using namespace ov::element;
-
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 
@@ -117,8 +114,8 @@ AUGRUCellFusion::AUGRUCellFusion() {
         auto hidden_size = h_pshape[1].get_length();
         auto input_size = x_pshape[1].get_length();
 
-        auto axis_0 = rg.make<v0::Constant>(i64, Shape{}, 0);
-        auto axis_1 = rg.make<v0::Constant>(i64, Shape{}, 1);
+        auto axis_0 = rg.make<v0::Constant>(element::i64, Shape{}, 0);
+        auto axis_1 = rg.make<v0::Constant>(element::i64, Shape{}, 1);
 
         auto A = pattern_map.at(subtract_1)->input_value(1);
         // biases are required
@@ -133,7 +130,8 @@ AUGRUCellFusion::AUGRUCellFusion() {
         auto WRrz = get_weights_matmul(pattern_map.at(matmul_1), rg)->input_value(1);
         auto WRh = get_weights_matmul(pattern_map.at(matmul_2), rg)->input_value(1);
 
-        auto split_lenghts = rg.make<v0::Constant>(i64, Shape{2}, vector<int64_t>{input_size, hidden_size});
+        auto split_lenghts =
+            rg.make<v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{input_size, hidden_size});
         auto split_WRrz = rg.make<v1::VariadicSplit>(WRrz, axis_1, split_lenghts);
         auto split_W_r_z = rg.make<v1::Split>(split_WRrz->output(0), axis_0, 2);
         auto split_R_r_z = rg.make<v1::Split>(split_WRrz->output(1), axis_0, 2);
@@ -153,7 +151,7 @@ AUGRUCellFusion::AUGRUCellFusion() {
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(add_3, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(add_3, matcher_name);
     this->register_matcher(m, callback);
 }
 

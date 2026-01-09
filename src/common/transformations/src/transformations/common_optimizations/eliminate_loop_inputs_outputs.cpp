@@ -15,15 +15,11 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using namespace std;
-using namespace ov;
-using namespace ov::element;
-
-using ov::pass::pattern::Matcher;
-
 namespace v0 = ov::op::v0;
 namespace v5 = ov::op::v5;
 namespace op_util = ov::op::util;
+
+namespace ov::pass {
 
 using InvariantD = op_util::MultiSubGraphOp::InvariantInputDescription;
 using SlicedD = op_util::MultiSubGraphOp::SliceInputDescription;
@@ -88,12 +84,12 @@ std::unordered_set<uint64_t> remove_results(const std::shared_ptr<v0::Parameter>
 }
 }  // namespace
 
-ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
+EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
     MATCHER_SCOPE(EliminateLoopInputsOutputs);
 
-    auto subgraph_label = ov::pass::pattern::wrap_type<v5::Loop, v0::TensorIterator>();
+    auto subgraph_label = pattern::wrap_type<v5::Loop, v0::TensorIterator>();
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         // delete useless Parameter and Result nodes in isolated graph (Parameter->Result)
         // after that, set indices of sliced and invariant inputs
         // and outputs in the resulted SubGraph operation
@@ -102,7 +98,8 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
 
         const auto& pattern_to_output = m.get_pattern_value_map();
 
-        auto subgraph = as_type_ptr<op_util::SubGraphOp>(pattern_to_output.at(subgraph_label).get_node_shared_ptr());
+        auto subgraph =
+            ov::as_type_ptr<op_util::SubGraphOp>(pattern_to_output.at(subgraph_label).get_node_shared_ptr());
         if (!subgraph) {
             return false;
         }
@@ -114,11 +111,11 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
         const auto& subgraph_in_values = subgraph->input_values();
         int64_t body_condition_output_idx = -1;
         int64_t current_iteration_input_idx = -1;
-        if (auto loop = as_type_ptr<v5::Loop>(subgraph)) {
+        if (auto loop = ov::as_type_ptr<v5::Loop>(subgraph)) {
             const auto& trip_count = subgraph_in_values[0];
             const auto& exec_cond = subgraph_in_values[1];
 
-            auto new_loop = make_shared<v5::Loop>(trip_count, exec_cond);
+            auto new_loop = std::make_shared<v5::Loop>(trip_count, exec_cond);
             new_loop->set_special_body_ports(loop->get_special_body_ports());
             new_node = new_loop;
             // condition Result node index may be shifted due to removing
@@ -127,7 +124,7 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
             body_condition_output_idx = loop->get_special_body_ports().body_condition_output_idx;
             current_iteration_input_idx = loop->get_special_body_ports().current_iteration_input_idx;
         } else {
-            new_node = make_shared<v0::TensorIterator>();
+            new_node = std::make_shared<v0::TensorIterator>();
         }
         new_node->set_function(body_model);
 
@@ -203,7 +200,7 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
             }
 
             // move input description for unremoved node
-            if (const auto merged_input_desc = as_type_ptr<MergedD>(input_description)) {
+            if (const auto merged_input_desc = ov::as_type_ptr<MergedD>(input_description)) {
                 if (cur_remove_result_inds.size() > 0) {
                     // at least one Result node is going to be removed
                     // no back edge after removing so use invariant input
@@ -216,11 +213,11 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
                         new_node->set_merged_input(body_param, init_value, body_res);
                     });
                 }
-            } else if (const auto invariant_input_desc = as_type_ptr<InvariantD>(input_description)) {
+            } else if (const auto invariant_input_desc = ov::as_type_ptr<InvariantD>(input_description)) {
                 process_inputs_outputs.emplace_back([=, &new_node]() {
                     new_node->set_invariant_input(body_param, init_value);
                 });
-            } else if (const auto sliced_input_desc = as_type_ptr<SlicedD>(input_description)) {
+            } else if (const auto sliced_input_desc = ov::as_type_ptr<SlicedD>(input_description)) {
                 process_inputs_outputs.emplace_back([=, &new_node]() {
                     new_node->set_sliced_input(body_param,
                                                init_value,
@@ -251,11 +248,11 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
                 continue;
             }
 
-            if (const auto body_output_desc = as_type_ptr<OutputD>(output_description)) {
+            if (const auto body_output_desc = ov::as_type_ptr<OutputD>(output_description)) {
                 process_inputs_outputs.emplace_back([=, &idx_to_new_output]() {
                     idx_to_new_output[out_idx] = new_node->get_iter_value(body_result, body_output_desc->m_iteration);
                 });
-            } else if (const auto concat_output_desc = as_type_ptr<ConcatD>(output_description)) {
+            } else if (const auto concat_output_desc = ov::as_type_ptr<ConcatD>(output_description)) {
                 process_inputs_outputs.emplace_back([=, &idx_to_new_output]() {
                     idx_to_new_output[out_idx] = new_node->get_concatenated_slices(body_result,
                                                                                    concat_output_desc->m_start,
@@ -271,7 +268,7 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
             }
         }
 
-        if (auto loop = as_type_ptr<v5::Loop>(new_node)) {
+        if (auto loop = ov::as_type_ptr<v5::Loop>(new_node)) {
             // update of body condition index is required due to body graph clean-up
             auto special_body_ports = loop->get_special_body_ports();
             if (special_body_ports.body_condition_output_idx >= 0) {
@@ -284,10 +281,10 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
             loop->set_special_body_ports(special_body_ports);
         }
 
-        for_each(delete_inputs_outputs.begin(), delete_inputs_outputs.end(), [](function<void()>& f) {
+        std::for_each(delete_inputs_outputs.begin(), delete_inputs_outputs.end(), [](std::function<void()>& f) {
             f();
         });
-        for_each(process_inputs_outputs.begin(), process_inputs_outputs.end(), [](function<void()>& f) {
+        std::for_each(process_inputs_outputs.begin(), process_inputs_outputs.end(), [](std::function<void()>& f) {
             f();
         });
 
@@ -300,6 +297,8 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
         return true;
     };
 
-    auto m = make_shared<Matcher>(subgraph_label, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(subgraph_label, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass
