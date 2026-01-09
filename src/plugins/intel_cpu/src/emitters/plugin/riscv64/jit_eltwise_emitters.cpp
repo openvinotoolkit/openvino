@@ -3070,9 +3070,11 @@ jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* ho
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)),
       beta(1.0F),
       sigmoid_emitter(std::make_unique<jit_sigmoid_emitter>(host, host_isa, exec_prc_)) {
-    if (const auto swish = ov::as_type_ptr<ov::intel_cpu::SwishNode>(node)) {
-        beta = swish->get_alpha();
+    const auto swish = ov::as_type_ptr<ov::intel_cpu::SwishNode>(node);
+    if (!swish) {
+        OV_CPU_JIT_EMITTER_THROW("Expected SwishNode but got: ", node->get_type_name());
     }
+    beta = swish->get_alpha();
     prepare_table();
 }
 
@@ -3137,6 +3139,9 @@ void jit_swish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         // beta = 1.0f
         h->vmv_v_v(dst, src);
     }
+
+    // Sigmoid emitter expects aux_fp_gpr_idxs[0] to be zero
+    h->fmv_w_x(FReg(aux_fp_gpr_idxs[0]), zero);
 
     const auto sigmoid_src_idxs = std::vector<size_t>{static_cast<size_t>(dst.getIdx())};
     const auto sigmoid_dst_idxs = std::vector<size_t>{static_cast<size_t>(dst.getIdx())};
