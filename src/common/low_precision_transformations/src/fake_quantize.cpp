@@ -166,10 +166,9 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     const bool updatePrecisions) {
     const std::shared_ptr<Node> eltwise = fakeQuantize->get_input_node_shared_ptr(0);
 
-    // if eltwisw type is multiply followed by Power Op --> It is coming from convert_devide.cpp transformation
-    // so it should not be folded to FQ at all, otherwise make error in reshape Op and subgraph
-    if (ov::is_type<opset1::Multiply>(eltwise) && eltwise->get_input_node_ptr(1)->get_type_name() == "Power")
-        return nullptr;
+    if (eltwise->get_input_size() > 0 && fq::getDataNode(eltwise)->get_output_partial_shape(0) != eltwise->get_output_partial_shape(0)) {
+        return false;
+    }
 
     if (!updatePrecisions && !fq::all_precisions_equal(eltwise)) {
         return nullptr;
