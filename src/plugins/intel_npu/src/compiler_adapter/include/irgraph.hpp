@@ -160,7 +160,7 @@ public:
         Logger _logger = Logger("GraphArguments", Logger::global().level());
 
         void setArgumentValue(uint32_t argi, const void* argv);
-        void setArgumentProperty(uint32_t argi, const void* argv, const ov::Strides& strides, const ov::Shape& shapes);
+        void setArgumentValueWithStrides(uint32_t argi, const void* argv, const std::vector<size_t>& strides);
     };
 
     class Impl {
@@ -169,10 +169,9 @@ public:
     public:
         virtual void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) = 0;
         virtual void setArgumentValue(uint32_t argi, const void* argv) = 0;
-        virtual void setArgumentProperty(uint32_t argi,
-                                         const void* argv,
-                                         const ov::Strides strides,
-                                         const ov::Shape& shapes) = 0;
+        virtual void setArgumentValueWithStrides(uint32_t argi,
+                                                 const void* argv,
+                                                 const std::vector<size_t>& strides) = 0;
         virtual uint64_t getNumSubgraphs() = 0;
         virtual void initializeGraph(uint64_t command_queue_group_ordinal) = 0;
         virtual void getBinding(GraphArguments& binding) = 0;
@@ -200,14 +199,15 @@ public:
                                                             const Config& config) const override;
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
+
+    void set_argument_value_with_strides(uint32_t id,
+                                         const void* data,
+                                         const std::vector<size_t>& strides) const override;
+
     ze_graph_handle_t get_handle() const override;
     BlobType get_blob_type() override {
         return BlobType::LLVM;
     }
-    void set_argument_property(uint32_t argi,
-                               const void* argv,
-                               const ov::Strides& strides,
-                               const ov::Shape& shapes) const;
 
     void initialize(const Config& config) override;
 
