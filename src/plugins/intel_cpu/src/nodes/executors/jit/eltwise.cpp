@@ -401,13 +401,13 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
-    std::vector<ov::element::Type> supported_input_precisions = std::vector<ov::element::Type>{ov::element::f16,
-                                                                                               ov::element::bf16,
-                                                                                               ov::element::f32,
-                                                                                               ov::element::u32,
-                                                                                               ov::element::i32,
-                                                                                               ov::element::i8,
-                                                                                               ov::element::u8};
+    const std::vector<ov::element::Type> supported_input_precisions = std::vector<ov::element::Type>{ov::element::f16,
+                                                                                                     ov::element::bf16,
+                                                                                                     ov::element::f32,
+                                                                                                     ov::element::u32,
+                                                                                                     ov::element::i32,
+                                                                                                     ov::element::i8,
+                                                                                                     ov::element::u8};
     const auto& supported_output_precisions = supported_input_precisions;
 
 #elif defined(OPENVINO_ARCH_ARM64)
