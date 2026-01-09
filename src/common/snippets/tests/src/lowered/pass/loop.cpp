@@ -40,7 +40,7 @@ static void init_linear_ir(const std::vector<ov::Shape>& in_shapes, LinearIR& li
     const auto param2 = linear_ir.push_node<ov::opset10::Parameter>(input_precision, in_shapes[2]);
     const auto matmul = linear_ir.push_node<ov::snippets::op::Brgemm>(param0.second, param1.second);
     const auto add = linear_ir.push_node<ov::opset10::Add>(matmul.second, param2.second);
-    const auto result = linear_ir.push_node<ov::snippets::op::Result>(ov::OutputVector{add.second});
+    const auto result = linear_ir.push_node<ov::snippets::op::Result>(add.second);
 
     const auto loop_manager = linear_ir.get_loop_manager();
     linear_ir.get_loop_manager()->mark_loop(matmul.first, add.first, in_shapes[0].front(), block_size,

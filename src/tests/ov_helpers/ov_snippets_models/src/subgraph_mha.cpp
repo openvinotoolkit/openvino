@@ -156,7 +156,7 @@ std::shared_ptr<ov::Model> MHAFunction::initReference() const {
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2);
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
 
-    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{transpose3});
+    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(transpose3);
 
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         subgraph_inputs,
@@ -210,7 +210,7 @@ std::shared_ptr<ov::Model> MHA2DFunction::initReference() const {
     const auto softMax = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, param2);
 
-    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{matMul1});
+    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(matMul1);
 
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         subgraph_inputs,
@@ -271,7 +271,7 @@ std::shared_ptr<ov::Model> MHASplitMFunction::initReference() const {
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2);
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
 
-    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{transpose3});
+    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(transpose3);
 
     const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(subgraph_inputs,
         std::make_shared<ov::Model>(ov::OutputVector{snippets_result},
@@ -403,7 +403,7 @@ std::shared_ptr<ov::Model> MHAMatMul0TransposeFunction::initReference() const {
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2);
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
-    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{transpose3});
+    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(transpose3);
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         subgraph_inputs,
         std::make_shared<ov::Model>(OutputVector{snippets_result}, subgraph_params));
@@ -574,7 +574,7 @@ std::shared_ptr<ov::Model> MHASelectSplitMFunction::initReference() const {
 
     const auto softMax = std::make_shared<ov::opset1::Softmax>(select, add->get_shape().size() - 1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, data2);
-    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{matMul1});
+    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(matMul1);
 
     const auto subgraph =
             std::make_shared<ov::snippets::op::Subgraph>(
@@ -644,7 +644,7 @@ std::shared_ptr<ov::Model> MHAWOTransposeSplitMFunction::initReference() const {
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(data0, data1);
     const auto softmax = std::make_shared<ov::op::v8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax, data2);
-    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{matMul1});
+    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(matMul1);
     const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::OutputVector{reshape0, reshape1, reshape2},
                                                                        std::make_shared<ov::Model>(ov::OutputVector{snippets_result},
                                                                                                    ov::ParameterVector{data0, data1, data2}));
@@ -936,7 +936,7 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
     const auto fq5 = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(
         matMul1, ov::element::i8, fq_signed_params.inputLowValues[0], fq_signed_params.inputHighValues[0], 0.00346764503f);
 
-    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{fq5});
+    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(fq5);
     auto subgraph =
         std::make_shared<ov::snippets::op::Subgraph>(subgraph_inputs,
                                                      std::make_shared<ov::Model>(OutputVector{snippets_result}, subgraph_params));
@@ -1040,7 +1040,7 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, matmul0_in1, false, mm0_transpose_b);
     const auto softmax = std::make_shared<ov::op::v8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax, param2);
-    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{matMul1});
+    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(matMul1);
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         subgraphs_inputs,
         std::make_shared<ov::Model>(OutputVector{snippets_result}, subgraph_params));
@@ -1122,7 +1122,7 @@ std::shared_ptr<ov::Model> MHAWithExtractedReshapeFunction::initReference() cons
     const auto add_internal = std::make_shared<ov::opset1::Add>(matmul_0, param_2);
     const auto softmax = std::make_shared<ov::op::v8::Softmax>(add_internal, -1);
     const auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(softmax, param_3);
-    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{matmul_1});
+    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(matmul_1);
     auto subgraph_model =
         std::make_shared<ov::Model>(OutputVector{snippets_result}, ov::ParameterVector{param_0, param_1, param_2, param_3});
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::OutputVector{data_0, data_1, reshape, data_4}, subgraph_model);
@@ -1186,7 +1186,7 @@ std::shared_ptr<ov::Model> MHARankUpgradeToReductionFunction::initReference() co
     const auto softmax = std::make_shared<ov::op::v8::Softmax>(add_1, -1);
     const auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(softmax, param_4);
 
-    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{matmul_1});
+    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(matmul_1);
 
     auto subgraph_body = std::make_shared<ov::Model>(OutputVector{snippets_result},
                                                      ov::ParameterVector{param_0, param_1, param_2, param_3, param_4});

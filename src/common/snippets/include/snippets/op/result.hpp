@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,11 +26,14 @@ class Result : public ov::op::v0::Result {
 public:
     OPENVINO_OP("Result", "SnippetsOpset", ov::op::v0::Result);
     Result() = default;
-    explicit Result(const OutputVector& arguments);
+    explicit Result(const Output<Node>& main, const OutputVector& nodes = {});
 
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    bool has_evaluate() const override;
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
 };
 
 }  // namespace ov::snippets::op

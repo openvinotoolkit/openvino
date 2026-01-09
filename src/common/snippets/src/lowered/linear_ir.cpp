@@ -37,7 +37,6 @@
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
-#include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
@@ -237,7 +236,7 @@ void LinearIR::register_expression(const ExpressionPtr& expr, bool io_allowed, d
     if (ov::is_type<ov::op::v0::Parameter>(node)) {
         m_parameter_expressions.push_back(expr);
     }
-    if (ov::is_type<snippets::op::Result>(node)) {
+    if (ov::is_type<ov::op::v0::Result>(node)) {
         m_result_expressions.push_back(expr);
     }
     if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
@@ -262,7 +261,7 @@ void LinearIR::unregister_expression(const ExpressionPtr& expr) {
                         "BufferExpression has not been found in the list of LinearIR Buffers!");
         m_buffer_expressions.erase(it);
     }
-    if (ov::is_type<snippets::op::Result>(node)) {
+    if (ov::is_type<ov::op::v0::Result>(node)) {
         auto match = [&node](const ExpressionPtr& expr) {
             return expr->get_node() == node;
         };

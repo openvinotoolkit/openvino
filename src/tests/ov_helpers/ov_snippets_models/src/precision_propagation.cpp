@@ -69,14 +69,13 @@ std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::get(
 
     parent = create_convert(parent, convertion_before_result);
 
-    const auto result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{parent});
+    const auto result = std::make_shared<ov::snippets::op::Result>(parent);
     auto& result_out_tensor = result->get_output_tensor(0);
     result_out_tensor.set_names({ "result_tensor" });
     result->set_friendly_name("result");
 
-    const ov::ResultVector results{ ov::as_type_ptr<ov::op::v0::Result>(result) };
     const ov::ParameterVector parameters{ branch1.first, branch2.first };
-    const auto model = std::make_shared<ov::Model>(results, parameters, "SnippetsPrecisionPropagation");
+    const auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, parameters, "SnippetsPrecisionPropagation");
     return model;
 }
 

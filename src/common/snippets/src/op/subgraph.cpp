@@ -174,7 +174,7 @@ auto Subgraph::get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t {
                 std::none_of(consumers.begin(),
                              consumers.end(),
                              [](const ov::Input<ov::Node>& in) {
-                                 return ov::is_type<snippets::op::Result>(in.get_node());
+                                 return ov::is_type<ov::op::v0::Result>(in.get_node());
                              }) ||
                 !ov::is_type<ov::op::v0::Parameter>(transpose->get_input_node_shared_ptr(0));
             if (are_prev_or_next_ops) {
@@ -196,7 +196,7 @@ auto Subgraph::get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t {
 
             const auto consumers = matmul->get_output_target_inputs(0);
             if (std::none_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& in) {
-                    return ov::is_type<snippets::op::Result>(in.get_node());
+                    return ov::is_type<ov::op::v0::Result>(in.get_node());
                 })) {
                 used_precision_size.push_back(matmul->get_element_type().size());
             }
@@ -296,8 +296,7 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
 
     ov::ResultVector body_results;
     for (const auto& output : node->outputs()) {
-        body_results.push_back(
-            std::make_shared<snippets::op::Result>(OutputVector{body_node->output(output.get_index())}));
+        body_results.push_back(std::make_shared<snippets::op::Result>(body_node->output(output.get_index())));
     }
 
     auto body = create_body(node->get_friendly_name(), body_results, body_parameters);

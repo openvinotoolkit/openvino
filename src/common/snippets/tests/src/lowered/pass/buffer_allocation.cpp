@@ -135,8 +135,8 @@ std::shared_ptr<ov::Model> EltwiseBufferAllocationTest::GetModel(const std::vect
     const auto relu = std::make_shared<ov::op::v0::Relu>(buffer0);
     const auto buffer1 = std::make_shared<ov::snippets::op::Buffer>(relu);
     const auto exp = std::make_shared<ov::op::v0::Exp>(buffer1);
-    const auto result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{exp});
-    const auto body = std::make_shared<ov::Model>(ov::as_type_ptr<ov::op::v0::Result>(result), ov::ParameterVector{parameter0, parameter1});
+    const auto result = std::make_shared<ov::snippets::op::Result>(exp);
+    const auto body = std::make_shared<ov::Model>(result, ov::ParameterVector{parameter0, parameter1});
 
     MarkOp(add, subtensor_eltwise);
     MarkOp(relu, subtensor_eltwise);

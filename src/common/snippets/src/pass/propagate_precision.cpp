@@ -19,11 +19,11 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/convert_saturation.hpp"
-#include "snippets/op/result.hpp"
 #include "snippets/target_machine.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/utils/utils.hpp"
@@ -231,7 +231,7 @@ bool ov::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restor
 
                 input.replace_source_output(convert->output(0));
 
-                if (ov::is_type<snippets::op::Result>(input.get_node())) {
+                if (ov::is_type<ov::op::v0::Result>(input.get_node())) {
                     // Result input tensor name was changed, the name has to be restored
                     // task #107826
                     input.get_tensor_ptr()->add_names(output.get_tensor_ptr()->get_names());

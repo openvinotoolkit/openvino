@@ -30,7 +30,6 @@
 #include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/brgemm.hpp"
-#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/tokenization_config.hpp"
@@ -133,7 +132,6 @@ TokenizeGatedMLPSnippets::TokenizeGatedMLPSnippets(const TokenizationConfig& con
         }
 
         const auto subgraph = ov::snippets::utils::tokenize_ordered_nodes(ordered_ops, allow_shared_params);
-        op::update_out_tensor_name(subgraph);
 
         // mark the Subgraph as Completed to not allow Snippets to include any nodes into this Subgraph in common
         // Tokenization

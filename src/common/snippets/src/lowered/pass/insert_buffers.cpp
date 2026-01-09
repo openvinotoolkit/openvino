@@ -15,6 +15,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
@@ -23,7 +24,6 @@
 #include "snippets/op/buffer.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/op/rank_normalization.hpp"
-#include "snippets/op/result.hpp"
 #include "snippets/op/vector_buffer.hpp"
 #include "snippets/utils/utils.hpp"
 
@@ -166,7 +166,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
             const auto& child_expr = child_expr_input.get_expr();
             const auto child_port = child_expr_input.get_index();
             const auto& child = child_expr->get_node();
-            if (ov::is_type<snippets::op::Result>(child)) {
+            if (ov::is_type<ov::op::v0::Result>(child)) {
                 continue;
             }
             if (ov::is_type<op::Buffer>(child)) {

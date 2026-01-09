@@ -15,6 +15,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -24,7 +25,6 @@
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/op/buffer.hpp"
-#include "snippets/op/result.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {
@@ -145,7 +145,7 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir,
         const auto consumer_inputs = target_output_port.get_expr_port()->get_connected_ports();
         for (const auto& consumer_input : consumer_inputs) {
             const auto& consumer = consumer_input.get_expr();
-            if (ov::is_type<snippets::op::Result>(consumer->get_node()) || consumer == current_input_port->get_expr()) {
+            if (ov::is_type<ov::op::v0::Result>(consumer->get_node()) || consumer == current_input_port->get_expr()) {
                 continue;
             }
             // The fusing is only valid if target Loop consumer (the Consumer is outside of target Loop)
@@ -230,7 +230,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& expr = *expr_it;
         const auto& node = expr->get_node();
-        if (ov::is_type_any_of<ov::op::v0::Parameter, ov::op::v0::Constant, snippets::op::Result>(node)) {
+        if (ov::is_type_any_of<ov::op::v0::Parameter, ov::op::v0::Constant, ov::op::v0::Result>(node)) {
             continue;
         }
 
@@ -321,7 +321,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                     for (const auto& consumer_expr_input : consumer_exprs_inputs) {
                         const auto& consumer_expr = consumer_expr_input.get_expr();
                         const auto consumer = consumer_expr->get_node();
-                        if (ov::is_type_any_of<snippets::op::Result, op::Buffer>(consumer)) {
+                        if (ov::is_type_any_of<ov::op::v0::Result, op::Buffer>(consumer)) {
                             continue;
                         }
 
