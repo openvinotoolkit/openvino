@@ -236,7 +236,7 @@ OutputVector translate_cond_fx(const NodeContext& context) {
     // Connect each operand to corresponding parameter in both bodies
     // Note: In torch.cond, both branches receive the same operands
     for (size_t i = 0; i < num_operands && i < then_params.size() && i < else_params.size(); i++) {
-        auto operand = context.get_input(i + 1);
+        auto operand = context.get_input(static_cast<int>(i) + 1);
         if_node->set_input(operand, then_params[i], else_params[i]);
     }
 
