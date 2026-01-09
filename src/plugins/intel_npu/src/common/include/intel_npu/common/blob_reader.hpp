@@ -16,21 +16,21 @@ namespace intel_npu {
 
 class BlobReader {
 public:
-    BlobReader(std::istream& source);
+    BlobReader(std::istream& BlobSource);
 
     BlobReader(const ov::Tensor& source);
 
-    void read();
+    void read(const std::unordered_set<CRE::Token>& plugin_capabilities_ids);
 
     void register_reader(const SectionID section_id,
                          std::function<std::shared_ptr<ISection>(BlobReader*, const size_t)> reader);
 
     std::shared_ptr<ISection> retrieve_section(const SectionID section_id);
 
+    void read_data_from_source(char* destination, const size_t size);
+
 private:
     friend class BlobWriter;
-
-    void read_data_from_source(char* destination, const size_t size);
 
     size_t get_cursor_position();
 

@@ -138,4 +138,25 @@ std::optional<uint64_t> CRESection::get_length() const {
     return m_cre.get_expression_length();
 }
 
+bool CRESection::check_compatibility(const std::unordered_set<CRE::Token>& plugin_capabilities) {
+    return m_cre.check_compatibility(plugin_capabilities);
+}
+
+std::shared_ptr<ISection> CRESection::read(BlobReader* blob_reader, const size_t section_length) {
+    size_t number_of_tokens = section_length / sizeof(CRE::Token);
+    auto cre_section = std::make_shared<CRESection>();
+
+    // We expect the expression to start with "AND". The ctor also places this token at the beginning.
+    CRE::Token token;
+    blob_reader->read_data_from_source(reinterpret_cast<char*>(&token), sizeof(token));
+    OPENVINO_ASSERT(token == CRE::AND);
+
+    while (--number_of_tokens) {
+        blob_reader->read_data_from_source(reinterpret_cast<char*>(&token), sizeof(token));
+        cre_section->append_to_expression(token);
+    }
+
+    return cre_section;
+}
+
 }  // namespace intel_npu

@@ -75,6 +75,8 @@ public:
 
     void append_to_expression(const std::vector<CRE::Token>& requirement_tokens);
 
+    bool check_compatibility(const std::unordered_set<CRE::Token>& plugin_capabilities);
+
     static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
 
 private:
