@@ -5,6 +5,7 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
 #include "include/batch_headers/int4_utils.cl"
+#include "include/batch_headers/int2_utils.cl"
 
 KERNEL(fc)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -64,6 +65,13 @@ KERNEL(fc)(
                 ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[filter_idx % 2];
                 ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                 dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
+            #elif COMPRESSED_WEIGHTS_INT2
+                FILTER_TYPE filter_packed = weights[filter_idx / 4];
+                MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) filter_unpacked = UNPACK_INT2x4(ACCUMULATOR_TYPE, *((INT2_PACKED_TYPE*)&filter_packed));
+
+                ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[filter_idx % 4];
+                ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
+                dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
             #else
                 dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * (ACCUMULATOR_TYPE)(weights[filter_idx]);
             #endif
@@ -109,6 +117,13 @@ KERNEL(fc)(
                     MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 2) filter_unpacked = UNPACK_INT4x2(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&filter_packed));
 
                     ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[filter_idx % 2];
+                    ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
+                    dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
+                #elif COMPRESSED_WEIGHTS_INT2
+                    FILTER_TYPE filter_packed = weights[filter_idx / 4];
+                    MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) filter_unpacked = UNPACK_INT2x4(ACCUMULATOR_TYPE, *((INT2_PACKED_TYPE*)&filter_packed));
+
+                    ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[filter_idx % 4];
                     ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                     dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
                 #else

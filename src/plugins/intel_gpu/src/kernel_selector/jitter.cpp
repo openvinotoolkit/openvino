@@ -119,6 +119,10 @@ std::string toCLType(WeightsType wType) {
         case WeightsType::UINT4:
         case WeightsType::UINT8:
             return GetTypeName<uint8_t>();
+        case WeightsType::INT2:
+            return GetTypeName<int8_t>();
+        case WeightsType::UINT2:
+            return GetTypeName<uint8_t>();
         case WeightsType::F16:
             return "half";
         case WeightsType::F32:
@@ -137,6 +141,10 @@ std::string toCLType(Datatype dType) {
             return GetTypeName<int8_t>();
         case Datatype::UINT4:
         case Datatype::UINT8:
+            return GetTypeName<uint8_t>();
+        case Datatype::INT2:
+            return GetTypeName<int8_t>();
+        case Datatype::UINT2:
             return GetTypeName<uint8_t>();
         case Datatype::INT16:
             return GetTypeName<int16_t>();
@@ -1524,6 +1532,16 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             type_size = "0.5f";
             is_fp = false;
             break;
+        case Datatype::INT2:
+            type = "char";
+            type_size = "0.25f";
+            is_fp = false;
+            break;
+        case Datatype::UINT2:
+            type = "uchar";
+            type_size = "0.25f";
+            is_fp = false;
+            break;
         case Datatype::BF16:
             type = "ushort";
             val_one = "(ushort) 1";
@@ -1582,6 +1600,10 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::INT4, macroName);
         case WeightsType::UINT4:
             return MakeTypeJitConstants(Datatype::UINT4, macroName);
+        case WeightsType::INT2:
+            return MakeTypeJitConstants(Datatype::INT2, macroName);
+        case WeightsType::UINT2:
+            return MakeTypeJitConstants(Datatype::UINT2, macroName);
         case WeightsType::INT32:
             return MakeTypeJitConstants(Datatype::INT32, macroName);
         case WeightsType::BF16:
@@ -1598,6 +1620,17 @@ JitConstants make_int4_packed_type_jit_constant(const std::string& macro_name, W
     switch (wt) {
         case WeightsType::UINT4: type_string = "uint4x"; break;
         case WeightsType::INT4: type_string = "int4x"; break;
+        default: OPENVINO_THROW("[GPU] Unsupported compressed type");
+    }
+    return { MakeJitConstant(macro_name, type_string + std::to_string(pack_size) + "_t") };
+}
+
+JitConstants make_int2_packed_type_jit_constant(const std::string& macro_name, WeightsType wt, size_t pack_size) {
+    OPENVINO_ASSERT(pack_size % 4 == 0 && pack_size != 0 && pack_size <= 32);
+    std::string type_string = "";
+    switch (wt) {
+        case WeightsType::UINT2: type_string = "uint2x"; break;
+        case WeightsType::INT2: type_string = "int2x"; break;
         default: OPENVINO_THROW("[GPU] Unsupported compressed type");
     }
     return { MakeJitConstant(macro_name, type_string + std::to_string(pack_size) + "_t") };

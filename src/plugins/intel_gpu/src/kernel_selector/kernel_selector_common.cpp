@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -156,6 +156,8 @@ std::string toString(Datatype dType) {
         case Datatype::INT64:  return "INT64";
         case Datatype::F16:    return "F16";
         case Datatype::F32:    return "F32";
+        case Datatype::UINT2:  return "UINT2";
+        case Datatype::INT2:   return "INT2";
         default: return "";
     }
 }
@@ -169,6 +171,8 @@ std::string toString(WeightsType wType) {
         case WeightsType::INT8:   return "INT8";
         case WeightsType::UINT8:  return "UINT8";
         case WeightsType::INT32:  return "INT32";
+        case WeightsType::INT2:   return "INT2";
+        case WeightsType::UINT2:  return "UINT2";
         default: return "";
     }
 }
