@@ -205,7 +205,7 @@ _levelZeroOutputTensors(output_tensors)*/
                                                    static_cast<unsigned char*>(tensor->data()) +
                                                        (i * tensor->get_byte_size()) / _number_of_command_lists,
                                                    tensor->get_strides(),
-                                                   tenosr->get_shape());
+                                                   tensor->get_shape());
             } else {
                 irGraph->set_argument_value(
                     desc.indexUsedByDriver,
@@ -214,7 +214,7 @@ _levelZeroOutputTensors(output_tensors)*/
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
                     get_strides(tensor->get_strides(), tensor->get_element_type().size()),
-                    tenosr->get_shape());
+                    tensor->get_shape());
             }
             // irGraph->set_argument_property(
             //     desc.indexUsedByDriver,
@@ -394,7 +394,7 @@ void DynamicPipeline::pull() {
     }
 
     _logger.debug("DynamicPipeline - pull() completed");
-};
+}
 
 void DynamicPipeline::reset() const {
     _logger.debug("DynamicPipeline - reset() started");
@@ -407,46 +407,66 @@ void DynamicPipeline::reset() const {
     }
 
     _logger.debug("Pipeline - rest() completed");
-};
+}
 
-void DynamicPipeline::update_graph_arguments(uint32_t arg_index,
-                                             const void* arg_data,
-                                             size_t byte_size,
-                                             [[maybe_unused]] const ov::Strides& strides,
-                                             [[maybe_unused]] const ov::Shape& shapes) {
+void DynamicPipeline::update_graph_arguments(uint32_t index,
+                                             const std::shared_ptr<ZeroTensor>& zeroTensor,
+                                             std::shared_ptr<ov::ITensor> userTensor) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "DynamicPipeline", "updateCommandList");
     _logger.debug("DynamicPipeline - updateCommandList");
+    // This is the tensor with right shape and strides
+    // The required check is alredy done in inferRequest
+    const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
 
     const size_t number_of_command_lists = _command_lists.size();
 
     for (size_t i = 0; i < number_of_command_lists; i++) {
-        _command_lists.at(i)->updateMutableCommandList(
-            arg_index,
-            static_cast<const unsigned char*>(arg_data) + (i * byte_size) / number_of_command_lists,
-            strides,
-            shapes);
+        if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
+            _command_lists.at(i)->updateMutableCommandList(index,
+                                                           static_cast<const unsigned char*>(zeroTensor->data()) +
+                                                               (i * tensor->get_byte_size()) / number_of_command_lists,
+                                                           tensor->get_strides(),
+                                                           tensor->get_shape());
+        } else {
+            _command_lists.at(i)->updateMutableCommandList(
+                index,
+                static_cast<const unsigned char*>(zeroTensor->data()) + (i * tensor->get_strides()[0]),
+                get_strides(tensor->get_strides(), tensor->get_element_type().size()),
+                tensor->get_shape());
+        }
     }
-};
+}
 
-void DynamicPipeline::update_graph_arguments_batching(uint32_t arg_index,
-                                                      const void* arg_data,
-                                                      [[maybe_unused]] const ov::Strides& strides,
-                                                      [[maybe_unused]] const ov::Shape& shapes,
-                                                      size_t batch_index) {
+void DynamicPipeline::update_graph_arguments(uint32_t index,
+                                             const std::shared_ptr<ZeroTensor>& zeroTensor,
+                                             std::shared_ptr<ov::ITensor> userTensor,
+                                             size_t batch_index) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL,
                       itt::domains::LevelZeroBackend,
                       "DynamicPipeline",
                       "updateCommandListIndex");
     _logger.debug("DynamicPipeline - updateCommandListIndex");
+    // This is the tensor with right shape and strides
+    // The required check is alredy done in inferRequest
+    const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
 
     const size_t number_of_command_lists = _command_lists.size();
 
     OPENVINO_ASSERT(batch_index < number_of_command_lists,
-                    "batch_index is higher than the number of Command lists ",
+                    "Command list index is higher than the number of Command lists ",
                     batch_index);
 
-    _command_lists.at(batch_index)->updateMutableCommandList(arg_index, arg_data, strides, shapes);
-};
+    if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
+        _command_lists.at(batch_index)
+            ->updateMutableCommandList(index, zeroTensor->data(), tensor->get_strides(), tensor->get_shape());
+    } else {
+        _command_lists.at(batch_index)
+            ->updateMutableCommandList(index,
+                                       zeroTensor->data(),
+                                       get_strides(tensor->get_strides(), tensor->get_element_type().size()),
+                                       tensor->get_shape());
+    }
+}
 
 std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
     // TODO: Need a way to get profiling info
