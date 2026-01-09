@@ -28,4 +28,19 @@ std::shared_ptr<std::unordered_map<SectionID, uint64_t>> OffsetsTableSection::ge
     return m_offsets_table;
 }
 
+std::shared_ptr<ISection> OffsetsTableSection::read(BlobReader* blob_reader, const size_t section_length) {
+    auto offsets_table = std::make_shared<std::unordered_map<SectionID, uint64_t>>();
+    size_t number_of_sections_in_table = section_length / (sizeof(SectionID) + sizeof(uint64_t));
+    SectionID section_id;
+    uint64_t offset;
+
+    while (number_of_sections_in_table--) {
+        blob_reader->read_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
+        blob_reader->read_data_from_source(reinterpret_cast<char*>(&offset), sizeof(offset));
+        (*offsets_table)[section_id] = offset;
+    }
+
+    return std::make_shared<OffsetsTableSection>(offsets_table);
+}
+
 }  // namespace intel_npu
