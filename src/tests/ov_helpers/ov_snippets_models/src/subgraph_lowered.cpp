@@ -115,7 +115,7 @@ std::shared_ptr<ov::Model> Transpose0213MatMulLoweredFunction::initLowered() con
                                                                                                                                 layout));
     }
     matmul->validate_and_infer_types();
-    auto snippets_result = std::make_shared<ov::snippets::op::Result>(ov::OutputVector{matmul});
+    auto snippets_result = std::make_shared<ov::snippets::op::Result>(matmul);
     return std::make_shared<ov::Model>(OutputVector{snippets_result}, data);
 }
 

@@ -12,6 +12,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -19,7 +20,6 @@
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/reshape.hpp"
-#include "snippets/op/result.hpp"
 
 namespace ov::snippets::lowered::pass {
 
@@ -33,7 +33,7 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
 
     // Parameters, Results or Constants are ignored. They can't be in Loops
     auto is_loop_outside_op = [](const std::shared_ptr<ov::Node>& node) {
-        return ov::is_type_any_of<snippets::op::Result,
+        return ov::is_type_any_of<ov::op::v0::Result,
                                   ov::op::v0::Constant,
                                   ov::op::v0::Parameter,
                                   op::RankNormalization,

@@ -17,7 +17,6 @@
 #include "snippets/op/loop.hpp"
 #include "snippets/op/perf_count.hpp"
 #include "snippets/op/reg_spill.hpp"
-#include "snippets/op/result.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov::snippets::lowered {
@@ -40,7 +39,7 @@ private:
     static ExpressionPtr create(const std::shared_ptr<ov::op::v0::Parameter>& par,
                                 const std::vector<PortConnectorPtr>& inputs,
                                 const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory);
-    static ExpressionPtr create(const std::shared_ptr<op::Result>& res,
+    static ExpressionPtr create(const std::shared_ptr<ov::op::v0::Result>& res,
                                 const std::vector<PortConnectorPtr>& inputs,
                                 const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory);
     static ExpressionPtr create(const std::shared_ptr<op::LoopBegin>& n,

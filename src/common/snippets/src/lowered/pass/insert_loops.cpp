@@ -11,6 +11,7 @@
 
 #include "openvino/core/type.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
@@ -18,7 +19,6 @@
 #include "snippets/lowered/loop_port.hpp"
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/op/loop.hpp"
-#include "snippets/op/result.hpp"
 
 namespace ov::snippets::lowered::pass {
 void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id) {
@@ -70,7 +70,7 @@ bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin,
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& expr = *expr_it;
         const auto& node = expr->get_node();
-        if (ov::is_type_any_of<op::LoopBase, ov::op::v0::Parameter, snippets::op::Result>(node)) {
+        if (ov::is_type_any_of<op::LoopBase, ov::op::v0::Parameter, ov::op::v0::Result>(node)) {
             continue;
         }
 
