@@ -18,6 +18,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/sink.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -38,7 +39,13 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
     auto beam_idx = wrap_type<ov::op::v0::Parameter>();
     auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
     auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
-    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
+    auto trim_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
+    auto start = wrap_type<ov::op::v0::Constant>();
+    auto past_seq_len = any_input();
+    auto step = wrap_type<ov::op::v0::Constant>();
+    auto slice_axes = wrap_type<ov::op::v0::Constant>();
+    auto trim_past = wrap_type<ov::op::v8::Slice>({trim_past_input, start, past_seq_len, step, slice_axes});
+    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{trim_past_input, trim_past});
     auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
     auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
     auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
