@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -46,7 +46,7 @@ class TestFloorDiv(CommonTFLayerTest):
 
     # TODO: implement tests for 2 Consts + Add
 
-    
+
     test_data_1D = [
         dict(x_shape=[], dtype=np.int32),
         dict(x_shape=[2], dtype=np.int64),
@@ -81,7 +81,7 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
     def create_flordiv_tf_net(self, min, max, step, y, dtype, ir_version):
         import tensorflow as tf
         x = np.arange(min, max, step, dtype=dtype)
-        
+
         self.min = min
         self.max = max
         self.step = step
@@ -100,7 +100,7 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
         ref_net = None
 
         return tf_net, ref_net
-    
+
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
             inputs_dict[input] = np.arange(self.min, self.max, self.step, dtype=self.dtype)

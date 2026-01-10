@@ -17,7 +17,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(kv_cache)
 
 kv_cache_inst::typed_primitive_inst(network& network, const kv_cache_node& node) :
     parent{network, node, false},
-    memory_state::variable{node.get_primitive()->variable_info.variable_id} {
+    memory_state::releasable_variable{node.get_primitive()->variable_info.variable_id} {
     thread_local size_t kv_cache_counter = 0;
     kv_cache_id = kv_cache_counter++;
 }
@@ -175,6 +175,16 @@ void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
         const auto& node_out_lay = get_node().get_output_layout(i);
         const auto& runtime_out_lay = params.output_layouts[i];
         fill_shape_info_data(runtime_out_lay, node_out_lay, shape_info_ptr, offset);
+    }
+}
+
+void kv_cache_inst::release_variable() {
+    // if there's variable state, it should hold a reference of tensor same as outputs
+    if (!get_network().has_variable(variable_id()))
+        return;
+    for (size_t i = 0; i < _outputs.size(); ++i) {
+        auto& output = _outputs[i];
+        output.reset();
     }
 }
 
