@@ -46,24 +46,25 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
 
     std::optional<int64_t> kv_cache_trim_length;
     if (desc->update_kv) {
-        OPENVINO_ASSERT(!desc->compressed || !desc->indirect);  // update_kv does not support compressed kv or indirect for now
+        OPENVINO_ASSERT(!desc->compressed && !desc->indirect);  // update_kv does not support compressed kv or indirect for now
         constexpr size_t past_seq_len_idx = 2;
-        const auto it = impl_param.memory_deps.find(past_seq_len_idx);
-        OPENVINO_ASSERT(it != impl_param.memory_deps.end()); // past_seq_len node should always exist as data when update_kv is true
-        const auto& past_seq_len_mem = it->second;
-        const auto past_seq_len_layout = past_seq_len_mem->get_layout();
-        if (past_seq_len_layout.count() > 0) {
-            // past_seq_len is provided, need to do trim
-            OPENVINO_ASSERT(past_seq_len_layout.count() == 1);
-            cldnn::mem_lock<uint8_t, mem_lock_type::read> past_seq_len_mem_lock(past_seq_len_mem, impl_param.get_stream());
-            auto t = make_tensor(past_seq_len_layout, past_seq_len_mem_lock.data());
-            const auto past_dim_updated = ov::get_tensor_data_as<int64_t>(t);
-            const auto past_dim_stored = input_shapes[0][desc->concat_axis];
-            OPENVINO_ASSERT(past_dim_stored.is_static());
-            const auto trim_length = past_dim_stored.get_length() - past_dim_updated[0];
-            OPENVINO_ASSERT(trim_length >= 0, "past_seq_len shouldn't be larger then actual past seq");
-            kv_cache_trim_length = trim_length;
-            impl_param.kv_cache_trim_length = *kv_cache_trim_length;
+        // during initialize the graph, past_seq_len node is not available so assume no trim needed
+        if (const auto it = impl_param.memory_deps.find(past_seq_len_idx); it != impl_param.memory_deps.end()) {
+            const auto& past_seq_len_mem = it->second;
+            const auto past_seq_len_layout = past_seq_len_mem->get_layout();
+            if (past_seq_len_layout.count() > 0) {
+                // past_seq_len is provided, need to do trim
+                OPENVINO_ASSERT(past_seq_len_layout.count() == 1);
+                cldnn::mem_lock<uint8_t, mem_lock_type::read> past_seq_len_mem_lock(past_seq_len_mem, impl_param.get_stream());
+                auto t = make_tensor(past_seq_len_layout, past_seq_len_mem_lock.data());
+                const auto past_dim_updated = ov::get_tensor_data_as<int64_t>(t);
+                const auto past_dim_stored = input_shapes[0][desc->concat_axis];
+                OPENVINO_ASSERT(past_dim_stored.is_static());
+                const auto trim_length = past_dim_stored.get_length() - past_dim_updated[0];
+                OPENVINO_ASSERT(trim_length >= 0, "past_seq_len shouldn't be larger then actual past seq");
+                kv_cache_trim_length = trim_length;
+                impl_param.kv_cache_trim_length = *kv_cache_trim_length;
+            }
         }
     }
 
