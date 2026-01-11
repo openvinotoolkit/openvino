@@ -135,6 +135,10 @@ std::shared_ptr<ov::Node> Group::getInitialNode() const {
     return *(m_content.begin());
 }
 
+const std::unordered_set<std::shared_ptr<ov::Node>>& Group::getOutputs() const {
+    return m_output_layers;
+}
+
 void Group::addInput(const std::shared_ptr<ov::Node>& node) {
     m_input_layers.insert(node);
 }
