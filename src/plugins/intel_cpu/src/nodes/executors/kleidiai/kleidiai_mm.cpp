@@ -67,8 +67,8 @@ bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
 
 MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
                                                const MemoryArgs& memory,
-                                               const ExecutorContext::CPtr& context)
-    : cpu_parallel(context->getCpuParallel()) {
+                                               const ExecutorContext::CPtr& context) {
+    cpu_parallel = context->getCpuParallel();
     auto srcMem = memory.at(ARG_SRC);
     auto weiMem = memory.at(ARG_WEI);
     auto weiDims = weiMem->getDesc().getShape().getDims();

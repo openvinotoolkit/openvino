@@ -75,7 +75,7 @@ public:
         return cpu_parallel_sum2d(D0, D1, input, func);
     }
     template <typename T0, typename T1, typename T2, typename R, typename F>
-    [[nodiscard]] R parallel_sum3d(const T0& D0, const T1& D1, const T2& D2, const R& input, const F& func) {
+    [[nodiscard]] R parallel_sum3d(const T0& D0, const T1& D1, const T2& D2, const R& input, const F& func) const {
         return cpu_parallel_sum3d(D0, D1, D2, input, func);
     }
     template <typename T0, typename F>
@@ -195,7 +195,7 @@ private:
     }
 
     template <typename T0, typename T1, typename T2, typename R, typename F>
-    [[nodiscard]] R cpu_parallel_sum3d(const T0& D0, const T1& D1, const T2& D2, const R& input, const F& func) {
+    [[nodiscard]] R cpu_parallel_sum3d(const T0& D0, const T1& D1, const T2& D2, const R& input, const F& func) const {
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         R res_sum = 0;
         if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
