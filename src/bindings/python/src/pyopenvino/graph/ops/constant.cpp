@@ -62,14 +62,34 @@ void regclass_graph_op_Constant(py::module m) {
                                                                                                py::buffer_protocol());
     constant.doc() = "openvino.op.Constant wraps ov::op::v0::Constant";
     // Numpy-based constructor
-    constant.def(py::init([](py::array& array, bool shared_memory) {
-                     return Common::object_from_data<ov::op::v0::Constant>(array, shared_memory);
+    constant.def(py::init([](py::array& array, bool shared_memory) -> std::shared_ptr<ov::op::v0::Constant> {
+                     if (array.dtype().kind() == 'U' || array.dtype().kind() == 'S' || array.dtype().kind() == 'O' ||
+                         array.dtype().kind() == 'a') {
+                         ov::Shape shape(array.shape(), array.shape() + array.ndim());
+                         // convert NumPy array to flattened list of strings
+                         std::vector<std::string> strings;
+                         auto flat_array = array.reshape({-1});
+
+                         // copy data
+                         for (int i = 0; i < flat_array.size(); ++i) {
+                             strings.push_back(py::str(flat_array.attr("item")(i)));
+                         }
+
+                         // create OpenVINO String Tensor
+                         ov::Tensor tensor(ov::element::string, shape, &strings[0]);
+
+                         // return the Constant Op wrapping this tensor
+                         return std::make_shared<ov::op::v0::Constant>(tensor);
+                     }
+                     return std::make_shared<ov::op::v0::Constant>(
+                         Common::object_from_data<ov::op::v0::Constant>(array, shared_memory));
                  }),
                  py::arg("array"),
                  py::arg("shared_memory") = false);
     // Tensor-based constructors
     constant.def(py::init([](ov::Tensor& tensor, bool shared_memory) {
-                     return Common::object_from_data<ov::op::v0::Constant>(tensor, shared_memory);
+                     return std::make_shared<ov::op::v0::Constant>(
+                         Common::object_from_data<ov::op::v0::Constant>(tensor, shared_memory));
                  }),
                  py::arg("tensor"),
                  py::arg("shared_memory") = true);
