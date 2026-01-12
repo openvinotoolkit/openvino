@@ -1411,17 +1411,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                                     scale_add2_reduce_max<true, true, true>};
     int dispatch = (alibi ? 0b100 : 0) | (attn_mask ? 0b010 : 0) | (causal_mask ? 0b001 : 0);
     ov::float16 max = std::numeric_limits<ov::float16>::lowest();
-    if (attn_mask_prec == ov::element::f32) {
-        funcs_fp32[dispatch](a,
-                             scale,
-                             alibi,
-                             static_cast<const float*>(attn_mask),
-                             causal_mask,
-                             select_nfltmax_at_0,
-                             len,
-                             alibi_slope,
-                             max);
-    } else if (attn_mask_prec == ov::element::f16) {
+    if (attn_mask_prec == ov::element::f16) {
         funcs_fp16[dispatch](a,
                              scale,
                              alibi,
@@ -1432,7 +1422,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                              alibi_slope,
                              max);
 #if !defined(OPENVINO_ARCH_ARM64)
-    } else {
+    } else if (attn_mask_prec == ov::element::bf16) {
         funcs_bf16[dispatch](a,
                              scale,
                              alibi,
@@ -1443,6 +1433,16 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                              alibi_slope,
                              max);
 #endif
+    } else {
+        funcs_fp32[dispatch](a,
+                             scale,
+                             alibi,
+                             static_cast<const float*>(attn_mask),
+                             causal_mask,
+                             select_nfltmax_at_0,
+                             len,
+                             alibi_slope,
+                             max);
     }
 
     ov::float16 sum = 0.0f;
