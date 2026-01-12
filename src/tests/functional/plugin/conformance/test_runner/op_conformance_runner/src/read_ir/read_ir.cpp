@@ -158,6 +158,12 @@ void ReadIRTest::SetUp() {
     }
 
     bool hasDynamic = ov::util::is_dynamic_model(function);
+    if (targetDevice == "TEMPLATE"&&
+	hasDynamic &&
+	path_to_model.find("Multiply") != std::string::npos){
+	GTEST_SKIP()<<"Dynamic Multiply conformance is not supported for Template device";
+    }
+
 
 #ifdef ENABLE_CONFORMANCE_PGQL
     // Updating data in runtime. Should be set before possible call of a first GTEST status
@@ -343,3 +349,4 @@ INSTANTIATE_TEST_SUITE_P(conformance_subgraph,
 } // namespace op_conformance
 } // namespace test
 } // namespace ov
+
