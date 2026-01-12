@@ -11,7 +11,6 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/engine_configuration.hpp"
-#include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 
 #include "openvino/opsets/opset13.hpp"
 #include "ov_ops/vl_sdpa.hpp"

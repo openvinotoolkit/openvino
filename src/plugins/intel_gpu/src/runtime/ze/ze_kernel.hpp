@@ -67,6 +67,14 @@ public:
         }
     }
 
+    virtual bool is_same(const kernel &other) const override {
+        auto other_ptr = dynamic_cast<const ze_kernel*>(&other);
+        if (other_ptr == nullptr) {
+            return false;
+        }
+        return get_kernel_handle() == other_ptr->get_kernel_handle();
+    }
+
     std::vector<uint8_t> get_binary() const override {
         size_t binary_size = 0;
         ze_module_handle_t module_handle = get_module_handle();
