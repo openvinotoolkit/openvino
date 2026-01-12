@@ -464,27 +464,24 @@ ov::pass::KeepPrecisionOfUnstrippedFQPattern::KeepPrecisionOfUnstrippedFQPattern
                               zp_const_pattern,
                               scale_const_pattern };
         // we can check if zp const values are between 65504 to 65535, disable fp16 compression
-        bool max_reach = false;
-        constexpr uint16_t FP16_MAX = 65504;
-        for (auto pattern : { zp_const_pattern, scale_const_pattern }) {
-            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(pattern).get_node_shared_ptr());
-            if (!const_node)
-                continue;
-            auto values = const_node->cast_vector<uint16_t>();
-            for (auto v : values) {
-                if (v > FP16_MAX) {
-                    max_reach = true;
-                    break; // If you only need to mark once per node
-                }
-            }
-        }
-        if (max_reach)
+        auto patterns = { zp_const_pattern, scale_const_pattern };
+        bool max_reach = std::any_of(
+            patterns.begin(), patterns.end(),
+            [&](const auto& pattern) {
+                auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(pattern).get_node_shared_ptr());
+                if (!const_node) return false;
+                auto values = const_node->cast_vector<float>();
+                return std::any_of(values.begin(), values.end(), [](float v) { return v > 65504; });
+            });
+
+        if (max_reach) {
             for (const auto& node_to_mark : nodes_to_mark) {
                 if (pm.count(node_to_mark)) {
                     auto node_ptr = pattern_map.at(node_to_mark).get_node_shared_ptr();
                     disable_fp16_compression(node_ptr);
                 }
             }
+        }
         return true;
         };
 
