@@ -74,8 +74,9 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
     
     // Split properties to separate Kokoro specific options and NPU plugin options
     ov::AnyMap npuw_kokoro_props;
-    ov::AnyMap other_props;
-    split_kokoro_properties(properties, other_props, npuw_kokoro_props);
+    ov::AnyMap common_props;
+    
+    split_kokoro_properties(properties, common_props, npuw_kokoro_props);
 
     m_cfg.parseEnvVars();
     m_cfg.update(any_copy(npuw_kokoro_props));
@@ -89,17 +90,17 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
 
     LOG_DEBUG("Compiling kokoro model A...");
     // Model A doesn't require decomposition, so it should be handled by CPU or NPU plugin 
-    if (is_cpu_only(properties)) {
+    if (is_cpu_only(common_props)) {
         auto core = plugin->get_core();
         m_model_a_compiled = core->compile_model(split_result.model_a, "CPU", ov::AnyMap{});
     } else {
         // Plugin don't have to know about NPUW parameters 
-        ov::AnyMap model_a_properties = without_npuw_params(properties);
+        ov::AnyMap model_a_properties = without_npuw_params(common_props);
         m_model_a_compiled = plugin->compile_model(split_result.model_a, model_a_properties);
     }
     
     LOG_DEBUG("Compiling kokoro model B...");
-    ov::AnyMap properties_model_b = properties;
+    ov::AnyMap properties_model_b = common_props;
 
     // Enforce offloading to CPU for non-accurate subgraphs
     if (!properties_model_b.count("NPUW_ONLINE_PIPELINE")) {

@@ -491,6 +491,9 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::whisper::enabled, NPUW_WHISPER);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::eagle::enabled, NPUW_EAGLE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::text_embed::enabled, NPUW_TEXT_EMBED);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::kokoro::enabled, NPUW_KOKORO);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::kokoro::block_size, NPUW_KOKORO_BLOCK_SIZE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::kokoro::overlap_size, NPUW_KOKORO_OVERLAP_SIZE);
 
     // 2. Metrics (static device and enviroment properties)
     // ========
