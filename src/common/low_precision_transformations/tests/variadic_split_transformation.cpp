@@ -111,7 +111,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
      {
          {{}, {}, ov::builder::subgraph::DequantizationOperations::Multiply({3.f}, ov::element::f16).setConstantPrecision(ov::element::f32)},
          {{}, {}, ov::builder::subgraph::DequantizationOperations::Multiply({3.f}, ov::element::f16).setConstantPrecision(ov::element::f32)},
-
+     }}},
     // U8 per tensor quantization
     {{1, 3, 16, 16},
      std::int64_t{2},
