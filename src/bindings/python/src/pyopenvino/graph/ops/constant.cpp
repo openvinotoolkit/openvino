@@ -65,6 +65,9 @@ void regclass_graph_op_Constant(py::module m) {
     constant.def(py::init([](py::array& array, bool shared_memory) -> std::shared_ptr<ov::op::v0::Constant> {
                      if (array.dtype().kind() == 'U' || array.dtype().kind() == 'S' || array.dtype().kind() == 'O' ||
                          array.dtype().kind() == 'a') {
+                        if (shared_memory) {
+                            throw std::runtime_error("Creating a String Constant with shared memory is not supported.");
+                        }
                          ov::Shape shape(array.shape(), array.shape() + array.ndim());
                          // convert NumPy array to flattened list of strings
                          std::vector<std::string> strings;
