@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -149,14 +149,14 @@ public:
         topology.add(input_layout("denseShape", dense_shape_dynamic_layout));
         topology.add(input_layout("indices", indices_dynamic_layout));
         topology.add(input_layout("default_value", default_value_dynamic_layout));
-        
+
         std::vector<input_info> inputs = {
             input_info("values"),
             input_info("denseShape"),
             input_info("indices"),
             input_info("default_value"),
         };
-        
+
         topology.add(sparse_fill_empty_rows(
             "sparse_fill_empty_rows",
             inputs,
@@ -223,7 +223,7 @@ std::vector<SparseFillEmptyRowsTestParams> generateTestParams() {
 }  // namespace
 
 #define SparseFillEmptyRows_TEST_P(precision)                                                      \
-    
+
     TEST_P(sparse_fill_empty_rows_test, ref_comp_f32) {
         const auto& testParams = GetParam();
         Execute(PrepareInferenceParams<ov::element::Type_t::f32>(testParams), testParams);

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -235,7 +235,7 @@ class TestComplexSub(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             param_real_x = tf.compat.v1.placeholder(np.float32, x_shape, 'param_real_x')
             param_imag_x = tf.compat.v1.placeholder(np.float32, x_shape, 'param_imag_x')
-            
+
             param_real_y = tf.compat.v1.placeholder(np.float32, y_shape, 'param_real_y')
             param_imag_y = tf.compat.v1.placeholder(np.float32, y_shape, 'param_imag_y')
 
@@ -262,7 +262,7 @@ class TestComplexSub(CommonTFLayerTest):
     ])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_complex_sub(self, x_shape, y_shape, 
+    def test_complex_sub(self, x_shape, y_shape,
                    ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_complex_sub_net(x_shape, y_shape, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
