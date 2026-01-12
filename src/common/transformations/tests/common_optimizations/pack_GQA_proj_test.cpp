@@ -193,13 +193,18 @@ std::shared_ptr<ov::Model> build_model_gqa_pack_mha_ref(size_t batch,
     return std::make_shared<ov::Model>(OutputVector{residual}, ParameterVector{input});
 }
 
-TEST_F(TransformationTestsF, PackGQA) {
-    constexpr size_t batch = 1;
-    constexpr size_t seq_len = 128;
-    constexpr size_t head_size = 64;
-    constexpr size_t num_heads = 8;
-    constexpr size_t num_groups = 2;
+class PackGQATest
+    : public TransformationTestsF,
+      public ::testing::WithParamInterface<std::tuple<size_t, size_t, size_t, size_t, size_t, std::string>> {};
 
+static std::string PackGQATestName(const ::testing::TestParamInfo<PackGQATest::ParamType>& info) {
+    const auto& [batch, seq_len, head_size, num_heads, num_groups, test_name] = info.param;
+    return test_name + "/" + "B" + std::to_string(batch) + "_S" + std::to_string(seq_len) + "_HS" +
+           std::to_string(head_size) + "_NH" + std::to_string(num_heads) + "_NG" + std::to_string(num_groups);
+}
+
+TEST_P(PackGQATest, PackGQA) {
+    const auto& [batch, seq_len, head_size, num_heads, num_groups, test_name] = GetParam();
     {
         model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
         ov::pass::Manager manager;
@@ -213,144 +218,16 @@ TEST_F(TransformationTestsF, PackGQA) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-TEST_F(TransformationTestsF, PackGQA_HeadsEqualGroup) {
-    constexpr size_t batch = 1;
-    constexpr size_t seq_len = 128;
-    constexpr size_t head_size = 64;
-    constexpr size_t num_heads = 6;
-    constexpr size_t num_groups = 6;
-
-    {
-        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::PackGQA>();
-        manager.run_passes(model);
-    }
-
-    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-}
-
-TEST_F(TransformationTestsF, PackGQA_DifferentHeadsPerGroup) {
-    constexpr size_t batch = 1;
-    constexpr size_t seq_len = 128;
-    constexpr size_t head_size = 64;
-    constexpr size_t num_heads = 12;
-    constexpr size_t num_groups = 3;
-
-    {
-        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::PackGQA>();
-        manager.run_passes(model);
-    }
-
-    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-}
-
-TEST_F(TransformationTestsF, PackGQA_SingleGroup) {
-    constexpr size_t batch = 1;
-    constexpr size_t seq_len = 128;
-    constexpr size_t head_size = 64;
-    constexpr size_t num_heads = 8;
-    constexpr size_t num_groups = 1;
-
-    {
-        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::PackGQA>();
-        manager.run_passes(model);
-    }
-
-    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-}
-
-TEST_F(TransformationTestsF, PackGQA_LargerBatch) {
-    constexpr size_t batch = 4;
-    constexpr size_t seq_len = 128;
-    constexpr size_t head_size = 64;
-    constexpr size_t num_heads = 8;
-    constexpr size_t num_groups = 2;
-
-    {
-        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::PackGQA>();
-        manager.run_passes(model);
-    }
-
-    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-}
-
-TEST_F(TransformationTestsF, PackGQA_DifferentSeqLen) {
-    constexpr size_t batch = 1;
-    constexpr size_t seq_len = 256;
-    constexpr size_t head_size = 64;
-    constexpr size_t num_heads = 8;
-    constexpr size_t num_groups = 2;
-
-    {
-        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::PackGQA>();
-        manager.run_passes(model);
-    }
-
-    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-}
-
-TEST_F(TransformationTestsF, PackGQA_DifferentHeadSize) {
-    constexpr size_t batch = 1;
-    constexpr size_t seq_len = 128;
-    constexpr size_t head_size = 128;
-    constexpr size_t num_heads = 8;
-    constexpr size_t num_groups = 2;
-
-    {
-        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::PackGQA>();
-        manager.run_passes(model);
-    }
-
-    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-}
-
-TEST_F(TransformationTestsF, PackGQA_ManyGroups) {
-    constexpr size_t batch = 1;
-    constexpr size_t seq_len = 128;
-    constexpr size_t head_size = 64;
-    constexpr size_t num_heads = 16;
-    constexpr size_t num_groups = 8;
-
-    {
-        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::PackGQA>();
-        manager.run_passes(model);
-    }
-
-    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-}
+INSTANTIATE_TEST_SUITE_P(PackGQATests,
+                         PackGQATest,
+                         ::testing::Values(std::make_tuple(1, 128, 64, 8, 2, "Basic"),
+                                           std::make_tuple(1, 128, 64, 6, 6, "HeadsEqualGroup"),
+                                           std::make_tuple(1, 128, 64, 12, 3, "DifferentHeadsPerGroup"),
+                                           std::make_tuple(1, 128, 64, 8, 1, "SingleGroup"),
+                                           std::make_tuple(4, 128, 64, 8, 2, "LargerBatch"),
+                                           std::make_tuple(1, 256, 64, 8, 2, "DifferentSeqLen"),
+                                           std::make_tuple(1, 128, 128, 8, 2, "DifferentHeadSize"),
+                                           std::make_tuple(1, 128, 64, 16, 8, "ManyGroups")),
+                         PackGQATestName);
 
 }  // namespace ov::test
