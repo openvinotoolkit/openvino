@@ -768,6 +768,22 @@ protected:
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         jit.make("SUBGROUP_SIZE", subgroup_size);
 
+        // KV cache compression support
+        const bool kv_cache_compressed = get_kv_compressed(params);
+        jit.make("KV_CACHE_COMPRESSED", kv_cache_compressed);
+
+        // Always define KEY_CACHE_QUANT_MODE for macro expansion (even if not used in uncompressed mode)
+        int key_cache_quant_mode = 0; // Default
+        if (kv_cache_compressed) {
+            const auto quant_mode = params.get_program().get_config().get_key_cache_quant_mode();
+            if (quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
+                key_cache_quant_mode = 1;
+            } else if (quant_mode == ov::internal::CacheQuantMode::BY_TOKEN) {
+                key_cache_quant_mode = 2;
+            }
+        }
+        jit.make("KEY_CACHE_QUANT_MODE", key_cache_quant_mode);
+
         // Enable global memory buffers for large evictable_size support
         jit.make("USE_GLOBAL_BUFFERS", 1);
         // Maximum evictable_size supported by global buffers (must match buffer allocation)

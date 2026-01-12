@@ -1264,6 +1264,89 @@ private:
                     }
                 }
             }
+        } else {
+            // Compressed case: read as int8 and dequantize
+            mem_lock<int8_t, mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
+
+            if (pam.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
+                // BY_CHANNEL: [num_blocks, num_kv_heads, head_size, block_size+4]
+                // Each dimension quantized across all tokens in block
+                // Scale/zp at positions: [block_size], [block_size+1], [block_size+2], [block_size+3]
+                
+                for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
+                    const int physical_block = pam.block_indices[blocks_start + block_idx];
+                    const int tokens_in_block = std::min(pam.block_size, total_tokens - block_idx * pam.block_size);
+
+                    for (int head_idx = 0; head_idx < pam.num_kv_heads; head_idx++) {
+                        const size_t cache_base = static_cast<size_t>(physical_block) * pam.num_kv_heads * pam.k_head_size * (pam.block_size + 4) +
+                                                  static_cast<size_t>(head_idx) * pam.k_head_size * (pam.block_size + 4);
+
+                        for (int dim = 0; dim < pam.k_head_size; dim++) {
+                            // Read scale and zero-point for this dimension
+                            const size_t scale_offset = cache_base + static_cast<size_t>(dim) * (pam.block_size + 4) + pam.block_size;
+                            ov::float16 scale = *reinterpret_cast<const ov::float16*>(&cache_ptr[scale_offset]);
+                            ov::float16 zp = *reinterpret_cast<const ov::float16*>(&cache_ptr[scale_offset + 2]);
+
+                            // Dequantize all tokens for this dimension
+                            for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
+                                const int token_idx = block_idx * pam.block_size + token_offset;
+                                const size_t cache_offset = cache_base + static_cast<size_t>(dim) * (pam.block_size + 4) + token_offset;
+                                const size_t output_offset = static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size +
+                                                             static_cast<size_t>(token_idx) * pam.k_head_size + dim;
+
+                                int8_t quantized_value = cache_ptr[cache_offset];
+                                float dequantized = (static_cast<float>(quantized_value) - static_cast<float>(zp)) * static_cast<float>(scale);
+                                key_data[output_offset] = ov::float16(dequantized);
+                            }
+                        }
+                    }
+                }
+            } else {
+                // BY_TOKEN: [num_blocks, num_kv_heads, head_size+4, block_size]
+                // All dimensions of one token quantized together with shared scale/zp
+                // Memory layout per token:
+                //   Data rows [0..head_size-1]: each row has block_size int8 values
+                //   Scale row [head_size]: block_size half values (block_size * 2 bytes)
+                //   Padding row [head_size+1]: unused
+                //   ZP row [head_size+2]: block_size half values (block_size * 2 bytes)
+                //   Padding row [head_size+3]: unused
+                // NOTE: token_offset is multiplied by 2 for byte offset since scale/zp are half (2 bytes)
+                
+                for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
+                    const int physical_block = pam.block_indices[blocks_start + block_idx];
+                    const int tokens_in_block = std::min(pam.block_size, total_tokens - block_idx * pam.block_size);
+
+                    for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
+                        const int token_idx = block_idx * pam.block_size + token_offset;
+
+                        for (int head_idx = 0; head_idx < pam.num_kv_heads; head_idx++) {
+                            const size_t cache_base = static_cast<size_t>(physical_block) * pam.num_kv_heads * (pam.k_head_size + 4) * pam.block_size +
+                                                      static_cast<size_t>(head_idx) * (pam.k_head_size + 4) * pam.block_size;
+
+                            // Read scale and zero-point for this token
+                            // Scale is at [head_size][token], ZP is at [head_size+2][token] (2 rows below)
+                            // token_offset * 2 because each half is 2 bytes (token 0 at offset 0-1, token 1 at offset 2-3, etc.)
+                            const size_t scale_offset = cache_base + static_cast<size_t>(pam.k_head_size) * pam.block_size + token_offset * 2;
+                            const size_t zp_offset = scale_offset + 2 * pam.block_size;  // ZP is 2 rows below scale
+                            ov::float16 scale = *reinterpret_cast<const ov::float16*>(&cache_ptr[scale_offset]);
+                            ov::float16 zp = *reinterpret_cast<const ov::float16*>(&cache_ptr[zp_offset]);
+
+                            const size_t output_base = static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size +
+                                                       static_cast<size_t>(token_idx) * pam.k_head_size;
+
+                            // Dequantize all dimensions for this token
+                            for (int dim = 0; dim < pam.k_head_size; dim++) {
+                                const size_t cache_offset = cache_base + static_cast<size_t>(dim) * pam.block_size + token_offset;
+
+                                int8_t quantized_value = cache_ptr[cache_offset];
+                                float dequantized = (static_cast<float>(quantized_value) - static_cast<float>(zp)) * static_cast<float>(scale);
+                                
+                                key_data[output_base + dim] = ov::float16(dequantized);
+                            }
+                        }
+                    }
+                }
+            }
         }
         return key_data;
     }
@@ -1946,6 +2029,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_rkv, adaptive_rkv_diversity_test, ::test
 
     // Multi-sequence tests
     paged_attention_test_params{ {{64, 0}, {96, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, 48 },
+
+    // With KV cache compression
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, 32 },
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, 32 },
 
     // Large evictable_size tests
     paged_attention_test_params{ {{192, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 48, 96 },

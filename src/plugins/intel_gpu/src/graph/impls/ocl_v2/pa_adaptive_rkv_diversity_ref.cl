@@ -4,30 +4,139 @@
 
 #include "include/batch_headers/common.cl"
 
-// Helper macro for computing key cache offset
-#define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
-    ((physical_block) * KV_HEADS_NUM * K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + \
-     head_idx * K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + \
-     (d) * PAGED_ATTENTION_BLOCK_SIZE + (token_offset))
+// Constants
+#define EPSILON_FOR_NORM 1e-12f
+#define SIZEOF_HALF 2
+#define COMPRESSED_EXTRA_DIMS 4  // BY_CHANNEL/BY_TOKEN add 4 dims for scale/zp
+
+// Helper macros for computing key cache offset based on compression mode
+// All offsets are in BYTES. Data is int8 (1 byte), scale/zp are half (2 bytes each).
+#if KV_CACHE_COMPRESSED
+    #if KEY_CACHE_QUANT_MODE == 1  // BY_CHANNEL mode
+        // Layout: [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE, PAGED_ATTENTION_BLOCK_SIZE+4]
+        // Quantization per dimension: each dimension [d] has its own scale/zp
+        // Memory layout per dimension:
+        //   [token 0..BLOCK_SIZE-1] (int8 data, BLOCK_SIZE bytes)
+        //   [scale] (half, 2 bytes) at offset BLOCK_SIZE
+        //   [zp] (half, 2 bytes) at offset BLOCK_SIZE+2
+        #define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
+            ((physical_block) * KV_HEADS_NUM * K_HEAD_SIZE * \
+             (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + \
+             head_idx * K_HEAD_SIZE * (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + \
+             (d) * (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + (token_offset))
+        #define KEY_CACHE_SCALE_OFFSET(physical_block, d) \
+            ((physical_block) * KV_HEADS_NUM * K_HEAD_SIZE * \
+             (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + \
+             head_idx * K_HEAD_SIZE * (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + \
+             (d) * (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + \
+             PAGED_ATTENTION_BLOCK_SIZE)
+        #define KEY_CACHE_ZP_OFFSET(physical_block, d) \
+            (KEY_CACHE_SCALE_OFFSET(physical_block, d) + SIZEOF_HALF)
+    #elif KEY_CACHE_QUANT_MODE == 2  // BY_TOKEN mode
+        // Layout: [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE+4, PAGED_ATTENTION_BLOCK_SIZE]
+        // Quantization per token: each token shares same scale/zp across all dimensions
+        // Memory layout:
+        //   Data rows [dim 0..K_HEAD_SIZE-1]: each row has BLOCK_SIZE int8 values
+        //   Scale row [dim K_HEAD_SIZE]: BLOCK_SIZE half values (BLOCK_SIZE * 2 bytes)
+        //   Padding row [dim K_HEAD_SIZE+1]: unused
+        //   ZP row [dim K_HEAD_SIZE+2]: BLOCK_SIZE half values (BLOCK_SIZE * 2 bytes)
+        //   Padding row [dim K_HEAD_SIZE+3]: unused
+        // NOTE: token_offset is multiplied by SIZEOF_HALF because scale/zp are half (2 bytes)
+        //       token 0 scale at byte offset 0-1, token 1 scale at byte offset 2-3, etc.
+        #define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
+            ((physical_block) * KV_HEADS_NUM * (K_HEAD_SIZE + COMPRESSED_EXTRA_DIMS) * \
+             PAGED_ATTENTION_BLOCK_SIZE + \
+             head_idx * (K_HEAD_SIZE + COMPRESSED_EXTRA_DIMS) * PAGED_ATTENTION_BLOCK_SIZE + \
+             (d) * PAGED_ATTENTION_BLOCK_SIZE + (token_offset))
+        #define KEY_CACHE_SCALE_OFFSET(physical_block, token_offset) \
+            ((physical_block) * KV_HEADS_NUM * (K_HEAD_SIZE + COMPRESSED_EXTRA_DIMS) * \
+             PAGED_ATTENTION_BLOCK_SIZE + \
+             head_idx * (K_HEAD_SIZE + COMPRESSED_EXTRA_DIMS) * PAGED_ATTENTION_BLOCK_SIZE + \
+             K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + (token_offset) * SIZEOF_HALF)
+        #define KEY_CACHE_ZP_OFFSET(physical_block, token_offset) \
+            (KEY_CACHE_SCALE_OFFSET(physical_block, token_offset) + SIZEOF_HALF * PAGED_ATTENTION_BLOCK_SIZE)
+    #endif
+#else
+    // Uncompressed layout: [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE, PAGED_ATTENTION_BLOCK_SIZE]
+    #define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
+        ((physical_block) * KV_HEADS_NUM * K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + \
+         head_idx * K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + \
+         (d) * PAGED_ATTENTION_BLOCK_SIZE + (token_offset))
+#endif
+
+// Helper macro for normalizing a buffer in-place
+#define NORMALIZE_BUFFER(buffer, size) \
+    do { \
+        barrier(CLK_LOCAL_MEM_FENCE); \
+        ACCUMULATOR_TYPE norm_sq_temp = 0.0f; \
+        for (uint d = sglid; d < size; d += SUBGROUP_SIZE) { \
+            norm_sq_temp += buffer[d] * buffer[d]; \
+        } \
+        norm_sq_temp = sub_group_reduce_add(norm_sq_temp); \
+        ACCUMULATOR_TYPE norm_temp = native_sqrt(norm_sq_temp + EPSILON_FOR_NORM); \
+        for (uint d = sglid; d < size; d += SUBGROUP_SIZE) { \
+            buffer[d] /= norm_temp; \
+        } \
+        barrier(CLK_LOCAL_MEM_FENCE); \
+    } while(0)
+
+#if KV_CACHE_COMPRESSED
+    // Helper macro for loading scale and zero-point for BY_CHANNEL mode
+    #define LOAD_SCALE_ZP_BY_CHANNEL(physical_block, d, scale_var, zp_var) \
+        do { \
+            __global const half* scale_ptr = \
+                (__global const half*)&key_cache[KEY_CACHE_SCALE_OFFSET(physical_block, d)]; \
+            __global const half* zp_ptr = \
+                (__global const half*)&key_cache[KEY_CACHE_ZP_OFFSET(physical_block, d)]; \
+            scale_var = (ACCUMULATOR_TYPE)(*scale_ptr); \
+            zp_var = (ACCUMULATOR_TYPE)(*zp_ptr); \
+        } while(0)
+
+    // Helper macro for loading scale and zero-point for BY_TOKEN mode
+    #define LOAD_SCALE_ZP_BY_TOKEN(physical_block, token_offset, scale_var, zp_var) \
+        do { \
+            __global const half* scale_ptr = \
+                (__global const half*)&key_cache[KEY_CACHE_SCALE_OFFSET(physical_block, token_offset)]; \
+            __global const half* zp_ptr = \
+                (__global const half*)&key_cache[KEY_CACHE_ZP_OFFSET(physical_block, token_offset)]; \
+            scale_var = (ACCUMULATOR_TYPE)(*scale_ptr); \
+            zp_var = (ACCUMULATOR_TYPE)(*zp_ptr); \
+        } while(0)
+#endif
 
 // Helper macro for loading and normalizing key vectors
+// Separate implementations for compressed vs uncompressed to avoid dummy macros
+#if KV_CACHE_COMPRESSED
+#define LOAD_AND_NORMALIZE_KEY(buffer, physical_block, token_offset) \
+    do { \
+        for (int d = sglid; d < K_HEAD_SIZE; d += SUBGROUP_SIZE) { \
+            INPUT0_TYPE raw_value = key_cache[KEY_CACHE_OFFSET(physical_block, token_offset, d)]; \
+            ACCUMULATOR_TYPE value; \
+            if (KEY_CACHE_QUANT_MODE == 1) { \
+                /* BY_CHANNEL: Each dimension has its own scale/zp */ \
+                ACCUMULATOR_TYPE scale, zp; \
+                LOAD_SCALE_ZP_BY_CHANNEL(physical_block, d, scale, zp); \
+                value = ((ACCUMULATOR_TYPE)raw_value - zp) * scale; \
+            } else if (KEY_CACHE_QUANT_MODE == 2) { \
+                /* BY_TOKEN: All dimensions of a token share the same scale/zp */ \
+                ACCUMULATOR_TYPE scale, zp; \
+                LOAD_SCALE_ZP_BY_TOKEN(physical_block, token_offset, scale, zp); \
+                value = ((ACCUMULATOR_TYPE)raw_value - zp) * scale; \
+            } \
+            buffer[d] = value; \
+        } \
+        NORMALIZE_BUFFER(buffer, K_HEAD_SIZE); \
+    } while(0)
+#else
+// Uncompressed version - no dequantization needed
 #define LOAD_AND_NORMALIZE_KEY(buffer, physical_block, token_offset) \
     do { \
         for (int d = sglid; d < K_HEAD_SIZE; d += SUBGROUP_SIZE) { \
             buffer[d] = (ACCUMULATOR_TYPE)key_cache[KEY_CACHE_OFFSET(physical_block, token_offset, d)]; \
         } \
-        barrier(CLK_LOCAL_MEM_FENCE); \
-        ACCUMULATOR_TYPE norm_sq_temp = 0.0f; \
-        for (uint d = sglid; d < K_HEAD_SIZE; d += SUBGROUP_SIZE) { \
-            norm_sq_temp += buffer[d] * buffer[d]; \
-        } \
-        norm_sq_temp = sub_group_reduce_add(norm_sq_temp); \
-        ACCUMULATOR_TYPE norm_temp = native_sqrt(norm_sq_temp + 1e-12f); \
-        for (uint d = sglid; d < K_HEAD_SIZE; d += SUBGROUP_SIZE) { \
-            buffer[d] /= norm_temp; \
-        } \
-        barrier(CLK_LOCAL_MEM_FENCE); \
+        NORMALIZE_BUFFER(buffer, K_HEAD_SIZE); \
     } while(0)
+#endif
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 __attribute__((reqd_work_group_size(SUBGROUP_SIZE, 1, 1)))
@@ -144,16 +253,38 @@ KERNEL(pa_adaptive_rkv_diversity)(
                     ACCUMULATOR_TYPE dot_product = 0.0f;
                     ACCUMULATOR_TYPE norm_sq_j = 0.0f;
 
+#if KV_CACHE_COMPRESSED
+                    // Compressed: dequantize during loading
+                    for (int d = sglid; d < K_HEAD_SIZE; d += SUBGROUP_SIZE) {
+                        INPUT0_TYPE raw_value = key_cache[KEY_CACHE_OFFSET(physical_block_j, token_offset_j, d)];
+                        ACCUMULATOR_TYPE key_j_val;
+                        if (KEY_CACHE_QUANT_MODE == 1) {
+                            // BY_CHANNEL: Each dimension [d] has its own scale/zp
+                            ACCUMULATOR_TYPE scale, zp;
+                            LOAD_SCALE_ZP_BY_CHANNEL(physical_block_j, d, scale, zp);
+                            key_j_val = ((ACCUMULATOR_TYPE)raw_value - zp) * scale;
+                        } else if (KEY_CACHE_QUANT_MODE == 2) {
+                            // BY_TOKEN: All dimensions of token_j share the same scale/zp
+                            ACCUMULATOR_TYPE scale, zp;
+                            LOAD_SCALE_ZP_BY_TOKEN(physical_block_j, token_offset_j, scale, zp);
+                            key_j_val = ((ACCUMULATOR_TYPE)raw_value - zp) * scale;
+                        }
+                        dot_product += normalized_key_i[d] * key_j_val;
+                        norm_sq_j += key_j_val * key_j_val;
+                    }
+#else
+                    // Uncompressed: direct loading
                     for (int d = sglid; d < K_HEAD_SIZE; d += SUBGROUP_SIZE) {
                         ACCUMULATOR_TYPE key_j_val = (ACCUMULATOR_TYPE)key_cache[KEY_CACHE_OFFSET(physical_block_j, token_offset_j, d)];
                         dot_product += normalized_key_i[d] * key_j_val;
                         norm_sq_j += key_j_val * key_j_val;
                     }
+#endif
 
                     // Subgroup reductions
                     dot_product = sub_group_reduce_add(dot_product);
                     norm_sq_j = sub_group_reduce_add(norm_sq_j);
-                    ACCUMULATOR_TYPE norm_j = native_sqrt(norm_sq_j + 1e-12f);
+                    ACCUMULATOR_TYPE norm_j = native_sqrt(norm_sq_j + EPSILON_FOR_NORM);
 
                     similarity = dot_product / norm_j;
                 }
