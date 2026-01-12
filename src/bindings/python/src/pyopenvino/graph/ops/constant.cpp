@@ -10,7 +10,6 @@
 #include <pybind11/stl.h>
 
 #include <stdexcept>
-#include <iostream>
 
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -67,8 +66,8 @@ void regclass_graph_op_Constant(py::module m) {
                      if (array.dtype().kind() == 'U' || array.dtype().kind() == 'S' || array.dtype().kind() == 'O' ||
                          array.dtype().kind() == 'a') {
                          if (shared_memory) {
-                            std::cerr << "Warning: Creating a String Constant with shared memory is not supported. "
-                                          "Ignoring shared_memory flag." << std::endl;
+                             throw std::runtime_error("Creating a String Constant with shared memory is not supported. "
+                                                      "Set shared_memory to False or omit the parameter.");
                          }
                          ov::Shape shape(array.shape(), array.shape() + array.ndim());
 
