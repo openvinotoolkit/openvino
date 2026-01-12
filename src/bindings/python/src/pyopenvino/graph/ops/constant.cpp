@@ -80,7 +80,13 @@ void regclass_graph_op_Constant(py::module m) {
 
                          // copy data
                          for (int i = 0; i < flat_array.size(); ++i) {
-                             strings.push_back(py::str(flat_array.attr("item")(i)));
+                            py::object item = flat_array.attr("item")(i);
+
+                            if(item.is_none()){
+                                strings.push_back("None");
+                                continue;
+                            }
+                             strings.push_back(py::str(item));
                          }
 
                          // create OpenVINO String Tensor
