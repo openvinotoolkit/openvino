@@ -1548,6 +1548,35 @@ def matmul(
     :param transpose_b: should the second matrix be transposed
     :return: MatMul operation node
     """
+    node_a = as_node(data_a)
+    node_b = as_node(data_b)
+
+    node_a.validate_and_infer_types()
+    node_b.validate_and_infer_types()
+
+    ps_a = node_a.get_output_partial_shape(0)
+    ps_b = node_b.get_output_partial_shape(0)
+
+    if ps_a.rank.is_static and ps_b.rank.is_static:
+        rank_a = ps_a.rank.get_length()
+        rank_b = ps_b.rank.get_length()
+
+        idx_a = 0 if rank_a == 1 else (-2 if transpose_a else -1)
+        idx_b = 0 if rank_b == 1 else (-1 if transpose_b else -2)
+
+        dim_a = ps_a[idx_a]
+        dim_b = ps_b[idx_b]
+
+        if dim_a.is_static and dim_b.is_static:
+            val_a = dim_a.get_length()
+            val_b = dim_b.get_length()
+            if val_a != val_b:
+                raise ValueError(
+                    f"Incompatible MatMul static dimensions: Input A dimension {val_a} "
+                    f"at index {idx_a} does not match Input B dimension {val_b} at index {idx_b}. "
+                    f"Shapes: {ps_a} and {ps_b} (transpose_a={transpose_a}, transpose_b={transpose_b})"
+                )
+             
     return _get_node_factory_opset1().create(
         "MatMul",
         as_nodes(data_a, data_b, name=name),
