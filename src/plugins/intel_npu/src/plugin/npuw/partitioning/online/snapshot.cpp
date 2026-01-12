@@ -1270,6 +1270,101 @@ void Snapshot::stripTag(const std::string& tag) {
     }
 }
 
+bool Snapshot::isRegularResultCase() const {
+    LOG_INFO("Online partitioning: executing isRegularResultCase pass...");
+    LOG_BLOCK();
+
+    // This method works around an issue where the final partitioning fails the sanity check
+    // because of a different number of output Convert across repeated block groups.
+    // The issue was initially observed in a model where only the final block has an additional ov::Result consumer.
+    // For example, Group[0..30] has only external consumers (i.e. consumers that belong to other groups):
+    //   OpA -> OpB(external group)
+    //       -> OpC(external group)
+    // but very last Group[31] has an additional ov::Result consumer:
+    //   OpA -> ov::Result
+    //       -> OpB(external group)
+    //       -> OpC(external group)
+    // Later, if NPUW_F16IC is set, "Partitioner::identifySubgraphs" method adds output Converts to each Group[0..30],
+    // but skips Group[31] due to internal implementation details.
+    // "Partitioner::identifySubgraphs" can't:
+    //   - add Convert to the Group[31] because it would require adding opposite Convert for the ov::Result
+    //   - skip adding Converts to Group[0..30] because it would break symmetry of the repeated blocks, i.e.
+    //        in the given graph `Convert(group0) -> output -> input -> Convert(group1)` input `Convert(group1)` should
+    //        be also eliminated
+    // Therefore, we disable F16IC early in such cases.
+
+    using NodeSPtr = std::shared_ptr<ov::Node>;
+    std::unordered_map<std::string, NodeSPtr> node_id_cache;
+    for (auto&& node_ptr : m_model->get_ordered_ops()) {
+        node_id_cache[node_ptr->get_friendly_name()] = node_ptr;
+    }
+
+    auto getReadersMask = [](const NodeSPtr& node_ptr) {
+        // each element of the vector is
+        // the number of ov::Result readers for the corresponding output
+        std::vector<int> mask;
+        for (auto&& output_desc : node_ptr->outputs()) {
+            auto readers = output_desc.get_target_inputs();
+            int result_count = 0;
+            for (auto&& r : readers) {
+                auto reader_node_ptr = r.get_node()->shared_from_this();
+                if (ov::op::util::is_output(reader_node_ptr)) {
+                    result_count++;
+                }
+            }
+            mask.push_back(result_count);
+        }
+        return mask;
+    };
+
+    auto reptag_to_gset = repeating();
+    if (!reptag_to_gset.empty()) {
+        NPUW_ASSERT(!m_layer_matches.empty());
+    }
+
+    for (const auto& reptag_and_gset : reptag_to_gset) {
+        auto reptag = reptag_and_gset.first;
+        auto gset = reptag_and_gset.second;
+
+        auto matches = m_layer_matches.at(reptag->id());
+
+        if (gset.size() <= 1) {
+            continue;
+        }
+
+        auto firstGroup = *(gset.begin());
+        for (auto output_layer : firstGroup->getOutputs()) {
+            // this is the reference mask expected from all other matched layers
+            // in the remaining groups of the repeated block
+            auto expected_readers_mask = getReadersMask(output_layer);
+
+            auto this_layer_name = output_layer->get_friendly_name();
+            auto layer_bank_iter = std::find_if(matches.begin(), matches.end(), [&](const std::set<std::string>& lrs) {
+                return lrs.count(this_layer_name) > 0;
+            });
+
+            NPUW_ASSERT(layer_bank_iter != matches.end());
+
+            // match output layers across all groups in the repeated block
+            // and compare their readers mask
+            for (const auto& layer_name : *layer_bank_iter) {
+                auto layer_ptr = node_id_cache.at(layer_name);
+                auto actual_readers_mask = getReadersMask(layer_ptr);
+
+                if (actual_readers_mask != expected_readers_mask) {
+                    LOG_INFO("This is NOT a regular result case. Readers mask mismatch found for "
+                             << layer_name << " and " << this_layer_name << " output layers.");
+                    return false;
+                }
+            }
+        }
+    }
+
+    LOG_INFO("This is a regular result case");
+    LOG_INFO("DONE");
+    return true;
+}
+
 size_t Snapshot::getNextRepId() {
     return m_current_rep_count++;
 }

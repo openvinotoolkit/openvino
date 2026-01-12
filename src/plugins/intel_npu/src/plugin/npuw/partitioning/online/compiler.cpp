@@ -29,6 +29,7 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
 
     pugi::xml_node node = doc.append_child("ensemble");
     node.append_attribute("gflops") = std::to_string(ens.gflops).data();
+    node.append_attribute("irregular_results") = std::to_string(ens.irregular_results).data();
 
     pugi::xml_node part = node.append_child("partitioning");
     pugi::xml_node rep;
@@ -83,6 +84,7 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
 
     doc.save_file(to.data());
 }
+
 }  // namespace detail
 
 // Interface to get online partitioning from the model
@@ -308,6 +310,7 @@ public:
 
         ov::npuw::Ensemble ens;
         ens.gflops = 1.;  // FIXME: calculate proper flops
+        ens.irregular_results = !m_snapshot->isRegularResultCase();
 
         auto graph = m_snapshot->getGraph();
         // Iterate in topological order
