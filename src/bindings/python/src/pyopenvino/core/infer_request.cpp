@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "pyopenvino/core/infer_request.hpp"
@@ -790,7 +790,7 @@ void regclass_InferRequest(py::module m) {
         },
         R"(
             Gets all input tensors of this InferRequest.
-                                
+
             :rtype: list[openvino.Tensor]
         )");
 
@@ -802,7 +802,7 @@ void regclass_InferRequest(py::module m) {
         R"(
 
             Gets all output tensors of this InferRequest.
-                                
+
             :rtype: list[openvino.Tensor]
         )");
 
@@ -828,7 +828,7 @@ void regclass_InferRequest(py::module m) {
             Not all plugins provide meaningful data!
 
             GIL is released while running this function.
-            
+
             :return: Inference time.
             :rtype: list[openvino.ProfilingInfo]
         )");

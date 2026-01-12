@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -801,7 +801,7 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::get_parameters,
               R"(
                     Return the model parameters.
-                    
+
                     :return: a list of model's parameters.
                     :rtype: list[op.Parameter]
                  )");
@@ -809,7 +809,7 @@ void regclass_graph_Model(py::module m) {
                                 &ov::Model::get_parameters,
                                 R"(
                                         Return the model parameters.
-                                        
+
                                         :return: a list of model's parameters.
                                         :rtype: list[op.Parameter]
                                     )");
@@ -1236,7 +1236,7 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::get_variables,
               R"(
                     Return a list of model's variables.
-                    
+
                     :return: a list of model's variables.
                     :rtype: list[op.util.Variable]
                 )");
@@ -1245,7 +1245,7 @@ void regclass_graph_Model(py::module m) {
                                 &ov::Model::get_variables,
                                 R"(
                                     Return a list of model's variables.
-                                    
+
                                     :return: a list of model's variables.
                                     :rtype: list[op.util.Variable]
                                 )");
