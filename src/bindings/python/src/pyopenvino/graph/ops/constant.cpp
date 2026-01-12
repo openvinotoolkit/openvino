@@ -65,27 +65,30 @@ void regclass_graph_op_Constant(py::module m) {
     constant.def(py::init([](py::array& array, bool shared_memory) -> std::shared_ptr<ov::op::v0::Constant> {
                      if (array.dtype().kind() == 'U' || array.dtype().kind() == 'S' || array.dtype().kind() == 'O' ||
                          array.dtype().kind() == 'a') {
-                        if (shared_memory) {
-                            std::cerr << "Warning: Creating a String Constant with shared memory is not supported. Ignoring shared_memory flag." << std::endl;
-                        }
+                         if (shared_memory) {
+                             std::cerr << "Warning: Creating a String Constant with shared memory is not supported. "
+                                          "Ignoring shared_memory flag."
+                                       << std::endl;
+                         }
                          ov::Shape shape(array.shape(), array.shape() + array.ndim());
 
-                        if (array.size() == 0) {
-                            // return empty string tensor
-                            ov::Tensor tensor(ov::element::string, shape);
-                            return std::make_shared<ov::op::v0::Constant>(tensor);
+                         if (array.size() == 0) {
+                             // return empty string tensor
+                             ov::Tensor tensor(ov::element::string, shape);
+                             return std::make_shared<ov::op::v0::Constant>(tensor);
+                         }
                          // convert NumPy array to flattened list of strings
                          std::vector<std::string> strings;
                          auto flat_array = array.reshape({-1});
 
                          // copy data
                          for (int i = 0; i < flat_array.size(); ++i) {
-                            py::object item = flat_array.attr("item")(i);
+                             py::object item = flat_array.attr("item")(i);
 
-                            if(item.is_none()){
-                                strings.push_back("None");
-                                continue;
-                            }
+                             if (item.is_none()) {
+                                 strings.push_back("None");
+                                 continue;
+                             }
                              strings.push_back(py::str(item));
                          }
 
