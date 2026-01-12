@@ -493,6 +493,12 @@ export interface Tensor {
    * @param shape - Array of dimensions for the new shape
    */
   setShape(shape: number[]): void;
+  /**
+   * Copies data from this tensor to a destination tensor.
+   * The destination tensor must have the same shape and element type.
+   * @param tensor The destination tensor to which the data will be copied.
+   */
+  copyTo(tensor: Tensor): void;
 }
 
 /**

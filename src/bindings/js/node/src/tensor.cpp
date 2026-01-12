@@ -8,6 +8,7 @@
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
+#include "node/include/type_validation.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -58,7 +59,8 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getSize", &TensorWrap::get_size),
                         InstanceMethod("isContinuous", &TensorWrap::is_continuous),
                         InstanceMethod("setShape", &TensorWrap::set_shape),
-                        InstanceMethod("__getExternalTensor", &TensorWrap::get_external_tensor)});
+                        InstanceMethod("__getExternalTensor", &TensorWrap::get_external_tensor),
+                        InstanceMethod("copyTo", &TensorWrap::copy_to)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -195,6 +197,19 @@ Napi::Value TensorWrap::set_shape(const Napi::CallbackInfo& info) {
     }
 
     return info.Env().Undefined();
+}
+
+void TensorWrap::copy_to(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    try {
+        OPENVINO_ASSERT(info.Length() == 1, "copyTo() must receive one argument, which is the destination Tensor.");
+        OPENVINO_ASSERT(!info[0].IsUndefined() && !info[0].IsNull(), "The argument must be a Tensor object.");
+        OPENVINO_ASSERT(ov::js::validate_value<TensorWrap>(env, info[0]), "Invalid argument");
+        auto dst_tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
+        _tensor.copy_to(dst_tensor_wrap->_tensor);
+    } catch (const std::exception& e) {
+        reportError(env, e.what());
+    }
 }
 
 Napi::Value TensorWrap::get_element_type(const Napi::CallbackInfo& info) {
