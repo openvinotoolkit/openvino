@@ -168,15 +168,15 @@ TEST_P(FrontEndLoadFromTest, tensor_place_uses_model_dir_for_external_data) {
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(graph_iter));
     ASSERT_NE(m_inputModel, nullptr);
 
-    ASSERT_NO_THROW({
-        try {
-            auto model = m_frontEnd->convert(m_inputModel);
-            ASSERT_NE(model, nullptr);
-        } catch (const std::exception& ex) {
-            std::cerr << "convert failed: " << ex.what() << std::endl;
-            throw;
-        }
-    });
+    try {
+        auto model = m_frontEnd->convert(m_inputModel);
+        ASSERT_NE(model, nullptr);
+    } catch (const std::exception& ex) {
+        FAIL() << "convert failed: " << ex.what();
+    } catch (...) {
+        FAIL() << "convert failed: reason unknown" << ex.what();
+    }
+    
 
     ASSERT_GT(iter->get_model_dir_call_count, 0) << "get_model_dir() was never called";
     ASSERT_EQ(iter->last_returned_dir, expected_model_dir)
