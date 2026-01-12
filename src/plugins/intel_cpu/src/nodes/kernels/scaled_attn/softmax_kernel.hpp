@@ -1363,7 +1363,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                     size_t,
                                     float,
                                     ov::float16&);
-#if !defined(OPENVINO_ARCH_ARM64)
+#    if !defined(OPENVINO_ARCH_ARM64)
     using func_bf16_type = void (*)(ov::float16*,
                                     float,
                                     const ov::float16*,
@@ -1373,7 +1373,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                     size_t,
                                     float,
                                     ov::float16&);
-#endif
+#    endif
     using func_fp16_type = void (*)(ov::float16*,
                                     float,
                                     const ov::float16*,
@@ -1391,7 +1391,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                                     scale_add2_reduce_max<true, false, true>,
                                                     scale_add2_reduce_max<true, true, false>,
                                                     scale_add2_reduce_max<true, true, true>};
-#if !defined(OPENVINO_ARCH_ARM64)
+#    if !defined(OPENVINO_ARCH_ARM64)
     static constexpr func_bf16_type funcs_bf16[] = {scale_add2_reduce_max<false, false, false>,
                                                     scale_add2_reduce_max<false, false, true>,
                                                     scale_add2_reduce_max<false, true, false>,
@@ -1400,7 +1400,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                                     scale_add2_reduce_max<true, false, true>,
                                                     scale_add2_reduce_max<true, true, false>,
                                                     scale_add2_reduce_max<true, true, true>};
-#endif
+#    endif
     static constexpr func_fp16_type funcs_fp16[] = {scale_add2_reduce_max<false, false, false>,
                                                     scale_add2_reduce_max<false, false, true>,
                                                     scale_add2_reduce_max<false, true, false>,
@@ -1421,7 +1421,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                              len,
                              alibi_slope,
                              max);
-#if !defined(OPENVINO_ARCH_ARM64)
+#    if !defined(OPENVINO_ARCH_ARM64)
     } else if (attn_mask_prec == ov::element::bf16) {
         funcs_bf16[dispatch](a,
                              scale,
@@ -1432,7 +1432,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                              len,
                              alibi_slope,
                              max);
-#endif
+#    endif
     } else {
         funcs_fp32[dispatch](a,
                              scale,
