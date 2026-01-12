@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(read_value)
 
 read_value_inst::typed_primitive_inst(network& network, const read_value_node& node) :
     parent(network, node, !node.can_be_optimized() && (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound())),
-    memory_state::variable{node.get_primitive()->variable_id, node.get_primitive()->user_specified_type} {
+    memory_state::releasable_variable{node.get_primitive()->variable_id, node.get_primitive()->user_specified_type} {
 }
 
 layout read_value_inst::calc_output_layout(const read_value_node& node, kernel_impl_params const& impl_param) {
@@ -36,6 +36,17 @@ std::string read_value_inst::to_string(const read_value_node& node) {
 
 void read_value_inst::on_execute() {
     update_output_memory();
+}
+
+void read_value_inst::release_variable() {
+    // readvalue simply assign outputs from variablestate, 
+    // does not need to keep reference in outputs after execution
+    if (!can_be_optimized() || !get_network().has_variable(variable_id()))
+        return;
+    for (size_t i = 0; i < _outputs.size(); ++i) {
+        auto& output = _outputs[i];
+        output.reset();
+    }
 }
 
 void read_value_inst::update_output_memory() {
