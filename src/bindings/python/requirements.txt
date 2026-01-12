@@ -1,2 +1,2 @@
-numpy>=1.16.6,<2.4.0
+numpy>=1.16.6,<2.5.0
 openvino-telemetry>=2023.2.1
