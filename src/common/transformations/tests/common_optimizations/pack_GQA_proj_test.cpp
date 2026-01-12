@@ -99,6 +99,23 @@ std::shared_ptr<ov::Node> build_post_sdpa(const std::shared_ptr<ov::Node>& input
     return proj;
 }
 
+std::shared_ptr<ov::Model> build_kv_cache(const std::shared_ptr<ov::Node>& k,
+                                          const std::shared_ptr<ov::Node>& v,
+                                          size_t batch,
+                                          size_t seq_len,
+                                          size_t head_size) {
+    auto k_cache_shape = Shape{batch, 1, seq_len, head_size};
+    auto v_cache_shape = Shape{batch, 1, seq_len, head_size};
+
+    auto k_cache_init = Constant::create(element::f32, k_cache_shape, {0.0f});
+    auto v_cache_init = Constant::create(element::f32, v_cache_shape, {0.0f});
+
+    auto k_cache = std::make_shared<Concat>(OutputVector{k_cache_init, k}, 2);
+    auto v_cache = std::make_shared<Concat>(OutputVector{v_cache_init, v}, 2);
+
+    return std::make_shared<ov::Model>(OutputVector{k_cache, v_cache}, ParameterVector{});
+}
+
 std::shared_ptr<ov::Model> build_model_gqa_pack_mha(size_t batch,
                                                     size_t seq_len,
                                                     size_t head_size,
@@ -106,13 +123,12 @@ std::shared_ptr<ov::Model> build_model_gqa_pack_mha(size_t batch,
                                                     size_t num_groups) {
     OPENVINO_ASSERT(num_heads % num_groups == 0, "num_heads must be divisible by num_groups");
 
-    const size_t d_model = 64;
-    const ov::Shape input_shape{batch, seq_len, d_model};
-    const ov::Shape proj_shape{d_model, head_size};
+    const ov::Shape input_shape{batch, seq_len, head_size};
+    const ov::Shape proj_shape{head_size, head_size};
     const ov::Shape bias_shape{batch, 1, head_size};
     const ov::Shape rope_shape{batch, 1, seq_len, head_size};
     const ov::Shape sdpa_bias_shape{batch, 1, 1, seq_len};
-    const ov::Shape post_sdpa_weights_shape{d_model, head_size};
+    const ov::Shape post_sdpa_weights_shape{head_size, head_size};
 
     const size_t heads_per_group = num_heads / num_groups;
 
@@ -143,27 +159,32 @@ std::shared_ptr<ov::Model> build_model_gqa_pack_mha_ref(size_t batch,
                                                         size_t seq_len,
                                                         size_t head_size,
                                                         size_t num_heads) {
-    const size_t d_model = 64;
-    const ov::Shape input_shape{batch, seq_len, d_model};
+    const ov::Shape input_shape{batch, seq_len, head_size};
 
     auto input = std::make_shared<Parameter>(element::f32, input_shape);
     auto norm = build_l2_norm(input, batch, head_size);
 
-    const ov::Shape proj_shape{batch, num_heads, d_model, head_size};
-    const ov::Shape bias_shape{batch, num_heads, 1, d_model};
+    const ov::Shape proj_shape{1, num_heads, head_size, head_size};
+    const ov::Shape bias_shape{batch, num_heads, 1, head_size};
     const ov::Shape sdpa_bias_shape{batch, num_heads, 1, seq_len};
 
-    auto q_proj = build_qkv_projection(norm, proj_shape, bias_shape);
-    auto k_proj = build_qkv_projection(norm, proj_shape, bias_shape);
-    auto v_proj = build_qkv_projection(norm, proj_shape, bias_shape);
+    auto q_unsqueeze_const = Constant::create(element::i64, Shape{1}, {1});  // shape: {batch, 1, seq_len, d_model}
+    auto k_unsqueeze_const = Constant::create(element::i64, Shape{1}, {1});  // shape: {batch, 1, seq_len, d_model}
+    auto v_unsqueeze_const = Constant::create(element::i64, Shape{1}, {1});  // shape: {batch, 1, seq_len, d_model}
+    auto q_proj_input = std::make_shared<Unsqueeze>(norm, q_unsqueeze_const);
+    auto k_proj_input = std::make_shared<Unsqueeze>(norm, k_unsqueeze_const);
+    auto v_proj_input = std::make_shared<Unsqueeze>(norm, v_unsqueeze_const);
 
+    auto q_proj = build_qkv_projection(q_proj_input, proj_shape, bias_shape);
+    auto k_proj = build_qkv_projection(k_proj_input, proj_shape, bias_shape);
+    auto v_proj = build_qkv_projection(v_proj_input, proj_shape, bias_shape);
     const ov::Shape rope_shape{batch, num_heads, seq_len, head_size};
     auto q = build_ROPE(q_proj, rope_shape);
     auto k = build_ROPE(k_proj, rope_shape);
 
     auto attn_out = build_sdpa(q, k, v_proj, sdpa_bias_shape);
 
-    const ov::Shape weights_shape{batch, num_heads, d_model, head_size};
+    const ov::Shape weights_shape{1, num_heads, head_size, head_size};
     auto projected = build_post_sdpa(attn_out, rope_shape, weights_shape);
 
     auto reduced = std::make_shared<ReduceSum>(projected, Constant::create(element::i64, Shape{1}, {1}), false);
@@ -176,15 +197,157 @@ TEST_F(TransformationTestsF, PackGQA) {
     constexpr size_t batch = 1;
     constexpr size_t seq_len = 128;
     constexpr size_t head_size = 64;
+    constexpr size_t num_heads = 8;
+    constexpr size_t num_groups = 2;
 
     {
-        model = build_model_gqa_pack_mha(batch, seq_len, head_size, 8, 2);
+        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::PackGQA>();
         manager.run_passes(model);
     }
 
-    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, 8); }
+    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, PackGQA_HeadsEqualGroup) {
+    constexpr size_t batch = 1;
+    constexpr size_t seq_len = 128;
+    constexpr size_t head_size = 64;
+    constexpr size_t num_heads = 6;
+    constexpr size_t num_groups = 6;
+
+    {
+        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::PackGQA>();
+        manager.run_passes(model);
+    }
+
+    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, PackGQA_DifferentHeadsPerGroup) {
+    constexpr size_t batch = 1;
+    constexpr size_t seq_len = 128;
+    constexpr size_t head_size = 64;
+    constexpr size_t num_heads = 12;
+    constexpr size_t num_groups = 3;
+
+    {
+        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::PackGQA>();
+        manager.run_passes(model);
+    }
+
+    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, PackGQA_SingleGroup) {
+    constexpr size_t batch = 1;
+    constexpr size_t seq_len = 128;
+    constexpr size_t head_size = 64;
+    constexpr size_t num_heads = 8;
+    constexpr size_t num_groups = 1;
+
+    {
+        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::PackGQA>();
+        manager.run_passes(model);
+    }
+
+    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, PackGQA_LargerBatch) {
+    constexpr size_t batch = 4;
+    constexpr size_t seq_len = 128;
+    constexpr size_t head_size = 64;
+    constexpr size_t num_heads = 8;
+    constexpr size_t num_groups = 2;
+
+    {
+        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::PackGQA>();
+        manager.run_passes(model);
+    }
+
+    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, PackGQA_DifferentSeqLen) {
+    constexpr size_t batch = 1;
+    constexpr size_t seq_len = 256;
+    constexpr size_t head_size = 64;
+    constexpr size_t num_heads = 8;
+    constexpr size_t num_groups = 2;
+
+    {
+        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::PackGQA>();
+        manager.run_passes(model);
+    }
+
+    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, PackGQA_DifferentHeadSize) {
+    constexpr size_t batch = 1;
+    constexpr size_t seq_len = 128;
+    constexpr size_t head_size = 128;
+    constexpr size_t num_heads = 8;
+    constexpr size_t num_groups = 2;
+
+    {
+        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::PackGQA>();
+        manager.run_passes(model);
+    }
+
+    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, PackGQA_ManyGroups) {
+    constexpr size_t batch = 1;
+    constexpr size_t seq_len = 128;
+    constexpr size_t head_size = 64;
+    constexpr size_t num_heads = 16;
+    constexpr size_t num_groups = 8;
+
+    {
+        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::PackGQA>();
+        manager.run_passes(model);
+    }
+
+    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);

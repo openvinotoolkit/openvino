@@ -68,8 +68,9 @@ std::shared_ptr<ov::Node> normalize_rank(const ov::Output<ov::Node>& output, int
 
     std::vector<int64_t> axes;
     axes.reserve(target_rank - cur_rank);
+    int64_t insert_pos = std::max(cur_rank - 2, static_cast<int64_t>(0));
     for (int64_t i = 0; i < target_rank - cur_rank; ++i)
-        axes.push_back(i);
+        axes.push_back(insert_pos + i);
 
     auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
     auto unsqueezed = util::make_try_fold<v0::Unsqueeze>(output.get_node_shared_ptr(), axes_const);
@@ -483,8 +484,10 @@ MergeMatMulBiasConcat::MergeMatMulBiasConcat() {
     };
 
     auto input = pattern::any_input();
-    auto mm_bias_lhs = create_matmul_bias_pattern(input);
-    auto mm_bias_rhs = create_matmul_bias_pattern(input);
+    auto input_unsqueezed = pattern::optional<v0::Unsqueeze>({input, pattern::any_input()});
+
+    auto mm_bias_lhs = create_matmul_bias_pattern(input_unsqueezed);
+    auto mm_bias_rhs = create_matmul_bias_pattern(input_unsqueezed);
 
     auto concat = pattern::wrap_type<v0::Concat>({mm_bias_lhs.output, mm_bias_rhs.output});
     auto m = std::make_shared<pattern::Matcher>(concat, "MergeMatMulBiasConcat");
@@ -505,6 +508,9 @@ MergeMatMulBiasConcat::MergeMatMulBiasConcat() {
         auto add_rhs = as_type_ptr<v1::Add>(pm[mm_bias_rhs.add].get_node_shared_ptr());
         if (!add_lhs || !add_rhs)
             return false;
+
+        // if (add_lhs->get_friendly_name() != "Add_1773")
+        //     return false;
 
         // Concatenate along head axis (1)
         size_t head_axis = 1;
@@ -531,8 +537,6 @@ MergeMatMulBiasConcat::MergeMatMulBiasConcat() {
         auto scale_lhs = ov::as_type_ptr<v1::Multiply>(pm[mm_bias_lhs.multiply].get_node_shared_ptr());
         auto scale_rhs = ov::as_type_ptr<v1::Multiply>(pm[mm_bias_rhs.multiply].get_node_shared_ptr());
         if (scale_lhs && scale_rhs) {
-            // auto scale_fused =
-            //     concat_any(OutputVector{scale_lhs->input_value(1), scale_rhs->input_value(1)}, head_axis, rank);
             if (!input_fused) {
                 OutputVector multiply_inputs = {scale_lhs->input_value(0), scale_rhs->input_value(0)};
                 input_fused = concat_any(multiply_inputs, head_axis, rank);
@@ -544,7 +548,11 @@ MergeMatMulBiasConcat::MergeMatMulBiasConcat() {
             input_fused = concat_any(OutputVector{mm_lhs->input_value(1), mm_rhs->input_value(1)}, head_axis, rank);
         }
 
-        auto mm_fused = mm_lhs->copy_with_new_inputs({mm_lhs->input_value(0), input_fused});
+        // OutputVector mul_inputs_fused = {
+        //     concat_any(OutputVector{mm_lhs->input_value(0), mm_rhs->input_value(0)}, head_axis, rank),
+        //     input_fused};
+
+        auto mm_fused = mm_lhs->copy_with_new_inputs({normalize_rank(mm_lhs->input_value(0), rank), input_fused});
         auto bias_fused = concat_any(OutputVector{add_lhs->input_value(1), add_rhs->input_value(1)}, head_axis, rank);
         auto add_fused = add_lhs->copy_with_new_inputs({mm_fused, bias_fused});
 
