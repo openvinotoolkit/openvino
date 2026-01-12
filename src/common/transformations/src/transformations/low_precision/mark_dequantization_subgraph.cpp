@@ -470,7 +470,7 @@ ov::pass::KeepPrecisionOfUnstrippedFQPattern::KeepPrecisionOfUnstrippedFQPattern
             [&](const auto& pattern) {
                 auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(pattern).get_node_shared_ptr());
                 if (!const_node) return false;
-                auto values = const_node->cast_vector<uint16_t>();
+                auto values = const_node->cast_vector<float>();
                 return std::any_of(values.begin(), values.end(), [](uint16_t v) { return v > 65504; });
             });
 
