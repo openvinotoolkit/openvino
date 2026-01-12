@@ -1423,11 +1423,15 @@ public:
         if (p.has_adaptive_rkv) {
             pam.adaptive_rkv_diversity_block_set_indices_begins.push_back(0);
             pam.adaptive_rkv_start_size = p.start_size;
+
             for (size_t i = 0; i < p.subsequences.size(); i++) {
-                pam.adaptive_rkv_evictable_sizes.push_back(p.evictable_size);
+                // Use per-sequence evictable_size if available, otherwise use first value
+                int evictable_size = i < p.evictable_sizes.size() ? p.evictable_sizes[i] : p.evictable_sizes[0];
+
+                pam.adaptive_rkv_evictable_sizes.push_back(evictable_size);
 
                 int start_block = p.start_size / p.block_size;
-                int evictable_blocks = p.evictable_size / p.block_size;
+                int evictable_blocks = evictable_size / p.block_size;
                 int global_start_block_idx = pam.block_indices_begins[i] + start_block;
 
                 for (int b = 0; b < evictable_blocks; b++) {
@@ -1808,8 +1812,8 @@ struct paged_attention_test_params {
     CacheRotationDescriptor rotation_config;
     bool disable_flashattn_v2;
     bool has_adaptive_rkv = false;
-    int start_size = 0;
-    int evictable_size = 0;
+    int start_size = 0;                // Common start_size for all sequences
+    std::vector<int> evictable_sizes;  // Per-sequence evictable sizes
 };
 
 class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -2023,19 +2027,38 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::Values
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_rkv, adaptive_rkv_diversity_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
-    // Small evictable_size tests
-    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, 32 },
-    paged_attention_test_params{ {{128, 0}}, 4, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, 64 },
+    // Small evictable_size tests (uniform across sequences)
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },
+    paged_attention_test_params{ {{128, 0}}, 4, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },
 
-    // Multi-sequence tests
-    paged_attention_test_params{ {{64, 0}, {96, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, 48 },
+    // Edge cases - empty evictable_size (kernel skip test)
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 0, {0} },  // Empty - skip kernel
+    paged_attention_test_params{ {{32, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {16} },  // Minimal valid size (block-aligned)
+
+    // Multi-sequence tests - uniform evictable_sizes
+    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },  // 2 sequences: same size
+    paged_attention_test_params{ {{128, 0}, {192, 0}, {160, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },  // 3 sequences: same size
+    
+    // Multi-sequence tests - varying evictable_sizes per sequence
+    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48} },  // 2 sequences: different evictable sizes
+    paged_attention_test_params{ {{128, 0}, {192, 0}, {160, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48, 32} },  // 3 sequences: different sizes
+    paged_attention_test_params{ {{128, 0}, {128, 0}, {128, 0}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {16, 32, 48, 32} },  // 4 sequences: varied sizes
 
     // With KV cache compression
-    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, 32 },
-    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, 32 },
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },
+    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48} },  // Multi-sequence with compression + different sizes
 
     // Large evictable_size tests
-    paged_attention_test_params{ {{192, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 48, 96 },
-    paged_attention_test_params{ {{256, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 64, 128 },
-    paged_attention_test_params{ {{512, 0}}, 4, 2, 128, 128, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 128, 256 },
+    paged_attention_test_params{ {{192, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 48, {96} },
+    paged_attention_test_params{ {{256, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 64, {128} },
+    paged_attention_test_params{ {{512, 0}}, 4, 2, 128, 128, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 128, {256} },
+
+    // GQA configurations
+    paged_attention_test_params{ {{128, 0}}, 8, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },  // heads_num=8, start+evict=96
+    paged_attention_test_params{ {{160, 0}}, 16, 4, 128, 128, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {48} },  // heads_num=16, start+evict=80
+
+    // Different head sizes
+    paged_attention_test_params{ {{128, 0}}, 2, 2, 128, 128, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },  // head_size=128, start+evict=96
+    paged_attention_test_params{ {{160, 0}}, 4, 4, 256, 256, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {48} },  // head_size=256, start+evict=80
 }));

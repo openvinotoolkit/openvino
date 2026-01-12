@@ -784,11 +784,6 @@ protected:
         }
         jit.make("KEY_CACHE_QUANT_MODE", key_cache_quant_mode);
 
-        // Enable global memory buffers for large evictable_size support
-        jit.make("USE_GLOBAL_BUFFERS", 1);
-        // Maximum evictable_size supported by global buffers (must match buffer allocation)
-        jit.make("MAX_EVICTABLE_SIZE", 512);
-
         jit.add(make_type_jit_constants("ACCUMULATOR", softmax_accumulator_type));
         return jit;
     }
@@ -1415,8 +1410,12 @@ public:
             res_event = {execute_stage(res_event, instance, pa_scores_calc)};
         }
 
-        if (has_adaptive_rkv && rt_params->stage == PagedAttentionStage::PREFILL) {
-            res_event = {execute_stage(res_event, instance, pa_diversity_calc)};
+        if (has_adaptive_rkv) {
+            // Check layout to see if evictable_sizes has data before executing diversity kernel
+            const auto& evictable_sizes_layout = params.get_input_layout(PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES);
+            if (evictable_sizes_layout.count() > 0) {
+                res_event = {execute_stage(res_event, instance, pa_diversity_calc)};
+            }
         }
 
         return res_event[0];
@@ -1605,15 +1604,36 @@ public:
 
         // Adaptive RKV Diversity buffers (allocated when enabled, execution determined by runtime evictable_sizes)
         const bool has_adaptive_rkv = desc->has_adaptive_rkv;
-        if (has_adaptive_rkv) {
+         if (has_adaptive_rkv) {
             const auto& evictable_sizes_layout = params.input_layouts[PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES];
             const auto batch_size = evictable_sizes_layout.get_partial_shape()[0].get_length();
 
-            const size_t max_evictable_size = 512;
-            const size_t max_matrix_size = max_evictable_size * max_evictable_size;
+            // Calculate actual buffer sizes based on runtime evictable_sizes
+            size_t total_matrix_elements = 0;
+            size_t total_vector_elements = 0;
+            
+            if (!params.memory_deps.empty() && params.memory_deps.count(PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES) > 0) {
+                const auto& evictable_sizes_mem = params.memory_deps.at(PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES);
+                mem_lock<int32_t, mem_lock_type::read> evictable_sizes_lock(evictable_sizes_mem, *params.strm);
 
-            size_t total_matrix_elements = batch_size * max_matrix_size;
-            size_t total_vector_elements = batch_size * max_evictable_size;
+                // Sum up actual sizes for each batch (dynamic allocation)
+                for (size_t i = 0; i < evictable_sizes_lock.size(); i++) {
+                    size_t evictable_size = static_cast<size_t>(evictable_sizes_lock[i]);
+                    total_matrix_elements += evictable_size * evictable_size;
+                    total_vector_elements += evictable_size;
+                }
+                
+                GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - "
+                                       << "matrix: " << total_matrix_elements 
+                                       << ", vector: " << total_vector_elements << std::endl;
+            } else {
+                // Fallback: use maximum size (512) if runtime values not available
+                const size_t max_evictable_size = 512;
+                total_matrix_elements = batch_size * max_evictable_size * max_evictable_size;
+                total_vector_elements = batch_size * max_evictable_size;
+                
+                GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Runtime sizes not available, using max=512" << std::endl;
+            }
 
             // similarity_matrix, aggregated_similarities, row_means, block_sums
             internal_buffers.emplace_back(total_matrix_elements * sizeof(float), indexes_dt);

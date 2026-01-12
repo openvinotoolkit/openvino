@@ -147,12 +147,10 @@ KERNEL(pa_adaptive_rkv_diversity)(
     __global const INPUT2_TYPE* block_indices,          // [total_evictable_blocks]
     __global const INPUT3_TYPE* block_indices_begins,   // [batch_size + 1]
     __global OUTPUT_TYPE* diversity_output,             // [total_diversity_scores]
-#ifdef USE_GLOBAL_BUFFERS
     __global ACCUMULATOR_TYPE* similarity_matrix,       // global buffer for similarity matrix
     __global ACCUMULATOR_TYPE* aggregated_similarities, // global buffer for aggregated similarities
     __global ACCUMULATOR_TYPE* row_means,               // global buffer for row means
     __global ACCUMULATOR_TYPE* block_sums,              // global buffer for block sums
-#endif
     const int start_size                                // scalar
 ) {
     const uint batch_idx = get_group_id(0);
@@ -180,37 +178,29 @@ KERNEL(pa_adaptive_rkv_diversity)(
     if (num_evictable_blocks_for_batch != num_evictable_blocks)
         return;
 
-#ifdef USE_GLOBAL_BUFFERS
-    // Use fixed-size allocation per batch for simplicity and efficiency
-    // Each batch gets MAX_EVICTABLE_SIZE^2 space regardless of actual size
-    const int max_matrix_size = MAX_EVICTABLE_SIZE * MAX_EVICTABLE_SIZE;
-
-    // Calculate offsets using fixed batch stride
-    int batch_matrix_offset = batch_idx * max_matrix_size;
-    int batch_vector_offset = batch_idx * MAX_EVICTABLE_SIZE;
+    // Calculate buffer offsets dynamically based on actual evictable_sizes
+    // Each batch uses exactly (evictable_size * evictable_size) for matrix buffers
+    // and (evictable_size) for vector buffers
+    int batch_matrix_offset = 0;
+    int batch_vector_offset = 0;
+    // Accumulate offsets from all previous batches
+    for (int b = 0; b < batch_idx; b++) {
+        int prev_evictable_size = evictable_sizes[b];
+        batch_matrix_offset += prev_evictable_size * prev_evictable_size;
+        batch_vector_offset += prev_evictable_size;
+    }
 
     // Offset pointers to this batch's region
     __global ACCUMULATOR_TYPE* similarity_matrix_batch = similarity_matrix + batch_matrix_offset;
     __global ACCUMULATOR_TYPE* aggregated_similarities_batch = aggregated_similarities + batch_matrix_offset;
     __global ACCUMULATOR_TYPE* row_means_batch = row_means + batch_vector_offset;
     __global ACCUMULATOR_TYPE* block_sums_batch = block_sums + batch_vector_offset;
-#else
-    // Local memory fallback (limited to ~64KB SLM)
-    __local ACCUMULATOR_TYPE similarity_matrix_batch[4096];           // 64×64 matrix (max for local memory)
-    __local ACCUMULATOR_TYPE aggregated_similarities_batch[4096];     // 64×64 aggregated matrix
-    __local ACCUMULATOR_TYPE row_means_batch[256];                    // Row means vector (max 256 tokens)
-    __local ACCUMULATOR_TYPE block_sums_batch[256];                   // Block sum vector (max 256 tokens)
-#endif
 
     // Keep normalized_key_i in local memory (small, frequently reused)
     __local ACCUMULATOR_TYPE normalized_key_i[K_HEAD_SIZE];
 
-    // Set appropriate memory fence based on buffer type
-#ifdef USE_GLOBAL_BUFFERS
+    // Memory fence for both global and local memory
     const cl_mem_fence_flags mem_fence = CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE;
-#else
-    const cl_mem_fence_flags mem_fence = CLK_LOCAL_MEM_FENCE;
-#endif
 
     // Initialize aggregated similarities (full matrix)
     for (int i = sglid; i < evictable_size * evictable_size; i += SUBGROUP_SIZE) {
