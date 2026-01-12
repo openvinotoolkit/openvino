@@ -93,6 +93,9 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
 
     if (_blob ==
         std::nullopt) {  // when compiling the model using Compiler in Driver, the blob is handled by the driver
+        if (_zeGraphExt == nullptr) {
+            OPENVINO_THROW("Zero compiler adapter wasn't initialized");
+        }
         _zeGraphExt->getGraphBinary(_graphDesc, blobVec, blobPtr, blobSize);
     } else {  // in all other cases, the blob is handled by the plugin
         blobPtr = static_cast<const uint8_t*>(_blob->data());
