@@ -325,7 +325,9 @@ void IRGraphImpl::prepareMetadata(NetworkMetadata& metadata) {
             OPENVINO_THROW("Failed to get MLIR runtime metadata");
         }
         IODescriptor ioDesc = getIODescriptor(arg, meta);
+        // TODO: Once runtime returns right value, can remove change on index and layout
         ioDesc.indexUsedByDriver = i;
+        ioDesc.supportsStridedLayout = true;
         switch (arg.type) {
         case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
             metadata.inputs.push_back(ioDesc);
