@@ -96,7 +96,7 @@ jobs:
                     owner: context.repo.owner,
                     repo: context.repo.repo,
                     issue_number: issue.number,
-                    body: `@${user} this issue is already assigned to @${currentAssignee}.`
+                    body: `@${user} this issue is already assigned to a contributor.`
                   });
                   console.log(`Issue #${issue.number} already assigned to ${currentAssignee}, ignoring .take from ${user}`);
                   return;
