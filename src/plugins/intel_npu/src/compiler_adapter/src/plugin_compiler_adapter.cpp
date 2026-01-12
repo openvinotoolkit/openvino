@@ -83,7 +83,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
         if (vclLib) {
             _compiler = ov::SoPtr<intel_npu::ICompiler>(vclCompilerPtr, vclLib);
         } else {
-            throw std::runtime_error("VCL compiler or library is nullptr");
+            throw std::runtime_error("VCL library is nullptr");
         }
     } catch (const std::exception& vcl_exception) {
         _logger.info("VCL compiler load failed: %s. Trying to load MLIR compiler...", vcl_exception.what());
