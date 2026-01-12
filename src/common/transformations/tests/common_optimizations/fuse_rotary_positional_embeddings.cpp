@@ -26,7 +26,6 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/opsets/opset3_decl.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"

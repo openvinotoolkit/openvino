@@ -41,12 +41,10 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/common_util.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
-#include "transformations/utils/print_model.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
@@ -75,10 +73,7 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(false);
     if (m_support_2d_rope) {
         symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(true);
-        symbolic_ctx_manager->register_pass<ov::pass::VisualizeTree>("before_RoPEFusionChatGLMHF_rc2.svg");
-        // symbolic_ctx_manager->register_pass<ov::pass::PrintModel>("print_model_before");
         symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLMHF>();
-        // symbolic_ctx_manager->register_pass<ov::pass::PrintModel>("print_model_after");
     }
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
