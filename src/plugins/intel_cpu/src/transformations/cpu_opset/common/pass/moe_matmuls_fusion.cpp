@@ -27,6 +27,7 @@
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
@@ -134,9 +135,17 @@ ov::intel_cpu::MoE2GeMMFusion::MoE2GeMMFusion() {
 
     auto mul3 =
         pattern::wrap_type<ov::op::v1::Multiply>({end_reshape, unsqueeze_routing_weights}, pattern::consumers_count(1));
+#if defined(OPENVINO_ARCH_ARM64)
+    // For ARM, Reduce ops are implemented with keep_dims=true followed by Squeeze operation
+    auto reduce_sum_before_squeeze = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()},
+                                                                               pattern::consumers_count(1),
+                                                                               {{"keep_dims", true}});
+    auto reduce_sum = pattern::wrap_type<ov::op::v0::Squeeze>({reduce_sum_before_squeeze, pattern::any_input()});
+#else
     auto reduce_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()},
                                                                 pattern::consumers_count(1),
                                                                 {{"keep_dims", false}});
+#endif
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -186,10 +195,21 @@ ov::intel_cpu::MoE2GeMMFusion::MoE2GeMMFusion() {
         ov::copy_runtime_info(final_mul_node, new_final_mul);
         new_final_mul->set_friendly_name(final_mul_node->get_friendly_name());
 
+#if defined(OPENVINO_ARCH_ARM64)
+        const auto reduceSum_before_squeeze_node = pattern_map.at(reduce_sum_before_squeeze).get_node_shared_ptr();
+        const auto new_reduceSum_before_squeeze_node = reduceSum_before_squeeze_node->clone_with_new_inputs(
+            {new_final_mul->output(0), reduceSum_before_squeeze_node->input_value(1)});
+        ov::copy_runtime_info(reduceSum_before_squeeze_node, new_reduceSum_before_squeeze_node);
+        const auto reduce_sum_node = pattern_map.at(reduce_sum).get_node_shared_ptr();
+        const auto new_reduce_sum = reduce_sum_node->clone_with_new_inputs(
+            {new_reduceSum_before_squeeze_node->output(0), reduce_sum_node->input_value(1)});
+#else
         const auto reduce_sum_node = pattern_map.at(reduce_sum).get_node_shared_ptr();
         const auto new_reduce_sum =
             reduce_sum_node->clone_with_new_inputs({new_final_mul->output(0), reduce_sum_node->input_value(1)});
+#endif
         ov::copy_runtime_info(reduce_sum_node, new_reduce_sum);
+
         new_reduce_sum->set_friendly_name(reduce_sum_node->get_friendly_name());
 
         const auto& end_reshape_out = pattern_map.at(end_reshape);
@@ -276,9 +296,16 @@ ov::intel_cpu::MoE3GeMMFusion::MoE3GeMMFusion() {
 
     auto mul3 =
         pattern::wrap_type<ov::op::v1::Multiply>({end_reshape, unsqueeze_routing_weights}, pattern::consumers_count(1));
+#if defined(OPENVINO_ARCH_ARM64)
+    auto reduce_sum_before_squeeze = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()},
+                                                                               pattern::consumers_count(1),
+                                                                               {{"keep_dims", true}});
+    auto reduce_sum = pattern::wrap_type<ov::op::v0::Squeeze>({reduce_sum_before_squeeze, pattern::any_input()});
+#else
     auto reduce_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()},
                                                                 pattern::consumers_count(1),
                                                                 {{"keep_dims", false}});
+#endif
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -323,9 +350,19 @@ ov::intel_cpu::MoE3GeMMFusion::MoE3GeMMFusion() {
             final_mul_node->clone_with_new_inputs({down_gathered_mm->output(0), router_unsqueeze->output(0)});
         ov::copy_runtime_info(final_mul_node, new_final_mul);
         new_final_mul->set_friendly_name(final_mul_node->get_friendly_name());
+#if defined(OPENVINO_ARCH_ARM64)
+        const auto reduceSum_before_squeeze_node = pattern_map.at(reduce_sum_before_squeeze).get_node_shared_ptr();
+        const auto new_reduceSum_before_squeeze_node = reduceSum_before_squeeze_node->clone_with_new_inputs(
+            {new_final_mul->output(0), reduceSum_before_squeeze_node->input_value(1)});
+        ov::copy_runtime_info(reduceSum_before_squeeze_node, new_reduceSum_before_squeeze_node);
+        const auto reduce_sum_node = pattern_map.at(reduce_sum).get_node_shared_ptr();
+        const auto new_reduce_sum = reduce_sum_node->clone_with_new_inputs(
+            {new_reduceSum_before_squeeze_node->output(0), reduce_sum_node->input_value(1)});
+#else
         const auto reduce_sum_node = pattern_map.at(reduce_sum).get_node_shared_ptr();
         const auto new_reduce_sum =
             reduce_sum_node->clone_with_new_inputs({new_final_mul->output(0), reduce_sum_node->input_value(1)});
+#endif
         ov::copy_runtime_info(reduce_sum_node, new_reduce_sum);
         new_reduce_sum->set_friendly_name(reduce_sum_node->get_friendly_name());
 

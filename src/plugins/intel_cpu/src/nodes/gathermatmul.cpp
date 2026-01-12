@@ -1,51 +1,52 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifdef OPENVINO_ARCH_X86_64
+#    include "gathermatmul.h"
 
-#include "gathermatmul.h"
+#    include <oneapi/dnnl/dnnl_common_types.h>
+#    include <oneapi/dnnl/dnnl_types.h>
 
-#include <oneapi/dnnl/dnnl_common_types.h>
-#include <oneapi/dnnl/dnnl_types.h>
+#    include <bitset>
+#    include <common/primitive_hashing_utils.hpp>
+#    include <common/utils.hpp>
+#    include <cstddef>
+#    include <cstdint>
+#    include <cstring>
+#    include <memory>
+#    include <oneapi/dnnl/dnnl.hpp>
+#    include <oneapi/dnnl/dnnl_common.hpp>
+#    include <string>
+#    include <tuple>
+#    include <unordered_map>
+#    include <utility>
+#    include <vector>
 
-#include <bitset>
-#include <common/primitive_hashing_utils.hpp>
-#include <common/utils.hpp>
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
-#include <oneapi/dnnl/dnnl_common.hpp>
-#include <string>
-#include <tuple>
-#include <unordered_map>
-#include <utility>
-#include <vector>
-
-#include "common/blocked_desc_creator.h"
-#include "config.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu_memory.h"
-#include "cpu_types.h"
-#include "dnnl_extension_utils.h"
-#include "graph_context.h"
-#include "memory_desc/blocked_memory_desc.h"
-#include "memory_desc/cpu_memory_desc.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_memory_desc.h"
-#include "node.h"
-#include "node_config.h"
-#include "onednn/iml_type_mapper.h"
-#include "openvino/core/except.hpp"
-#include "openvino/core/node.hpp"
-#include "openvino/core/type.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/op/constant.hpp"
-#include "shape_inference/custom/gathermatmul.hpp"
-#include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
-#include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
-#include "transformations/utils/utils.hpp"
-#include "utils/general_utils.h"
+#    include "common/blocked_desc_creator.h"
+#    include "config.h"
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "cpu_memory.h"
+#    include "cpu_types.h"
+#    include "dnnl_extension_utils.h"
+#    include "graph_context.h"
+#    include "memory_desc/blocked_memory_desc.h"
+#    include "memory_desc/cpu_memory_desc.h"
+#    include "memory_desc/cpu_memory_desc_utils.h"
+#    include "memory_desc/dnnl_memory_desc.h"
+#    include "node.h"
+#    include "node_config.h"
+#    include "onednn/iml_type_mapper.h"
+#    include "openvino/core/except.hpp"
+#    include "openvino/core/node.hpp"
+#    include "openvino/core/parallel.hpp"
+#    include "openvino/core/type.hpp"
+#    include "openvino/core/type/element_type.hpp"
+#    include "openvino/op/constant.hpp"
+#    include "shape_inference/custom/gathermatmul.hpp"
+#    include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
+#    include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
+#    include "transformations/utils/utils.hpp"
+#    include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -299,7 +300,7 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
                                                   [[maybe_unused]] size_t OC,
                                                   [[maybe_unused]] size_t G,
                                                   [[maybe_unused]] const Config& config) noexcept {
-#ifdef OPENVINO_ARCH_X86_64
+#    ifdef OPENVINO_ARCH_X86_64
     // copy paste from FullyConnected
     try {
         std::string errorMessage;
@@ -341,19 +342,19 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
         return false;
     }
     return true;
-#else
+#    else
     return false;
-#endif
+#    endif
 }
 
 ov::element::TypeVector GatherMatmul::getSupportedCompressedWeightsTypes([[maybe_unused]] bool apply_fp8) {
     using ov::element::Type_t;
 
-#ifdef OPENVINO_ARCH_X86_64
+#    ifdef OPENVINO_ARCH_X86_64
     return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4};
-#else
+#    else
     return {};
-#endif
+#    endif
 }
 
 ov::element::TypeVector GatherMatmul::getSupportedCompressedActivationsTypes() {
@@ -860,3 +861,4 @@ bool GatherMatmul::created() const {
 }
 
 }  // namespace ov::intel_cpu::node
+#endif
