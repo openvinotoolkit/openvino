@@ -7,18 +7,33 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
+#include <vector>
 
 #include "cpu_memory.h"
 #include "graph_context.h"
 #include "node.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/node.hpp"
+
+#ifdef OPENVINO_ARCH_ARM64
+#    include "nodes/executors/kleidiai/kleidiai_mm.hpp"
+#endif
 
 namespace ov::intel_cpu::node {
 
 class GatherMatmul : public Node {
 public:
     GatherMatmul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
+
+    enum KernelTypes : uint8_t { KT_ONEDNN, KT_KLEIDIAI };
+    template <KernelTypes KType>
+    void createPrimitiveforType();
+    template <KernelTypes KType>
+    void executeforType(const dnnl::stream& strm);
+    template <KernelTypes KType>
+    void prepareParamsforType();
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -59,6 +74,7 @@ private:
     using GemvImplPtr = std::shared_ptr<onednn_matmul>;
 
     Algorithm algorithm = Algorithm::GatherMatmulDefault;
+    KernelTypes KType = KT_ONEDNN;
     MemoryArgs memory;
     GemvImplPtr gemv_impl = nullptr;
     GemvImplPtr gemm_impl = nullptr;
@@ -72,6 +88,11 @@ private:
     MemoryDescPtr m_tmpOutputDesc = nullptr;
 
     bool bf16_amx_mode = false;
-};
 
+#if defined(OPENVINO_ARCH_ARM64)
+    size_t numExperts = 0;
+    std::vector<MatMulKleidiAIExecutorPtr> executor;
+    std::vector<MemoryArgs> memArgs;
+#endif
+};
 }  // namespace ov::intel_cpu::node
