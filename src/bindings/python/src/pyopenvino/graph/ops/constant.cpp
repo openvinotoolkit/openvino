@@ -66,9 +66,14 @@ void regclass_graph_op_Constant(py::module m) {
                      if (array.dtype().kind() == 'U' || array.dtype().kind() == 'S' || array.dtype().kind() == 'O' ||
                          array.dtype().kind() == 'a') {
                         if (shared_memory) {
-                            throw std::runtime_error("Creating a String Constant with shared memory is not supported.");
+                            std::cerr << "Warning: Creating a String Constant with shared memory is not supported. Ignoring shared_memory flag." << std::endl;
                         }
                          ov::Shape shape(array.shape(), array.shape() + array.ndim());
+
+                        if (array.size() == 0) {
+                            // return empty string tensor
+                            ov::Tensor tensor(ov::element::string, shape);
+                            return std::make_shared<ov::op::v0::Constant>(tensor);
                          // convert NumPy array to flattened list of strings
                          std::vector<std::string> strings;
                          auto flat_array = array.reshape({-1});
