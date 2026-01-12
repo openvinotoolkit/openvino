@@ -36,7 +36,9 @@ from tests.utils.helpers import generate_image, generate_relu_compiled_model
         (ov.Type.boolean, bool),
         (ov.Type.u1, np.uint8),
         (ov.Type.u2, np.uint8),
+        (ov.Type.u3, np.uint8),
         (ov.Type.u4, np.uint8),
+        (ov.Type.u6, np.uint8),
         (ov.Type.i4, np.int8),
     ],
 )
@@ -374,7 +376,9 @@ def test_can_set_shape_other_dims():
     [
         (ov.Type.u1),
         (ov.Type.u2),
+        (ov.Type.u3),
         (ov.Type.u4),
+        (ov.Type.u6),
         (ov.Type.i4),
     ],
 )
@@ -390,7 +394,9 @@ def test_cannot_create_roi_from_packed_tensor(ov_type):
     [
         (ov.Type.u1),
         (ov.Type.u2),
+        (ov.Type.u3),
         (ov.Type.u4),
+        (ov.Type.u6),
         (ov.Type.i4),
     ],
 )
@@ -443,7 +449,9 @@ def test_init_with_packed_buffer(dtype, ov_type):
     [
         (0, 2, ov.Type.u1, np.uint8),
         (0, 4, ov.Type.u2, np.uint8),
+        (0, 8, ov.Type.u3, np.uint8),
         (0, 16, ov.Type.u4, np.uint8),
+        (0, 64, ov.Type.u6, np.uint8),
         (-8, 7, ov.Type.i4, np.int8),
         (0, 16, ov.Type.nf4, np.uint8),
     ],
@@ -671,3 +679,92 @@ def test_tensor_from_pillow(numpy_dtype, shape):
     assert isinstance(tensor.data, np.ndarray)
     assert tensor.data.dtype == numpy_dtype
     assert tensor.data.shape == shape
+
+
+def test_pack_unpack_u3_numerical():
+    """Test u3 packing/unpacking with known numerical values."""
+    # 8 values packed into 3 bytes
+    # Decimal values: [0, 1, 2, 3, 4, 5, 6, 7]
+    # In binary: [000, 001, 010, 011, 100, 101, 110, 111]
+    data = np.array([0, 1, 2, 3, 4, 5, 6, 7], dtype=np.uint8)
+
+    packed = pack_data(data, ov.Type.u3)
+
+    # Expected packing:
+    # Byte 0: bits[1:0] of values 0-3 = [00, 01, 10, 11] = 0x1B
+    # Byte 1: bits[1:0] of values 4-7 = [00, 01, 10, 11] = 0x1B
+    # Byte 2: bits[2] of all 8 values = [0,0,0,0,1,1,1,1] = 0x0F
+    expected = np.array([0x1B, 0x1B, 0x0F], dtype=np.uint8)
+
+    assert len(packed) == 3
+    assert np.array_equal(packed, expected), f"Expected {expected.tolist()}, got {packed.tolist()}"
+
+    unpacked = unpack_data(packed, ov.Type.u3, [8])
+    assert np.array_equal(unpacked, data), f"Expected {data.tolist()}, got {unpacked.tolist()}"
+
+
+def test_pack_unpack_u3_edge_cases():
+    data = np.array([0, 0, 0, 0, 0, 0, 0, 0], dtype=np.uint8)
+    packed = pack_data(data, ov.Type.u3)
+    expected = np.array([0x00, 0x00, 0x00], dtype=np.uint8)
+    assert np.array_equal(packed, expected)
+    unpacked = unpack_data(packed, ov.Type.u3, [8])
+    assert np.array_equal(unpacked, data)
+
+    data = np.array([7, 7, 7, 7, 7, 7, 7, 7], dtype=np.uint8)
+    packed = pack_data(data, ov.Type.u3)
+    # All bits[1:0] = 11, all bits[2] = 1
+    expected = np.array([0xFF, 0xFF, 0xFF], dtype=np.uint8)
+    assert np.array_equal(packed, expected)
+    unpacked = unpack_data(packed, ov.Type.u3, [8])
+    assert np.array_equal(unpacked, data)
+
+
+def test_pack_unpack_u6_numerical():
+    # 4 values packed into 3 bytes
+    # Decimal values: [0, 15, 48, 63]
+    # In binary: [000000, 001111, 110000, 111111]
+    data = np.array([0, 15, 48, 63], dtype=np.uint8)
+    packed = pack_data(data, ov.Type.u6)
+
+    # Expected packing:
+    # Byte 0: bits[3:0] of values 0-1 = [0000, 1111] = 0x0F
+    # Byte 1: bits[3:0] of values 2-3 = [0000, 1111] = 0x0F
+    # Byte 2: bits[5:4] of all 4 values = [00, 00, 11, 11] = 0x0F
+    expected = np.array([0x0F, 0x0F, 0x0F], dtype=np.uint8)
+
+    assert len(packed) == 3
+    assert np.array_equal(packed, expected), f"Expected {expected.tolist()}, got {packed.tolist()}"
+
+    unpacked = unpack_data(packed, ov.Type.u6, [4])
+    assert np.array_equal(unpacked, data), f"Expected {data.tolist()}, got {unpacked.tolist()}"
+
+
+def test_pack_unpack_u6_edge_cases():
+    data = np.array([0, 0, 0, 0], dtype=np.uint8)
+    packed = pack_data(data, ov.Type.u6)
+    expected = np.array([0x00, 0x00, 0x00], dtype=np.uint8)
+    assert np.array_equal(packed, expected)
+    unpacked = unpack_data(packed, ov.Type.u6, [4])
+    assert np.array_equal(unpacked, data)
+
+    data = np.array([63, 63, 63, 63], dtype=np.uint8)
+    packed = pack_data(data, ov.Type.u6)
+    expected = np.array([0xFF, 0xFF, 0xFF], dtype=np.uint8)
+    assert np.array_equal(packed, expected)
+    unpacked = unpack_data(packed, ov.Type.u6, [4])
+    assert np.array_equal(unpacked, data)
+
+
+def test_pack_unpack_u3_multidimensional():
+    data = np.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]], dtype=np.uint8)
+    packed = pack_data(data, ov.Type.u3)
+    unpacked = unpack_data(packed, ov.Type.u3, data.shape)
+    assert np.array_equal(unpacked, data)
+
+
+def test_pack_unpack_u6_multidimensional():
+    data = np.array([[10, 20], [30, 40]], dtype=np.uint8)
+    packed = pack_data(data, ov.Type.u6)
+    unpacked = unpack_data(packed, ov.Type.u6, data.shape)
+    assert np.array_equal(unpacked, data)
