@@ -37,6 +37,12 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
             return false;
         }
 
+        // PA CM kernel only supports cases when kv_head_size is divisible by 16
+        if (desc->k_head_size % 16 != 0 && desc->v_head_size % 16 != 0) {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because kv_head_size is not divisible by 16. " << std::endl;
+            return false;
+        }
+
         auto& engine = node.get_program().get_engine();
         const auto& config = node.get_program().get_config();
         const auto& info = engine.get_device_info();
