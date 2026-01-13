@@ -29,11 +29,11 @@ using ::ONNX_NAMESPACE::Version;
 class SimpleIterator : public ov::frontend::onnx::GraphIterator {
 public:
     mutable size_t get_model_dir_call_count = 0;
-    mutable std::string last_returned_dir;
-    std::string model_dir;
+    mutable std::filesystem::path last_returned_dir;
+    std::filesystem::path model_dir;
 
     SimpleIterator() = default;
-    explicit SimpleIterator(const std::string& dir) : model_dir(dir) {}
+    explicit SimpleIterator(const std::filesystem::path& dir) : model_dir(dir) {}
 
     size_t size() const override {
         return 0;
@@ -55,7 +55,7 @@ public:
         return {};
     }
 
-    std::string get_model_dir() const override {
+    std::filesystem::path get_model_dir() const override {
         ++get_model_dir_call_count;
         last_returned_dir = model_dir;
         return model_dir;
@@ -156,7 +156,7 @@ TEST_P(FrontEndLoadFromTest, tensor_place_uses_model_dir_for_external_data) {
     const auto path =
         ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name}).string();
 
-    const auto expected_model_dir = std::filesystem::path(path).parent_path().string();
+    const auto expected_model_dir = std::filesystem::path(path).parent_path();
 
     auto iter = std::make_shared<SimpleIterator>(expected_model_dir);
 

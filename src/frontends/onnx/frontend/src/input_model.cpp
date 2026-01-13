@@ -626,7 +626,7 @@ public:
         return m_stream_cache;
     }
 
-    std::string get_model_dir() const {
+    std::filesystem::path get_model_dir() const {
         return m_model_dir;
     }
 
@@ -651,7 +651,7 @@ private:
     detail::MappedMemoryHandles m_mmap_cache;
     // This is used for keeping a readed external data without MMAP
     detail::LocalStreamHandles m_stream_cache;
-    std::string m_model_dir;
+    std::filesystem::path m_model_dir;
 
     std::shared_ptr<TensorONNXPlace> register_tensor_place(const std::shared_ptr<TensorONNXPlace>& tensor_place);
     std::shared_ptr<TensorONNXPlace> find_tensor_place(const TensorMetaInfo& tensor_meta_info) const;
@@ -1066,7 +1066,7 @@ detail::LocalStreamHandles InputModel::get_stream_cache() const {
     return _impl->get_stream_cache();
 }
 
-std::string InputModel::get_model_dir() const {
+std::filesystem::path InputModel::get_model_dir() const {
     return _impl->get_model_dir();
 }
 

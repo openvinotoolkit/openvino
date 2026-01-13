@@ -91,8 +91,9 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
             m_sha1_digest = entry.value();
         }
     }
+    const auto model_dir = graph_iterator->get_model_dir();
     const auto full_path =
-        ov::util::get_absolute_file_path(ov::util::path_join({graph_iterator->get_model_dir(), ext_location}).string());
+        ov::util::get_absolute_file_path((model_dir / std::filesystem::path{ext_location}).string());
     const int64_t file_size = ov::util::file_size(full_path);
     if ((file_size <= 0 && ext_data_length > 0) ||
         ext_data_offset + ext_data_length > static_cast<uint64_t>(file_size)) {
@@ -127,6 +128,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         return true;
     } else if (memory_mode == External_Stream) {
         auto cache = graph_iterator->get_stream_cache();
+        FRONT_END_GENERAL_CHECK(cache, "Stream cache is not initialized for external stream mode");
         auto cached_stream = cache->find(full_path);
         std::shared_ptr<std::ifstream> external_data_stream;
         if (cached_stream != cache->end()) {
@@ -311,11 +313,12 @@ GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphPr
     m_model = parent->m_model;
 }
 
-void GraphIteratorProto::initialize(const std::string& path) {
-    m_model_dir = std::make_shared<std::string>(ov::util::get_directory(path).string());
+void GraphIteratorProto::initialize(const std::filesystem::path& path) {
+    const auto path_str = ov::util::path_to_string(path);
+    m_model_dir = std::make_shared<std::filesystem::path>(ov::util::get_directory(path_str));
     try {
         std::ifstream model_file(path, std::ios::binary | std::ios::in);
-        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path, "\"");
+        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path_str, "\"");
 
         m_model = std::make_shared<ModelProto>();
         FRONT_END_GENERAL_CHECK(m_model->ParseFromIstream(&model_file), "Model can't be parsed");
@@ -336,9 +339,13 @@ void GraphIteratorProto::initialize(const std::string& path) {
     }
 }
 
+void GraphIteratorProto::initialize(const std::string& path) {
+    initialize(std::filesystem::path{path});
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void GraphIteratorProto::initialize(const std::wstring& path) {
-    initialize(ov::util::wstring_to_string(path));
+    initialize(std::filesystem::path{path});
 }
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
