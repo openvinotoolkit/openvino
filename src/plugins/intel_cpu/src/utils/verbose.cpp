@@ -3,13 +3,27 @@
 //
 #include "verbose.h"
 
+#include <node.h>
+
+#include <algorithm>
+#include <atomic>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <utility>
+
 #include "common/c_types_map.hpp"
 #include "common/verbose.hpp"
-#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu/platform.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "oneapi/dnnl/dnnl.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/log_util.hpp"
 #include "openvino/core/version.hpp"
@@ -190,7 +204,7 @@ static void printPluginInfo() {
         dnnl_version->hash,
         ")");
     // @todo add more info regarding other backends if available
-    log("ov_cpu_verbose,info,isa: ", dnnl::impl::cpu::x64::get_isa_info());
+    log("ov_cpu_verbose,info,isa: ", dnnl::impl::cpu::platform::get_isa_info());
     log("ov_cpu_verbose,info,intel_cpu_plugin,runtime: ", threadingType());
 }
 

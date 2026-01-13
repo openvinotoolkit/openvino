@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -8,6 +8,7 @@
 
 #    include <charconv>
 #    include <cstdlib>
+#    include <memory>
 #    include <sstream>
 #    include <string>
 
@@ -58,7 +59,7 @@ private:
 };
 
 // use heap allocation instead of stack to align with PERF macro (to have proper destruction order)
-#    define VERBOSE(...) const auto verbose = std::unique_ptr<Verbose>(new Verbose(__VA_ARGS__));
+#    define VERBOSE(...) const auto verbose = std::make_unique<Verbose>(__VA_ARGS__);
 }  // namespace ov::intel_cpu
 
 #else
