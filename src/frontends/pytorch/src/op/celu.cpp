@@ -34,7 +34,7 @@ OutputVector translate_celu(const NodeContext& context) {
     // CELU(x)=max(0,x)+min(0,a*(exp(x/a)-1))
     auto zero = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0.}));
     zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, x));
-    auto x_max = std::make_shared<v1::Maximum>(x, zero);
+    auto x_max = context.mark_node(std::make_shared<v1::Maximum>(x, zero));
 
     alpha = context.mark_node(std::make_shared<v1::ConvertLike>(alpha, x));
     auto divide_node = context.mark_node(std::make_shared<v1::Divide>(x, alpha));
