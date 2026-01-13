@@ -138,7 +138,7 @@ bool all_precisions_equal(const std::shared_ptr<Node>& node) {
 }  // namespace fq
 
 bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& eltwise) {
-    if (eltwise->get_input_size() > 0 && fq::getDataInput(eltwise).get_partial_shape() != eltwise->get_output_partial_shape(0)) {
+    if (eltwise->get_input_size() > 0 && fq::getDataInput(eltwise).get_node() != nullptr &&  fq::getDataInput(eltwise).get_partial_shape() != eltwise->get_output_partial_shape(0)) {
         return false;
     }
 
@@ -174,10 +174,6 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize,
     const bool updatePrecisions) {
     const std::shared_ptr<Node> eltwise = fakeQuantize->get_input_node_shared_ptr(0);
-
-    if (checkElementwise(eltwise) && fq::getDataInput(eltwise).get_node() != nullptr) {
-        return nullptr;
-    }
 
     if (!updatePrecisions && !fq::all_precisions_equal(eltwise)) {
         return nullptr;

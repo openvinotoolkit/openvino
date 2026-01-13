@@ -280,7 +280,7 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
            element::f16,
            {},
            element::f16,
-           {{}, {}, {{0.01f, 0.1f, 1.f}},
+           {{}, {}, {{0.01f, 0.1f, 1.f}}},
            element::f16,
            {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
        },
@@ -288,7 +288,7 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
            element::f16,
            {},
            element::f16,
-           {{}, {}, {{0.01f, 0.1f, 1.f}},
+           {{}, {}, {{0.01f, 0.1f, 1.f}}},
            element::f16,
            element::f16,
            {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
