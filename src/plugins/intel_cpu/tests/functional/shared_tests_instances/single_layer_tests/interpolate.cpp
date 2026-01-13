@@ -13,6 +13,7 @@ using ov::test::InterpolateLayerTest;
 const std::vector<ov::element::Type> model_types = {
     ov::element::f16,
     ov::element::f32,
+    ov::element::f64,
 };
 
 const std::vector<ov::Shape> input_shapes_static = {

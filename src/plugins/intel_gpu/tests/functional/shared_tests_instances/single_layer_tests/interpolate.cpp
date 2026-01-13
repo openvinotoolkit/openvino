@@ -38,6 +38,7 @@ const std::vector<ov::element::Type> netOnnx5dPrecisions = {
         ov::element::u8,
         ov::element::f16,
         ov::element::f32,
+        ov::element::f64,
 };
 
 const std::vector<ov::Shape> inShapes = {
