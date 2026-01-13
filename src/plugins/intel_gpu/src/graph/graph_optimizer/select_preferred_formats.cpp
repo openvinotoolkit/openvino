@@ -53,6 +53,12 @@ static void optimize_conv_permute(program_node& node) {
             && !pnode.is_output() && pnode.get_input_layout(0).is_static()
             && pnode.is_rotating_except_batch();
         if (can_optimize_permute) {
+            // Optimize only the byxf to bfyx rotation
+            const std::vector<uint16_t> byxf_to_bfyx_pattern = {0, 3, 1, 2};
+            if (pnode.get_primitive()->permute_order != byxf_to_bfyx_pattern) {
+                return;
+            }
+
             node.set_preferred_output_fmt(0, format::byxf);
             pnode.init_preferred_fmt(1, 1);
             pnode.set_preferred_input_fmt(0, cldnn::format::byxf);
