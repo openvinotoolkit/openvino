@@ -22,6 +22,8 @@ namespace ov::snippets::op {
 // This op is needed becuase there could be multiple loop bodies(such as first, main and tail) in LIR,
 // all need write to the same output but at different offsets. Then snippets result should have
 // multiple inputs connected to all loops. The correct and full connections are needed in passes like AssignRegisters.
+// Note that Result tensor is same as main input tensor (precision, names etc),
+// the other inputs tensor properties are ignored and hidden from model output perspective.
 class Result : public ov::op::v0::Result {
 public:
     OPENVINO_OP("Result", "SnippetsOpset", ov::op::v0::Result);

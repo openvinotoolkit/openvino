@@ -10,10 +10,10 @@
 #include "itt.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "snippets/itt.hpp"
@@ -48,20 +48,23 @@ void Result::validate_and_infer_types() {
         const auto& main_shape = main_input_desc.get_partial_shape();
         for (size_t i = 1; i < get_input_size(); ++i) {
             const auto& input_desc = get_input_descriptor(i);
-            OPENVINO_ASSERT(input_desc.get_element_type() == main_type,
-                            "All inputs of Snippets Result node must have the same element type. Mismatch at input ",
-                            i,
-                            ": expected ",
-                            main_type,
-                            ", got ",
-                            input_desc.get_element_type());
-            OPENVINO_ASSERT(input_desc.get_partial_shape() == main_shape,
-                            "All inputs of Snippets Result node must have the same shape. Mismatch at input ",
-                            i,
-                            ": expected ",
-                            main_shape,
-                            ", got ",
-                            input_desc.get_partial_shape());
+            NODE_VALIDATION_CHECK(
+                this,
+                input_desc.get_element_type() == main_type,
+                "All inputs of Snippets Result node must have the same element type. Mismatch at input ",
+                i,
+                ": expected ",
+                main_type,
+                ", got ",
+                input_desc.get_element_type());
+            NODE_VALIDATION_CHECK(this,
+                                  input_desc.get_partial_shape().same_scheme(main_shape),
+                                  "All inputs of Snippets Result node must have compatible shapes. Mismatch at input ",
+                                  i,
+                                  ": expected compatible with ",
+                                  main_shape,
+                                  ", got ",
+                                  input_desc.get_partial_shape());
         }
     }
 }
@@ -69,15 +72,15 @@ void Result::validate_and_infer_types() {
 std::shared_ptr<Node> Result::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(snippet_Result_clone_with_new_inputs);
 
-    OPENVINO_ASSERT(new_args.size() >= 1,
-                    "Incorrect number of new arguments for Snippets Result, at least one argument is expected.");
+    NODE_VALIDATION_CHECK(this,
+                          !new_args.empty(),
+                          "Incorrect number of new arguments for Snippets Result, at least one argument is expected.");
 
     if (new_args.size() == 1) {
         return std::make_shared<Result>(new_args.at(0));
-    } else {
-        const OutputVector& nodes = {new_args.begin() + 1, new_args.end()};
-        return std::make_shared<Result>(new_args.at(0), nodes);
     }
+    const OutputVector nodes{new_args.begin() + 1, new_args.end()};
+    return std::make_shared<Result>(new_args.at(0), nodes);
 }
 
 bool Result::has_evaluate() const {
