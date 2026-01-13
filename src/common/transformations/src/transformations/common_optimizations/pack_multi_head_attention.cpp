@@ -76,7 +76,7 @@ std::shared_ptr<ov::Node> normalize_rank(const ov::Output<ov::Node>& output, int
         axes.push_back(insert_pos + i);
 
     auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
-    auto unsqueezed = util::make_try_fold<v0::Unsqueeze>(output.get_node_shared_ptr(), axes_const);
+    auto unsqueezed = ov::op::util::make_try_fold<v0::Unsqueeze>(output.get_node_shared_ptr(), axes_const);
 
     return unsqueezed;
 }
@@ -109,7 +109,7 @@ std::shared_ptr<ov::Node> concat_any(const ov::OutputVector& inputs, int64_t axi
         normalized.push_back(normalize_rank(in, max_rank));
     }
 
-    auto concat = util::make_try_fold<v0::Concat>(normalized, axis);
+    auto concat = ov::op::util::make_try_fold<v0::Concat>(normalized, axis);
     concat->get_rt_info()["packed_GQA"] = true;
 
     return concat;
@@ -261,6 +261,9 @@ MergeTwoUnrolledSDPAAdd::MergeTwoUnrolledSDPAAdd() {
             auto c2 = as_type_ptr<v0::Constant>(sf2->input_value(1).get_node_shared_ptr());
             if (!c1 || !c2 || c1->cast_vector<float>() != c2->cast_vector<float>())
                 return false;
+        } else if (sf1 || sf2) {
+            // Only one scale present; cannot fuse
+            return false;
         }
 
         auto qk1_node = sf1 ? sf1->input_value(0).get_node_shared_ptr() : bias1->input_value(0).get_node_shared_ptr();
