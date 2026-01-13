@@ -135,7 +135,7 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize(
 
 #define PRECISION_LIMITS_FOR(type) \
     { ov::element::type, \
-        std::make_pair<float,float>( \
+        std::make_pair( \
         static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::min()), \
             static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::max()))}
 
