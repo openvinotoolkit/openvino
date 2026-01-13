@@ -280,14 +280,14 @@ void ov::npuw::KokoroInferRequest::infer() {
     const size_t overlap_size = m_kokoro_compiled_model->overlap_size();
     const auto one_side_overlap = static_cast<std::size_t>(overlap_size / 2);
 
-    // Block size will stay the same even if overlap is used, but effective input size per block increases
+    // Block size will stay the same even if overlap is used, but effective input size per block decrease
     const std::size_t block = static_cast<std::size_t>(m_kokoro_compiled_model->block_size());
-    OPENVINO_ASSERT(overlap_size < block, "NPUW_OVERLAP_SIZE must be smaller than block size");
+    OPENVINO_ASSERT(overlap_size < block, "NPUW_KOKORO_OVERLAP_SIZE must be smaller than block size");
 
     // Effective step size (how much we advance in the original sequence)
     // We reserve space for overlap on both sides: [overlap | step | overlap]
     // Total window size is 'block'.
-    OPENVINO_ASSERT(one_side_overlap * 2 < block, "NPUW_OVERLAP_SIZE is too large for the given block size (must be < block)");
+    OPENVINO_ASSERT(one_side_overlap * 2 < block, "NPUW_KOKORO_OVERLAP_SIZE is too large for the given block size (must be < block)");
     const std::size_t step = block - 2 * one_side_overlap;
     OPENVINO_ASSERT(step > 0, "Step size is zero, block size too small for overlap");
     
@@ -406,7 +406,7 @@ void ov::npuw::KokoroInferRequest::infer() {
 
     auto out_tensor = ov::make_tensor(audio_type0, out_shape);
     OPENVINO_ASSERT(out_tensor->get_byte_size() == audio_bytes.size());
-    std::memcpy(out_tensor->data(), audio_bytes.data(), audio_bytes.size());
+    std::copy_n(audio_bytes.begin(), audio_bytes.size(), static_cast<uint8_t*>(out_tensor->data()));
     set_tensor(original_outputs[0], out_tensor);
 }
 
