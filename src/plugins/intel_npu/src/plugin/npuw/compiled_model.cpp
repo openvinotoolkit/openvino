@@ -718,6 +718,40 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
         }
     }
 
+    // Serialize MoE experts
+    write(stream, moe_experts);
+    if (moe_experts.has_value()) {
+        const auto& moe = moe_experts.value();
+        size_t num_compiled_models = moe._compiled_models.size();
+        write(stream, num_compiled_models);
+
+        for (const auto& [chunk_size, compiled_model] : moe._compiled_models) {
+            write(stream, chunk_size);
+            if (compiled_model) {
+                write(stream, true);
+                std::stringstream ss;
+                compiled_model->export_model(ss);
+                write(stream, ss.str());
+            } else {
+                write(stream, false);
+            }
+        }
+    }
+
+    // Serialize MoE experts downstream
+    write(stream, moe_experts_downstream);
+    if (moe_experts_downstream.has_value()) {
+        const auto& moe_downstream = moe_experts_downstream.value();
+        if (moe_downstream._compiled_model) {
+            write(stream, true);
+            std::stringstream ss;
+            moe_downstream._compiled_model->export_model(ss);
+            write(stream, ss.str());
+        } else {
+            write(stream, false);
+        }
+    }
+
     // Serialize host flash attention
     write(stream, host_flash_attention);
     if (host_flash_attention.has_value()) {
@@ -832,6 +866,48 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
                 pyramid_attention->_compiled_models[num_models - 1] = submodel_ctx.compiled_model;
                 LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
             }
+        }
+    }
+
+    // Deserialize MoE experts
+    read(stream, moe_experts);
+    if (moe_experts.has_value()) {
+        size_t num_compiled_models = 0;
+        read(stream, num_compiled_models);
+
+        for (size_t i = 0; i < num_compiled_models; ++i) {
+            size_t chunk_size = 0;
+            read(stream, chunk_size);
+
+            bool has_model = false;
+            read(stream, has_model);
+
+            if (has_model) {
+                std::string model_str;
+                read(stream, model_str);
+                std::stringstream ss(model_str);
+                auto compiled_model = submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device);
+                moe_experts->_compiled_models[chunk_size] = compiled_model;
+                LOG_DEBUG("Imported MoE compiled model for chunk_size=" << chunk_size);
+            }
+        }
+
+        LOG_DEBUG("Deserialized " << moe_experts->_compiled_models.size() << " MoE expert models");
+    }
+
+    // Deserialize MoE experts downstream
+    read(stream, moe_experts_downstream);
+    if (moe_experts_downstream.has_value()) {
+        bool has_model = false;
+        read(stream, has_model);
+
+        if (has_model) {
+            std::string model_str;
+            read(stream, model_str);
+            std::stringstream ss(model_str);
+            auto compiled_model = submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device);
+            moe_experts_downstream->_compiled_model = compiled_model;
+            LOG_DEBUG("Imported MoE downstream compiled model");
         }
     }
 

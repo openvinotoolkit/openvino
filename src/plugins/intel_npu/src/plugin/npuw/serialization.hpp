@@ -82,6 +82,8 @@ struct Spatial;
 struct Attention;
 struct PyramidAttention;
 struct HostFlashAttention;
+struct MoEExperts;
+struct MoEDownstream;
 }  // namespace compiled
 namespace weights {
 class LazyTensor;
@@ -180,6 +182,8 @@ void write(std::ostream& stream, const ov::npuw::compiled::Spatial& var);
 void write(std::ostream& stream, const ov::npuw::compiled::Attention& var);
 void write(std::ostream& stream, const ov::npuw::compiled::PyramidAttention& var);
 void write(std::ostream& stream, const ov::npuw::compiled::HostFlashAttention& var);
+void write(std::ostream& stream, const ov::npuw::compiled::MoEExperts& var);
+void write(std::ostream& stream, const ov::npuw::compiled::MoEDownstream& var);
 void write(std::ostream& stream, const ov::Tensor& var);
 void write(std::ostream& stream, const ::intel_npu::Config& var);
 void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
@@ -198,6 +202,8 @@ void read(std::istream& stream, ov::npuw::compiled::Spatial& var);
 void read(std::istream& stream, ov::npuw::compiled::Attention& var);
 void read(std::istream& stream, ov::npuw::compiled::PyramidAttention& var);
 void read(std::istream& stream, ov::npuw::compiled::HostFlashAttention& var);
+void read(std::istream& stream, ov::npuw::compiled::MoEExperts& var);
+void read(std::istream& stream, ov::npuw::compiled::MoEDownstream& var);
 void read(std::istream& stream, ov::Tensor& var);
 void read(std::istream& stream, ::intel_npu::Config& var);
 void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);
