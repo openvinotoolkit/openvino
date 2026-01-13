@@ -174,7 +174,7 @@ TEST_P(FrontEndLoadFromTest, tensor_place_uses_model_dir_for_external_data) {
     } catch (const std::exception& ex) {
         FAIL() << "convert failed: " << ex.what();
     } catch (...) {
-        FAIL() << "convert failed: reason unknown" << ex.what();
+        FAIL() << "convert failed: reason unknown";
     }
     
 
