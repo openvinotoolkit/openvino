@@ -198,6 +198,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
         std::vector<uint8_t> blob;
 
         if (blobTensor == std::nullopt) {
+            OPENVINO_ASSERT(_zeGraphExt != nullptr, "Zero compiler adapter wasn't initialized");
             // when compiling the model using Compiler in Driver, the blob is handled by the driver
             _zeGraphExt->getGraphBinary(_graphDesc, blob, blobRawPtr, blobSize);
         } else {
