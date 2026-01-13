@@ -111,7 +111,9 @@ ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw:
     : ov::ISyncInferRequest(compiled_model),
       m_kokoro_compiled_model(compiled_model) {
 
-    for (const auto& input_port : m_kokoro_compiled_model->inputs()) {
+    const auto original_inputs = m_kokoro_compiled_model->inputs();
+
+    for (const auto& input_port : original_inputs) {
         init_tensor(input_port);
     }
     for (const auto& output_port : m_kokoro_compiled_model->outputs()) {
@@ -122,6 +124,82 @@ ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw:
     OPENVINO_ASSERT(m_kokoro_compiled_model->model_b(), "Kokoro: Model B is not compiled");
     m_model_a_request = m_kokoro_compiled_model->model_a()->create_infer_request();
     m_model_b_request = m_kokoro_compiled_model->model_b()->create_infer_request();
+
+    // Map Model A inputs
+    const auto a_inputs = m_model_a_request->get_compiled_model()->inputs();
+    std::vector<std::string> missing_ports;
+    for (const auto& a_in : a_inputs) {
+        auto original_port = ov::npuw::util::find_port_by_names(original_inputs, a_in.get_names());
+        if (original_port.has_value()) {
+            m_model_a_in_map.push_back({a_in, original_port.value()});
+        } else {
+            missing_ports.push_back(safe_any_name(a_in));
+        }
+    }
+    throw_if_missing(missing_ports);
+
+    // Map Model A outputs
+    const auto a_outputs = m_model_a_request->get_compiled_model()->outputs();
+    auto pred_dur_port = ov::npuw::util::find_port_by_name(a_outputs, "pred_dur");
+    auto en_left_port = ov::npuw::util::find_port_by_name(a_outputs, "en_left");
+    auto asr_left_port = ov::npuw::util::find_port_by_name(a_outputs, "asr_left");
+    OPENVINO_ASSERT(pred_dur_port.has_value(), "Kokoro Model A output 'pred_dur' not found");
+    OPENVINO_ASSERT(en_left_port.has_value(), "Kokoro Model A output 'en_left' not found");
+    OPENVINO_ASSERT(asr_left_port.has_value(), "Kokoro Model A output 'asr_left' not found");
+    m_a_pred_dur = pred_dur_port.value();
+    m_a_en_left = en_left_port.value();
+    m_a_asr_left = asr_left_port.value();
+
+    // Map Model B inputs
+    const auto b_inputs = m_model_b_request->get_compiled_model()->inputs();
+    std::vector<std::string> b_missing_ports;
+    for (const auto& b_in : b_inputs) {
+        const auto& names = b_in.get_names();
+
+        if (std::count(names.begin(), names.end(), "en_block")) {
+            m_b_en_block = b_in;
+            continue;
+        }
+        if (std::count(names.begin(), names.end(), "asr_block")) {
+            m_b_asr_block = b_in;
+            continue;
+        }
+
+        auto original_port = ov::npuw::util::find_port_by_names(original_inputs, names);
+        if (original_port.has_value()) {
+            m_model_b_in_map.push_back({b_in, original_port.value()});
+        } else {
+            b_missing_ports.push_back(safe_any_name(b_in));
+        }
+    }
+    throw_if_missing(b_missing_ports);
+
+    // Initial setting of tensors for sub-requests
+    for (const auto& item : m_model_a_in_map) {
+        m_model_a_request->set_tensor(item.first, get_tensor(item.second));
+    }
+    // Feed static Model B inputs
+    for (const auto& item : m_model_b_in_map) {
+         m_model_b_request->set_tensor(item.first, get_tensor(item.second));
+    }
+}
+
+void ov::npuw::KokoroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
+    ov::ISyncInferRequest::set_tensor(port, tensor);
+
+    // If mappings are initialized, update sub-requests
+    // Model A inputs
+    for (const auto& item : m_model_a_in_map) {
+        if (item.second == port) {
+            m_model_a_request->set_tensor(item.first, tensor);
+        }
+    }
+    // Model B inputs
+    for (const auto& item : m_model_b_in_map) {
+        if (item.second == port) {
+            m_model_b_request->set_tensor(item.first, tensor);
+        }
+    }
 }
 
 void ov::npuw::KokoroInferRequest::infer() {
@@ -131,35 +209,12 @@ void ov::npuw::KokoroInferRequest::infer() {
     const auto original_inputs = m_kokoro_compiled_model->inputs();
     const auto original_outputs = m_kokoro_compiled_model->outputs();
 
-    // 1) Match inputs from original model to model a
-    {
-        const auto a_inputs = m_model_a_request->get_compiled_model()->inputs();
-        std::vector<std::string> missing_ports;
+    // 1) Infer Model A
+    m_model_a_request->infer();
 
-        for (const auto& a_in : a_inputs) {
-            auto original_port = ov::npuw::util::find_port_by_names(original_inputs, a_in.get_names());
-            if (!original_port.has_value()) {
-                missing_ports.push_back(safe_any_name(a_in));
-                continue;
-            }
-            m_model_a_request->set_tensor(a_in, get_tensor(original_port.value()));
-        } 
-        throw_if_missing(missing_ports);
-        m_model_a_request->infer();
-    }
-
-    // As part of decomposition should have pre-defined names
-    const auto a_outputs = m_model_a_request->get_compiled_model()->outputs();
-    auto pred_dur_port = ov::npuw::util::find_port_by_name(a_outputs, "pred_dur");
-    auto en_left_port = ov::npuw::util::find_port_by_name(a_outputs, "en_left");
-    auto asr_left_port = ov::npuw::util::find_port_by_name(a_outputs, "asr_left");
-    OPENVINO_ASSERT(pred_dur_port.has_value(), "Kokoro Model A output 'pred_dur' not found");
-    OPENVINO_ASSERT(en_left_port.has_value(), "Kokoro Model A output 'en_left' not found");
-    OPENVINO_ASSERT(asr_left_port.has_value(), "Kokoro Model A output 'asr_left' not found");
-
-    const auto pred_dur_tensor = m_model_a_request->get_tensor(pred_dur_port.value());
-    const auto en_left_tensor = m_model_a_request->get_tensor(en_left_port.value());
-    const auto asr_left_tensor = m_model_a_request->get_tensor(asr_left_port.value());
+    const auto pred_dur_tensor = m_model_a_request->get_tensor(m_a_pred_dur);
+    const auto en_left_tensor = m_model_a_request->get_tensor(m_a_en_left);
+    const auto asr_left_tensor = m_model_a_request->get_tensor(m_a_asr_left);
     OPENVINO_ASSERT(pred_dur_tensor && en_left_tensor && asr_left_tensor);
 
     auto orig_pred_dur = ov::npuw::util::find_port_by_name(original_outputs, "pred_dur");
@@ -205,32 +260,9 @@ void ov::npuw::KokoroInferRequest::infer() {
     const auto b_inputs = b_model->inputs();
     const auto b_outputs = b_model->outputs();
 
-    auto b_en_in = find_port_by_name(b_inputs, "en_block");
-    auto b_asr_in = find_port_by_name(b_inputs, "asr_block");
-    OPENVINO_ASSERT(b_en_in.has_value(), "Kokoro Model B input 'en_block' (or alias) not found");
-    OPENVINO_ASSERT(b_asr_in.has_value(), "Kokoro Model B input 'asr_block' (or alias) not found");
+    OPENVINO_ASSERT(m_b_en_block.get_node(), "Kokoro Model B input 'en_block' not initialized");
+    OPENVINO_ASSERT(m_b_asr_block.get_node(), "Kokoro Model B input 'asr_block' not initialized");
 
-    // Feed static Model B inputs once (wouldn't change between iterations)
-    {
-        std::vector<std::string> missing_ports;
-
-        for (const auto& b_in : b_inputs) {
-            const auto port_names = b_in.get_names();
-            // Skip the dynamic blocks we handle in the loop
-            if (port_names.count("en_block") || port_names.count("asr_block")) {
-                continue;
-            }
-
-            auto original_port = ov::npuw::util::find_port_by_names(original_inputs, b_in.get_names());
-            if (!original_port.has_value()) {
-                missing_ports.push_back(*port_names.begin());
-                continue;
-            }
-            m_model_b_request->set_tensor(b_in, get_tensor(original_port.value()));
-        } 
-        throw_if_missing(missing_ports);
-    }
-    
     // Pick audio output = first floating output (f16/f32)
     std::optional<ov::Output<const ov::Node>> audio_out;
     for (const auto& out : b_outputs) {
@@ -283,8 +315,8 @@ void ov::npuw::KokoroInferRequest::infer() {
         std::vector<int64_t> idx_block(idx_all.begin() + t0,
                                        idx_all.begin() + t1);
 
-        auto en_in_tensor = m_model_b_request->get_tensor(b_en_in.value());
-        auto asr_in_tensor = m_model_b_request->get_tensor(b_asr_in.value());
+        auto en_in_tensor = m_model_b_request->get_tensor(m_b_en_block);
+        auto asr_in_tensor = m_model_b_request->get_tensor(m_b_asr_block);
         OPENVINO_ASSERT(en_in_tensor && asr_in_tensor);
 
         // 3D tensor: [1, number_of_tokens, block_size]
