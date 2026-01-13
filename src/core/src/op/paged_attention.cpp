@@ -106,6 +106,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 19, "xattention_stride", {0}, {element::i32});
     input_check(this, 20, "sinks", {1, 4}, {});
     input_check(this, 21, "qq_bias", {3}, {});
+    //input_check(this, 22, "block_update_indices", {1}, {element::i32});
+    //input_check(this, 23, "block_update_indices_begins", {1}, {element::i32});
 
     // value head_size may be not same with key
     auto out_ps = get_input_partial_shape(0);

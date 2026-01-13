@@ -9,7 +9,6 @@
 #include <compress_quantize_weights.hpp>
 #include <openvino/pass/make_stateful.hpp>
 #include <openvino/pass/sdpa_to_paged_attention.hpp>
-#include <openvino/pass/pa_to_pa_with_bias.hpp>
 #include <openvino/pass/serialize.hpp>
 #include <openvino/pass/stateful_to_stateless.hpp>
 #include <pruning.hpp>
@@ -157,7 +156,6 @@ void regmodule_offline_transformations(py::module m) {
                                                                   allow_score_aggregation,
                                                                   allow_cache_rotation,
                                                                   allow_xattention);
-            manager.register_pass<ov::pass::PAToPAWithQQBias>();
             manager.run_passes(model);
         },
         py::arg("model"),
