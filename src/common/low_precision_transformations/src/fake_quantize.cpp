@@ -69,6 +69,18 @@ std::shared_ptr<Node> updateShape(std::shared_ptr<Node> constantOp, const Partia
     return constantOp;
 }
 
+ov::Output<ov::Node> getDataInput(const std::shared_ptr<Node>& eltwise) {
+    if (!ov::is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(0))) {
+        return eltwise->get_input_source_output(0);
+    }
+
+    if (!ov::is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(1))) {
+        return eltwise->get_input_source_output(1);
+    }
+
+    return ov::Output<ov::Node>();
+}
+
 std::shared_ptr<Node> getDataNode(const std::shared_ptr<Node>& eltwise) {
     if (!ov::is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(0))) {
         return eltwise->get_input_node_shared_ptr(0);
@@ -166,7 +178,7 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     const bool updatePrecisions) {
     const std::shared_ptr<Node> eltwise = fakeQuantize->get_input_node_shared_ptr(0);
 
-    if (eltwise->get_input_size() > 0 && fq::getDataNode(eltwise)->get_output_partial_shape(0) != eltwise->get_output_partial_shape(0)) {
+    if (eltwise->get_input_size() > 0 && fq::getDataInput(eltwise).get_partial_shape() != eltwise->get_output_partial_shape(0)) {
         return false;
     }
 
