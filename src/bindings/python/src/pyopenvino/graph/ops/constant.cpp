@@ -83,7 +83,7 @@ void regclass_graph_op_Constant(py::module m) {
                          auto flat_array = array.reshape({-1});
 
                          // copy data
-                         for (int i = 0; i < flat_array.size(); ++i) {
+                         for (py::ssize_t i = 0; i < flat_array.size(); ++i) {
                              py::object item = flat_array.attr("item")(i);
 
                              if (item.is_none()) {
