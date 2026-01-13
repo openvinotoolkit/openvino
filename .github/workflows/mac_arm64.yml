@@ -145,7 +145,7 @@ jobs:
 
       - name: Setup NodeJS
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version: ${{ env.NODEJS_VERSION }}
 
