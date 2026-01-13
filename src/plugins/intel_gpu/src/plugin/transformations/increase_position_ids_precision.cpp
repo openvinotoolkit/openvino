@@ -28,6 +28,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/op/interpolate.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -417,6 +418,47 @@ DisableFP16ComForGPTOSSROPEPattern::DisableFP16ComForGPTOSSROPEPattern() {
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(sin, "DisableFP16ComForGPTOSSROPEPattern");
+    this->register_matcher(m, callback);
+}
+
+DisableFP16ComSinGenPatternForHiFiGAN::DisableFP16ComSinGenPatternForHiFiGAN() {
+    using namespace ov::pass::pattern;
+
+    // SineGen of HiFiGAN(https://github.com/FunAudioLLM/CosyVoice/blob/1dcc59676fe3fa863f983ab7820e481560c73be7/cosyvoice/hifigan/generator.py#L157-L189)
+    // could make inf in fp16 because of large input value multiplication (e.g. hop_length=480 makes multiply x480)
+    // So keep fp32 from Multiply x480 to Sin to avoid inf in fp16
+    auto multiply = wrap_type<ov::op::v1::Multiply>();
+    // This pass is called after ConvertToInterpolateV4 passes. So consider only v4 here.
+    auto interpolate = wrap_type<ov::op::v4::Interpolate>({multiply, any_input(), any_input(), any_input()});
+    auto transpose = wrap_type<ov::op::v1::Transpose>({interpolate, any_input()});
+    auto sin = wrap_type<ov::op::v0::Sin>({transpose});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto sin_node = pattern_map.at(sin).get_node_shared_ptr();
+        auto transpose_node = pattern_map.at(transpose).get_node_shared_ptr();
+        auto interpolate_node = pattern_map.at(interpolate).get_node_shared_ptr();
+        auto multiply_node = pattern_map.at(multiply).get_node_shared_ptr();
+
+        if (transformation_callback(sin_node)) return false;
+
+        const auto desired_et = ov::element::f32;
+        const auto original_et = sin_node->get_output_element_type(0);
+
+        if (original_et == desired_et) return false;
+
+        size_t idx = 0;
+        insert_converts_before_if_needed(multiply_node, desired_et, idx);
+        ov::disable_fp16_compression(multiply_node);
+        ov::disable_fp16_compression(interpolate_node);
+        ov::disable_fp16_compression(transpose_node);
+        ov::disable_fp16_compression(sin_node);
+        insert_converts_after_if_needed(sin_node, original_et, idx);
+
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sin, "DisableFP16ComSinGenPatternForHiFiGAN");
     this->register_matcher(m, callback);
 }
 }  // namespace ov::intel_gpu
