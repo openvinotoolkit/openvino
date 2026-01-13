@@ -1,3 +1,92 @@
+// Per-channel quantization kernel generator
+JitConstants PagedAttentionGeneratorKVCacheUpdatePerChannel::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
+    const auto desc = params.typed_desc<paged_attention>();
+    jit.make("KV_HEADS_NUM", desc->kv_heads_num);
+    jit.make("K_HEAD_SIZE", desc->k_head_size);
+    jit.make("V_HEAD_SIZE", desc->v_head_size);
+    if (desc->has_xattention) {
+        jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
+    } else {
+        jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
+    }
+    // 这里定义PER_CHANNEL的JIT常量
+    jit.make("KV_CACHE_COMPRESSION_PER_CHANNEL", 1);
+    jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + 4); // 可根据实际需求调整
+    jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + 4);
+    return jit;
+}
+
+Arguments PagedAttentionGeneratorKVCacheUpdatePerChannel::get_arguments_desc(const kernel_impl_params& params) const {
+    Arguments args;
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});
+    // scalar
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // key_pitch
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // key_offset
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // value_pitch
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // value_offset
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // batch_size_in_sequences
+    return args;
+}
+
+DispatchDataFunc PagedAttentionGeneratorKVCacheUpdatePerChannel::get_dispatch_data_func() const {
+    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        OPENVINO_ASSERT(!params.is_dynamic());
+        auto& wgs = kd.params.workGroups;
+        const auto desc = params.typed_desc<paged_attention>();
+        const size_t kv_len = get_input_kv_len(params);
+        const size_t kv_heads_num = desc->kv_heads_num;
+        const size_t wg_count = (kv_len + WG_SIZE - 1) / WG_SIZE;
+        wgs.global = {1, kv_heads_num, wg_count * WG_SIZE};
+        wgs.local = {1, 1, WG_SIZE};
+        auto& scalars = kd.params.scalars;
+        size_t key_pitch = desc->k_head_size * kv_heads_num;
+        size_t value_pitch = desc->v_head_size * kv_heads_num;
+        auto key_layout = params.input_layouts[PagedAttentionInputIdx::KEY];
+        auto value_layout = params.input_layouts[PagedAttentionInputIdx::VALUE];
+        auto get_simple_pitch = [](const layout& layout) {
+            size_t pitch = 1;
+            auto dims_padding = layout.get_padded_dims();
+            for (size_t i = dims_padding.size() - 1; i > 0; --i) {
+                pitch = dims_padding[i];
+                if (pitch > 1) {
+                    break;
+                }
+            }
+            return pitch;
+        };
+        key_pitch = get_simple_pitch(key_layout);
+        value_pitch = get_simple_pitch(value_layout);
+        auto get_simple_offset = [](const layout& layout) {
+            size_t offset = 0;
+            const auto& data_padding = layout.data_padding;
+            const auto& lower_pads = data_padding._lower_size;
+            for (auto& it : lower_pads) {
+                if (it > 0) {
+                    offset = it;
+                    break;
+                }
+            }
+            return offset;
+        };
+        size_t key_offset = get_simple_offset(key_layout);
+        size_t value_offset = get_simple_offset(value_layout);
+        size_t batch_size_in_sequences = 1;
+        std::vector<size_t> scaler_value = {key_pitch, key_offset, value_pitch, value_offset, batch_size_in_sequences};
+        scalars.resize(scaler_value.size());
+        for (size_t i = 0; i < scaler_value.size(); ++i) {
+            scalars[i].t = ScalarDescriptor::Types::INT32;
+            scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
+        }
+    }};
+}
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
