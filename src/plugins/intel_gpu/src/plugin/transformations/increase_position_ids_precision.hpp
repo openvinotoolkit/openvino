@@ -54,4 +54,10 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("DisableFP16ComForROPEPattern");
     DisableFP16ComForGPTOSSROPEPattern();
 };
+
+class DisableFP16ComSinGenPatternForHiFiGAN : public IncreasePositionIdsPrecisionForRoPE {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("DisableFP16ComSinGenPatternForHiFiGAN");
+    DisableFP16ComSinGenPatternForHiFiGAN();
+};
 }   // namespace ov::intel_gpu
