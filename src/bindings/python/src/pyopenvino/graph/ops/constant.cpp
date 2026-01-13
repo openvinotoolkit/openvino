@@ -10,6 +10,7 @@
 #include <pybind11/stl.h>
 
 #include <stdexcept>
+#include <iostream>
 
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -66,18 +67,19 @@ void regclass_graph_op_Constant(py::module m) {
                      if (array.dtype().kind() == 'U' || array.dtype().kind() == 'S' || array.dtype().kind() == 'O' ||
                          array.dtype().kind() == 'a') {
                          if (shared_memory) {
-                             throw std::runtime_error("Creating a String Constant with shared memory is not supported. "
-                                                      "Set shared_memory to False or omit the parameter.");
+                             std::cerr << "Warning: Creating a String Constant with shared memory is not supported. "
+                                          "Data will be copied." << std::endl;
                          }
                          ov::Shape shape(array.shape(), array.shape() + array.ndim());
 
+                         ov::Tensor tensor(ov::element::string, shape);
                          if (array.size() == 0) {
                              // return empty string tensor
-                             ov::Tensor tensor(ov::element::string, shape);
                              return std::make_shared<ov::op::v0::Constant>(tensor);
                          }
                          // convert NumPy array to flattened list of strings
-                         std::vector<std::string> strings;
+                         std::string* tensor_data = tensor.data<std::string>();
+                        //  std::vector<std::string> strings;
                          auto flat_array = array.reshape({-1});
 
                          // copy data
@@ -85,14 +87,11 @@ void regclass_graph_op_Constant(py::module m) {
                              py::object item = flat_array.attr("item")(i);
 
                              if (item.is_none()) {
-                                 strings.push_back("");
+                                 tensor_data[i] = "";
                                  continue;
                              }
-                             strings.push_back(py::str(item));
+                             tensor_data[i] = py::str(item).cast<std::string>();
                          }
-
-                         // create OpenVINO String Tensor
-                         ov::Tensor tensor(ov::element::string, shape, &strings[0]);
 
                          // return the Constant Op wrapping this tensor
                          return std::make_shared<ov::op::v0::Constant>(tensor);
