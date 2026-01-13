@@ -80,7 +80,6 @@ void regclass_graph_op_Constant(py::module m) {
                          }
                          // convert NumPy array to flattened list of strings
                          std::string* tensor_data = tensor.data<std::string>();
-                         //  std::vector<std::string> strings;
                          auto flat_array = array.reshape({-1});
 
                          // copy data
