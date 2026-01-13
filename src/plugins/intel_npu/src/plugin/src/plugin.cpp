@@ -232,6 +232,18 @@ std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properti
     return modelPtr;
 }
 
+/**
+ * @brief Registers all blob sections readers known to the plugin.
+ * @note The CRE & OffsetsTable sections should have been already registered (e.g. in the BlobReader ctor) since these
+ * sections are a core part of the format.
+ */
+void register_known_sections(const std::shared_ptr<BlobReader>& blobReader) {
+    blobReader->register_reader(PredefinedSectionID::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
+    blobReader->register_reader(PredefinedSectionID::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
+    blobReader->register_reader(PredefinedSectionID::BATCH_SIZE, BatchSizeSection::read);
+    blobReader->register_reader(PredefinedSectionID::IO_LAYOUTS, IOLayoutsSection::read);
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -1066,6 +1078,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
 
     auto blobReader = std::make_shared<BlobReader>(tensorBig);
+    register_known_sections(blobReader);
     auto npu_plugin_properties = properties;
 
     // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the

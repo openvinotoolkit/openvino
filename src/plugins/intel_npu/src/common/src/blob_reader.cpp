@@ -16,8 +16,9 @@ constexpr uint32_t FORMAT_VERSION = 0x30000;  // 3.0;
 namespace intel_npu {
 
 BlobReader::BlobReader(const ov::Tensor& source) : m_source(source), m_cursor(0) {
-    // Register all readers we already know about
-    // TODO what about InitSchedules that requires a WeightlessGraph object?
+    // Register the core sections
+    register_reader(PredefinedSectionID::CRE, CRESection::read);
+    register_reader(PredefinedSectionID::OFFSETS_TABLE, OffsetsTableSection::read);
 }
 
 void BlobReader::register_reader(const SectionID section_id,

@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cre.hpp"
+#include "intel_npu/common/cre.hpp"
 
 namespace intel_npu {
 
