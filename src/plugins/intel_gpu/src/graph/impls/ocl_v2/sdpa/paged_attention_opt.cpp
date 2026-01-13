@@ -767,6 +767,9 @@ protected:
         jit.make("KV_HEADS_NUM", desc->kv_heads_num);
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         jit.make("SUBGROUP_SIZE", subgroup_size);
+        jit.make("EPSILON", std::numeric_limits<float>::epsilon());
+        jit.make("SIZEOF_HALF", 2);
+        jit.make("COMPRESSED_EXTRA_DIMS", 4);
 
         // KV cache compression support
         const bool kv_cache_compressed = get_kv_compressed(params);
@@ -1611,7 +1614,6 @@ public:
             // Calculate actual buffer sizes based on runtime evictable_sizes
             size_t total_matrix_elements = 0;
             size_t total_vector_elements = 0;
-            
             if (!params.memory_deps.empty() && params.memory_deps.count(PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES) > 0) {
                 const auto& evictable_sizes_mem = params.memory_deps.at(PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES);
                 mem_lock<int32_t, mem_lock_type::read> evictable_sizes_lock(evictable_sizes_mem, *params.strm);
@@ -1622,7 +1624,6 @@ public:
                     total_matrix_elements += evictable_size * evictable_size;
                     total_vector_elements += evictable_size;
                 }
-                
                 GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - "
                                        << "matrix: " << total_matrix_elements 
                                        << ", vector: " << total_vector_elements << std::endl;
@@ -1631,7 +1632,6 @@ public:
                 const size_t max_evictable_size = 512;
                 total_matrix_elements = batch_size * max_evictable_size * max_evictable_size;
                 total_vector_elements = batch_size * max_evictable_size;
-                
                 GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Runtime sizes not available, using max=512" << std::endl;
             }
 

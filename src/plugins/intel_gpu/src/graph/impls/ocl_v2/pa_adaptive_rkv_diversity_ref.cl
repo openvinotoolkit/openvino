@@ -4,21 +4,10 @@
 
 #include "include/batch_headers/common.cl"
 
-// Constants
-#define EPSILON_FOR_NORM 1e-12f
-#define SIZEOF_HALF 2
-#define COMPRESSED_EXTRA_DIMS 4  // BY_CHANNEL/BY_TOKEN add 4 dims for scale/zp
-
-// Helper macros for computing key cache offset based on compression mode
-// All offsets are in BYTES. Data is int8 (1 byte), scale/zp are half (2 bytes each).
+// Key cache offset macros (all offsets in bytes: int8=1, half=2)
 #if KV_CACHE_COMPRESSED
-    #if KEY_CACHE_QUANT_MODE == 1  // BY_CHANNEL mode
-        // Layout: [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE, PAGED_ATTENTION_BLOCK_SIZE+4]
-        // Quantization per dimension: each dimension [d] has its own scale/zp
-        // Memory layout per dimension:
-        //   [token 0..BLOCK_SIZE-1] (int8 data, BLOCK_SIZE bytes)
-        //   [scale] (half, 2 bytes) at offset BLOCK_SIZE
-        //   [zp] (half, 2 bytes) at offset BLOCK_SIZE+2
+    #if KEY_CACHE_QUANT_MODE == 1  // BY_CHANNEL: per-dimension scale/zp
+        // Layout: [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE, BLOCK_SIZE+4]
         #define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
             ((physical_block) * KV_HEADS_NUM * K_HEAD_SIZE * \
              (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + \
@@ -32,17 +21,9 @@
              PAGED_ATTENTION_BLOCK_SIZE)
         #define KEY_CACHE_ZP_OFFSET(physical_block, d) \
             (KEY_CACHE_SCALE_OFFSET(physical_block, d) + SIZEOF_HALF)
-    #elif KEY_CACHE_QUANT_MODE == 2  // BY_TOKEN mode
-        // Layout: [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE+4, PAGED_ATTENTION_BLOCK_SIZE]
-        // Quantization per token: each token shares same scale/zp across all dimensions
-        // Memory layout:
-        //   Data rows [dim 0..K_HEAD_SIZE-1]: each row has BLOCK_SIZE int8 values
-        //   Scale row [dim K_HEAD_SIZE]: BLOCK_SIZE half values (BLOCK_SIZE * 2 bytes)
-        //   Padding row [dim K_HEAD_SIZE+1]: unused
-        //   ZP row [dim K_HEAD_SIZE+2]: BLOCK_SIZE half values (BLOCK_SIZE * 2 bytes)
-        //   Padding row [dim K_HEAD_SIZE+3]: unused
-        // NOTE: token_offset is multiplied by SIZEOF_HALF because scale/zp are half (2 bytes)
-        //       token 0 scale at byte offset 0-1, token 1 scale at byte offset 2-3, etc.
+    #elif KEY_CACHE_QUANT_MODE == 2  // BY_TOKEN: per-token scale/zp
+        // Layout: [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE+4, BLOCK_SIZE]
+        // Scale at [K_HEAD_SIZE], ZP at [K_HEAD_SIZE+2] (token_offset * 2 for half)
         #define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
             ((physical_block) * KV_HEADS_NUM * (K_HEAD_SIZE + COMPRESSED_EXTRA_DIMS) * \
              PAGED_ATTENTION_BLOCK_SIZE + \
@@ -73,7 +54,7 @@
             norm_sq_temp += buffer[d] * buffer[d]; \
         } \
         norm_sq_temp = sub_group_reduce_add(norm_sq_temp); \
-        ACCUMULATOR_TYPE norm_temp = native_sqrt(norm_sq_temp + EPSILON_FOR_NORM); \
+        ACCUMULATOR_TYPE norm_temp = native_sqrt(norm_sq_temp + EPSILON); \
         for (uint d = sglid; d < size; d += SUBGROUP_SIZE) { \
             buffer[d] /= norm_temp; \
         } \
@@ -81,7 +62,6 @@
     } while(0)
 
 #if KV_CACHE_COMPRESSED
-    // Helper macro for loading scale and zero-point for BY_CHANNEL mode
     #define LOAD_SCALE_ZP_BY_CHANNEL(physical_block, d, scale_var, zp_var) \
         do { \
             __global const half* scale_ptr = \
@@ -92,7 +72,6 @@
             zp_var = (ACCUMULATOR_TYPE)(*zp_ptr); \
         } while(0)
 
-    // Helper macro for loading scale and zero-point for BY_TOKEN mode
     #define LOAD_SCALE_ZP_BY_TOKEN(physical_block, token_offset, scale_var, zp_var) \
         do { \
             __global const half* scale_ptr = \
@@ -104,8 +83,7 @@
         } while(0)
 #endif
 
-// Helper macro for loading and normalizing key vectors
-// Separate implementations for compressed vs uncompressed to avoid dummy macros
+// Load and normalize key vectors (with dequantization if compressed)
 #if KV_CACHE_COMPRESSED
 #define LOAD_AND_NORMALIZE_KEY(buffer, physical_block, token_offset) \
     do { \
@@ -113,12 +91,10 @@
             INPUT0_TYPE raw_value = key_cache[KEY_CACHE_OFFSET(physical_block, token_offset, d)]; \
             ACCUMULATOR_TYPE value; \
             if (KEY_CACHE_QUANT_MODE == 1) { \
-                /* BY_CHANNEL: Each dimension has its own scale/zp */ \
                 ACCUMULATOR_TYPE scale, zp; \
                 LOAD_SCALE_ZP_BY_CHANNEL(physical_block, d, scale, zp); \
                 value = ((ACCUMULATOR_TYPE)raw_value - zp) * scale; \
             } else if (KEY_CACHE_QUANT_MODE == 2) { \
-                /* BY_TOKEN: All dimensions of a token share the same scale/zp */ \
                 ACCUMULATOR_TYPE scale, zp; \
                 LOAD_SCALE_ZP_BY_TOKEN(physical_block, token_offset, scale, zp); \
                 value = ((ACCUMULATOR_TYPE)raw_value - zp) * scale; \
@@ -128,7 +104,6 @@
         NORMALIZE_BUFFER(buffer, K_HEAD_SIZE); \
     } while(0)
 #else
-// Uncompressed version - no dequantization needed
 #define LOAD_AND_NORMALIZE_KEY(buffer, physical_block, token_offset) \
     do { \
         for (int d = sglid; d < K_HEAD_SIZE; d += SUBGROUP_SIZE) { \
@@ -142,16 +117,16 @@ REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 __attribute__((reqd_work_group_size(SUBGROUP_SIZE, 1, 1)))
 KERNEL(pa_adaptive_rkv_diversity)(
     OPTIONAL_SHAPE_INFO_ARG
-    __global const INPUT0_TYPE* key_cache,              // [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE, BLOCK_SIZE]
-    __global const INPUT1_TYPE* evictable_sizes,        // [batch_size]
-    __global const INPUT2_TYPE* block_indices,          // [total_evictable_blocks]
-    __global const INPUT3_TYPE* block_indices_begins,   // [batch_size + 1]
-    __global OUTPUT_TYPE* diversity_output,             // [total_diversity_scores]
-    __global ACCUMULATOR_TYPE* similarity_matrix,       // global buffer for similarity matrix
-    __global ACCUMULATOR_TYPE* aggregated_similarities, // global buffer for aggregated similarities
-    __global ACCUMULATOR_TYPE* row_means,               // global buffer for row means
-    __global ACCUMULATOR_TYPE* block_sums,              // global buffer for block sums
-    const int start_size                                // scalar
+    __global const INPUT0_TYPE* key_cache,
+    __global const INPUT1_TYPE* evictable_sizes,
+    __global const INPUT2_TYPE* block_indices,
+    __global const INPUT3_TYPE* block_indices_begins,
+    __global OUTPUT_TYPE* diversity_output,
+    __global ACCUMULATOR_TYPE* similarity_matrix,
+    __global ACCUMULATOR_TYPE* aggregated_similarities,
+    __global ACCUMULATOR_TYPE* row_means,
+    __global ACCUMULATOR_TYPE* block_sums,
+    const int start_size
 ) {
     const uint batch_idx = get_group_id(0);
     const uint sglid = get_sub_group_local_id();
@@ -162,7 +137,6 @@ KERNEL(pa_adaptive_rkv_diversity)(
         return;
 
     // Calculate diversity output offset for this batch
-    // Each batch contributes (evictable_size / block_size) * evictable_size elements
     int diversity_output_offset = 0;
     for (int b = 0; b < batch_idx; b++) {
         int prev_evictable_size = evictable_sizes[b];
@@ -178,9 +152,7 @@ KERNEL(pa_adaptive_rkv_diversity)(
     if (num_evictable_blocks_for_batch != num_evictable_blocks)
         return;
 
-    // Calculate buffer offsets dynamically based on actual evictable_sizes
-    // Each batch uses exactly (evictable_size * evictable_size) for matrix buffers
-    // and (evictable_size) for vector buffers
+    // Calculate batch buffer offsets
     int batch_matrix_offset = 0;
     int batch_vector_offset = 0;
     // Accumulate offsets from all previous batches
@@ -214,8 +186,7 @@ KERNEL(pa_adaptive_rkv_diversity)(
         }
         barrier(mem_fence);
 
-        // Compute cosine similarity matrix for evictable region
-        // Exploit symmetry: only compute upper triangle (token_j >= token_i), then mirror
+        // Compute cosine similarity (upper triangle only for symmetry)
         for (int token_i = 0; token_i < evictable_size; token_i++) {
             const int abs_token_i = start_size + token_i;
             const int block_idx_i = abs_token_i / PAGED_ATTENTION_BLOCK_SIZE;
@@ -238,8 +209,7 @@ KERNEL(pa_adaptive_rkv_diversity)(
                 if (token_i == token_j) {
                     similarity = 1.0f;
                 } else {
-                    // Load token_j on-the-fly (not buffered) and compute cosine similarity
-                    // Formula: cosine(i,j) = dot(normalized_i, j) / norm(j)
+                    // Compute cosine similarity: dot(normalized_i, j) / norm(j)
                     ACCUMULATOR_TYPE dot_product = 0.0f;
                     ACCUMULATOR_TYPE norm_sq_j = 0.0f;
 
@@ -274,7 +244,7 @@ KERNEL(pa_adaptive_rkv_diversity)(
                     // Subgroup reductions
                     dot_product = sub_group_reduce_add(dot_product);
                     norm_sq_j = sub_group_reduce_add(norm_sq_j);
-                    ACCUMULATOR_TYPE norm_j = native_sqrt(norm_sq_j + EPSILON_FOR_NORM);
+                    ACCUMULATOR_TYPE norm_j = native_sqrt(norm_sq_j + EPSILON);
 
                     similarity = dot_product / norm_j;
                 }
@@ -326,8 +296,7 @@ KERNEL(pa_adaptive_rkv_diversity)(
     }
     barrier(mem_fence);
 
-    // Block sum (negative sum): sum block_size rows for each block
-    // Output: flattened 2D [num_evictable_blocks, evictable_size]
+    // Block sum (negative): [num_evictable_blocks, evictable_size]
     for (int block_idx = 0; block_idx < num_evictable_blocks; block_idx++) {
         // Initialize block sums for this block (all work items participate)
         for (int col = sglid; col < evictable_size; col += SUBGROUP_SIZE) {
@@ -344,7 +313,7 @@ KERNEL(pa_adaptive_rkv_diversity)(
         }
         barrier(mem_fence);
 
-        // Write all block_sums directly to output (flattened 2D: [num_evictable_blocks, evictable_size])
+        // Write block sums to output
         for (int col = sglid; col < evictable_size; col += SUBGROUP_SIZE) {
             const int output_offset = diversity_output_offset + block_idx * evictable_size + col;
             diversity_output[output_offset] = (OUTPUT_TYPE)block_sums_batch[col];

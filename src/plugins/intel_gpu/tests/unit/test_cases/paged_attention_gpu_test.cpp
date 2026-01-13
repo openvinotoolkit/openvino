@@ -25,39 +25,29 @@ using namespace ov::intel_gpu;
 using namespace ::tests;
 
 /*
-* PagedAttention inputs:
-* [0]: query
-* shape: [batch_size_in_tokens, num_heads * head_size], type: f16
-* [1]: key
-* shape: [batch_size_in_tokens, num_kv_heads * head_size], type: f16
-* [2]: value 
-* shape: [batch_size_in_tokens, num_kv_heads * head_size], type: f16
-* [3]: key_cache
-* shape: [num_blocks, num_kv_heads, head_size, block_size], type: f16
-* [4]: value_cache
-* shape: [num_blocks, num_kv_heads, block_size, head_size], type: f16
-* [5]: past_lens
-* shape: [batch_size_in_sequences], type: i32
-* [6]: subsequence_begins
-* shape: [batch_size_in_sequences + 1], type: i32
-* [7]: block_indices
-* Shape: [num_blocks], type: i32
-* [8]: block_indices_begins
-* Shape: [batch_size_in_sequences + 1], type: i32
-* [9]: scale, optional
-* [10]: sliding_window, optional
-* [11]: alibi_slopes, optional
-* [12]: max_context_len
-* shape: [], type: i32
-* [13]: score_aggregation_window​, optional​, shape: [batch_size_in_sequences]
-* [14]: rotated_block_indices​, optional​
-* shape: [num_rotated_blocks]​, type: i32
-* [15]: rotation_deltas​, optional​
-* shape: [num_rotated_blocks, BLOCK_SIZE]​ || [num_rotated_blocks, 1]​, type: i32
-* [16]: rotation_trig_lut​, optional​
-* shape: [max_num_batched_tokens / BLOCK_SIZE, head_size]​ || [max_num_batched_tokens, head_size], type: f16
-*/
-
+ * PagedAttention inputs:
+ * [0]: query, shape: [batch_size_in_tokens, num_heads * head_size], type: f16
+ * [1]: key, shape: [batch_size_in_tokens, num_kv_heads * head_size], type: f16
+ * [2]: value, shape: [batch_size_in_tokens, num_kv_heads * head_size], type: f16
+ * [3]: key_cache, shape: [num_blocks, num_kv_heads, head_size, block_size], type: f16 or i8
+ * [4]: value_cache, shape: [num_blocks, num_kv_heads, block_size, head_size], type: f16 or i8
+ * [5]: past_lens, shape: [batch_size_in_sequences], type: i32
+ * [6]: subsequence_begins, shape: [batch_size_in_sequences + 1], type: i32
+ * [7]: block_indices, shape: [num_blocks], type: i32
+ * [8]: block_indices_begins, shape: [batch_size_in_sequences + 1], type: i32
+ * [9]: scale, optional
+ * [10]: sliding_window, optional
+ * [11]: alibi_slopes, optional
+ * [12]: max_context_len, shape: [], type: i32
+ * [13]: score_aggregation_window, optional, shape: [batch_size_in_sequences], type: i32
+ * [14]: rotated_block_indices, optional, shape: [num_rotated_blocks], type: i32
+ * [15]: rotation_deltas, optional, shape: [num_rotated_blocks, BLOCK_SIZE] or [num_rotated_blocks, 1], type: i32
+ * [16]: rotation_trig_lut, optional, shape: [max_num_batched_tokens, head_size], type: f16
+ * [17]: adaptive_rkv_start_size, optional, shape: [], type: i32
+ * [18]: adaptive_rkv_evictable_sizes, optional, shape: [batch_size_in_sequences], type: i32
+ * [19]: adaptive_rkv_diversity_block_set_indices, optional, shape: [total_blocks], type: i32
+ * [20]: adaptive_rkv_diversity_block_set_indices_begins, optional, shape: [batch_size_in_sequences + 1], type: i32
+ */
 
 enum class ScoresMode {
     DISABLED = 0,
@@ -1271,8 +1261,6 @@ private:
             if (pam.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                 // BY_CHANNEL: [num_blocks, num_kv_heads, head_size, block_size+4]
                 // Each dimension quantized across all tokens in block
-                // Scale/zp at positions: [block_size], [block_size+1], [block_size+2], [block_size+3]
-                
                 for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                     const int physical_block = pam.block_indices[blocks_start + block_idx];
                     const int tokens_in_block = std::min(pam.block_size, total_tokens - block_idx * pam.block_size);
@@ -1303,15 +1291,8 @@ private:
                 }
             } else {
                 // BY_TOKEN: [num_blocks, num_kv_heads, head_size+4, block_size]
-                // All dimensions of one token quantized together with shared scale/zp
-                // Memory layout per token:
-                //   Data rows [0..head_size-1]: each row has block_size int8 values
-                //   Scale row [head_size]: block_size half values (block_size * 2 bytes)
-                //   Padding row [head_size+1]: unused
-                //   ZP row [head_size+2]: block_size half values (block_size * 2 bytes)
-                //   Padding row [head_size+3]: unused
-                // NOTE: token_offset is multiplied by 2 for byte offset since scale/zp are half (2 bytes)
-                
+                // Token-wise quantization with shared scale/zp per token
+                // Layout: data rows [0..head_size-1], scale at [head_size], zp at [head_size+2] (fp16)
                 for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                     const int physical_block = pam.block_indices[blocks_start + block_idx];
                     const int tokens_in_block = std::min(pam.block_size, total_tokens - block_idx * pam.block_size);
@@ -1744,17 +1725,8 @@ public:
         if (diversity_output_mem) {
             ASSERT_EQ(diversity_output_mem->count(), std::get<2>(ref_data).size());
             mem_lock<ov::float16, mem_lock_type::read> mem_ptr(diversity_output_mem, get_test_stream());
-
-            // const auto& ref_diversity = std::get<2>(ref_data);
-            // std::cout << "[GPU] Diversity output (" << ref_diversity.size() << " values):" << std::endl;
-            // for (size_t i = 0; i < ref_diversity.size(); i++) {
-            //     std::cout << "  [" << i << "] GPU=" << static_cast<float>(mem_ptr[i]) 
-            //               << ", Ref=" << static_cast<float>(ref_diversity[i]) << std::endl;
-            // }
-
-            // Use relaxed tolerance for diversity due to float32 accumulator (GPU) vs float16 (Reference) intermediate calculation differences
-            // GPU uses ACCUMULATOR_TYPE=float32 for dot products, while reference uses float16 throughout
-            float diversity_tolerance = tolerance * 10.0f;  // 0.02 for diversity
+            // Relaxed tolerance due to float32 (GPU) vs float16 (reference) accumulator difference
+            float diversity_tolerance = tolerance * 10.0f;
             for (size_t i = 0; i < diversity_output_mem->count(); i++) {
                 ASSERT_NEAR(mem_ptr[i], std::get<2>(ref_data)[i], diversity_tolerance) << " at index=" << i;
             }
@@ -2032,16 +2004,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_rkv, adaptive_rkv_diversity_test, ::test
     paged_attention_test_params{ {{128, 0}}, 4, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },
 
     // Edge cases - empty evictable_size (kernel skip test)
-    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 0, {0} },  // Empty - skip kernel
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 0, {0} },    // Empty - skip kernel
     paged_attention_test_params{ {{32, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {16} },  // Minimal valid size (block-aligned)
 
     // Multi-sequence tests - uniform evictable_sizes
-    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },  // 2 sequences: same size
+    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },            // 2 sequences: same size
     paged_attention_test_params{ {{128, 0}, {192, 0}, {160, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },  // 3 sequences: same size
-    
+
     // Multi-sequence tests - varying evictable_sizes per sequence
-    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48} },  // 2 sequences: different evictable sizes
-    paged_attention_test_params{ {{128, 0}, {192, 0}, {160, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48, 32} },  // 3 sequences: different sizes
+    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48} },                              // 2 sequences: different evictable sizes
+    paged_attention_test_params{ {{128, 0}, {192, 0}, {160, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48, 32} },                // 3 sequences: different sizes
     paged_attention_test_params{ {{128, 0}, {128, 0}, {128, 0}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {16, 32, 48, 32} },  // 4 sequences: varied sizes
 
     // With KV cache compression
@@ -2055,7 +2027,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_rkv, adaptive_rkv_diversity_test, ::test
     paged_attention_test_params{ {{512, 0}}, 4, 2, 128, 128, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 128, {256} },
 
     // GQA configurations
-    paged_attention_test_params{ {{128, 0}}, 8, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },  // heads_num=8, start+evict=96
+    paged_attention_test_params{ {{128, 0}}, 8, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },     // heads_num=8, start+evict=96
     paged_attention_test_params{ {{160, 0}}, 16, 4, 128, 128, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {48} },  // heads_num=16, start+evict=80
 
     // Different head sizes
