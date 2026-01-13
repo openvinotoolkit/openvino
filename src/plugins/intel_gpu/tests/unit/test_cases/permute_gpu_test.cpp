@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2353,10 +2353,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_permute_f_y_axes_tile,
                              {{16, 32, 128, 512}, format::bfyx},           // PERMUTE_SIMPLE_MEM_COPY
                              {{32, 256, 256, 1}, format::b_fs_yx_fsv32},   // permute_f_y_axes
                              {{32, 32, 16, 4}, format::b_fs_yx_fsv16},     // THREE_DIM_TRANSPOSE
-                             {{32, 16, 16, 16}, format::bfyx}, 
-                             {{32, 16, 8, 16}, format::bfyx}, 
+                             {{32, 16, 16, 16}, format::bfyx},
+                             {{32, 16, 8, 16}, format::bfyx},
                              {{32, 16, 16, 64}, format::bfyx},
-                             {{32, 16, 8, 32}, format::bfyx}, 
+                             {{32, 16, 8, 32}, format::bfyx},
                              {{32, 8, 16, 32}, format::bfyx},
                              {{32, 196, 8, 64}, format::bfyx},           // permute_f_y_axes
                              {{1, 512, 30, 1}, format::bfyx},            // fix for JTIMES=0
@@ -2415,7 +2415,7 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
         }
         std::cout << std::endl;
     }
-    
+
     template<data_types Data_Type>
     void execute_perf_test(const std::vector<ov::Dimension::value_type>& sizes, cldnn::format format_fsv,
                             const std::string & kernel_name, std::vector<uint16_t> permute_order)
@@ -2507,7 +2507,7 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
                   << frm_str << " " << input_type << " " << exectime_opt << std::endl;
 
     }
-    
+
 };
 
 

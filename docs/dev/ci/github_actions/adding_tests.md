@@ -75,7 +75,8 @@ NVIDIA_Plugin:
     image: openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu20.04
     volumes:
       - /mount:/mount
-    options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+      - /home/runner/secrets/:/secrets:ro
+    options: -e SCCACHE_AZURE_BLOB_CONTAINER
   env:
     CMAKE_BUILD_TYPE: 'Release'
     CMAKE_GENERATOR: 'Ninja Multi-Config'
@@ -92,6 +93,13 @@ NVIDIA_Plugin:
   if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
 
   steps:
+    - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+      shell: bash
+      run: |
+        SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+        echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+        echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+        echo "✓ Connection string loaded and masked"
   ...
 ```
 

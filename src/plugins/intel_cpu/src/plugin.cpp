@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <istream>
 #include <memory>
@@ -107,7 +108,7 @@ static std::string getDeviceFullName() {
             }
             return s.substr(start, end - start + 1);
         };
-        auto read_first_line = [&](const char* path) -> std::string {
+        auto read_first_line = [&](const std::filesystem::path& path) -> std::string {
             std::ifstream f(path);
             if (!f.is_open()) {
                 return {};
@@ -311,14 +312,13 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
 }
 
 static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
+    if (op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) ||
+        op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
+        return Config::ModelType::LLM;
+    }
     if (op::util::has_op_with_type<op::v1::Convolution>(model) ||
         op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model)) {
         return Config::ModelType::CNN;
-    }
-
-    if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && !model->get_variables().empty()) ||
-        op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
-        return Config::ModelType::LLM;
     }
 
     return Config::ModelType::Unknown;

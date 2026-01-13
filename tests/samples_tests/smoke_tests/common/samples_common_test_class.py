@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2025 Intel Corporation
+ Copyright (C) 2018-2026 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -167,7 +167,7 @@ class SamplesCommonTestClass():
         is_windows = sys.platform.startswith('win')
         if 'python' in sample_type.lower():
             executable_path += '.py'
-            if is_windows: 
+            if is_windows:
                 executable_path = 'python ' + executable_path
             else:
                 executable_path = 'python3 ' + executable_path
@@ -302,5 +302,5 @@ class SamplesCommonTestClass():
         # Check return code
         if (retcode != 0):
             log.error(stderr)
-        assert retcode == 0, "Sample execution failed"     
+        assert retcode == 0, "Sample execution failed"
         return stdout

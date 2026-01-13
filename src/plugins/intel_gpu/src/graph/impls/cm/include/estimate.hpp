@@ -327,9 +327,10 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
     uint N_block = (N + BLOCK_WG_N - 1) / BLOCK_WG_N;
     uint M_aligned = (M + BLOCK_WG_M - 1) / BLOCK_WG_M * BLOCK_WG_M;
     uint K_block_pad = N_block * (BLOCK_WG_N / (BLOCK_SIZE / STRIDE));
-    const uint block_size_div_stride = BLOCK_SIZE / STRIDE;
+    const uint block_size_div_stride = BLOCK_SIZE / STRIDE;  // 8
     constexpr SOFTMAX_TYPE log2e = 1.4426950408889634f;
-    //static_assert(BLOCK_SG_M / block_size_div_stride == 8, "BLOCK_SG_M / block_size_div_stride should be 8");
+    constexpr uint k_block_in_group = BLOCK_WG_N / block_size_div_stride;  // 32
+    constexpr uint k_block_in_sg = k_block_in_group / SG_N;   // 4
 
 #if IS_CAUSAL == 1
     if ((int)(id_wg_n * BLOCK_WG_N) >= ((int)id_wg_m + 1) * BLOCK_WG_M + q_start_strided) {
@@ -690,7 +691,7 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
     n_start = MYMIN(n_start, N);
     int n_end = MYMIN(n_start + BLOCK_SG_N, N);
     int valid_n = n_end - n_start;
-    matrix<SOFTMAX_TYPE, 64, 4> sum_t;
+    matrix<SOFTMAX_TYPE, 64, k_block_in_sg> sum_t;
     vector<int, BLOCK_SG_M> seq_m;
     cmtl::cm_vector_assign(seq_m.select_all(), 0, 1);
     vector_ref<int, BLOCK_SG_N> seq = seq_m.select<BLOCK_SG_N, 1>();
@@ -776,19 +777,19 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
                 } SIMD_IF_END;
             }
         }
-        sum_t.select<32, 1, 4, 1>( 0).format<SOFTMAX_TYPE>() = reduce2d<4, 1, 4>(acc_half.select<32, 1, 32, 1>( 0)).format<SOFTMAX_TYPE>();
-        sum_t.select<32, 1, 4, 1>(32).format<SOFTMAX_TYPE>() = reduce2d<4, 1, 4>(acc_half.select<32, 1, 32, 1>(32)).format<SOFTMAX_TYPE>();
+        sum_t.select<32, 1, k_block_in_sg, 1>( 0).format<SOFTMAX_TYPE>() = reduce2d<k_block_in_sg, 1, k_block_in_sg>(acc_half.select<32, 1, 32, 1>( 0)).format<SOFTMAX_TYPE>();
+        sum_t.select<32, 1, k_block_in_sg, 1>(32).format<SOFTMAX_TYPE>() = reduce2d<k_block_in_sg, 1, k_block_in_sg>(acc_half.select<32, 1, 32, 1>(32)).format<SOFTMAX_TYPE>();
     }
     // store
-    lsc::block_2d_desc<SOFTMAX_TYPE, 1, 8, 4> desc_c{ kq_exp_partial_sum, M - 1, (uint)(K_block_pad * sizeof(SOFTMAX_TYPE) - 1), (uint)(K_block_pad * sizeof(SOFTMAX_TYPE) - 1),
-        (int)((id_wg_n * BLOCK_WG_N + id_sg_n * BLOCK_SG_N) / block_size_div_stride), (int)(id_wg_m * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) };
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 0>(desc_c, sum_t.select<8, 1, 4, 1>( 0).format<SOFTMAX_TYPE>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 1>(desc_c, sum_t.select<8, 1, 4, 1>( 8).format<SOFTMAX_TYPE>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 2>(desc_c, sum_t.select<8, 1, 4, 1>(16).format<SOFTMAX_TYPE>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 3>(desc_c, sum_t.select<8, 1, 4, 1>(24).format<SOFTMAX_TYPE>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 4>(desc_c, sum_t.select<8, 1, 4, 1>(32).format<SOFTMAX_TYPE>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 5>(desc_c, sum_t.select<8, 1, 4, 1>(40).format<SOFTMAX_TYPE>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 6>(desc_c, sum_t.select<8, 1, 4, 1>(48).format<SOFTMAX_TYPE>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 7>(desc_c, sum_t.select<8, 1, 4, 1>(56).format<SOFTMAX_TYPE>());
+    lsc::block_2d_desc<SOFTMAX_TYPE, 1, 8, k_block_in_sg> desc_c{ kq_exp_partial_sum, M - 1 /*height*/, (uint)(K_block_pad * sizeof(SOFTMAX_TYPE) - 1) /*width*/, (uint)(K_block_pad * sizeof(SOFTMAX_TYPE) - 1),
+        (int)((id_wg_n * BLOCK_WG_N + id_sg_n * BLOCK_SG_N) / block_size_div_stride) /*x*/, (int)(id_wg_m * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) /*y*/ };
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 0>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>( 0).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 1>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>( 8).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 2>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>(16).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 3>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>(24).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 4>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>(32).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 5>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>(40).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 6>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>(48).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 7>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>(56).format<SOFTMAX_TYPE>());
 }
 #endif
