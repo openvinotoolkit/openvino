@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,6 +53,8 @@ private:
                                   const sdpa_configuration& sdpa_config,
                                   micro::Package& gemm_kq,
                                   micro::Package& gemm_vs,
+                                  micro::Package& gemm_kcq,
+                                  micro::Package& gemm_vcs,
                                   bool is_prefill,
                                   bool is_gqa_single_token);
     static void init_sdpa_configuration(const kernel_impl_params& params, sdpa_configuration& config);
@@ -63,6 +65,8 @@ private:
 
     static constexpr size_t kq_id = 0;
     static constexpr size_t vs_id = 1;
+    static constexpr size_t kcq_id = 2;  // kc - key from current input
+    static constexpr size_t vcs_id = 3;  // vc - value from current input
     static constexpr size_t prefill_id = 0;
     static constexpr size_t generate_id = 1;
 
