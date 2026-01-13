@@ -22,12 +22,20 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
 #include "whisper_infer_request.hpp"
+
+#include "low_precision/concat.hpp"
+#include "low_precision/kv_cache_concat.hpp"
+#include "low_precision/low_precision.hpp"
+#include "low_precision/move_fake_convert_up_through_kv_cache_concat.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/op_conversions/fake_convert_decomposition.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -44,7 +52,7 @@ public:
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto concat = opp::wrap_type<ov::op::v0::Concat>({param, opp::any_input()});
 
-        auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto callback = [=](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
             auto matched_param = ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
             auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
@@ -78,9 +86,9 @@ class GroupQueryAttentionDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::GroupQueryAttentionDecomposition");
     GroupQueryAttentionDecomposition(bool is_prefill_model) {
-        auto pattern_node = ov::pass::pattern::wrap_type<ov::op::internal::GroupQueryAttention>();
+        auto pattern_node = opp::wrap_type<ov::op::internal::GroupQueryAttention>();
 
-        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](opp::Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
             auto node = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(
                 pattern_to_output.at(pattern_node).get_node_shared_ptr());
@@ -94,7 +102,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_node, "GroupQueryAttentionDecomposition");
+        auto m = std::make_shared<opp::Matcher>(pattern_node, "GroupQueryAttentionDecomposition");
         register_matcher(m, std::move(callback));
     }
 
@@ -307,6 +315,71 @@ public:
     }
 };
 
+class RedirectNewKvToOutput : public ov::pass::MatcherPass {
+public:
+    RedirectNewKvToOutput() {
+        auto match_down_up_convert_subgraph = [](const ov::Output<ov::Node>& input) {
+            auto upconvert =
+            opp::wrap_type<ov::op::v0::Convert>({input}, opp::type_matches(ov::element::f32));
+
+            auto upscale = opp::wrap_type<ov::op::v0::Constant>(opp::rank_equals(0));
+            auto upmul = opp::wrap_type<ov::op::v1::Multiply>({upconvert, upscale});
+
+            auto downscale = opp::wrap_type<ov::op::v0::Constant>(opp::rank_equals(0));
+            auto downmul = opp::wrap_type<ov::op::v1::Multiply>({upmul, downscale});
+
+            auto downconvert = opp::wrap_type<ov::op::v0::Convert>(
+                {downmul},
+                opp::type_matches_any({ov::element::f8e4m3, ov::element::f8e5m2}));
+
+            return downconvert;
+        };
+
+        // example of fp8 inputs to concat
+        // input0 : float8e4m3[1,32,1151,96]
+        // input1 : float8e4m3[1,32,1,96]
+        auto input0 = opp::wrap_type<ov::op::v0::Parameter>();
+        auto input1 = opp::any_input();
+
+        auto kv_concat = opp::wrap_type<ov::op::v0::Concat>({input0, input1});
+        auto result1 = opp::wrap_type<ov::op::v0::Result>(kv_concat);
+        auto result2 = opp::wrap_type<ov::op::v0::Result>(match_down_up_convert_subgraph(kv_concat));
+
+        auto result_or = std::make_shared<opp::op::Or>(ov::OutputVector{result1, result2});
+
+        ov::matcher_pass_callback callback = [=](opp::Matcher& m) {
+            auto& pattern_to_output = m.get_pattern_value_map();
+            auto matched_concat = pattern_to_output.at(kv_concat).get_node_shared_ptr();
+
+            auto c0 = matched_concat->input(0).get_source_output();
+            auto c1 = matched_concat->input(1).get_source_output();
+
+            LOG_DEBUG(m.get_name() << ": input0.shape=" << c0.get_shape());
+            LOG_DEBUG(m.get_name() << ": input1.shape=" << c1.get_shape());
+            LOG_DEBUG(m.get_name() << ": concat=" << matched_concat->get_friendly_name());
+            LOG_DEBUG(m.get_name() << ": new_kv=" << c1.get_node_shared_ptr()->get_friendly_name());
+
+            std::shared_ptr<ov::Node> matched_result;
+            if (pattern_to_output.count(result1)) {
+                matched_result = pattern_to_output.at(result1).get_node_shared_ptr();
+            } else if (pattern_to_output.count(result2)) {
+                matched_result = pattern_to_output.at(result2).get_node_shared_ptr();
+                // TODO: need to check that upscale * downscale = 1
+                // TODO: need to check input type is f8e5m2 or f8e4m3 if we use this version of concat
+            }
+            LOG_DEBUG(m.get_name() << ": matched_result=" << matched_result->get_friendly_name());
+
+            // TODO: do we need that names
+            // c1.set_names({kvout.get_any_name()});
+
+            matched_result->inputs()[0].replace_source_output(c1);
+
+            return true;
+        };
+
+        register_matcher(std::make_shared<opp::Matcher>(result_or, "RedirectNewKvToOutput"), callback);
+    }
+};
 class GemmaSlidingMask : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::GemmaSlidingMask");
@@ -366,7 +439,7 @@ public:
         auto less_equal = opp::wrap_type<ov::op::v1::LessEqual>({convert, unsqueeze2});
         auto bwand_res = opp::wrap_type<ov::op::v13::BitwiseAnd>({bwand, less_equal});
 
-        auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto callback = [=](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
             auto* bwand_matched_node = node_to_output.at(bwand_res).get_node();
             auto* window_size_node = node_to_output.at(window_size).get_node();
@@ -506,7 +579,7 @@ public:
         auto inv_sliding_attention_mask =
             opp::wrap_type<ov::op::v13::BitwiseOr>({look_only_future_mask, forget_left_tokens_mask});
 
-        auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto callback = [=](opp::Matcher& m) {
             LOG_INFO("Found (4.51) pattern for Phi-3 Sliding Window Attention, will be replaced with custom for static "
                      "shapes.");
             auto& node_to_output = m.get_pattern_value_map();
@@ -658,7 +731,7 @@ public:
         auto final_sliding_attention =
             opp::wrap_type<ov::op::v13::BitwiseAnd>({sliding_causal_and_true, atten_mask_reshaped_3});
 
-        auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto callback = [=](opp::Matcher& m) {
             LOG_INFO("Found (4.53) pattern for Phi-3 Sliding Window Attention, will be replaced with custom for static "
                      "shapes.");
             auto& node_to_output = m.get_pattern_value_map();
@@ -762,51 +835,55 @@ namespace {
 uint32_t align_to(uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
 }
-
 bool is_aligned_to(uint32_t value, uint32_t alignment) {
     return value % alignment == 0;
 }
 
-std::shared_ptr<ov::Model> cvt_kvcache_to_fp16(const std::shared_ptr<ov::Model>& model) {
+std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov::Model>& model,
+                                                        const ov::element::Type lptype) {
     ov::preprocess::PrePostProcessor ppp(model);
 
     for (const auto& tensor : model->inputs()) {
         if (tensor.get_any_name().find("past_key") != std::string::npos) {
-            ppp.input(tensor.get_any_name()).tensor().set_element_type(ov::element::Type_t::f16);
+            ppp.input(tensor.get_any_name()).tensor().set_element_type(lptype);
         }
     }
 
     for (const auto& tensor : model->outputs()) {
         if (tensor.get_any_name().find("present") != std::string::npos) {
-            ppp.output(tensor.get_any_name()).tensor().set_element_type(ov::element::Type_t::f16);
+            ppp.output(tensor.get_any_name()).tensor().set_element_type(lptype);
         }
     }
 
     return ppp.build();
 }
-
 std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::Model>& model) {
-    for (std::size_t i = ov::npuw::LLMInferRequest::layer_ids::kStartOutputKVCacheLayers; i < model->outputs().size();
-         ++i) {
-        auto kvout = model->output(i);
+    ov::pass::Manager manager("redirect_new_kv_to_output");
+    manager.register_pass<RedirectNewKvToOutput>();
+    manager.run_passes(model);
+// TODO: please review eagle specific topology: wether incorrect outputs will be triggered in redirection
+//     for (std::size_t i = ov::npuw::LLMInferRequest::layer_ids::kStartOutputKVCacheLayers; i < model->outputs().size();
+//          ++i) {
+//         auto kvout = model->output(i);
 
-        // Skip outputs that are not KV cache (e.g., last_hidden_state)
-        // KV cache outputs follow the pattern: present.{layer}.key or present.{layer}.value
-        const auto& output_name = kvout.get_any_name();
-        bool is_kv_cache =
-            (output_name.find("present") != std::string::npos) &&
-            (output_name.find("key") != std::string::npos || output_name.find("value") != std::string::npos);
-        if (!is_kv_cache) {
-            continue;
-        }
+//         // Skip outputs that are not KV cache (e.g., last_hidden_state)
+//         // KV cache outputs follow the pattern: present.{layer}.key or present.{layer}.value
+//         const auto& output_name = kvout.get_any_name();
+//         bool is_kv_cache =
+//             (output_name.find("present") != std::string::npos) &&
+//             (output_name.find("key") != std::string::npos || output_name.find("value") != std::string::npos);
+//         if (!is_kv_cache) {
+//             continue;
+//         }
 
-        auto kvrslt = kvout.get_node();
-        auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
-        auto kvval = kvcat->inputs()[1].get_source_output();
-        kvval.set_names({kvout.get_any_name()});
-        kvrslt->inputs()[0].replace_source_output(kvval);
-    }
+//         auto kvrslt = kvout.get_node();
+//         auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
+//         auto kvval = kvcat->inputs()[1].get_source_output();
+//         kvval.set_names({kvout.get_any_name()});
+//         kvrslt->inputs()[0].replace_source_output(kvval);
+//     }
     model->validate_nodes_and_infer_types();
+
     return model;
 }
 
@@ -865,14 +942,14 @@ public:
         auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
         auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
 
-        auto last_op = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{matmul->output(0),
+        auto last_op = std::make_shared<opp::op::Or>(ov::OutputVector{matmul->output(0),
                                                                                     matmul_add->output(0),
                                                                                     matmul_transpose->output(0),
                                                                                     matmul_convert->output(0),
                                                                                     matmul_multiply->output(0)});
         auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
 
-        auto callback = [=, &lm_head_model](ov::pass::pattern::Matcher& m) {
+        auto callback = [=, &lm_head_model](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
 
             auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
@@ -1310,6 +1387,49 @@ void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_
 
     model->add_parameters(new_parameters);
 }
+// extract destination types that will be found using fakeconvert-decomposition
+class FakeConvertDestinationTypeExtractor : public ov::pass::MatcherPass {
+public:
+    FakeConvertDestinationTypeExtractor(std::set<ov::element::Type>& fcDestinationTypes) {
+        auto fake_convert_m = opp::wrap_type<ov::op::v13::FakeConvert>();
+
+        ov::matcher_pass_callback callback = [=, &fcDestinationTypes](opp::Matcher& m) {
+            const auto& pattern_to_output = m.get_pattern_value_map();
+            const auto fake_convert =
+                ov::as_type_ptr<ov::op::v13::FakeConvert>(pattern_to_output.at(fake_convert_m).get_node_shared_ptr());
+
+            if (fake_convert == nullptr) {
+                return false;
+            }
+            fcDestinationTypes.insert(fake_convert->get_destination_element_type());
+            return true;
+        };
+        register_matcher(
+            std::make_shared<opp::Matcher>(fake_convert_m, "FakeConvertDestinationTypeExtractor"),
+            callback);
+    }
+};
+
+class ConvertTypeRelaxedToRegular : public ov::pass::MatcherPass {
+public:
+    ConvertTypeRelaxedToRegular() {
+        auto pattern = opp::wrap_type<ov::op::TypeRelaxed<ov::op::v1::Multiply>>();
+
+        ov::matcher_pass_callback callback = [](opp::Matcher& m) {
+            auto tr_mul = std::dynamic_pointer_cast<ov::op::TypeRelaxed<ov::opset1::Multiply>>(m.get_match_root());
+            if (tr_mul) {
+                auto new_mul = std::make_shared<ov::opset1::Multiply>(tr_mul->input_value(0), tr_mul->input_value(1));
+                new_mul->set_friendly_name(tr_mul->get_friendly_name());
+                ov::copy_runtime_info(tr_mul, new_mul);
+                ov::replace_node(tr_mul, new_mul);
+            }
+            return true;
+        };
+
+        register_matcher(std::make_shared<opp::Matcher>(pattern, "ConvertTypeRelaxedToRegular"),
+                         callback);
+    }
+};
 
 void ov::npuw::LLMCompiledModel::gemma_transformations(const std::shared_ptr<ov::Model>& model) {
     // For now only do transformations for gemma3 which has token_type_ids input.
@@ -1478,6 +1598,40 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     refine_dynamic_props(npuw_llm_props, npudesc);
     m_cfg.update(any_copy(npuw_llm_props));
 
+    const bool optimize_cb4 = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_FP8>();
+    auto kv_kache_storage_type = ov::element::f16;
+    if (optimize_cb4) {
+        LOG_DEBUG("Running FP8 static quantisation on kv-kache");
+        ov::pass::low_precision::LayerTransformation::Params params;
+        std::set<ov::element::Type> fcTypesInput, fcTypesRemained;
+
+        ov::pass::Manager manager("optimize_cb4");
+        params.defaultPrecisions = ov::pass::low_precision::precision_set::get_fp8_support();
+        manager.register_pass<FakeConvertDestinationTypeExtractor>(fcTypesInput);
+        manager.register_pass<ov::pass::low_precision::MoveFakeConvertUpThroughKVCacheConcat>();
+        auto graph_rewrite = manager.register_pass<ov::pass::GraphRewrite>();
+        graph_rewrite->add_matcher<ov::pass::FakeConvertDecomposition>();
+        graph_rewrite->add_matcher<ov::pass::low_precision::ConcatTransformation>(params);
+        graph_rewrite->add_matcher<ov::pass::low_precision::KVCacheConcat>(model);
+        manager.register_pass<ConvertTypeRelaxedToRegular>();
+        manager.register_pass<FakeConvertDestinationTypeExtractor>(fcTypesRemained);
+        manager.run_passes(model);
+        if (fcTypesInput.empty() ) {
+            LOG_WARN("FakeConvert layers not detected - leaving kv-cache in " << kv_kache_storage_type
+                << " precision");
+        } else if (!fcTypesRemained.empty()) {
+            LOG_WARN(fcTypesRemained.size() <<" FakeConvert layers not decomposed - leaving kv-cache in " << kv_kache_storage_type
+                                                                                << " precision");
+        } else if (fcTypesInput.size() > 1) {
+            auto it2 = std::next(fcTypesInput.begin(), 1);
+            LOG_WARN("FakeConvert layers had several precisions (" << fcTypesInput.size() << ")-"
+                                                                   << *fcTypesInput.begin() << ", " << *it2 << ", ... "
+                                                                   << "supported only single precision");
+        } else {
+            kv_kache_storage_type = *fcTypesInput.begin();
+            LOG_DEBUG("KV cache storage precision changed to " << kv_kache_storage_type);
+        }
+    }
     m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;
     if (m_is_whisper) {
         m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
@@ -1493,9 +1647,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
+
     LOG_DEBUG("Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     convert_stateful_lora_to_stateless(kvcache_model);
+
     LOG_DEBUG("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation
@@ -1685,23 +1841,33 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     if (!m_use_chunk_prefill) {
-        NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
+        // TODO: sometimes it is ok if we cannot find any empty inputs or not?
+        remove_empty_kv_inputs(prefill_model);
     } else {
         LOG_DEBUG("Don't remove input key/values from prefill model.");
         LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
         prefill_model = redirect_new_kv_to_output(prefill_model);
     }
 
-    LOG_DEBUG("Optimize generate model to output key/values for new token.");
+//     LOG_DEBUG("redirect kvcache model to output key/values for new token.");
+//     kvcache_model = redirect_new_kv_to_output(kvcache_model);
+//     {
+//         LOG_DEBUG("Converting KV-cache in kvcache model to: " << kv_kache_storage_type << " precision");
+//         kvcache_model = cvt_kvcache_to_low_precision(kvcache_model, kv_kache_storage_type);
+//         LOG_DEBUG("Converting KV-cache in prefill model to: " << kv_kache_storage_type << " precision");
+//         prefill_model = cvt_kvcache_to_low_precision(prefill_model, kv_kache_storage_type);
+//     }
+
+
     for (size_t i = 0; i < generate_model_variants.size(); ++i) {
+        LOG_DEBUG("Redirect generate model [" << i << "] to output key/values for new token.");
         generate_model_variants[i] = redirect_new_kv_to_output(generate_model_variants[i]);
+
+        LOG_DEBUG("Converting KV-cache in kvcache model["<< i <<"] to: " << kv_kache_storage_type << " precision");
+        generate_model_variants[i] = cvt_kvcache_to_low_precision(generate_model_variants[i], kv_kache_storage_type);
     }
-    LOG_DEBUG("Converting KV-cache in generate model to FP16.");
-    for (size_t i = 0; i < generate_model_variants.size(); ++i) {
-        generate_model_variants[i] = cvt_kvcache_to_fp16(generate_model_variants[i]);
-    }
-    LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
-    prefill_model = cvt_kvcache_to_fp16(prefill_model);
+    LOG_DEBUG("Converting KV-cache in prefill model to: " << kv_kache_storage_type << " precision");
+    prefill_model = cvt_kvcache_to_low_precision(prefill_model, kv_kache_storage_type);
 
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
@@ -2280,6 +2446,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
+                          BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
                           BIND(npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID, get),
                           BIND(npuw::llm::prefill_chunk_size, NPUW_LLM_PREFILL_CHUNK_SIZE, get),
