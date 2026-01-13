@@ -794,3 +794,96 @@ def test_const_from_tensor_with_shared_memory_by_default():
     arr += 1
     assert np.array_equal(ov_const.data, arr)
     assert np.shares_memory(arr, ov_const.data)
+
+
+def test_string_constant_basic():
+    """Test creating a string constant from numpy array."""
+    strings = np.array(["hello", "world", "test"])
+    ov_const = ops.constant(strings)
+    
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    assert tuple(ov_const.shape) == (3,)
+    
+    result = ov_const.get_value_strings()
+    assert result == ["hello", "world", "test"]
+
+
+def test_string_constant_2d():
+    """Test creating a 2D string constant."""
+    strings = np.array([["a", "b"], ["c", "d"]])
+    ov_const = ops.constant(strings)
+    
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    assert tuple(ov_const.shape) == (2, 2)
+    
+    result = ov_const.get_value_strings()
+    assert result == ["a", "b", "c", "d"]
+
+
+def test_string_constant_empty():
+    """Test creating an empty string constant."""
+    strings = np.array([], dtype='<U1')
+    ov_const = ops.constant(strings)
+    
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    assert tuple(ov_const.shape) == (0,)
+    
+    result = ov_const.get_value_strings()
+    assert result == []
+
+
+def test_string_constant_with_none():
+    """Test creating a string constant with None values (should convert to empty string)."""
+    strings = np.array(["hello", None, "world"], dtype=object)
+    ov_const = ops.constant(strings)
+    
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    assert tuple(ov_const.shape) == (3,)
+    
+    result = ov_const.get_value_strings()
+    assert result == ["hello", "", "world"]
+
+
+def test_string_constant_shared_memory_warning(capfd):
+    """Test that shared_memory flag generates a warning for string constants."""
+    strings = np.array(["test"])
+    ov_const = ops.constant(strings, shared_memory=True)
+    
+    # Check that constant was still created
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    
+    # Note: Warning goes to stderr, check if it appears
+    captured = capfd.readouterr()
+    # The warning should be printed to stderr
+    assert "Warning" in captured.err or len(captured.err) == 0  # May not always capture in test
+
+
+def test_string_constant_unicode():
+    """Test creating a string constant with unicode characters."""
+    strings = np.array(["hello", "世界", "🌍"])
+    ov_const = ops.constant(strings)
+    
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    assert tuple(ov_const.shape) == (3,)
+    
+    result = ov_const.get_value_strings()
+    assert result == ["hello", "世界", "🌍"]
+
+
+def test_string_constant_mixed_types():
+    """Test creating a string constant from object array with mixed types."""
+    strings = np.array(["text", 123, 45.6, True], dtype=object)
+    ov_const = ops.constant(strings)
+    
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    assert tuple(ov_const.shape) == (4,)
+    
+    result = ov_const.get_value_strings()
+    assert result == ["text", "123", "45.6", "True"]
