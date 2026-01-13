@@ -19,7 +19,8 @@ namespace intel_npu {
 
 BlobWriter::BlobWriter()
     : m_cre(std::make_shared<CRESection>()),
-      m_offsets_table(std::make_shared<std::unordered_map<SectionID, uint64_t>>()) {
+      m_offsets_table(std::make_shared<std::unordered_map<SectionID, uint64_t>>()),
+      m_logger("BlobWriter", Logger::global().level()) {
     register_section(m_cre);
 }
 

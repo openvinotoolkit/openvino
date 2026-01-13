@@ -11,6 +11,7 @@
 #include <unordered_set>
 
 #include "cre.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 
 namespace intel_npu {
 
@@ -31,8 +32,6 @@ public:
     std::streamoff get_stream_relative_position(std::ostream& stream) const;
 
 private:
-    void write_persistent_format_region();
-
     std::unordered_set<SectionID> m_registered_sections_ids;
     std::queue<std::shared_ptr<ISection>> m_registered_sections;
     std::shared_ptr<std::unordered_map<SectionID, uint64_t>> m_offsets_table;
@@ -42,6 +41,8 @@ private:
      * @brief TODO
      */
     std::optional<std::streampos> m_stream_base = std::nullopt;
+
+    Logger m_logger;
 };
 
 }  // namespace intel_npu
