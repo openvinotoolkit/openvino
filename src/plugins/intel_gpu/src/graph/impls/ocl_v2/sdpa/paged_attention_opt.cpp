@@ -776,7 +776,7 @@ protected:
         jit.make("KV_CACHE_COMPRESSED", kv_cache_compressed);
 
         // Always define KEY_CACHE_QUANT_MODE for macro expansion (even if not used in uncompressed mode)
-        int key_cache_quant_mode = 0; // Default
+        int key_cache_quant_mode = 0;  // Default
         if (kv_cache_compressed) {
             const auto quant_mode = params.get_program().get_config().get_key_cache_quant_mode();
             if (quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
@@ -1478,7 +1478,7 @@ public:
          *              Filled in PA/SDPA kernels.
          * 8          - Optional buffer used for mixed PA execution mode, mapping gws idx to subsequence id.
          *              Filled in paged_attention_inst::on_execute() call.
-         * 8-11/9-12  - Optional buffers for Adaptive RKV diversity calculation (similarity_matrix, 
+         * 8-11/9-12  - Optional buffers for Adaptive RKV diversity calculation (similarity_matrix,
          *              aggregated_similarities, row_means, block_sums). Allocated when has_adaptive_rkv=true,
          *              regardless of stage. Actual kernel execution determined at runtime by evictable_sizes.
          *              Index range depends on score_aggregation: without=[8-11], with=[9-12].
@@ -1607,7 +1607,7 @@ public:
 
         // Adaptive RKV Diversity buffers (allocated when enabled, execution determined by runtime evictable_sizes)
         const bool has_adaptive_rkv = desc->has_adaptive_rkv;
-         if (has_adaptive_rkv) {
+        if (has_adaptive_rkv) {
             const auto& evictable_sizes_layout = params.input_layouts[PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES];
             const auto batch_size = evictable_sizes_layout.get_partial_shape()[0].get_length();
 
@@ -1625,8 +1625,7 @@ public:
                     total_vector_elements += evictable_size;
                 }
                 GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - "
-                                       << "matrix: " << total_matrix_elements 
-                                       << ", vector: " << total_vector_elements << std::endl;
+                                       << "matrix: " << total_matrix_elements << ", vector: " << total_vector_elements << std::endl;
             } else {
                 // Fallback: use maximum size (512) if runtime values not available
                 const size_t max_evictable_size = 512;
