@@ -138,7 +138,6 @@ bool all_precisions_equal(const std::shared_ptr<Node>& node) {
 }  // namespace fq
 
 bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& eltwise) {
-
     if (eltwise->get_input_size() > 0 && fq::getDataInput(eltwise).get_partial_shape() != eltwise->get_output_partial_shape(0)) {
         return false;
     }
