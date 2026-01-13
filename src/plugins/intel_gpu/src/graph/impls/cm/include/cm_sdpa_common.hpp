@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2022-2025 Intel Corporation
+ * Copyright (c) 2018-2026 Intel Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -681,6 +681,7 @@ void sdpa_kernel(
                 Transpose2DMatrix(QmatI32, rQ[num_full_blocks].format<uint, REG_K/2, q_step>());
                 rQ[num_full_blocks].format<half>() = cm_mul<half>(rQ[num_full_blocks].format<half>(), (half)scale_factor);
             }
+        }
     }
 
     constexpr int num_P_tiles = REG_N / REG_M;

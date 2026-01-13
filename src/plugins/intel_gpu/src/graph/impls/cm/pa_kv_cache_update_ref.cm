@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2022-2025 Intel Corporation
+ * Copyright (c) 2018-2026 Intel Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,10 +87,10 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             uint scale_offset = out_offset + K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + token_pos * sizeof(half);
             half max_val = cm_reduced_max<half>(data);
             half min_val = cm_reduced_min<half>(data);
-            half scale_val = half(0.0);
+            float scale_val = float(0.0);
             half zp_val = half(0.0);
             if(max_val == min_val) {
-                scale_val = half(0.0);
+                scale_val = float(0.0);
                 zp_val = max_val;
             } else {
                 scale_val = 255.0 / (max_val - min_val);

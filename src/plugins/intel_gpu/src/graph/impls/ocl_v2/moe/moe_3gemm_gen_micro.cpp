@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -433,7 +433,7 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
     kd.params.local_memory_args.clear();
     if (slm_size > 0) {
         kd.params.local_memory_args.push_back(slm_size);
-        kd.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, slm_size});
+        kd.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
     }
 
     GPU_DEBUG_TRACE_DETAIL << "MoE3GemmMicroGenerator::get_kernel_data() completed\n";

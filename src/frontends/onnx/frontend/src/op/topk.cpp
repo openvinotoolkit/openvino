@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,8 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
                                                                   axis,
                                                                   v11::TopK::Mode::MAX,
                                                                   v11::TopK::SortType::SORT_VALUES,
-                                                                  ov::element::i64);
+                                                                  ov::element::i64,
+                                                                  true);
 
     return {top_k->output(0), top_k->output(1)};
 }
@@ -56,7 +57,8 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
                                                                   axis,
                                                                   v11::TopK::Mode::MAX,
                                                                   v11::TopK::SortType::SORT_VALUES,
-                                                                  ov::element::i64);
+                                                                  ov::element::i64,
+                                                                  true);
 
     return {top_k->output(0), top_k->output(1)};
 }
@@ -76,11 +78,13 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
 
     // Map attribute values to OpenVINO enums
     const auto sort_type = sorted ? v11::TopK::SortType::SORT_VALUES : v11::TopK::SortType::NONE;
+    const auto stable_sort = (sort_type != v11::TopK::SortType::NONE);
 
     const auto compute_max = static_cast<bool>(largest);
     const auto mode = compute_max ? v11::TopK::Mode::MAX : v11::TopK::Mode::MIN;
 
-    std::shared_ptr<ov::Node> top_k = std::make_shared<v11::TopK>(data, k, axis, mode, sort_type, ov::element::i64);
+    std::shared_ptr<ov::Node> top_k =
+        std::make_shared<v11::TopK>(data, k, axis, mode, sort_type, ov::element::i64, stable_sort);
 
     return {top_k->output(0), top_k->output(1)};
 }

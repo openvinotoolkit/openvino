@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2904,6 +2904,18 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_top_k_repeating_unsorted) {
 
     test_case.add_expected_output<int32_t>(Shape{3, 3}, {1, 1, 0, 3, 2, 1, 1, 1, 0});
     test_case.add_expected_output<int64_t>(Shape{3, 3}, {2, 1, 4, 2, 1, 0, 5, 1, 3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_top_3_all_same) {
+    auto model = convert_model("top_3_all_same.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 4}, {0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f});
+    test_case.add_input<int64_t>({3});
+
+    test_case.add_expected_output<float>(Shape{2, 3}, {0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f});
+    test_case.add_expected_output<int64_t>(Shape{2, 3}, {0, 1, 2, 0, 1, 2});
     test_case.run();
 }
 

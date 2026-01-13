@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,7 @@ public:
         std::set<size_t> input_ports = { PagedAttentionInputIdx::PAST_LENS,
                                          PagedAttentionInputIdx::SUBSEQUENCE_BEGINS,
                                          PagedAttentionInputIdx::XATTENTION_THRESHOLD,
+                                         PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE,
                                          PagedAttentionInputIdx::MAX_CONTEXT_LEN };
 
         if (typed_desc()->has_score_aggregation)

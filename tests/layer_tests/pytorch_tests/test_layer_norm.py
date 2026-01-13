@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -18,10 +18,10 @@ class TestLayerNorm(PytorchLayerTest):
 
         if weight == "ones":
             weight = torch.ones(normalized_shape)
-        
+
         if weight == "random":
             weight = torch.randn(normalized_shape)
-        
+
         if bias == "zeros":
             bias = torch.zeros(normalized_shape)
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -292,7 +292,7 @@ public:
     void save(cldnn::BinaryOutputBuffer& ob) const;
     void load(cldnn::BinaryInputBuffer& ib, std::shared_ptr<const ov::Model> model_ptr = nullptr,
               std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr);
-    
+
     bool is_loaded_from_cache() const { return _loaded_from_cache; }
 
     bool is_new_shape_infer() const { return new_shape_infer; }

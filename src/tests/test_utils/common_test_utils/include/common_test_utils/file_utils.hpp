@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,11 +77,11 @@ inline void removeFile(const std::string& path) {
 
 inline void removeIRFiles(const std::string& xmlFilePath, const std::string& binFileName) {
     if (fileExists(xmlFilePath)) {
-        std::remove(xmlFilePath.c_str());
+        std::filesystem::remove(ov::util::make_path(xmlFilePath));
     }
 
     if (fileExists(binFileName)) {
-        std::remove(binFileName.c_str());
+        std::filesystem::remove(ov::util::make_path(binFileName));
     }
 }
 

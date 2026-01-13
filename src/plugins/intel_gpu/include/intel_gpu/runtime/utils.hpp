@@ -236,6 +236,19 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
     return os;
 }
 
+// vector type static casting function
+template <typename To, typename From, typename Alloc = std::allocator<From>,
+          typename = std::enable_if_t<std::is_convertible<From, To>::value>>
+inline std::vector<To> convert_vector(const std::vector<From, Alloc>& v) {
+    std::vector<To> out;
+    out.reserve(v.size());
+    std::transform(v.begin(), v.end(), std::back_inserter(out),
+                [](From x){ return static_cast<To>(x); });
+
+    return out;
+}
+
+
 // The following code is derived from Boost C++ library
 // Copyright 2005-2014 Daniel James.
 // Distributed under the Boost Software License, Version 1.0. (See http://www.boost.org/LICENSE_1_0.txt)

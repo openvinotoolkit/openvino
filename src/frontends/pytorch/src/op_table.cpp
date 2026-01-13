@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,6 +129,7 @@ OP_CONVERTER(translate_hann_window);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_hstack);
 OP_CONVERTER(translate_if);
+OP_CONVERTER(translate_cond_fx);
 OP_CONVERTER(translate_im2col);
 OP_CONVERTER(translate_index);
 OP_CONVERTER(translate_index_add);
@@ -161,6 +162,7 @@ OP_CONVERTER(translate_log2);
 OP_CONVERTER(translate_log10);
 OP_CONVERTER(translate_logsumexp);
 OP_CONVERTER(translate_loop);
+OP_CONVERTER(translate_while_loop_fx);
 OP_CONVERTER(translate_lstm);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_masked_scatter);
@@ -1115,6 +1117,9 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"quantized_decomposed.dequantize_per_tensor.default", op::skip_node},
         {"quantized_decomposed.dequantize_per_channel.default", op::skip_node},
         {"inlined.constant.default", op::translate_constant},  // this is a custom ov type
+        // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
+        {"cond", op::translate_cond_fx},
+        {"while_loop", op::translate_while_loop_fx},
     };
 };
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -33,7 +33,7 @@ class aten_native_multi_head_attention(torch.nn.Module):
         # Float masks raise a warning in PyTorch and are (incorrectly) converted to bool,
         # which later returns NaNs as MHA's output
         if mask == 0:
-            self.mask = torch.from_numpy(np.random.randint(0, 2, (SEQ_LENGTH, SEQ_LENGTH)).astype("bool")) 
+            self.mask = torch.from_numpy(np.random.randint(0, 2, (SEQ_LENGTH, SEQ_LENGTH)).astype("bool"))
             self.mask_type = 0
         elif mask == 1:
             self.mask = torch.from_numpy(np.random.randint(0, 2, (BATCH_SIZE, SEQ_LENGTH)).astype("bool"))
@@ -49,12 +49,12 @@ class aten_native_multi_head_attention(torch.nn.Module):
 
     def forward(self, query, key, value):
         return torch.ops.aten._native_multi_head_attention(
-            query, key, value, 
+            query, key, value,
             embed_dim=self.embed_dim, num_head=self.num_heads,
             qkv_weight=self.qkv.weight, qkv_bias=self.qkv.bias,
             proj_weight=self.proj.weight, proj_bias=self.proj.bias,
-            mask = self.mask, need_weights=self.need_weights, 
-            average_attn_weights = self.average_attn_weights, 
+            mask = self.mask, need_weights=self.need_weights,
+            average_attn_weights = self.average_attn_weights,
             mask_type = self.mask_type
         )[0]
 
@@ -69,11 +69,11 @@ class TestNativeMultiHeadAttention(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize(
-        "mask", 
+        "mask",
         [NO_MASK, ATTN_MASK, KEY_PAD_MASK, MERGED_MASK]
     )
     @pytest.mark.parametrize(
-        ["need_weights", "average_attn_weights"], 
+        ["need_weights", "average_attn_weights"],
         [[False, False], [True, False], [True, True]]
     )
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('arm', 'armv7l',
@@ -81,5 +81,5 @@ class TestNativeMultiHeadAttention(PytorchLayerTest):
                                                                                                      'arm64', 'ARM64'),
                        reason='Ticket - 122715')
     def test_native_multi_head_attention(self, ie_device, precision, ir_version, mask, need_weights, average_attn_weights):
-        self._test(aten_native_multi_head_attention(mask, need_weights, average_attn_weights), 
-                   None, "aten::_native_multi_head_attention", ie_device, precision, ir_version) 
+        self._test(aten_native_multi_head_attention(mask, need_weights, average_attn_weights),
+                   None, "aten::_native_multi_head_attention", ie_device, precision, ir_version)

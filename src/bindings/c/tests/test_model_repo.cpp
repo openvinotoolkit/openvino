@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ std::string generate_test_xml_file() {
 
     // Write to the file
     plugin_xml_file << "<!--\n";
-    plugin_xml_file << "Copyright (C) 2023 Intel Corporation\n";
+    plugin_xml_file << "Copyright (C) 2018-2026 Intel Corporation\n";
     plugin_xml_file << "SPDX-License-Identifier: Apache-2.0\n";
     plugin_xml_file << "-->\n";
     plugin_xml_file << "\n";
