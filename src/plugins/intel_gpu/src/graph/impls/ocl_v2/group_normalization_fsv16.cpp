@@ -133,6 +133,8 @@ protected:
             }
             wgs.local[0] *= fsv;
             wgs.global[0] = wgs.local[0];
+            //std::cout << "calc_sqr_mean sizes: [" << wgs.global[0] << "," << wgs.global[1] << "," << wgs.global[2] << "], [" << wgs.local[0] << ","
+            //          << wgs.local[1] << "," << wgs.local[2] << "]" << std::endl;
         }};
     }
 };
@@ -182,6 +184,8 @@ protected:
                 }
                 divisor += 1;
             }
+            //std::cout << "calc_mean_variance sizes: [" << wgs.global[0] << "," << wgs.global[1] << "," << wgs.global[2] << "], [" << wgs.local[0] << ","
+            //          << wgs.local[1] << "," << wgs.local[2] << "]" << std::endl;
         }};
     }
 };
@@ -254,6 +258,7 @@ protected:
 
             wgs.local[0] *= fsv;
             wgs.global[0] *= fsv;
+            wgs.global[0] = wgs.local[0];
 
             divisor = 2;
             while ((wgs.local[0] * wgs.local[1]) > max_wgs) {
@@ -262,6 +267,8 @@ protected:
                 }
                 divisor += 1;
             }
+            //std::cout << "final sizes: [" << wgs.global[0] << "," << wgs.global[1] << "," << wgs.global[2] << "], [" << wgs.local[0] << ","
+            //          << wgs.local[1] << "," << wgs.local[2] << "]" << std::endl;
         }};
     }
 };

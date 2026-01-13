@@ -114,28 +114,32 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
 ) {
     const uint b = get_global_id(1) % OUTPUT_BATCH_NUM;
     const uint f = get_global_id(1) / OUTPUT_BATCH_NUM * FSV + (get_sub_group_local_id() % FSV);
-    const uint yx = get_global_id(0) / FSV;
-    const uint y = yx / OUTPUT_SIZE_X;
-    const uint x = yx % OUTPUT_SIZE_X;
-    const uint input_index = INPUT0_GET_INDEX(b, f, y, x);
-    const uint output_index = OUTPUT_GET_INDEX(b, f, y, x);
+    uint yx = get_global_id(0) / FSV;
+    const uint bf = b * OUTPUT_FEATURE_NUM + f;
+    ACTIVATION_TYPE mean = TO_ACTIVATION_TYPE(internal_mean[bf]);
+    ACTIVATION_TYPE variance = TO_ACTIVATION_TYPE(internal_variance[bf]);
+    ACTIVATION_TYPE scale_f = TO_ACTIVATION_TYPE(scale[f]);
+    ACTIVATION_TYPE bias_f = TO_ACTIVATION_TYPE(bias[f]);
+    for (uint i = 0; i < INPUT0_SIZE_X * INPUT0_SIZE_Y / GWS0 * FSV; ++i, yx += GWS0 / FSV) {
+        uint y = yx / OUTPUT_SIZE_X;
+        uint x = yx % OUTPUT_SIZE_X;
+        uint input_index = INPUT0_GET_INDEX(b, f, y, x);
+        uint output_index = OUTPUT_GET_INDEX(b, f, y, x);
 
-    if (f < OUTPUT_FEATURE_NUM) {
-        const uint bf = b * OUTPUT_FEATURE_NUM + f;
-        ACTIVATION_TYPE mean = TO_ACTIVATION_TYPE(internal_mean[bf]);
-        ACTIVATION_TYPE variance = TO_ACTIVATION_TYPE(internal_variance[bf]);
-        ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[input_index]) - mean) * variance;
-        normalized = normalized * TO_ACTIVATION_TYPE(scale[f]) + TO_ACTIVATION_TYPE(bias[f]);
-        #if HAS_FUSED_OPS
-            FUSED_OPS;
-            output[output_index] = FUSED_OPS_RESULT;
-        #else
-            output[output_index] = TO_OUTPUT_TYPE(normalized);
-        #endif
-    } else {
-        #ifdef OUTPUT_LAYOUT_B_FS_YX_FSV16
-            output[output_index] = OUTPUT_VAL_ZERO;
-        #endif
+        if (f < OUTPUT_FEATURE_NUM) {
+            ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[input_index]) - mean) * variance;
+            normalized = normalized * scale_f + bias_f;
+            #if HAS_FUSED_OPS
+                FUSED_OPS;
+                output[output_index] = FUSED_OPS_RESULT;
+            #else
+                output[output_index] = TO_OUTPUT_TYPE(normalized);
+            #endif
+        } else {
+            #ifdef OUTPUT_LAYOUT_B_FS_YX_FSV16
+                output[output_index] = OUTPUT_VAL_ZERO;
+            #endif
+        }
     }
 }
 #endif
