@@ -92,18 +92,6 @@ void special_case_range_symbol_propagation(const std::shared_ptr<ov::Node>& node
 }
 }  // namespace
 
-/// @brief Pass to remove SkipInvalidation flags and recalculate bounds before
-/// SimplifyShapeOfSubGraph runs. This ensures that transformations like AbsSinking that modify
-/// node inputs get fresh bounds instead of stale cached values.
-class ov::pass::ClearSkipInvalidation : public ov::pass::ModelPass {
-public:
-    OPENVINO_MODEL_PASS_RTTI("ClearSkipInvalidation");
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override {
-        ov::remove_skip_invalidation_rti(m);
-        return true;
-    }
-};
-
 bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(SymbolicPropagation);
 
@@ -211,10 +199,6 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run,
         REGISTER_SYMBOLIC(DeReshapeMatMul)
         REGISTER_SYMBOLIC(DeReshapeFullyConnected)
         REGISTER_SYMBOLIC(ReshapeOptimizations)
-        // Remove SkipInvalidation and recalculate bounds before SimplifyShapeOfSubGraph.
-        // This ensures that transformations like AbsSinking that modify node inputs via
-        // replace_source_output() get fresh bounds instead of stale cached values.
-        REGISTER_SYMBOLIC(ClearSkipInvalidation)
         REGISTER_SYMBOLIC(SimplifyShapeOfSubGraph)
     }
 }

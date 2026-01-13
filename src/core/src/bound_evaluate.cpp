@@ -4,6 +4,7 @@
 
 #include "bound_evaluate.hpp"
 
+#include <cstring>
 #include <stack>
 
 #include "compare.hpp"
@@ -736,4 +737,44 @@ bool ov::default_symbol_evaluator(const Node* node,
         }
     }
     return false;
+}
+
+bool ov::util::tensors_equal(const Tensor& a, const Tensor& b) {
+    // Both empty = equal
+    if (!a && !b) {
+        return true;
+    }
+    // One empty, one not = not equal
+    if (!a || !b) {
+        return false;
+    }
+    // Different shapes = not equal
+    if (a.get_shape() != b.get_shape()) {
+        return false;
+    }
+    // Different types = not equal
+    if (a.get_element_type() != b.get_element_type()) {
+        return false;
+    }
+    // Compare data
+    return std::memcmp(a.data(), b.data(), a.get_byte_size()) == 0;
+}
+
+void ov::util::force_invalidate_bounds(descriptor::Tensor& tensor) {
+    const auto& skip_type = ov::SkipInvalidation::get_type_info_static();
+    auto& rt_info = tensor.get_rt_info();
+    bool had_skip = rt_info.count(skip_type) > 0;
+
+    // Temporarily remove SkipInvalidation to allow invalidation
+    if (had_skip) {
+        rt_info.erase(skip_type);
+    }
+
+    // Perform invalidation
+    tensor.invalidate_values();
+
+    // Restore SkipInvalidation if it was present
+    if (had_skip) {
+        rt_info[skip_type] = nullptr;
+    }
 }

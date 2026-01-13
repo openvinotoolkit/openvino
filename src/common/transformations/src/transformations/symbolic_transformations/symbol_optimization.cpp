@@ -421,6 +421,7 @@ void save_and_update_value_sources(const std::shared_ptr<ov::Node>& op,
                 if (output.get_partial_shape().is_dynamic() ||
                     output.get_partial_shape() != alternative_source.get_partial_shape())
                     continue;
+                ov::util::evaluate_both_bounds(alternative_source);
                 output.replace(alternative_source);
             } else {
                 multi_symbol_source[*result] = output;
