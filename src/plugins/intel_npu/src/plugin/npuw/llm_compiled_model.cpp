@@ -8,6 +8,7 @@
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "moe_transformations/device_routed_moe_transform.hpp"
+#include "moe_transformations/gather_to_2d_gather.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/group_query_attention.hpp"
@@ -1260,10 +1261,15 @@ void apply_moe_config(ov::AnyMap& stage_config,
 void apply_moe_device_routed_transforms(std::vector<std::shared_ptr<ov::Model>>& model_variants) {
     LOG_INFO("Applying DEVICE_ROUTED MoE transformations...");
     ov::npuw::pass::DeviceRoutedMoETransform moe_transform;
+    ov::npuw::pass::GatherTo2DGather gather_transform;
 
     for (auto& model : model_variants) {
         moe_transform.run_on_model(model);
         LOG_DEBUG("  Applied DEVICE_ROUTED transformations to model variant");
+
+        // Apply Gather to 2D Gather transformation for HW optimization
+        gather_transform.run_on_model(model);
+        LOG_DEBUG("  Applied GatherTo2DGather transformation to model variant");
     }
     LOG_INFO("DEVICE_ROUTED MoE transformations completed");
 }
