@@ -15,8 +15,8 @@ OffsetsTableSection::OffsetsTableSection(const std::shared_ptr<std::unordered_ma
 
 void OffsetsTableSection::write(std::ostream& stream, BlobWriter* writer) {
     for (const auto& [key, value] : *m_offsets_table) {
-        stream.write(reinterpret_cast<const char*>(key), sizeof(key));
-        stream.write(reinterpret_cast<const char*>(value), sizeof(value));
+        stream.write(reinterpret_cast<const char*>(&key), sizeof(key));
+        stream.write(reinterpret_cast<const char*>(&value), sizeof(value));
     }
 }
 

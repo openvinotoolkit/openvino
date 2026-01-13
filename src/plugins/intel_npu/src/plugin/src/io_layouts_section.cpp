@@ -92,11 +92,11 @@ std::shared_ptr<ISection> IOLayoutsSection::read(BlobReader* blob_reader, const 
             try {
                 layouts.push_back(ov::Layout(std::move(layoutString)));
             } catch (const ov::Exception&) {
-                _logger.warning("Error encountered while constructing an ov::Layout object. %s index: %d. Value "
-                                "read from blob: %s. A default value will be used instead.",
-                                logger_addition,
-                                layout_index,
-                                layoutString.c_str());
+                logger.warning("Error encountered while constructing an ov::Layout object. %s index: %d. Value "
+                               "read from blob: %s. A default value will be used instead.",
+                               logger_addition,
+                               layout_index,
+                               layoutString.c_str());
                 layouts.push_back(ov::Layout());
             }
         }

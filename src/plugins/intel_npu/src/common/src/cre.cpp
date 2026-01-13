@@ -25,10 +25,10 @@ inline bool or_function(bool a, bool b) {
 
 namespace intel_npu {
 
-CRE::CRE() : m_expression({CRE::AND}) {}
+CRE::CRE() : m_expression({CRE::AND}) {}  // TODO can lead to expression with 0 or 1 operands, fix that
 
 void CRE::write(std::ostream& stream) {
-    stream.write(reinterpret_cast<const char*>(m_expression.data()), m_expression.size());
+    stream.write(reinterpret_cast<const char*>(m_expression.data()), m_expression.size() * sizeof(Token));
 }
 
 void CRE::append_to_expression(const CRE::Token requirement_token) {
@@ -135,7 +135,7 @@ void CRESection::write(std::ostream& stream, BlobWriter* writer) {
 }
 
 std::optional<uint64_t> CRESection::get_length() const {
-    return m_cre.get_expression_length();
+    return m_cre.get_expression_length() * sizeof(CRE::Token);
 }
 
 bool CRESection::check_compatibility(const std::unordered_set<CRE::Token>& plugin_capabilities) {

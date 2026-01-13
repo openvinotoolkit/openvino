@@ -41,9 +41,9 @@ void BlobReader::copy_data_from_source(char* destination, const size_t size) {
 }
 
 template <class T>
-void BlobReader::interpret_data_from_source(T& destination) {
-    destination = reinterpret_cast<T>(m_source.get().data<const char>());
-    m_cursor += sizeof(&T);
+void BlobReader::interpret_data_from_source(T*& destination) {
+    destination = reinterpret_cast<T*>(m_source.get().data<const char>());
+    m_cursor += sizeof(T);
 }
 
 ov::Tensor BlobReader::get_roi_tensor(const size_t size) {

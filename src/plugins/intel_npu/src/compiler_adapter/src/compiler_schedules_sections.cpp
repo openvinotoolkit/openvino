@@ -101,7 +101,7 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReader* blob_reader,
 
     std::vector<ov::Tensor> init_schedules;
     for (const auto& init_size : init_sizes) {
-        init_schedules.push_back(blob_reader->get_roi_tensor(section_length));
+        init_schedules.push_back(blob_reader->get_roi_tensor(init_size));
     }
 
     return std::make_shared<ELFInitSchedulesSection>(init_schedules);

@@ -9,7 +9,7 @@
 #include "batch_size_section.hpp"
 #include "compiled_model.hpp"
 #include "compiler_adapter_factory.hpp"
-#include "compiler_schedules_section.hpp"
+#include "compiler_schedules_sections.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
@@ -1155,18 +1155,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
     }
 
     auto graph = compiler->parse(
-        mainScheduleSection->get_main_schedule(),
+        mainScheduleSection->get_schedule(),
         localConfig,
-        weightsSeparationEnabled ? std::make_optional(initSchedulesSection->get_init_schedules()) : std::nullopt,
+        weightsSeparationEnabled ? std::make_optional(initSchedulesSection->get_schedules()) : std::nullopt,
         weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
-    const std::shared_ptr<ov::Model> modelDummy =
-        create_dummy_model(graph->get_metadata().inputs,
-                           graph->get_metadata().outputs,
-                           batchSize,
-                           ioLayoutsSection != nullptr ? ioLayoutsSection->get_input_layouts() : std::nullopt,
-                           ioLayoutsSection != nullptr ? ioLayoutsSection->get_output_layouts() : std::nullopt);
+    const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(
+        graph->get_metadata().inputs,
+        graph->get_metadata().outputs,
+        batchSize,
+        ioLayoutsSection != nullptr ? std::make_optional<>(ioLayoutsSection->get_input_layouts()) : std::nullopt,
+        ioLayoutsSection != nullptr ? std::make_optional<>(ioLayoutsSection->get_output_layouts()) : std::nullopt);
 
     if (batchSize.has_value()) {
         if (batchSize.value() > 0) {

@@ -22,10 +22,23 @@ BlobWriter::BlobWriter()
       m_offsets_table(std::make_shared<std::unordered_map<SectionID, uint64_t>>()),
       m_logger("BlobWriter", Logger::global().level()) {
     register_section(m_cre);
+    append_compatibility_requirement(CRE::PredefinedCapabilityToken::CRE_EVALUATION);
 }
 
-BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader) {
-    // TODO after reader is done, while constructing the compiledModel
+BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader)
+    : m_cre(std::dynamic_pointer_cast<CRESection>(blob_reader->retrieve_section(PredefinedSectionID::CRE))),
+      m_offsets_table(blob_reader->m_offsets_table),
+      m_logger("BlobWriter", Logger::global().level()) {
+    // TODO review the class const qualifiers
+    // TODO handle offsets table section properly, multiple exports
+    std::unordered_map<SectionID, std::shared_ptr<ISection>> m_parsed_sections;
+    for (const auto& [section_id, section] : m_parsed_sections) {
+        // The offsets table section is added by the write() method after writing all registered sections (jic the
+        // registered sections will alter the table). Therefore, this section should be omitted here.
+        if (section_id != PredefinedSectionID::OFFSETS_TABLE) {
+            register_section(section);
+        }
+    }
 }
 
 void BlobWriter::register_section(const std::shared_ptr<ISection>& section) {
@@ -82,15 +95,14 @@ void BlobWriter::write(std::ostream& stream) {
         std::optional<uint64_t> length = section->get_length();
 
         if (length.has_value()) {
-            auto position_before_write = stream.tellp();
             stream.write(reinterpret_cast<const char*>(&length.value()), sizeof(length.value()));
+            auto position_before_write = stream.tellp();
             section->write(stream, this);
 
-            std::cout << typeid(*section.get()).name() << std::endl;
-            OPENVINO_ASSERT(length.value() == stream.tellp() - position_before_write,
+            OPENVINO_ASSERT(length.value() == static_cast<uint64_t>(stream.tellp() - position_before_write),
                             "Mismatch between the length provided by the section class and the size written in the "
-                            "blob. Section type: ",
-                            typeid(*section.get()).name());
+                            "blob. Section ID: ",
+                            section_id);  // TODO name via macro maybe
         } else {
             // Use the cursor to deduce the length
             uint64_t length = 0;  // placeholder

@@ -28,7 +28,7 @@ public:
     void copy_data_from_source(char* destination, const size_t size);
 
     template <class T>
-    void interpret_data_from_source(T& destination);
+    void interpret_data_from_source(T*& destination);
 
     ov::Tensor get_roi_tensor(const size_t size);
 

@@ -34,8 +34,8 @@ public:
 private:
     std::unordered_set<SectionID> m_registered_sections_ids;
     std::queue<std::shared_ptr<ISection>> m_registered_sections;
-    std::shared_ptr<std::unordered_map<SectionID, uint64_t>> m_offsets_table;
     std::shared_ptr<CRESection> m_cre;
+    std::shared_ptr<std::unordered_map<SectionID, uint64_t>> m_offsets_table;
 
     /**
      * @brief TODO
