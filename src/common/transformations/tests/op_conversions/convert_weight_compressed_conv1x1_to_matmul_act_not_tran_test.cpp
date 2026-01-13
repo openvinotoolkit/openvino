@@ -11,6 +11,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
@@ -93,8 +94,10 @@ std::shared_ptr<ov::Model> create_model(const Conv1x1ToMatmulActNotTranParams& p
                                                           CoordinateDiff{0, 0},
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
+    auto bias_const = ov::op::v0::Constant::create(element::f32, {1, hidden_out, 1, 1}, {1});
+    auto bias = std::make_shared<ov::op::v1::Add>(conv, bias_const);
 
-    return std::make_shared<Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
+    return std::make_shared<Model>(ov::OutputVector{bias}, ov::ParameterVector{input});
 }
 
 std::shared_ptr<ov::Model> create_ref_model(const Conv1x1ToMatmulActNotTranParams& p) {
@@ -152,9 +155,11 @@ std::shared_ptr<ov::Model> create_ref_model(const Conv1x1ToMatmulActNotTranParam
     auto transpose_input = std::make_shared<ov::op::v1::Transpose>(input, input_transpose_const);
 
     auto matmul = std::make_shared<ov::op::v0::MatMul>(transpose_input, weights_reshape, false, true);
+    auto bias_const = ov::op::v0::Constant::create(element::f32, {1, 1, 1, hidden_out}, {1});
+    auto bias = std::make_shared<ov::op::v1::Add>(matmul, bias_const);
 
     auto output_transpose_const = ov::op::v0::Constant::create(element::i64, {4}, p.output_transpose_order);
-    auto final_node = std::make_shared<ov::op::v1::Transpose>(matmul, output_transpose_const);
+    auto final_node = std::make_shared<ov::op::v1::Transpose>(bias, output_transpose_const);
 
     return std::make_shared<Model>(ov::OutputVector{final_node}, ov::ParameterVector{input});
 }
@@ -190,21 +195,20 @@ TEST_P(ConvertWeightCompressedConv1x1ToMatmulActNotTranTest, CompareFunctions) {
 INSTANTIATE_TEST_SUITE_P(
     TransformationTests,
     ConvertWeightCompressedConv1x1ToMatmulActNotTranTest,
-    ::testing::Values(
-        Conv1x1ToMatmulActNotTranParams{{1, 8, 1, 10}, {0, 2, 3, 1}, {0, 3, 1, 2}, true},
-        Conv1x1ToMatmulActNotTranParams{{1, 8, 1, 10}, {0, 2, 3, 1}, {0, 3, 1, 2}, false},
-        Conv1x1ToMatmulActNotTranParams{{10, 8, 1, 1}, {2, 3, 0, 1}, {2, 3, 0, 1}, true},
-        Conv1x1ToMatmulActNotTranParams{{10, 8, 1, 1}, {2, 3, 0, 1}, {2, 3, 0, 1}, false},
-        Conv1x1ToMatmulActNotTranParams{{1, 8, 10, 1}, {0, 3, 2, 1}, {0, 3, 2, 1}, true},
-        Conv1x1ToMatmulActNotTranParams{{1, 8, 10, 1}, {0, 3, 2, 1}, {0, 3, 2, 1}, false},
-        Conv1x1ToMatmulActNotTranParams{{1, 8, 1, Dimension::dynamic()}, {0, 2, 3, 1}, {0, 3, 1, 2}, true},
-        Conv1x1ToMatmulActNotTranParams{{1, 8, 1, Dimension::dynamic()}, {0, 2, 3, 1}, {0, 3, 1, 2}, false},
-        Conv1x1ToMatmulActNotTranParams{{Dimension::dynamic(), 8, 1, 1}, {2, 3, 0, 1}, {2, 3, 0, 1}, true},
-        Conv1x1ToMatmulActNotTranParams{{Dimension::dynamic(), 8, 1, 1}, {2, 3, 0, 1}, {2, 3, 0, 1}, false},
-        Conv1x1ToMatmulActNotTranParams{{1, 8, Dimension::dynamic(), 1}, {0, 3, 2, 1}, {0, 3, 2, 1}, true},
-        Conv1x1ToMatmulActNotTranParams{{1, 8, Dimension::dynamic(), 1}, {0, 3, 2, 1}, {0, 3, 2, 1}, false},
-        Conv1x1ToMatmulActNotTranParams{{1, 8, 1, 10}, {0, 2, 3, 1}, {0, 3, 1, 2}, true, true},
-        Conv1x1ToMatmulActNotTranParams{{1, 8, 1, 10}, {0, 2, 3, 1}, {0, 3, 1, 2}, false, true}),
+    ::testing::Values(Conv1x1ToMatmulActNotTranParams{{1, 8, 1, 10}, {0, 2, 3, 1}, {0, 3, 1, 2}, true},
+                      Conv1x1ToMatmulActNotTranParams{{1, 8, 1, 10}, {0, 2, 3, 1}, {0, 3, 1, 2}, false},
+                      Conv1x1ToMatmulActNotTranParams{{10, 8, 1, 1}, {2, 3, 0, 1}, {2, 3, 0, 1}, true},
+                      Conv1x1ToMatmulActNotTranParams{{10, 8, 1, 1}, {2, 3, 0, 1}, {2, 3, 0, 1}, false},
+                      Conv1x1ToMatmulActNotTranParams{{1, 8, 10, 1}, {0, 3, 2, 1}, {0, 3, 2, 1}, true},
+                      Conv1x1ToMatmulActNotTranParams{{1, 8, 10, 1}, {0, 3, 2, 1}, {0, 3, 2, 1}, false},
+                      Conv1x1ToMatmulActNotTranParams{{1, 8, 1, -1}, {0, 2, 3, 1}, {0, 3, 1, 2}, true},
+                      Conv1x1ToMatmulActNotTranParams{{1, 8, 1, -1}, {0, 2, 3, 1}, {0, 3, 1, 2}, false},
+                      Conv1x1ToMatmulActNotTranParams{{-1, 8, 1, 1}, {2, 3, 0, 1}, {2, 3, 0, 1}, true},
+                      Conv1x1ToMatmulActNotTranParams{{-1, 8, 1, 1}, {2, 3, 0, 1}, {2, 3, 0, 1}, false},
+                      Conv1x1ToMatmulActNotTranParams{{1, 8, -1, 1}, {0, 3, 2, 1}, {0, 3, 2, 1}, true},
+                      Conv1x1ToMatmulActNotTranParams{{1, 8, -1, 1}, {0, 3, 2, 1}, {0, 3, 2, 1}, false},
+                      Conv1x1ToMatmulActNotTranParams{{1, 8, 1, 10}, {0, 2, 3, 1}, {0, 3, 1, 2}, true, true},
+                      Conv1x1ToMatmulActNotTranParams{{1, 8, 1, 10}, {0, 2, 3, 1}, {0, 3, 1, 2}, false, true}),
     ConvertWeightCompressedConv1x1ToMatmulActNotTranTest::get_test_case_name);
 
 // Checked blocked cases
