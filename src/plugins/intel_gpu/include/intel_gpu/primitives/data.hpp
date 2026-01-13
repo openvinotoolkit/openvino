@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <climits>
 #include <variant>
-
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -23,6 +22,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "primitive.hpp"
 #include "transformations/convert_precision.hpp"
+#include "runtime/ocl/ocl_memory.hpp"
 
 using weights_memory_ptr = std::variant<std::shared_ptr<ov::MappedMemory>, std::shared_ptr<const ov::Model>>;
 using offset_const_map_t = std::map<size_t, std::shared_ptr<ov::op::v0::Constant>>;
@@ -193,7 +193,6 @@ struct weightless_cache_manager {
         } else {
             original_size = dst_mem->size();
         }
-
         bool do_reorder = false;
         ib >> do_reorder;
         if (do_reorder) {
@@ -413,22 +412,80 @@ struct data : public primitive_base<data> {
 
         size_t data_size = 0;
         ib >> make_data(&data_size, sizeof(size_t));
+        const size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
+        bool is_zero_copy_mode = true;
+            
+        try {
 
-        mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
+            if (!is_zero_copy_mode)
+            {
+                throw std::runtime_error("Host memory not accessable, skipping Zero Copy attempts.");
+            }
 
+            auto* ocl_engine = dynamic_cast<cldnn::ocl::ocl_engine*>(&ib.get_engine());
+            const void* tensor_ptr = ib.get_current_ptr(data_size);
+
+            if (ocl_engine) {
+                // Create MemoryTracker that points to tensor memory
+                auto tracker = std::make_shared<MemoryTracker>(&ib.get_engine(),
+                                                               const_cast<void*>(tensor_ptr),  // Point directly to mmap'd memory
+                                                               data_size,
+                                                               _allocation_type);
+
+                // Create memory object that uses the tracker's pointer, The key is that this should NOT allocate new memory
+                cl::UsmMemory usm_memory(ocl_engine->get_usm_helper(),   // USM helper from engine
+                                         const_cast<void*>(tensor_ptr),  // Your tensor pointer
+                                         0                               // No offset
+                );
+
+                mem = std::make_shared<cldnn::ocl::gpu_usm>(ocl_engine,      // ocl_engine*
+                                                            output_layout,   // layout
+                                                            usm_memory,      // cl::UsmMemory wrapping tensor
+                                                            _allocation_type,  // allocation_type
+                                                            tracker          // MemoryTracker
+                );
+                
+                stream& str = ocl_engine->get_service_stream();
+                void* mem_ptr = mem->lock(str, mem_lock_type::read);
+                
+                if (mem_ptr != tensor_ptr) {
+                    is_zero_copy_mode = false;
+                    throw std::runtime_error("Zero memory copy failed for weights.");
+                }
+
+                mem->unlock(str);
+            }
+        }
+        catch (...) 
+        {
+            mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
+            //std::cout << " new allocation for weights " << output_layout.get_linear_size() << " bytes." << std::endl;
+        }
         bool is_weightless_caching = cache_info->load(ib, mem, weights_memory);
-
+        
+        
         if (!is_weightless_caching) {
             if (is_alloc_host_accessible(_allocation_type)) {
-                ib >> make_data(mem->buffer_ptr(), data_size);
-            } else {
-                const size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
-                auto& strm = ib.get_engine().get_service_stream();
-                if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
-                    std::vector<uint8_t> _buf(data_size);
-                    ib >> make_data(_buf.data(), data_size);
-                    mem->copy_from(strm, _buf.data());
+                if (is_zero_copy_mode) {
+                    ib.seek_current_ptr(data_size);
+                    std::cout << " saved memory allocation for weights - 1 " << data_size << " bytes." << std::endl;
                 } else {
+                    ib >> make_data(std::move(mem->buffer_ptr()), data_size);
+                }
+            } else {
+                //const size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
+                if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
+                    if (is_zero_copy_mode) {
+                        ib.seek_current_ptr(data_size);
+                        std::cout << " saved memory allocation for weights - 2 " << data_size << " bytes." << " allocation type = " << _allocation_type << std::endl;
+                    } else {
+                        auto& strm = ib.get_engine().get_service_stream();
+                        std::vector<uint8_t> _buf(data_size);
+                        ib >> make_data(_buf.data(), data_size);
+                        mem->copy_from(strm, _buf.data());
+                    }
+                } else {
+                    auto& strm = ib.get_engine().get_service_stream();
                     std::vector<uint8_t> _buf1(DATA_BLOCK_SIZE);
                     std::vector<uint8_t> _buf2(DATA_BLOCK_SIZE);
                     bool buf_flag = true;
@@ -438,22 +495,39 @@ struct data : public primitive_base<data> {
                     while (dst_offset < data_size) {
                         const bool is_blocking = false;
                         const size_t src_offset = 0;
-                        size_t copy_size =
-                            (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
+                        size_t copy_size = (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
                         if (buf_flag) {
-                            ib >> make_data(_buf1.data(), copy_size);
-                            if (ev2 != nullptr) {
-                                ev2->wait();
-                                ev2 = nullptr;
+                            if (is_zero_copy_mode) {
+                                ib.seek_current_ptr(copy_size);
+                                std::cout << " saved memory allocation for weights - 3 " << copy_size << " bytes." << std::endl;
+                                if (ev1 != nullptr) {
+                                    ev1->wait();
+                                    ev1 = nullptr;
+                                }
+                            } else {
+                                ib >> make_data(_buf1.data(), copy_size);
+                                if (ev2 != nullptr) {
+                                    ev2->wait();
+                                    ev2 = nullptr;
+                                }
+                                ev1 = mem->copy_from(strm, _buf1.data(), src_offset, dst_offset, copy_size, is_blocking);
                             }
-                            ev1 = mem->copy_from(strm, _buf1.data(), src_offset, dst_offset, copy_size, is_blocking);
                         } else {
-                            ib >> make_data(_buf2.data(), copy_size);
-                            if (ev1 != nullptr) {
-                                ev1->wait();
-                                ev1 = nullptr;
+                            if (is_zero_copy_mode) {
+                                ib.seek_current_ptr(copy_size);
+                                std::cout << " saved memory allocation for weights - 4 " << copy_size << " bytes." << std::endl;
+                                if (ev1 != nullptr) {
+                                    ev1->wait();
+                                    ev1 = nullptr;
+                                }
+                            } else {
+                                ib >> make_data(_buf2.data(), copy_size);
+                                if (ev1 != nullptr) {
+                                    ev1->wait();
+                                    ev1 = nullptr;
+                                }
+                                ev2 = mem->copy_from(strm, _buf2.data(), src_offset, dst_offset, copy_size, is_blocking);
                             }
-                            ev2 = mem->copy_from(strm, _buf2.data(), src_offset, dst_offset, copy_size, is_blocking);
                         }
                         dst_offset += DATA_BLOCK_SIZE;
                         buf_flag = !buf_flag;
