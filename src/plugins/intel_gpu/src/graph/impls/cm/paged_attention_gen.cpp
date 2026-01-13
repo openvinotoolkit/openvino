@@ -473,7 +473,10 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
         const size_t kv_heads_num = desc->kv_heads_num;
         const size_t partition_num = rtp->num_of_partitions;
 
-        wgs.global = {batch, kv_heads_num, partition_num};
+        constexpr int32_t MaxRepeatCount = 8;
+        int32_t q_heads_per_kv_head = static_cast<int32_t>(heads_num / kv_heads_num);
+        int32_t q_head_chunks_per_kv_head = ceil_div(q_heads_per_kv_head, MaxRepeatCount);
+        wgs.global = {batch, kv_heads_num * q_head_chunks_per_kv_head, partition_num};
         wgs.local = {1, 1, 1};
 
         // generate stage: q_len=1
@@ -539,10 +542,7 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
         const size_t batch = params.input_layouts[0].get_partial_shape()[0].get_length();
         const size_t heads_num = desc->heads_num;
         const size_t head_size = desc->k_head_size;
-        constexpr int32_t MaxRepeatCount = 8;
-        int32_t q_heads_per_kv_head = static_cast<int32_t>(desc->heads_num / desc->kv_heads_num);
-        int32_t q_head_chunks_per_kv_head = ceil_div(q_heads_per_kv_head, MaxRepeatCount);
-        wgs.global = {batch, heads_num * q_head_chunks_per_kv_head, head_size / reduce_split_step};
+        wgs.global = {batch, heads_num, head_size / reduce_split_step};
         wgs.local = {1, 1, 1};
 
         auto& scalars = kd.params.scalars;
