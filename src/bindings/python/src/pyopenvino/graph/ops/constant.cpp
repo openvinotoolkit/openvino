@@ -104,8 +104,7 @@ void regclass_graph_op_Constant(py::module m) {
                  py::arg("shared_memory") = false);
     // Tensor-based constructors
     constant.def(py::init([](ov::Tensor& tensor, bool shared_memory) {
-                     return std::make_shared<ov::op::v0::Constant>(
-                         Common::object_from_data<ov::op::v0::Constant>(tensor, shared_memory));
+                     return Common::object_from_data<ov::op::v0::Constant>(tensor, shared_memory);
                  }),
                  py::arg("tensor"),
                  py::arg("shared_memory") = true);
