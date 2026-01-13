@@ -56,16 +56,15 @@ void BlobWriter::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(MAGIC_BYTES.data()), MAGIC_BYTES.size());
     stream.write(reinterpret_cast<const char*>(&FORMAT_VERSION), sizeof(FORMAT_VERSION));
 
-    // Placeholder until the offsets table is fully populated and written into the blob
-    const auto will_come_back_to_this_at_the_end = stream.tellp();
-    uint64_t offsets_table_location = 0;
-    stream.write(reinterpret_cast<const char*>(&offsets_table_location),
-                 sizeof(offsets_table_location));  // placeholder
-
     // Stop condition for the BlobReader: the size of the data written here
+    const auto will_come_back_to_this_at_the_end = stream.tellp();
     uint64_t npu_region_size = 0;
     stream.write(reinterpret_cast<const char*>(&npu_region_size),
                  sizeof(npu_region_size));  // placeholder
+
+    // Placeholder until the offsets table is fully populated and written into the blob
+    uint64_t offsets_table_location = 0;
+    stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
 
     // The region of non-persistent format (list of key-length-payload sections, any order & no restrictions w.r.t. the
     // content of the payload)
@@ -82,8 +81,15 @@ void BlobWriter::write(std::ostream& stream) {
         std::optional<uint64_t> length = section->get_length();
 
         if (length.has_value()) {
+            auto position_before_write = stream.tellp();
             stream.write(reinterpret_cast<const char*>(&length.value()), sizeof(length.value()));
             section->write(stream, this);
+
+            std::cout << typeid(*section.get()).name() << std::endl;
+            OPENVINO_ASSERT(length.value() == stream.tellp() - position_before_write,
+                            "Mismatch between the length provided by the section class and the size written in the "
+                            "blob. Section type: ",
+                            typeid(*section.get()).name());
         } else {
             // Use the cursor to deduce the length
             uint64_t length = 0;  // placeholder
@@ -92,7 +98,7 @@ void BlobWriter::write(std::ostream& stream) {
 
             const auto payload_start = stream.tellp();
             section->write(stream, this);
-            stream.seekp(0, std::ios_base::end);  // TODO check single argument
+            stream.seekp(0, std::ios_base::end);
 
             // Compute the size of the payload and then go back and write the true value
             length = stream.tellp() - payload_start;
@@ -115,12 +121,10 @@ void BlobWriter::write(std::ostream& stream) {
 
     npu_region_size = get_stream_relative_position(stream);
 
-    // Go back to the beginning and write the location of the offsets table
+    // Go back to the beginning and write the size of the whole NPU region & the location of the offsets table
     stream.seekp(will_come_back_to_this_at_the_end);
-    stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
-
-    // Also write the size of the whole NPU region
     stream.write(reinterpret_cast<const char*>(&npu_region_size), sizeof(npu_region_size));
+    stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
 }
 
 }  // namespace intel_npu
