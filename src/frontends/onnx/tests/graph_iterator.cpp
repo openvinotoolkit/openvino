@@ -176,7 +176,6 @@ TEST_P(FrontEndLoadFromTest, tensor_place_uses_model_dir_for_external_data) {
     } catch (...) {
         FAIL() << "convert failed: reason unknown";
     }
-    
 
     ASSERT_GT(iter->get_model_dir_call_count, 0) << "get_model_dir() was never called";
     ASSERT_EQ(iter->last_returned_dir, expected_model_dir)
