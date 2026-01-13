@@ -13,7 +13,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/common_optimizations/pack_GQA.hpp"
+#include "transformations/common_optimizations/pack_multi_head_attention.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 
 namespace ov::test {
@@ -208,7 +208,7 @@ TEST_P(PackGQATest, PackGQA) {
     {
         model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
         ov::pass::Manager manager;
-        manager.register_pass<ov::pass::PackGQA>();
+        manager.register_pass<ov::pass::PackMultiHeadAttention>();
         manager.run_passes(model);
     }
 

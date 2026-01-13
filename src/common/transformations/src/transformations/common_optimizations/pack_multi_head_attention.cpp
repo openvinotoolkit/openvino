@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "transformations/common_optimizations/pack_GQA.hpp"
+#include "transformations/common_optimizations/pack_multi_head_attention.hpp"
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -32,6 +32,9 @@ using namespace ov::op;
 using namespace ov::pass;
 
 namespace {
+
+static constexpr int64_t RANK = 4;  // Assuming 4D tensors [batch, heads, seq_len, dim]
+static constexpr int64_t HEAD_AXIS = 1;
 
 bool compare_nodes(const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node>& b) {
     if (!a || !b)
@@ -112,23 +115,6 @@ std::shared_ptr<ov::Node> concat_any(const ov::OutputVector& inputs, int64_t axi
     return concat;
 }
 
-}  // namespace
-
-bool PackGQA::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_MODEL_SCOPE(PackGQA);
-
-    ov::pass::Manager manager(get_pass_config(), "PackGQA");
-
-    manager.register_pass<ov::pass::MergeTwoUnrolledSDPAAdd>();
-    manager.register_pass<ov::pass::MergeKVCaches>();
-    manager.register_pass<ov::pass::MergeTwoUnrolledRoPEConcat>();
-    manager.register_pass<ov::pass::MergeMatMulBiasConcat>();
-    manager.register_pass<ov::pass::MergeDQConcat>();
-    manager.register_pass<ov::pass::ConcatFusion>();
-
-    return manager.run_passes(model);
-}
-
 /**
  * @brief Skips a node of specified type by returning its input node, or returns the node itself if it's not of the
  * specified type.
@@ -160,6 +146,23 @@ static std::shared_ptr<ov::Node> get_scale(const std::shared_ptr<ov::Node>& inpu
     }
     return nullptr;
 };
+
+}  // namespace
+
+bool PackMultiHeadAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(PackMultiHeadAttention);
+
+    ov::pass::Manager manager(get_pass_config(), "PackMultiHeadAttention");
+
+    manager.register_pass<ov::pass::MergeTwoUnrolledSDPAAdd>();
+    manager.register_pass<ov::pass::MergeKVCaches>();
+    manager.register_pass<ov::pass::MergeTwoUnrolledRoPEConcat>();
+    manager.register_pass<ov::pass::MergeMatMulBiasConcat>();
+    manager.register_pass<ov::pass::MergeDQConcat>();
+    manager.register_pass<ov::pass::ConcatFusion>();
+
+    return manager.run_passes(model);
+}
 
 /**
  * @brief Merges two unrolled Scaled Dot-Product Attention (SDPA) patterns connected by an Add operation.
@@ -275,33 +278,46 @@ MergeTwoUnrolledSDPAAdd::MergeTwoUnrolledSDPAAdd() {
         OutputVector p_inputs = {mm1->input_value(1), mm2->input_value(1)};
         OutputVector b_inputs = {bias1->input_value(1), bias2->input_value(1)};
 
-        // Concatenate along head axis (1)
-        size_t head_axis = 1;
-        size_t rank = 4;  // Assuming 4D tensors [batch, heads, seq_len, dim]
+        // Concatenate along head axis
+        std::shared_ptr<ov::Node> Q = concat_any(q_inputs, HEAD_AXIS, RANK);
+        std::shared_ptr<ov::Node> K = concat_any(k_inputs, HEAD_AXIS, RANK);
+        std::shared_ptr<ov::Node> V = concat_any(v_inputs, HEAD_AXIS, RANK);
+        std::shared_ptr<ov::Node> B =
+            (b_inputs[0] == b_inputs[1]) ? b_inputs[0].get_node_shared_ptr() : concat_any(b_inputs, HEAD_AXIS, RANK);
+        std::shared_ptr<ov::Node> P = concat_any(p_inputs, HEAD_AXIS, RANK);
 
-        auto Q = concat_any(q_inputs, head_axis, rank);
-        auto K = concat_any(k_inputs, head_axis, rank);
-        auto V = concat_any(v_inputs, head_axis, rank);
-        auto B = (b_inputs[0] == b_inputs[1]) ? b_inputs[0] : concat_any(b_inputs, head_axis, rank);
-        auto P = concat_any(p_inputs, head_axis, rank);
+        // Check that concatenation succeeded; abort transformation on failure
+        if (!Q || !K || !V || !B || !P) {
+            return false;
+        }
 
         // Build fused SDPA
         auto qk_fused = qk1->copy_with_new_inputs({Q, K});
+        copy_runtime_info({qk1, qk2}, qk_fused);
+
         std::shared_ptr<ov::Node> scores_scaled = qk_fused;
         if (sf1 && sf2) {
             scores_scaled = sf1->copy_with_new_inputs({qk_fused, sf1->input_value(1)});
+            copy_runtime_info({sf1, sf2}, scores_scaled);
         }
 
         auto bias_fused = bias1->copy_with_new_inputs({scores_scaled, B});
+        copy_runtime_info({bias1, bias2}, bias_fused);
+
         auto softmax_fused = soft1->copy_with_new_inputs({bias_fused});
+        copy_runtime_info({soft1, soft2}, softmax_fused);
+
         auto qkv_fused = sdpa_mm1->copy_with_new_inputs({softmax_fused, V});
+        copy_runtime_info({sdpa_mm1, sdpa_mm2}, qkv_fused);
+
         auto proj = mm1->copy_with_new_inputs({qkv_fused, P});
+        copy_runtime_info({mm1, mm2}, proj);
 
         auto reduce_axis = v0::Constant::create(element::i64, Shape{1}, {1});
         auto reduce = std::make_shared<v1::ReduceSum>(proj, reduce_axis, false);
 
         reduce->set_friendly_name(add_node->get_friendly_name() + "_reduced");
-        copy_runtime_info({add_node, mm1, mm2, soft1, soft2}, reduce);
+        copy_runtime_info(add_node, reduce);
 
         replace_node(add_node, reduce);
 
@@ -338,7 +354,6 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
         nodes.add = pattern::wrap_type<v1::Add>({nodes.mul_l, nodes.mul_r});
         nodes.reshape = pattern::wrap_type<v1::Reshape, v1::Transpose>({nodes.add, pattern::any_input()});
         nodes.output = std::make_shared<pattern::op::Or>(OutputVector{nodes.reshape, nodes.add});
-
         return nodes;
     };
 
@@ -397,15 +412,9 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
         auto reshape_lhs = pm[rope_lhs.input].get_node_shared_ptr();
         auto reshape_rhs = pm[rope_rhs.input].get_node_shared_ptr();
 
-        // Concatenate along head axis (1)
-        size_t head_axis = 1;
-        size_t rank = 4;  // Assuming 4D tensors [batch, heads, seq_len, dim]
-
+        // Concatenate along head axis
         auto input_fused =
-            concat_any(ov::OutputVector{reshape_lhs->input_value(0), reshape_rhs->input_value(0)}, head_axis, rank);
-        if (!input_fused) {
-            return false;
-        }
+            concat_any(ov::OutputVector{reshape_lhs->input_value(0), reshape_rhs->input_value(0)}, HEAD_AXIS, RANK);
 
         auto mul_down_1_lhs_input = mul_down_1_lhs->input_value(1);
         auto mul_down_2_lhs_input = mul_down_2_lhs->input_value(1);
@@ -413,13 +422,13 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
         auto mul_down_2_rhs_input = mul_down_2_rhs->input_value(1);
 
         auto mul_down_input_l_fused =
-            concat_any(ov::OutputVector{mul_down_1_lhs_input, mul_down_1_rhs_input}, head_axis, rank);
-        if (!mul_down_input_l_fused) {
-            return false;
-        }
+            concat_any(ov::OutputVector{mul_down_1_lhs_input, mul_down_1_rhs_input}, HEAD_AXIS, RANK);
+
         auto mul_down_input_r_fused =
-            concat_any(ov::OutputVector{mul_down_2_lhs_input, mul_down_2_rhs_input}, head_axis, rank);
-        if (!mul_down_input_r_fused) {
+            concat_any(ov::OutputVector{mul_down_2_lhs_input, mul_down_2_rhs_input}, HEAD_AXIS, RANK);
+
+        // Check that concatenation succeeded; abort transformation on failure
+        if (!input_fused || !mul_down_input_r_fused || !mul_down_input_l_fused) {
             return false;
         }
 
@@ -509,29 +518,24 @@ MergeMatMulBiasConcat::MergeMatMulBiasConcat() {
         if (!add_lhs || !add_rhs)
             return false;
 
-        // if (add_lhs->get_friendly_name() != "Add_1773")
-        //     return false;
-
-        // Concatenate along head axis (1)
-        size_t head_axis = 1;
-        size_t rank = 4;  // Assuming 4D tensors [batch, heads, seq_len, dim]
-
+        // Concatenate along head axis
         std::shared_ptr<ov::Node> input_fused = nullptr;
-
         auto convert_lhs = ov::as_type_ptr<v0::Convert>(pm[mm_bias_lhs.convert].get_node_shared_ptr());
         auto convert_rhs = ov::as_type_ptr<v0::Convert>(pm[mm_bias_rhs.convert].get_node_shared_ptr());
         if (convert_lhs && convert_rhs) {
             auto convert_const_fused =
-                concat_any(OutputVector{convert_lhs->input_value(0), convert_rhs->input_value(0)}, head_axis, rank);
+                concat_any(OutputVector{convert_lhs->input_value(0), convert_rhs->input_value(0)}, HEAD_AXIS, RANK);
             input_fused = convert_lhs->copy_with_new_inputs({convert_const_fused});
+            copy_runtime_info({convert_lhs, convert_rhs}, input_fused);
         }
 
         auto subtract_lhs = ov::as_type_ptr<v1::Subtract>(pm[mm_bias_lhs.subtract].get_node_shared_ptr());
         auto subtract_rhs = ov::as_type_ptr<v1::Subtract>(pm[mm_bias_rhs.subtract].get_node_shared_ptr());
         if (subtract_lhs && subtract_rhs) {
             auto subtract_const_fused =
-                concat_any(OutputVector{subtract_lhs->input_value(0), subtract_rhs->input_value(0)}, head_axis, rank);
+                concat_any(OutputVector{subtract_lhs->input_value(0), subtract_rhs->input_value(0)}, HEAD_AXIS, RANK);
             input_fused = subtract_lhs->copy_with_new_inputs({subtract_const_fused, subtract_lhs->input_value(1)});
+            copy_runtime_info({subtract_lhs, subtract_rhs}, input_fused);
         }
 
         auto scale_lhs = ov::as_type_ptr<v1::Multiply>(pm[mm_bias_lhs.multiply].get_node_shared_ptr());
@@ -539,22 +543,22 @@ MergeMatMulBiasConcat::MergeMatMulBiasConcat() {
         if (scale_lhs && scale_rhs) {
             if (!input_fused) {
                 OutputVector multiply_inputs = {scale_lhs->input_value(0), scale_rhs->input_value(0)};
-                input_fused = concat_any(multiply_inputs, head_axis, rank);
+                input_fused = concat_any(multiply_inputs, HEAD_AXIS, RANK);
             }
             input_fused = scale_lhs->copy_with_new_inputs({input_fused, scale_lhs->input_value(1)});
+            copy_runtime_info({scale_lhs, scale_rhs}, input_fused);
         }
 
         if (!input_fused) {
-            input_fused = concat_any(OutputVector{mm_lhs->input_value(1), mm_rhs->input_value(1)}, head_axis, rank);
+            input_fused = concat_any(OutputVector{mm_lhs->input_value(1), mm_rhs->input_value(1)}, HEAD_AXIS, RANK);
         }
 
-        // OutputVector mul_inputs_fused = {
-        //     concat_any(OutputVector{mm_lhs->input_value(0), mm_rhs->input_value(0)}, head_axis, rank),
-        //     input_fused};
+        auto mm_fused = mm_lhs->copy_with_new_inputs({normalize_rank(mm_lhs->input_value(0), RANK), input_fused});
+        copy_runtime_info({mm_lhs, mm_rhs}, mm_fused);
 
-        auto mm_fused = mm_lhs->copy_with_new_inputs({normalize_rank(mm_lhs->input_value(0), rank), input_fused});
-        auto bias_fused = concat_any(OutputVector{add_lhs->input_value(1), add_rhs->input_value(1)}, head_axis, rank);
+        auto bias_fused = concat_any(OutputVector{add_lhs->input_value(1), add_rhs->input_value(1)}, HEAD_AXIS, RANK);
         auto add_fused = add_lhs->copy_with_new_inputs({mm_fused, bias_fused});
+        copy_runtime_info({add_lhs, add_rhs}, add_fused);
 
         replace_node(concat_node, add_fused);
 
@@ -616,25 +620,32 @@ MergeDQConcat::MergeDQConcat() {
         if (!convert_0_lhs || !convert_0_rhs || !convert_1_lhs || !convert_1_rhs)
             return false;
 
-        // Concatenate along head axis (1)
-        size_t head_axis = 1;
-        size_t rank = 4;  // Assuming 4D tensors [batch, heads, seq_len, dim]
-
+        // Concatenate along head axis
         auto convert_0_const_fused =
-            concat_any(OutputVector{convert_0_lhs->input_value(0), convert_0_rhs->input_value(0)}, head_axis, rank);
-        auto convert_0_fused = convert_0_lhs->copy_with_new_inputs({convert_0_const_fused});
-
+            concat_any(OutputVector{convert_0_lhs->input_value(0), convert_0_rhs->input_value(0)}, HEAD_AXIS, RANK);
         auto convert_1_const_fused =
-            concat_any(OutputVector{convert_1_lhs->input_value(0), convert_1_rhs->input_value(0)}, head_axis, rank);
+            concat_any(OutputVector{convert_1_lhs->input_value(0), convert_1_rhs->input_value(0)}, HEAD_AXIS, RANK);
+
+        // Check that concatenation succeeded; abort transformation on failure
+        if (!convert_0_const_fused || !convert_1_const_fused) {
+            return false;
+        }
+
+        auto convert_0_fused = convert_0_lhs->copy_with_new_inputs({convert_0_const_fused});
+        copy_runtime_info({convert_0_lhs, convert_0_rhs}, convert_0_fused);
+
         auto convert_1_fused = convert_1_lhs->copy_with_new_inputs({convert_1_const_fused});
+        copy_runtime_info({convert_1_lhs, convert_1_rhs}, convert_1_fused);
 
         auto sub_fused = sub_lhs->copy_with_new_inputs({convert_0_fused, convert_1_fused});
+        copy_runtime_info({sub_lhs, sub_rhs}, sub_fused);
 
         OutputVector mul_inputs_fused = {
             sub_fused,
-            concat_any(OutputVector{mul_lhs->input_value(1), mul_rhs->input_value(1)}, head_axis, rank)};
+            concat_any(OutputVector{mul_lhs->input_value(1), mul_rhs->input_value(1)}, HEAD_AXIS, RANK)};
 
         auto mul_fused = mul_lhs->copy_with_new_inputs(mul_inputs_fused);
+        copy_runtime_info({mul_lhs, mul_rhs}, mul_fused);
 
         replace_node(concat_node, mul_fused);
 
@@ -642,6 +653,26 @@ MergeDQConcat::MergeDQConcat() {
     });
 }
 
+/**
+ * @brief Graph rewrite that merges two KV-cache concat subgraphs produced by the Pack-GQA transformation.
+ *
+ * This matcher looks for a top-level Concat that concatenates two cache-building Concat subgraphs:
+ *   - cache_lhs := Concat(cache_input_lhs, input_lhs)
+ *   - cache_rhs := Concat(cache_input_rhs, input_rhs)
+ * and only triggers when the matched root Concat node is marked with runtime info key "packed_GQA".
+ *
+ * When matched, it:
+ *   1) Creates a merged cache update by concatenating corresponding inputs of the two cache concats
+ *      along the head axis (axis = 1) assuming 4D KV tensors in layout [batch, heads, seq_len, dim].
+ *   2) Splits the merged result back into LHS/RHS head partitions using VariadicSplit, with split sizes
+ *      derived from the static head dimensions of the original inputs.
+ *   3) Replaces consumers of the original cache concats to read from the appropriate split outputs.
+ *
+ * Safety/limitations:
+ *   - Requires static rank and static head dimension for both inputs to compute split sizes.
+ *   - Assumes head axis is 1 and tensor rank is 4 (as used by the Pack-GQA pipeline).
+ *   - If ranks or head dimension are dynamic, the transformation is skipped.
+ */
 MergeKVCaches::MergeKVCaches() {
     MATCHER_SCOPE(MergeKVCaches);
 
@@ -676,24 +707,40 @@ MergeKVCaches::MergeKVCaches() {
         if (!concat_cache_lhs || !concat_cache_rhs)
             return false;
 
-        // Concatenate along head axis (1)
-        int64_t head_axis = 1;
-        int64_t rank = 4;  // Assuming 4D tensors [batch, heads, seq_len, dim]
-
+        // Concatenate along head axis
         auto concat_merged_input1 =
             concat_any(OutputVector{concat_cache_lhs->input_value(0), concat_cache_rhs->input_value(0)},
-                       head_axis,
-                       rank);
+                       HEAD_AXIS,
+                       RANK);
         auto concat_merged_input2 =
             concat_any(OutputVector{concat_cache_lhs->input_value(1), concat_cache_rhs->input_value(1)},
-                       head_axis,
-                       rank);
-        auto concat_merged = concat_cache_lhs->copy_with_new_inputs({concat_merged_input1, concat_merged_input2});
+                       HEAD_AXIS,
+                       RANK);
 
-        // spliting cache output
-        int64_t len_lhs = concat_node->input_value(0).get_shape()[head_axis];
-        int64_t len_rhs = concat_node->input_value(1).get_shape()[head_axis];
-        auto axis = v0::Constant::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>({head_axis}));
+        // Check that concatenation succeeded
+        if (!concat_merged_input1 || !concat_merged_input2) {
+            return false;
+        }
+        auto concat_merged = concat_cache_lhs->copy_with_new_inputs({concat_merged_input1, concat_merged_input2});
+        copy_runtime_info({concat_cache_lhs, concat_cache_rhs}, concat_merged);
+
+        // splitting cache output
+        const auto& pshape_lhs = concat_node->input_value(0).get_partial_shape();
+        const auto& pshape_rhs = concat_node->input_value(1).get_partial_shape();
+
+        // Ensure ranks and the head dimension are static before accessing lengths
+        if (pshape_lhs.rank().is_dynamic() || pshape_rhs.rank().is_dynamic())
+            return false;
+        if (HEAD_AXIS < 0 || HEAD_AXIS >= static_cast<int64_t>(pshape_lhs.size()) ||
+            HEAD_AXIS >= static_cast<int64_t>(pshape_rhs.size()))
+            return false;
+        if (pshape_lhs[HEAD_AXIS].is_dynamic() || pshape_rhs[HEAD_AXIS].is_dynamic())
+            return false;
+
+        int64_t len_lhs = pshape_lhs[HEAD_AXIS].get_length();
+        int64_t len_rhs = pshape_rhs[HEAD_AXIS].get_length();
+
+        auto axis = v0::Constant::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>({HEAD_AXIS}));
         auto sizes = v0::Constant::create(ov::element::i64, ov::Shape{2}, {len_lhs, len_rhs});
         auto split_out = std::make_shared<v1::VariadicSplit>(concat_merged, axis, sizes);
 

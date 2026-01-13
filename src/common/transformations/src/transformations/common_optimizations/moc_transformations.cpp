@@ -54,7 +54,7 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
-#include "transformations/common_optimizations/pack_GQA.hpp"
+#include "transformations/common_optimizations/pack_multi_head_attention.hpp"
 #include "transformations/common_optimizations/pad_fusion.hpp"
 #include "transformations/common_optimizations/prelu_fusion.hpp"
 #include "transformations/common_optimizations/pull_through_reduce.hpp"
@@ -254,7 +254,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, ConvertU4WeightsZeroPointToScalar)
     common_fusions->set_name("ov::pass::CommonFusions");
 
-    REGISTER_PASS(manager, PackGQA)
+    REGISTER_PASS(manager, PackMultiHeadAttention)
     REGISTER_PASS(manager, SDPAFusion)
     REGISTER_PASS(manager, BinarizeWeights)
     REGISTER_PASS(manager, ConvToBinaryConv)

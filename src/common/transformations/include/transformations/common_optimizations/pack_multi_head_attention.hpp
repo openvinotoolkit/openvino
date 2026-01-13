@@ -89,11 +89,64 @@ namespace ov::pass {
 
 namespace ov::pass {
 
+/**
+ * @brief Fuses two unrolled Scaled Dot-Product Attention (SDPA) branches that are combined with an Add into a single,
+ *        more compact SDPA representation.
+ *
+ * @details
+ * This transformation is implemented as an ov::pass::MatcherPass and uses pattern-based matching to detect a subgraph
+ * where SDPA has been "unrolled" into primitive operations in two parallel branches whose results are summed (Add).
+ * When the pattern is found and it is safe to do so, the pass replaces the matched subgraph with an equivalent,
+ * optimized form (typically reducing the number of operations and improving execution efficiency).
+ *
+ * The pass is intended for common-optimizations pipelines to simplify graphs produced by frontends or earlier
+ * transformations, and can enable subsequent fusions and backend-specific optimizations.
+ *
+ * @note The pass should preserve graph semantics. It may decline to transform if required constraints (e.g. compatible
+ *       shapes, attributes, constants, or single-consumer requirements) are not satisfied.
+ */
 class TRANSFORMATIONS_API MergeTwoUnrolledSDPAAdd : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MergeTwoUnrolledSDPAAdd");
     MergeTwoUnrolledSDPAAdd();
 };
+/**
+ * ## Pseudo-graph example (before/after)
+ *
+ * The pass targets graphs where two equivalent SDPA branches are executed in parallel and then merged by Add.
+ * A simplified (illustrative) topology looks like:
+ *
+ * ### Before (two unrolled SDPA branches + Add)
+ *
+ *   Q ──► PreQ1 ─┐
+ *               ├──► SDPA_1 ─► Post_1 ─┐
+ *   K ──► PreK1 ─┘                    │
+ *   V ──► PreV1 ──────────────────────┘
+ *
+ *   Q ──► PreQ2 ─┐
+ *               ├──► SDPA_2 ─► Post_2 ─┐
+ *   K ──► PreK2 ─┘                    │
+ *   V ──► PreV2 ──────────────────────┘
+ *
+ *                     Post_1 ─┐
+ *                             ├──► Add ─► Output
+ *                     Post_2 ─┘
+ *
+ * Where:
+ * - Pre* may include: MatMul (+ Add bias), Dequantize, Reshape/Transpose, RoPE/positional ops, etc.
+ * - Post_* may include: per-branch output projection, reshapes/transposes, etc.
+ *
+ * ### After (single packed/merged SDPA)
+ *
+ *   Q ──► Pack/PreQ ─┐
+ *                   ├──► SDPA_Packed ─► Post_Packed ─► Output
+ *   K ──► Pack/PreK ─┤
+ *   V ──► Pack/PreV ─┘
+ *
+ * Notes:
+ * - Exact packing/unpacking ops are implementation-specific (Concat/Reshape/Transpose/etc.).
+ * - The pass only applies when it can prove equivalence/compatibility (e.g., same masks/scales, aligned shapes).
+ */
 
 class TRANSFORMATIONS_API MergeTwoUnrolledRoPEConcat : public ov::pass::MatcherPass {
 public:
@@ -119,10 +172,10 @@ public:
     MergeDQConcat();
 };
 
-class TRANSFORMATIONS_API PackGQA : public ov::pass::ModelPass {
+class TRANSFORMATIONS_API PackMultiHeadAttention : public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("PackGQA");
-    PackGQA() = default;
+    OPENVINO_MODEL_PASS_RTTI("PackMultiHeadAttention");
+    PackMultiHeadAttention() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
