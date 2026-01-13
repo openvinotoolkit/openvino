@@ -18,6 +18,8 @@ ze_event_factory::ze_event_factory(const ze_engine &engine, bool enable_profilin
 , m_num_used(0) { }
 
 event::ptr ze_event_factory::create_event(uint64_t queue_stamp) {
+    std::lock_guard<std::mutex> lock(_mutex);
+
     if (m_num_used >= m_capacity || !m_current_pool) {
         m_num_used = 0;
         ze_event_pool_flags_t flags = is_profiling_enabled() ? ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP : 0;

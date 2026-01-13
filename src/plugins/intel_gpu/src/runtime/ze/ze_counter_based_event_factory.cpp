@@ -27,6 +27,8 @@ ze_counter_based_event_factory::ze_counter_based_event_factory(const ze_engine &
 }
 
 event::ptr ze_counter_based_event_factory::create_event(uint64_t queue_stamp) {
+    std::lock_guard<std::mutex> lock(_mutex);
+
     ze_event_handle_t event;
     auto desc = defaultIntelCounterBasedEventDesc;
     if (is_profiling_enabled()) {
