@@ -34,7 +34,7 @@
 using namespace testing;
 using namespace ov::gen_pattern;
 
-std::vector<int> MOCK_VALUE = {1};
+const std::vector<int> MOCK_VALUE = {1};
 
 static ov::OutputVector makeCosSinCache(size_t max_position_embeddings, size_t rotary_ndims) {
     std::vector<float> lut_sin(max_position_embeddings * rotary_ndims, 0.0f);
