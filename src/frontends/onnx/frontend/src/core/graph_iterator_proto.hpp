@@ -68,10 +68,6 @@ public:
     ~GraphIteratorProto() = default;
 
     void initialize(const std::filesystem::path& path);
-    void initialize(const std::string& path);
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    void initialize(const std::wstring& path);
-#endif
 
     /// Verifies file is supported
     template <typename T>

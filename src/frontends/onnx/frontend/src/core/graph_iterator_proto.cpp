@@ -339,16 +339,6 @@ void GraphIteratorProto::initialize(const std::filesystem::path& path) {
     }
 }
 
-void GraphIteratorProto::initialize(const std::string& path) {
-    initialize(std::filesystem::path{path});
-}
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-void GraphIteratorProto::initialize(const std::wstring& path) {
-    initialize(std::filesystem::path{path});
-}
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
 std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::string& name,
                                                                    GraphIteratorProto** owner) {
     if (m_tensors.count(name) == 0) {

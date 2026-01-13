@@ -89,8 +89,8 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingSimpleGraphIterator) {
 
 TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalStreams) {
     const std::string model_name = "external_data/external_data.onnx";
-    const auto path =
-        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name}).string();
+    const std::filesystem::path path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name});
 
     ov::frontend::FrontEnd::Ptr fe;
 
@@ -121,8 +121,8 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalStreams) {
 
 TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalMMAP) {
     const std::string model_name = "external_data/external_data.onnx";
-    const auto path =
-        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name}).string();
+    const std::filesystem::path path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name});
 
     ov::frontend::FrontEnd::Ptr fe;
 
@@ -153,10 +153,10 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalMMAP) {
 
 TEST_P(FrontEndLoadFromTest, tensor_place_uses_model_dir_for_external_data) {
     const std::string model_name = "external_data/external_data.onnx";
-    const auto path =
-        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name}).string();
+    const std::filesystem::path path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name});
 
-    const auto expected_model_dir = std::filesystem::path(path).parent_path();
+    const auto expected_model_dir = path.parent_path();
 
     auto iter = std::make_shared<SimpleIterator>(expected_model_dir);
 
