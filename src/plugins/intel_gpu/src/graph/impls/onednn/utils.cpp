@@ -44,6 +44,7 @@ std::string memory_desc_to_string(const dnnl::memory::desc& desc) {
             ss << (i ? "x" : "") << strides[i];
         }
     }
+
     return ss.str();
 }
 
