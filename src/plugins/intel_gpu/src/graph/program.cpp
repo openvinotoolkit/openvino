@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -697,6 +697,19 @@ void program::transfer_memory_to_device() {
     if (!get_engine().supports_allocation(allocation_type::usm_device))
         return;
 
+    auto allocate_and_transfer = [this](typed_program_node<data>& data_node,
+                                        const layout& target_layout,
+                                        const memory& mem,
+                                        allocation_type target_alloc_type) {
+        // Allocate and transfer memory
+        auto device_mem = mem.get_engine()->allocate_memory(target_layout, target_alloc_type, false);
+        device_mem->copy_from(get_stream(), mem);
+        data_node.attach_memory(device_mem);
+        const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
+        // TODO: Do we need finish call here? Maybe call it in network::execute() ?
+        get_stream().finish();
+    };
+
     for (auto& node : processing_order) {
         if (node->is_shape_infer_dep()) {
             continue;
@@ -711,27 +724,32 @@ void program::transfer_memory_to_device() {
             if (mem_layout.count() == 0)
                 continue;
 
+            allocation_type target_alloc_type = alloc_type;
+            // usm_device memory does not provide performance benefits on the LNL platform
+            if ((alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) &&
+                !(get_engine().get_device_info().arch >= gpu_arch::xe2 &&
+                  get_engine().get_device_info().dev_type == device_type::integrated_gpu)) {
+                // Convert to usm_device for performance optimization
+                target_alloc_type = allocation_type::usm_device;
+            }
+
             if (!mem_layout.compatible(data_node_layout)) {
+                if (data_node_layout.data_type == mem_layout.data_type &&
+                    data_node_layout.format == mem_layout.format &&
+                    data_node_layout.get_shape() == mem_layout.get_shape()) {
+                    GPU_DEBUG_LOG << "[" << data_node.id() << ": padding fix]" << std::endl;
+                    allocate_and_transfer(data_node, data_node_layout, mem, target_alloc_type);
+                    GPU_DEBUG_LOG << "[" << data_node.id() << ": padding fix completed]" << std::endl;
+                    continue;
+                }
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);
             }
 
-            if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
-                // usm_device memory does not provide performance benefits on the integrated Xe2+ platforms
-                if (get_engine().get_device_info().arch >= gpu_arch::xe2 &&
-                    get_engine().get_device_info().dev_type == device_type::integrated_gpu) {
-                    return;
-                }
-
+            if (target_alloc_type != alloc_type) {
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
-                // Allocate and transfer memory
-                auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
-                device_mem->copy_from(get_stream(), mem);
-                data_node.attach_memory(device_mem);
+                allocate_and_transfer(data_node, data_node_layout, mem, target_alloc_type);
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
-                const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
-                // TODO: Do we need finish call here? Maybe call it in network::execute() ?
-                get_stream().finish();
             }
         }
     }
