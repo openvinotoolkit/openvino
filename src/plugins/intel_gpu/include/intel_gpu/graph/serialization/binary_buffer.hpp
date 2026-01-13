@@ -44,9 +44,9 @@ private:
 
 class BinaryInputBuffer : public InputBuffer<BinaryInputBuffer> {
 public:
-    BinaryInputBuffer(std::istream& stream, engine& engine)
-    : InputBuffer<BinaryInputBuffer>(this, engine), _stream(stream), _impl_params(nullptr) {}
-
+    BinaryInputBuffer(std::istream& stream, engine& engine) : InputBuffer<BinaryInputBuffer>(this, engine), _stream(stream), _impl_params(nullptr) {}
+    BinaryInputBuffer(std::istream& stream, engine& engine, const uint8_t* _tensor_bp) : InputBuffer<BinaryInputBuffer>(this, engine), _stream(stream), _impl_params(nullptr), _tensor_base_ptr(_tensor_bp) {}
+    
     virtual ~BinaryInputBuffer() = default;
 
     virtual void read(void* const data, std::streamsize size) {
@@ -55,12 +55,54 @@ public:
             "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
     }
 
+    // Direct pointer access using position calculation
+    const void* get_current_ptr(std::streamsize size) {
+        if (!_tensor_base_ptr) {
+            throw std::runtime_error("Direct access not available - no tensor base pointer");
+        }
+
+        // Get current stream position
+        std::streampos current_pos = _stream.tellg();
+        if (current_pos == std::streampos(-1)) {
+            throw std::runtime_error("Failed to get stream position");
+        }
+
+        // Check if we have enough data
+        _stream.seekg(0, std::ios::end);
+        std::streampos end_pos = _stream.tellg();
+        _stream.seekg(current_pos);  // Restore position
+
+        if (current_pos + static_cast<std::streampos>(size) > end_pos) {
+            throw std::runtime_error("Not enough data in stream");
+        }
+
+        // Calculate direct pointer: base + current_offset
+        const void* ptr = _tensor_base_ptr + static_cast<size_t>(current_pos);
+
+        return ptr;
+    }
+    
+    const void* seek_current_ptr(std::streamsize size) {
+        // Get current stream position
+        std::streampos current_pos = _stream.tellg();
+        if (current_pos == std::streampos(-1)) {
+            throw std::runtime_error("Failed to get stream position");
+        }
+        // Advance stream position
+        _stream.seekg(current_pos + static_cast<std::streampos>(size));
+        // Calculate direct pointer: base + current_offset
+        const void* ptr = _tensor_base_ptr + static_cast<size_t>(current_pos);
+
+        return ptr;
+    }
+
     void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }
     void* getKernelImplParams() const { return _impl_params; }
 
 private:
     std::istream& _stream;
     void* _impl_params;
+    const uint8_t* _tensor_base_ptr;
 };
 
 class EncryptedBinaryOutputBuffer : public BinaryOutputBuffer {
