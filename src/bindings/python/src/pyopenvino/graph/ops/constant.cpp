@@ -9,8 +9,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <stdexcept>
 #include <iostream>
+#include <stdexcept>
 
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -68,7 +68,8 @@ void regclass_graph_op_Constant(py::module m) {
                          array.dtype().kind() == 'a') {
                          if (shared_memory) {
                              std::cerr << "Warning: Creating a String Constant with shared memory is not supported. "
-                                          "Data will be copied." << std::endl;
+                                          "Data will be copied."
+                                       << std::endl;
                          }
                          ov::Shape shape(array.shape(), array.shape() + array.ndim());
 
@@ -79,7 +80,7 @@ void regclass_graph_op_Constant(py::module m) {
                          }
                          // convert NumPy array to flattened list of strings
                          std::string* tensor_data = tensor.data<std::string>();
-                        //  std::vector<std::string> strings;
+                         //  std::vector<std::string> strings;
                          auto flat_array = array.reshape({-1});
 
                          // copy data
