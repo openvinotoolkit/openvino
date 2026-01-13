@@ -763,54 +763,148 @@ void ZeroDynamicInferRequest::infer() {
 void ZeroDynamicInferRequest::infer_async() {
     _logger.debug("InferRequest::infer_async started");
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
-
+    // Store the predicted output shapes
+    std::vector<IRGraph::MemRefType> outputPros;
     {
         std::lock_guard<std::mutex> lock(_graph->get_mutex());
 
-        // intel_npu::IRGraph* irGraph = dynamic_cast<intel_npu::IRGraph*>(_graph.get());
-        // if (irGraph) {
-        //     IRGraph::GraphArguments graphArgs;
-        //     // Need change to use arguments in pipeline
-        //     irGraph->getBinding(graphArgs);
-        //     std::vector<IRGraph::MemRefType> inputPros = graphArgs._inputs;
-        //     std::vector<IRGraph::MemRefType> outputPros = graphArgs._outputs;
+        intel_npu::IRGraph* irGraph = dynamic_cast<intel_npu::IRGraph*>(_graph.get());
+        if (irGraph) {
+            IRGraph::GraphArguments graphArgs;
+            // Need change to use arguments in pipeline
+            irGraph->getBinding(graphArgs);
+            // Before call execute, shall clear memref containers in graphArguments to avoid dangling ptrs
+            graphArgs._inputMemRefs.clear();
+            graphArgs._outputMemRefs.clear();
+            std::vector<IRGraph::MemRefType> inputPros = graphArgs._inputs;
+            outputPros = graphArgs._outputs;
 
-        //     // TENTATIVE CODE TO ALLOCATE a memref handle
-        //     for (size_t i = 0; i < inputPros.size(); ++i) {
-        //         inputPros[i].UpdateMemRefHandleStatus();
-        //     }
+            // TODO: Support Batch later
+            // Update input Info
+            // TENTATIVE CODE TO ALLOCATE a memref handle
+            for (size_t i = 0; i < inputPros.size(); ++i) {
+                auto& levelZeroTensor = get_level_zero_input(i);
+                auto& userTensor = get_user_input(i);
+                if (userTensor != nullptr) {
+                    // If userTensor is set, use userTensor to update memref handle
+                    inputPros[i].basePtr = get_tensor_data_ptr(userTensor._ptr);
+                    inputPros[i].data = inputPros[i].basePtr;
+                    inputPros[i].offset = 0;
+                    auto& shape = userTensor->get_shape();
+                    for (size_t j = 0; j < shape.size(); j++) {
+                        inputPros[i].sizes[j] = shape[j];
+                    }
+                    auto& strides = userTensor->get_strides();
+                    for (size_t j = 0; j < strides.size(); j++) {
+                        inputPros[i].strides[j] = strides[j];
+                    }
+                    inputPros[i].dimsCount = shape.size();
 
-        //     for (size_t i = 0; i < outputPros.size(); ++i) {
-        //         outputPros[i].UpdateMemRefHandleStatus();
-        //     }
+                } else if (levelZeroTensor != nullptr) {
+                    // If userTensor is not set, use levelZeroTensor to update memref handle
+                    inputPros[i].basePtr = get_tensor_data_ptr(levelZeroTensor);
+                    inputPros[i].data = inputPros[i].basePtr;
+                    inputPros[i].offset = 0;
+                    auto& shape = levelZeroTensor->get_shape();
+                    for (size_t j = 0; j < shape.size(); j++) {
+                        inputPros[i].sizes[j] = shape[j];
+                    }
+                    auto& strides = levelZeroTensor->get_strides();
+                    for (size_t j = 0; j < strides.size(); j++) {
+                        inputPros[i].strides[j] = strides[j];
+                    }
+                    inputPros[i].dimsCount = shape.size();
+                } else {
+                    // If all tensors are not set, use metadata
+                    inputPros[i].basePtr = nullptr;
+                    inputPros[i].data = nullptr;
+                    inputPros[i].offset = 0;
+                    // TODO : BatchSize not checked here
+                    auto shape = _metadata.inputs.at(i).shapeFromCompiler.get_max_shape();
+                    for (size_t j = 0; j < shape.size(); j++) {
+                        inputPros[i].sizes[j] = shape[j];
+                    }
+                    inputPros[i].dimsCount = shape.size();
+                    inputPros[i].updateStride();
+                }
+                inputPros[i].UpdateMemRefHandleStatus();
+            }
 
-        //     // TODO: Skip predict output shape to avoid segment fault
-        //     irGraph->predict_output_shape(inputPros, outputPros);
+            // Update output Info
+            for (size_t i = 0; i < outputPros.size(); ++i) {
+                auto& levelZeroTensor = _levelZeroOutputTensors.at(i);
+                auto& userTensor = _userOutputTensors.at(i);
+                if (userTensor != nullptr) {
+                    // If userTensor is set, use userTensor to update memref handle
+                    outputPros[i].basePtr = get_tensor_data_ptr(userTensor._ptr);
+                    outputPros[i].data = outputPros[i].basePtr;
+                    outputPros[i].offset = 0;
+                    auto& shape = userTensor->get_shape();
+                    for (size_t j = 0; j < shape.size(); j++) {
+                        outputPros[i].sizes[j] = shape[j];
+                    }
+                    auto& strides = userTensor->get_strides();
+                    for (size_t j = 0; j < strides.size(); j++) {
+                        outputPros[i].strides[j] = strides[j];
+                    }
+                    outputPros[i].dimsCount = shape.size();
 
-        //     bool shapeChanged = false;
-        //     for (size_t i = 0; i < outputPros.size(); i++) {
-        //         std::cout << "Original output " << i << ":" << graphArgs._outputs[i] << std::endl;
-        //         std::cout << "predicted output " << i << ":" << outputPros[i] << std::endl;
-        //         for (size_t j = 0; j < outputPros[i].dimsCount; j++) {
-        //             if (graphArgs._outputs[i].sizes[j] != outputPros[i].sizes[j]) {
-        //                 _logger.warning(
-        //                     "Output tensor %d shape and predicted shape mimsmatch at dim %zu, changed from %zu to %zu",
-        //                     i,
-        //                     j,
-        //                     graphArgs._outputs[i].sizes[j],
-        //                     outputPros[i].sizes[j]);
-        //                 shapeChanged = true;
-        //                 break;
-        //             }
-        //         }
-        //         if (shapeChanged) {
-        //             break;
-        //         }
-        //     }
-        //     if (!shapeChanged) {
-        //         _logger.debug("No output shape changed detected");
-        //     }
-        // }
+                } else if (levelZeroTensor != nullptr) {
+                    // If userTensor is not set, use levelZeroTensor to update memref handle
+                    outputPros[i].basePtr = get_tensor_data_ptr(levelZeroTensor);
+                    outputPros[i].data = outputPros[i].basePtr;
+                    outputPros[i].offset = 0;
+                    auto& shape = levelZeroTensor->get_shape();
+                    for (size_t j = 0; j < shape.size(); j++) {
+                        outputPros[i].sizes[j] = shape[j];
+                    }
+                    auto& strides = levelZeroTensor->get_strides();
+                    for (size_t j = 0; j < strides.size(); j++) {
+                        outputPros[i].strides[j] = strides[j];
+                    }
+                    outputPros[i].dimsCount = shape.size();
+                } else {
+                    // If all tensors are not set, use metadata
+                    outputPros[i].basePtr = nullptr;
+                    outputPros[i].data = nullptr;
+                    outputPros[i].offset = 0;
+                    // TODO : BatchSize not checked here
+                    auto shape = _metadata.inputs.at(i).shapeFromCompiler.get_max_shape();
+                    for (size_t j = 0; j < shape.size(); j++) {
+                        outputPros[i].sizes[j] = shape[j];
+                    }
+                    outputPros[i].dimsCount = shape.size();
+                    outputPros[i].updateStride();
+                }
+                outputPros[i].UpdateMemRefHandleStatus();
+            }
+
+            auto originalOutputPros = outputPros;
+
+            irGraph->predict_output_shape(inputPros, outputPros);
+
+            bool shapeChanged = false;
+            for (size_t i = 0; i < outputPros.size(); i++) {
+                for (int64_t j = 0; j < outputPros[i].dimsCount; j++) {
+                    if (originalOutputPros[i].sizes[j] != outputPros[i].sizes[j]) {
+                        _logger.warning(
+                            "Output tensor %d shape and predicted shape mimsmatch at dim %zu, changed from %zu to %zu",
+                            i,
+                            j,
+                            originalOutputPros[i].sizes[j],
+                            outputPros[i].sizes[j]);
+                        shapeChanged = true;
+                        break;
+                    }
+                }
+                if (shapeChanged) {
+                    break;
+                }
+            }
+            if (!shapeChanged) {
+                _logger.debug("No output shape changed detected");
+            }
+        }
 
         if (!_pipelineIsCreated || _dynamicBatchValueChanged) {
             OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
@@ -916,6 +1010,29 @@ void ZeroDynamicInferRequest::infer_async() {
         }
 
         ++inputIndex;
+    }
+
+    // Update local level zero buffer shape with predicted shape to prepare for comparasion
+    if (outputPros.size() > 0) {
+        for (size_t i = 0; i < _levelZeroOutputTensors.size(); i++) {
+            auto& levelZeroTensor = _levelZeroOutputTensors.at(i);
+            if (levelZeroTensor == nullptr) {
+                // Do not need to update user output tensor
+                continue;
+            }
+            ov::Shape predictedShape;
+            for (int64_t j = 0; j < outputPros[i].dimsCount; j++) {
+                predictedShape.push_back(outputPros[i].sizes[j]);
+            }
+            if (levelZeroTensor->get_shape() != predictedShape) {
+                _logger.info("Reshape output tensor %d from %s to predicted shape %s",
+                             i,
+                             levelZeroTensor->get_shape().to_string().c_str(),
+                             predictedShape.to_string().c_str());
+                levelZeroTensor->set_shape(predictedShape);
+                _pipeline->update_graph_arguments(_metadata.outputs.at(i).indexUsedByDriver, levelZeroTensor, nullptr);
+            }
+        }
     }
 
     OV_ITT_TASK_NEXT(ZERO_INFER, "push");
