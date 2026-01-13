@@ -20,10 +20,12 @@ public:
     PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
-                                    const FilteredConfig& config) const override;
+                                    const FilteredConfig& config,
+                                    const std::shared_ptr<BlobWriter>& blobWriter) const override;
 
     std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model,
-                                      const FilteredConfig& config) const override;
+                                      const FilteredConfig& config,
+                                      const std::shared_ptr<BlobWriter>& blobWriter) const override;
 
     std::shared_ptr<IGraph> parse(
         const ov::Tensor& mainBlob,
