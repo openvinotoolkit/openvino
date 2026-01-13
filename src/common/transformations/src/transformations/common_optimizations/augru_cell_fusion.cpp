@@ -25,10 +25,10 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/augru_cell.hpp"
 
+namespace ov::pass {
+
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-
-namespace ov::pass {
 
 namespace {
 

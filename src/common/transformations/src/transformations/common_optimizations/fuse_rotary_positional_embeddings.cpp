@@ -47,13 +47,13 @@
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace ov::pass {
+
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v8 = ov::op::v8;
 namespace op_util = ov::op::util;
-
-namespace ov::pass {
 
 RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {}
 

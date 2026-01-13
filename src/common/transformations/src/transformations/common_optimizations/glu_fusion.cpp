@@ -17,12 +17,13 @@
 #include "ov_ops/glu.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace ov::pass {
+
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
 namespace v7 = ov::op::v7;
 namespace op_util = ov::op::util;
-namespace ov::pass {
 
 GLUFusion::GLUFusion() {
     auto last_dim_static = [](const ov::Output<ov::Node>& output) {

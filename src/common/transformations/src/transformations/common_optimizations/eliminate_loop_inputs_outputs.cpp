@@ -15,11 +15,11 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+namespace ov::pass {
+
 namespace v0 = ov::op::v0;
 namespace v5 = ov::op::v5;
 namespace op_util = ov::op::util;
-
-namespace ov::pass {
 
 using InvariantD = op_util::MultiSubGraphOp::InvariantInputDescription;
 using SlicedD = op_util::MultiSubGraphOp::SliceInputDescription;

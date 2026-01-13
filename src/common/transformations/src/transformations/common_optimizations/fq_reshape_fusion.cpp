@@ -19,27 +19,25 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::consumers_count;
-using ov::pass::pattern::has_static_shape;
-using ov::pass::pattern::Matcher;
-using ov::pass::pattern::wrap_type;
+namespace ov::pass {
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
+
+FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
     MATCHER_SCOPE(FakeQuantizeReshapeFusion);
     // for weights only
-    const auto data_p = wrap_type<v0::Constant>(has_static_shape());
-    const auto convert_p = ov::pass::pattern::optional<v0::Convert>(data_p, consumers_count(1));
-    const auto fq_node_p = wrap_type<v0::FakeQuantize>({convert_p,
-                                                        any_input(has_static_shape()),
-                                                        any_input(has_static_shape()),
-                                                        any_input(has_static_shape()),
-                                                        any_input(has_static_shape())},
-                                                       consumers_count(1));
-    const auto reshape_node_p =
-        wrap_type<v1::Reshape>({fq_node_p, wrap_type<v0::Constant>()}, [](const Output<Node>& output) {
+    const auto data_p = pattern::wrap_type<v0::Constant>(pattern::has_static_shape());
+    const auto convert_p = pattern::optional<v0::Convert>(data_p, pattern::consumers_count(1));
+    const auto fq_node_p = pattern::wrap_type<v0::FakeQuantize>({convert_p,
+                                                                 pattern::any_input(pattern::has_static_shape()),
+                                                                 pattern::any_input(pattern::has_static_shape()),
+                                                                 pattern::any_input(pattern::has_static_shape()),
+                                                                 pattern::any_input(pattern::has_static_shape())},
+                                                                pattern::consumers_count(1));
+    const auto reshape_node_p = pattern::wrap_type<v1::Reshape>(
+        {fq_node_p, pattern::wrap_type<v0::Constant>()},
+        [](const Output<Node>& output) {
             // WA: check that all Reshape node consumers are not GroupConvolution operations
             const auto& target_inputs = output.get_target_inputs();
             return std::all_of(target_inputs.begin(), target_inputs.end(), [](const Input<Node>& input) {
@@ -47,7 +45,7 @@ ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
             });
         });
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& fq_node = pattern_map.at(fq_node_p).get_node_shared_ptr();
         const auto& reshape_node = pattern_map.at(reshape_node_p).get_node_shared_ptr();
@@ -114,6 +112,8 @@ ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(reshape_node_p, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(reshape_node_p, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

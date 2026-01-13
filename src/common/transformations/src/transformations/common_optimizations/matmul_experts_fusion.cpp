@@ -26,13 +26,13 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace ov::pass {
+
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
 namespace v12 = ov::op::v12;
-
-namespace ov::pass {
 
 FuseVectorizedMOE2GEMM::FuseVectorizedMOE2GEMM() {
     MATCHER_SCOPE(FuseVectorizedMOE2GEMM);

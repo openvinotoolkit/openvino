@@ -26,10 +26,10 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+namespace ov::pass {
+
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-
-namespace ov::pass {
 
 namespace {
 

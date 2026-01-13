@@ -14,10 +14,10 @@
 #include "openvino/op/util/binary_elementwise_logical.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+namespace ov::pass {
+
 namespace v0 = ov::op::v0;
 namespace op_util = ov::op::util;
-
-namespace ov::pass {
 
 AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
     auto eltwise_pattern = pattern::wrap_type<v0::SquaredDifference,
