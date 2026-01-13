@@ -111,10 +111,10 @@ function(ov_download_tbb)
                 USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
+                ARCHIVE_ANDROID "oneapi-tbb-2022.3.0-android-x86_64-hwloc-release.tgz"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce"
+                SHA256 "8f10e54555debf8a14514f06b0bf0d9c91e5377074fd5156963a031940183934"
                 USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
