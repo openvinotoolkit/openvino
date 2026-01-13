@@ -13,8 +13,8 @@ using namespace cldnn;
 using namespace ze;
 
 void ze_events::wait_impl() {
-    if (m_last_event) {
-        OV_ZE_EXPECT(zeEventHostSynchronize(m_last_event, endless_wait));
+    if (_last_ze_event) {
+        OV_ZE_EXPECT(zeEventHostSynchronize(_last_ze_event, endless_wait));
     }
 }
 
@@ -24,11 +24,11 @@ void ze_events::set_impl() {
 }
 
 bool ze_events::is_set_impl() {
-    if (!m_last_event) {
+    if (!_last_ze_event) {
         return true;
     }
 
-    auto ret = zeEventQueryStatus(m_last_event);
+    auto ret = zeEventQueryStatus(_last_ze_event);
     switch (ret) {
     case ZE_RESULT_SUCCESS:
         return true;
@@ -89,10 +89,10 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
         }
     };
 
-    if (m_events.empty())
+    if (_events.empty())
         return false;
 
-    auto device_info = m_engine.get_device_info();
+    auto device_info = _engine.get_device_info();
 
     auto get_total_exec_time = [&device_info](std::vector<ze_kernel_timestamp_data_t>& all_timestamps) {
         std::chrono::nanoseconds total_time{0};
@@ -130,8 +130,8 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
         return wallclock_time - exec_time;
     };
 
-    for (size_t i = 0; i < m_events.size(); i++) {
-        auto be = downcast<ze_base_event>(m_events[i].get());
+    for (size_t i = 0; i < _events.size(); i++) {
+        auto be = downcast<ze_base_event>(_events[i].get());
         auto opt_timestamp = be->query_timestamp();
         if (!opt_timestamp.has_value()) {
             continue;
