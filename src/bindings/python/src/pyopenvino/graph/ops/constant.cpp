@@ -70,9 +70,6 @@ void regclass_graph_op_Constant(py::module m) {
                 if (shared_memory) {
                     OPENVINO_WARN(
                         "Creating a String Constant with shared memory is not supported. Data will be copied.");
-                    PyErr_WarnEx(PyExc_RuntimeWarning,
-                                 "Creating a String Constant with shared memory is not supported. Data will be copied.",
-                                 1);
                 }
                 ov::Shape shape(array.shape(), array.shape() + array.ndim());
 
