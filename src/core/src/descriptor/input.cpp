@@ -75,8 +75,8 @@ void ov::descriptor::Input::replace_output(Output& new_output) {
             should_invalidate = true;
         } else if (old_has_bounds && new_has_bounds) {
             // Both have bounds - check if they differ
-            bool bounds_differ = !ov::util::tensors_equal(old_lower, new_lower) ||
-                                 !ov::util::tensors_equal(old_upper, new_upper);
+            bool bounds_differ =
+                !ov::util::tensors_equal(old_lower, new_lower) || !ov::util::tensors_equal(old_upper, new_upper);
             should_invalidate = bounds_differ;
         }
 
