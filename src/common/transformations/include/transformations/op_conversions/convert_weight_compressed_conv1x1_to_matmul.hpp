@@ -139,10 +139,16 @@ public:
  *
  *                       +---------+    +-----------+    +------+  last two dims are 1
  *                       | Weights |    | ZeroPoint |    |Scale |
- *                       | (5D)    |    | (5D)      |    | (5D) |  5D or 4D with
- *                       +---------+    +-----------+    +------+  reshape(w), unsqueeze(zp), unsqueeze(scale) to 5D
- *                             |              |             |
- *                             v              v             |
+ *                       | (5D)    |    | (5D)      |    | (5D) |  5D or 4D with below ops
+ *                       +---------+    +-----------+    +------+        reshape(W), unsqueeze(ZP), unsqueeze(Scale)
+ *                             |              |             |            to 5D
+ *                             v              v             v
+ *                        +-------+      +---------+      +---------+
+ *                        |reshape|(opt) |unsqueeze|(opt) |unsqueeze|(opt)
+ *                        | 4->5D |      | 4->5D   |      | 4->5D   |
+ *                        +-------+      +---------+      +---------+
+ *                             |             |              |
+ *                             v             v              |
  *                         +-------+      +-------+         |
  *                         |Convert|      |Convert|         |
  *                         +-------+      +-------+         |
@@ -168,13 +174,24 @@ public:
  *           +----------------->|Convolution|
  *                              |  (1x1)    |
  *                              +-----------+
+ *                                    |
+ *                                    v
+ *                               +----------+
+ *                               |Add (Bias)|
+ *                               +----------+
  *
  * and replaces it with:
  *
  *                       +---------+    +-----------+    +------+  Removed last two dims of 1
  *                       | Weights |    | ZeroPoint |    |Scale |
- *                       | (3D)    |    | (3D)      |    | (3D) |  3D or 2D with
- *                       +---------+    +-----------+    +------+  reshape(w), unsqueeze(zp), unsqueeze(scale) to 3D
+ *                       | (3D)    |    | (3D)      |    | (3D) |  3D or 2D with below ops
+ *                       +---------+    +-----------+    +------+        reshape(W), unsqueeze(ZP), unsqueeze(Scale)
+ *                            |              |              |            to 3D
+ *                            v              v              v
+ *                        +-------+      +---------+      +---------+
+ *                        |reshape|(opt) |unsqueeze|(opt) |unsqueeze|(opt)
+ *                        | 2->3D |      | 2->3D   |      | 2->3D   |
+ *                        +-------+      +---------+      +---------+
  *                             |              |             |
  *                             v              v             |
  *                         +-------+      +-------+         |
@@ -202,6 +219,11 @@ public:
  *           |                  +-----------+
  *           +----------------->|  MatMul   |
  *                              +-----------+
+ *                                    |
+ *                                    v
+ *                               +----------+
+ *                               |Add (Bias)|
+ *                               +----------+
  *                                    |
  *                                    v
  *                              +-----------+
