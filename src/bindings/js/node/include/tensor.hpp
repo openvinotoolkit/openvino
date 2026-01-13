@@ -75,6 +75,7 @@ public:
      * @return JavaScript undefined on success, or throws a JS exception on error.
      */
     Napi::Value set_shape(const Napi::CallbackInfo& info);
+    void copy_to(const Napi::CallbackInfo& info);
 
     /**
      * @brief Returns a pointer to the underlying ov::Tensor object for cross-addon interoperability.
