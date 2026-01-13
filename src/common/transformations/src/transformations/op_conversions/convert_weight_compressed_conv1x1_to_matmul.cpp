@@ -313,8 +313,7 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran::ConvertWeightCompre
         pattern::wrap_type<ov::op::v1::Reshape>({weights_4d_m, pattern::any_input()},
                                                 pattern::shape_matches("[hidden_out, block_num, block_size, 1, 1]"));
     auto weights_4d_convert_m = pattern::wrap_type<ov::op::v0::Convert>({weights_4d_reshape_m});
-    auto weights_convert_m =
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_5d_convert_m, weights_4d_convert_m});
+    auto weights_convert_m = weights_5d_convert_m | weights_4d_convert_m;
 
     // zero_point, ranks are [hidden_out, block_num, 1, 1, 1]
     auto zp_5d_m = pattern::wrap_type<ov::op::v0::Constant>(pattern::rank_equals(5) &&
@@ -325,7 +324,7 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran::ConvertWeightCompre
         pattern::wrap_type<ov::op::v0::Unsqueeze>({zp_4d_m, pattern::any_input()},
                                                   pattern::shape_matches("[hidden_out, block_num, 1, 1, 1]"));
     auto zp_4d_convert_m = pattern::wrap_type<ov::op::v0::Convert>({zp_4d_unsqueeze_m});
-    auto zp_convert_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{zp_5d_convert_m, zp_4d_convert_m});
+    auto zp_convert_m = zp_5d_convert_m | zp_4d_convert_m;
 
     auto weights_sub_m = pattern::optional<ov::op::v1::Subtract>({weights_convert_m, zp_convert_m});
 
@@ -336,7 +335,7 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran::ConvertWeightCompre
     auto scale_4d_unsqueeze_m =
         pattern::wrap_type<ov::op::v0::Unsqueeze>({scale_4d_m, pattern::any_input()},
                                                   pattern::shape_matches("[hidden_out, block_num, 1, 1, 1]"));
-    auto scale_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{scale_5d_m, scale_4d_unsqueeze_m});
+    auto scale_m = scale_5d_m | scale_4d_unsqueeze_m;
 
     auto weights_mult_m = pattern::wrap_type<ov::op::v1::Multiply>({weights_sub_m, scale_m});
 
@@ -348,8 +347,7 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran::ConvertWeightCompre
     auto conv_input_1 = pattern::any_input(pattern::shape_matches("[?, ?, 1, 1]"));
     auto conv_input_2 = pattern::any_input(pattern::shape_matches("[1, ?, 1, ?]"));
     auto conv_input_3 = pattern::any_input(pattern::shape_matches("[1, ?, ?, 1]"));
-    auto conv_input_m =
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{conv_input_1, conv_input_2, conv_input_3});
+    auto conv_input_m = conv_input_1 | conv_input_2 | conv_input_3;
 
     auto conv_pattern_m = pattern::wrap_type<ov::op::v1::Convolution>({conv_input_m, weights_reshape_m},
                                                                       {{"auto_pad", "explicit"},
@@ -358,33 +356,29 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran::ConvertWeightCompre
                                                                        {"pads_begin", std::vector<int64_t>{0, 0}},
                                                                        {"pads_end", std::vector<int64_t>{0, 0}}});
 
+    // Add bias
+    auto bias_const_m = pattern::wrap_type<ov::op::v0::Constant>(pattern::shape_matches("[1, hidden_out, 1, 1]"));
+    auto bias_input_m = pattern::any_input(pattern::shape_matches("[1, hidden_out, 1, 1]"));
+    auto bias_m = bias_const_m | bias_input_m;
+    auto bias_out_m = pattern::wrap_type<ov::op::v1::Add>({conv_pattern_m, bias_m});
+
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        auto conv_node = ov::as_type_ptr<ov::op::v1::Convolution>(m.get_match_root());
-        if (!conv_node) {
-            return false;
-        }
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto conv_node = pattern_map.at(conv_pattern_m).get_node_shared_ptr();
 
-        // Consider the input1 of the convolution node, its shape should match weights pattern
-        // [hidden_out, hidden_in, 1, 1]
-        auto convolution_weights = conv_node->input_value(1);
-        const auto& convolution_weights_partial_shape = convolution_weights.get_partial_shape();
-        if (convolution_weights_partial_shape.is_dynamic() || convolution_weights_partial_shape.size() != 4 ||
-            convolution_weights_partial_shape[2] != 1 || convolution_weights_partial_shape[3] != 1) {
-            return false;
-        }
-        auto hidden_out = convolution_weights_partial_shape[0].get_length();
-        auto hidden_in = convolution_weights_partial_shape[1].get_length();
+        // The weight of the convolution node, [hidden_out, hidden_in, 1, 1]
+        auto hidden_out = conv_node->input_value(1).get_partial_shape()[0].get_length();
+        auto hidden_in = conv_node->input_value(1).get_partial_shape()[1].get_length();
 
-        // Consider the input0 of the convolution node, its shape should match conv_input_1/2/3 pattern
-        const auto& input_shape = conv_node->get_input_partial_shape(0);
+        // The input of the convolution node, its shape should match conv_input_1/2/3 pattern
         std::vector<int64_t> input_transpose_order, output_transpose_order;
-        if (input_shape[0] == 1 && input_shape[2] == 1) {
-            input_transpose_order = {0, 2, 3, 1};  // [1, hidden_in, 1, seq_len] -> [1, 1, seq_len, hidden_in]
-            output_transpose_order = {0, 3, 1, 2};
-        } else if (input_shape[2] == 1 && input_shape[3] == 1) {
+        if (pattern_map.count(conv_input_1)) {
             input_transpose_order = {2, 3, 0, 1};  // [seq_len, hidden_in, 1, 1] -> [1, 1, seq_len, hidden_in]
             output_transpose_order = {2, 3, 0, 1};
-        } else if (input_shape[0] == 1 && input_shape[3] == 1) {
+        } else if (pattern_map.count(conv_input_2)) {
+            input_transpose_order = {0, 2, 3, 1};  // [1, hidden_in, 1, seq_len] -> [1, 1, seq_len, hidden_in]
+            output_transpose_order = {0, 3, 1, 2};
+        } else if (pattern_map.count(conv_input_3)) {
             input_transpose_order = {0, 3, 2, 1};  // [1, hidden_in, seq_len, 1] -> [1, 1, seq_len, hidden_in]
             output_transpose_order = {0, 3, 2, 1};
         } else {
@@ -397,68 +391,45 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran::ConvertWeightCompre
             ov::Shape current_shape = constant->get_shape();
             OPENVINO_ASSERT((current_shape.size() == 4 || current_shape.size() == 5) && current_shape[-1] == 1 &&
                             current_shape[-2] == 1);
-            auto new_shape = ov::Shape{current_shape[0], current_shape[1]};
-            if (current_shape.size() == 5) {
-                new_shape = ov::Shape{current_shape[0], current_shape[1], current_shape[2]};
-            }
+            auto new_shape = current_shape.size() == 5 ? ov::Shape{current_shape[0], current_shape[1], current_shape[2]}
+                                                       : ov::Shape{current_shape[0], current_shape[1]};
             auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
             ov::copy_weightless_cache_attr(constant, new_constant);
             return new_constant;
         };
 
-        // The nodes from the pattern
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto weights_5d =
-            pattern_map.count(weights_5d_m)
-                ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weights_5d_m).get_node_shared_ptr())
-                : nullptr;
-        auto zp_5d = pattern_map.count(zp_5d_m)
-                         ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(zp_5d_m).get_node_shared_ptr())
-                         : nullptr;
-        auto scale_5d = pattern_map.count(scale_5d_m)
-                            ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(scale_5d_m).get_node_shared_ptr())
-                            : nullptr;
-        auto weights_sub =
-            (pattern_map.count(weights_sub_m) > 0) ? pattern_map.at(weights_sub_m).get_node_shared_ptr() : nullptr;
-        auto weights_mult = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(weights_mult_m).get_node_shared_ptr());
-        auto weights_reshape =
-            ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(weights_reshape_m).get_node_shared_ptr());
-
         // Reshape compressed w/zp/scale constants, remove the last two dimensions of size 1
         std::shared_ptr<Node> weights_convert_new = nullptr;
-        if (weights_5d) {
-            weights_5d = reshape_const_last_two_1(weights_5d);
-            auto weights_5d_convert =
-                ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weights_5d_convert_m).get_node_shared_ptr());
+        if (pattern_map.count(weights_5d_m)) {
+            auto weights_5d = reshape_const_last_two_1(pattern_map.at(weights_5d_m).get_node_shared_ptr());
+            auto weights_5d_convert = pattern_map.at(weights_5d_convert_m).get_node_shared_ptr();
             weights_convert_new = weights_5d_convert->clone_with_new_inputs({weights_5d});
             ov::copy_runtime_info(weights_5d_convert, weights_convert_new);
         } else {
             auto weights_4d = pattern_map.at(weights_4d_m).get_node_shared_ptr();
             weights_4d = reshape_const_last_two_1(weights_4d);
             auto weights_4d_reshape = pattern_map.at(weights_4d_reshape_m).get_node_shared_ptr();
-            auto shape = weights_4d_reshape->get_output_partial_shape(0);
-            OPENVINO_ASSERT(shape.is_static() && shape.size() == 5 && shape[-1] == 1 && shape[-2] == 1);
-            auto shape_new_constant = std::make_shared<ov::op::v0::Constant>(
-                ov::element::i64,
-                ov::Shape{3},
-                std::vector<int64_t>{static_cast<int64_t>(shape[0].get_length()),
-                                     static_cast<int64_t>(shape[1].get_length()),
-                                     static_cast<int64_t>(shape[2].get_length())});
+            auto shape = weights_4d_reshape->get_output_shape(0);
+            OPENVINO_ASSERT(shape.size() == 5 && shape[-1] == 1 && shape[-2] == 1);
+            auto shape_new_constant =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                       ov::Shape{3},
+                                                       std::vector<int64_t>{static_cast<int64_t>(shape[0]),
+                                                                            static_cast<int64_t>(shape[1]),
+                                                                            static_cast<int64_t>(shape[2])});
             auto weights_reshape_new = weights_4d_reshape->clone_with_new_inputs({weights_4d, shape_new_constant});
             ov::copy_runtime_info(weights_4d_reshape, weights_reshape_new);
-            auto weights_4d_convert =
-                ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weights_4d_convert_m).get_node_shared_ptr());
+            auto weights_4d_convert = pattern_map.at(weights_4d_convert_m).get_node_shared_ptr();
             weights_convert_new = weights_4d_convert->clone_with_new_inputs({weights_reshape_new});
             ov::copy_runtime_info(weights_4d_convert, weights_convert_new);
         }
 
         std::shared_ptr<Node> weights_sub_new = nullptr;
-        if (weights_sub) {
+        if (pattern_map.count(weights_sub_m)) {
             std::shared_ptr<Node> zp_convert_new = nullptr;
-            if (zp_5d) {
-                zp_5d = reshape_const_last_two_1(zp_5d);
-                auto zp_5d_convert =
-                    ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(zp_5d_convert_m).get_node_shared_ptr());
+            if (pattern_map.count(zp_5d_m)) {
+                auto zp_5d = reshape_const_last_two_1(pattern_map.at(zp_5d_m).get_node_shared_ptr());
+                auto zp_5d_convert = pattern_map.at(zp_5d_convert_m).get_node_shared_ptr();
                 zp_convert_new = zp_5d_convert->clone_with_new_inputs({zp_5d});
                 ov::copy_runtime_info(zp_5d_convert, zp_convert_new);
             } else {
@@ -468,11 +439,11 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran::ConvertWeightCompre
                 auto zp_unsqueeze_new =
                     zp_4d_unsqueeze->clone_with_new_inputs({zp_4d, zp_4d_unsqueeze->input_value(1)});
                 ov::copy_runtime_info(zp_4d_unsqueeze, zp_unsqueeze_new);
-                auto zp_4d_convert =
-                    ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(zp_4d_convert_m).get_node_shared_ptr());
+                auto zp_4d_convert = pattern_map.at(zp_4d_convert_m).get_node_shared_ptr();
                 zp_convert_new = zp_4d_convert->clone_with_new_inputs({zp_unsqueeze_new});
                 ov::copy_runtime_info(zp_4d_convert, zp_convert_new);
             }
+            auto weights_sub = pattern_map.at(weights_sub_m).get_node_shared_ptr();
             weights_sub_new = weights_sub->clone_with_new_inputs({weights_convert_new, zp_convert_new});
             ov::copy_runtime_info(weights_sub, weights_sub_new);
         } else {
@@ -480,15 +451,15 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran::ConvertWeightCompre
         }
 
         std::shared_ptr<Node> scale_new = nullptr;
-        if (scale_5d) {
-            scale_new = reshape_const_last_two_1(scale_5d);
+        if (pattern_map.count(scale_5d_m)) {
+            scale_new = reshape_const_last_two_1(pattern_map.at(scale_5d_m).get_node_shared_ptr());
         } else {
-            auto scale_4d = pattern_map.at(scale_4d_m).get_node_shared_ptr();
-            scale_4d = reshape_const_last_two_1(scale_4d);
+            auto scale_4d = reshape_const_last_two_1(pattern_map.at(scale_4d_m).get_node_shared_ptr());
             auto scale_4d_unsqueeze = pattern_map.at(scale_4d_unsqueeze_m).get_node_shared_ptr();
             scale_new = scale_4d_unsqueeze->clone_with_new_inputs({scale_4d, scale_4d_unsqueeze->input_value(1)});
             ov::copy_runtime_info(scale_4d_unsqueeze, scale_new);
         }
+        auto weights_mult = pattern_map.at(weights_mult_m).get_node_shared_ptr();
         auto weights_mult_new = weights_mult->clone_with_new_inputs({weights_sub_new, scale_new});
         ov::copy_runtime_info(weights_mult, weights_mult_new);
 
@@ -497,6 +468,7 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran::ConvertWeightCompre
         auto weights_new_constant = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                                            ov::Shape{2},
                                                                            std::vector<int64_t>{hidden_out, hidden_in});
+        auto weights_reshape = pattern_map.at(weights_reshape_m).get_node_shared_ptr();
         auto weights_reshape_new = weights_reshape->clone_with_new_inputs({weights_mult_new, weights_new_constant});
         ov::copy_runtime_info(weights_reshape, weights_new_constant);
         ov::copy_runtime_info(weights_reshape, weights_reshape_new);
@@ -510,18 +482,45 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran::ConvertWeightCompre
         // MatMul: [1, 1, seq_len, hidden_in] x [hidden_out, hidden_in]^T => [1, 1, seq_len, hidden_out]
         auto matmul = std::make_shared<ov::op::v0::MatMul>(transpose_input, weights_reshape_new, false, true);
 
+        // Add bias
+        std::shared_ptr<ov::Node> bias_new = nullptr;
+        if (pattern_map.count(bias_const_m)) {
+            auto bias_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(bias_const_m).get_node_shared_ptr());
+            bias_new = std::make_shared<ov::op::v0::Constant>(*bias_const,
+                                                              ov::Shape{bias_const->get_shape()[0],
+                                                                        bias_const->get_shape()[2],
+                                                                        bias_const->get_shape()[3],
+                                                                        bias_const->get_shape()[1]});
+            ov::copy_runtime_info(bias_const, bias_new);
+        } else {
+            auto bias_input = pattern_map.at(bias_input_m).get_node_shared_ptr();
+            auto bias_input_shape = bias_input->get_output_partial_shape(0);
+            std::vector<int64_t> new_bias_shape = {bias_input_shape[0].get_length(),
+                                                   bias_input_shape[2].get_length(),
+                                                   bias_input_shape[3].get_length(),
+                                                   bias_input_shape[1].get_length()};
+            auto bias_shape_const =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, new_bias_shape);
+            bias_new = std::make_shared<ov::op::v1::Reshape>(bias_input, bias_shape_const, false);
+            ov::copy_runtime_info(bias_input, {bias_shape_const, bias_new});
+        }
+
+        auto bias_out = pattern_map.at(bias_out_m).get_node_shared_ptr();
+        auto matmul_out = bias_out->clone_with_new_inputs({matmul, bias_new});
+        ov::copy_runtime_info(bias_out, matmul_out);
+
         // Transpose convolutionoutput back to the original layout
         auto output_transpose_const =
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, output_transpose_order);
-        auto final_node = std::make_shared<ov::op::v1::Transpose>(matmul, output_transpose_const);
-
-        final_node->set_friendly_name(conv_node->get_friendly_name());
+        auto final_node = std::make_shared<ov::op::v1::Transpose>(matmul_out, output_transpose_const);
         ov::copy_runtime_info(conv_node, {transpose_input, matmul, final_node});
-        ov::replace_node(conv_node, final_node);
+
+        final_node->set_friendly_name(m.get_match_root()->get_friendly_name());
+        ov::replace_node(m.get_match_root(), final_node);
 
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(conv_pattern_m, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(bias_out_m, matcher_name);
     this->register_matcher(m, callback);
 }
