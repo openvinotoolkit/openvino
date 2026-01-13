@@ -398,15 +398,29 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
                     if (auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(mul_source_node)) {
                         auto shape = const_node->get_shape();
                         if (shape.size() >= 2 && shape[0] == num_experts) {
-                            // Insert Gather before this Multiply input (before Convert if exists)
+                            // Insert Gather BEFORE Convert (on the Constant source)
                             auto gather_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-                            auto gathered = std::make_shared<ov::op::v8::Gather>(mul_input, topk_indices, gather_axis);
-                            gathered->set_friendly_name(mul_input.get_node()->get_friendly_name() + "/gathered");
+                            auto gathered = std::make_shared<ov::op::v8::Gather>(mul_source, topk_indices, gather_axis);
+                            gathered->set_friendly_name(mul_source_node->get_friendly_name() + "/gathered");
 
-                            multiply->input(i).replace_source_output(gathered);
-                            ov::copy_runtime_info(mul_input.get_node_shared_ptr(), gathered);
-                            std::cout << "      Gathered Multiply input[" << i
-                                      << "]: " << mul_input.get_node()->get_friendly_name() << std::endl;
+                            // If there was a Convert, recreate it after Gather
+                            auto mul_input_node = mul_input.get_node_shared_ptr();
+                            if (auto convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(mul_input_node)) {
+                                auto new_convert =
+                                    std::make_shared<ov::op::v0::Convert>(gathered, convert->get_destination_type());
+                                new_convert->set_friendly_name(convert->get_friendly_name() + "/regathered");
+                                multiply->input(i).replace_source_output(new_convert);
+                                ov::copy_runtime_info({mul_source_node, convert}, {gathered, new_convert});
+                                std::cout << "      Gathered Multiply input[" << i
+                                          << "]: " << mul_source_node->get_friendly_name() << " -> Convert"
+                                          << std::endl;
+                            } else {
+                                // No Convert, directly connect Gather to Multiply
+                                multiply->input(i).replace_source_output(gathered);
+                                ov::copy_runtime_info(mul_source_node, gathered);
+                                std::cout << "      Gathered Multiply input[" << i
+                                          << "]: " << mul_source_node->get_friendly_name() << std::endl;
+                            }
                         }
                     }
                 }
