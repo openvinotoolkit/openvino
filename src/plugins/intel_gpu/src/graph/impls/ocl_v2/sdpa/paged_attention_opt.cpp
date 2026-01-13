@@ -331,7 +331,7 @@ public:
         return jit;
     }
 
-    static void add_intermediate_inputs(Arguments& args, bool has_qq_bias,bool has_scores_output, bool is_multi_token_kernel = false, bool has_score_aggregation = false) {
+    static void add_intermediate_inputs(Arguments& args, bool has_scores_output, bool is_multi_token_kernel = false, bool has_score_aggregation = false, bool has_qq_bias = false) {
         uint32_t internal_buffers_num = 3;  // kv cache update buffers
         if (has_scores_output) {
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_buffers_num++});  // softmax_results
@@ -630,7 +630,7 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
         }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-        add_intermediate_inputs(args, has_qq_bias, has_scores_output, true, desc->has_score_aggregation);
+        add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation, has_qq_bias);
         return args;
     }
 

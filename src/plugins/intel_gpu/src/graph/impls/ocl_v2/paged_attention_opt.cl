@@ -329,8 +329,8 @@ KERNEL(pa_sdpa_opt)(
                 uint spec_offset = token_idx - past_len;
                 uint spec_num = token_num / seq_num[0];
                 uint qq_bias_offset = subsequence_idx * spec_num * spec_num + seq_idx * spec_num + spec_offset;
-                if (seq_idx == 5 && head_num_idx == 0)
-                    printf("sub group id %d, simd id %d, I'm handling kv relation with token %d, relation is %d\n", sgid, sglid, token_idx, qq_bias[qq_bias_offset]);
+                //if (seq_idx == 5 && head_num_idx == 0)
+                    //printf("sub group id %d, simd id %d, I'm handling kv relation with token %d, relation is %d, past_len is %d, seq_len is %d\n", sgid, sglid, token_idx, qq_bias[qq_bias_offset], past_len, seq_len);
                 if (qq_bias[qq_bias_offset] == 0) {
                     qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
                 }
