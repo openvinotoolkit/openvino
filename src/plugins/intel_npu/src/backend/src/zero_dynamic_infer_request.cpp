@@ -887,7 +887,7 @@ void ZeroDynamicInferRequest::infer_async() {
             for (size_t i = 0; i < outputPros.size(); i++) {
                 for (int64_t j = 0; j < outputPros[i].dimsCount; j++) {
                     if (originalOutputPros[i].sizes[j] != outputPros[i].sizes[j]) {
-                        _logger.warning(
+                        _logger.info(
                             "Output tensor %d shape and predicted shape mimsmatch at dim %zu, changed from %zu to %zu",
                             i,
                             j,
