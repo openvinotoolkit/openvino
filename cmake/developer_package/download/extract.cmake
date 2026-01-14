@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -21,7 +21,7 @@ function (extract archive_path unpacked_path folder files_to_extract result)
     # in case of archive dont have top level folder lets create it
     if (${folder})
       set (unpacked_dir ${unpacked_path})
-      message("unpacked_dir= ${unpacked_dir}")      
+    message("unpacked_dir= ${unpacked_dir}")
     endif()
 
     string(REGEX REPLACE ";" " " list_files_to_extract "${${files_to_extract}}")

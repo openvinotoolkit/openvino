@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,11 +113,14 @@ InnerSplittedUnifiedLoopInfoPtr make_inner_split_loop_info(size_t work_amount,
                                                            const std::vector<LoopPort>& entries,
                                                            const std::vector<LoopPort>& exits,
                                                            const UnifiedLoopInfoPtr& outer_split_loop_info,
-                                                           const std::optional<IOLoopPortDescs>& io_descs) {
-    outer_split_loop_info
-        ->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, SplitLoops::TransformInnerSplitLoop>();
-    outer_split_loop_info
-        ->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SplitLoops::TransformInnerSplitLoop>();
+                                                           const std::optional<IOLoopPortDescs>& io_descs,
+                                                           bool register_specific_iter_handlers) {
+    if (register_specific_iter_handlers) {
+        outer_split_loop_info
+            ->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, SplitLoops::TransformInnerSplitLoop>();
+        outer_split_loop_info
+            ->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SplitLoops::TransformInnerSplitLoop>();
+    }
     // Note: this temporary loop is needed to easily create InnerSplittedUnifiedLoopInfo:
     // we extract all automatically calculated parameters from it such as SpecificIterationHandlers
     const auto tmp_unified_loop =

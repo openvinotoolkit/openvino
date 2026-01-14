@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -522,6 +522,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseRoundHalfToEven, jit_round_half_to_even_emitter),
               OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
               OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
+              OV_CASE(Algorithm::EltwiseSquaredDifference, jit_squared_difference_emitter),
               OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
               OV_CASE(Algorithm::EltwiseTanh, jit_tanh_emitter));
 
@@ -681,6 +682,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseRoundHalfToEven, jit_round_half_to_even_emitter),
               OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
               OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
+              OV_CASE(Algorithm::EltwiseSquaredDifference, jit_squared_difference_emitter),
               OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
               OV_CASE(Algorithm::EltwiseTanh, jit_tanh_emitter));
 

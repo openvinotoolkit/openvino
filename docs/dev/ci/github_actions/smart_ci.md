@@ -358,3 +358,32 @@ as described in step 3 of [Adding a New component](#adding-a-new-component) inst
 
 This ensures that integration validation for this external component starts only on changes
 made to the selected components in the OpenVINO repository.
+
+### Disabling Workflow Run in Draft PRs
+
+To reduce the number of unnecessary workflow runs in PRs not yet ready for review, we strongly recommend including the following "if" condition to the Smart CI job:
+```yaml
+jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
+    ...
+```
+This will ensure that the workflow won't be executed automatically for PRs in draft status. You will still be able to execute selected workflows for draft PRs manually by re-running the corresponding Smart CI job. The easiest way to do this is as follows: 
+
+From the main page of the draft PR, go to the "Checks" tab -> in the left menu choose the workflow that you'd like to execute -> press the "Re-run all jobs" button.
+Detailed instruction: [Re-running all the jobs in a workflow](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs#re-running-all-the-jobs-in-a-workflow)
+
+>**NOTE**: If you add the condition above, make sure to update the triggers section of the workflow as follows, to ensure that all checks will be re-executed once the PR is converted from draft to "ready for review":
+
+```yaml
+on:
+...
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+...
+```

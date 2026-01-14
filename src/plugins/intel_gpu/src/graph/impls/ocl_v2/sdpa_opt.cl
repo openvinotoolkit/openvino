@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -436,7 +436,12 @@ KERNEL(sdpa_opt)(
                             qk_val[seq_idx] += INPUT0_VAL_MIN;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
                         const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx + seq_idx, start_partition_idx + seq_len);
-                        qk_val[seq_idx] += attn_mask[attn_mask_offset];
+                        INPUT3_TYPE mask_val = attn_mask[attn_mask_offset];
+#ifdef CLAMP_ATTN_MASK_INPUT
+                        // Conditionally clamp attention mask when attention mask differs from SOFTMAX_ACCUMULATOR_TYPE(f32)
+                        mask_val = INPUT3_MAX_FUNC(mask_val, INPUT3_VAL_MIN);
+#endif
+                        qk_val[seq_idx] += mask_val;
 #elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
                         qk_val[seq_idx] += STATIC_SCALAR_ATTN_MASK_VALUE;
 #endif

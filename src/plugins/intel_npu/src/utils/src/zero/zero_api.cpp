@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_npu/utils/zero/zero_api.hpp"
+
+#include <mutex>
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -49,8 +51,16 @@ ZeroApi::ZeroApi() {
 #undef symbol_statement
 }
 
-const std::shared_ptr<ZeroApi>& ZeroApi::getInstance() {
-    static std::shared_ptr<ZeroApi> instance = std::make_shared<ZeroApi>();
+const std::shared_ptr<ZeroApi> ZeroApi::getInstance() {
+    static std::mutex mutex;
+    static std::weak_ptr<ZeroApi> weak_instance;
+
+    std::lock_guard<std::mutex> lock(mutex);
+    auto instance = weak_instance.lock();
+    if (!instance) {
+        instance = std::make_shared<ZeroApi>();
+        weak_instance = instance;
+    }
     return instance;
 }
 

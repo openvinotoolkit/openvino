@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,15 +48,15 @@ std::shared_ptr<ov::Model> build_model() {
     cuseq_mask->set_friendly_name(mask_name);
     cuseq_mask->get_output_tensor(0).set_names({mask_name});
 
-    auto vlsdpa = std::make_shared<ov::op::internal::VLSDPA>(OutputVector{transpose_q, 
-                                                                          transpose_k, 
+    auto vlsdpa = std::make_shared<ov::op::internal::VLSDPA>(OutputVector{transpose_q,
+                                                                          transpose_k,
                                                                           transpose_v,
                                                                           cuseq_mask});
 
     auto transpose_o = std::make_shared<Transpose>(vlsdpa, Constant::create(element::i64, Shape{3}, {1,0,2}));
     transpose_o->set_friendly_name("transpose_o");
 
-    return std::make_shared<ov::Model>(NodeVector{transpose_o}, ParameterVector{q, k, v, cuseq_mask});
+    return std::make_shared<ov::Model>(OutputVector{transpose_o}, ParameterVector{q, k, v, cuseq_mask});
 }
 
 std::shared_ptr<ov::Model> build_target_model() {
@@ -72,12 +72,12 @@ std::shared_ptr<ov::Model> build_target_model() {
     cuseq_mask->set_friendly_name(mask_name);
     cuseq_mask->get_output_tensor(0).set_names({mask_name});
 
-    auto vlsdpa = std::make_shared<ov::op::internal::VLSDPA>(OutputVector{q, 
-                                                                          k, 
+    auto vlsdpa = std::make_shared<ov::op::internal::VLSDPA>(OutputVector{q,
+                                                                          k,
                                                                           v,
                                                                           cuseq_mask});
 
-    return std::make_shared<ov::Model>(NodeVector{vlsdpa}, ParameterVector{q, k, v, cuseq_mask});
+    return std::make_shared<ov::Model>(OutputVector{vlsdpa}, ParameterVector{q, k, v, cuseq_mask});
 }
 };   // namespace
 

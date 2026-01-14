@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -7,7 +7,6 @@ function to create CMake target and setup its options in a declarative style.
 Example:
 ov_add_target(
    NAME core_lib
-   ADD_CPPLINT
    ADD_CLANG_FORMAT
    TYPE <SHARED / STATIC / EXECUTABLE>
    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -35,7 +34,6 @@ ov_add_target(
 #]]
 function(ov_add_target)
     set(options
-        ADD_CPPLINT                   # Enables code style checks for the target
         ADD_CLANG_FORMAT              # Enables code style checks for the target
         )
     set(oneValueRequiredArgs
@@ -116,10 +114,6 @@ function(ov_add_target)
         string(REPLACE ";" " " ARG_LINK_FLAGS "${ARG_LINK_FLAGS}")
         set_target_properties(${ARG_NAME} PROPERTIES LINK_FLAGS "${oldLinkFlags} ${ARG_LINK_FLAGS}")
     endif()
-    if (ARG_ADD_CPPLINT)
-        # code style
-        add_cpplint_target(${ARG_NAME}_cpplint FOR_TARGETS ${ARG_NAME})
-    endif()
     if (ARG_ADD_CLANG_FORMAT)
         # code style
         ov_add_clang_format_target(${ARG_NAME}_clang FOR_TARGETS ${ARG_NAME})
@@ -156,7 +150,7 @@ function(ov_add_test_target)
         set(JS_BIN_NAME "${ARG_NAME}.js")
         set(JS_APP_NAME "${ARG_NAME}_js.js")
         set(JS_TEST_APP "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${JS_APP_NAME}")
-        file(WRITE   ${JS_TEST_APP} "// Copyright (C) 2018-2025 Intel Corporation\n")
+        file(WRITE   ${JS_TEST_APP} "// Copyright (C) 2018-2026 Intel Corporation\n")
         file(APPEND  ${JS_TEST_APP} "// SPDX-License-Identifier: Apache-2.0\n")
         file(APPEND  ${JS_TEST_APP} "//\n")
         file(APPEND  ${JS_TEST_APP} "// JS test app\n")

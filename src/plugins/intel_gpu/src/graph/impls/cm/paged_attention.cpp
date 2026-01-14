@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,9 +30,12 @@ public:
     Stage::Ptr pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();
     Stage::Ptr pa_single_token_finalization = make_stage<PagedAttentionGeneratorSingleTokenFinalization>();
     Stage::Ptr pa_multi_token = make_stage<PagedAttentionGeneratorMultiToken>();
-    Stage::Ptr xattn_estimate_gemmqk = make_stage<XAttentionEstimateGEMMQK>();
-    Stage::Ptr xattn_estimate_find_block = make_stage<XAttentionEstimateFindBlock>();
-    Stage::Ptr xattn_estimate_post_proc = make_stage<XAttentionEstimatePostProc>();
+    Stage::Ptr xattn_estimate_gemmqk = make_stage<XAttentionEstimateGEMMQK>(128);
+    Stage::Ptr xattn_estimate_find_block = make_stage<XAttentionEstimateFindBlock>(128);
+    Stage::Ptr xattn_estimate_post_proc = make_stage<XAttentionEstimatePostProc>(128);
+    Stage::Ptr xattn_estimate_gemmqk_256 = make_stage<XAttentionEstimateGEMMQK>(256);
+    Stage::Ptr xattn_estimate_find_block_256 = make_stage<XAttentionEstimateFindBlock>(256);
+    Stage::Ptr xattn_estimate_post_proc_256 = make_stage<XAttentionEstimatePostProc>(256);
 
     PagedAttentionCmImpl() : PrimitiveImplCM(PagedAttentionImplementationManager::get_type_info_static()) {
         m_rt_params = std::make_unique<PagedAttentionRuntimeParams>();
@@ -49,6 +52,10 @@ public:
             add_stage(xattn_estimate_gemmqk, params);
             add_stage(xattn_estimate_find_block, params);
             add_stage(xattn_estimate_post_proc, params);
+
+            add_stage(xattn_estimate_gemmqk_256, params);
+            add_stage(xattn_estimate_find_block_256, params);
+            add_stage(xattn_estimate_post_proc_256, params);
         }
     }
 
@@ -71,6 +78,7 @@ public:
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         rt_params->q_block_pad = q_block_pad;
         rt_params->k_block_pad = k_block_pad;
+        const size_t MERGED_Q_NUM = PA_KV_CACHE_BLOCK_SIZE_XATTN / block_size;  // for xattn post_proc
         rt_params->q_block_pad_merged = ceil_div(q_block_pad, MERGED_Q_NUM);
 
         const size_t head_size = desc->k_head_size;
@@ -85,6 +93,7 @@ public:
         rt_params->N = N;
         rt_params->K = K;
         rt_params->q_stride_pad = q_stride_pad;
+        rt_params->xattn_block_size = block_size;
     }
 
     void update_rt_params(const primitive_inst& instance) override {
@@ -112,6 +121,8 @@ public:
         } else {
             if (desc->has_xattention) {
                 update_xattn_rt_params(params);
+            } else {
+                rt_params->xattn_block_size = 1;  // disable xattn for pa
             }
         }
     }
@@ -135,10 +146,16 @@ public:
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
         if (rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) {
-            if (has_stage(xattn_estimate_gemmqk) && !bypass_xattn(params)) {
-                res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk)};
-                res_event = {execute_stage(res_event, instance, xattn_estimate_find_block)};
-                res_event = {execute_stage(res_event, instance, xattn_estimate_post_proc)};
+            if (!bypass_xattn(params)) {
+                if (rt_params->xattn_block_size == 128) {
+                    res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk)};
+                    res_event = {execute_stage(res_event, instance, xattn_estimate_find_block)};
+                    res_event = {execute_stage(res_event, instance, xattn_estimate_post_proc)};
+                } else {
+                    res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk_256)};
+                    res_event = {execute_stage(res_event, instance, xattn_estimate_find_block_256)};
+                    res_event = {execute_stage(res_event, instance, xattn_estimate_post_proc_256)};
+                }
             }
             res_event = {execute_stage(res_event, instance, pa_multi_token)};
         } else if (rt_params->stage == PagedAttentionStage::GENERATE) {
@@ -209,6 +226,18 @@ public:
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<PagedAttentionCmImpl>(this);
+    }
+
+private:
+    size_t get_xattn_block_size(const kernel_impl_params& params, const size_t seq_idx = 0) {
+        const auto& input_mem = params.memory_deps;
+        const auto blocksize_mem = input_mem.at(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE);
+        mem_lock<int32_t, mem_lock_type::read> lock(blocksize_mem, *params.strm);  // converted
+        auto xattn_block_size = static_cast<int32_t>(lock[seq_idx]);
+        if (xattn_block_size != 128 && xattn_block_size != 256) {
+            xattn_block_size = 128;  // default
+        }
+        return xattn_block_size;
     }
 };
 

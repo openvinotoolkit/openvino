@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,45 +24,6 @@ namespace ov::intel_cpu::itt::domains {
 OV_ITT_DOMAIN(ov_intel_cpu, "ov::intel_cpu");
 OV_ITT_DOMAIN(ov_intel_cpu_LT, "ov::intel_cpu::lt");
 }  // namespace ov::intel_cpu::itt::domains
-
-namespace ov::intel_cpu::itt {
-
-class ScopedOpExecTask {
-public:
-    explicit ScopedOpExecTask(const char* name) noexcept {
-        if (openvino::itt::internal::is_initialized()) {
-            m_handle = openvino::itt::handle(name);
-            openvino::itt::internal::taskBegin(::ov::itt::domains::ov_op_exec(), m_handle);
-        }
-    }
-    explicit ScopedOpExecTask(const std::string& name) noexcept : ScopedOpExecTask(name.c_str()) {}
-    ~ScopedOpExecTask() noexcept {
-        if (openvino::itt::internal::is_initialized()) {
-            openvino::itt::internal::taskEnd(::ov::itt::domains::ov_op_exec());
-        }
-    }
-
-    ScopedOpExecTask(const ScopedOpExecTask&) = delete;
-    ScopedOpExecTask& operator=(const ScopedOpExecTask&) = delete;
-
-private:
-    openvino::itt::handle_t m_handle{};
-};
-
-}  // namespace ov::intel_cpu::itt
-
-#if defined(SELECTIVE_BUILD_ANALYZER) || defined(SELECTIVE_BUILD)
-#    define OV_CPU_NODE_SCOPED_TASK(taskName)      OV_ITT_SCOPED_TASK(::ov::itt::domains::ov_op_exec, taskName)
-#    define OV_CPU_NODE_SCOPED_TASK_BASE(taskName) OV_ITT_SCOPED_TASK_BASE(::ov::itt::domains::ov_op_exec, taskName)
-#else
-#    define OV_CPU_NODE_SCOPE_CONCAT_IMPL(x, y)                 x##y
-#    define OV_CPU_NODE_SCOPE_CONCAT(x, y)                      OV_CPU_NODE_SCOPE_CONCAT_IMPL(x, y)
-#    define OV_CPU_NODE_SCOPED_TASK_INTERNAL(varName, taskName) ::ov::intel_cpu::itt::ScopedOpExecTask varName(taskName)
-#    define OV_CPU_NODE_SCOPED_TASK(taskName) \
-        OV_CPU_NODE_SCOPED_TASK_INTERNAL(OV_CPU_NODE_SCOPE_CONCAT(cpuNodeScopedTaskGuard, __LINE__), taskName)
-#    define OV_CPU_NODE_SCOPED_TASK_BASE(taskName) \
-        OV_CPU_NODE_SCOPED_TASK_INTERNAL(OV_CPU_NODE_SCOPE_CONCAT(cpuNodeScopedTaskGuardBase, __LINE__), taskName)
-#endif
 
 #if defined(SELECTIVE_BUILD_ANALYZER)
 #    define CPU_LPT_SCOPE(region)             OV_SCOPE(intel_cpu, region)

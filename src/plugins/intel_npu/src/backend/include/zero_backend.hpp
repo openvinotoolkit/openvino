@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,8 @@ namespace intel_npu {
 class ZeroEngineBackend final : public IEngineBackend {
 public:
     ZeroEngineBackend();
-    virtual ~ZeroEngineBackend();
+    ~ZeroEngineBackend() override = default;
+
     const std::shared_ptr<IDevice> getDevice() const override;
     const std::shared_ptr<IDevice> getDevice(const std::string&) const override;
     const std::string getName() const override {

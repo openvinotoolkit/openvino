@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -227,7 +227,7 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
         if (dims.size() != flag.size()) {
             return dims;
         }
-        VectorDims ret;
+        std::vector<size_t> ret;
         for (size_t i = 0; i < dims.size(); i++) {
             if (flag[i] != 1) {
                 ret.push_back(dims[i]);

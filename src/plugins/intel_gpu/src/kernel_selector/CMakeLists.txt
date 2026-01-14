@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -68,10 +68,6 @@ target_compile_options(${TARGET_NAME} PRIVATE
 
 if (ENABLE_ONEDNN_FOR_GPU)
     target_link_libraries(${TARGET_NAME} PRIVATE onednn_gpu_tgt)
-endif()
-
-if(COMMAND add_cpplint_target)
-  add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC OpenCL::OpenCL openvino::runtime PRIVATE openvino::runtime::dev)

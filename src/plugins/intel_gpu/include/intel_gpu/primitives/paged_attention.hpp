@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,6 +35,10 @@ struct paged_attention : public primitive_base<paged_attention> {
         XATTENTION_BLOCK_SIZE = 18,
         XATTENTION_STRIDE = 19,
         SINKS = 20,
+        ADAPTIVE_RKV_START_SIZE = 21,
+        ADAPTIVE_RKV_EVICTABLE_SIZES = 22,
+        ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES = 23,
+        ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS = 24,
     };
 
     static constexpr size_t block_size = 16;
@@ -45,13 +49,33 @@ struct paged_attention : public primitive_base<paged_attention> {
     paged_attention(const primitive_id& id,
                     const std::vector<input_info>& inputs)
         : primitive_base(id, inputs) {
-        OPENVINO_ASSERT((inputs.size() == 21),
+        OPENVINO_ASSERT((inputs.size() == 25),
                         "[GPU] Unexpected inputs number for PagedAttention primitive: ",
                         inputs.size());
     }
 
     bool has_scores_output() const {
-        return num_outputs == 2;
+        return num_outputs >= 2;
+    }
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, k_head_size);
+        seed = hash_combine(seed, v_head_size);
+        seed = hash_combine(seed, heads_num);
+        seed = hash_combine(seed, kv_heads_num);
+        seed = hash_combine(seed, has_alibi);
+        seed = hash_combine(seed, has_rotated_blocks);
+        seed = hash_combine(seed, sliding_window);
+        seed = hash_combine(seed, has_score_aggregation);
+        seed = hash_combine(seed, has_xattention);
+        seed = hash_combine(seed, has_sink_input);
+        if (scale_val.has_value()) {
+            seed = hash_combine(seed, scale_val.value());
+        }
+        seed = hash_combine(seed, is_key_by_channel);
+
+        return seed;
     }
 
     bool operator==(const primitive& rhs) const override {
@@ -78,12 +102,12 @@ struct paged_attention : public primitive_base<paged_attention> {
         ob << heads_num;
         ob << kv_heads_num;
         ob << has_alibi;
-        ob << has_score_aggregation;
         ob << has_rotated_blocks;
         ob << sliding_window;
         ob << has_score_aggregation;
         ob << has_xattention;
         ob << has_sink_input;
+        ob << has_adaptive_rkv;
 
         if (scale_val.has_value()) {
             ob << true;
@@ -101,12 +125,12 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> heads_num;
         ib >> kv_heads_num;
         ib >> has_alibi;
-        ib >> has_score_aggregation;
         ib >> has_rotated_blocks;
         ib >> sliding_window;
         ib >> has_score_aggregation;
         ib >> has_xattention;
         ib >> has_sink_input;
+        ib >> has_adaptive_rkv;
 
         bool has_scale;
         ib >> has_scale;
@@ -131,6 +155,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool has_score_aggregation = false;
     bool has_xattention = false;
     bool has_sink_input = false;
+    bool has_adaptive_rkv = false;
     bool is_key_by_channel = false;
 };
 }  // namespace cldnn

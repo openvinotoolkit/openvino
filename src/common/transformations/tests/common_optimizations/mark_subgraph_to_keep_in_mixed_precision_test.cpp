@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1161,6 +1161,9 @@ TEST(TransformationTests, MarkFloatingPointRange) {
         auto multiply = make_shared<Multiply>(convert, multiply_const);
 
         // marking nodes to be kept in fp32 for mixed precision
+        disable_fp16_compression(begin);
+        disable_fp16_compression(end);
+        disable_fp16_compression(step);
         disable_fp16_compression(range_1);
         disable_fp16_compression(range_2);
         disable_fp16_compression(convert_1);

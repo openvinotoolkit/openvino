@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -182,20 +182,46 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         }
 
         const auto& config = static_cast<const BrgemmCopyBKernelConfig&>(executor->get_config());
-        const auto desc = get_desc(planar_shape,
-                                   prc,
-                                   config.get_wei_K_blk(),
-                                   config.get_wei_N_blk(),
-                                   config.are_wei_blocked(),
-                                   config.is_transposed_B());
+        const auto dst_desc = get_desc(planar_shape,
+                                       prc,
+                                       config.get_wei_K_blk(),
+                                       config.get_wei_N_blk(),
+                                       config.are_wei_blocked(),
+                                       config.is_transposed_B());
+
+        auto process_src_offsets = [&config](const ov::snippets::VectorDims& cpu_config_offsets) {
+            const auto orig_size = dnnl_data_type_size(config.get_original_wei_dt());
+            const auto wei_size = dnnl_data_type_size(config.get_wei_dt());
+            if (orig_size == wei_size) {
+                return cpu_config_offsets;
+            }
+            // Note: original cpu config offsets are calculated for the repacked output
+            // If repacked out precision is not equal to original weights precision,
+            // we need to correspondingly scale offsets to correct positions in original memory
+            ov::snippets::VectorDims recalculated_offsets(cpu_config_offsets.size());
+            std::transform(cpu_config_offsets.begin(),
+                           cpu_config_offsets.end(),
+                           recalculated_offsets.begin(),
+                           [orig_size, wei_size](size_t offset) {
+                               OPENVINO_ASSERT(offset % wei_size == 0,
+                                               "Offset (",
+                                               offset,
+                                               ") must be divisible by wei_size (",
+                                               wei_size,
+                                               ")");
+                               return offset / wei_size * orig_size;
+                           });
+            return recalculated_offsets;
+        };
 
         // Save original input offsets for input before repacking.
         // If the shape has not been changed, it means that we already created `InputRepacker` for this input
         // on previous pass call and now `cpu_config->io_data_offsets[i]` contains offsets not for original input -
         // they were updated for blocked shapes/zeroed for previous initialization and we cannot use them as original
         // offsets.
-        const auto in_offsets =
-            shape == cpu_config->latest_shapes[i] ? input_repacker.in_offsets() : cpu_config->io_data_offsets[i];
+        const auto in_offsets = shape == cpu_config->latest_shapes[i]
+                                    ? input_repacker.in_offsets()
+                                    : process_src_offsets(cpu_config->io_data_offsets[i]);
 
         // In parallel case Kernel should not add offsets to repacked inputs because
         // they will be applied during repacking in execution stage
@@ -203,7 +229,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
             auto& offsets = cpu_config->io_data_offsets[i];
             std::fill(offsets.begin(), offsets.end(), 0);
         } else {
-            const auto blocked_dims = desc->getBlockDims();
+            const auto blocked_dims = dst_desc->getBlockDims();
             const auto inner_blocks_num = blocked_dims.size() - planar_shape.size();
             const auto rank = in_offsets.size() + inner_blocks_num;  // to align with src offsets rank
             OPENVINO_ASSERT(rank >= blocked_dims.size(), "Incorrect target rank for dst offsets");
@@ -218,7 +244,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         }
         const auto out_offsets = cpu_config->io_data_offsets[i];
 
-        input_repacker = InputRepacker(p.second->get_kernel(), desc, in_offsets, out_offsets);
+        input_repacker = InputRepacker(p.second->get_kernel(), dst_desc, in_offsets, out_offsets);
     }
 
     return true;

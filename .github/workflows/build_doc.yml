@@ -1,6 +1,11 @@
 name: Documentation
 on:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   merge_group:
 
 concurrency:
@@ -12,6 +17,7 @@ permissions: read-all
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
@@ -73,7 +79,8 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING -v ${{ github.workspace }}:${{ github.workspace }}
+        - /home/runner/secrets/:/secrets:ro
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -v ${{ github.workspace }}:${{ github.workspace }}
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       BUILD_DIR: ${{ github.workspace }}/build
@@ -84,6 +91,14 @@ jobs:
       SCCACHE_CACHE_SIZE: 50G
       SCCACHE_AZURE_KEY_PREFIX: build_docs
     steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        shell: bash
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
@@ -119,13 +134,13 @@ jobs:
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
       - name: Upload sphinx.log
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: sphinx_build_log_${{ env.PR_NUMBER }}.log
           path: ${{ env.BUILD_DIR }}/docs/sphinx.log
 
       - name: Upload docs html
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_docs_html_${{ env.PR_NUMBER }}
           path: ${{ env.BUILD_DIR }}/docs/_build
@@ -142,7 +157,7 @@ jobs:
 
       - name: Upload test results
         if: failure()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_docs_pytest
           path: ${{ env.BUILD_DIR }}/docs/_artifacts/

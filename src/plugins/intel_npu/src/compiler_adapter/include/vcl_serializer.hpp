@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,11 @@
 
 namespace intel_npu {
 
-using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
+struct SerializedIR {
+    std::shared_ptr<uint8_t> buffer = nullptr;
+    size_t size = 0;
+    std::optional<uint64_t> hash = std::nullopt;
+};
 
 /**
  * @brief Contain all required transformation on OpenVINO model in case for external compiler usage and
@@ -27,17 +31,23 @@ namespace driver_compiler_utils {
 /**
  * @brief Serializes the model using a format supported by the "VCL" interface.
  *
+ * @param compilerVersion The compiler version reported by the driver.
  * @param supportedOpsetVersion The last operators set version supported by the compiler.
  * @param useBaseModelSerializer "true" means the legacy serializer will be used (weights will be copied), "false" means
- * the optimized one is used instead (weights pointers are stored).
- * @param weightsSizeThreshold Relevant only if "useBaseModelSerializer" is false. The weights smaller than this value
- * will be copied into a separate buffer. The rest will have only their memory location stored.
+ * the optimized one is used instead (weights pointers are stored instead).
+ * @param computeModelHash If true, a hash of the model will also be returned.
+ * @param storeWeightlessCacheAttribute If true, the returned serialized model will also contain within its runtime
+ * information the WeightlessCacheAttributes stored using a custom format. This format can be interpreted by the
+ * driver-compiler adapter in order to properly handle the "weights separation" feature.
+ *
+ * @returns The serialized model, along with its size and hash
  */
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          ze_graph_compiler_version_info_t compilerVersion,
-                         const uint32_t supportedOpsetVersion,
+                         const uint32_t supportedOpsetVersion = 11,
                          const bool useBaseModelSerializer = true,
-                         const size_t weightsSizeThreshold = 0);
+                         const bool computeModelHash = false,
+                         const bool storeWeightlessCacheAttribute = false);
 
 /**
  * @brief Serialize input / output information to string format.

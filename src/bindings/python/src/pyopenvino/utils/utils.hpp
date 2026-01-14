@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,21 +32,6 @@
 #include "openvino/pass/serialize.hpp"
 
 namespace py = pybind11;
-
-// Conditional GIL management for PEP 703 (free-threaded Python)
-inline constexpr bool PY_GIL_DISABLED {
-#if defined(Py_GIL_DISABLED) && Py_GIL_DISABLED
-    true
-#else
-    false
-#endif
-};
-
-using ConditionalGILScopedRelease = std::conditional_t<PY_GIL_DISABLED, std::monostate, py::gil_scoped_release>;
-using ConditionalGILScopedAcquire = std::conditional_t<PY_GIL_DISABLED, std::monostate, py::gil_scoped_acquire>;
-
-// For free-threaded Python, we don't need call_guard - use empty call_guard
-using CallGuardConditionalGILRelease = std::conditional_t<PY_GIL_DISABLED, py::call_guard<>, py::call_guard<py::gil_scoped_release>>;
 
 namespace Common {
 namespace utils {
@@ -133,6 +118,8 @@ private:
     ov::pass::Serialize::Version convert_to_version(const std::string& version);
 
     std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback);
+
+    std::shared_ptr<py::object> wrap_pyobject_to_sp(py::object obj);
 
     std::filesystem::path to_fs_path(const py::object& path);
 }; // namespace utils

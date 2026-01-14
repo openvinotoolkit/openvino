@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         auto expected_shape = Shape(weights_rank, 1);
         expected_shape[1] = channel_dim;
 
-        if (!op::util::check_for_broadcast(expected_shape, const_shape)) {
+        if (!ov::op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 
@@ -111,7 +111,7 @@ ov::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         auto expected_shape = Shape(weights_rank - 1, 1);
         expected_shape[1] = G * O;
 
-        if (!op::util::check_for_broadcast(expected_shape, const_shape)) {
+        if (!ov::op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 
@@ -199,7 +199,7 @@ ov::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiply
         auto expected_shape = Shape(weights_rank, 1);
         expected_shape[1] = channel_dim;
 
-        if (!op::util::check_for_broadcast(expected_shape, const_shape)) {
+        if (!ov::op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 
@@ -276,7 +276,7 @@ ov::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDa
         auto expected_shape = Shape(weights_rank - 1, 1);
         expected_shape[1] = G * O;
 
-        if (!op::util::check_for_broadcast(expected_shape, const_shape)) {
+        if (!ov::op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 

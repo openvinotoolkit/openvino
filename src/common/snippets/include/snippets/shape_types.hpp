@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,6 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/core/shape.hpp"
-
 namespace ov::snippets {
 /*
  * This header file contain declarations of shape-relevant classes used cross several snippets subsystems.
@@ -18,7 +16,7 @@ namespace ov::snippets {
  * both PortDescriptor and IShapeInferSnippets use VectorDims, but these two classes are completely independent
  * semantically.
  */
-using VectorDims = ov::Shape;
+using VectorDims = std::vector<size_t>;
 using VectorDimsPtr = std::shared_ptr<VectorDims>;
 using VectorDimsCPtr = std::shared_ptr<const VectorDims>;
 using VectorDimsRef = std::reference_wrapper<const VectorDims>;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -709,7 +709,7 @@ std::vector<cl_mem> ocl_surfaces_lock::get_handles(std::vector<memory::ptr> mem)
     std::vector<cl_mem> res;
     for (auto& m : mem) {
         auto mem_type = m->get_internal_params().mem_type;
-        if (mem_type == shared_mem_type::shared_mem_vasurface || mem_type == shared_mem_type::shared_mem_dxbuffer) {
+        if (is_lock_needed(mem_type)) {
             res.push_back(static_cast<cl_mem>(m->get_internal_params().mem));
         }
     }

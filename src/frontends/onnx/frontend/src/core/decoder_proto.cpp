@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,27 +31,18 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         }
         switch (attr.type()) {
         case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT:
-            if (attr.has_f())
-                return attr.f();
-            else
-                throw std::runtime_error("Attribute doesn't have value");
-            break;
+            // do not check attr.has_f() because f has default value 0.0
+            return attr.f();
         case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOATS:
             return std::vector<float>{attr.floats().begin(), attr.floats().end()};
         case AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
-            if (attr.has_i())
-                return attr.i();
-            else
-                throw std::runtime_error("Attribute doesn't have value");
-            break;
+            // do not check attr.has_i() because i has default value 0
+            return attr.i();
         case AttributeProto_AttributeType::AttributeProto_AttributeType_INTS:
             return std::vector<int64_t>{attr.ints().begin(), attr.ints().end()};
         case AttributeProto_AttributeType::AttributeProto_AttributeType_STRING:
-            if (attr.has_s())
-                return attr.s();
-            else
-                throw std::runtime_error("Attribute doesn't have value");
-            break;
+            // do not check attr.has_s() because s has default value ""
+            return attr.s();
         case AttributeProto_AttributeType::AttributeProto_AttributeType_STRINGS:
             return std::vector<std::string>{attr.strings().begin(), attr.strings().end()};
         case AttributeProto_AttributeType::AttributeProto_AttributeType_GRAPH:
@@ -59,11 +50,11 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 return static_cast<ov::frontend::onnx::GraphIterator::Ptr>(
                     std::make_shared<GraphIteratorProto>(m_parent, &attr.g()));
             else
-                throw std::runtime_error("Attribute doesn't have value");
+                throw std::runtime_error("Attribute \"" + name + "\" doesn't have g value");
             break;
         case AttributeProto_AttributeType::AttributeProto_AttributeType_TENSOR:
             return static_cast<ov::frontend::onnx::DecoderBase::Ptr>(
-                std::make_shared<DecoderProtoTensor>(&attr.t(), m_parent, 0, 0));
+                std::make_shared<DecoderProtoTensor>(&attr.t(), m_parent));
         case AttributeProto_AttributeType::AttributeProto_AttributeType_SPARSE_TENSOR: {
             ov::frontend::onnx::SparseTensorInfo sparse_tensor_info{};
             auto& sparse_tensor = attr.sparse_tensor();
@@ -71,11 +62,11 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 ov::PartialShape{std::vector<int64_t>(sparse_tensor.dims().begin(), sparse_tensor.dims().end())};
             if (sparse_tensor.has_values()) {
                 sparse_tensor_info.m_values = static_cast<ov::frontend::onnx::DecoderBase::Ptr>(
-                    std::make_shared<DecoderProtoTensor>(&sparse_tensor.values(), m_parent, 0, 0));
+                    std::make_shared<DecoderProtoTensor>(&sparse_tensor.values(), m_parent));
             }
             if (sparse_tensor.has_indices()) {
                 sparse_tensor_info.m_indices = static_cast<ov::frontend::onnx::DecoderBase::Ptr>(
-                    std::make_shared<DecoderProtoTensor>(&sparse_tensor.indices(), m_parent, 0, 0));
+                    std::make_shared<DecoderProtoTensor>(&sparse_tensor.indices(), m_parent));
             }
             return sparse_tensor_info;
         }

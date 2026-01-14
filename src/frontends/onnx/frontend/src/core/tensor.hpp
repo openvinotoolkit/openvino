@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -340,12 +340,14 @@ private:
             return m_tensor_proto->int32_data().data();
         case TensorProto_DataType::TensorProto_DataType_INT64:
             return m_tensor_proto->int64_data().data();
+        case TensorProto_DataType::TensorProto_DataType_UINT32:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT64:
             return m_tensor_proto->uint64_data().data();
         case TensorProto_DataType::TensorProto_DataType_DOUBLE:
             return m_tensor_proto->double_data().data();
         }
-        ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT64, DOUBLE");
+        ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT32, UINT64, DOUBLE");
     }
 
     size_t get_data_size() const {
@@ -367,10 +369,10 @@ private:
         switch (m_tensor_proto->data_type()) {
         case TensorProto_DataType::TensorProto_DataType_FLOAT:
             return m_tensor_proto->float_data_size();
-        case TensorProto_DataType::TensorProto_DataType_INT32:
-            return m_tensor_proto->int32_data_size();
         case TensorProto_DataType::TensorProto_DataType_INT64:
             return m_tensor_proto->int64_data_size();
+        case TensorProto_DataType::TensorProto_DataType_UINT32:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT64:
             return m_tensor_proto->uint64_data_size();
         case TensorProto_DataType::TensorProto_DataType_DOUBLE:
@@ -378,22 +380,36 @@ private:
         case TensorProto_DataType::TensorProto_DataType_STRING:
             return m_tensor_proto->string_data_size();
         case TensorProto_DataType::TensorProto_DataType_INT4:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_INT8:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_INT16:
+            [[fallthrough]];
+        case TensorProto_DataType::TensorProto_DataType_INT32:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT4:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT8:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT16:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_BOOL:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_FLOAT16:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
             return m_tensor_proto->int32_data_size();
+        default: {
+            ONNX_INVALID_DATA_TYPE(
+                m_tensor_proto->data_type(),
+                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
+                "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
-        ONNX_INVALID_DATA_TYPE(
-            m_tensor_proto->data_type(),
-            "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
-            "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
+        }
     }
 
     const TensorProto* m_tensor_proto;

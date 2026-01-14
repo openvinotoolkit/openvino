@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -168,12 +168,12 @@ class Benchmark:
             self.inference_rate_delay(processed_frames, exec_time)
         infer_queue.wait_all()
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
-        
+
         for infer_request_id in in_fly:
             times.append(infer_queue[infer_request_id].latency)
             if pcseq:
                 self.latency_groups[infer_queue.userdata[infer_request_id]].times.append(infer_queue[infer_request_id].latency)
-        
+
         return sorted(times), total_duration_sec, processed_frames, iteration
 
     def main_loop(self, requests, data_queue, batch_size, latency_percentile, pcseq):

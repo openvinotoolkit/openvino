@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -21,7 +21,7 @@ class TestIndexFill(PytorchLayerTest):
                 self.index = index
                 self.values = values
 
-            def forward(self, input_tensor): 
+            def forward(self, input_tensor):
                 input_tensor.index_fill_(self.dim, self.index, self.values)
                 return input_tensor
 
@@ -34,37 +34,37 @@ class TestIndexFill(PytorchLayerTest):
         (
             {
                 "input_shape": [10],
-                "dim": 0, 
+                "dim": 0,
                 "input_value": 5.6,
                 "index": [5, 6, 7]
             },
             {
                 "input_shape": [3, 3],
-                "dim": 0, 
+                "dim": 0,
                 "input_value": 10.1,
                 "index": [1, 0]
             },
             {
                 "input_shape": [4, 3, 5],
-                "dim": 1, 
+                "dim": 1,
                 "input_value": 1234.5,
                 "index": [2, 0]
             },
             {
                 "input_shape": [5, 6, 7, 8],
-                "dim": -2, 
+                "dim": -2,
                 "input_value": 0.1234,
                 "index": [6, 4, 2, 0]
             },
             {
                 "input_shape": [5, 6, 7, 8],
-                "dim": -3, 
+                "dim": -3,
                 "input_value": -4321234.5678765,
                 "index": [5, 4, 3, 1]
             },
             {
                 "input_shape": [5, 6, 7, 8],
-                "dim": 3, 
+                "dim": 3,
                 "input_value": -1234.54321,
                 "index": [6, 4, 7, 2, 1]
             },

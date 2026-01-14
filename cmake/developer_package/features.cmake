@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -73,10 +73,6 @@ if(CMAKE_CROSSCOMPILING OR WIN32)
 else()
     set(STYLE_CHECKS_DEFAULT ON)
 endif()
-
-ov_option (ENABLE_CPPLINT "Enable cpplint checks during the build" OFF)
-
-ov_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
 
 ov_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ${STYLE_CHECKS_DEFAULT})
 

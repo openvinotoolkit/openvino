@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,7 +73,6 @@ private:
 
     bool _pipelineIsCreated = false;
     bool _dynamicBatchValueChanged = false;
-    bool _externalMemoryStandardAllocationSupported = false;
 };
 
 }  //  namespace intel_npu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,16 +45,16 @@ public:
      * wrapper further details the compiled model and brings it in a state closer to execution.
      */
     virtual std::shared_ptr<IGraph> parse(
-        ov::Tensor mainBlob,
+        const ov::Tensor& mainBlob,
         const FilteredConfig& config,
-        std::optional<std::vector<ov::Tensor>> initBlobs = std::nullopt,
+        const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
         const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt) const = 0;
 
     virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
                                       const FilteredConfig& config) const = 0;
     virtual uint32_t get_version() const = 0;
     virtual std::vector<std::string> get_supported_options() const = 0;
-    virtual bool is_option_supported(std::string optname) const = 0;
+    virtual bool is_option_supported(std::string optName, std::optional<std::string> optValue = std::nullopt) const = 0;
 
     virtual ~ICompilerAdapter() = default;
 };

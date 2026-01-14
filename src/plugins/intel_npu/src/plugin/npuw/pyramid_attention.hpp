@@ -1,14 +1,12 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
-#include <iostream>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
-#include <vector>
 
 #include "attention.hpp"
 
@@ -69,9 +67,12 @@ struct SDPAPatternNodes {
     std::shared_ptr<ov::Node> add_node = nullptr;
     std::shared_ptr<ov::Node> past_key_param_node = nullptr;
     std::shared_ptr<ov::Node> past_value_param_node = nullptr;
+    std::shared_ptr<ov::Node> past_key_concat_node = nullptr;
+    std::shared_ptr<ov::Node> past_value_concat_node = nullptr;
 
     bool is_valid() const {
-        return matmul1_node && matmul2_node && softmax_node && add_node && past_key_param_node && past_value_param_node;
+        return matmul1_node && matmul2_node && softmax_node && add_node && past_key_param_node &&
+               past_value_param_node && past_key_concat_node && past_value_concat_node;
     }
 
     // Log pattern information for debugging
@@ -81,6 +82,9 @@ struct SDPAPatternNodes {
         LOG_DEBUG("  Add: " << (add_node ? add_node->get_friendly_name() : "null"));
         LOG_DEBUG("  Softmax: " << (softmax_node ? softmax_node->get_friendly_name() : "null"));
         LOG_DEBUG("  MatMul2: " << (matmul2_node ? matmul2_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Key Concat: " << (past_key_concat_node ? past_key_concat_node->get_friendly_name() : "null"));
+        LOG_DEBUG(
+            "  Value Concat: " << (past_value_concat_node ? past_value_concat_node->get_friendly_name() : "null"));
     }
 };
 
