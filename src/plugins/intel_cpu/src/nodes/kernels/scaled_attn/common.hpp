@@ -406,13 +406,19 @@ inline svfloat32_t exp_ps_sve(svbool_t& pg, svfloat32_t& src) {
     const auto zero = svdup_n_f32(0.F);
     const auto min_input = svdup_n_f32(-86.64f);  // Approximately ln(2^-125)
 
-    const auto z = svmla_f32_z(pg, shift, src, inv_ln2);
-    auto n = svsub_f32_z(pg, z, shift);
-    n = svsub_f32_z(pg, n, one);
-    const auto scale = svreinterpret_f32_u32(svlsl_n_u32_z(pg, svreinterpret_u32_f32(z), 23));  // 2^n
+    auto x = svmin_f32_z(pg, src, max_input);
+    x = svmax_f32_z(pg, x, min_input);
 
-    const auto r_hi = svmla_f32_z(pg, src, n, neg_ln2_hi);
+    const auto z = svmla_f32_z(pg, shift, x, inv_ln2);
+    auto n = svsub_f32_z(pg, z, shift);
+
+    const auto r_hi = svmla_f32_z(pg, x, n, neg_ln2_hi);
     const auto r = svmla_f32_z(pg, r_hi, n, neg_ln2_lo);
+    n = svsub_f32_z(pg, n, one);
+
+    const auto scale_bits = svlsl_n_u32_z(pg, svreinterpret_u32_f32(z), 23);
+    const auto exponent_delta = svdup_n_u32(static_cast<uint32_t>(1u << 23));
+    const auto scale = svreinterpret_f32_u32(svsub_u32_z(pg, scale_bits, exponent_delta));  // 2^n
     const auto r2 = svmul_f32_z(pg, r, r);
 
     const auto p1 = svmul_f32_z(pg, c1, r);
@@ -438,6 +444,8 @@ inline float32x4_t exp_ps_neon_f32(const float32x4_t& src) {
     const auto c5 = vreinterpretq_f32_u32(vdupq_n_u32(0x3c072010));
 
     const auto shift = vreinterpretq_f32_u32(vdupq_n_u32(0x4b00007f));  // 2^23 + 127 = 0x1.0000fep23f
+    const auto one = vdupq_n_f32(1.0f);                                 // 1
+    const auto two = vdupq_n_f32(2.0f);                                 // 2
     const auto inv_ln2 = vreinterpretq_f32_u32(vdupq_n_u32(0x3fb8aa3b));
     const auto neg_ln2_hi = vreinterpretq_f32_u32(vdupq_n_u32(0xbf317200));
     const auto neg_ln2_lo = vreinterpretq_f32_u32(vdupq_n_u32(0xb5bfbe8e));
@@ -447,14 +455,18 @@ inline float32x4_t exp_ps_neon_f32(const float32x4_t& src) {
     const auto zero = vdupq_n_f32(0.F);
     const auto min_input = vdupq_n_f32(-86.64f);  // Approximately ln(2^-125)
 
-    const auto z = vmlaq_f32(shift, src, inv_ln2);
+    auto x = vminq_f32(src, max_input);
+    x = vmaxq_f32(x, min_input);
+
+    const auto z = vmlaq_f32(shift, x, inv_ln2);
     auto n = z - shift;
     const auto scale_bits = vshlq_n_u32(vreinterpretq_u32_f32(z), 23);
     const auto exponent_delta = vdupq_n_u32(static_cast<uint32_t>(1u << 23));
-    const auto scale = vreinterpretq_f32_u32(vsubq_u32(scale_bits, exponent_delta));  // 2^(n-1)
+    const auto scale = vreinterpretq_f32_u32(vsubq_u32(scale_bits, exponent_delta));  // 2^n
 
-    const auto r_hi = vfmaq_f32(src, n, neg_ln2_hi);
+    const auto r_hi = vfmaq_f32(x, n, neg_ln2_hi);
     const auto r = vfmaq_f32(r_hi, n, neg_ln2_lo);
+    n = vsubq_f32(n, one);
 
     const auto r2 = r * r;
 
@@ -465,8 +477,8 @@ inline float32x4_t exp_ps_neon_f32(const float32x4_t& src) {
     const auto p12345 = vfmaq_f32(p1, p2345, r2);
 
     auto poly = vfmaq_f32(scale, p12345, scale);
-    const auto two = vdupq_n_f32(2.0f);
     poly = vmulq_f32(poly, two);
+
     poly = vbslq_f32(vcltq_f32(src, min_input), zero, poly);
     poly = vbslq_f32(vcgtq_f32(src, max_input), inf, poly);
 
