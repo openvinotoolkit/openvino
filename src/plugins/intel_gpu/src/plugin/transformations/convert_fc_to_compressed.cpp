@@ -30,8 +30,6 @@ namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 
 ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed() {
-    using namespace ov::pass::pattern;
-
     auto data_m = any_input();
     auto bias_m = any_input();
 

@@ -412,6 +412,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
         bool does_model_contain_mxfp_patterns = ov::pass::low_precision::LowPrecision::doesFunctionContainMXFPPatterns(func);
+        bool is_mxfp_config = cldnn::one_of(config.get_dynamic_quantization_data_type(),
+                                            {ov::hint::DynamicQuantizationDataType::MXF4E2M1,
+                                             ov::hint::DynamicQuantizationDataType::MXF8E4M3,
+                                             ov::hint::DynamicQuantizationDataType::MXF8E5M2});
+
+        OPENVINO_ASSERT(does_model_contain_mxfp_patterns == is_mxfp_config,
+                        "The model containing MXFP patterns can be run if and only if ov::hint::DynamicQuantizationDataType is configured to MXF* option. "
+                        "Please make sure both conditions are met.");
 
         manager.register_pass<ov::pass::MarkDequantization>(std::vector<ov::element::Type>{ov::element::i8,
                                                                                            ov::element::u8,
@@ -1408,7 +1416,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();
             auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
             auto dynamic_quantization_group_size_max = config.get_dynamic_quantization_group_size_max();
-            const bool precomputed_reduction = false;//config.get_dynamic_quantization_precomputed_reduction();
+            const bool precomputed_reduction = config.get_dynamic_quantization_precomputed_reduction();
 
             const bool group_dyn_quan_allowed = m_context->get_engine().get_device_info().supports_non_uniform_work_group;
             // WA: when platform does not support non-uniform-work-group, it may fail to run dynamic quantization for gs128.

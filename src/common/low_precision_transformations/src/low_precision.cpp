@@ -370,7 +370,6 @@ bool ov::pass::low_precision::LowPrecision::doesFunctionContainMXFPPatterns(
         bool weight_dtype_check = (weight->get_element_type() == ov::element::f8e4m3 ||
                                    weight->get_element_type() == ov::element::f8e5m2);
 
-        std::vector<size_t> possible_group_sizes{32}; // TODO: check all possible group sizes
         bool shape_check = scale_shape.size() == weight_shape.size();
         shape_check = shape_check && std::equal(scale_shape.begin(),
                                                 scale_shape.begin() + scale_shape.size() - 1,
@@ -379,7 +378,7 @@ bool ov::pass::low_precision::LowPrecision::doesFunctionContainMXFPPatterns(
                                                     return a == b;
                                                 });
         shape_check = shape_check && scale_shape.back() == 1;
-        shape_check = shape_check && (std::find(possible_group_sizes.begin(), possible_group_sizes.end(), weight_shape.back()) != possible_group_sizes.end());
+        shape_check = shape_check && weight_shape.back() == 32;
 
         if (!weight_dtype_check || !shape_check) {
             continue;
