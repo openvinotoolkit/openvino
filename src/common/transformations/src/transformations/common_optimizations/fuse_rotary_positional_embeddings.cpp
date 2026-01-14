@@ -18,6 +18,7 @@
 #include "openvino/op/cos.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
@@ -776,6 +777,19 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
     this->register_matcher(m, callback);
 }
 
+static std::shared_ptr<ov::Node> build_ChatGLMHF_interleave_pattern(std::shared_ptr<ov::Node> cos_or_sin) {
+    auto transpose = pattern::wrap_type<ov::op::v1::Transpose>({cos_or_sin, pattern::any_input()});
+    auto reshape = pattern::wrap_type<ov::op::v1::Reshape>({transpose, pattern::any_input()});
+    auto multiply = pattern::wrap_type<ov::op::v1::Multiply>({reshape, pattern::any_input()});
+    auto gather_nd = pattern::wrap_type<ov::op::v8::GatherND>({multiply, pattern::any_input()});
+    auto transpose_1 = pattern::wrap_type<ov::op::v1::Transpose>({gather_nd, pattern::any_input()});
+
+    auto const_idx =
+        pattern::wrap_type<ov::opset1::Constant>(pattern::type_matches(ov::element::i32) && const_idx_predicate);
+    auto gather = pattern::wrap_type<v8::Gather>({cos_or_sin, const_idx, -1}, {{"batch_dims", 0}});
+    return transpose_1 | gather;
+}
+
 ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
     using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionChatGLMHF);
@@ -796,10 +810,8 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
         pattern::output_index_matches(1) && pattern::shape_matches("[?, head_cnt, 1, ndims]"));
     auto slice_1 = NewGenSlice(reshape, 0, "ndims", 1, 3) | vsplit_out0;
 
-    auto const_idx =
-        pattern::wrap_type<ov::opset1::Constant>(pattern::type_matches(ov::element::i32) && const_idx_predicate);
-    auto repeat_interleave_cos = pattern::wrap_type<v8::Gather>({cos, const_idx, -1}, {{"batch_dims", 0}});
-    auto repeat_interleave_sin = pattern::wrap_type<v8::Gather>({sin, const_idx, -1}, {{"batch_dims", 0}});
+    auto repeat_interleave_cos = build_ChatGLMHF_interleave_pattern(cos);
+    auto repeat_interleave_sin = build_ChatGLMHF_interleave_pattern(sin);
 
     auto multiply = pattern::wrap_type<v1::Multiply>({slice_1, repeat_interleave_cos}, {{"auto_broadcast", "numpy"}});
     auto slice_2 = NewGenSlice(slice_1, 1, INT_MAX, 2, 3);
