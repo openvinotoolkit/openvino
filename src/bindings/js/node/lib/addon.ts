@@ -124,6 +124,21 @@ export interface Core {
     };
   };
   /**
+   * Asynchronously imports a previously exported compiled model from a Tensor.
+   * @param modelTensor The tensor containing the exported compiled model data.
+   * The tensor must be of type u8 with shape [byte_count].
+   * @param device The name of a device, for which you import a compiled model.
+   * Note, if the device name was not used to compile the original model,
+   * an exception is thrown.
+   * @param config An object with the key-value pairs
+   * (property name, property value): relevant only for this load operation.
+   */
+  importModel(
+    modelTensor: Tensor,
+    device: string,
+    config?: Record<string, OVAny>,
+  ): Promise<CompiledModel>;
+  /**
    * Asynchronously imports a previously exported compiled model.
    * @param modelStream The input stream that contains a model,
    * previously exported with the {@link CompiledModel.exportModelSync} method.
@@ -138,6 +153,15 @@ export interface Core {
     device: string,
     config?: Record<string, OVAny>,
   ): Promise<CompiledModel>;
+  /**
+   * A synchronous version of {@link Core.importModel}.
+   * It imports a previously exported compiled model from a Tensor.
+   */
+  importModelSync(
+    modelTensor: Tensor,
+    device: string,
+    config?: Record<string, OVAny>,
+  ): CompiledModel;
   /**
    * A synchronous version of {@link Core.importModel}.
    * It imports a previously exported compiled model.

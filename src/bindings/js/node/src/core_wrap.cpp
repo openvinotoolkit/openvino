@@ -312,33 +312,44 @@ Napi::Value CoreWrap::get_versions(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
-    try {
-        if (!info[0].IsBuffer()) {
-            OPENVINO_THROW("The first argument must be of type Buffer.");
-        }
-        if (!info[1].IsString()) {
-            OPENVINO_THROW("The second argument must be of type String.");
-        }
-        const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
-        const auto model_stream = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
-        std::stringstream _stream;
-        _stream << model_stream;
+    std::vector<std::string> allowed_signatures;
 
-        ov::CompiledModel compiled;
-        switch (info.Length()) {
-        case 2: {
-            compiled = _core.import_model(_stream, std::string(info[1].ToString()));
-            break;
+    try {
+        // Handle Tensor input
+        if (ov::js::validate<TensorWrap, Napi::String>(info, allowed_signatures) ||
+            ov::js::validate<TensorWrap, Napi::String, Napi::Object>(info, allowed_signatures)) {
+            const ov::Tensor tensor = cast_to_tensor(info, 0);
+            const std::string device_name = info[1].As<Napi::String>().Utf8Value();
+
+            ov::CompiledModel compiled;
+            if (info.Length() == 2) {
+                compiled = _core.import_model(tensor, device_name);
+            } else {
+                compiled = _core.import_model(tensor, device_name, to_anyMap(info.Env(), info[2]));
+            }
+
+            return CompiledModelWrap::wrap(info.Env(), compiled);
         }
-        case 3: {
-            compiled = _core.import_model(_stream, std::string(info[1].ToString()), to_anyMap(info.Env(), info[2]));
-            break;
+
+        // Handle Buffer input
+        if (ov::js::validate<Napi::Buffer<uint8_t>, Napi::String>(info, allowed_signatures) ||
+            ov::js::validate<Napi::Buffer<uint8_t>, Napi::String, Napi::Object>(info, allowed_signatures)) {
+            const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
+            const auto model_stream = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
+            std::stringstream _stream;
+            _stream << model_stream;
+
+            ov::CompiledModel compiled;
+            if (info.Length() == 2) {
+                compiled = _core.import_model(_stream, std::string(info[1].ToString()));
+            } else {
+                compiled = _core.import_model(_stream, std::string(info[1].ToString()), to_anyMap(info.Env(), info[2]));
+            }
+
+            return CompiledModelWrap::wrap(info.Env(), compiled);
         }
-        default: {
-            OPENVINO_THROW("Invalid number of arguments -> " + std::to_string(info.Length()));
-        }
-        }
-        return CompiledModelWrap::wrap(info.Env(), compiled);
+
+        OPENVINO_THROW("'importModelSync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
 
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
@@ -373,14 +384,26 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
 
     try {
-        if (ov::js::validate<Napi::Buffer<uint8_t>, Napi::String>(info, allowed_signatures) ||
+        // Validate all supported signatures
+        if (ov::js::validate<TensorWrap, Napi::String>(info, allowed_signatures) ||
+            ov::js::validate<TensorWrap, Napi::String, Napi::Object>(info, allowed_signatures) ||
+            ov::js::validate<Napi::Buffer<uint8_t>, Napi::String>(info, allowed_signatures) ||
             ov::js::validate<Napi::Buffer<uint8_t>, Napi::String, Napi::Object>(info, allowed_signatures)) {
             // Prepare validated data that will be transferred to the new thread.
             auto context_data = new ImportModelContext(env, _core);
 
-            const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
-            const auto model_stream = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
-            context_data->_stream << model_stream;
+            // Handle Tensor input
+            if (ov::js::validate_value<TensorWrap>(env, info[0])) {
+                const ov::Tensor tensor = cast_to_tensor(info, 0);
+                const auto* data_ptr = reinterpret_cast<const char*>(tensor.data());
+                context_data->_stream << std::string(data_ptr, tensor.get_byte_size());
+            } else {
+                // Handle Buffer input
+                const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
+                const auto model_stream = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
+                context_data->_stream << model_stream;
+            }
+
             context_data->_device = info[1].ToString();
             context_data->_config = info.Length() == 3 ? to_anyMap(env, info[2]) : ov::AnyMap();
 
