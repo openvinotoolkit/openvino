@@ -25,8 +25,8 @@
 constexpr uint wg_size = WG_SIZE;
 
 template <int HEAD_SIZE>
-CM_INLINE void load_kvcahe(vector_ref<half, HEAD_SIZE> kv_data, const half* kv_ptr [[type("svmptr_t")]], uint offset) {
-    if constexpr (HEAD_SIZE % 2 == 8 || HEAD_SIZE % 2 == 16 || HEAD_SIZE % 2 == 32 || HEAD_SIZE % 2 == 64) {
+CM_INLINE void load_kvcache(vector_ref<half, HEAD_SIZE> kv_data, const half* kv_ptr [[type("svmptr_t")]], uint offset) {
+    if constexpr (HEAD_SIZE == 16 || HEAD_SIZE == 32 || HEAD_SIZE == 64 || HEAD_SIZE == 128) {
         kv_data.format<int>() = cm_ptr_load<int, HEAD_SIZE / 2>((int*)kv_ptr, offset);
     } else if constexpr (HEAD_SIZE == 96) {
         kv_data.select<64, 1>(0).format<int>() = cm_ptr_load<int, 32>((int*)kv_ptr, offset);
@@ -43,7 +43,7 @@ CM_INLINE void load_kvcahe(vector_ref<half, HEAD_SIZE> kv_data, const half* kv_p
 template <typename T, int HEAD_SIZE>
 CM_INLINE void store_kvcahe(const svmptr_t kv_cache [[type("svmptr_t")]], uint offset, vector_ref<T, HEAD_SIZE> kv_data) {
     if constexpr(std::is_same<T, half>::value) {
-        if constexpr (HEAD_SIZE % 2 == 8 || HEAD_SIZE % 2 == 16 || HEAD_SIZE % 2 == 32 || HEAD_SIZE % 2 == 64) {
+        if constexpr (HEAD_SIZE == 16 || HEAD_SIZE == 32 || HEAD_SIZE == 64 || HEAD_SIZE == 128) {
             cm_ptr_store<int, HEAD_SIZE / 2>((int*)kv_cache, offset, kv_data.format<int>());
         } else if constexpr (HEAD_SIZE == 96) {
             cm_ptr_store<int, 32>((int*)kv_cache, offset, kv_data.select<64, 1>(0).format<int>());
@@ -56,7 +56,7 @@ CM_INLINE void store_kvcahe(const svmptr_t kv_cache [[type("svmptr_t")]], uint o
             }
         }
     } else {
-        if constexpr (HEAD_SIZE % 4 == 8 || HEAD_SIZE % 4 == 16 || HEAD_SIZE % 4 == 32 || HEAD_SIZE % 4 == 64) {
+        if constexpr (HEAD_SIZE == 32 || HEAD_SIZE == 64 || HEAD_SIZE == 128 || HEAD_SIZE == 256) {
             cm_ptr_store<int, HEAD_SIZE / 4>((int*)kv_cache, offset, kv_data.format<int>());
         } else if constexpr (HEAD_SIZE == 96) {
             cm_ptr_store<int, 16>((int*)kv_cache, offset, kv_data.select<64, 1>(0).format<int>());
@@ -135,7 +135,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const auto head_idx = cm_group_id(1);
     const auto wg_id = cm_group_id(2);
 
-    // const uint token_idx = wg_id * local_size + wg_local_id;
     const uint token_idx = cm_global_id(2);
 
     // token_idx -> subsequence_idx
@@ -160,7 +159,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         uint key_in_offset = token_idx * key_pitch + head_idx * K_HEAD_SIZE + key_offset;
 
         vector<half, K_HEAD_SIZE> key_data;
-        load_kvcahe<K_HEAD_SIZE>(key_data, key, key_in_offset * (int)sizeof(half));
+        load_kvcache<K_HEAD_SIZE>(key_data, key, key_in_offset * (int)sizeof(half));
 
         #if KV_CACHE_COMPRESSION_PER_TOKEN
             quantize_and_store<K_HEAD_SIZE>(key_data, (uchar*)key_cache, block_k_base_offset, token_start_pos);
@@ -174,7 +173,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         uint value_in_offset = token_idx * value_pitch + head_idx * V_HEAD_SIZE + value_offset;
 
         vector<half, V_HEAD_SIZE> value_data;
-        load_kvcahe<V_HEAD_SIZE>(value_data, value, value_in_offset * (int)sizeof(half));
+        load_kvcache<V_HEAD_SIZE>(value_data, value, value_in_offset * (int)sizeof(half));
 
         #if KV_CACHE_COMPRESSION_PER_TOKEN
             quantize_and_store<V_HEAD_SIZE>(value_data, (uchar*)value_cache, block_v_base_offset, token_start_pos);
