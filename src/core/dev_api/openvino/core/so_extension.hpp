@@ -37,7 +37,7 @@ inline std::filesystem::path resolve_extension_path(const std::filesystem::path&
 
 inline std::vector<Extension::Ptr> load_extensions(const std::filesystem::path& path) {
     const auto resolved_path = resolve_extension_path(path);
-    auto so = ov::util::load_shared_object(resolved_path.c_str());
+    auto so = ov::util::load_shared_object(resolved_path);
     using CreateFunction = void(std::vector<Extension::Ptr>&);
     std::vector<Extension::Ptr> extensions;
     reinterpret_cast<CreateFunction*>(ov::util::get_symbol(so, "create_extensions"))(extensions);

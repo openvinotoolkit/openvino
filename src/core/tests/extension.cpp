@@ -20,9 +20,9 @@ inline std::string get_extension_path() {
 
 inline std::wstring get_extension_wdir() {
     std::wstring dir = ov::util::string_to_wstring(ov::test::utils::getExecutableDirectory());
-    dir.push_back(ov::util::FileTraits<wchar_t>::file_separator);
+    dir.push_back(ov::test::utils::FileTraits<wchar_t>::file_separator);
     dir += ov::util::string_to_wstring("晚安_путь_к_файлу");
-    dir.push_back(ov::util::FileTraits<wchar_t>::file_separator);
+    dir.push_back(ov::test::utils::FileTraits<wchar_t>::file_separator);
     ov::util::create_directory_recursive(dir);
     return dir;
 }

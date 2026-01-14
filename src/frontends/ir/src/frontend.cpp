@@ -256,7 +256,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     }
     if (!weights_path.empty()) {
         if (enable_mmap) {
-            auto mapped_memory = ov::load_mmap_object(weights_path);
+            auto mapped_memory = ov::load_mmap_object(ov::util::make_path(weights_path));
             weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
                                                                                         mapped_memory->size(),
                                                                                         mapped_memory);

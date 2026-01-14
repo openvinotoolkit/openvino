@@ -27,14 +27,6 @@
 
 namespace {
 
-std::shared_ptr<void> load_library(const std::string& libpath) {
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    return ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
-#else
-    return ov::util::load_shared_object(libpath.c_str());
-#endif
-}
-
 std::shared_ptr<intel_npu::ICompiler> get_compiler(std::shared_ptr<void> so) {
     static constexpr auto CreateFuncName = "CreateNPUCompiler";
     auto symbol = ov::util::get_symbol(so, CreateFuncName);
@@ -47,8 +39,8 @@ std::shared_ptr<intel_npu::ICompiler> get_compiler(std::shared_ptr<void> so) {
     return compilerPtr;
 }
 
-ov::SoPtr<intel_npu::ICompiler> load_compiler(const std::string& libpath) {
-    auto compilerSO = load_library(libpath);
+ov::SoPtr<intel_npu::ICompiler> load_compiler(const std::filesystem::path& libpath) {
+    auto compilerSO = ov::util::load_shared_object(libpath);
     auto compiler = get_compiler(compilerSO);
 
     return ov::SoPtr<intel_npu::ICompiler>(compiler, compilerSO);

@@ -21,21 +21,18 @@ get_filelist_recursive(const std::vector<std::string>& dir_paths,
             std::string msg = "Input directory (" + dir_path + ") doesn't not exist!";
             throw std::runtime_error(msg);
         }
-        ov::util::iterate_files(
-            dir_path,
-            [&result, &patterns](const std::string& file_path, bool is_dir) {
-                auto file = ov::util::get_file_name(file_path);
-                if (ov::util::file_exists(file_path)) {
-                    for (const auto& pattern : patterns) {
-                        if (std::regex_match(file_path, pattern)) {
-                            result.push_back(file_path);
-                            break;
-                        }
-                    }
-                }
-            },
-            true,
-            false);
+        ov::util::recursive_iterate_files(ov::util::make_path(dir_path),
+                                          [&result, &patterns](const std::filesystem::path& file_path) {
+                                              if (ov::util::file_exists(file_path)) {
+                                                  for (const auto& pattern : patterns) {
+                                                      if (auto file_path_str = ov::util::path_to_string(file_path);
+                                                          std::regex_match(file_path_str, pattern)) {
+                                                          result.push_back(std::move(file_path_str));
+                                                          break;
+                                                      }
+                                                  }
+                                              }
+                                          });
     }
     return result;
 }

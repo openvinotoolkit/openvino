@@ -19,9 +19,12 @@ void FusedNamesExtractor::set_target_device(const std::string& _device) {
     auto available_devices = ov::util::core->get_available_devices();
     if (_device == std::string("TEMPLATE") &&
         std::find(available_devices.begin(), available_devices.end(), _device) == available_devices.end()) {
-        auto plugin_path = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), std::string("openvino_template_plugin") + OV_BUILD_POSTFIX);
+        auto plugin_path =
+            ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(),
+                                               std::string("openvino_template_plugin") + OV_BUILD_POSTFIX);
         if (!ov::util::file_exists(plugin_path)) {
-            throw std::runtime_error("[ WARNING ][ GRAPH CACHE ] Plugin: " + plugin_path + " does not exists!");
+            throw std::runtime_error("[ WARNING ][ GRAPH CACHE ] Plugin: " + ov::util::path_to_string(plugin_path) +
+                                     " does not exist!");
         }
         ov::util::core->register_plugin(plugin_path, _device);
         available_devices = ov::util::core->get_available_devices();

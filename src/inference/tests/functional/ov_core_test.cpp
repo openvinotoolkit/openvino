@@ -61,8 +61,8 @@ static void create_plugin_xml(const std::filesystem::path& file_name, const std:
 
     file << "<ie><plugins><plugin location=\"";
     file << ov::test::utils::getExecutableDirectory();
-    file << ov::util::FileTraits<char>::file_separator;
-    file << ov::util::FileTraits<char>::library_prefix();
+    file << ov::test::utils::FileTraits<char>::file_separator;
+    file << ov::test::utils::FileTraits<char>::library_prefix();
     file << "mock_engine";
     file << OV_BUILD_POSTFIX;
     file << ov::util::library_extension().string();
@@ -78,7 +78,7 @@ static void remove_plugin_xml(const std::filesystem::path& file_name) {
 TEST_F(CoreBaseTest, LoadPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string xml_file_path =
-        ov::test::utils::getOpenvinoLibDirectory() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::test::utils::getOpenvinoLibDirectory() + ov::test::utils::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_name));
     remove_plugin_xml(xml_file_path);
@@ -118,7 +118,7 @@ TEST_P(CoreBaseTestP, registerPlugins) {
 TEST_F(CoreBaseTest, LoadPluginDifferentXMLExtension) {
     std::string xml_file_name = "test_plugin.test";
     std::string xml_file_path =
-        ov::test::utils::getOpenvinoLibDirectory() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::test::utils::getOpenvinoLibDirectory() + ov::test::utils::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_name));
     remove_plugin_xml(xml_file_path);
@@ -127,7 +127,7 @@ TEST_F(CoreBaseTest, LoadPluginDifferentXMLExtension) {
 TEST_F(CoreBaseTest, LoadAbsoluteOVPathPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string xml_file_path =
-        ov::test::utils::getOpenvinoLibDirectory() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::test::utils::getOpenvinoLibDirectory() + ov::test::utils::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_path));
     remove_plugin_xml(xml_file_path);
@@ -136,7 +136,7 @@ TEST_F(CoreBaseTest, LoadAbsoluteOVPathPluginXML) {
 TEST_F(CoreBaseTest, LoadAbsoluteCWPathPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string xml_file_path =
-        ov::test::utils::getCurrentWorkingDir() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::test::utils::getCurrentWorkingDir() + ov::test::utils::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_path));
     remove_plugin_xml(xml_file_path);
@@ -145,7 +145,7 @@ TEST_F(CoreBaseTest, LoadAbsoluteCWPathPluginXML) {
 TEST_F(CoreBaseTest, LoadRelativeCWPathPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string xml_file_path =
-        ov::test::utils::getCurrentWorkingDir() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::test::utils::getCurrentWorkingDir() + ov::test::utils::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_name));
     remove_plugin_xml(xml_file_path);
@@ -154,9 +154,9 @@ TEST_F(CoreBaseTest, LoadRelativeCWPathPluginXML) {
 TEST_F(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string cwd_file_path =
-        ov::test::utils::getCurrentWorkingDir() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::test::utils::getCurrentWorkingDir() + ov::test::utils::FileTraits<char>::file_separator + xml_file_name;
     std::string ov_file_path =
-        ov::test::utils::getOpenvinoLibDirectory() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::test::utils::getOpenvinoLibDirectory() + ov::test::utils::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(cwd_file_path);
     create_plugin_xml(ov_file_path, "2");
     ov::Core core(xml_file_name);

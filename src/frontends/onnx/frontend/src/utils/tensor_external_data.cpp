@@ -41,20 +41,19 @@ TensorExternalData::TensorExternalData(const std::string& location, size_t offse
 
 Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::string& model_dir,
                                                                      MappedMemoryHandles cache) const {
-    const auto full_path =
-        model_dir == "" ? m_data_location
-                        : ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}).string());
+    const auto full_path = model_dir.empty() ? ov::util::make_path(m_data_location)
+                                             : ov::util::make_path(ov::util::path_join({model_dir, m_data_location}));
     const int64_t file_size = ov::util::file_size(full_path);
     if (file_size <= 0 || m_offset + m_data_length > static_cast<uint64_t>(file_size)) {
         throw error::invalid_external_data{*this};
     }
-    auto cached_mapped_memory = cache->find(full_path);
+    auto cached_mapped_memory = cache->find(ov::util::path_to_string(full_path));
     std::shared_ptr<ov::MappedMemory> mapped_memory;
     if (cached_mapped_memory != cache->end()) {
         mapped_memory = cached_mapped_memory->second;
     } else {
         mapped_memory = ov::load_mmap_object(full_path);
-        (*cache)[full_path] = mapped_memory;
+        (*cache)[ov::util::path_to_string(full_path)] = mapped_memory;
     }
     if (m_data_length > mapped_memory->size() || mapped_memory->size() == 0) {
         throw error::invalid_external_data{*this};
