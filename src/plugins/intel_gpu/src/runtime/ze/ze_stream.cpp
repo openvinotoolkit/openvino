@@ -206,18 +206,22 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     cp_offload_desc.stype = ZEX_INTEL_STRUCTURE_TYPE_QUEUE_COPY_OPERATIONS_OFFLOAD_HINT_EXP_PROPERTIES;
     cp_offload_desc.copyOffloadEnabled = true;
     cp_offload_desc.pNext = nullptr;
-    if (info.supports_cp_offload) {
+    bool use_cp_offload = info.supports_cp_offload;
+    if (use_cp_offload) {
         command_queue_desc.pNext = &cp_offload_desc;
-    } else {
-        GPU_DEBUG_INFO << "Copy offload hint is not supported" << std::endl;
     }
 
     OV_ZE_EXPECT(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_command_list));
-    if (m_queue_type == QueueTypes::in_order && info.supports_counter_based_events) {
+    bool use_counter_based_events = m_queue_type == QueueTypes::in_order && info.supports_counter_based_events;
+    if (use_counter_based_events) {
         m_ev_factory = std::make_unique<ze_counter_based_event_factory>(engine, config.get_enable_profiling());
     } else {
         m_ev_factory = std::make_unique<ze_event_factory>(engine, config.get_enable_profiling());
     }
+    GPU_DEBUG_INFO << "[GPU] Created L0 stream ("
+        << "use_cp_offload=" << use_cp_offload
+        << ", use_counter_based_events=" << use_counter_based_events
+        << ")" << std::endl;
 }
 
 ze_stream::~ze_stream() {

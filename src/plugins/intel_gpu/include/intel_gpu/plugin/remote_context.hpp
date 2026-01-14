@@ -23,26 +23,6 @@
 
 namespace ov::intel_gpu {
 
-inline std::pair<cldnn::engine_types, cldnn::runtime_types> get_device_query_params() {
-    #ifdef OV_GPU_WITH_ZE_RT
-        auto runtime_type = cldnn::runtime_types::ze;
-        #ifdef OV_GPU_WITH_SYCL
-            auto engine_type = cldnn::engine_types::sycl;
-        #else
-            auto engine_type = cldnn::engine_types::ze;
-        #endif
-    #else
-        auto runtime_type = cldnn::runtime_types::ocl;
-        #ifdef OV_GPU_WITH_SYCL
-            auto engine_type = cldnn::engine_types::sycl;
-        #else
-            auto engine_type = cldnn::engine_types::ocl;
-        #endif
-    #endif
-
-    return {engine_type, runtime_type};
-}
-
 class RemoteContextImpl : public ov::IRemoteContext {
 public:
     using Ptr = std::shared_ptr<RemoteContextImpl>;

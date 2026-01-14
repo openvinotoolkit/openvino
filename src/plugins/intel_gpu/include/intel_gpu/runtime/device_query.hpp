@@ -17,9 +17,22 @@ namespace cldnn {
 struct device_query {
 public:
     static int device_id;
+    /// @brief Get default engine type
+    static engine_types get_default_engine_type();
+
+    /// @brief Get default runtime type
+    static runtime_types get_default_runtime_type();
+
     explicit device_query(engine_types engine_type,
                           runtime_types runtime_type,
                           void* user_context = nullptr,
+                          void* user_device = nullptr,
+                          int ctx_device_id = 0,
+                          int target_tile_id = -1,
+                          bool initialize_devices = false);
+
+    /// @brief Create device query with default values for engine type and runtime type
+    explicit device_query(void* user_context = nullptr,
                           void* user_device = nullptr,
                           int ctx_device_id = 0,
                           int target_tile_id = -1,
