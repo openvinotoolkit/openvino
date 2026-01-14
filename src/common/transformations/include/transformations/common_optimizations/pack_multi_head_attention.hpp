@@ -72,7 +72,7 @@ namespace ov::pass {
  *      │                │                │
  *     Add_Q           Add_K            Add_V
  *      │                │                │
- *   ROPE (Q)         ROPE (K)          ROPE(V)
+ *   ROPE (Q)         ROPE (K)            |
  *      │                │                │
  *      └─────────┬──────┴───────┬────────┘
  *                ▼              ▼

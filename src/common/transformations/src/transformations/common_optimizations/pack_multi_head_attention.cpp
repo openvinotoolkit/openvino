@@ -47,20 +47,20 @@ bool compare_nodes(const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov:
 }
 
 /**
- * @brief Normalizes the rank of a node by adding leading dimensions if necessary.
+ * @brief Aligns the rank of a node by adding leading dimensions if necessary.
  *
  * This function ensures that the output node has at least the specified target rank.
  * If the current rank is less than the target rank, it adds leading dimensions
- * (of size 1) by applying an Unsqueeze operation at the front of the shape.
+ * (of size 1) by applying an Unsqueeze operation.
  * If the current rank is already greater than or equal to the target rank,
  * the node is returned unchanged.
  *
- * @param output The output node whose rank needs to be normalized
+ * @param output The output node whose rank needs to be aligned
  * @param target_rank The desired minimum rank for the output
- * @return A shared pointer to the node with normalized rank (either the original node
+ * @return A shared pointer to the node with aligned rank (either the original node
  *         or a new Unsqueeze node with added leading dimensions)
  */
-std::shared_ptr<ov::Node> normalize_rank(const ov::Output<ov::Node>& output, int64_t target_rank) {
+std::shared_ptr<ov::Node> align_rank(const ov::Output<ov::Node>& output, int64_t target_rank) {
     auto pshape = output.get_partial_shape();
     if (pshape.rank().is_dynamic())
         return output.get_node_shared_ptr();
@@ -71,7 +71,7 @@ std::shared_ptr<ov::Node> normalize_rank(const ov::Output<ov::Node>& output, int
 
     std::vector<int64_t> axes;
     axes.reserve(target_rank - cur_rank);
-    int64_t insert_pos = std::max(cur_rank - 2, static_cast<int64_t>(0));
+    const int64_t insert_pos = std::max(cur_rank - 2, static_cast<int64_t>(0));
     for (int64_t i = 0; i < target_rank - cur_rank; ++i)
         axes.push_back(insert_pos + i);
 
@@ -82,10 +82,10 @@ std::shared_ptr<ov::Node> normalize_rank(const ov::Output<ov::Node>& output, int
 }
 
 /**
- * @brief Concatenates a vector of input tensors along a specified axis, normalizing their ranks.
+ * @brief Concatenates a vector of input tensors along a specified axis, aligning their ranks.
  *
  * This function first determines the maximum static rank among the input tensors.
- * It then normalizes all input tensors to have the same rank (max_rank + 1) before concatenation.
+ * It then aligns all input tensors to have the same rank (max_rank + 1) before concatenation.
  * The concatenation is performed using the specified axis.
  *
  * @param inputs A vector of ov::Output objects representing the tensors to concatenate.
@@ -106,7 +106,7 @@ std::shared_ptr<ov::Node> concat_any(const ov::OutputVector& inputs, int64_t axi
 
     ov::OutputVector normalized;
     for (const auto& in : inputs) {
-        normalized.push_back(normalize_rank(in, max_rank));
+        normalized.push_back(align_rank(in, max_rank));
     }
 
     auto concat = ov::op::util::make_try_fold<v0::Concat>(normalized, axis);
@@ -530,7 +530,7 @@ MergeLinearProjections::MergeLinearProjections() {
             input_fused = concat_any(OutputVector{mm_lhs->input_value(1), mm_rhs->input_value(1)}, HEAD_AXIS, RANK);
         }
 
-        auto mm_fused = mm_lhs->copy_with_new_inputs({normalize_rank(mm_lhs->input_value(0), RANK), input_fused});
+        auto mm_fused = mm_lhs->copy_with_new_inputs({align_rank(mm_lhs->input_value(0), RANK), input_fused});
         copy_runtime_info({mm_lhs, mm_rhs}, mm_fused);
 
         auto bias_fused = concat_any(OutputVector{add_lhs->input_value(1), add_rhs->input_value(1)}, HEAD_AXIS, RANK);
