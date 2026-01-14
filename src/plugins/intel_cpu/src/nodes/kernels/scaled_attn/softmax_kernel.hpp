@@ -214,6 +214,8 @@ inline void scale_add2_reduce_max(float* a,
     OPENVINO_ASSERT(ov::intel_cpu::implication(has_attn_mask, attn_mask), "CPU: attn_mask should not be nullptr.");
     OPENVINO_ASSERT(ov::intel_cpu::implication(has_causal_mask, causal_mask),
                     "CPU: causal_mask should not be nullptr.");
+    OPENVINO_ASSERT(ov::intel_cpu::implication(has_sparse_mask, sparse_mask),
+                    "CPU: sparse_mask should not be nullptr.");
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     auto v_max0 = _mm512_set1_ps(std::numeric_limits<float>::lowest());
