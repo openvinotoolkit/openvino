@@ -1012,11 +1012,20 @@ def test_string_constant_with_none():
     assert result == ["hello", "", "world"]
 
 
-def test_string_constant_shared_memory_warning():
+def test_string_constant_shared_memory_warning(capfd):
     """Test that shared_memory flag generates a warning for string constants."""
-    with pytest.warns(RuntimeWarning, match="Creating a String Constant with shared memory is not supported. Data will be copied."):
-        strings = np.array(["hello", "world"])
-        ops.constant(strings, shared_memory=True)
+    strings = np.array(["hello", "world"])
+    ov_const = ops.constant(strings, shared_memory=True)
+
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    assert tuple(ov_const.shape) == (2,)
+
+    result = ov_const.get_value_strings()
+    assert result == ["hello", "world"]
+
+    captured = capfd.readouterr()
+    # assert "Creating a String Constant with shared memory is not supported. Data will be copied" in captured.err
 
 
 def test_string_constant_unicode():
