@@ -56,13 +56,12 @@ public:
 
 private:
     KokoroConfig m_kokoro_cfg;
+    std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
 
     std::shared_ptr<ov::ISyncInferRequest> create_kokoro_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
-
-    std::string m_name;
 
     ov::SoPtr<ov::ICompiledModel> m_model_a_compiled;
     std::shared_ptr<ov::npuw::ICompiledModel> m_model_b_compiled;

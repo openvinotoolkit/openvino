@@ -143,13 +143,19 @@ std::shared_ptr<ov::Model> ov::npuw::KokoroSplit::create_model_b(const std::shar
     auto en_dtype = en_matmul_node->output(0).get_element_type();
     auto asr_dtype = asr_matmul_node->output(0).get_element_type();
 
-    auto en_param =
-        std::make_shared<ov::op::v0::Parameter>(en_dtype, ov::PartialShape{1, en_channels, config.block_size});
+    auto en_param = std::make_shared<ov::op::v0::Parameter>(
+        en_dtype,
+        ov::PartialShape{1,
+                         static_cast<ov::Dimension::value_type>(en_channels),
+                         static_cast<ov::Dimension::value_type>(config.block_size)});
     en_param->set_friendly_name("en_block");
     en_param->output(0).get_tensor().set_names({"en_block"});
 
-    auto asr_param =
-        std::make_shared<ov::op::v0::Parameter>(asr_dtype, ov::PartialShape{1, asr_channels, config.block_size});
+    auto asr_param = std::make_shared<ov::op::v0::Parameter>(
+        asr_dtype,
+        ov::PartialShape{1,
+                         static_cast<ov::Dimension::value_type>(asr_channels),
+                         static_cast<ov::Dimension::value_type>(config.block_size)});
     asr_param->set_friendly_name("asr_block");
     asr_param->output(0).get_tensor().set_names({"asr_block"});
 
