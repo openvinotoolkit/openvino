@@ -73,32 +73,30 @@ public:
 class broadcast_fused_prims : public BroadcastFusingTest {};
 TEST_P(broadcast_fused_prims, broadcast_activation_with_broadcast) {
     auto p = GetParam();
-    const auto quantize_dt = data_types::u8;
+    const auto quantize_dt = data_types::i8;
     create_topologies(
         input_layout("input", get_input_layout1(p)),
         input_layout("input2", get_input_layout2(p)),
         broadcast("broadcast", input_info("input"), get_input_layout2(p).get_shape(), ov::AxisSet(p.broadcast_axes), ov::op::BroadcastType::NUMPY),
-        eltwise("eltwise", { input_info("broadcast"), input_info("input2") }, eltwise_mode::sum, p.default_type),
-        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
-        data("out_lo", get_mem(get_single_element_layout(p), 0)),
-        data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        quantize("quantize", input_info("eltwise"), input_info("in_lo"), input_info("in_hi"),
-                 input_info("out_lo"), input_info("out_hi"), 256, quantize_dt),
+        eltwise("eltwise", {input_info("broadcast"), input_info("input2")}, eltwise_mode::sum, p.default_type),
+        data("in_lo", get_mem(get_single_element_layout(p), -1.9)),
+        data("in_hi", get_mem(get_single_element_layout(p), 1.8)),
+        data("out_lo", get_mem(get_single_element_layout(p), -128)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        quantize("quantize", input_info("eltwise"), input_info("in_lo"), input_info("in_hi"), input_info("out_lo"), input_info("out_hi"), 256, quantize_dt),
         activation("activation", input_info("quantize"), activation_func::abs),
-        reorder("out", input_info("activation"), p.default_format, data_types::f32)
-    );
+        reorder("out", input_info("activation"), p.default_format, data_types::f32));
 
     tolerance = default_tolerance(quantize_dt);
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, broadcast_fused_prims, ::testing::ValuesIn(std::vector<broadcast_test_params>{
-    broadcast_test_params{ CASE_BROADCAST_FP16_1, 5, 6 },
-    broadcast_test_params{ CASE_BROADCAST_FP16_2, 5, 6 },
-    broadcast_test_params{ CASE_BROADCAST_FP16_3, 5, 6 },
+    broadcast_test_params{ CASE_BROADCAST_FP16_1, 4, 6 },
+    broadcast_test_params{ CASE_BROADCAST_FP16_2, 4, 6 },
+    broadcast_test_params{ CASE_BROADCAST_FP16_3, 4, 6 },
 
-    broadcast_test_params{ CASE_BROADCAST_FP16_1_BLK, 5, 6 },
-    broadcast_test_params{ CASE_BROADCAST_FP16_2_BLK, 5, 6 },
+    broadcast_test_params{ CASE_BROADCAST_FP16_1_BLK, 4, 6 },
+    broadcast_test_params{ CASE_BROADCAST_FP16_2_BLK, 4, 6 },
     broadcast_test_params{ CASE_BROADCAST_FP16_3_BLK, 4, 6 },
 }));
