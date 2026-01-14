@@ -9,55 +9,28 @@
 #include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_eagle3_extension.hpp"
+#include "llm_infer_base_request.hpp"
 #include "llm_lora_states.hpp"
 #include "llm_prefix_caching.hpp"
 #include "openvino/core/descriptor/output.hpp"
-#include "openvino/runtime/isync_infer_request.hpp"
 
 namespace ov {
 namespace npuw {
 
-class LLMInferRequest : public ov::ISyncInferRequest {
+class LLMInferRequest : public ov::npuw::LLMInferBaseRequest {
 public:
-    struct layer_names {
-        static constexpr const char* input_ids = "input_ids";
-        static constexpr const char* inputs_embeds = "inputs_embeds";
-        static constexpr const char* attention_mask = "attention_mask";
-        static constexpr const char* position_ids = "position_ids";
-        static constexpr const char* past_key_values = "past_key_values";
-        static constexpr const char* output_embeds = "npuw_output_embed";
-        static constexpr const char* logits = "logits";
-        static constexpr const char* token_type_ids = "token_type_ids";
-        static constexpr const char* gemma_sliding_mask = "npuw_gemma_sliding_mask";
-    };
-
-    struct layer_ids {
-        static constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
-        static constexpr std::size_t kStartOutputKVCacheLayers = 1;
-    };
-
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
     void infer() override;
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
-
-    void check_tensors() const override {};
-
-    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
-        return {};
-    }
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
 protected:
     virtual void prepare_for_new_conversation();
     void prepare_for_new_conversation(int64_t prompt_length);
-
     void apply_lora();
-
     void clear_chunk_prefill_kv_cache();
-
-    void init_tensor(const ov::Output<const ov::Node>& port);
     void copy_kvcache();
 
     // Create and initialize generate variant requests with memory sharing
@@ -68,11 +41,6 @@ protected:
     // sufficient capacity for both input prompt and minimum response generation
     std::shared_ptr<ov::IAsyncInferRequest> select_generate_request(int64_t prompt_length);
 
-    void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
-                            const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
-                            const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
-                            uint32_t tokens,
-                            bool v_transposed);
     void trim_kvcache_for_speculative_decoding(ov::SoPtr<ov::ITensor> position_ids);
 
     void infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
@@ -108,7 +76,6 @@ protected:
     std::shared_ptr<ov::npuw::IBaseInferRequest> m_prefill_base_request;
     // This infer request is optional, so can be null.
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
-    std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
