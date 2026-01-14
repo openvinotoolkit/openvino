@@ -322,3 +322,36 @@ class TestListUnpackParameterMultiple(PytorchLayerTest):
     @pytest.mark.nightly
     def test(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
+class TestComplexListUnpack(PytorchLayerTest):
+    """Test prim::ListUnpack with complex tensors (ComplexTypeMark propagation).
+
+    This tests the changes in list_unpack.cpp that handle ComplexTypeMark
+    propagation through ListUnpack operations.
+    """
+
+    def _prepare_input(self):
+        return (np.random.randn(2, 4, 2).astype(np.float32),)
+
+    def create_model(self):
+        class ComplexListUnpack(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                freqs = torch.randn(4, 2)
+                complex_freqs = torch.view_as_complex(freqs)
+                self.register_buffer('freqs', torch.view_as_real(complex_freqs))
+
+            def forward(self, x):
+                cx = torch.view_as_complex(x)
+                cf = torch.view_as_complex(self.freqs)
+                result = cx * cf
+                return torch.view_as_real(result)
+
+        return ComplexListUnpack(), None, "aten::mul"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_complex_list_unpack(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   trace_model=True)
