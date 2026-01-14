@@ -201,8 +201,24 @@ TOut eltwise_int_execute(cldnn::eltwise_mode mode, T x, T y) {
         return x | y;
     case eltwise_mode::bitwise_xor:
         return x ^ y;
+    case eltwise_mode::max:
+        return std::max(x, y);
+    case eltwise_mode::min:
+        return std::min(x, y);
     default:
         return (TOut)0;
+    }
+}
+
+template <typename T1, typename T2, typename TOut>
+TOut eltwise_mixed_execute(cldnn::eltwise_mode mode, T1 x, T2 y) {
+    switch (mode) {
+    case eltwise_mode::max:
+        return std::max(static_cast<TOut>(x), static_cast<TOut>(y));
+    case eltwise_mode::min:
+        return std::min(static_cast<TOut>(x), static_cast<TOut>(y));
+    default:
+        return static_cast<TOut>(0);
     }
 }
 
@@ -231,6 +247,36 @@ VVVVF<TOut> eltwise_int_reference(VVVVF<T> &input1, VVVVF<T> &input2,
             }
         }
     }
+    return output;
+}
+
+template <typename T1, typename T2, typename TOut>
+VVVVF<TOut> eltwise_mixed_reference(VVVVF<T1>& input1, VVVVF<T2>& input2,
+                                    cldnn::eltwise_mode mode,
+                                    int input_padding_y = 0,
+                                    int input_padding_x = 0,
+                                    int output_padding_y = 0,
+                                    int output_padding_x = 0) {
+
+    size_t padding_y = input_padding_y + output_padding_y;
+    size_t padding_x = input_padding_x + output_padding_x;
+    size_t output_b = input1.size();
+    size_t output_f = input1[0].size();
+    size_t output_y = input1[0][0].size() + 2 * padding_y;
+    size_t output_x = input1[0][0][0].size() + 2 * padding_x;
+
+    VVVVF<TOut> output(output_b,
+        VVVF<TOut>(output_f, VVF<TOut>(output_y, VF<TOut>(output_x))));
+
+    for (size_t b = 0; b < output_b; ++b)
+        for (size_t f = 0; f < output_f; ++f)
+            for (size_t y = 0; y < input1[0][0].size(); ++y)
+                for (size_t x = 0; x < input1[0][0][0].size(); ++x)
+                    output[b][f][y + padding_y][x + padding_x] =
+                        eltwise_mixed_execute<T1, T2, TOut>(mode,
+                            input1[b][f][y][x],
+                            input2[b][f][y][x]);
+
     return output;
 }
 
@@ -301,7 +347,7 @@ void generic_eltwise_int_test(cldnn::format test_input_fmt,
     bool test_is_correct = true;
     VF<TOut> output_cpu_vec = flatten_4d<TOut>(test_input_fmt, output_cpu);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
-        const TOut cpu_val = output_cpu_vec[i];
+        const TOut cpu_val = output_cpu_vec[i]; 
         const TOut gpu_val = output_ptr[i];
         if (cpu_val != gpu_val) {
             test_is_correct = false;
@@ -320,6 +366,61 @@ void generic_eltwise_int_test(cldnn::format test_input_fmt,
         << "output_padding_y = " << output_padding_y << std::endl
         << "output_padding_x = " << output_padding_x << std::endl
         << "type = " << (sizeof(T) == 1 ? "int8" : "int32") << std::endl;
+}
+
+template <typename T1, typename T2, typename TOut>
+void generic_eltwise_mixed_int_test(cldnn::format test_input_fmt,
+                                    int input_b, int input_f,
+                                    int input_y, int input_x,
+                                    cldnn::eltwise_mode mode,
+                                    int input_padding_y,
+                                    int input_padding_x,
+                                    int output_padding_y,
+                                    int output_padding_x,
+                                    int input1_min_val, int input1_max_val,
+                                    int input2_min_val, int input2_max_val) {
+
+    static_assert(std::is_integral<T1>::value, "T1 must be integral");
+    static_assert(std::is_integral<T2>::value, "T2 must be integral");
+    static_assert(std::is_integral<TOut>::value, "TOut must be integral");
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    VVVVF<T1> input1_rnd = rg.generate_random_4d<T1>(input_b, input_f, input_y, input_x, input1_min_val, input1_max_val);
+    VVVVF<T2> input2_rnd = rg.generate_random_4d<T2>(input_b, input_f, input_y, input_x, input2_min_val, input2_max_val);
+
+    auto& engine = get_test_engine();
+    tensor input_tensor(input_b, input_f, input_x, input_y);
+
+    auto input1 = engine.allocate_memory({ ov::element::from<T1>(), test_input_fmt, input_tensor });
+    auto input2 = engine.allocate_memory({ ov::element::from<T2>(), test_input_fmt, input_tensor });
+
+    set_values(input1, flatten_4d<T1>(test_input_fmt, input1_rnd));
+    set_values(input2, flatten_4d<T2>(test_input_fmt, input2_rnd));
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    auto eltwise_prim = eltwise("eltwise", { input_info("input1"), input_info("input2") }, mode, DEFAULT_BROADCAST_SPEC);
+    eltwise_prim.output_paddings = { padding{ { 0, 0, output_padding_y, output_padding_x }, 0 } };
+    topology.add(eltwise_prim);
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto outputs = network.execute();
+    auto output_memory = outputs.at("eltwise").get_memory();
+    cldnn::mem_lock<TOut> output_ptr(output_memory, get_test_stream());
+
+    auto output_cpu = eltwise_mixed_reference<T1, T2, TOut>(
+        input1_rnd, input2_rnd, mode,
+        input_padding_y, input_padding_x, output_padding_y, output_padding_x);
+
+    auto output_cpu_vec = flatten_4d<TOut>(test_input_fmt, output_cpu);
+
+    for (size_t i = 0; i < output_cpu_vec.size(); ++i)
+        ASSERT_EQ(output_cpu_vec[i], output_ptr[i]);
 }
 
 void run_eltwise_bool_generic_test(cldnn::eltwise_mode mode)
@@ -393,6 +494,15 @@ void run_eltwise_int_bitwise_generic_test(cldnn::eltwise_mode mode) {
     ELTWISE_INT_TEST_CASES(int64_t);
 
 #undef ELTWISE_INT_TEST_CASES
+}
+
+void run_eltwise_mixed_int_test(cldnn::eltwise_mode mode) {
+    cldnn::format test_inputs_fmt = cldnn::format::bfyx;
+    std::pair<int, int> input_size = { 227, 227 };
+
+    generic_eltwise_mixed_int_test<int8_t,  uint8_t,  int16_t>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, 0, 0, 0, 0, -128, 127, 0, 255);
+    generic_eltwise_mixed_int_test<int16_t, uint8_t,  int32_t>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, 0, 0, 0, 0, -32768, 32767, 0, 255);
+    generic_eltwise_mixed_int_test<int16_t, uint16_t, int32_t>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, 0, 0, 0, 0, -32768, 32767, 0, 65535);
 }
 }  // namespace
 
@@ -4022,6 +4132,14 @@ TEST(eltwise_gpu, eltwise_div) {
 
 TEST(eltwise_gpu, eltwise_min) {
     run_eltwise_generic_test(cldnn::eltwise_mode::min);
+}
+
+TEST(eltwise_gpu, eltwise_max_mixed_types) {
+    run_eltwise_mixed_int_test(cldnn::eltwise_mode::max);
+}
+
+TEST(eltwise_gpu, eltwise_min_mixed_types) {
+    run_eltwise_mixed_int_test(cldnn::eltwise_mode::min);
 }
 
 TEST(eltwise_gpu, eltwise_pow) {
