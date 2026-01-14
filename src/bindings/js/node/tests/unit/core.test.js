@@ -101,6 +101,15 @@ describe("ov.Core tests", () => {
     const model = core.readModelSync(testModelFP32.xml);
     const device = "CPU";
     const queryModel = core.queryModel(model, device);
-    assert(Object.values(queryModel).includes(device));
+    assert(Object.values(queryModel).includes(device)
+    );
+  });
+  
+  it('imports model using Tensor weights (sync)', () => {
+    const modelPath = 'test_model.xml';
+    const weights = new ov.Tensor('u8', [0]);
+
+    const compiled = core.importModelSync(modelPath, weights);
+    expect(compiled).toBeDefined();
   });
 });
