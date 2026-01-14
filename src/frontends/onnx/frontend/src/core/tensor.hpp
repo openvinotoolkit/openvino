@@ -181,7 +181,7 @@ public:
     };
 
     Tensor() = delete;
-        Tensor(const TensorProto& tensor, const std::filesystem::path& model_dir, detail::MappedMemoryHandles mmap_cache)
+    Tensor(const TensorProto& tensor, const std::filesystem::path& model_dir, detail::MappedMemoryHandles mmap_cache)
         : m_tensor_proto{&tensor},
           m_tensor_place(nullptr),
           m_shape{std::begin(tensor.dims()), std::end(tensor.dims())},
