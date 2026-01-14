@@ -105,6 +105,7 @@ std::shared_ptr<ov::Model> KokoroSplit::create_model_a(const std::shared_ptr<ov:
     ov::OutputVector outputs = {pred_dur_out, en_lhs, asr_lhs};
     auto model_a = std::make_shared<ov::Model>(outputs, model_a_source->get_parameters(), "KokoroModelA");
 
+    model_a->validate_nodes_and_infer_types();
     model_a->output(0).get_tensor().set_names({"pred_dur"});
     model_a->output(1).get_tensor().set_names({"en_left"});
     model_a->output(2).get_tensor().set_names({"asr_left"});

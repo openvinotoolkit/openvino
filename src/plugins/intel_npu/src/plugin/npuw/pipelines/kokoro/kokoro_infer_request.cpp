@@ -125,7 +125,6 @@ ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw:
 }
 
 void ov::npuw::KokoroInferRequest::infer() {
-    LOG_DEBUG("Creating KokoroInferRequest");
     OPENVINO_ASSERT(m_model_a_request);
     OPENVINO_ASSERT(m_model_b_request);
 

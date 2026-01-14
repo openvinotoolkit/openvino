@@ -143,7 +143,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto use_kokoro_key = ov::intel_npu::npuw::kokoro::enabled.name();
     
     // Drop CACHE_DIR from the config
-    // If it's present we will be utilizing *CompiledModel's import
+    // If it's present we will be utilizing .*CompiledModel's import
     // and not the underlying models and submodels
     auto config = properties;
     config.erase(ov::cache_dir.name());

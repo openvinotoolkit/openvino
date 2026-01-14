@@ -27,7 +27,6 @@ public:
     KokoroCompiledModel(const std::shared_ptr<ov::Model>& model,
                        const std::shared_ptr<const ov::IPlugin>& plugin,
                        const ov::AnyMap& properties);
-    KokoroCompiledModel() = delete;
 
     void export_model(std::ostream& model) const override;
     static std::shared_ptr<KokoroCompiledModel> import_model(std::istream& stream,
@@ -48,7 +47,7 @@ public:
     }
 
     ov::SoPtr<ov::ICompiledModel> model_a() const { return m_model_a_compiled; }
-    std::shared_ptr<ov::ICompiledModel> model_b() const { return m_model_b_compiled; }
+    std::shared_ptr<ov::npuw::ICompiledModel> model_b() const { return m_model_b_compiled; }
 
 private:
     KokoroConfig m_kokoro_cfg;

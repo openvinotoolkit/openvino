@@ -33,13 +33,13 @@ namespace {
     }
 
     void split_kokoro_properties(const ov::AnyMap& properties,
-                      ov::AnyMap& npu_plugin_properties,
-                      ov::AnyMap& npuw_path_properties) {
+                      ov::AnyMap& other_properties,
+                      ov::AnyMap& kokoro_properties) {
         for (auto it = properties.begin(); it != properties.end(); ++it) {
             if (it->first.find("NPUW_KOKORO") != it->first.npos) {
-                npuw_path_properties.insert(*it);
+                kokoro_properties.insert(*it);
             } else {
-                npu_plugin_properties.insert(*it);
+                other_properties.insert(*it);
             }
         }
     }
