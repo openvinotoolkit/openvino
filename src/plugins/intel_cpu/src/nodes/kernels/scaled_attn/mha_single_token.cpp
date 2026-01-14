@@ -242,7 +242,7 @@ attn_acc_value(ov::float16* out, ov::float16 weight, uint8_t* v, size_t S, float
         auto v_group_zp = svdup_n_f16(group_zp);
         auto v_weighed_group_scale = svdup_n_f16(weight * group_scale);
         auto pg_b08 = svptrue_b8();
-        for (; i + svcntb() < group_size; i += svcntb()) {
+        for (; i + svcntb() <= group_size; i += svcntb()) {
             auto v_a = svld1_u8(pg_b08, v + offset + i);
             auto v_a_low = svunpklo_u16(v_a);
             auto v_a_high = svunpkhi_u16(v_a);
@@ -264,7 +264,7 @@ attn_acc_value(ov::float16* out, ov::float16 weight, uint8_t* v, size_t S, float
         float16x8_t v_group_zp = vdupq_n_f16(group_zp);
         float16x8_t v_weighed_group_scale = vdupq_n_f16(weight * group_scale);
 
-        for (; i + 16 < group_size; i += 16) {
+        for (; i + 16 <= group_size; i += 16) {
             uint8x16_t v_u8 = vld1q_u8(v + offset + i);
 
             uint16x8_t v_u16_lo = vmovl_u8(vget_low_u8(v_u8));
@@ -898,8 +898,8 @@ dot_product_fp16(ov::float16* a, void* b, size_t n, float* scale, float* zp, flo
             svfloat16_t v_group_zp = svdup_n_f16(group_zp);
             auto v_group_sum = svdup_n_f16(0);
 
-            for (; i + svcntb() < group_size; i += svcntb()) {
-                svfloat16_t a0 = svld1_f16(pg_b16, _a + i);
+            for (; i + svcntb() <= group_size; i += svcntb()) {
+                svfloat16_t a0 = svld1_f16(pg_b16, _a + i + offset);
                 svfloat16_t a1 = svld1_f16(pg_b16, _a + i + offset + svcnth());
 
                 svuint8_t v_b8 = svld1(pg_b08, _b + i + offset);
@@ -989,7 +989,7 @@ dot_product_fp16(ov::float16* a, void* b, size_t n, float* scale, float* zp, flo
 
             auto v_group_zp = vdupq_n_f16(group_zp);
 
-            for (; i + 16 < group_size; i += 16) {
+            for (; i + 16 <= group_size; i += 16) {
                 float16x8_t v_a_lo = vld1q_f16(_a + offset + i);
                 float16x8_t v_a_hi = vld1q_f16(_a + offset + i + 8);
 
@@ -1082,10 +1082,10 @@ dot_product_fp16(ov::float16* a, void* b, size_t n, float* scale, float* zp, flo
     if constexpr (KEY_PREC == ov::element::u8) {
         size_t group_id = 0;
         auto _b = reinterpret_cast<uint8_t*>(b);
-        size_t offset = group_id * group_size;
-        float16_t group_scale = *(scale + group_id * 2);
-        float16_t group_zp = *(zp + group_id * 2);
         while (group_id < n / group_size) {
+            size_t offset = group_id * group_size;
+            float16_t group_scale = *(scale + group_id * 2);
+            float16_t group_zp = *(zp + group_id * 2);
             float16_t group_sum = 0.0f;
             i = 0;
             for (; i < group_size; i++) {
@@ -1488,7 +1488,7 @@ static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, f
 
         float32x4_t v_group_zp = vdupq_n_f32(group_zp);
 
-        for (; i + 16 < group_size; i += 16) {
+        for (; i + 16 <= group_size; i += 16) {
             uint8x16_t v_u8 = vld1q_u8(b + i + offset);
 
             uint16x8_t v_u16_lo = vmovl_u8(vget_low_u8(v_u8));
@@ -1756,11 +1756,10 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     for (size_t iwork = start; iwork < end; ++iwork) {
                         auto* p = past_k_scale_zp.ptr<float>(pk, 0, h_group);
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-                        if (std::is_same_v<T3, ov::float16> && std::is_same_v<T, ov::float16> &&
-                            ov::intel_cpu::any_of<T2, ov::float16, uint8_t>) {
-                            auto p_k = present_key.ptr<T2>(0, h_group, pk);
-                            prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
+                        if (std::is_same_v<T3, ov::float16> && std::is_same_v<T, ov::float16>) {
                             if constexpr (std::is_same_v<T2, uint8_t>) {
+                                auto p_k = present_key.ptr<T2>(0, h_group, pk);
+                                prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
                                 auto _qk = dot_product_fp16<ov::element::u8>(query.ptr<ov::float16>(0, h_group),
                                                                              p_k,
                                                                              S,
@@ -1771,7 +1770,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                 buf_attn_w.ptr<T3>(0, h_group, 0)[pk] = _qk;
                                 parallel_it_step(pk, kv_len, b, B, h_group, h_group_num);
                                 continue;
-                            } else {
+                            } else if constexpr (std::is_same_v<T2, ov::float16>) {
+                                auto p_k = present_key.ptr<T2>(0, h_group, pk);
+                                prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
                                 auto _qk = dot_product_fp16<ov::element::f16>(query.ptr<ov::float16>(0, h_group),
                                                                               p_k,
                                                                               S,
@@ -1810,8 +1811,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                         auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
                         auto* p = past_k_scale_zp.ptr<float>(pk, b_kv, h_group);
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-                        if (std::is_same_v<T3, ov::float16> && std::is_same_v<T, ov::float16> &&
-                            ov::intel_cpu::any_of<T2, ov::float16, uint8_t>) {
+                        if (std::is_same_v<T3, ov::float16> && std::is_same_v<T, ov::float16>) {
                             if constexpr (std::is_same_v<T2, uint8_t>) {
                                 auto _qk = dot_product_fp16<ov::element::u8>(query.ptr<ov::float16>(b, h_group),
                                                                              present_key.ptr<T2>(b_kv, h_group, pk),
@@ -1823,7 +1823,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                 buf_attn_w.ptr<T3>(b, h_group, 0)[pk] = _qk;
                                 parallel_it_step(pk, kv_len, b, B, h_group, h_group_num);
                                 continue;
-                            } else {
+                            } else if constexpr (std::is_same_v<T2, ov::float16>) {
                                 auto _qk = dot_product_fp16<ov::element::f16>(query.ptr<ov::float16>(b, h_group),
                                                                               present_key.ptr<T2>(b_kv, h_group, pk),
                                                                               S,
@@ -1863,8 +1863,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                         auto* p = past_k_scale_zp.ptr<float>(pk, b_kv, h_group);
                         for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-                            if (std::is_same_v<T3, ov::float16> && std::is_same_v<T, ov::float16> &&
-                                ov::intel_cpu::any_of<T2, ov::float16, uint8_t>) {
+                            if (std::is_same_v<T3, ov::float16> && std::is_same_v<T, ov::float16>) {
                                 if constexpr (std::is_same_v<T2, uint8_t>) {
                                     auto _qk = dot_product_fp16<ov::element::u8>(query.ptr<ov::float16>(b, h, pq),
                                                                                  present_key.ptr<T2>(b_kv, h_group, pk),
@@ -1875,7 +1874,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                                                                  key_group_size);
                                     buf_attn_w.ptr<T3>(b, h, pq)[pk] = _qk;
                                     continue;
-                                } else {
+                                } else if constexpr (std::is_same_v<T2, ov::float16>) {
                                     auto _qk =
                                         dot_product_fp16<ov::element::f16>(query.ptr<ov::float16>(b, h, pq),
                                                                            present_key.ptr<T2>(b_kv, h_group, pk),
@@ -2126,7 +2125,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                            value_group_size,
                                                                            quant_key_by_channel,
                                                                            sink_input);
-        } else if (present_key.get_precision() == ov::element::u8) {
+        } else if (present_key.get_precision() == ov::element::u8 && !quant_key_by_channel) {
             mha_single_token_kernel<ov::float16, uint8_t, ov::float16>(query,
                                                                        present_key,
                                                                        present_value,
