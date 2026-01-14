@@ -20,6 +20,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/opt.hpp"
+#include "pipelines/kokoro/kokoro_compiled_model.hpp"
 #include "plugin.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
@@ -140,21 +141,22 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     LOG_BLOCK();
     std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
+    auto use_kokoro_key = ov::intel_npu::npuw::kokoro::enabled.name();
+
+    // Drop CACHE_DIR from the config
+    // If it's present we will be utilizing .*CompiledModel's import
+    // and not the underlying models and submodels
+    auto config = properties;
+    config.erase(ov::cache_dir.name());
+
     if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
-        // Drop CACHE_DIR from the config
-        // If it's present we will be utilizing LLMCompiledModel's import
-        // and not the underlying models and submodels
-        auto config = properties;
-        config.erase(ov::cache_dir.name());
         compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
+    } else if (properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true) {
+        LOG_INFO("ov::npuw::KokoroCompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::KokoroCompiledModel>(model, plugin, config);
     } else {
         LOG_INFO("ov::npuw::CompiledModel will be created.");
-        // Drop CACHE_DIR from the config
-        // If it's present we will be utilizing LLMCompiledModel's import
-        // and not the underlying models and submodels
-        auto config = properties;
-        config.erase(ov::cache_dir.name());
         compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, config);
     }
     LOG_INFO("Done");

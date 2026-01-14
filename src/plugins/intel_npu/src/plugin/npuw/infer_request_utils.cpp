@@ -159,6 +159,20 @@ std::optional<ov::Output<const ov::Node>> ov::npuw::util::find_port_by_name(
     return std::make_optional(*it);
 }
 
+std::optional<ov::Output<const ov::Node>> ov::npuw::util::find_port_by_names(
+    const std::vector<ov::Output<const ov::Node>>& ports,
+    const std::unordered_set<std::string>& names) {
+    for (const auto& port : ports) {
+        const auto& port_names = port.get_names();
+        for (const auto& port_name : port_names) {
+            if (names.count(port_name)) {
+                return std::make_optional(port);
+            }
+        }
+    }
+    return std::nullopt;
+}
+
 void ov::npuw::util::pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids,
                                       const ov::SoPtr<ov::ITensor>& position_ids) {
     // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3, BATCH, SEQ_LEN]

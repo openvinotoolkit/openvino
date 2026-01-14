@@ -35,6 +35,11 @@ void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
 
 std::optional<ov::Output<const ov::Node>> find_port_by_name(const std::vector<ov::Output<const ov::Node>>& ports,
                                                             const std::string& name);
+/**
+ * @brief Searches for a port within a collection that matches any of the specified names.
+ */
+std::optional<ov::Output<const ov::Node>> find_port_by_names(const std::vector<ov::Output<const ov::Node>>& ports,
+                                                             const std::unordered_set<std::string>& names);
 
 void pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids, const ov::SoPtr<ov::ITensor>& position_ids);
 
