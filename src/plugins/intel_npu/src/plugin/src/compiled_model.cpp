@@ -112,7 +112,6 @@ void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
     // TODO what should _config.get<EXPORT_RAW_BLOB>() do now?
-    // TODO batching section & CRE token
 
     _blobWriter->write(stream);
 }

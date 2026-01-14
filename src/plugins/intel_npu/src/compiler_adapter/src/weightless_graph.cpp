@@ -182,7 +182,6 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
 }
 
 // TODO "Blob size" was the size of the composite before this
-// TODO handle padding correctly
 std::vector<uint64_t> WeightlessGraph::export_init_blobs(std::ostream& stream) const {
     if (_blobIsReleased) {
         OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "

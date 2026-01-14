@@ -9,7 +9,6 @@
 
 namespace {
 
-// TODO: find out why these are like this
 constexpr std::string_view MAGIC_BYTES = "OVNPU";
 constexpr uint32_t FORMAT_VERSION = 0x30000;  // 3.0;
 

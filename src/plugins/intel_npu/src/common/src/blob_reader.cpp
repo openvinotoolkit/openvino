@@ -34,7 +34,6 @@ std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID section_i
     return nullptr;
 }
 
-// TODO allow reinterpreting instead of copying
 void BlobReader::copy_data_from_source(char* destination, const size_t size) {
     std::memcpy(destination, m_source.get().data<const char>() + m_cursor, size);
     m_cursor += size;
@@ -108,7 +107,7 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
                     section_id);
 
     copy_data_from_source(reinterpret_cast<char*>(&section_length), sizeof(section_length));
-    m_parsed_sections[PredefinedSectionID::CRE] = CRESection::read(this, section_length);  // TODO also evaluate within
+    m_parsed_sections[PredefinedSectionID::CRE] = CRESection::read(this, section_length);
     std::dynamic_pointer_cast<CRESection>(m_parsed_sections.at(PredefinedSectionID::CRE))
         ->check_compatibility(plugin_capabilities_ids);
 
