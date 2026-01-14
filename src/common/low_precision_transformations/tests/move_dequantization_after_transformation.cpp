@@ -297,12 +297,12 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
         true,
         true,
         {
-            {{ov::element::f16}, {{128.f}}, {{0.1f}}}
+            {{ov::element::f16}, {128.f}, {0.1f}}
         },
         {
             {},
             ov::element::u8,
-            {{ov::element::f16}, {{128.f}}, {{0.1f}}}
+            {{ov::element::f16}, {128.f}, {0.1f}}
         }
     },
 };
