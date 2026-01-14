@@ -441,7 +441,6 @@ void ZeroInitStructsHolder::getExtensionFunctionAddress(const std::string& name,
 }
 
 void ZeroInitStructsHolder::setContextProperties() {
-    std::cout << "_context_options: " << _context_options << std::endl;
     ze_context_properties_npu_ext_t context_properties_npu_ext = {ZE_STRUCTURE_TYPE_CONTEXT_PROPERTIES_NPU_EXT,
                                                                   nullptr,
                                                                   _context_options};
