@@ -538,9 +538,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_topk_rios) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
-    if (is_graph_iterator_enabled()) {
-        GTEST_SKIP() << "Experimental ops are not supported when using GraphIterator.";
-    }
     auto model = convert_model("org.openvinotoolkit/deformable_conv_2d.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);

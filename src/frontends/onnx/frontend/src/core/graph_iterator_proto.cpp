@@ -15,6 +15,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "transform.hpp"
 #include "decoder_proto.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
@@ -65,6 +66,28 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::string;
     }
     throw std::runtime_error("Unsupported type");
+}
+
+void fixup_legacy_nodes(::ONNX_NAMESPACE::ModelProto& model_proto) {
+    auto* graph_proto = model_proto.mutable_graph();
+    if (!graph_proto) {
+        return;
+    }
+    constexpr const char legacy_domain[] = "org.openvinotoolkit";
+
+    for (auto& node : *graph_proto->mutable_node()) {
+        const auto needs_fix =
+            std::find(ov::frontend::onnx::transform::legacy_ops_to_fixup.begin(),
+                      ov::frontend::onnx::transform::legacy_ops_to_fixup.end(),
+                      node.op_type()) != ov::frontend::onnx::transform::legacy_ops_to_fixup.end();
+        if (!needs_fix) {
+            continue;
+        }
+
+        if (!node.has_domain() || node.domain().empty() || node.domain() == "ai.onnx") {
+            node.set_domain(legacy_domain);
+        }
+    }
 }
 }  // namespace
 
@@ -323,6 +346,7 @@ void GraphIteratorProto::initialize_from_path(const std::filesystem::path& path)
         FRONT_END_GENERAL_CHECK(m_model->ParseFromIstream(&model_file), "Model can't be parsed");
         model_file.close();
         if (m_model->has_graph()) {
+            fixup_legacy_nodes(*m_model);
             m_graph = &m_model->graph();
         } else {
             m_graph = nullptr;
