@@ -690,6 +690,17 @@ namespace eagle {
 static constexpr ov::Property<bool> enabled{"NPUW_EAGLE"};
 }  // namespace eagle
 
+namespace text_embed {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass text-embedding model.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_TEXT_EMBED"};
+
+}  // namespace text_embed
+
 }  // namespace npuw
 }  // namespace intel_npu
 }  // namespace ov
