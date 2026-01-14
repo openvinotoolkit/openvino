@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/pack_multi_head_attention.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -13,7 +15,6 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/common_optimizations/pack_multi_head_attention.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 
 namespace ov::test {
@@ -99,28 +100,17 @@ std::shared_ptr<ov::Node> build_post_sdpa(const std::shared_ptr<ov::Node>& input
     return proj;
 }
 
-std::shared_ptr<ov::Model> build_kv_cache(const std::shared_ptr<ov::Node>& k,
-                                          const std::shared_ptr<ov::Node>& v,
-                                          size_t batch,
-                                          size_t seq_len,
-                                          size_t head_size) {
-    auto k_cache_shape = Shape{batch, 1, seq_len, head_size};
-    auto v_cache_shape = Shape{batch, 1, seq_len, head_size};
-
-    auto k_cache_init = Constant::create(element::f32, k_cache_shape, {0.0f});
-    auto v_cache_init = Constant::create(element::f32, v_cache_shape, {0.0f});
-
-    auto k_cache = std::make_shared<Concat>(OutputVector{k_cache_init, k}, 2);
-    auto v_cache = std::make_shared<Concat>(OutputVector{v_cache_init, v}, 2);
-
-    return std::make_shared<ov::Model>(OutputVector{k_cache, v_cache}, ParameterVector{});
+std::shared_ptr<ov::Node> build_cache(const std::shared_ptr<ov::Node>& input, const ov::Shape& cache_shape) {
+    auto cache_init = Constant::create(element::f32, cache_shape, {0.0f});
+    auto cache = std::make_shared<Concat>(OutputVector{cache_init, input}, -2);
+    return cache;
 }
 
-std::shared_ptr<ov::Model> build_model_gqa_pack_mha(size_t batch,
-                                                    size_t seq_len,
-                                                    size_t head_size,
-                                                    size_t num_heads,
-                                                    size_t num_groups) {
+std::shared_ptr<ov::Model> build_model_mha(size_t batch,
+                                           size_t seq_len,
+                                           size_t head_size,
+                                           size_t num_heads,
+                                           size_t num_groups) {
     OPENVINO_ASSERT(num_heads % num_groups == 0, "num_heads must be divisible by num_groups");
 
     const ov::Shape input_shape{batch, seq_len, head_size};
@@ -139,11 +129,13 @@ std::shared_ptr<ov::Model> build_model_gqa_pack_mha(size_t batch,
         auto k_proj = build_qkv_projection(norm, proj_shape, bias_shape);
         auto v_proj = build_qkv_projection(norm, proj_shape, bias_shape);
         auto k = build_ROPE(k_proj, rope_shape);
+        auto k_cache = build_cache(k, {batch, 1, seq_len, head_size - 1});
         auto v = build_sdpa_preprocessing(v_proj, batch, head_size, seq_len);
+        auto v_cache = build_cache(v, {batch, 1, seq_len, head_size - 1});
         for (size_t h = 0; h < heads_per_group; ++h) {
             auto q_proj = build_qkv_projection(norm, proj_shape, bias_shape);
             auto q = build_ROPE(q_proj, rope_shape);
-            auto attn_out = build_sdpa(q, k, v, sdpa_bias_shape);
+            auto attn_out = build_sdpa(q, k_cache, v_cache, sdpa_bias_shape);
             auto projected = build_post_sdpa(attn_out, input_shape, post_sdpa_weights_shape);
             all_head_outputs.push_back(projected);
         }
@@ -155,10 +147,10 @@ std::shared_ptr<ov::Model> build_model_gqa_pack_mha(size_t batch,
     return std::make_shared<ov::Model>(OutputVector{residual}, ParameterVector{input});
 }
 
-std::shared_ptr<ov::Model> build_model_gqa_pack_mha_ref(size_t batch,
-                                                        size_t seq_len,
-                                                        size_t head_size,
-                                                        size_t num_heads) {
+std::shared_ptr<ov::Model> build_model_mha_packed_ref(size_t batch,
+                                                      size_t seq_len,
+                                                      size_t head_size,
+                                                      size_t num_heads) {
     const ov::Shape input_shape{batch, seq_len, head_size};
 
     auto input = std::make_shared<Parameter>(element::f32, input_shape);
@@ -206,13 +198,13 @@ static std::string PackGQATestName(const ::testing::TestParamInfo<PackGQATest::P
 TEST_P(PackGQATest, PackGQA) {
     const auto& [batch, seq_len, head_size, num_heads, num_groups, test_name] = GetParam();
     {
-        model = build_model_gqa_pack_mha(batch, seq_len, head_size, num_heads, num_groups);
+        model = build_model_mha(batch, seq_len, head_size, num_heads, num_groups);
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::PackMultiHeadAttention>();
         manager.run_passes(model);
     }
 
-    { model_ref = build_model_gqa_pack_mha_ref(batch, seq_len, head_size, num_heads); }
+    { model_ref = build_model_mha_packed_ref(batch, seq_len, head_size, num_heads); }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);

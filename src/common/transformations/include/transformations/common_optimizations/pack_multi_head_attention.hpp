@@ -25,7 +25,7 @@ namespace ov::pass {
  * - Fuses all Q MatMuls into a single packed MatMul for Q; does the same for K and V
  * - Replaces N SDPA branches with a single SDPA operating on packed Q/K/V
  * - Fuses post-attention per-head output projections (MatMul/Add) into one
- * - Replaces Add/Concat chains for attention output merging with a ReduceSum
+ * - Replaces Add chains for attention output merging with a ReduceSum
  *
  * ## Before (unrolled heads), for illustration purpose (see the patterns for details)
  *
@@ -33,26 +33,32 @@ namespace ov::pass {
  *             │  Input   │
  *             └────┬─────┘
  *                  │
- *     ┌────────────┼────────────┬─────────────┐
- *     ▼            ▼            ▼             ▼
- *   MatMul_Q1    MatMul_Q2   ...         MatMul_QN
- *   MatMul_K1    MatMul_K2   ...         MatMul_KN
- *   MatMul_V1    MatMul_V2   ...         MatMul_VN
+ *     ┌────────────┼───────────┬────────────┐
+ *     ▼            ▼           ▼            ▼
+ *   MatMul_Q1    MatMul_Q2    ...        MatMul_QN
+ *   MatMul_K1    MatMul_K2    ...        MatMul_KN
+ *   MatMul_V1    MatMul_V2    ...        MatMul_VN
  *     │            │                        │
- *    Add_Q1      Add_Q2      ...         Add_QN
- *    Add_K1      Add_K2      ...         Add_KN
- *    Add_V1      Add_V2      ...         Add_VN
+ *    Add_Q1      Add_Q2       ...         Add_QN
+ *    Add_K1      Add_K2       ...         Add_KN
+ *    Add_V1      Add_V2       ...         Add_VN
  *     │            │                        │
- *   ROPE_Q1     ROPE_Q2      ...         ROPE_QN
- *   ROPE_K1     ROPE_K2      ...         ROPE_KN
+ *   ROPE_Q1     ROPE_Q2       ...           |
+ *   ROPE_K1     ROPE_K2       ...           |
  *     │            │                        │
- *   SDPA_1       SDPA_2      ...         SDPA_N
+ *   SDPA_1       SDPA_2       ...         SDPA_N
  *     │            │                        │
- *  Linear_1     Linear_2     ...        Linear_N
+ *  Linear_1     Linear_2      ...        Linear_N
  *     │            │                        │
- *     └────────────┴───────── ... ──────────┘
- *                 │   (Add or Concat)
- *               Output
+ *     |            │                        │
+ *     └── Add_1 ───|                        |
+ *                  |                        |
+ *                  └─ Add_2 ─ ...           |
+ *                       |                   |
+ *                       │                   |
+ *                       └──── Add_N ────────┘
+ *                                |
+ *                              Output
  *
  * ## After (packed/fused heads)
  *
@@ -60,8 +66,8 @@ namespace ov::pass {
  *        │    Input     │
  *        └──────┬───────┘
  *               │
- *      ┌───────────────────────┬────────────┐
- *      ▼                       ▼            ▼
+ *      ┌───────────────┬─────────────────┐
+ *      ▼               ▼                 ▼
  * Packed MatMul_Q  Packed MatMul_K  Packed MatMul_V
  *      │                │                │
  *     Add_Q           Add_K            Add_V
@@ -89,89 +95,52 @@ namespace ov::pass {
 
 namespace ov::pass {
 
-/**
- * @brief Fuses two unrolled Scaled Dot-Product Attention (SDPA) branches that are combined with an Add into a single,
- *        more compact SDPA representation.
- *
- * @details
- * This transformation is implemented as an ov::pass::MatcherPass and uses pattern-based matching to detect a subgraph
- * where SDPA has been "unrolled" into primitive operations in two parallel branches whose results are summed (Add).
- * When the pattern is found and it is safe to do so, the pass replaces the matched subgraph with an equivalent,
- * optimized form (typically reducing the number of operations and improving execution efficiency).
- *
- * The pass is intended for common-optimizations pipelines to simplify graphs produced by frontends or earlier
- * transformations, and can enable subsequent fusions and backend-specific optimizations.
- *
- * @note The pass should preserve graph semantics. It may decline to transform if required constraints (e.g. compatible
- *       shapes, attributes, constants, or single-consumer requirements) are not satisfied.
- */
-class TRANSFORMATIONS_API MergeTwoUnrolledSDPAAdd : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("MergeTwoUnrolledSDPAAdd");
-    MergeTwoUnrolledSDPAAdd();
-};
-/**
- * ## Pseudo-graph example (before/after)
- *
- * The pass targets graphs where two equivalent SDPA branches are executed in parallel and then merged by Add.
- * A simplified (illustrative) topology looks like:
- *
- * ### Before (two unrolled SDPA branches + Add)
- *
- *   Q ──► PreQ1 ─┐
- *               ├──► SDPA_1 ─► Post_1 ─┐
- *   K ──► PreK1 ─┘                    │
- *   V ──► PreV1 ──────────────────────┘
- *
- *   Q ──► PreQ2 ─┐
- *               ├──► SDPA_2 ─► Post_2 ─┐
- *   K ──► PreK2 ─┘                    │
- *   V ──► PreV2 ──────────────────────┘
- *
- *                     Post_1 ─┐
- *                             ├──► Add ─► Output
- *                     Post_2 ─┘
- *
- * Where:
- * - Pre* may include: MatMul (+ Add bias), Dequantize, Reshape/Transpose, RoPE/positional ops, etc.
- * - Post_* may include: per-branch output projection, reshapes/transposes, etc.
- *
- * ### After (single packed/merged SDPA)
- *
- *   Q ──► Pack/PreQ ─┐
- *                   ├──► SDPA_Packed ─► Post_Packed ─► Output
- *   K ──► Pack/PreK ─┤
- *   V ──► Pack/PreV ─┘
- *
- * Notes:
- * - Exact packing/unpacking ops are implementation-specific (Concat/Reshape/Transpose/etc.).
- * - The pass only applies when it can prove equivalence/compatibility (e.g., same masks/scales, aligned shapes).
- */
+/// \brief Common: matcher-based transformations used by PackMultiHeadAttention.
+/// \details These passes merge/pack parts of an unrolled Multi-Head Attention (MHA) / Grouped Query Attention (GQA)
+///          subgraph step-by-step to keep patterns simpler and the transformation flow clearer.
 
-class TRANSFORMATIONS_API MergeTwoUnrolledRoPEConcat : public ov::pass::MatcherPass {
+/// \brief Description: merges unrolled Scaled Dot-Product Attention (SDPA) subgraphs.
+/// \details Detects multiple per-head SDPA branches and replaces them with a single SDPA operating on packed Q/K/V.
+class TRANSFORMATIONS_API MergeUnrolledSDPA : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("MergeTwoUnrolledRoPEConcat");
-    MergeTwoUnrolledRoPEConcat();
+    OPENVINO_MATCHER_PASS_RTTI("MergeUnrolledSDPA");
+    MergeUnrolledSDPA();
 };
 
-class TRANSFORMATIONS_API MergeMatMulBiasConcat : public ov::pass::MatcherPass {
+/// \brief Description: merges unrolled Rotary Positional Embedding (RoPE) subgraphs.
+/// \details Detects per-head RoPE (or similar positional embedding) applied to Q/K and converts it to a packed form.
+class TRANSFORMATIONS_API MergeUnrolledRoPE : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("MergeMatMulBiasConcat");
-    MergeMatMulBiasConcat();
+    OPENVINO_MATCHER_PASS_RTTI("MergeUnrolledRoPE");
+    MergeUnrolledRoPE();
 };
 
+/// \brief Description: merges linear projection subgraphs (e.g., Q/K/V projections).
+/// \details Fuses multiple per-head projection MatMuls (optionally with Add and/or dequantization) into packed MatMuls.
+class TRANSFORMATIONS_API MergeLinearProjections : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("MergeLinearProjections");
+    MergeLinearProjections();
+};
+
+/// \brief Description: concatenates K/V caches.
+/// \details Concatenates KV-cache read/write subgraphs used by attention.
 class TRANSFORMATIONS_API MergeKVCaches : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MergeKVCaches");
     MergeKVCaches();
 };
 
-class TRANSFORMATIONS_API MergeDQConcat : public ov::pass::MatcherPass {
+/// \brief Description: merges Dequantize (DQ) subgraphs used in MHA.
+/// \details Detects repeated per-head dequantization patterns and merges them to enable packing of projections.
+class TRANSFORMATIONS_API MergeDQ : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("MergeDQConcat");
-    MergeDQConcat();
+    OPENVINO_MATCHER_PASS_RTTI("MergeDQ");
+    MergeDQ();
 };
 
+/// \brief Common: model-level transformation that orchestrates packing/canonicalization of MHA/GQA.
+/// \details Runs step-by-step merging passes (projections, RoPE, SDPA, KV-cache, DQ) to produce a compact packed form.
 class TRANSFORMATIONS_API PackMultiHeadAttention : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("PackMultiHeadAttention");

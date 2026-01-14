@@ -154,44 +154,18 @@ bool PackMultiHeadAttention::run_on_model(const std::shared_ptr<ov::Model>& mode
 
     ov::pass::Manager manager(get_pass_config(), "PackMultiHeadAttention");
 
-    manager.register_pass<ov::pass::MergeTwoUnrolledSDPAAdd>();
+    manager.register_pass<ov::pass::MergeUnrolledSDPA>();
     manager.register_pass<ov::pass::MergeKVCaches>();
-    manager.register_pass<ov::pass::MergeTwoUnrolledRoPEConcat>();
-    manager.register_pass<ov::pass::MergeMatMulBiasConcat>();
-    manager.register_pass<ov::pass::MergeDQConcat>();
+    manager.register_pass<ov::pass::MergeUnrolledRoPE>();
+    manager.register_pass<ov::pass::MergeLinearProjections>();
+    manager.register_pass<ov::pass::MergeDQ>();
     manager.register_pass<ov::pass::ConcatFusion>();
 
     return manager.run_passes(model);
 }
 
-/**
- * @brief Merges two unrolled Scaled Dot-Product Attention (SDPA) patterns connected by an Add operation.
- *
- * This transformation identifies and fuses two separate SDPA subgraphs that are added together,
- * which commonly occurs in multi-head attention mechanisms with split heads. The pattern matches:
- *
- * Pattern for each SDPA branch:
- * - Q @ K (optional K scale via Multiply)
- * - Optional scale (Divide/Multiply)
- * - Add bias
- * - Softmax
- * - @ V
- * - Optional Reshape
- * - @ Projection
- * - Optional ReduceSum
- * - Final Add combining both branches
- *
- * The transformation concatenates the Q, K, V, Bias, and Projection tensors along the head axis (axis=1)
- * and rebuilds a single fused SDPA operation followed by a ReduceSum, reducing memory footprint and
- * computational overhead.
- *
- * @note This optimization is beneficial for Grouped Query Attention (GQA) and Multi-Head Attention (MHA)
- *       patterns where heads are processed separately then combined.
- * @note The transformation verifies that scale factors match between both branches if present.
- * @note Bias tensors are only concatenated if they differ; otherwise the same bias is reused.
- */
-MergeTwoUnrolledSDPAAdd::MergeTwoUnrolledSDPAAdd() {
-    MATCHER_SCOPE(MergeTwoUnrolledSDPAAdd);
+MergeUnrolledSDPA::MergeUnrolledSDPA() {
+    MATCHER_SCOPE(MergeUnrolledSDPA);
 
     // Helper to create SDPA pattern
     auto create_sdpa_pattern = [&]() {
@@ -218,7 +192,7 @@ MergeTwoUnrolledSDPAAdd::MergeTwoUnrolledSDPAAdd() {
 
     auto add = pattern::wrap_type<v1::Add>({sdpa_lhs, sdpa_rhs});
 
-    auto m = std::make_shared<pattern::Matcher>(add, "MergeTwoUnrolledSDPAAdd");
+    auto m = std::make_shared<pattern::Matcher>(add, "MergeUnrolledSDPA");
     register_matcher(m, [=](pattern::Matcher& matcher) {
         auto add_node = std::dynamic_pointer_cast<v1::Add>(matcher.get_match_root());
         if (!add_node)
@@ -328,8 +302,8 @@ MergeTwoUnrolledSDPAAdd::MergeTwoUnrolledSDPAAdd() {
     });
 }
 
-MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
-    MATCHER_SCOPE(MergeTwoUnrolledRoPEConcat);
+MergeUnrolledRoPE::MergeUnrolledRoPE() {
+    MATCHER_SCOPE(MergeUnrolledRoPE);
 
     struct pattern_nodes {
         std::shared_ptr<Node> input;
@@ -365,7 +339,7 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
 
     auto concat = pattern::wrap_type<v0::Concat>({rope_lhs.output, rope_rhs.output});
 
-    auto m = std::make_shared<pattern::Matcher>(concat, "MergeTwoUnrolledRoPEConcat");
+    auto m = std::make_shared<pattern::Matcher>(concat, "MergeUnrolledRoPE");
     register_matcher(m, [=](pattern::Matcher& matcher) {
         auto pm = matcher.get_pattern_value_map();
 
@@ -470,8 +444,8 @@ MergeTwoUnrolledRoPEConcat::MergeTwoUnrolledRoPEConcat() {
     });
 }
 
-MergeMatMulBiasConcat::MergeMatMulBiasConcat() {
-    MATCHER_SCOPE(MergeMatMulBiasConcat);
+MergeLinearProjections::MergeLinearProjections() {
+    MATCHER_SCOPE(MergeLinearProjections);
 
     struct pattern_nodes {
         std::shared_ptr<Node> convert;
@@ -502,7 +476,7 @@ MergeMatMulBiasConcat::MergeMatMulBiasConcat() {
     auto mm_bias_rhs = create_matmul_bias_pattern(input_unsqueezed);
 
     auto concat = pattern::wrap_type<v0::Concat>({mm_bias_lhs.output, mm_bias_rhs.output});
-    auto m = std::make_shared<pattern::Matcher>(concat, "MergeMatMulBiasConcat");
+    auto m = std::make_shared<pattern::Matcher>(concat, "MergeLinearProjections");
     register_matcher(m, [=](pattern::Matcher& matcher) {
         auto pm = matcher.get_pattern_value_map();
 
@@ -569,8 +543,8 @@ MergeMatMulBiasConcat::MergeMatMulBiasConcat() {
     });
 }
 
-MergeDQConcat::MergeDQConcat() {
-    MATCHER_SCOPE(MergeDQConcat);
+MergeDQ::MergeDQ() {
+    MATCHER_SCOPE(MergeDQ);
 
     struct pattern_nodes {
         std::shared_ptr<Node> convert_0;
@@ -597,7 +571,7 @@ MergeDQConcat::MergeDQConcat() {
     auto dq_rhs = create_dq_pattern();
 
     auto concat = pattern::wrap_type<v0::Concat>({dq_lhs.output, dq_rhs.output});
-    auto m = std::make_shared<pattern::Matcher>(concat, "MergeDQConcat");
+    auto m = std::make_shared<pattern::Matcher>(concat, "MergeDQ");
     register_matcher(m, [=](pattern::Matcher& matcher) {
         auto pm = matcher.get_pattern_value_map();
 
@@ -656,26 +630,6 @@ MergeDQConcat::MergeDQConcat() {
     });
 }
 
-/**
- * @brief Graph rewrite that merges two KV-cache concat subgraphs produced by the Pack-GQA transformation.
- *
- * This matcher looks for a top-level Concat that concatenates two cache-building Concat subgraphs:
- *   - cache_lhs := Concat(cache_input_lhs, input_lhs)
- *   - cache_rhs := Concat(cache_input_rhs, input_rhs)
- * and only triggers when the matched root Concat node is marked with runtime info key "packed_GQA".
- *
- * When matched, it:
- *   1) Creates a merged cache update by concatenating corresponding inputs of the two cache concats
- *      along the head axis (axis = 1) assuming 4D KV tensors in layout [batch, heads, seq_len, dim].
- *   2) Splits the merged result back into LHS/RHS head partitions using VariadicSplit, with split sizes
- *      derived from the static head dimensions of the original inputs.
- *   3) Replaces consumers of the original cache concats to read from the appropriate split outputs.
- *
- * Safety/limitations:
- *   - Requires static rank and static head dimension for both inputs to compute split sizes.
- *   - Assumes head axis is 1 and tensor rank is 4 (as used by the Pack-GQA pipeline).
- *   - If ranks or head dimension are dynamic, the transformation is skipped.
- */
 MergeKVCaches::MergeKVCaches() {
     MATCHER_SCOPE(MergeKVCaches);
 
