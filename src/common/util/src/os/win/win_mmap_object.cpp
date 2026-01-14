@@ -138,7 +138,7 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path) {
     return holder;
 }
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle) {
+std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle) {
     // On Windows, FileHandle is void* (HANDLE)
     HANDLE h = static_cast<HANDLE>(handle);
     if (h == INVALID_HANDLE_VALUE || h == nullptr) {
