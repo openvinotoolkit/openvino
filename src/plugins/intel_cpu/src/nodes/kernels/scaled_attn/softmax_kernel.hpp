@@ -568,7 +568,7 @@ inline void scale_add2_reduce_max(ov::float16* a,
     svbool_t pg_u8 = svptrue_b8();
     svbool_t pg_u16 = svptrue_b16();
 
-    for (; i + vec_len_f16_sve() < size; i += vec_len_f16_sve()) {
+    for (; i + vec_len_f16_sve() <= size; i += vec_len_f16_sve()) {
         v_a = svld1_f16(pg_f16, reinterpret_cast<const float16_t*>(a + i));
         v_a = svmul_f16_x(pg_f16, v_a, v_scale);
 
@@ -1404,23 +1404,19 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
 
     ov::float16 sum = 0.0f;
     if (sink != nullptr) {
-        max = max > static_cast<const ov::float16>(*sink) ? max : static_cast<const ov::float16>(*sink);
+        max = std::max(max, static_cast<const ov::float16>(*sink));
+    }
+    exp_reduce_sum_f32(a, max, len, sum);
+    if (sink != nullptr) {
+        sum += std::exp(*sink - max);
     }
     if (dst_precision == ov::element::f32) {
-        exp_reduce_sum_f32(a, max, len, sum);
-        if (sink != nullptr) {
-            sum += std::exp(*sink - max);
-        }
         ov::float16 scalar = 1.0f / sum;
         multiply_scalar(a, static_cast<float*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
         if (total_size > len)
             memset(static_cast<float*>(a_dst) + len, 0, sizeof(float) * (total_size - len));
     } else {
-        exp_reduce_sum_f32(a, max, len, sum);
-        if (sink != nullptr) {
-            sum += std::exp(*sink - max);
-        }
         ov::float16 scalar = 1.0f / sum;
         multiply_scalar_f32(a, static_cast<ov::float16*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
