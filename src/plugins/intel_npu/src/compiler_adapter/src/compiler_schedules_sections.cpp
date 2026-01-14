@@ -23,9 +23,12 @@ ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor main_schedule)
 void ELFMainScheduleSection::write(std::ostream& stream, BlobWriter* writer) {
     // At import time, position "cursor = 0" is guaranteed to be aligned to the standard page size (4096). Therefore, we
     // only need to make sure the value of the cursor is a multiple of 4096 before writting any schedule.
-    const auto cursor = writer->get_stream_relative_position(stream);
+
+    // Also take the padding size into account, we'll write that first
+    const auto cursor = writer->get_stream_relative_position(stream) + sizeof(uint64_t);
     size_t cursor_and_padding = utils::align_size_to_standard_page_size(cursor);
-    size_t padding_size = cursor_and_padding - cursor;
+    uint64_t padding_size = cursor_and_padding - cursor;
+    stream.write(reinterpret_cast<const char*>(&padding_size), sizeof(padding_size));
     if (padding_size > 0) {
         std::fill_n(std::ostream_iterator<char>(stream), padding_size, 0);
     }
@@ -42,7 +45,13 @@ ov::Tensor ELFMainScheduleSection::get_schedule() const {
 }
 
 std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReader* blob_reader, const size_t section_length) {
-    return std::make_shared<ELFMainScheduleSection>(blob_reader->get_roi_tensor(section_length));
+    // Skip the first padding
+    uint64_t padding_size;
+    blob_reader->copy_data_from_source(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+    blob_reader->interpret_data_from_source(padding_size);
+
+    return std::make_shared<ELFMainScheduleSection>(
+        blob_reader->get_roi_tensor(section_length - sizeof(uint64_t) - padding_size));
 }
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph)
@@ -63,9 +72,12 @@ void ELFInitSchedulesSection::write(std::ostream& stream, BlobWriter* writer) {
 
     // At import time, position "cursor = 0" is guaranteed to be aligned to the standard page size (4096). Therefore, we
     // only need to make sure the value of the cursor is a multiple of 4096 before writting any schedule.
-    const auto cursor = writer->get_stream_relative_position(stream);
+
+    // Also take the padding size into account, we'll write that next
+    const auto cursor = writer->get_stream_relative_position(stream) + sizeof(uint64_t);
     size_t cursor_and_padding = utils::align_size_to_standard_page_size(cursor);
     size_t padding_size = cursor_and_padding - cursor;
+    stream.write(reinterpret_cast<const char*>(&padding_size), sizeof(padding_size));
     if (padding_size > 0) {
         std::fill_n(std::ostream_iterator<char>(stream), padding_size, 0);
     }
@@ -98,6 +110,11 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReader* blob_reader,
         blob_reader->copy_data_from_source(reinterpret_cast<char*>(&value), sizeof(value));
         init_sizes.push_back(value);
     }
+
+    // Skip the first padding
+    uint64_t padding_size;
+    blob_reader->copy_data_from_source(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+    blob_reader->interpret_data_from_source(padding_size);
 
     std::vector<ov::Tensor> init_schedules;
     for (const auto& init_size : init_sizes) {
