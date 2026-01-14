@@ -95,3 +95,11 @@ udevadm control --reload-rules\n\
 udevadm trigger --name-match=kvm\n\
 ' > /usr/local/bin/setup-kvm.sh && \
     chmod +x /usr/local/bin/setup-kvm.sh
+
+# Populate Hosted Tools cache with JDK version requested in the workflow
+ENV RUNNER_TOOL_CACHE=/opt/hostedtoolcache
+RUN mkdir -p $RUNNER_TOOL_CACHE/Java_Temurin-Hotspot_jdk/17.0.17-10/x64 && \
+    cd $RUNNER_TOOL_CACHE/Java_Temurin-Hotspot_jdk/17.0.17-10/x64 && \
+    wget -q https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.17%2B10/OpenJDK17U-jdk_x64_linux_hotspot_17.0.17_10.tar.gz && \
+    tar -xzf OpenJDK17U-jdk_x64_linux_hotspot_17.0.17_10.tar.gz --strip-components=1 && \
+    rm OpenJDK17U-jdk_x64_linux_hotspot_17.0.17_10.tar.gz
