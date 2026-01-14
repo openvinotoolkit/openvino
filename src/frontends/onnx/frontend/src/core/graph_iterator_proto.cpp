@@ -92,8 +92,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         }
     }
     const auto model_dir = graph_iterator->get_model_dir();
-    const auto full_path =
-        ov::util::get_absolute_file_path((model_dir / std::filesystem::path{ext_location}).string());
+    const auto full_path = ov::util::get_absolute_file_path((model_dir / std::filesystem::path{ext_location}).string());
     const int64_t file_size = ov::util::file_size(full_path);
     if ((file_size <= 0 && ext_data_length > 0) ||
         ext_data_offset + ext_data_length > static_cast<uint64_t>(file_size)) {

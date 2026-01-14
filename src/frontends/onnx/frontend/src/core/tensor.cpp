@@ -416,10 +416,10 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
         if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, ext_data.load_external_mem_data());
         } else if (m_mmap_cache) {
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type,
-                                                              m_shape,
-                                                              ext_data.load_external_mmap_data(m_model_dir.string(),
-                                                                                              m_mmap_cache));
+            constant = std::make_shared<ov::op::v0::Constant>(
+                ov_type,
+                m_shape,
+                ext_data.load_external_mmap_data(m_model_dir.string(), m_mmap_cache));
         } else {
             constant = std::make_shared<ov::op::v0::Constant>(ov_type,
                                                               m_shape,
