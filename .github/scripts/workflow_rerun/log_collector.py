@@ -93,7 +93,7 @@ def collect_logs_for_run(run: WorkflowRun,
 
                 for p in logs_temp_dir.iterdir():
                     # Move failed jobs' logs to the final destination
-                    if p.is_dir() and p.name.startswith(job_filename):
+                    if p.is_dir() and p.name == job_filename:
                         LOGGER.debug(f'Keeping system.txt from directory {p} for failed job {job.name}')
                         (p / 'system.txt').rename(logs_dir / f'{job_filename}__system.txt')
                     elif p.is_file() and p.name.endswith(f'{job_filename}.txt'):
