@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,6 +73,14 @@ struct SoPtr {
      */
     T* operator->() const noexcept {
         return _ptr.get();
+    }
+
+    /**
+     * @brief Dereference stored pointer to T object.
+     * @return Reference to T object.
+     */
+    T& operator*() const noexcept {
+        return *_ptr;
     }
 
     explicit operator bool() const noexcept {

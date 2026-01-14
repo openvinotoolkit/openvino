@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,13 +75,11 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
     _logger.info("Loading PLUGIN compiler");
     try {
         auto vclCompilerPtr = VCLCompilerImpl::getInstance();
+        OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
         auto vclLib = vclCompilerPtr->getLinkedLibrary();
         _logger.info("PLUGIN VCL compiler is loading");
-        if (vclCompilerPtr && vclLib) {
-            _compiler = ov::SoPtr<intel_npu::ICompiler>(vclCompilerPtr, vclLib);
-        } else {
-            throw std::runtime_error("VCL compiler or library is nullptr");
-        }
+        OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
+        _compiler = ov::SoPtr<intel_npu::ICompiler>(vclCompilerPtr, vclLib);
     } catch (const std::exception& vcl_exception) {
         _logger.info("VCL compiler load failed: %s. Trying to load MLIR compiler...", vcl_exception.what());
         std::string baseName = "npu_mlir_compiler";
@@ -298,9 +296,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
-    ov::Tensor mainBlob,
+    const ov::Tensor& mainBlob,
     const FilteredConfig& config,
-    std::optional<std::vector<ov::Tensor>> initBlobs,
+    const std::optional<std::vector<ov::Tensor>>& initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
@@ -332,7 +330,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
                                        _zeroInitStruct,
                                        mainGraphDesc,
                                        std::move(mainNetworkMetadata),
-                                       std::move(mainBlob),
+                                       mainBlob,
                                        config,
                                        blobIsPersistent,
                                        _compiler);
@@ -358,10 +356,10 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
                                              _zeroInitStruct,
                                              mainGraphDesc,
                                              std::move(mainNetworkMetadata),
-                                             std::move(mainBlob),
+                                             mainBlob,
                                              initGraphDescriptors,
                                              std::move(initNetworkMetadata),
-                                             std::move(initBlobs),
+                                             initBlobs,
                                              model.value(),
                                              config,
                                              blobIsPersistent,

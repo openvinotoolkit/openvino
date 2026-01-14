@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -386,6 +386,21 @@ def test_register_plugins():
 
     core = Core()
     core.register_plugins(plugins_xml)
+    os.remove(plugins_xml)
+
+    with pytest.raises(RuntimeError) as e:
+        core.get_versions(device)
+    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
+
+
+@pytest.mark.dynamic_library
+def test_core_register_plugins():
+    device = "TEST_DEVICE"
+    lib_name = "test_plugin"
+    full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
+    plugins_xml = plugins_path(device, full_lib_name)
+
+    core = Core(plugins_xml)
     os.remove(plugins_xml)
 
     with pytest.raises(RuntimeError) as e:
