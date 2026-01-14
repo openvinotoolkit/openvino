@@ -153,6 +153,7 @@ offer a limited set of supported OpenVINO features.
          ov::intel_npu::defer_weights_load
          ov::intel_npu::run_inferences_sequentially
          ov::intel_npu::disable_idle_memory_prunning
+         ov::intel_npu::compiler_type
 
    .. tab-item:: Read-only properties
 
