@@ -91,13 +91,8 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
             m_sha1_digest = entry.value();
         }
     }
-<<<<<<< HEAD
     const auto full_path =
         ov::util::get_absolute_file_path(ov::util::path_join({graph_iterator->get_model_dir(), ext_location}));
-=======
-    const auto full_path =
-        ov::util::get_absolute_file_path(ov::util::path_join({graph_iterator->get_model_dir(), ext_location}));
->>>>>>> upstream/master
     const int64_t file_size = ov::util::file_size(full_path);
     if ((file_size <= 0 && ext_data_length > 0) ||
         ext_data_offset + ext_data_length > static_cast<uint64_t>(file_size)) {
@@ -134,12 +129,8 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         return true;
     } else if (memory_mode == External_Stream) {
         auto cache = graph_iterator->get_stream_cache();
-<<<<<<< HEAD
         FRONT_END_GENERAL_CHECK(cache, "Stream cache is not initialized for external stream mode");
         auto cached_stream = cache->find(full_path_str);
-=======
-        auto cached_stream = cache->find(full_path_str);
->>>>>>> upstream/master
         std::shared_ptr<std::ifstream> external_data_stream;
         if (cached_stream != cache->end()) {
             external_data_stream = cached_stream->second;
