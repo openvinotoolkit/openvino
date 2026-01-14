@@ -159,7 +159,7 @@ void find_minmax(const T* src, size_t n, float& min, float& max) {
     if constexpr (std::is_same_v<T, ov::float16>) {
         auto v_max = vdupq_n_f16(max);
         auto v_min = vdupq_n_f16(min);
-        for (; i + 8 < n; i += 8) {
+        for (; i + 8 <= n; i += 8) {
             auto va = vld1q_f16(reinterpret_cast<const float16_t*>(src) + i);
             v_max = vmaxq_f16(v_max, va);
             v_min = vminq_f16(v_min, va);
