@@ -272,6 +272,28 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
         }
     },
+    // 1) Multiply with different input and output shape in fp16
+   {
+       {128, 1},
+       LayerTransformation::createParamsU8I8(),
+       {
+           element::f16,
+           {},
+           element::f16,
+           {{}, {}, {{0.01f, 0.1f, 1.f}}},
+           element::f16,
+           {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
+       },
+       {
+           element::f16,
+           {},
+           element::f16,
+           {{}, {}, {{0.01f, 0.1f, 1.f}}},
+           element::f16,
+           element::f16,
+           {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
+       }
+   },
     // Dynamic shape
     {
         {Dimension::dynamic(), Dimension::dynamic()},
