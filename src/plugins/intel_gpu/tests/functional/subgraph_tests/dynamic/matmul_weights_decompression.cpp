@@ -99,8 +99,10 @@ public:
         result << "reshape_on_decompression=" << reshape_on_decompression << "_";
         result << "extra_multiply=" << extra_multiply << "_";
         result << "per_tensor_zp=" << per_tensor_zp << "_";
-        result << "dyn_quan_group_size=" << dyn_quan_group_size;
-        // result << "dyn_quan_dtype_scheme=" << dyn_quan_dtype_scheme; // TODO: create to_string()
+        result << "dyn_quan_group_size=" << dyn_quan_group_size << "_";
+        if (dyn_quan_dtype_scheme.has_value()) {
+            result << "dyn_quan_dtype_scheme=" << dyn_quan_dtype_scheme.value();
+        }
 
         return result.str();
     }
@@ -530,7 +532,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(false),
                        ::testing::Values(32),
                        ::testing::Values(ov::hint::DynamicQuantizationDataType::MXF8E4M3),
-                       ::testing::Values(2.0f)),  // Note: this is because of potential cldnn accuracy issue
+                       ::testing::Values(2.0f)),
     MatmulWeightsDecompression::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -546,7 +548,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(false),
                        ::testing::Values(32),
                        ::testing::Values(ov::hint::DynamicQuantizationDataType::MXF8E5M2),
-                       ::testing::Values(2.0f)),  // Note: this is because of potential cldnn accuracy issue
+                       ::testing::Values(2.0f)),
     MatmulWeightsDecompression::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -562,7 +564,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(false),
                        ::testing::Values(std::numeric_limits<uint64_t>::max()),
                        ::testing::Values(ov::hint::DynamicQuantizationDataType::F8E4M3),
-                       ::testing::Values(0.2f)),  // Note: this is because of potential cldnn accuracy issue
+                       ::testing::Values(0.2f)),
     MatmulWeightsDecompression::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -578,7 +580,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(false),
                        ::testing::Values(std::numeric_limits<uint64_t>::max()),
                        ::testing::Values(ov::hint::DynamicQuantizationDataType::F8E5M2),
-                       ::testing::Values(0.2f)),  // Note: this is because of potential cldnn accuracy issue
+                       ::testing::Values(0.2f)),
     MatmulWeightsDecompression::get_test_case_name);
 
 } // namespace

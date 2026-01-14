@@ -377,7 +377,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Transformation of SDPA to VLSDPA for QWen2.x-VL,
         // Note: this should be applied before TransposeFusion.
         manager.register_pass<ov::pass::SDPAToVLSDPA>();
-        // Disable SDPAToVLSDPA if XMX architectures is unavaiable or IGC incompatiable.
+        // Disable SDPAToVLSDPA if XMX architectures is unavaiable or IGC incompatible.
         pass_config->set_callback<ov::pass::SDPAToVLSDPA>(
                 [&](const_node_ptr &) -> bool {
                     auto& engine = m_context->get_engine();
@@ -1421,8 +1421,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const bool group_dyn_quan_allowed = m_context->get_engine().get_device_info().supports_non_uniform_work_group;
             // WA: when platform does not support non-uniform-work-group, it may fail to run dynamic quantization for gs128.
             // This is unlikely to happen. But this WA is added just in case.
-            const bool use_gs128_for_int8_per_token = false; //m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2
-                // && group_dyn_quan_allowed;
+            const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2
+                && group_dyn_quan_allowed;
 
             auto dynamic_quantization_data_type = config.get_dynamic_quantization_data_type();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
