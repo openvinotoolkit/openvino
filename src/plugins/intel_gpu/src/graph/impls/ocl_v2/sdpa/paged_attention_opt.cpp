@@ -1380,8 +1380,7 @@ public:
         bool can_use_micro_sdpa = false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
         can_use_micro_sdpa = has_stage(pa_sdpa_micro);
-        if (stage == PagedAttentionStage::GENERATE && 
-            (rt_params == nullptr || (rt_params != nullptr && rt_params->use_gqa_kernel == false)))
+        if (stage == PagedAttentionStage::GENERATE && (rt_params == nullptr || (rt_params != nullptr && rt_params->use_gqa_kernel == false)))
             can_use_micro_sdpa = false;
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
