@@ -857,6 +857,16 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     // Note: m_kvcache_request, m_kvcache_in_ports, and m_kvcache_out_ports are selected in
     // prepare_for_new_conversation()
 
+    // Eagle3: Check for sampling result from external pipeline via VariableState
+    if (m_eagle3_ext.is_eagle3_model() && m_generate_initialized) {
+        m_eagle3_ext.process_sampling_result_from_state(m_kvcache_request,
+                                                        m_kvcache_in_ports,
+                                                        m_kvcache_out_ports,
+                                                        kvcache_desc.num_stored_tokens,
+                                                        kvcache_desc.v_tensors_transposed_gen,
+                                                        kvcache_desc.dim);
+    }
+
     if (!m_generate_initialized) {
         LOG_DEBUG("Copy kv-cache from prefill to generate model.");
         if (kvcache_desc.num_stored_tokens > 0) {
@@ -1052,5 +1062,13 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::LLMInferRequest::query_state() const {
-    return m_variableStates;
+    auto states = m_variableStates;
+
+    // Add Eagle3 sampling state if available
+    auto eagle3_state = m_eagle3_ext.get_sampling_state();
+    if (eagle3_state) {
+        states.push_back(eagle3_state);
+    }
+
+    return states;
 }

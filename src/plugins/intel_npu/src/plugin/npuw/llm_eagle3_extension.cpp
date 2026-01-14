@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <regex>
 
 #include "infer_request_utils.hpp"
 #include "logging.hpp"
@@ -201,6 +202,11 @@ void Eagle3Extension::initialize(bool is_eagle_model,
             "Draft requires: hidden_states input + eagle_tree_mask input + last_hidden_state output. "
             "Target requires: eagle_tree_mask input + last_hidden_state output.");
     }
+
+    // Create sampling state for external pipeline communication
+    if (m_role != Eagle3ModelRole::None) {
+        m_sampling_state = std::make_shared<Eagle3SamplingState>();
+    }
 }
 
 void Eagle3Extension::prepare_inputs(const std::shared_ptr<ov::IAsyncInferRequest>& request,
@@ -351,6 +357,217 @@ void Eagle3Extension::prepare_inputs_for_chunk(
     pad_hidden_state_input(chunk_tensor, padded_tensor);
     LOG_VERB("Eagle3 Draft: Set hidden_states chunk [" << chunk_start_token << ":" << chunk_end_token
                                                        << "] for chunk processing");
+}
+
+void Eagle3Extension::adjust_kvcache_before_infer(
+    std::shared_ptr<ov::IAsyncInferRequest> request,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
+    uint32_t& num_stored_tokens,
+    bool v_transposed,
+    uint32_t kv_dim) {
+    LOG_DEBUG("Eagle3: Adjusting KV cache based on sampling result");
+    LOG_BLOCK();
+
+    auto& result = m_pending_sampling_result;
+
+    // Check if there's a valid result to process
+    if (result.num_total_generated == 0 || result.accepted_token_mask.empty()) {
+        LOG_DEBUG("Eagle3: No pending sampling result, skipping KV cache adjustment");
+        return;
+    }
+
+    // Validate the sampling result
+    OPENVINO_ASSERT(result.accepted_token_mask.size() == result.num_total_generated,
+                    "Eagle3: accepted_token_mask size must equal num_total_generated");
+
+    // Validate num_accepted_tokens matches the mask
+    uint32_t actual_accepted = 0;
+    for (bool accepted : result.accepted_token_mask) {
+        if (accepted)
+            actual_accepted++;
+    }
+    OPENVINO_ASSERT(actual_accepted == result.num_accepted_tokens,
+                    "Eagle3: num_accepted_tokens (" + std::to_string(result.num_accepted_tokens) +
+                        ") must equal the number of true values in accepted_token_mask (" +
+                        std::to_string(actual_accepted) + ")");
+
+    // Calculate tokens to discard
+    uint32_t tokens_to_discard = result.num_total_generated - result.num_accepted_tokens;
+
+    if (tokens_to_discard == 0) {
+        LOG_DEBUG("Eagle3: All generated tokens were accepted, no KV cache adjustment needed");
+        // Clear the result
+        result = SamplingResult();
+        return;
+    }
+
+    LOG_DEBUG("Eagle3: Discarding " << tokens_to_discard << " tokens, keeping " << result.num_accepted_tokens
+                                    << " tokens");
+
+    // Fast path: If accepted tokens are contiguous from the start, simply rollback
+    if (is_contiguous_acceptance()) {
+        LOG_DEBUG("Eagle3: Accepted tokens are contiguous, using fast rollback");
+        num_stored_tokens -= tokens_to_discard;
+    } else {
+        // Complex path: Rearrange KV cache to keep only accepted tokens
+        LOG_DEBUG("Eagle3: Accepted tokens are non-contiguous, rearranging KV cache");
+        trim_kvcache_by_sampling(request, in_ports, out_ports, num_stored_tokens, v_transposed, kv_dim);
+    }
+
+    // Clear the processed sampling result
+    result = SamplingResult();
+    LOG_DEBUG("Eagle3: KV cache adjustment complete, new num_stored_tokens: " << num_stored_tokens);
+}
+
+void Eagle3Extension::trim_kvcache_by_sampling(
+    std::shared_ptr<ov::IAsyncInferRequest> request,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
+    uint32_t& num_stored_tokens,
+    bool v_transposed,
+    uint32_t kv_dim) {
+    namespace uu = ov::npuw::util;
+
+    auto& result = m_pending_sampling_result;
+    auto& mask = result.accepted_token_mask;
+
+    // Get the compiled model to iterate through outputs
+    auto& compiled = request->get_compiled_model();
+
+    // The starting position of the generated tokens in the KV cache
+    uint32_t gen_start_pos = num_stored_tokens - result.num_total_generated;
+
+    LOG_VERB("Eagle3: Rearranging KV cache, gen_start_pos=" << gen_start_pos
+                                                            << ", num_stored_tokens=" << num_stored_tokens);
+
+    // Build contiguous segments for batch copying
+    // Each segment represents a continuous block of accepted tokens: [start_idx, length]
+    struct Segment {
+        uint32_t start_idx;  // Start index in mask
+        uint32_t length;     // Length of continuous accepted tokens
+    };
+    std::vector<Segment> segments;
+
+    uint32_t idx = 0;
+    while (idx < mask.size()) {
+        if (mask[idx]) {
+            // Found start of an accepted segment
+            uint32_t start = idx;
+            uint32_t length = 0;
+            while (idx < mask.size() && mask[idx]) {
+                length++;
+                idx++;
+            }
+            segments.push_back({start, length});
+        } else {
+            idx++;
+        }
+    }
+
+    LOG_VERB("Eagle3: Found " << segments.size() << " contiguous segments to copy");
+
+    // Iterate through all KV cache layers
+    for (std::size_t i = 1; i < compiled->outputs().size(); ++i) {  // Start from 1 to skip logits
+        const auto& output_name = compiled->outputs()[i].get_any_name();
+
+        // Convert present layer name to past layer name
+        const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+
+        if (in_ports.find(input_name) == in_ports.end()) {
+            continue;  // Skip if this is not a KV cache layer
+        }
+
+        auto past_kv_tensor = request->get_tensor(in_ports.at(input_name));
+
+        // Determine the dimension for KV cache (value layers might be transposed)
+        const auto& current_kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kv_dim;
+
+        LOG_VERB("Eagle3: Processing layer " << input_name << " on dimension " << current_kv_dim);
+
+        // Copy each contiguous segment in batch
+        uint32_t write_pos = gen_start_pos;
+        for (const auto& seg : segments) {
+            uint32_t read_start = gen_start_pos + seg.start_idx;
+            uint32_t read_end = read_start + seg.length;
+
+            if (write_pos != read_start) {
+                // Create slices for the entire segment
+                auto src_slice = uu::make_tensor_slice(past_kv_tensor, current_kv_dim, read_start, read_end);
+                auto dst_slice =
+                    uu::make_tensor_slice(past_kv_tensor, current_kv_dim, write_pos, write_pos + seg.length);
+
+                // Copy the entire segment at once
+                uu::copy_tensor_by_dim(src_slice, dst_slice, current_kv_dim, current_kv_dim);
+                LOG_VERB("Eagle3: Copied segment [" << read_start << ":" << read_end << "] to [" << write_pos << ":"
+                                                    << (write_pos + seg.length) << "]");
+            } else {
+                LOG_VERB("Eagle3: Segment [" << read_start << ":" << read_end
+                                             << "] already in correct position, skipping");
+            }
+
+            write_pos += seg.length;
+        }
+    }
+
+    // Update the actual number of stored tokens
+    num_stored_tokens = gen_start_pos + result.num_accepted_tokens;
+    LOG_VERB("Eagle3: KV cache rearrangement complete, new num_stored_tokens=" << num_stored_tokens);
+}
+
+bool Eagle3Extension::is_contiguous_acceptance() const {
+    auto& mask = m_pending_sampling_result.accepted_token_mask;
+
+    if (mask.empty()) {
+        return true;
+    }
+
+    // Check if all true values are at the beginning, followed by all false values
+    bool found_false = false;
+    for (bool accepted : mask) {
+        if (!accepted) {
+            found_false = true;
+        } else if (found_false) {
+            // Found a true after a false, so not contiguous
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Eagle3Extension::process_sampling_result_from_state(
+    std::shared_ptr<ov::IAsyncInferRequest> request,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
+    uint32_t& num_stored_tokens,
+    bool v_transposed,
+    uint32_t kv_dim) {
+    if (!m_sampling_state) {
+        return false;
+    }
+
+    std::vector<bool> mask;
+    uint32_t num_total = 0, num_accepted = 0;
+
+    if (!m_sampling_state->extract_sampling_result(mask, num_total, num_accepted)) {
+        return false;
+    }
+
+    LOG_DEBUG("Eagle3: Retrieved sampling result from VariableState: " << num_accepted << "/" << num_total
+                                                                       << " tokens accepted");
+
+    // Set the sampling result
+    SamplingResult result;
+    result.accepted_token_mask = std::move(mask);
+    result.num_total_generated = num_total;
+    result.num_accepted_tokens = num_accepted;
+    set_sampling_result(result);
+
+    // Adjust KV cache based on the sampling result
+    adjust_kvcache_before_infer(request, in_ports, out_ports, num_stored_tokens, v_transposed, kv_dim);
+
+    return true;
 }
 
 }  // namespace npuw
