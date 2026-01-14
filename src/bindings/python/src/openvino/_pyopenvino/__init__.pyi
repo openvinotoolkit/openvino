@@ -1173,7 +1173,7 @@ class Dimension:
         """
                         Return this dimension as integer.
                         This dimension must be static and non-negative.
-                        
+        
                         :return: Value of the dimension.
                         :rtype: int
         """
@@ -1933,7 +1933,7 @@ class InferRequest:
     def input_tensors(self) -> list:
         """
                     Gets all input tensors of this InferRequest.
-                                        
+        
                     :rtype: list[openvino.Tensor]
         """
     @property
@@ -1961,7 +1961,7 @@ class InferRequest:
     def output_tensors(self) -> list:
         """
                     Gets all output tensors of this InferRequest.
-                                        
+        
                     :rtype: list[openvino.Tensor]
         """
     @property
@@ -1971,7 +1971,7 @@ class InferRequest:
                     Not all plugins provide meaningful data!
         
                     GIL is released while running this function.
-                    
+        
                     :return: Inference time.
                     :rtype: list[openvino.ProfilingInfo]
         """
@@ -2709,7 +2709,7 @@ class Model:
     def get_parameters(self) -> list[op.Parameter]:
         """
                             Return the model parameters.
-                            
+        
                             :return: a list of model's parameters.
                             :rtype: list[op.Parameter]
         """
@@ -2848,7 +2848,7 @@ class Model:
     def get_variables(self) -> list[op.util.Variable]:
         """
                             Return a list of model's variables.
-                            
+        
                             :return: a list of model's variables.
                             :rtype: list[op.util.Variable]
         """
@@ -3213,7 +3213,7 @@ class Model:
     def parameters(self) -> list[op.Parameter]:
         """
                                                 Return the model parameters.
-                                                
+        
                                                 :return: a list of model's parameters.
                                                 :rtype: list[op.Parameter]
         """
@@ -3248,7 +3248,7 @@ class Model:
     def variables(self) -> list[op.util.Variable]:
         """
                                             Return a list of model's variables.
-                                            
+        
                                             :return: a list of model's variables.
                                             :rtype: list[op.util.Variable]
         """
@@ -3313,7 +3313,7 @@ class Node:
     def evaluate(self, output_values: TensorVector, input_values: TensorVector, evaluationContext: RTMap = ...) -> bool:
         """
                         Evaluate the node on inputs, putting results in outputs
-                        
+        
                         :param output_tensors: Tensors for the outputs to compute. One for each result.
                         :type output_tensors: openvino.TensorVector
                         :param input_tensors: Tensors for the inputs. One for each inputs.
@@ -3327,7 +3327,7 @@ class Node:
     def evaluate(self, output_values: list, input_values: list, evaluationContext: RTMap = ...) -> bool:
         """
                         Evaluate the node on inputs, putting results in outputs
-                        
+        
                         :param output_tensors: Tensors for the outputs to compute. One for each result.
                         :type output_tensors: openvino.TensorVector
                         :param input_tensors: Tensors for the inputs. One for each inputs.
@@ -3570,7 +3570,7 @@ class Node:
         """
                 Verifies that attributes and inputs are consistent and computes output shapes and element types.
                 Must be implemented by concrete child classes so that it can be run any number of times.
-                
+        
                 Throws if the node is invalid.
         """
     def visit_attributes(self, arg0: AttributeVisitor) -> bool:
@@ -3981,7 +3981,7 @@ class PartialShape:
                     Get the dimension at specified index of a partial shape.
         
                     :param index: The index of dimension.
-                    :type index: int 
+                    :type index: int
                     :return: Get the particular dimension of a partial shape.
                     :rtype: openvino.Dimension
         """
