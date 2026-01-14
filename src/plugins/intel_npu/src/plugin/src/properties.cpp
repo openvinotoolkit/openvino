@@ -490,6 +490,7 @@ void Properties::registerPluginProperties() {
                                  NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::whisper::enabled, NPUW_WHISPER);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::eagle::enabled, NPUW_EAGLE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::text_embed::enabled, NPUW_TEXT_EMBED);
 
     // 2. Metrics (static device and enviroment properties)
     // ========
