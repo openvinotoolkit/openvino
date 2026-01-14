@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -63,7 +63,7 @@ class TestInverse(PytorchLayerTest):
         np.float32
     ])
     @pytest.mark.parametrize("out", [
-        False, 
+        False,
         True
     ])
     @pytest.mark.nightly
@@ -93,7 +93,7 @@ class TestInverse(PytorchLayerTest):
         1, 2, 3
     ])
     @pytest.mark.parametrize("out", [
-        False, 
+        False,
         True
     ])
     @pytest.mark.nightly

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -415,6 +415,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::disable_keep_const_precision(node);
         }
 
+        manager.register_pass<ov::pass::TransposeMatMul>();
         manager.register_pass<ov::pass::MarkDequantization>(
             std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
             !device_info.supports_immad);
@@ -804,7 +805,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertGather0D>();
         manager.register_pass<ov::pass::ConvertPriorBox8To0, false>();
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
-        manager.register_pass<ov::pass::TransposeMatMul>();
         manager.register_pass<ov::pass::ConvertPad12ToPad1, false>();
         manager.register_pass<DecomposeReduceForScalarOutput>();
 
