@@ -40,7 +40,7 @@ std::string memory_desc_to_string(const dnnl::memory::desc& desc) {
     if (strides.empty()) {
         ss << "empty";
     } else {
-        for (int i = 0; i < desc.get_ndims(); i++) {
+        for (int i = 0; i < strides.size(); i++) {
             ss << (i ? "x" : "") << strides[i];
         }
     }
