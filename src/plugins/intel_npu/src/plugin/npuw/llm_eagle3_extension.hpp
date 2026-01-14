@@ -23,10 +23,12 @@ namespace npuw {
 struct Eagle3LayerNames {
     static constexpr const char* hidden_states = "hidden_states";
     static constexpr const char* last_hidden_state = "last_hidden_state";
+    static constexpr const char* eagle_tree_mask = "eagle_tree_mask";
 };
 
 // Utility functions for Eagle3 layer name matching
 bool matchEagle3HiddenStatesString(const std::string& input);
+bool matchEagle3TreeMaskString(const std::string& input);
 
 // Model roles for Eagle3 speculative decoding
 enum class Eagle3ModelRole {
@@ -58,9 +60,9 @@ public:
         return m_role;
     }
 
-    // Store hidden state inputs from user request (must be called before prepare_inputs/prepare_inputs_for_chunk)
-    void store_hidden_state_inputs(const ov::IInferRequest& request,
-                                   const std::vector<ov::Output<const ov::Node>>& inputs);
+    // Store eagle3 specific inputs (eagle_tree_mask, hidden_states) from the inference request
+    // Must be called before prepare_inputs/prepare_inputs_for_chunk
+    void store_user_inputs(const ov::IInferRequest& request, const std::vector<ov::Output<const ov::Node>>& inputs);
 
     // Prepare Eagle3 new input tensors (hidden_states)
     void prepare_inputs(const std::shared_ptr<ov::IAsyncInferRequest>& request,
@@ -95,12 +97,18 @@ public:
         return m_last_hidden_state;
     }
 
+    ov::SoPtr<ov::ITensor> get_eagle_tree_mask() const {
+        return m_eagle_tree_mask;
+    }
+
 private:
     void validate_hidden_state_tensor(const ov::SoPtr<ov::ITensor>& tensor, const std::string& name);
+    void validate_tree_mask_tensor(const ov::SoPtr<ov::ITensor>& tensor, const std::string& name);
 
     Eagle3ModelRole m_role = Eagle3ModelRole::None;
 
     ov::SoPtr<ov::ITensor> m_hidden_states;      ///< Draft model input: hidden_states
+    ov::SoPtr<ov::ITensor> m_eagle_tree_mask;    ///< Draft/Target model input: eagle_tree_mask
     ov::SoPtr<ov::ITensor> m_last_hidden_state;  ///< Draft/Target model output: last_hidden_state
 
     // For chunked prefill: track the write offset in the pre-allocated tensor

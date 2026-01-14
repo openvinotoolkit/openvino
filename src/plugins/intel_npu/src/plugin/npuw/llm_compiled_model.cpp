@@ -1015,7 +1015,8 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t kvcache_size,
                        const KVAxesPosition& kv_axes_position,
                        const uint32_t lora_rank,
-                       const uint32_t lhs_seq_size = 0) {
+                       const uint32_t lhs_seq_size = 0,
+                       const bool is_prefill = false) {
     std::map<std::string, ov::PartialShape> new_shapes;
     for (const auto& input : model->inputs()) {
         const auto& input_name = input.get_any_name();
@@ -1052,6 +1053,12 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             new_shape[0] = 1;  // batch_dim
         } else if (ov::npuw::matchEagle3HiddenStatesString(input_name)) {
             new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, input_size);
+        } else if (ov::npuw::matchEagle3TreeMaskString(input_name)) {
+            if (is_prefill) {
+                new_shape = ov::PartialShape({1, 1, 1, 1});
+            } else {
+                new_shape = ov::PartialShape({1, 1, input_size, kvcache_size});
+            }
         } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
         } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
@@ -1513,7 +1520,8 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
                           kv_size,
                           axes,
                           m_max_lora_rank,
-                          whisper_lhs_seq_size);
+                          whisper_lhs_seq_size,
+                          false);
 
         // Set unique name for this variant
         generate_variant->set_friendly_name(generate_model->get_friendly_name() + "_kv" + std::to_string(kv_size));
@@ -1758,14 +1766,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                           static_cast<uint32_t>(m_prefill_chunk_size),
                           m_kvcache_desc.max_prompt_size,
                           axes,
-                          m_max_lora_rank);
+                          m_max_lora_rank,
+                          0,
+                          true);
     } else {
         reshape_to_static(prefill_model,
                           m_kvcache_desc.max_prompt_size,
                           m_kvcache_desc.max_prompt_size,
                           axes,
                           m_max_lora_rank,
-                          whisper_lhs_seq_size);
+                          whisper_lhs_seq_size,
+                          true);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
 
