@@ -183,9 +183,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                                                                     fc_input_scale,
                                                                     fc->get_output_type());
         }
-
         result_nodes.push_back(new_fc);
-        new_fc->set_friendly_name(fc->get_friendly_name());
 
         // Unsqueeze inputs
         // from [bs, seqlen, feature]
@@ -195,6 +193,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             new_fc = std::make_shared<ov::op::v0::Unsqueeze>(new_fc, unsqueeze_index_const);
             result_nodes.push_back(new_fc);
         }
+        new_fc->set_friendly_name(fc->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);
         ov::replace_node(fc, new_fc);
 
