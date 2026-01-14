@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,7 +94,7 @@ void start_broadcast_test_dynamic(format input_format,
                                   ov::Shape input_data_shape,
                                   ov::AxisSet broadcast_axes,
                                   bool is_output_static = false,
-                                  impl_types impl_type = impl_types::any, 
+                                  impl_types impl_type = impl_types::any,
                                   bool optimize = false) {
     size_t input_data_size = accumulate(input_data_shape.rbegin(), input_data_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(input_data_size, (size_t)1);

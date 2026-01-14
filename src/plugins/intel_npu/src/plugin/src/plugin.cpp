@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -385,6 +385,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS);
     REGISTER_OPTION(NPUW_WHISPER);
     REGISTER_OPTION(NPUW_EAGLE);
+    REGISTER_OPTION(NPUW_TEXT_EMBED);
     REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
     REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_PREFILL_CONFIG);
@@ -1074,7 +1075,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ov::SupportedOpsMap supportedOpsMap;
     try {
-        supportedOpsMap = compiler->query(model, localConfig);
+        supportedOpsMap = compiler->query(model->clone(), localConfig);
     } catch (const std::runtime_error& e) {
         OPENVINO_THROW(e.what());
     } catch (...) {

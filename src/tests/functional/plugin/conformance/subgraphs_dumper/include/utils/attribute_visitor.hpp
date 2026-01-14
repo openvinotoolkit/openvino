@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ public:
 
     std::map<std::string, std::string> get_attributes_map() { return attributes_map; }
     std::map<std::string, std::shared_ptr<ov::Model>> get_model_attributes_map() { return model_attributes_map; }
-    
+
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         attributes_map.insert({ name, "" });
     }

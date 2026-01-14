@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1377,6 +1377,8 @@ struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, ov:
     }
 
     static ov::intel_npu::WSVersion defaultValue() {
+        // Note: if the compiler-in-plugin is used (intel_npu::compiler_type = intel_npu::CompilerType::PLUGIN), then
+        // the default is actually WSVersion::ONE_SHOT
         return ov::intel_npu::WSVersion::ITERATIVE;
     }
 
