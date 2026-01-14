@@ -352,4 +352,5 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_npu, ov::intel_npu::qdq_optimization_aggressive, "qdq_optimization_aggressive");
     wrap_property_RW(m_intel_npu, ov::intel_npu::run_inferences_sequentially, "run_inferences_sequentially");
     wrap_property_RW(m_intel_npu, ov::intel_npu::disable_idle_memory_prunning, "disable_idle_memory_prunning");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::compiler_type, "compiler_type");
 }

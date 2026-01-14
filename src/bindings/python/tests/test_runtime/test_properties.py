@@ -501,6 +501,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             "NPU_DISABLE_IDLE_MEMORY_PRUNING",
             ((True, True),),
         ),
+        (
+            intel_npu.compiler_type,
+            "NPU_COMPILER_TYPE",
+            (("DRIVER", "DRIVER"),("PLUGIN", "PLUGIN"),),
+        ),
         (props.enable_weightless, "ENABLE_WEIGHTLESS", ((True, True), (False, False))),
     ],
 )

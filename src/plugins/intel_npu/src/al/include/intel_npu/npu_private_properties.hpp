@@ -85,36 +85,6 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: string, default is DRIVER.
- * Type of NPU compiler to be used for compilation of a network
- * @note Configuration API v 2.0
- */
-enum class CompilerType { PLUGIN, DRIVER };
-
-/**
- * @brief Prints a string representation of ov::intel_npu::CompilerType to a stream
- * @param out An output stream to send to
- * @param fmt A compiler type value to print to a stream
- * @return A reference to the `out` stream
- * @note Configuration API v 2.0
- */
-inline std::ostream& operator<<(std::ostream& out, const CompilerType& fmt) {
-    switch (fmt) {
-    case CompilerType::PLUGIN: {
-        out << "PLUGIN";
-    } break;
-    case CompilerType::DRIVER: {
-        out << "DRIVER";
-    } break;
-    default:
-        out << static_cast<uint32_t>(fmt);
-        break;
-    }
-    return out;
-}
-
-/**
- * @brief [Only for NPU Plugin]
  * Type: String. Default is "AUTO".
  * This option is added for enabling batching on plugin.
  * Possible values: "AUTO", "COMPILER", "PLUGIN".
@@ -323,14 +293,6 @@ static constexpr ov::Property<std::string> platform{"NPU_PLATFORM"};
  * Device stepping ID. If unset, it will be automatically obtained from driver
  */
 static constexpr ov::Property<int64_t> stepping{"NPU_STEPPING"};
-
-/**
- * @brief [Only for NPU Plugin]
- * Type: string, default is DRIVER.
- * Selects the type of NPU compiler to be used for compilation of a network.
- * 'DRIVER' is the default value.
- */
-static constexpr ov::Property<CompilerType> compiler_type{"NPU_COMPILER_TYPE"};
 
 /**
  * @brief
