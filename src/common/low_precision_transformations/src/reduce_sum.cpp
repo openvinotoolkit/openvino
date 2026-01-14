@@ -77,7 +77,6 @@ void ReduceSumTransformation::changeDequantizationValues(
         const auto reductionSizeConstant = ov::opset1::Constant::create(newShiftPrecision, Shape{}, { static_cast<float>(reductionSize) });
 
         const auto result = fold<ov::opset1::Multiply>(
-            foldConvert(dequantization.subtractConstant, deqPrecision),
             foldConvert(dequantization.subtractConstant, newShiftPrecision),
             reductionSizeConstant);
 
