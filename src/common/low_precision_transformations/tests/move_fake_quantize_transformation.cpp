@@ -321,6 +321,30 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
          {},
          {},
      }},
+    // F16 Q/DQ with subtract
+    {LayerTransformation::createParamsU8I8(),
+     false,
+     1,
+     {
+         2,
+         {},
+         {},
+         {},
+         "",
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+         {ov::element::u8},
+         {{element::f16}, {0.01f}, {0.01f}},
+     },
+     {
+         2,
+         {{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
+         {ov::element::u8},
+         {{element::f16}, {0.01f}, {0.01f}},
+         "",
+         {},
+         {},
+         {},
+     }},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
