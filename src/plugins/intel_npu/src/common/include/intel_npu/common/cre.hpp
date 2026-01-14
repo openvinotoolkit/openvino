@@ -41,11 +41,15 @@ public:
 
     CRE();
 
+    CRE(const std::vector<Token>& expression);
+
     void append_to_expression(const CRE::Token requirement_token);
 
     void append_to_expression(const std::vector<CRE::Token>& requirement_tokens);
 
     size_t get_expression_length() const;
+
+    std::vector<Token> get_expression() const;
 
     void write(std::ostream& stream);
 
@@ -66,6 +70,10 @@ private:
 class CRESection final : public ISection {
 public:
     CRESection();
+
+    CRESection(const std::vector<CRE::Token>& expression);
+
+    std::shared_ptr<CRESection> clone();
 
     void write(std::ostream& stream, BlobWriter* writer) override;
 

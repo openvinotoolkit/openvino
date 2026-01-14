@@ -1160,6 +1160,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
         weightsSeparationEnabled ? std::make_optional(initSchedulesSection->get_schedules()) : std::nullopt,
         weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
 
+    mainScheduleSection->set_graph(std::dynamic_pointer_cast<Graph>(graph));
+    if (weightsSeparationEnabled) {
+        initSchedulesSection->set_graph(std::dynamic_pointer_cast<WeightlessGraph>(graph));
+    }
+
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(
         graph->get_metadata().inputs,

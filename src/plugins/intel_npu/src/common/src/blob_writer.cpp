@@ -62,6 +62,12 @@ std::streamoff BlobWriter::get_stream_relative_position(std::ostream& stream) co
 }
 
 void BlobWriter::write(std::ostream& stream) {
+    // Backup the attributes of the class. Writing to a stream needs to be idempotent
+    std::queue<std::shared_ptr<ISection>> registered_sections_backup(m_registered_sections);
+    std::shared_ptr<CRESection> cre_clone = m_cre->clone();
+    registered_sections_backup.front() = cre_clone;
+    auto offsets_table_backup = std::make_shared<std::unordered_map<SectionID, uint64_t>>(*m_offsets_table);
+
     // The NPU specific region starts from here
     m_stream_base = stream.tellp();
 
@@ -121,6 +127,7 @@ void BlobWriter::write(std::ostream& stream) {
         stream.seekp(0, std::ios_base::end);
     }
 
+    // TODO should the CRESection also be left at the end, jic another writer still has to append to it?
     // Write the table of offsets
     offsets_table_location = get_stream_relative_position(stream);
 
@@ -137,6 +144,11 @@ void BlobWriter::write(std::ostream& stream) {
     stream.seekp(will_come_back_to_this_at_the_end);
     stream.write(reinterpret_cast<const char*>(&npu_region_size), sizeof(npu_region_size));
     stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
+
+    // Restore the attributes
+    m_registered_sections = registered_sections_backup;
+    m_offsets_table = offsets_table_backup;
+    m_cre = cre_clone;
 }
 
 }  // namespace intel_npu

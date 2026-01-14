@@ -27,6 +27,8 @@ namespace intel_npu {
 
 CRE::CRE() : m_expression({CRE::AND}) {}  // TODO can lead to expression with 0 or 1 operands, fix that
 
+CRE::CRE(const std::vector<Token>& expression) : m_expression(expression) {}
+
 void CRE::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(m_expression.data()), m_expression.size() * sizeof(Token));
 }
@@ -43,6 +45,10 @@ void CRE::append_to_expression(const std::vector<CRE::Token>& requirement_tokens
 
 size_t CRE::get_expression_length() const {
     return m_expression.size();
+}
+
+std::vector<CRE::Token> CRE::get_expression() const {
+    return m_expression;
 }
 
 bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_iterator, const Delimiter end_delimiter) {
@@ -122,6 +128,14 @@ bool CRE::check_compatibility(const std::unordered_set<CRE::Token>& plugin_capab
 
 CRESection::CRESection() : ISection(PredefinedSectionID::CRE) {}
 
+CRESection::CRESection(const std::vector<CRE::Token>& expression)
+    : ISection(PredefinedSectionID::CRE),
+      m_cre(expression) {}
+
+std::shared_ptr<CRESection> CRESection::clone() {
+    return std::make_shared<CRESection>(m_cre.get_expression());
+}
+
 void CRESection::append_to_expression(const CRE::Token requirement_token) {
     m_cre.append_to_expression(requirement_token);
 }
@@ -144,6 +158,7 @@ bool CRESection::check_compatibility(const std::unordered_set<CRE::Token>& plugi
 
 std::shared_ptr<ISection> CRESection::read(BlobReader* blob_reader, const size_t section_length) {
     size_t number_of_tokens = section_length / sizeof(CRE::Token);
+    OPENVINO_ASSERT(number_of_tokens > 0);
     auto cre_section = std::make_shared<CRESection>();
 
     // We expect the expression to start with "AND". The ctor also places this token at the beginning.
