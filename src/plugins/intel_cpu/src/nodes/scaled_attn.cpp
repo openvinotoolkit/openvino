@@ -625,7 +625,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                     PlainTensor& output_emb,
                     bool has_out_transpose,
                     bool auto_causal,
-                    [[maybe_unused]] PlainTensor& sink_input,
+                    PlainTensor& sink_input,
                     float d_scale = 0.0F) {
         auto B = query.size(0);
         auto H = query.size(1);
@@ -703,6 +703,11 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
                 uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
+                float* sink = nullptr;
+                if (sink_input) {
+                    sink = &sink_input.at<float>({b, h, m, 0}, true);
+                }
+
                 attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * kv_len),
                              qk + (m - m_start) * kv_len,
                              d_scale,
@@ -715,7 +720,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                              precision,
                              attn_mask_precision,
                              precision,
-                             nullptr);
+                             sink);
             }
             arm_compute::TensorInfo outInfo;
             arm_compute::Tensor outTensor;
