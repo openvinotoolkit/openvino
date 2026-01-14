@@ -50,7 +50,7 @@ class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     GraphIteratorProto* m_parent;
     std::vector<std::shared_ptr<ov::frontend::onnx::DecoderBase>> m_decoders{};
     std::map<std::string, std::shared_ptr<DecoderProtoTensor>> m_tensors{};
-    std::shared_ptr<std::filesystem::path> m_model_dir;
+    std::filesystem::path m_model_dir;
     GraphIteratorProtoMemoryManagementMode m_mode;
     // This is used for keeping MMAP cache handles
     MappedMemoryHandles m_mmap_cache;
@@ -120,7 +120,7 @@ public:
     std::map<std::string, std::string> get_metadata() const override;
 
     std::filesystem::path get_model_dir() const override {
-        return m_model_dir ? *m_model_dir : std::filesystem::path{};
+        return m_model_dir;
     }
 
     GraphIteratorProtoMemoryManagementMode get_memory_management_mode() const {

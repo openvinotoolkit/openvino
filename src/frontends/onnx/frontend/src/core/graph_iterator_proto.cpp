@@ -315,7 +315,7 @@ GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphPr
 
 void GraphIteratorProto::initialize(const std::filesystem::path& path) {
     const auto path_str = ov::util::path_to_string(path);
-    m_model_dir = std::make_shared<std::filesystem::path>(ov::util::get_directory(path_str));
+    m_model_dir = ov::util::get_directory(path);
     try {
         std::ifstream model_file(path, std::ios::binary | std::ios::in);
         FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path_str, "\"");
