@@ -1563,11 +1563,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul_null_b
 
     test_case.add_expected_output<float>(Shape{3, 3}, expected);
 
-    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
-        test_case.run_with_tolerance_as_fp(0.0055f);
-    } else {
-        test_case.run_with_tolerance_as_fp();
-    }
+    test_case.run_with_tolerance_as_fp(0.0055f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_simplified_layer_normalization) {
