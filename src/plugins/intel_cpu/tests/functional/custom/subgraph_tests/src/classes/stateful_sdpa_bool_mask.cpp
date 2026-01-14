@@ -51,10 +51,10 @@ void StatefulSdpaBoolMaskTest::SetUp() {
     abs_threshold = 0.02f;
     selectedType = makeSelectedTypeStr(getPrimitiveType(), inferencePrecision);
 
-    const InputShape q_shape{{-1, 8, -1, 64}, {{1, 8, 10, 64}}};
-    const InputShape k_shape{{-1, 8, -1, 64}, {{1, 8, 10, 64}}};
-    const InputShape v_shape{{-1, 8, -1, 64}, {{1, 8, 10, 64}}};
-    const InputShape mask_shape{{1, 1, -1, -1}, {{1, 1, 10, 10}}};
+    const InputShape q_shape{{-1, 8, -1, 64}, {{1, 8, 16, 64}}};
+    const InputShape k_shape{{-1, 8, -1, 64}, {{1, 8, 16, 64}}};
+    const InputShape v_shape{{-1, 8, -1, 64}, {{1, 8, 16, 64}}};
+    const InputShape mask_shape{{1, 1, -1, -1}, {{1, 1, 16, 16}}};
     const InputShape past_shape{{-1, 8, -1, 64}, {{1, 8, 0, 64}}};
     const InputShape beam_shape{{-1}, {{1}}};
 
@@ -118,7 +118,7 @@ void StatefulSdpaBoolMaskTest::generate_inputs(const std::vector<ov::Shape>& tar
         const auto& shape = targetInputStaticShapes[idx];
         if (param->get_element_type() == ov::element::f32) {
             ov::Tensor tensor{ov::element::f32, shape};
-            utils::fill_data_random(static_cast<float*>(tensor.data()), tensor.get_size(), 2, -1, 10);
+            utils::fill_data_random(static_cast<float*>(tensor.data()), tensor.get_size(), 2, -1, 16);
             inputs.insert({param, tensor});
         } else if (param->get_element_type() == ov::element::boolean) {
             ov::Tensor tensor{ov::element::boolean, shape};
