@@ -361,13 +361,13 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
         }
 
         auto nodes_to_mark = {convert1_pattern,
-                                                     multiply_pattern,
-                                                     subtract_pattern,
-                                                     zp_convert_pattern,
-                                                     zp_reshape_pattern,
-                                                     scale_convert_pattern,
-                                                     scale_reshape_pattern,
-                                                     convert2_pattern
+                              multiply_pattern,
+                              subtract_pattern,
+                              zp_convert_pattern,
+                              zp_reshape_pattern,
+                              scale_convert_pattern,
+                              scale_reshape_pattern,
+                              convert2_pattern
         };
 
         for (const auto& node_to_mark : nodes_to_mark) {
