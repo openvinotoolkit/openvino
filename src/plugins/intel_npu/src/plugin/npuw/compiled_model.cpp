@@ -33,6 +33,7 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/file_util.hpp"
 #include "transformations/convert_precision.hpp"
 
 namespace {
@@ -1288,7 +1289,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                 ov::FileHandle handle = handle_provider();
                 mapped_memory = ov::load_mmap_object(handle);
             } else if (!weights_path.empty()) {
-                mapped_memory = ov::load_mmap_object(weights_path);
+                mapped_memory = ov::load_mmap_object(ov::util::make_path(weights_path));
             }
             if (mapped_memory) {
                 weights = std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(),

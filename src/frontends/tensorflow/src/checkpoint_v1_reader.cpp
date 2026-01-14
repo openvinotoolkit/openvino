@@ -21,14 +21,10 @@ std::vector<std::string> list_files_in_dir(const std::string& directory_path) {
     std::vector<std::string> res;
     try {
         ov::util::iterate_files(
-            directory_path,
-            [&res](const std::string& file_path, bool is_dir) {
-                auto file = ov::util::get_file_name(file_path);
-                if (!is_dir) {
-                    res.push_back(file_path);
-                }
+            ov::util::make_path(directory_path),
+            [&res](const std::filesystem::path& file_path) {
+                res.push_back(ov::util::path_to_string(file_path));
             },
-            false,
             true);
     } catch (...) {
         // Ignore exceptions
