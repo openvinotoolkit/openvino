@@ -316,8 +316,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_AvgPoolV14_CPU_4D/AvgPoolingV14LayerCPUTest.CompareWithRefs.*)");
         // Ticket: 168931
         retVector.emplace_back(R"(.*smoke_Reduce_OneAxis_dynamic_CPU/ReduceCPULayerTest.CompareWithRefs.*)");
-        // Ticket: 178089
-        retVector.emplace_back(R"(.*smoke_ARM_StatefulSdpaBoolMask/StatefulSdpaBoolMaskTest.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
