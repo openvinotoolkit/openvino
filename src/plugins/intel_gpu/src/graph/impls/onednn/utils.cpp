@@ -36,8 +36,13 @@ std::string memory_desc_to_string(const dnnl::memory::desc& desc) {
         ss << (i ? "x" : "") << desc.get_dims()[i];
     }
     ss << ":strides=";
-    for (int i = 0; i < desc.get_ndims(); i++) {
-        ss << (i ? "x" : "") << desc.get_strides()[i];
+    const auto strides = desc.get_strides();
+    if (strides.empty()) {
+        ss << "empty";
+    } else {
+        for (size_t i = 0; i < strides.size(); i++) {
+            ss << (i ? "x" : "") << strides[i];
+        }
     }
 
     return ss.str();
