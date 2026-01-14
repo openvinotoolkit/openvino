@@ -327,15 +327,24 @@ ov::pass::KeepConstPrecision::KeepConstPrecision(const element::TypeVector& prec
 ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVector& precisions,
                                                                    bool add_precision_sensitive_convert) {
     MATCHER_SCOPE(KeepDequantizationPrecision);
+    auto data_pattern = any_input();
+    auto input_low_pattern = any_input();
+    auto input_high_pattern = any_input();
+    auto output_low_pattern = any_input();
+    auto output_high_pattern = any_input();
+    auto fq_pattern = wrap_type<v0::FakeQuantize>(
+        {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern });
+    auto constant_pattern = pattern::wrap_type<v0::Constant>(pattern::type_matches_any(precisions));
+    auto input_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{ fq_pattern, constant_pattern });
 
-    auto input_pattern = pattern::wrap_type<v0::Constant>(pattern::type_matches_any(precisions));
-    auto convert_pattern = pattern::wrap_type<v0::Convert>({input_pattern}, pattern::consumers_count(1));
+    auto convert1_pattern = wrap_type<v0::Convert>({input_pattern });
+    auto convert2_pattern = pattern::optional<v0::Convert>(convert1_pattern);
 
     // zero points:
     auto zp_pattern = pattern::wrap_type<v0::Constant>();
     auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
     auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, any_input()});
-    auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
+    auto subtract_pattern = pattern::optional<v1::Subtract>({convert2_pattern, zp_reshape_pattern});
 
     // scale:
     auto scale_pattern = pattern::wrap_type<v0::Constant>();
@@ -351,18 +360,39 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
             return false;
         }
 
-        auto nodes_to_mark = {convert_pattern,
-                              multiply_pattern,
-                              subtract_pattern,
-                              zp_convert_pattern,
-                              zp_reshape_pattern,
-                              scale_convert_pattern,
-                              scale_reshape_pattern};
+        auto nodes_to_mark = {convert1_pattern,
+                                                     multiply_pattern,
+                                                     subtract_pattern,
+                                                     zp_convert_pattern,
+                                                     zp_reshape_pattern,
+                                                     scale_convert_pattern,
+                                                     scale_reshape_pattern,
+                                                     convert2_pattern
+        };
 
         for (const auto& node_to_mark : nodes_to_mark) {
             if (pt_map.count(node_to_mark)) {
                 auto node_ptr = pt_map.at(node_to_mark).get_node_shared_ptr();
                 disable_fp16_compression(node_ptr);
+            }
+        }
+        // we can check if zp const values are between 65504 to 65535, disable fp16 compression
+        auto patterns = { zp_pattern, scale_pattern };
+        bool max_reach = std::any_of(
+            patterns.begin(), patterns.end(),
+            [&](const auto& pattern) {
+                auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(pt_map.at(pattern).get_node_shared_ptr());
+                if (!const_node) return false;
+                auto values = const_node->cast_vector<float>();
+                return std::any_of(values.begin(), values.end(), [](float v) {  return v > std::numeric_limits<ov::float16>::max(); });
+            });
+
+        if (max_reach) {
+            for (const auto& node_to_mark : nodes_to_mark) {
+                if (pt_map.count(node_to_mark)) {
+                    auto node_ptr = pt_map.at(node_to_mark).get_node_shared_ptr();
+                    disable_fp16_compression(node_ptr);
+                }
             }
         }
 
@@ -423,68 +453,5 @@ ov::pass::MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& tabl
     };
 
     auto m = std::make_shared<Matcher>(gather, "MarkGatherSubgraph");
-    this->register_matcher(m, callback);
-}
-ov::pass::KeepPrecisionOfUnstrippedFQPattern::KeepPrecisionOfUnstrippedFQPattern(const element::TypeVector& precisions) {
-
-
-    MATCHER_SCOPE(KeepPrecisionOfUnstrippedFQPattern);
-    auto data_pattern = any_input();
-    auto input_low_pattern = any_input();
-    auto input_high_pattern = any_input();
-    auto output_low_pattern = wrap_type<v0::Constant>();
-    auto output_high_pattern = wrap_type<v0::Constant>();
-    auto fq_pattern = wrap_type<v0::FakeQuantize>(
-        { data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern });
-
-    auto convert1_pattern = wrap_type<v0::Convert>({ fq_pattern });
-
-    auto convert2_pattern = wrap_type<v0::Convert>({ convert1_pattern });
-
-    // auto zero_point_pattern = any_input();
-    auto zp_const_pattern = wrap_type<v0::Constant>(pattern::type_matches_any(precisions));
-    auto zp_convert_pattern = wrap_type<v0::Convert>({ zp_const_pattern });
-
-    auto sub_pattern = optional<v1::Subtract>({ convert2_pattern, zp_convert_pattern });
-    auto scale_const_pattern = wrap_type<v0::Constant>(pattern::type_matches_any(precisions));
-    auto mul_pattern = wrap_type<v1::Multiply>({ sub_pattern, scale_const_pattern });
-
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        const auto& pm = m.get_pattern_map();
-        if (transformation_callback(mul_pattern)) {
-            return false;
-        }
-
-        auto nodes_to_mark = { convert1_pattern,
-                              convert2_pattern,
-                              mul_pattern,
-                              sub_pattern,
-                              zp_convert_pattern,
-                              zp_const_pattern,
-                              scale_const_pattern };
-        // we can check if zp const values are between 65504 to 65535, disable fp16 compression
-        auto patterns = { zp_const_pattern, scale_const_pattern };
-        bool max_reach = std::any_of(
-            patterns.begin(), patterns.end(),
-            [&](const auto& pattern) {
-                auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(pattern).get_node_shared_ptr());
-                if (!const_node) return false;
-                auto values = const_node->cast_vector<float>();
-                return std::any_of(values.begin(), values.end(), [](float v) { return v > 65504; });
-            });
-
-        if (max_reach) {
-            for (const auto& node_to_mark : nodes_to_mark) {
-                if (pm.count(node_to_mark)) {
-                    auto node_ptr = pattern_map.at(node_to_mark).get_node_shared_ptr();
-                    disable_fp16_compression(node_ptr);
-                }
-            }
-        }
-        return true;
-    };
-
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_pattern, "KeepPrecisionOfUnstrippedFQPattern");
     this->register_matcher(m, callback);
 }

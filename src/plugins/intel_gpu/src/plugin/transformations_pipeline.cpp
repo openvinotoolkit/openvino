@@ -370,7 +370,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // 2. Strip FQ layers with unsupported levels
             qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
             //3. disable fp16 compression for FQ + convert + convert + subtract + mutiply subgrph if FQ not stripped and zp and scale have uint16 data type with values greater than fp16 range
-                qdq_stripping_manager.register_pass<ov::pass::KeepPrecisionOfUnstrippedFQPattern>(
+                qdq_stripping_manager.register_pass<ov::pass::KeepDequantizationPrecision>(
                     ov::element::TypeVector{ ov::element::f32, ov::element::i32, ov::element::u32, ov::element::u16 });
             qdq_stripping_manager.run_passes(func);
             is_model_quantized = LowPrecision::isFunctionQuantized(func);
