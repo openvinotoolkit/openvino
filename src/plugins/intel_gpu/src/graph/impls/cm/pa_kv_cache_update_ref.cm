@@ -41,7 +41,7 @@ CM_INLINE void load_kvcache(vector_ref<half, HEAD_SIZE> kv_data, const half* kv_
 }
 
 template <typename T, int HEAD_SIZE>
-CM_INLINE void store_kvcahe(const svmptr_t kv_cache [[type("svmptr_t")]], uint offset, vector_ref<T, HEAD_SIZE> kv_data) {
+CM_INLINE void store_kvcache(const svmptr_t kv_cache [[type("svmptr_t")]], uint offset, vector_ref<T, HEAD_SIZE> kv_data) {
     if constexpr(std::is_same<T, half>::value) {
         if constexpr (HEAD_SIZE == 16 || HEAD_SIZE == 32 || HEAD_SIZE == 64 || HEAD_SIZE == 128) {
             cm_ptr_store<int, HEAD_SIZE / 2>((int*)kv_cache, offset, kv_data.format<int>());
@@ -89,7 +89,7 @@ CM_INLINE void quantize_and_store(vector_ref<half, HEAD_SIZE> data, uchar* out, 
         vector<half, HEAD_SIZE>  dequant_data = cm_mul<half>(data, scale_val) + zp_val;
         vector<uchar, HEAD_SIZE> data_u8 = cm_rnde<uchar, HEAD_SIZE>(dequant_data);
 
-        store_kvcahe<uchar, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + out_offset + token_pos * HEAD_SIZE), 0, data_u8);
+        store_kvcache<uchar, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + out_offset + token_pos * HEAD_SIZE), 0, data_u8);
 
         half *out_scale_zp = (half*)(out + scale_offset);
         out_scale_zp[0] = (max_val - min_val) / 255.0;
@@ -164,7 +164,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         #if KV_CACHE_COMPRESSION_PER_TOKEN
             quantize_and_store<K_HEAD_SIZE>(key_data, (uchar*)key_cache, block_k_base_offset, token_start_pos);
         #else
-            store_kvcahe<half, K_HEAD_SIZE>(reinterpret_cast<svmptr_t>(key_cache), key_out_offset * (int)sizeof(half), key_data);
+            store_kvcache<half, K_HEAD_SIZE>(reinterpret_cast<svmptr_t>(key_cache), key_out_offset * (int)sizeof(half), key_data);
         #endif
     }
     {
@@ -178,7 +178,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         #if KV_CACHE_COMPRESSION_PER_TOKEN
             quantize_and_store<V_HEAD_SIZE>(value_data, (uchar*)value_cache, block_v_base_offset, token_start_pos);
         #else
-            store_kvcahe<half, V_HEAD_SIZE>(reinterpret_cast<svmptr_t>(value_cache), value_out_offset * (int)sizeof(half), value_data);
+            store_kvcache<half, V_HEAD_SIZE>(reinterpret_cast<svmptr_t>(value_cache), value_out_offset * (int)sizeof(half), value_data);
         #endif
     }
 }
