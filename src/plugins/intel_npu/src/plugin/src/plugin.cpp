@@ -333,6 +333,33 @@ void Plugin::init_options() {
         _backend->registerOptions(*_options);
     }
 
+    // Try to set PLUGIN as default compiler type if:
+    // 1. Compiler library is present
+    // 2. The current platform is supported by the compiler (plugin)
+    try {
+        CompilerAdapterFactory compilerAdapterFactory;
+        // This is expected to throw in case the compiler library is not available
+        auto compiler = compilerAdapterFactory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
+        // Compiler library is present, need to check if the current platform is supported
+        if (_backend) {
+            auto deviceName = _backend->getDevice()->getName();
+            if(deviceName == ov::intel_npu::Platform::NPU4000 || deviceName == ov::intel_npu::Platform::NPU5010){
+                _globalConfig.enable("NPU_COMPILER_TYPE", true);
+                _globalConfig.update({{ov::intel_npu::compiler_type.name(), "PLUGIN"}});
+                _logger.info("Use PLUGIN as default compiler");
+            } else {
+                _logger.warning("Failed to set PLUGIN as default compiler for this platform");
+            }
+        } else {
+            // No device is available, only PLUGIN compiler type can be used for offline compilation
+            _globalConfig.enable("NPU_COMPILER_TYPE", true);
+            _globalConfig.update({{ov::intel_npu::compiler_type.name(), "PLUGIN"}});
+            _logger.info("Use PLUGIN as default compiler. Offline compilation");
+        }
+    } catch (...) {
+        _logger.warning("Failed to set PLUGIN as default compiler type. Compiler library is not available");
+    }
+
     // parse again env_variables to update registered configs which have env vars set
     _globalConfig.parseEnvVars();
 
