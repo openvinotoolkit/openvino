@@ -152,7 +152,6 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vecto
         ev_ze,
         ze_dep_events.size(),
         ze_dep_events.data()));
-    // FIXME: when not blocking pattern goes out of scope
     if (blocking) {
         ev->wait();
     }
