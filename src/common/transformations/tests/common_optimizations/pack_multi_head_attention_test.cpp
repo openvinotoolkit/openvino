@@ -100,12 +100,6 @@ std::shared_ptr<ov::Node> build_post_sdpa(const std::shared_ptr<ov::Node>& input
     return proj;
 }
 
-std::shared_ptr<ov::Node> build_cache(const std::shared_ptr<ov::Node>& input, const ov::Shape& cache_shape) {
-    auto cache_init = Constant::create(element::f32, cache_shape, {0.0f});
-    auto cache = std::make_shared<Concat>(OutputVector{cache_init, input}, -2);
-    return cache;
-}
-
 std::shared_ptr<ov::Model> build_model_mha(size_t batch,
                                            size_t seq_len,
                                            size_t head_size,
@@ -129,13 +123,11 @@ std::shared_ptr<ov::Model> build_model_mha(size_t batch,
         auto k_proj = build_qkv_projection(norm, proj_shape, bias_shape);
         auto v_proj = build_qkv_projection(norm, proj_shape, bias_shape);
         auto k = build_ROPE(k_proj, rope_shape);
-        auto k_cache = build_cache(k, {batch, 1, seq_len, head_size - 1});
         auto v = build_sdpa_preprocessing(v_proj, batch, head_size, seq_len);
-        auto v_cache = build_cache(v, {batch, 1, seq_len, head_size - 1});
         for (size_t h = 0; h < heads_per_group; ++h) {
             auto q_proj = build_qkv_projection(norm, proj_shape, bias_shape);
             auto q = build_ROPE(q_proj, rope_shape);
-            auto attn_out = build_sdpa(q, k_cache, v_cache, sdpa_bias_shape);
+            auto attn_out = build_sdpa(q, k, v, sdpa_bias_shape);
             auto projected = build_post_sdpa(attn_out, input_shape, post_sdpa_weights_shape);
             all_head_outputs.push_back(projected);
         }
