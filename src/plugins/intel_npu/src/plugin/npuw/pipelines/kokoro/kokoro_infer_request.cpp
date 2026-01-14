@@ -17,9 +17,7 @@
 #include "npuw/infer_request_utils.hpp"
 #include "npuw/logging.hpp"
 #include "npuw/util.hpp"
-
 #include "openvino/runtime/make_tensor.hpp"
-
 
 namespace {
 std::string safe_any_name(const ov::Output<const ov::Node>& port) {
@@ -35,7 +33,8 @@ void throw_if_missing(const std::vector<std::string>& missing_ports) {
         std::stringstream ss;
         ss << "Can't match ports: ";
         for (std::size_t i = 0; i < missing_ports.size(); ++i) {
-            if (i) ss << ", ";
+            if (i)
+                ss << ", ";
             ss << (missing_ports[i].empty() ? "<unnamed>" : missing_ports[i]);
         }
         OPENVINO_THROW(ss.str());
@@ -51,7 +50,7 @@ void throw_if_missing(const std::vector<std::string>& missing_ports) {
  *
  * The operation effectively performs:
  * dst[0, c, t] = src[0, c, idx[t]]
- * 
+ *
  *  Source (L=3)       Indices (idx)        Destination (block=5)
  * [ A | B | C ]   <-- [0, 0, 1, 2, 2] --> [ A | A | B | C | C ]
  */
@@ -61,8 +60,8 @@ void gather_3d_last_dim(const ov::SoPtr<ov::ITensor>& src, T* dst, const std::ve
     const auto& shape = src->get_shape();
     OPENVINO_ASSERT(shape.size() == 3u);
     OPENVINO_ASSERT(shape[0] == 1u);
-    const std::size_t channels = shape[1]; 
-    const std::size_t phonemes_number = shape[2]; 
+    const std::size_t channels = shape[1];
+    const std::size_t phonemes_number = shape[2];
 
     OPENVINO_ASSERT(src->is_continuous());
     const T* src_p = src->data<const T>();
@@ -85,7 +84,6 @@ void gather_3d_last_dim(const ov::SoPtr<ov::ITensor>& src, T* dst, const std::ve
 
 }  // namespace
 
-
 void ov::npuw::KokoroInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
     ov::SoPtr<ITensor> tensor;
     tensor = ov::ISyncInferRequest::get_tensor(port);
@@ -107,10 +105,9 @@ void ov::npuw::KokoroInferRequest::init_tensor(const ov::Output<const ov::Node>&
     }
 }
 
-ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw::KokoroCompiledModel>& compiled_model) 
+ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw::KokoroCompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_kokoro_compiled_model(compiled_model) {
-
     const auto original_inputs = m_kokoro_compiled_model->inputs();
 
     for (const auto& input_port : original_inputs) {
@@ -180,11 +177,12 @@ ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw:
     }
     // Feed static Model B inputs
     for (const auto& item : m_model_b_in_map) {
-         m_model_b_request->set_tensor(item.first, get_tensor(item.second));
+        m_model_b_request->set_tensor(item.first, get_tensor(item.second));
     }
 }
 
-void ov::npuw::KokoroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
+void ov::npuw::KokoroInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
+                                              const ov::SoPtr<ov::ITensor>& tensor) {
     ov::ISyncInferRequest::set_tensor(port, tensor);
 
     // If mappings are initialized, update sub-requests
@@ -221,7 +219,7 @@ void ov::npuw::KokoroInferRequest::infer() {
     set_tensor(orig_pred_dur.value(), pred_dur_tensor);
 
     // 2) Build repeat-interleave indices
-    
+
     std::vector<int64_t> pred;
     pred.resize(pred_dur_tensor->get_size());
 
@@ -229,17 +227,18 @@ void ov::npuw::KokoroInferRequest::infer() {
     if (et == ov::element::i64) {
         const auto* p = pred_dur_tensor->data<const int64_t>();
         std::copy_n(p, pred.size(), pred.data());
-    }  else if (et == ov::element::i32) {
+    } else if (et == ov::element::i32) {
         const auto* p = pred_dur_tensor->data<const int32_t>();
         std::copy_n(p, pred.size(), pred.data());
     } else {
-        OPENVINO_THROW("Unexpected element type from pred_dur data, expected i64 or i32, got: ", et.get_type_name());   
+        OPENVINO_THROW("Unexpected element type from pred_dur data, expected i64 or i32, got: ", et.get_type_name());
     }
     const std::size_t l_max = pred.size();
 
     std::size_t total_frames = 0;
     for (auto token_frames : pred) {
-        if (token_frames > 0) total_frames += static_cast<std::size_t>(token_frames);
+        if (token_frames > 0)
+            total_frames += static_cast<std::size_t>(token_frames);
     }
     if (total_frames == 0) {
         OPENVINO_THROW("Sum(pred_dur) is zero; cannot generate audio");
@@ -272,7 +271,7 @@ void ov::npuw::KokoroInferRequest::infer() {
             break;
         }
     }
-    
+
     if (!audio_out.has_value()) {
         OPENVINO_THROW("Kokoro Model B: no floating-point outputs found");
     }
@@ -287,10 +286,11 @@ void ov::npuw::KokoroInferRequest::infer() {
     // Effective step size (how much we advance in the original sequence)
     // We reserve space for overlap on both sides: [overlap | step | overlap]
     // Total window size is 'block'.
-    OPENVINO_ASSERT(one_side_overlap * 2 < block, "NPUW_KOKORO_OVERLAP_SIZE is too large for the given block size (must be < block)");
+    OPENVINO_ASSERT(one_side_overlap * 2 < block,
+                    "NPUW_KOKORO_OVERLAP_SIZE is too large for the given block size (must be < block)");
     const std::size_t step = block - 2 * one_side_overlap;
     OPENVINO_ASSERT(step > 0, "Step size is zero, block size too small for overlap");
-    
+
     const std::size_t num_blocks = (total_frames + step - 1) / step;
 
     std::vector<uint8_t> audio_bytes;
@@ -312,8 +312,7 @@ void ov::npuw::KokoroInferRequest::infer() {
             t1 = total_frames;
         }
 
-        std::vector<int64_t> idx_block(idx_all.begin() + t0,
-                                       idx_all.begin() + t1);
+        std::vector<int64_t> idx_block(idx_all.begin() + t0, idx_all.begin() + t1);
 
         auto en_in_tensor = m_model_b_request->get_tensor(m_b_en_block);
         auto asr_in_tensor = m_model_b_request->get_tensor(m_b_asr_block);
@@ -357,7 +356,8 @@ void ov::npuw::KokoroInferRequest::infer() {
             audio_shape0 = audio_tensor->get_shape();
             audio_type0 = audio_tensor->get_element_type();
             if (samples_per_frame == 0.0) {
-                // Estimate samples_per_frame. Model B is static, so it produces block_samples for 'block' input frames, even if has less input data.
+                // Estimate samples_per_frame. Model B is static, so it produces block_samples for 'block' input frames,
+                // even if has less input data.
                 samples_per_frame = static_cast<double>(block_samples) / static_cast<double>(block);
             }
         }
@@ -375,8 +375,10 @@ void ov::npuw::KokoroInferRequest::infer() {
         }
 
         // Convert frames to samples
-        const std::size_t skip_samples = static_cast<std::size_t>(std::llround(samples_per_frame * static_cast<double>(frames_to_skip)));
-        std::size_t keep_samples = static_cast<std::size_t>(std::llround(samples_per_frame * static_cast<double>(frames_to_keep)));
+        const std::size_t skip_samples =
+            static_cast<std::size_t>(std::llround(samples_per_frame * static_cast<double>(frames_to_skip)));
+        std::size_t keep_samples =
+            static_cast<std::size_t>(std::llround(samples_per_frame * static_cast<double>(frames_to_keep)));
 
         // Safety clamp
         if (skip_samples >= block_samples) {

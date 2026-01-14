@@ -8,20 +8,19 @@
 #include <memory>
 
 #include "npuw/logging.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
-#include "openvino/core/descriptor/tensor.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/util/node_util.hpp"
 
 namespace ov::npuw {
 
-    
-//  Main logic for kokoro model is splitting it into two parts, 
-//  replacing repeat_interleave with custom processing which would be handled on host side during 
+//  Main logic for kokoro model is splitting it into two parts,
+//  replacing repeat_interleave with custom processing which would be handled on host side during
 //  infer request execution. Part 1 will be named "model_a", part 2 - "model_b".
 KokoroSplitResult KokoroSplit::split_model(const std::shared_ptr<ov::Model>& model, const KokoroConfig& config) {
     KokoroSplitResult result;
@@ -32,7 +31,7 @@ KokoroSplitResult KokoroSplit::split_model(const std::shared_ptr<ov::Model>& mod
     return result;
 }
 
-// pred_dur - our prediction of durations, which will be used to generate alignment matrix 
+// pred_dur - our prediction of durations, which will be used to generate alignment matrix
 // (we would multiply en and asr blocks with it) on host side and also the data we are going chunking by.
 std::shared_ptr<ov::Node> ov::npuw::KokoroSplit::find_pred_dur_node(const std::shared_ptr<ov::Model>& model) {
     // TODO Look for pred_dur node name or Sequence Max -> Convert (?) -> Squeeze -> Result
@@ -41,7 +40,7 @@ std::shared_ptr<ov::Node> ov::npuw::KokoroSplit::find_pred_dur_node(const std::s
         if (name == "pred_dur") {
             return op;
         }
-        for (const auto& output_name : op->output(0).get_names()) { 
+        for (const auto& output_name : op->output(0).get_names()) {
             if (output_name == "pred_dur") {
                 return op;
             }
@@ -53,7 +52,7 @@ std::shared_ptr<ov::Node> ov::npuw::KokoroSplit::find_pred_dur_node(const std::s
 
 // en_matmul - left hand side of matmul for encoder block (bert encoder output, contain acoustic features, "how to say")
 std::shared_ptr<ov::Node> ov::npuw::KokoroSplit::find_en_matmul_node(const std::shared_ptr<ov::Model>& model) {
-    // FIXME hardcoded names from kokoro model 
+    // FIXME hardcoded names from kokoro model
     for (const auto& op : model->get_ops()) {
         const auto& name = op->get_friendly_name();
         if (name == "aten::matmul/MatMul") {
@@ -64,9 +63,10 @@ std::shared_ptr<ov::Node> ov::npuw::KokoroSplit::find_en_matmul_node(const std::
     return nullptr;
 }
 
-// asr_matmul - left hand side of matmul for asr block (kokoro decoder input, contain text features, asr - automatic speech recognition, "what to say")
+// asr_matmul - left hand side of matmul for asr block (kokoro decoder input, contain text features, asr - automatic
+// speech recognition, "what to say")
 std::shared_ptr<ov::Node> ov::npuw::KokoroSplit::find_asr_matmul_node(const std::shared_ptr<ov::Model>& model) {
-    // FIXME hardcoded names from kokoro model 
+    // FIXME hardcoded names from kokoro model
     for (const auto& op : model->get_ops()) {
         const auto& name = op->get_friendly_name();
         if (name == "aten::matmul/MatMul_1") {
@@ -127,7 +127,7 @@ std::shared_ptr<ov::Model> ov::npuw::KokoroSplit::create_model_b(const std::shar
     OPENVINO_ASSERT(asr_matmul_node, "asr_matmul node not found in model B source");
 
     // Get channels from LHS input of MatMul
-    // Shape is [..., channels, time] or similar. 
+    // Shape is [..., channels, time] or similar.
     auto get_channels = [](const std::shared_ptr<ov::Node>& node) -> size_t {
         auto lhs = node->input_value(0);
         auto shape = lhs.get_partial_shape();
@@ -143,13 +143,13 @@ std::shared_ptr<ov::Model> ov::npuw::KokoroSplit::create_model_b(const std::shar
     auto en_dtype = en_matmul_node->output(0).get_element_type();
     auto asr_dtype = asr_matmul_node->output(0).get_element_type();
 
-    auto en_param = std::make_shared<ov::op::v0::Parameter>(en_dtype,
-                                                            ov::PartialShape{1, en_channels, config.block_size});
+    auto en_param =
+        std::make_shared<ov::op::v0::Parameter>(en_dtype, ov::PartialShape{1, en_channels, config.block_size});
     en_param->set_friendly_name("en_block");
     en_param->output(0).get_tensor().set_names({"en_block"});
 
-    auto asr_param = std::make_shared<ov::op::v0::Parameter>(asr_dtype,
-                                                             ov::PartialShape{1, asr_channels, config.block_size});
+    auto asr_param =
+        std::make_shared<ov::op::v0::Parameter>(asr_dtype, ov::PartialShape{1, asr_channels, config.block_size});
     asr_param->set_friendly_name("asr_block");
     asr_param->output(0).get_tensor().set_names({"asr_block"});
 

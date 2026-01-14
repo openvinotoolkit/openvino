@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+
 #include "npuw/compiled_model.hpp"
 
 namespace ov {
@@ -25,13 +26,13 @@ struct KokoroConfig {
 class KokoroCompiledModel : public ov::npuw::ICompiledModel {
 public:
     KokoroCompiledModel(const std::shared_ptr<ov::Model>& model,
-                       const std::shared_ptr<const ov::IPlugin>& plugin,
-                       const ov::AnyMap& properties);
+                        const std::shared_ptr<const ov::IPlugin>& plugin,
+                        const ov::AnyMap& properties);
 
     void export_model(std::ostream& model) const override;
     static std::shared_ptr<KokoroCompiledModel> import_model(std::istream& stream,
-                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                          const ov::AnyMap& properties);
+                                                             const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                             const ov::AnyMap& properties);
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
@@ -46,8 +47,12 @@ public:
         return m_kokoro_cfg.overlap_size;
     }
 
-    ov::SoPtr<ov::ICompiledModel> model_a() const { return m_model_a_compiled; }
-    std::shared_ptr<ov::npuw::ICompiledModel> model_b() const { return m_model_b_compiled; }
+    ov::SoPtr<ov::ICompiledModel> model_a() const {
+        return m_model_a_compiled;
+    }
+    std::shared_ptr<ov::npuw::ICompiledModel> model_b() const {
+        return m_model_b_compiled;
+    }
 
 private:
     KokoroConfig m_kokoro_cfg;

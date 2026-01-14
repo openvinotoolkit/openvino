@@ -39,10 +39,9 @@ std::optional<ov::Output<const ov::Node>> find_port_by_name(const std::vector<ov
  * @brief Searches for a port within a collection that matches any of the specified names.
  */
 std::optional<ov::Output<const ov::Node>> find_port_by_names(const std::vector<ov::Output<const ov::Node>>& ports,
-                                                            const std::unordered_set<std::string>& names);
+                                                             const std::unordered_set<std::string>& names);
 
 void pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids, const ov::SoPtr<ov::ITensor>& position_ids);
-
 
 }  // namespace util
 }  // namespace npuw

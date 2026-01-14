@@ -7,15 +7,14 @@
 #include <memory>
 
 #include "kokoro_compiled_model.hpp"
-
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
 namespace ov {
 namespace npuw {
-    
-class KokoroInferRequest: public ov::ISyncInferRequest {
+
+class KokoroInferRequest : public ov::ISyncInferRequest {
 public:
     explicit KokoroInferRequest(const std::shared_ptr<ov::npuw::KokoroCompiledModel>& compiled_model);
 
@@ -34,7 +33,7 @@ public:
 
 protected:
     std::shared_ptr<KokoroCompiledModel> m_kokoro_compiled_model;
-    
+
     std::shared_ptr<ov::IAsyncInferRequest> m_model_a_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_model_b_request;
 

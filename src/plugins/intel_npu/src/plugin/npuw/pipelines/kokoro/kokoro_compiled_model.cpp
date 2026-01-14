@@ -4,62 +4,62 @@
 
 #include "kokoro_compiled_model.hpp"
 
-#include "kokoro_infer_request.hpp"
-#include "npuw/logging.hpp"
-#include "kokoro_split.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
+#include "kokoro_infer_request.hpp"
+#include "kokoro_split.hpp"
+#include "npuw/logging.hpp"
 #include "plugin.hpp"
 
 namespace {
-    // Remove all options "NPUW_.*"
-    ov::AnyMap without_npuw_params(const ov::AnyMap& properties) {
-        ov::AnyMap result;
-        for (const auto& item : properties) {
-            if (item.first.find("NPUW") == std::string::npos) {
-                result.insert(item);
-            }
-        }
-        return result;
-    }
-
-    // Check properties for NPUW_DEVICES options and return true if only CPU is present
-    bool is_cpu_only(const ov::AnyMap& properties) {
-        auto it = properties.find("NPUW_DEVICES");
-        if (it != properties.end()) {
-            return it->second.as<std::string>() == "CPU";
-        }
-        return false;
-    }
-
-    void split_kokoro_properties(const ov::AnyMap& properties,
-                      ov::AnyMap& other_properties,
-                      ov::AnyMap& kokoro_properties) {
-        for (auto it = properties.begin(); it != properties.end(); ++it) {
-            if (it->first.find("NPUW_KOKORO") != it->first.npos) {
-                kokoro_properties.insert(*it);
-            } else {
-                other_properties.insert(*it);
-            }
+// Remove all options "NPUW_.*"
+ov::AnyMap without_npuw_params(const ov::AnyMap& properties) {
+    ov::AnyMap result;
+    for (const auto& item : properties) {
+        if (item.first.find("NPUW") == std::string::npos) {
+            result.insert(item);
         }
     }
+    return result;
+}
 
-    std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
-        std::map<std::string, std::string> result;
-        for (auto&& value : params) {
-            if (value.second.is<std::string>()) {
-                result.emplace(value.first, value.second.as<std::string>());
-            } else if (value.second.is<bool>()) {
-                result.emplace(value.first, value.second.as<bool>() ? "YES" : "NO");
-            } else {
-                std::stringstream ss;
-                value.second.print(ss);
-                result.emplace(value.first, ss.str());
-            }
+// Check properties for NPUW_DEVICES options and return true if only CPU is present
+bool is_cpu_only(const ov::AnyMap& properties) {
+    auto it = properties.find("NPUW_DEVICES");
+    if (it != properties.end()) {
+        return it->second.as<std::string>() == "CPU";
+    }
+    return false;
+}
+
+void split_kokoro_properties(const ov::AnyMap& properties,
+                             ov::AnyMap& other_properties,
+                             ov::AnyMap& kokoro_properties) {
+    for (auto it = properties.begin(); it != properties.end(); ++it) {
+        if (it->first.find("NPUW_KOKORO") != it->first.npos) {
+            kokoro_properties.insert(*it);
+        } else {
+            other_properties.insert(*it);
         }
-        return result;
     }
 }
+
+std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
+    std::map<std::string, std::string> result;
+    for (auto&& value : params) {
+        if (value.second.is<std::string>()) {
+            result.emplace(value.first, value.second.as<std::string>());
+        } else if (value.second.is<bool>()) {
+            result.emplace(value.first, value.second.as<bool>() ? "YES" : "NO");
+        } else {
+            std::stringstream ss;
+            value.second.print(ss);
+            result.emplace(value.first, ss.str());
+        }
+    }
+    return result;
+}
+}  // namespace
 
 ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Model>& model,
                                                    const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -71,11 +71,11 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
     LOG_DEBUG("Creating KokoroCompiledModel");
 
     ::intel_npu::registerNPUWKokoroOptions(*m_options_desc);
-    
+
     // Split properties to separate Kokoro specific options and NPU plugin options
     ov::AnyMap npuw_kokoro_props;
     ov::AnyMap common_props;
-    
+
     split_kokoro_properties(properties, common_props, npuw_kokoro_props);
 
     m_cfg.parseEnvVars();
@@ -85,20 +85,20 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
     m_kokoro_cfg.block_size = m_cfg.get<::intel_npu::NPUW_KOKORO_BLOCK_SIZE>();
     m_kokoro_cfg.overlap_size = m_cfg.get<::intel_npu::NPUW_KOKORO_OVERLAP_SIZE>();
 
-    // Decompose kokoro model into two static models 
+    // Decompose kokoro model into two static models
     KokoroSplitResult split_result = KokoroSplit::split_model(model, m_kokoro_cfg);
 
     LOG_DEBUG("Compiling kokoro model A...");
-    // Model A doesn't require decomposition, so it should be handled by CPU or NPU plugin 
+    // Model A doesn't require decomposition, so it should be handled by CPU or NPU plugin
     if (is_cpu_only(common_props)) {
         auto core = plugin->get_core();
         m_model_a_compiled = core->compile_model(split_result.model_a, "CPU", ov::AnyMap{});
     } else {
-        // Plugin don't have to know about NPUW parameters 
+        // Plugin don't have to know about NPUW parameters
         ov::AnyMap model_a_properties = without_npuw_params(common_props);
         m_model_a_compiled = plugin->compile_model(split_result.model_a, model_a_properties);
     }
-    
+
     LOG_DEBUG("Compiling kokoro model B...");
     ov::AnyMap properties_model_b = common_props;
 
