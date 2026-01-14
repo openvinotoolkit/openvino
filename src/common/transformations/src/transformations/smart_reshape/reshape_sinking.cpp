@@ -35,7 +35,7 @@ ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
      */
     auto input_pattern = pattern::any_input(pattern::has_static_rank());
     auto reshape_label =
-        pattern::wrap_type<v1::Reshape>({input_pattern, pattern::wrap_type<v0::Constant>()}, pattern::rank_equals(2));
+        pattern::wrap_type<v1::Reshape>({pattern::any_input(), pattern::wrap_type<v0::Constant>()}, pattern::rank_equals(2));
 
     auto matmul_label =
         pattern::wrap_type<v0::MatMul>({reshape_label, pattern::wrap_type<v0::Constant>()}, pattern::rank_equals(2));
