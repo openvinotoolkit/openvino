@@ -14,6 +14,7 @@ namespace Platform {
 constexpr std::string_view AUTO_DETECT = "AUTO_DETECT";  // Auto detection
 constexpr std::string_view NPU3720 = "3720";             // NPU3720
 constexpr std::string_view NPU4000 = "4000";             // NPU4000
+constexpr std::string_view NPU5010 = "5010";             // NPU5010
 
 /**
  * @brief Converts the given platform value to the standard one.
