@@ -14,30 +14,30 @@
 
 namespace intel_npu {
 
-class VCLCompilerImpl final : public intel_npu::ICompiler {
+class VCLCompilerImpl {
 public:
     VCLCompilerImpl();
-    ~VCLCompilerImpl() override;
+    ~VCLCompilerImpl();
     static const std::shared_ptr<VCLCompilerImpl> getInstance();
 
-    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const;
 
     std::vector<std::shared_ptr<NetworkDescription>> compileWsOneShot(const std::shared_ptr<ov::Model>& model,
-                                                                      const Config& config) const override;
+                                                                      const Config& config) const;
 
     NetworkDescription compileWsIterative(const std::shared_ptr<ov::Model>& model,
                                           const Config& config,
-                                          size_t callNumber) const override;
+                                          size_t callNumber) const;
 
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const;
 
-    NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const override;
+    NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const;
 
-    uint32_t get_version() const override;
+    uint32_t get_version() const;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const std::vector<uint8_t>& network,
-                                                            const intel_npu::Config& config) const final override;
+                                                            const intel_npu::Config& config) const;
 
     bool get_supported_options(std::vector<char>& options) const;
 
