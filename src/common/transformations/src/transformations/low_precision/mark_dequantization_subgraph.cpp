@@ -333,11 +333,11 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
     auto output_low_pattern = any_input();
     auto output_high_pattern = any_input();
     auto fq_pattern = wrap_type<v0::FakeQuantize>(
-        {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern });
+        {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
     auto constant_pattern = pattern::wrap_type<v0::Constant>(pattern::type_matches_any(precisions));
-    auto input_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{ fq_pattern, constant_pattern });
+    auto input_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{ fq_pattern, constant_pattern});
 
-    auto convert1_pattern = wrap_type<v0::Convert>({input_pattern });
+    auto convert1_pattern = wrap_type<v0::Convert>({input_pattern});
     auto convert2_pattern = pattern::optional<v0::Convert>(convert1_pattern);
 
     // zero points:
@@ -367,8 +367,7 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
                               zp_reshape_pattern,
                               scale_convert_pattern,
                               scale_reshape_pattern,
-                              convert2_pattern
-        };
+                              convert2_pattern};
 
         for (const auto& node_to_mark : nodes_to_mark) {
             if (pt_map.count(node_to_mark)) {
@@ -377,16 +376,16 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
             }
         }
         // we can check if zp const values are between 65504 to 65535, disable fp16 compression
-        auto patterns = { zp_pattern, scale_pattern };
-        bool max_reach = std::any_of(
-            patterns.begin(), patterns.end(),
-            [&](const auto& pattern) {
-                auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(pt_map.at(pattern).get_node_shared_ptr());
-                if (!const_node) return false;
-                auto values = const_node->cast_vector<float>();
-                return std::any_of(values.begin(), values.end(), [](float v) {  return v > std::numeric_limits<ov::float16>::max(); });
-            });
-
+        auto patterns = {zp_pattern, scale_pattern};
+        bool max_reach = std::any_of(patterns.begin(), patterns.end(), [&](const auto& pattern) {
+            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(pt_map.at(pattern).get_node_shared_ptr());
+            if (!const_node)
+                return false;
+            auto values = const_node->cast_vector<size_t>();
+            return std::any_of(values.begin(), values.end(), [](float v) {
+                return v > std::numeric_limits<ov::float16>::max();
+                });
+        });
         if (max_reach) {
             for (const auto& node_to_mark : nodes_to_mark) {
                 if (pt_map.count(node_to_mark)) {
