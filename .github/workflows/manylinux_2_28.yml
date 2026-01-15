@@ -185,7 +185,7 @@ jobs:
         env:
           CXXFLAGS: "-Wno-dangling-reference" # bug in gcc-14: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107532
             
-      - name: Build Python API (Python 3.10-3.14)
+      - name: Build Python API (Python 3.10-3.14t)
         run: |
           SUPPORTED_PYTHON_VERSIONS=("3.10" "3.11" "3.12" "3.13" "3.14" "3.14t")
           for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do

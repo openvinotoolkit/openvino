@@ -15,7 +15,7 @@ inputs:
     description: 'If the runner is self-hosted'
     required: false
     default: 'true'
-  allow-prerelases:
+  allow-prereleases:
     description: 'If pre-release versions of Python are allowed'
     required: false
     default: 'false'
@@ -47,7 +47,7 @@ runs:
       uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
       with:
         python-version: ${{ inputs.version }}
-        allow-prereleases: ${{ inputs.allow-prerelases }}
+        allow-prereleases: ${{ inputs.allow-prereleases }}
 
     - if: ${{ inputs.should-setup-pip-paths == 'true' && runner.os != 'Windows' }}
       name: Setup pip variables (cache and install path)

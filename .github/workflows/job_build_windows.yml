@@ -272,7 +272,7 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
-          allow-prerelases: 'true'
+          allow-prereleases: 'true'
       
       - name: Build additional Python wheels - Python 3.14t
         if: ${{ inputs.build-additional-python-wheels }}
