@@ -143,7 +143,7 @@ private:
         OPENVINO_ASSERT(buf);
 
         size_t bytes = 0;
-        const auto read_size_bytes = buf->sgetn(reinterpret_cast<char*>(bytes), sizeof(bytes));
+        const auto read_size_bytes = buf->sgetn(reinterpret_cast<char*>(&bytes), sizeof(bytes));
         OPENVINO_ASSERT(read_size_bytes == sizeof(bytes));
 
         // Not reading directly to plaintext_stream because decrypt(plaintext_stream.str()) would create an additional
