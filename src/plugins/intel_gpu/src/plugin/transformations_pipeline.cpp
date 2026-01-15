@@ -46,6 +46,7 @@
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/if.hpp"
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/multiply.hpp"
@@ -57,6 +58,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/roi_align.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -540,9 +542,60 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
         manager.register_pass<ov::pass::RMSFusion>(false, true);
-        manager.register_pass<DisableFP16CompForDetectron2MaskRCNNGatherIfPattern>();
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
         manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
+
+        auto is_detectron2_maskrcnn = [](const std::shared_ptr<const ov::Model>& model) {
+            bool has_roi_align_op = false;
+            bool has_mask_head_shape = false;
+            bool has_if_op = false;
+
+            for (const auto& op : model->get_ops()) {
+                if (has_roi_align_op && has_mask_head_shape && has_if_op)
+                    return true;
+
+                if (!has_roi_align_op) {
+                    if (auto roi_align_op = ov::as_type_ptr<const ov::op::v9::ROIAlign>(op)) {
+                        has_roi_align_op = true;
+                        continue;
+                    }
+                }
+
+                if (!has_mask_head_shape) {
+                    if (auto conv_op = ov::as_type_ptr<const ov::op::v1::Convolution>(op)) {
+
+                        const std::string conv_name = std::string(conv_op->get_friendly_name());
+                        if (conv_name.find("mask_head") != std::string::npos) {
+                            ov::PartialShape output_partial_shape = conv_op->get_output_partial_shape(0);
+
+                            const size_t sizes = output_partial_shape.size();
+                            if (sizes >= 2) {
+                                const ov::Dimension dim_neg_2 = output_partial_shape[sizes - 2];
+                                const ov::Dimension dim_neg_1 = output_partial_shape[sizes - 1];
+
+                                if (dim_neg_2.is_static() && dim_neg_1.is_static()) {
+                                    if (dim_neg_2.get_length() == 28 && dim_neg_1.get_length() == 28) {
+                                        has_mask_head_shape = true;
+                                    }
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                }
+
+                if (!has_if_op) {
+                    if (auto if_op = ov::as_type_ptr<const ov::op::v8::If>(op)) {
+                        has_if_op = true;
+                    }
+                }
+
+            }
+            return has_roi_align_op && has_if_op && has_mask_head_shape;
+        };
+        if (is_detectron2_maskrcnn(func))
+            manager.register_pass<DisableFP16CompForDetectron2MaskRCNNGatherIfPattern>();
+
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
         const bool store_original_precision_as_rt_attribute = true;

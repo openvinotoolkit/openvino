@@ -35,7 +35,7 @@ DisableFP16CompForDetectron2MaskRCNNGatherIfPattern::DisableFP16CompForDetectron
                     disable_fp16_compression(if_op);
                     return true;
                 }
-            }   
+            }
 
             // check gather -> gather pattern
             auto gather_op = std::dynamic_pointer_cast<ov::op::v8::Gather>(matched_node);
@@ -50,7 +50,7 @@ DisableFP16CompForDetectron2MaskRCNNGatherIfPattern::DisableFP16CompForDetectron
                     disable_fp16_compression(gather_op);
                     return true;
                 }
-            }   
+            }
         }
 
         return false;
