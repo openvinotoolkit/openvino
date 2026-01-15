@@ -19,9 +19,14 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov::op;
-using namespace ov::pass::pattern;
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v8 = ov::op::v8;
 namespace {
 
 void align_replacement(std::shared_ptr<ov::Node>& replacement,
@@ -39,10 +44,10 @@ void align_replacement(std::shared_ptr<ov::Node>& replacement,
 }  // namespace
 
 ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
-    const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
+    const std::shared_ptr<v0::Parameter>& max_context_len) {
     MATCHER_SCOPE(TotalSequenceLengthPattern);
 
-    auto kv_past = wrap_type<v6::ReadValue>({any_input()});
+    auto kv_past = wrap_type<ov::op::v6::ReadValue>({any_input()});
     auto kv_gather = wrap_type<v8::Gather>({kv_past, any_input(), any_input()});
     auto kv_current = any_input();
     auto kv_concat = wrap_type<v0::Concat>({kv_gather, kv_current});
@@ -115,21 +120,21 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
 }
 
 ov::pass::TotalSequenceLengthPatternQwen::TotalSequenceLengthPatternQwen(
-    const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
+    const std::shared_ptr<v0::Parameter>& max_context_len) {
     MATCHER_SCOPE(TotalSequenceLengthPatternQwen);
 
     auto p_input_ids = wrap_type<v0::Parameter>();
     auto p_unsqueeze = wrap_type<v0::Unsqueeze>({p_input_ids, any_input()});
-    auto p_opt_reshape_1 = optional<v1::Reshape>({p_unsqueeze, any_input()});
-    auto p_opt_convert_1 = optional<v0::Convert>(p_opt_reshape_1);
+    auto p_opt_reshape_1 = ov::pass::pattern::optional<v1::Reshape>({p_unsqueeze, any_input()});
+    auto p_opt_convert_1 = ov::pass::pattern::optional<v0::Convert>(p_opt_reshape_1);
     auto p_kv_shape_current = wrap_type<v3::ShapeOf>({p_opt_convert_1});
     auto p_seq_current = wrap_type<v8::Gather>({p_kv_shape_current, any_input(), any_input()});
-    auto p_opt_convert_2 = optional<v0::Convert>(p_seq_current);
+    auto p_opt_convert_2 = ov::pass::pattern::optional<v0::Convert>(p_seq_current);
 
     auto p_max_context_len = wrap_type<v0::Parameter>();
     auto p_prev_max_seq_len = wrap_type<v1::Subtract>({p_max_context_len, any_input()});
-    auto p_opt_convert_3 = optional<v0::Convert>(p_prev_max_seq_len);
-    auto p_opt_reshape_2 = optional<v1::Reshape>({p_opt_convert_3, any_input()});
+    auto p_opt_convert_3 = ov::pass::pattern::optional<v0::Convert>(p_prev_max_seq_len);
+    auto p_opt_reshape_2 = ov::pass::pattern::optional<v1::Reshape>({p_opt_convert_3, any_input()});
     auto p_total_seq = wrap_type<v1::Add>({p_opt_convert_2, p_opt_reshape_2});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
@@ -150,7 +155,7 @@ ov::pass::TotalSequenceLengthPatternQwen::TotalSequenceLengthPatternQwen(
 }
 
 ov::pass::TotalSequenceLengthPatternCodeGen2::TotalSequenceLengthPatternCodeGen2(
-    const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
+    const std::shared_ptr<v0::Parameter>& max_context_len) {
     MATCHER_SCOPE(TotalSequenceLengthPatternCodeGen2);
 
     auto p_max_context_len = wrap_type<v0::Parameter>();

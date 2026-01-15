@@ -58,9 +58,15 @@
 using namespace ov;
 using namespace std;
 using namespace testing;
-using namespace ov::op;
 using namespace ov::gen_pattern;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v4 = ov::op::v4;
+namespace v6 = ov::op::v6;
+namespace v8 = ov::op::v8;
+namespace v13 = ov::op::v13;
 namespace {
 
 // Constants and Parameters attributes:
@@ -2692,7 +2698,7 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
                                     MOCK_VALUE);
 
         auto sliding_window_neg = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-128.0f});
-        auto Squeeze2 = makeOP<v15::Squeeze>({sliding_window_neg}, {{"allow_axis_skip", false}});
+        auto Squeeze2 = makeOP<ov::op::v15::Squeeze>({sliding_window_neg}, {{"allow_axis_skip", false}});
         auto Convert16 = makeOP<v0::Convert>({Squeeze2}, {{"destination_type", "i32"}});
         auto sliding_window = makeOP<v1::Multiply>({Convert16, -1}, {{"auto_broadcast", "numpy"}});
         auto scale = v0::Constant::create(element::f32, {}, {0.1250f});

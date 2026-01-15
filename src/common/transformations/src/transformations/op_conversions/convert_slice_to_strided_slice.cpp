@@ -22,6 +22,11 @@
 
 using namespace ov;
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v8 = ov::op::v8;
+namespace op_util = ov::op::util;
 namespace {
 Output<ov::Node> align_indices(const Output<ov::Node>& indices,
                                const Output<ov::Node>& slice_axes,
@@ -40,14 +45,13 @@ Output<ov::Node> align_indices(const Output<ov::Node>& indices,
     // expected_output_shape: {3, 3, 1, 1}
 
     const auto default_indices =
-        ov::op::v0::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
-    std::shared_ptr<ov::Node> adjusted_indices =
-        ov::op::util::make_try_fold<ov::op::v3::ScatterUpdate>(default_indices,
-                                                               slice_axes,
-                                                               indices,  // updates
-                                                               scatter_axis);
+        v0::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
+    std::shared_ptr<ov::Node> adjusted_indices = op_util::make_try_fold<ov::op::v3::ScatterUpdate>(default_indices,
+                                                                                                   slice_axes,
+                                                                                                   indices,  // updates
+                                                                                                   scatter_axis);
 
-    if (!ov::op::util::is_constant(adjusted_indices)) {
+    if (!op_util::is_constant(adjusted_indices)) {
         new_ops.push_back(default_indices);
     }
     return adjusted_indices;
@@ -65,9 +69,9 @@ std::vector<int64_t> axes_to_mask(const std::vector<int64_t>& axes, size_t slice
 
 ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
     MATCHER_SCOPE(SliceToStridedSlice);
-    auto slice = pattern::wrap_type<ov::op::v8::Slice>();
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto slice_node = ov::as_type_ptr<ov::op::v8::Slice>(m.get_match_root());
+    auto slice = ov::pass::pattern::wrap_type<v8::Slice>();
+    matcher_pass_callback callback = [=](Matcher& m) {
+        auto slice_node = ov::as_type_ptr<v8::Slice>(m.get_match_root());
         if (!slice_node)
             return false;
 
@@ -76,29 +80,28 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
 
         auto arg = slice_node->input_value(0);
 
-        std::shared_ptr<ov::op::v0::Constant> start_const;
-        std::shared_ptr<ov::op::v0::Constant> stop_const;
-        std::shared_ptr<ov::op::v0::Constant> step_const;
+        std::shared_ptr<v0::Constant> start_const;
+        std::shared_ptr<v0::Constant> stop_const;
+        std::shared_ptr<v0::Constant> step_const;
 
         if (use_shapes) {
             start_const = ov::util::get_constant_from_source(slice_node->input_value(1));
             stop_const = ov::util::get_constant_from_source(slice_node->input_value(2));
             step_const = ov::util::get_constant_from_source(slice_node->input_value(3));
         } else {
-            start_const = ov::as_type_ptr<ov::op::v0::Constant>(slice_node->input_value(1).get_node_shared_ptr());
-            stop_const = ov::as_type_ptr<ov::op::v0::Constant>(slice_node->input_value(2).get_node_shared_ptr());
-            step_const = ov::as_type_ptr<ov::op::v0::Constant>(slice_node->input_value(3).get_node_shared_ptr());
+            start_const = ov::as_type_ptr<v0::Constant>(slice_node->input_value(1).get_node_shared_ptr());
+            stop_const = ov::as_type_ptr<v0::Constant>(slice_node->input_value(2).get_node_shared_ptr());
+            step_const = ov::as_type_ptr<v0::Constant>(slice_node->input_value(3).get_node_shared_ptr());
         }
 
         auto start_input = start_const ? start_const : slice_node->input_value(1);
         auto stop_input = stop_const ? stop_const : slice_node->input_value(2);
         auto step_input = step_const ? step_const : slice_node->input_value(3);
 
-        std::shared_ptr<ov::op::v0::Constant> axes_const;
+        std::shared_ptr<v0::Constant> axes_const;
         if (slice_node->get_input_size() > 4) {
-            axes_const = use_shapes
-                             ? ov::util::get_constant_from_source(slice_node->input_value(4))
-                             : ov::as_type_ptr<ov::op::v0::Constant>(slice_node->input_value(4).get_node_shared_ptr());
+            axes_const = use_shapes ? ov::util::get_constant_from_source(slice_node->input_value(4))
+                                    : ov::as_type_ptr<v0::Constant>(slice_node->input_value(4).get_node_shared_ptr());
         } else {
             axes_const = slice_node->get_default_const_axes(start_input);
         }
@@ -124,8 +127,8 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
 
         NodeVector new_ops;
         if (!are_indices_aligned) {
-            const auto scatter_axis = ov::op::v0::Constant::create(element::i32, Shape{1}, {0});
-            const auto slice_axes = ov::op::v0::Constant::create(element::i64, Shape{axes_vec.size()}, axes_vec);
+            const auto scatter_axis = v0::Constant::create(element::i32, Shape{1}, {0});
+            const auto slice_axes = v0::Constant::create(element::i64, Shape{axes_vec.size()}, axes_vec);
             new_ops.insert(new_ops.end(), {scatter_axis, slice_axes});
 
             start_input = align_indices(start_input, slice_axes, scatter_axis, slice_indices_length, 0, new_ops);
@@ -150,6 +153,6 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(slice, matcher_name);
+    auto m = std::make_shared<Matcher>(slice, matcher_name);
     register_matcher(m, callback);
 }

@@ -20,6 +20,8 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/convert_slicescatter.hpp"
 #include "transformations/utils/utils.hpp"
+
+namespace v0 = ov::op::v0;
 namespace {
 class ConvertSliceScatterTest : public TransformationTestsF, public testing::WithParamInterface<ov::NodeVector> {
 private:
@@ -43,7 +45,7 @@ protected:
         const auto& step = inputs.at(4);
         ov::ParameterVector params{};
         for (const auto& inp : inputs) {
-            const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(inp);
+            const auto& param = ov::as_type_ptr<v0::Parameter>(inp);
             if (param) {
                 params.push_back(param);
             }
@@ -66,15 +68,15 @@ protected:
         const auto& step = inputs.at(4);
         ov::ParameterVector params{};
         for (const auto& inp : inputs) {
-            const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(inp);
+            const auto& param = ov::as_type_ptr<v0::Parameter>(inp);
             if (param) {
                 params.push_back(param);
             }
         }
-        const auto& const_0 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
-        const auto& const_1 = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
-        const auto& const_1d_neg_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-        const auto& const_scatter_indices_shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {-1, 1});
+        const auto& const_0 = v0::Constant::create(ov::element::i64, {}, {0});
+        const auto& const_1 = v0::Constant::create(ov::element::i64, {}, {1});
+        const auto& const_1d_neg_1 = v0::Constant::create(ov::element::i64, {1}, {-1});
+        const auto& const_scatter_indices_shape = v0::Constant::create(ov::element::i64, {2}, {-1, 1});
         const auto& data_shape = std::make_shared<ov::opset8::ShapeOf>(data, ov::element::i64);
         const auto& num_elements_data = std::make_shared<ov::opset8::ReduceProd>(data_shape, const_0, false);
         const auto& data_indices_flatten =
@@ -105,32 +107,32 @@ INSTANTIATE_TEST_SUITE_P(
         ov::NodeVector{
             std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{256, 10, 15}),
             std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{4, 7, 2}),
-            ov::op::v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
-            ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
-            ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
-            ov::op::v0::Constant::create(ov::element::i32, {3}, {0, 1, -1}),
+            v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
+            v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
+            v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
+            v0::Constant::create(ov::element::i32, {3}, {0, 1, -1}),
         },
         ov::NodeVector{
             std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{256, 10, 15}),
             std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{4, 7, 2}),
-            ov::op::v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
-            ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
-            ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
+            v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
+            v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
+            v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
         },
         ov::NodeVector{
             std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
             std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
-            ov::op::v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
-            ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
-            ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
-            ov::op::v0::Constant::create(ov::element::i32, {3}, {0, 1, -1}),
+            v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
+            v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
+            v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
+            v0::Constant::create(ov::element::i32, {3}, {0, 1, -1}),
         },
         ov::NodeVector{
             std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
             std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
-            ov::op::v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
-            ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
-            ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
+            v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
+            v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
+            v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
         },
         ov::NodeVector{
             std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),

@@ -47,6 +47,8 @@
 #include "openvino/util/env_util.hpp"
 #include "transformations/init_node_info.hpp"
 
+namespace v1 = ov::op::v1;
+namespace v12 = ov::op::v12;
 #define VISUALIZE_TESTS_TREE false
 #define VISUALIZE_TREE_ROOT  "/tmp/"
 
@@ -179,7 +181,7 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
     auto sub = std::make_shared<opset10::Subtract>(add, sub_const);
 
     auto mul_const = create_constant_with_zeros(Shape{1, 6, 1, 1}, {{}, {3}, {}, {}});
-    auto mul = std::make_shared<ov::op::v1::Multiply>(sub, mul_const);
+    auto mul = std::make_shared<v1::Multiply>(sub, mul_const);
 
     auto weights2 = create_constant_with_zeros(weights_shape2, {{1, 2}, {1, 2, 3}, {}, {}});
     auto conv2 = std::make_shared<opset10::Convolution>(mul,
@@ -212,7 +214,7 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
         auto sub = std::make_shared<opset10::Subtract>(add, sub_const);
 
         auto mul_const = opset10::Constant::create(element::f32, Shape{1, 3, 1, 1}, {1});
-        auto mul = std::make_shared<ov::op::v1::Multiply>(sub, mul_const);
+        auto mul = std::make_shared<v1::Multiply>(sub, mul_const);
 
         auto weights2 =
             opset10::Constant::create(element::f32,
@@ -586,7 +588,7 @@ TEST_F(TransformationTestsF, NegativePad12PropagateMaskPassThrough) {
 
     auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, -1});
     auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, -2});
-    auto pad = std::make_shared<ov::op::v12::Pad>(clamp, pads_begin, pads_end, op::PadMode::CONSTANT);
+    auto pad = std::make_shared<v12::Pad>(clamp, pads_begin, pads_end, op::PadMode::CONSTANT);
     auto max_pool = std::make_shared<MaxPool>(pad, Strides{1, 1}, Strides{1, 1}, Shape{0, 0}, Shape{1, 1}, Shape{4, 4});
     max_pool->set_friendly_name("max_pool");
 
@@ -618,7 +620,7 @@ TEST_F(TransformationTestsF, NegativePad12PropagateMaskPassThrough) {
 
         auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, -1});
         auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, -2});
-        auto pad = std::make_shared<ov::op::v12::Pad>(clamp, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto pad = std::make_shared<v12::Pad>(clamp, pads_begin, pads_end, op::PadMode::CONSTANT);
         auto max_pool =
             std::make_shared<MaxPool>(pad, Strides{1, 1}, Strides{1, 1}, Shape{0, 0}, Shape{1, 1}, Shape{4, 4});
 

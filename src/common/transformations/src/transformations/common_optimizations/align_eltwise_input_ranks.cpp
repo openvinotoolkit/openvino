@@ -14,17 +14,22 @@
 #include "openvino/op/util/binary_elementwise_logical.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
-    auto eltwise_pattern = pattern::wrap_type<ov::op::v0::SquaredDifference,
-                                              ov::op::util::BinaryElementwiseComparison,
-                                              ov::op::util::BinaryElementwiseLogical,
-                                              ov::op::util::BinaryElementwiseArithmetic,
-                                              ov::op::v0::FakeQuantize>(pattern::has_static_rank());
+namespace ov::pass {
+
+namespace v0 = ov::op::v0;
+namespace op_util = ov::op::util;
+
+AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
+    auto eltwise_pattern = pattern::wrap_type<v0::SquaredDifference,
+                                              op_util::BinaryElementwiseComparison,
+                                              op_util::BinaryElementwiseLogical,
+                                              op_util::BinaryElementwiseArithmetic,
+                                              v0::FakeQuantize>(pattern::has_static_rank());
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
 
-        auto fq = as_type<ov::op::v0::FakeQuantize>(node.get());
+        auto fq = as_type<v0::FakeQuantize>(node.get());
         if (fq) {
             if (fq->get_auto_broadcast() != ov::op::AutoBroadcastType::NUMPY) {
                 return false;
@@ -40,7 +45,7 @@ ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
         if (ov::is_type<ov::op::v1::Multiply>(node)) {
             auto inputs = node->input_values();
             if (std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& input) -> bool {
-                    return ov::is_type<ov::op::v0::NormalizeL2>(input.get_node());
+                    return ov::is_type<v0::NormalizeL2>(input.get_node());
                 }))
                 return false;
         }
@@ -48,7 +53,7 @@ ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
         const auto rank = static_cast<int64_t>(node->get_output_partial_shape(0).size());
 
         for (size_t i = 0; i < node->get_input_size(); i++) {
-            auto const_node = as_type<ov::op::v0::Constant>(node->get_input_node_ptr(i));
+            auto const_node = as_type<v0::Constant>(node->get_input_node_ptr(i));
             if (const_node == nullptr)
                 continue;
             const auto& const_shape = const_node->get_shape();
@@ -56,7 +61,7 @@ ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
             if (diff > 0) {
                 Shape new_shape = const_shape;
                 new_shape.insert(new_shape.begin(), diff, 1);
-                auto new_const = std::make_shared<ov::op::v0::Constant>(*const_node, new_shape);
+                auto new_const = std::make_shared<v0::Constant>(*const_node, new_shape);
                 copy_runtime_info(node->get_input_node_shared_ptr(i), new_const);
                 node->input(i).replace_source_output(new_const);
             }
@@ -68,3 +73,5 @@ ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
     auto m = std::make_shared<pattern::Matcher>(eltwise_pattern, "AlignEltwiseInputRanks");
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

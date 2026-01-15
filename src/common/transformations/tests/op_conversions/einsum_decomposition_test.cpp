@@ -30,6 +30,11 @@
 #include "transformations/utils/gen_pattern.hpp"
 
 using namespace ov;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v7 = ov::op::v7;
 namespace {
 using namespace ov::gen_pattern;
 std::shared_ptr<ov::Node> extract_subshape_from_shape(const std::shared_ptr<ov::Node>& shape_node,
@@ -85,13 +90,13 @@ std::shared_ptr<ov::Node> extract_diagonal(const std::shared_ptr<ov::Node>& data
     // Transpose the input tensor to group repeated and unrepeated labels
     auto const_transpose_group_labels_target =
         makeConst(element::i64, ov::Shape({transpose_group_labels_target.size()}), transpose_group_labels_target);
-    auto transpose_group_labels = std::make_shared<ov::op::v1::Transpose>(data, const_transpose_group_labels_target);
+    auto transpose_group_labels = std::make_shared<v1::Transpose>(data, const_transpose_group_labels_target);
 
     // Get the shape of the transposed tensor
-    auto shapeof_transposed_data = std::make_shared<ov::op::v3::ShapeOf>(transpose_group_labels);
+    auto shapeof_transposed_data = std::make_shared<v3::ShapeOf>(transpose_group_labels);
 
-    auto const_0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape({1}), {0});
-    auto const_1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape({1}), {1});
+    auto const_0 = v0::Constant::create(ov::element::i64, ov::Shape({1}), {0});
+    auto const_1 = v0::Constant::create(ov::element::i64, ov::Shape({1}), {1});
 
     ov::NodeVector flattened_shapes;
     ov::NodeVector unflattened_shapes;
@@ -108,21 +113,20 @@ std::shared_ptr<ov::Node> extract_diagonal(const std::shared_ptr<ov::Node>& data
         auto num_repeats = repeated_label.size();
         std::vector<size_t> label_indices = {dim_iota.begin() + dimension_iter,
                                              dim_iota.begin() + dimension_iter + num_repeats};
-        auto repeated_label_indices_len = ov::op::v0::Constant::create(ov::element::i64, {}, {num_repeats});
-        auto repeated_label_indices =
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape({num_repeats}), label_indices);
+        auto repeated_label_indices_len = v0::Constant::create(ov::element::i64, {}, {num_repeats});
+        auto repeated_label_indices = v0::Constant::create(ov::element::i64, ov::Shape({num_repeats}), label_indices);
         auto repeated_dimensions =
-            std::make_shared<ov::op::v7::Gather>(shapeof_transposed_data, repeated_label_indices, const_0);
-        auto repeated_dimension = std::make_shared<ov::op::v7::Gather>(repeated_dimensions, const_0, const_0);
-        auto range_max_val = std::make_shared<ov::op::v1::Power>(repeated_dimension, repeated_label_indices_len);
-        auto step_numerator = std::make_shared<ov::op::v1::Subtract>(range_max_val, const_1);
-        auto step_denominator = std::make_shared<ov::op::v1::Subtract>(repeated_dimension, const_1);
-        auto step_denominator_but_not_0 = std::make_shared<ov::op::v1::Maximum>(step_denominator, const_1);
-        auto step_numerator_but_not_0 = std::make_shared<ov::op::v1::Maximum>(step_numerator, const_1);
-        auto step = std::make_shared<ov::op::v1::Divide>(step_numerator_but_not_0, step_denominator_but_not_0);
-        auto end = std::make_shared<ov::op::v1::Subtract>(step, const_1);
+            std::make_shared<v7::Gather>(shapeof_transposed_data, repeated_label_indices, const_0);
+        auto repeated_dimension = std::make_shared<v7::Gather>(repeated_dimensions, const_0, const_0);
+        auto range_max_val = std::make_shared<v1::Power>(repeated_dimension, repeated_label_indices_len);
+        auto step_numerator = std::make_shared<v1::Subtract>(range_max_val, const_1);
+        auto step_denominator = std::make_shared<v1::Subtract>(repeated_dimension, const_1);
+        auto step_denominator_but_not_0 = std::make_shared<v1::Maximum>(step_denominator, const_1);
+        auto step_numerator_but_not_0 = std::make_shared<v1::Maximum>(step_numerator, const_1);
+        auto step = std::make_shared<v1::Divide>(step_numerator_but_not_0, step_denominator_but_not_0);
+        auto end = std::make_shared<v1::Subtract>(step, const_1);
         // Flatten all dimensions of single repeated label.
-        auto reduced_size = std::make_shared<ov::op::v1::ReduceProd>(repeated_dimensions, const_0, true);
+        auto reduced_size = std::make_shared<v1::ReduceProd>(repeated_dimensions, const_0, true);
         flattened_shapes.push_back(reduced_size);
         // Reshape the tensor to restore the original shape with diagonal elements isolated and remainder.
         unflattened_shapes.push_back(repeated_dimension);
@@ -134,42 +138,39 @@ std::shared_ptr<ov::Node> extract_diagonal(const std::shared_ptr<ov::Node>& data
 
     // Process unrepeated labels, do not perform flatten or pads on dimensions.
     std::vector<size_t> unrepeated_indices_after_transpose = {dim_iota.begin() + dimension_iter, dim_iota.end()};
-    const auto& unrepeated_dimensions_indices =
-        ov::op::v0::Constant::create(ov::element::i64,
-                                     {unrepeated_indices_after_transpose.size()},
-                                     unrepeated_indices_after_transpose);
+    const auto& unrepeated_dimensions_indices = v0::Constant::create(ov::element::i64,
+                                                                     {unrepeated_indices_after_transpose.size()},
+                                                                     unrepeated_indices_after_transpose);
     const auto unrepeated_dimensions =
-        std::make_shared<ov::op::v7::Gather>(shapeof_transposed_data, unrepeated_dimensions_indices, const_0);
+        std::make_shared<v7::Gather>(shapeof_transposed_data, unrepeated_dimensions_indices, const_0);
     begins.insert(begins.end(), unrepeated_indices_after_transpose.size(), const_0);
     ends.insert(ends.end(), unrepeated_indices_after_transpose.size(), const_0);
     flattened_shapes.push_back(unrepeated_dimensions);
     unflattened_shapes.push_back(unrepeated_dimensions);
 
     // Flatten the tensor to isolate diagonal elements
-    auto flatten_labels_shape_target = std::make_shared<ov::op::v0::Concat>(flattened_shapes, 0);
-    auto flatten_labels =
-        std::make_shared<ov::op::v1::Reshape>(transpose_group_labels, flatten_labels_shape_target, false);
+    auto flatten_labels_shape_target = std::make_shared<v0::Concat>(flattened_shapes, 0);
+    auto flatten_labels = std::make_shared<v1::Reshape>(transpose_group_labels, flatten_labels_shape_target, false);
 
     // Pad the tensor to prepare for gathering diagonal elements
-    auto pad_begin = std::make_shared<ov::op::v0::Concat>(begins, 0);
-    auto pad_end = std::make_shared<ov::op::v0::Concat>(ends, 0);
-    auto pad = std::make_shared<ov::op::v1::Pad>(flatten_labels, pad_begin, pad_end, ov::op::PadMode::CONSTANT);
+    auto pad_begin = std::make_shared<v0::Concat>(begins, 0);
+    auto pad_end = std::make_shared<v0::Concat>(ends, 0);
+    auto pad = std::make_shared<v1::Pad>(flatten_labels, pad_begin, pad_end, ov::op::PadMode::CONSTANT);
 
     // Unflatten the tensor to restore the original shape with diagonal elements isolated
-    auto unflatten_labels_shape_target = std::make_shared<ov::op::v0::Concat>(unflattened_shapes, 0);
-    auto unflatten_labels = std::make_shared<ov::op::v1::Reshape>(pad, unflatten_labels_shape_target, false);
+    auto unflatten_labels_shape_target = std::make_shared<v0::Concat>(unflattened_shapes, 0);
+    auto unflatten_labels = std::make_shared<v1::Reshape>(pad, unflatten_labels_shape_target, false);
 
     // Gather the diagonal elements
     std::shared_ptr<ov::Node> gather = unflatten_labels;
     for (auto axis : reduced_axes) {
-        auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape({1}), {axis});
-        gather = std::make_shared<ov::op::v7::Gather>(gather, const_0, axis_const);
+        auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape({1}), {axis});
+        gather = std::make_shared<v7::Gather>(gather, const_0, axis_const);
     }
 
     // Squeeze the tensor to remove the reduced dimensions
-    auto squeeze_reduced_axes =
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape({reduced_axes.size()}), reduced_axes);
-    auto diagonal = std::make_shared<ov::op::v0::Squeeze>(gather, squeeze_reduced_axes);
+    auto squeeze_reduced_axes = v0::Constant::create(ov::element::i64, ov::Shape({reduced_axes.size()}), reduced_axes);
+    auto diagonal = std::make_shared<v0::Squeeze>(gather, squeeze_reduced_axes);
 
     return diagonal;
 }
@@ -181,47 +182,44 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul) {
     PartialShape data_shape_2{10, 1, 25};
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
-        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, data_shape_1);
+        auto data_2 = std::make_shared<v0::Parameter>(element::f32, data_shape_2);
         auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2}, "kl,mlj->mkj");
         model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1, data_2});
         manager.register_pass<ov::pass::EinsumDecomposition>();
     }
     {
-        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, data_shape_1);
+        auto data_2 = std::make_shared<v0::Parameter>(element::f32, data_shape_2);
 
         // Transpose data_2 so that common labels, separated and reduced labels are grouped for both operands.
-        auto order_2 = ov::op::v0::Constant::create(element::i64, {3}, {0, 2, 1});
-        auto transpose_2 = std::make_shared<ov::op::v1::Transpose>(data_2, order_2);
+        auto order_2 = v0::Constant::create(element::i64, {3}, {0, 2, 1});
+        auto transpose_2 = std::make_shared<v1::Transpose>(data_2, order_2);
 
         // Broadcast data_1 and data_2 to common broadcasted shapes for common and reduced subshapes.
         // Subgraphes are constant-folded, target subshapes are calculated broadcast_merge_shapes function.
-        auto broadcast_shape_constant_1 =
-            ov::op::v0::Constant::create(element::i64, Shape{data_shape_1.size()}, {5, 2});
-        auto broadcast_shape_constant_2 =
-            ov::op::v0::Constant::create(element::i64, Shape{data_shape_2.size()}, {10, 25, 2});
-        auto broadcast_1 = std::make_shared<ov::op::v3::Broadcast>(data_1,
-                                                                   broadcast_shape_constant_1,
-                                                                   ov::op::BroadcastType::BIDIRECTIONAL);
-        auto broadcast_2 = std::make_shared<ov::op::v3::Broadcast>(transpose_2,
-                                                                   broadcast_shape_constant_2,
-                                                                   ov::op::BroadcastType::BIDIRECTIONAL);
+        auto broadcast_shape_constant_1 = v0::Constant::create(element::i64, Shape{data_shape_1.size()}, {5, 2});
+        auto broadcast_shape_constant_2 = v0::Constant::create(element::i64, Shape{data_shape_2.size()}, {10, 25, 2});
+        auto broadcast_1 =
+            std::make_shared<v3::Broadcast>(data_1, broadcast_shape_constant_1, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto broadcast_2 = std::make_shared<v3::Broadcast>(transpose_2,
+                                                           broadcast_shape_constant_2,
+                                                           ov::op::BroadcastType::BIDIRECTIONAL);
         // Optionally reshape broadcasted data_1 and data_2 so separate and reduced labels are represented by one
         // dimension. Subgraphes are constant-folded, target subshapes are calculated broadcast_merge_shapes function.
-        auto shape_constant_1 = ov::op::v0::Constant::create(element::i64, Shape{2}, {5, 2});
-        auto shape_constant_2 = ov::op::v0::Constant::create(element::i64, Shape{2}, {250, 2});
-        auto reshape_1 = std::make_shared<ov::op::v1::Reshape>(broadcast_1, shape_constant_1, false);
-        auto reshape_2 = std::make_shared<ov::op::v1::Reshape>(broadcast_2, shape_constant_2, false);
+        auto shape_constant_1 = v0::Constant::create(element::i64, Shape{2}, {5, 2});
+        auto shape_constant_2 = v0::Constant::create(element::i64, Shape{2}, {250, 2});
+        auto reshape_1 = std::make_shared<v1::Reshape>(broadcast_1, shape_constant_1, false);
+        auto reshape_2 = std::make_shared<v1::Reshape>(broadcast_2, shape_constant_2, false);
         // Apply MatMul operation for formatted inputs.
-        auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape_1, reshape_2, false, true);
+        auto matmul = std::make_shared<v0::MatMul>(reshape_1, reshape_2, false, true);
         // Optionally reshape back by unrolling dimensions corresponding to separate labels if needed.
         // Subgraphes are constant-folded, target subshapes are calculated broadcast_merge_shapes function.
-        auto shape_out = ov::op::v0::Constant::create(element::i64, {3}, {5, 10, 25});
-        auto reshape_out = std::make_shared<ov::op::v1::Reshape>(matmul, shape_out, false);
+        auto shape_out = v0::Constant::create(element::i64, {3}, {5, 10, 25});
+        auto reshape_out = std::make_shared<v1::Reshape>(matmul, shape_out, false);
         // Transpose to the original order of output labels.
-        auto order_out = ov::op::v0::Constant::create(element::i64, {3}, {1, 0, 2});
-        auto transpose_out = std::make_shared<ov::op::v1::Transpose>(reshape_out, order_out);
+        auto order_out = v0::Constant::create(element::i64, {3}, {1, 0, 2});
+        auto transpose_out = std::make_shared<v1::Transpose>(reshape_out, order_out);
 
         model_ref = std::make_shared<Model>(OutputVector{transpose_out}, ParameterVector{data_1, data_2});
     }
@@ -232,16 +230,16 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
     PartialShape data_shape_2 = PartialShape::dynamic(3);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
-        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, data_shape_1);
+        auto data_2 = std::make_shared<v0::Parameter>(element::f32, data_shape_2);
         auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2}, "kl,mlj->mkj");
         model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1, data_2});
         manager.register_pass<ov::pass::EinsumDecomposition>();
     }
     {
         using namespace ov::gen_pattern;
-        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, data_shape_1);
+        auto data_2 = std::make_shared<v0::Parameter>(element::f32, data_shape_2);
         // Transpose data_2 so that common labels, separated and reduced labels are grouped for both operands.
         auto Constant_485 = makeConst(element::i64, ov::Shape({3}), {0, 2, 1});
         auto Transpose_486 = makeOP<opset1::Transpose>({data_2, Constant_485});
@@ -296,15 +294,15 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
         auto Reshape_2 = makeOP<opset1::Reshape>({Broadcast_data_2, reshape_subshape2}, {{"special_zero", false}});
 
         // Apply MatMul operation for formatted inputs.
-        auto matmul = std::make_shared<ov::op::v0::MatMul>(Reshape_1, Reshape_2, false, true);
+        auto matmul = std::make_shared<v0::MatMul>(Reshape_1, Reshape_2, false, true);
 
         // Optionally reshape back by unrolling dimensions corresponding to separate labels if needed.
         // Target subshapes are calculated broadcast_merge_shapes function and concatenated.
         auto shape_out = makeOP<opset1::Concat>({separate1_subshape, separate2_subshape}, {{"axis", 0}});
-        auto reshape_out = std::make_shared<ov::op::v1::Reshape>(matmul, shape_out, false);
+        auto reshape_out = std::make_shared<v1::Reshape>(matmul, shape_out, false);
         // Transpose to the original order of output labels.
-        auto order_out = ov::op::v0::Constant::create(element::i64, {3}, {1, 0, 2});
-        auto transpose_out = std::make_shared<ov::op::v1::Transpose>(reshape_out, order_out);
+        auto order_out = v0::Constant::create(element::i64, {3}, {1, 0, 2});
+        auto transpose_out = std::make_shared<v1::Transpose>(reshape_out, order_out);
 
         model_ref = std::make_shared<Model>(OutputVector{transpose_out}, ParameterVector{data_1, data_2});
     }
@@ -315,16 +313,16 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_ellipsis_dynamic) {
     PartialShape data_shape_2 = PartialShape::dynamic(5);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
-        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, data_shape_1);
+        auto data_2 = std::make_shared<v0::Parameter>(element::f32, data_shape_2);
         auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2}, "kl...,m...lj->mkj");
         model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1, data_2});
         manager.register_pass<ov::pass::EinsumDecomposition>();
     }
     {
         using namespace ov::gen_pattern;
-        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, data_shape_1);
+        auto data_2 = std::make_shared<v0::Parameter>(element::f32, data_shape_2);
         // Process data_1
         // data_1 contains no dimensions at ellipsis label, unsqueeze to allow for broadcasting
         auto Constant_1200 = makeConst(element::i64, ov::Shape({1}), {2});
@@ -400,7 +398,7 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_ellipsis_static_cf) {
     Shape data_shape_1 = {1, 3, 2, 1, 3, 1};
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
-        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, data_shape_1);
         auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1}, "ij...iji->j...i");
         model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1});
         manager.register_pass<ov::pass::EinsumDecomposition>();
@@ -408,7 +406,7 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_ellipsis_static_cf) {
     }
     {
         using namespace ov::gen_pattern;
-        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, data_shape_1);
         auto const_0 = makeConst(element::i64, ov::Shape({1}), {0});
         auto const_1 = makeConst(element::i64, ov::Shape({1}), {1});
         auto const_3 = makeConst(element::i64, ov::Shape({1}), {3});
@@ -448,14 +446,14 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_empty_ellipsis_dynamic) 
     PartialShape data_shape_1 = PartialShape::dynamic(5);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
-        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, data_shape_1);
         auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1}, "ij...iji->j...i");
         model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1});
         manager.register_pass<ov::pass::EinsumDecomposition>();
     }
     {
         using namespace ov::gen_pattern;
-        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, data_shape_1);
 
         // Extract diagonal
         auto data_1_diagonal = extract_diagonal(data_1,
@@ -477,9 +475,9 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_s
     PartialShape data_shape_3 = {3, 1, 3, 3};
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
-        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
-        auto data_3 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_3);
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, data_shape_1);
+        auto data_2 = std::make_shared<v0::Parameter>(element::f32, data_shape_2);
+        auto data_3 = std::make_shared<v0::Parameter>(element::f32, data_shape_3);
         auto einsum =
             std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2, data_3}, "ba...b,bcccdd,...dbcc->c...b");
         model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1, data_2, data_3});
@@ -488,9 +486,9 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_s
     }
     {
         using namespace ov::gen_pattern;
-        auto node_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_3);
-        auto node_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
-        auto node_4 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
+        auto node_0 = std::make_shared<v0::Parameter>(element::f32, data_shape_3);
+        auto node_2 = std::make_shared<v0::Parameter>(element::f32, data_shape_2);
+        auto node_4 = std::make_shared<v0::Parameter>(element::f32, data_shape_1);
         auto Constant_8230 = makeConst(element::i64, ov::Shape({6}), {1, 2, 3, 4, 5, 0});
         auto Transpose_8231 = makeOP<opset1::Transpose>({node_2, Constant_8230});
         auto Concat_8261 = makeConst(element::i64, ov::Shape({3}), {1, 1, 4});
@@ -577,9 +575,9 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
     PartialShape data_shape_3 = PartialShape::dynamic(4);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
-        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
-        auto data_3 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_3);
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, data_shape_1);
+        auto data_2 = std::make_shared<v0::Parameter>(element::f32, data_shape_2);
+        auto data_3 = std::make_shared<v0::Parameter>(element::f32, data_shape_3);
         auto einsum =
             std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2, data_3}, "a...b,bcccdd,...dbcc->c...b");
         model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1, data_2, data_3});
@@ -587,9 +585,9 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
     }
     {
         using namespace ov::gen_pattern;
-        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
-        auto data_3 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_3);
+        auto data_1 = std::make_shared<v0::Parameter>(element::f32, data_shape_1);
+        auto data_2 = std::make_shared<v0::Parameter>(element::f32, data_shape_2);
+        auto data_3 = std::make_shared<v0::Parameter>(element::f32, data_shape_3);
 
         // First pair of einsum inputs - data_1 and data_3
         // data_1 - label `a` can be reduced by reduce_input()

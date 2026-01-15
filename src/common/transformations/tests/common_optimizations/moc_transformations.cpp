@@ -31,6 +31,8 @@ using namespace ov;
 using namespace ov::element;
 using namespace ov::opset12;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 namespace {
 
 std::shared_ptr<ov::Node> make_dq_weights(const ov::element::Type& quant_type,
@@ -38,16 +40,16 @@ std::shared_ptr<ov::Node> make_dq_weights(const ov::element::Type& quant_type,
                                           float scale,
                                           float zp,
                                           bool dq_markup = false) {
-    auto w = ov::op::v0::Constant::create(quant_type, w_shape, {1.0f});
-    auto w_f = std::make_shared<ov::op::v0::Convert>(w, ov::element::f32);
+    auto w = v0::Constant::create(quant_type, w_shape, {1.0f});
+    auto w_f = std::make_shared<v0::Convert>(w, ov::element::f32);
 
-    auto zp_const = ov::op::v0::Constant::create(quant_type, {}, {zp});
-    auto zp_f = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::f32);
-    auto sub = std::make_shared<ov::op::v1::Subtract>(w_f, zp_f);
+    auto zp_const = v0::Constant::create(quant_type, {}, {zp});
+    auto zp_f = std::make_shared<v0::Convert>(zp_const, ov::element::f32);
+    auto sub = std::make_shared<v1::Subtract>(w_f, zp_f);
 
     std::vector<size_t> scale_shape(w_shape.size(), 1);
-    auto scale_const = ov::op::v0::Constant::create(ov::element::f32, scale_shape, {scale});
-    auto mul = std::make_shared<ov::op::v1::Multiply>(sub, scale_const);
+    auto scale_const = v0::Constant::create(ov::element::f32, scale_shape, {scale});
+    auto mul = std::make_shared<v1::Multiply>(sub, scale_const);
 
     if (dq_markup) {
         mark_as_dequantization_node(sub);
@@ -121,7 +123,6 @@ TEST(TransformationTests, TestModelTensorsConsistencyUseShapesFalse) {
 
 TEST_F(TransformationTestsF, SqueezeRemainsSqueezeAfterMOC) {
     {
-        using namespace ov::op;
         auto input = std::make_shared<v0::Parameter>(element::f32, Shape{30});
         auto shape = v0::Constant::create(element::i64, Shape{5}, {2, 3, 1, 5, 1});
         auto reshape = std::make_shared<v1::Reshape>(input, shape, false);
@@ -141,7 +142,6 @@ TEST_F(TransformationTestsF, MOCTest) {
     std::shared_ptr<ov::Node> weights;
     std::shared_ptr<ov::Node> weights_ref;
     {
-        using namespace ov::op;
         auto data = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
         auto data1 = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
         auto a_mul = std::make_shared<v1::Multiply>(data, data1);
@@ -157,7 +157,6 @@ TEST_F(TransformationTestsF, MOCTest) {
         manager.register_pass<ov::pass::MOCTransformations>(false);
     }
     {
-        using namespace ov::op;
         auto data = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
         auto data1 = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
         auto a_mul = std::make_shared<v1::Multiply>(data, data1);
@@ -207,19 +206,19 @@ TEST_P(QuantWeightsTestP, MatMul_Conv_QuantWeights) {
         const float matmul_scale = 0.02f, matmul_zp = 1.f;
         const float conv_scale = 0.05f, conv_zp = 2.f;
 
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 128});
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 128});
         auto matmul_weight = make_dq_weights(qtype, ov::Shape{128, 64}, matmul_scale, matmul_zp);
-        auto matmul = std::make_shared<ov::op::v0::MatMul>(input, matmul_weight, false, false);
+        auto matmul = std::make_shared<v0::MatMul>(input, matmul_weight, false, false);
 
-        auto reshape_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 64, 1, 1});
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(matmul, reshape_const, false);
+        auto reshape_const = v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 64, 1, 1});
+        auto reshape = std::make_shared<v1::Reshape>(matmul, reshape_const, false);
         auto conv_weight = make_dq_weights(qtype, ov::Shape{8, 64, 1, 1}, conv_scale, conv_zp);
-        auto conv = std::make_shared<ov::op::v1::Convolution>(reshape,
-                                                              conv_weight,
-                                                              ov::Strides{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::Strides{1, 1});
+        auto conv = std::make_shared<v1::Convolution>(reshape,
+                                                      conv_weight,
+                                                      ov::Strides{1, 1},
+                                                      ov::CoordinateDiff{1, 1},
+                                                      ov::CoordinateDiff{1, 1},
+                                                      ov::Strides{1, 1});
 
         model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
 
@@ -234,19 +233,19 @@ TEST_P(QuantWeightsTestP, MatMul_Conv_QuantWeights) {
         const float matmul_scale = 0.02f, matmul_zp = 1.f;
         const float conv_scale = 0.05f, conv_zp = 2.f;
 
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 128});
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 128});
         auto matmul_weight = make_dq_weights(qtype, ov::Shape{128, 64}, matmul_scale, matmul_zp, true);
-        auto matmul = std::make_shared<ov::op::v0::MatMul>(input, matmul_weight, false, false);
+        auto matmul = std::make_shared<v0::MatMul>(input, matmul_weight, false, false);
 
-        auto reshape_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 64, 1, 1});
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(matmul, reshape_const, false);
+        auto reshape_const = v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 64, 1, 1});
+        auto reshape = std::make_shared<v1::Reshape>(matmul, reshape_const, false);
         auto conv_weight = make_dq_weights(qtype, ov::Shape{8, 64, 1, 1}, conv_scale, conv_zp, true);
-        auto conv = std::make_shared<ov::op::v1::Convolution>(reshape,
-                                                              conv_weight,
-                                                              ov::Strides{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::Strides{1, 1});
+        auto conv = std::make_shared<v1::Convolution>(reshape,
+                                                      conv_weight,
+                                                      ov::Strides{1, 1},
+                                                      ov::CoordinateDiff{1, 1},
+                                                      ov::CoordinateDiff{1, 1},
+                                                      ov::Strides{1, 1});
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 

@@ -13,13 +13,15 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov::pass;
+namespace v0 = ov::op::v0;
+
+namespace ov::pass {
 
 ReshapePRelu::ReshapePRelu() {
     MATCHER_SCOPE(ReshapePRelu);
     auto input_m = pattern::any_input(pattern::has_static_rank());
     auto slope_m = pattern::any_input(pattern::has_static_rank());
-    auto prelu_m = pattern::wrap_type<ov::op::v0::PRelu>({input_m, slope_m});
+    auto prelu_m = pattern::wrap_type<v0::PRelu>({input_m, slope_m});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -46,8 +48,7 @@ ReshapePRelu::ReshapePRelu() {
 
         std::vector<std::int64_t> target_shape(prelu_rank.get_length(), 1);
         target_shape[channel_dim_idx] = -1;
-        const auto target_shape_const =
-            ov::op::v0::Constant::create(ov::element::i64, {target_shape.size()}, target_shape);
+        const auto target_shape_const = v0::Constant::create(ov::element::i64, {target_shape.size()}, target_shape);
         auto new_slope = ov::op::util::make_try_fold<ov::op::v1::Reshape>(slope, target_shape_const, true);
         auto new_prelu = prelu->clone_with_new_inputs({input, new_slope});
 
@@ -59,6 +60,8 @@ ReshapePRelu::ReshapePRelu() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(prelu_m, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(prelu_m, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

@@ -25,10 +25,14 @@
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace v0 = ov::op::v0;
+
+namespace ov::pass {
+
 std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>
-ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
-    const std::shared_ptr<ov::pass::pattern::op::CompressedWeightsBlock>& weights_block,
-    const ov::pass::pattern::PatternValueMap& pattern_map,
+ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
+    const std::shared_ptr<pattern::op::CompressedWeightsBlock>& weights_block,
+    const pattern::PatternValueMap& pattern_map,
     bool convert_u4zp_to_u8,
     bool has_transpose,
     bool grouped,
@@ -36,7 +40,7 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_we
     std::vector<std::shared_ptr<ov::Node>>& result_nodes) {
     const size_t final_weights_rank = batched_weights ? 3 : 2;
     auto combine_groups = [has_transpose, grouped, final_weights_rank](std::shared_ptr<ov::Node> node) {
-        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+        auto constant = ov::as_type_ptr<v0::Constant>(node);
         OPENVINO_ASSERT(constant != nullptr);
         const auto& current_shape = constant->get_shape();
         if (current_shape.size() <= final_weights_rank) {
@@ -64,14 +68,14 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_we
             new_OC = OC;
             new_IC = n_groups * group_size;
         }
-        return std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
+        return std::make_shared<v0::Constant>(*constant, new_shape);
     };
 
     auto convert_u4const_to_u8 = [convert_u4zp_to_u8](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
-        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+        auto constant = ov::as_type_ptr<v0::Constant>(node);
         if (constant->get_element_type() != ov::element::u4 || !convert_u4zp_to_u8)
             return std::dynamic_pointer_cast<ov::Node>(constant);
-        return std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
+        return std::make_shared<v0::Convert>(node, ov::element::u8);
     };
 
     const auto& scale =
@@ -99,8 +103,7 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_we
             std::vector<int32_t> new_order(fc_input_b->get_output_partial_shape(0).size());
             std::iota(new_order.begin(), new_order.end(), 0);
             std::swap(new_order[new_order.size() - 1], new_order[new_order.size() - 2]);
-            transpose_const =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{new_order.size()}, new_order);
+            transpose_const = std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{new_order.size()}, new_order);
         }
 
         fc_input_b = transpose->clone_with_new_inputs({fc_input_b->output(0), transpose_const});
@@ -116,28 +119,25 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_we
         }
     }
 
-    fc_input_zp =
-        with_zero_point ? fc_input_zp : std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0});
+    fc_input_zp = with_zero_point ? fc_input_zp : std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{0});
     ov::disable_constant_folding(fc_input_zp);
     result_nodes.push_back(fc_input_zp);
 
     return std::make_tuple(fc_input_b, fc_input_scale, fc_input_zp);
 }
 
-ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed(
+ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed(
     const std::vector<ov::element::Type>& supported_activation_types,
     const std::vector<ov::element::Type>& supported_weights_types,
     SupportsPredicate supports_config,
     bool convert_u4zp_to_u8) {
-    using namespace ov::pass::pattern;
-
     auto weights_block =
-        std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{2});
-    auto activation = any_input(type_matches_any(supported_activation_types));
-    auto bias = any_input();
-    auto fully_connected = wrap_type<ov::op::internal::FullyConnected>({activation, weights_block, bias});
+        std::make_shared<pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{2});
+    auto activation = pattern::any_input(pattern::type_matches_any(supported_activation_types));
+    auto bias = pattern::any_input();
+    auto fully_connected = pattern::wrap_type<ov::op::internal::FullyConnected>({activation, weights_block, bias});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto fc =
             ov::as_type_ptr<ov::op::internal::FullyConnected>(pattern_map.at(fully_connected).get_node_shared_ptr());
@@ -181,6 +181,8 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(fully_connected, "ConvertFullyConnectedToFullyConnectedCompressed");
+    auto m = std::make_shared<pattern::Matcher>(fully_connected, "ConvertFullyConnectedToFullyConnectedCompressed");
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

@@ -23,18 +23,24 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v5 = ov::op::v5;
 namespace {
 
-bool isValidRangesInputs(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
+bool isValidRangesInputs(const std::shared_ptr<v0::FakeQuantize>& fq) {
     auto il = fq->input_value(1);
     auto ih = fq->input_value(2);
-    auto greater_equal = std::make_shared<ov::op::v1::GreaterEqual>(il, ih);
+    auto greater_equal = std::make_shared<v1::GreaterEqual>(il, ih);
 
     ov::OutputVector result(1);
     if (!greater_equal->constant_fold(result, greater_equal->input_values()))
         return false;
 
-    auto res_node = ov::as_type_ptr<const ov::op::v0::Constant>(result[0].get_node_shared_ptr());
+    auto res_node = ov::as_type_ptr<const v0::Constant>(result[0].get_node_shared_ptr());
 
     const std::vector<bool> comp_result = res_node->cast_vector<bool>();
 
@@ -47,17 +53,17 @@ bool isValidRangesInputs(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
 
 ov::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
     MATCHER_SCOPE(FakeQuantizeDecomposition);
-    auto data = pattern::any_input();
-    auto il = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto ih = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto ol = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto oh = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto fake_quantize = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({data, il, ih, ol, oh});
+    auto data = ov::pass::pattern::any_input();
+    auto il = wrap_type<v0::Constant>();
+    auto ih = wrap_type<v0::Constant>();
+    auto ol = wrap_type<v0::Constant>();
+    auto oh = wrap_type<v0::Constant>();
+    auto fake_quantize = wrap_type<v0::FakeQuantize>({data, il, ih, ol, oh});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         const auto fake_quantize_node =
-            ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_to_output.at(fake_quantize).get_node_shared_ptr());
+            ov::as_type_ptr<v0::FakeQuantize>(pattern_to_output.at(fake_quantize).get_node_shared_ptr());
 
         if (fake_quantize_node == nullptr || transformation_callback(fake_quantize_node) ||
             !isValidRangesInputs(fake_quantize_node)) {
@@ -74,61 +80,60 @@ ov::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         ov::NodeVector decomp_ops;
         if (input_type != input_low.get_element_type()) {
             input_type = input_low.get_element_type();
-            data = std::make_shared<ov::op::v0::Convert>(data, input_type);
+            data = std::make_shared<v0::Convert>(data, input_type);
             decomp_ops.push_back(data.get_node_shared_ptr());
         }
 
         // if we set input_low or input_high in formula we got output = output_low and output = output_high respectively
         // so we just clamp x
-        const auto max = std::make_shared<ov::op::v1::Maximum>(data, input_low);
-        const auto min = std::make_shared<ov::op::v1::Minimum>(max, input_high);
+        const auto max = std::make_shared<v1::Maximum>(data, input_low);
+        const auto min = std::make_shared<v1::Minimum>(max, input_high);
         decomp_ops.push_back(max);
         decomp_ops.push_back(min);
 
         // (levels-1)
         const auto levels_minus_one =
-            std::make_shared<ov::op::v0::Constant>(input_type, Shape{}, fake_quantize_node->get_levels() - 1);
+            std::make_shared<v0::Constant>(input_type, Shape{}, fake_quantize_node->get_levels() - 1);
         decomp_ops.push_back(levels_minus_one);
         // (input_high - input_low)
-        const auto subInHighLow = std::make_shared<ov::op::v1::Subtract>(input_high, input_low);
+        const auto subInHighLow = std::make_shared<v1::Subtract>(input_high, input_low);
         // (levels-1) / (input_high - input_low)
-        const auto isc = std::make_shared<ov::op::v1::Divide>(levels_minus_one, subInHighLow);
+        const auto isc = std::make_shared<v1::Divide>(levels_minus_one, subInHighLow);
         // input_low * (levels-1) / (input_high - input_low)
-        const auto ish = std::make_shared<ov::op::v1::Multiply>(input_low, isc);
+        const auto ish = std::make_shared<v1::Multiply>(input_low, isc);
         decomp_ops.push_back(subInHighLow);
         decomp_ops.push_back(isc);
         decomp_ops.push_back(ish);
 
         // x * (levels-1) / (input_high - input_low)
-        const auto after_isc_apply = std::make_shared<ov::op::v1::Multiply>(min, isc);
+        const auto after_isc_apply = std::make_shared<v1::Multiply>(min, isc);
         // x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)
-        const auto after_ish_apply = std::make_shared<ov::op::v1::Subtract>(after_isc_apply, ish);
+        const auto after_ish_apply = std::make_shared<v1::Subtract>(after_isc_apply, ish);
         decomp_ops.push_back(after_isc_apply);
         decomp_ops.push_back(after_ish_apply);
 
         // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low))
-        const auto round =
-            std::make_shared<ov::op::v5::Round>(after_ish_apply, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+        const auto round = std::make_shared<v5::Round>(after_ish_apply, v5::Round::RoundMode::HALF_TO_EVEN);
         decomp_ops.push_back(round);
 
         // (output_high - output_low)
-        const auto sub_out_high_low = std::make_shared<ov::op::v1::Subtract>(output_high, output_low);
+        const auto sub_out_high_low = std::make_shared<v1::Subtract>(output_high, output_low);
         // (output_high - output_low) / (levels-1)
-        const auto osc = std::make_shared<ov::op::v1::Divide>(sub_out_high_low, levels_minus_one);
+        const auto osc = std::make_shared<v1::Divide>(sub_out_high_low, levels_minus_one);
         decomp_ops.push_back(sub_out_high_low);
         decomp_ops.push_back(osc);
 
         // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) *
         // (output_high - output_low) / (levels-1)
-        const auto after_osc_apply = std::make_shared<ov::op::v1::Multiply>(round, osc);
+        const auto after_osc_apply = std::make_shared<v1::Multiply>(round, osc);
         // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) *
         // (output_high - output_low) / (levels-1) + output_low
-        std::shared_ptr<Node> result = std::make_shared<ov::op::v1::Add>(after_osc_apply, output_low);
+        std::shared_ptr<Node> result = std::make_shared<v1::Add>(after_osc_apply, output_low);
         decomp_ops.push_back(after_osc_apply);
         decomp_ops.push_back(result);
 
         if (result->get_output_element_type(0) != fake_quantize_node->get_output_element_type(0)) {
-            result = std::make_shared<ov::op::v0::Convert>(result, fake_quantize_node->get_output_element_type(0));
+            result = std::make_shared<v0::Convert>(result, fake_quantize_node->get_output_element_type(0));
             decomp_ops.push_back(result);
         }
 
@@ -138,6 +143,6 @@ ov::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(fake_quantize, matcher_name);
+    auto m = std::make_shared<Matcher>(fake_quantize, matcher_name);
     register_matcher(m, callback);
 }

@@ -22,6 +22,7 @@
 
 using namespace ov;
 
+namespace op_util = ov::op::util;
 TEST(SDPATOPATest, SDPANotPresent) {
     const auto p0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 32, 32});
     const auto p1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 32, 32});
@@ -41,8 +42,8 @@ TEST(SDPATOPATest, GatherIdx_ConcatAxis_EQ) {
     const int GATHER_IDX = 1;
 
     const auto input = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
-    auto variable = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{PartialShape::dynamic(), element::i32, "variable"});
+    auto variable =
+        std::make_shared<op_util::Variable>(op_util::VariableInfo{PartialShape::dynamic(), element::i32, "variable"});
     const auto read_value = std::make_shared<op::v6::ReadValue>(input, variable);
 
     const auto beam_idx = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
@@ -84,8 +85,8 @@ TEST(SDPATOPATest, GatherIdx_ConcatAxis_NOTEQ_STATIC) {
     const int GATHER_IDX = 0;
 
     const auto input = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
-    auto variable = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{PartialShape::dynamic(), element::i32, "variable"});
+    auto variable =
+        std::make_shared<op_util::Variable>(op_util::VariableInfo{PartialShape::dynamic(), element::i32, "variable"});
     const auto read_value = std::make_shared<op::v6::ReadValue>(input, variable);
 
     const auto beam_idx = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
@@ -123,8 +124,8 @@ TEST(SDPATOPATest, GatherIdx_ConcatAxis_NOTEQ_DYNAMIC) {
     const int GATHER_IDX = 0;
 
     const auto input = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
-    auto variable = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{PartialShape::dynamic(), element::i32, "variable"});
+    auto variable =
+        std::make_shared<op_util::Variable>(op_util::VariableInfo{PartialShape::dynamic(), element::i32, "variable"});
     const auto read_value = std::make_shared<op::v6::ReadValue>(input, variable);
 
     const auto beam_idx = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});

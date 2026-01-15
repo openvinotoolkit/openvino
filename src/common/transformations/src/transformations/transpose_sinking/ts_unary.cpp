@@ -28,18 +28,24 @@
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov;
-using namespace ov::pass::pattern;
-using namespace ov::op::util;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v4 = ov::op::v4;
+namespace v5 = ov::op::v5;
+namespace v10 = ov::op::v10;
+namespace op_util = ov::op::util;
+
+namespace ov::pass {
 
 namespace {
 
 using NodePtr = std::shared_ptr<ov::Node>;
 
-bool if_transpose_sinkable(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
-                           const std::shared_ptr<ov::op::v0::Constant>& transpose_order) {
+bool if_transpose_sinkable(const std::shared_ptr<v1::Transpose>& transpose,
+                           const std::shared_ptr<v0::Constant>& transpose_order) {
     return static_cast<bool>(transpose);
 }
 
@@ -50,20 +56,20 @@ TSUnaryForward::TSUnaryForward() {
 
     // We consider HardSigmoid, Swish, Selu, ConvertLike as unary ops
     // and handle only 0th input of these ops.
-    create_pattern<UnaryElementwiseArithmetic,
-                   ov::op::v0::Clamp,
-                   ov::op::v0::Elu,
-                   ov::op::v4::SoftPlus,
-                   ov::op::v1::LogicalNot,
-                   ov::op::v0::Convert,
-                   ov::op::v10::IsInf,
-                   ov::op::v10::IsNaN,
-                   ov::op::v10::IsFinite,
-                   ov::op::v0::Selu,
-                   ov::op::v4::Swish,
-                   ov::op::v0::HardSigmoid,
-                   ov::op::v5::LogSoftmax,
-                   ov::op::v1::ConvertLike>({0}, if_transpose_sinkable);
+    create_pattern<op_util::UnaryElementwiseArithmetic,
+                   v0::Clamp,
+                   v0::Elu,
+                   v4::SoftPlus,
+                   v1::LogicalNot,
+                   v0::Convert,
+                   v10::IsInf,
+                   v10::IsNaN,
+                   v10::IsFinite,
+                   v0::Selu,
+                   v4::Swish,
+                   v0::HardSigmoid,
+                   v5::LogSoftmax,
+                   v1::ConvertLike>({0}, if_transpose_sinkable);
     auto ts_unary_sinking_function = [this](const std::shared_ptr<Node>& main_node,
                                             const utils::TransposeInputsInfo& transpose_info) -> bool {
         bool res = utils::sink_forward::UpdateInputTransposes(main_node, transpose_info, {0});
@@ -82,34 +88,35 @@ TSUnaryBackward::TSUnaryBackward() {
         return CheckTransposeConsumers(output);
     };
 
-    auto unary_with_1_input_label = wrap_type<UnaryElementwiseArithmetic,
-                                              ov::op::v0::Clamp,
-                                              ov::op::v0::Elu,
-                                              ov::op::v4::SoftPlus,
-                                              ov::op::v1::LogicalNot,
-                                              ov::op::v0::Convert,
-                                              ov::op::v10::IsInf,
-                                              ov::op::v10::IsNaN,
-                                              ov::op::v10::IsFinite,
-                                              ov::op::v5::LogSoftmax>({any_input()}, unary_restrictions);
+    auto unary_with_1_input_label = pattern::wrap_type<op_util::UnaryElementwiseArithmetic,
+                                                       v0::Clamp,
+                                                       v0::Elu,
+                                                       v4::SoftPlus,
+                                                       v1::LogicalNot,
+                                                       v0::Convert,
+                                                       v10::IsInf,
+                                                       v10::IsNaN,
+                                                       v10::IsFinite,
+                                                       v5::LogSoftmax>({pattern::any_input()}, unary_restrictions);
 
     auto unary_with_2_inputs_label =
-        wrap_type<ov::op::v4::Swish, ov::op::v1::ConvertLike>({any_input(), any_input()}, unary_restrictions);
-    auto unary_with_3_inputs_label =
-        wrap_type<ov::op::v0::Selu, ov::op::v0::HardSigmoid>({any_input(), any_input(), any_input()},
-                                                             unary_restrictions);
+        pattern::wrap_type<v4::Swish, v1::ConvertLike>({pattern::any_input(), pattern::any_input()},
+                                                       unary_restrictions);
+    auto unary_with_3_inputs_label = pattern::wrap_type<v0::Selu, v0::HardSigmoid>(
+        {pattern::any_input(), pattern::any_input(), pattern::any_input()},
+        unary_restrictions);
 
     auto unary_label = std::make_shared<pattern::op::Or>(
         ov::OutputVector{unary_with_1_input_label, unary_with_2_inputs_label, unary_with_3_inputs_label});
 
-    auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
+    auto transpose_const_label = pattern::wrap_type<v0::Constant>();
 
-    auto transpose_label = wrap_type<ov::op::v1::Transpose>({unary_label, transpose_const_label});
+    auto transpose_label = pattern::wrap_type<v1::Transpose>({unary_label, transpose_const_label});
 
-    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
-            as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+            as_type_ptr<v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = transpose->get_input_node_shared_ptr(0);
         if (transformation_callback(unary)) {
@@ -124,6 +131,8 @@ TSUnaryBackward::TSUnaryBackward() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(transpose_label, "ov::pass::TSUnaryBackward");
+    auto m = std::make_shared<pattern::Matcher>(transpose_label, "ov::pass::TSUnaryBackward");
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

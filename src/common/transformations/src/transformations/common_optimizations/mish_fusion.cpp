@@ -19,16 +19,20 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 ov::pass::MishFusion::MishFusion() {
     MATCHER_SCOPE(MishFusion);
-    auto input = pass::pattern::any_input();
-    auto exp = std::make_shared<ov::op::v0::Exp>(input);
-    auto add = std::make_shared<ov::op::v1::Add>(exp, ov::pass::pattern::wrap_type<ov::op::v0::Constant>());
-    auto log = std::make_shared<ov::op::v0::Log>(add);
-    auto tanh = std::make_shared<ov::op::v0::Tanh>(log);
-    auto mul = std::make_shared<ov::op::v1::Multiply>(input, tanh);
+    auto input = ov::pass::pattern::any_input();
+    auto exp = std::make_shared<v0::Exp>(input);
+    auto add = std::make_shared<v1::Add>(exp, ov::pass::pattern::wrap_type<v0::Constant>());
+    auto log = std::make_shared<v0::Log>(add);
+    auto tanh = std::make_shared<v0::Tanh>(log);
+    auto mul = std::make_shared<v1::Multiply>(input, tanh);
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -45,6 +49,6 @@ ov::pass::MishFusion::MishFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul, matcher_name);
+    auto m = std::make_shared<Matcher>(mul, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

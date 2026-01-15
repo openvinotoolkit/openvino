@@ -13,7 +13,9 @@
 
 using namespace ov::symbol::util;
 
-ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
+namespace ov::pass {
+
+ChainedMaximumOptimization::ChainedMaximumOptimization() {
     MATCHER_SCOPE(ChainedMaximumOptimization);
     auto A_input = pattern::any_input();
     auto B_input = pattern::any_input();
@@ -48,3 +50,5 @@ ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
     auto m = std::make_shared<pattern::Matcher>(maximum, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

@@ -29,6 +29,7 @@
 using namespace ov;
 using namespace testing;
 
+namespace op_util = ov::op::util;
 TEST_F(TransformationTestsF, ConvertDivide) {
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
@@ -161,7 +162,7 @@ TEST_F(TransformationTestsF, ConvertDivideWithConstantNegative) {
 TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative) {
     {
         auto data = std::make_shared<opset1::Parameter>(element::f16, Shape{1, 3, 22, 22});
-        auto gather = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
+        auto gather = op_util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
         auto convert = std::make_shared<opset1::Convert>(gather, element::f16);
         auto divide_constant = opset1::Constant::create(element::f16, Shape{1}, {0.5});
         auto divide = std::make_shared<opset1::Divide>(convert, divide_constant);
@@ -238,7 +239,7 @@ TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative2) {
         // special visited set for precision sensitive nodes which needs to be tested as well. So in the worst case
         // we will traverse each node twice.
         auto data = std::make_shared<opset1::Parameter>(element::f16, Shape{1, 3, 22, 22});
-        auto gather = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
+        auto gather = op_util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
         auto convert = std::make_shared<opset1::Convert>(gather, element::f16);
         auto divide_constant = opset1::Constant::create(element::f16, Shape{1}, {0.5});
         auto divide = std::make_shared<opset1::Divide>(convert, divide_constant);
@@ -268,7 +269,7 @@ TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative2) {
 TEST_F(TransformationTestsF, ConvertDivideFP32ShapeOfSubgraphNegative) {
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3, 22, 22});
-        auto gather = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
+        auto gather = op_util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
         auto convert = std::make_shared<opset1::Convert>(gather, element::f32);
         auto divide_constant = opset1::Constant::create(element::f32, Shape{1}, {0.5});
         auto divide = std::make_shared<opset1::Divide>(convert, divide_constant);

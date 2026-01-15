@@ -16,17 +16,20 @@
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+
+namespace ov::pass {
 
 TSFuse::TSFuse() {
     MATCHER_SCOPE(TransposeFuse);
     auto transpose_1_label =
-        pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
-                                                  CheckTransposeConsumers);
-    auto transpose_2_label =
-        pattern::wrap_type<ov::op::v1::Transpose>({transpose_1_label, pattern::wrap_type<ov::op::v0::Constant>()});
+        pattern::wrap_type<v1::Transpose>({pattern::any_input(), pattern::wrap_type<v0::Constant>()},
+                                          CheckTransposeConsumers);
+    auto transpose_2_label = pattern::wrap_type<v1::Transpose>({transpose_1_label, pattern::wrap_type<v0::Constant>()});
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
@@ -34,8 +37,8 @@ TSFuse::TSFuse() {
         auto transpose2 = pattern_to_output.at(transpose_2_label);
         auto input = transpose1->input_value(0);
 
-        auto transpose1_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose1->get_input_node_shared_ptr(1));
-        auto transpose2_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose2->get_input_node_shared_ptr(1));
+        auto transpose1_order = ov::as_type_ptr<v0::Constant>(transpose1->get_input_node_shared_ptr(1));
+        auto transpose2_order = ov::as_type_ptr<v0::Constant>(transpose2->get_input_node_shared_ptr(1));
         if (!transpose1_order || !transpose2_order)
             return false;
 
@@ -63,8 +66,8 @@ TSFuse::TSFuse() {
                 ov::replace_output_update_name(out_transpose.get_node()->output(0), input);
             }
         } else {
-            auto new_order = ov::op::v0::Constant::create(transpose_order_type, {order2.size()}, order2);
-            auto new_transpose = register_new_node<ov::op::v1::Transpose>(input, new_order);
+            auto new_order = v0::Constant::create(transpose_order_type, {order2.size()}, order2);
+            auto new_transpose = register_new_node<v1::Transpose>(input, new_order);
 
             new_transpose->set_friendly_name(m.get_match_root()->get_friendly_name());
             RemoveTransposeConsumers(transpose1);
@@ -79,3 +82,5 @@ TSFuse::TSFuse() {
     auto m = std::make_shared<pattern::Matcher>(transpose_2_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

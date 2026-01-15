@@ -11,17 +11,20 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v15 = ov::op::v15;
 ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3::ConvertScatterNDUpdate15ToScatterNDUpdate3() {
     MATCHER_SCOPE(ConvertScatterNDUpdate15ToScatterNDUpdate3);
 
-    const auto scatter_v15_pattern = pattern::wrap_type<ov::op::v15::ScatterNDUpdate>();
+    const auto scatter_v15_pattern = ov::pass::pattern::wrap_type<v15::ScatterNDUpdate>();
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        const auto scatter_v15 = ov::as_type_ptr<ov::op::v15::ScatterNDUpdate>(m.get_match_root());
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto scatter_v15 = ov::as_type_ptr<v15::ScatterNDUpdate>(m.get_match_root());
         if (!scatter_v15 || transformation_callback(scatter_v15)) {
             return false;
         }
-        if (scatter_v15->get_reduction() != ov::op::v15::ScatterNDUpdate::Reduction::NONE) {
+        if (scatter_v15->get_reduction() != v15::ScatterNDUpdate::Reduction::NONE) {
             return false;
         }
         const auto scatter_v3 = std::make_shared<ov::op::v3::ScatterNDUpdate>(scatter_v15->input_value(0),
@@ -35,6 +38,6 @@ ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3::ConvertScatterNDUpdate15To
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(scatter_v15_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(scatter_v15_pattern, matcher_name);
     register_matcher(m, callback);
 }

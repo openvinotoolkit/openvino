@@ -20,33 +20,37 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/nonconvertible_divide.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 ov::pass::ConvertMod::ConvertMod() {
     MATCHER_SCOPE(ConvertMod);
-    auto mod = ov::pass::pattern::wrap_type<ov::op::v1::Mod>();
+    auto mod = ov::pass::pattern::wrap_type<v1::Mod>();
 
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto mod = ov::as_type_ptr<ov::op::v1::Mod>(m.get_match_root());
+    matcher_pass_callback callback = [this](Matcher& m) {
+        auto mod = ov::as_type_ptr<v1::Mod>(m.get_match_root());
         if (!mod) {
             return false;
         }
 
-        const auto dividend = std::make_shared<ov::op::v0::Abs>(mod->input_value(0));
-        const auto dividend_sign = std::make_shared<ov::op::v0::Sign>(mod->input_value(0));
+        const auto dividend = std::make_shared<v0::Abs>(mod->input_value(0));
+        const auto dividend_sign = std::make_shared<v0::Sign>(mod->input_value(0));
         const auto dividend_et = dividend->get_element_type();
-        const auto divisor = std::make_shared<ov::op::v0::Abs>(mod->input_value(1));
+        const auto divisor = std::make_shared<v0::Abs>(mod->input_value(1));
 
         // truncated(a / b)
-        auto div = register_new_node<ov::op::v1::Divide>(dividend, divisor);
+        auto div = register_new_node<v1::Divide>(dividend, divisor);
         disable_divide_conversion(div);
-        auto convert_to_i64 = std::make_shared<ov::op::v0::Convert>(div, ov::element::i64);
-        auto convert = std::make_shared<ov::op::v0::Convert>(convert_to_i64, dividend_et);
+        auto convert_to_i64 = std::make_shared<v0::Convert>(div, ov::element::i64);
+        auto convert = std::make_shared<v0::Convert>(convert_to_i64, dividend_et);
         // truncated(a / b) * b
-        auto multiplication = std::make_shared<ov::op::v1::Multiply>(convert, divisor);
+        auto multiplication = std::make_shared<v1::Multiply>(convert, divisor);
         // a mod b = a - truncated(a / b) * b
-        auto sub = register_new_node<ov::op::v1::Subtract>(dividend, multiplication);
+        auto sub = register_new_node<v1::Subtract>(dividend, multiplication);
 
         // apply sign of dividend
-        auto mul = std::make_shared<ov::op::v1::Multiply>(dividend_sign, sub);
+        auto mul = std::make_shared<v1::Multiply>(dividend_sign, sub);
 
         mul->set_friendly_name(mod->get_friendly_name());
         ov::copy_runtime_info(
@@ -56,6 +60,6 @@ ov::pass::ConvertMod::ConvertMod() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(mod, matcher_name);
+    auto m = std::make_shared<Matcher>(mod, matcher_name);
     this->register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

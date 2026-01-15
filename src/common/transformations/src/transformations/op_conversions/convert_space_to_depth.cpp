@@ -16,13 +16,17 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 ov::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
     MATCHER_SCOPE(ConvertSpaceToDepth);
-    auto dts =
-        ov::pass::pattern::wrap_type<ov::op::v0::SpaceToDepth>({pattern::any_input(pattern::has_static_shape())});
+    auto dts = ov::pass::pattern::wrap_type<v0::SpaceToDepth>(
+        {ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape())});
 
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto std_node = ov::as_type_ptr<ov::op::v0::SpaceToDepth>(m.get_match_root());
+    matcher_pass_callback callback = [this](Matcher& m) {
+        auto std_node = ov::as_type_ptr<v0::SpaceToDepth>(m.get_match_root());
         if (!std_node || transformation_callback(std_node)) {
             return false;
         }
@@ -60,10 +64,10 @@ ov::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
         }
 
         switch (mode) {
-        case ov::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST:
+        case v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST:
             order.push_back(1);
             break;
-        case ov::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST:
+        case v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST:
             order.insert(order.begin() + 1, 1);
             break;
         }
@@ -81,19 +85,19 @@ ov::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
         }
         shape_end.insert(shape_end.begin() + 1, C);
 
-        auto create_constant = [](std::vector<int64_t>& v) -> std::shared_ptr<ov::op::v0::Constant> {
-            return ov::op::v0::Constant::create(element::i64, Shape{v.size()}, v);
+        auto create_constant = [](std::vector<int64_t>& v) -> std::shared_ptr<v0::Constant> {
+            return v0::Constant::create(element::i64, Shape{v.size()}, v);
         };
 
-        auto reshape_begin = std::make_shared<ov::op::v1::Reshape>(input, create_constant(shape_begin), true);
-        auto transpose = std::make_shared<ov::op::v1::Transpose>(reshape_begin, create_constant(order));
-        auto reshape_end = std::make_shared<ov::op::v1::Reshape>(transpose, create_constant(shape_end), true);
+        auto reshape_begin = std::make_shared<v1::Reshape>(input, create_constant(shape_begin), true);
+        auto transpose = std::make_shared<v1::Transpose>(reshape_begin, create_constant(order));
+        auto reshape_end = std::make_shared<v1::Reshape>(transpose, create_constant(shape_end), true);
         reshape_end->set_friendly_name(std_node->get_friendly_name());
         ov::copy_runtime_info(std_node, {reshape_begin, transpose, reshape_end});
         ov::replace_node(std_node, reshape_end);
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(dts, matcher_name);
+    auto m = std::make_shared<Matcher>(dts, matcher_name);
     this->register_matcher(m, callback);
 }

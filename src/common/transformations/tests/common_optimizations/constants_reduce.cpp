@@ -19,6 +19,7 @@
 using namespace testing;
 using namespace ov;
 
+namespace v0 = ov::op::v0;
 TEST(TransformationTests, ConstantsReduce) {
     auto param = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 4});
 
@@ -28,7 +29,7 @@ TEST(TransformationTests, ConstantsReduce) {
     auto add_1 = std::make_shared<opset8::Add>(param, add_constant_1);
     auto add_2 = std::make_shared<opset8::Add>(add_1, add_constant_2);
 
-    auto result = std::make_shared<ov::op::v0::Result>(add_2);
+    auto result = std::make_shared<v0::Result>(add_2);
     auto f = std::make_shared<Model>(ResultVector{result}, ParameterVector{param});
 
     pass::Manager pass_manager;
@@ -56,7 +57,7 @@ TEST(TransformationTests, ConstantsReduceChain) {
     auto add_4 = std::make_shared<opset8::Add>(add_3, add_constant_4);
     auto add_5 = std::make_shared<opset8::Add>(add_4, add_constant_5);
 
-    auto result = std::make_shared<ov::op::v0::Result>(add_5);
+    auto result = std::make_shared<v0::Result>(add_5);
     auto f = std::make_shared<Model>(ResultVector{result}, ParameterVector{param});
 
     pass::Manager pass_manager;
@@ -83,7 +84,7 @@ TEST(TransformationTests, ConstantsReduceChain2) {
     auto add_4 = std::make_shared<opset8::Add>(add_3, add_constant_4);
     auto add_5 = std::make_shared<opset8::Add>(add_4, add_constant_5);
 
-    auto result = std::make_shared<ov::op::v0::Result>(add_5);
+    auto result = std::make_shared<v0::Result>(add_5);
     auto f = std::make_shared<Model>(ResultVector{result}, ParameterVector{param});
 
     pass::Manager pass_manager;
@@ -103,7 +104,7 @@ TEST(TransformationTests, ConstantsReduceNeg) {
     auto add_1 = std::make_shared<opset8::Add>(param, add_constant_1);
     auto add_2 = std::make_shared<opset8::Add>(add_1, add_constant_2);
 
-    auto result = std::make_shared<ov::op::v0::Result>(add_2);
+    auto result = std::make_shared<v0::Result>(add_2);
     auto f = std::make_shared<Model>(ResultVector{result}, ParameterVector{param});
 
     pass::Manager pass_manager;

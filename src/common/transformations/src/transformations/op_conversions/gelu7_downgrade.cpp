@@ -13,13 +13,16 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v7 = ov::op::v7;
 ov::pass::Gelu7Downgrade::Gelu7Downgrade() {
     MATCHER_SCOPE(Gelu7Downgrade);
-    auto gelu = ov::pass::pattern::wrap_type<ov::op::v7::Gelu>();
+    auto gelu = ov::pass::pattern::wrap_type<v7::Gelu>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto gelu_node = ov::as_type_ptr<ov::op::v7::Gelu>(pattern_to_output.at(gelu).get_node_shared_ptr());
+        auto gelu_node = ov::as_type_ptr<v7::Gelu>(pattern_to_output.at(gelu).get_node_shared_ptr());
 
         if (gelu_node == nullptr || transformation_callback(gelu_node)) {
             return false;
@@ -32,6 +35,6 @@ ov::pass::Gelu7Downgrade::Gelu7Downgrade() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(gelu, matcher_name);
+    auto m = std::make_shared<Matcher>(gelu, matcher_name);
     register_matcher(m, callback);
 }

@@ -20,6 +20,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace v0 = ov::op::v0;
 bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollTensorIterator);
     for (const auto& op : f->get_ops()) {
@@ -52,13 +53,13 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
 
         // Port map : inputs and back edges
         for (const auto& desc : sub_graph_op->get_input_descriptions()) {
-            if (const auto& input_desc = ov::as_type_ptr<ov::op::v0::TensorIterator::SliceInputDescription>(desc)) {
+            if (const auto& input_desc = ov::as_type_ptr<v0::TensorIterator::SliceInputDescription>(desc)) {
                 // Connect the sliced input (layer before the input) to the Split layer and connect
                 // the corresponding Split output to the corresponding copy of the body.
                 // If the number of iterations is 1, then the Split is not needed.
 
                 auto in_data = sub_graph_op->input_values()[input_desc->m_input_index];
-                const auto const_axis = ov::op::v0::Constant::create(element::i64, Shape{}, {input_desc->m_axis});
+                const auto const_axis = v0::Constant::create(element::i64, Shape{}, {input_desc->m_axis});
 
                 if (num_iter > 1) {
                     auto split = std::make_shared<ov::op::v1::Split>(in_data, const_axis, num_iter);
@@ -79,8 +80,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                         output.replace(in_data);
                     }
                 }
-            } else if (const auto& merged_desc =
-                           ov::as_type_ptr<ov::op::v0::TensorIterator::MergedInputDescription>(desc)) {
+            } else if (const auto& merged_desc = ov::as_type_ptr<v0::TensorIterator::MergedInputDescription>(desc)) {
                 // Connect the input to the corresponding copy of the body.
                 auto in_data = sub_graph_op->input_values()[merged_desc->m_input_index];
                 const auto& param = body_functions[0]->get_parameters()[merged_desc->m_body_parameter_index];
@@ -97,7 +97,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                     }
                 }
             } else if (const auto& invariant_desc =
-                           ov::as_type_ptr<ov::op::v0::TensorIterator::InvariantInputDescription>(desc)) {
+                           ov::as_type_ptr<v0::TensorIterator::InvariantInputDescription>(desc)) {
                 // Connect the input to the corresponding copy of the body.
                 auto in_data = sub_graph_op->input_values()[invariant_desc->m_input_index];
                 for (int64_t j = 0; j < num_iter; j++) {
@@ -114,7 +114,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
 
         // Port map: outputs
         for (const auto& desc : sub_graph_op->get_output_descriptions()) {
-            if (const auto& concat_desc = ov::as_type_ptr<ov::op::v0::TensorIterator::ConcatOutputDescription>(desc)) {
+            if (const auto& concat_desc = ov::as_type_ptr<v0::TensorIterator::ConcatOutputDescription>(desc)) {
                 if (!concat_desc) {
                     return false;
                 }
@@ -130,12 +130,12 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                     // Connect outputs of the bodies to the Concat layer
                     for (int64_t j = 0; j < num_iter; j++) {
                         auto idx = stride > 0 ? j : num_iter - j - 1;
-                        std::shared_ptr<ov::op::v0::Result> result =
+                        std::shared_ptr<v0::Result> result =
                             body_functions[idx]->get_results()[concat_desc->m_body_value_index];
                         auto input_to_res = result->get_input_source_output(0);
                         to_concat[j] = input_to_res;
                     }
-                    auto concat = std::make_shared<ov::op::v0::Concat>(to_concat, concat_desc->m_axis);
+                    auto concat = std::make_shared<v0::Concat>(to_concat, concat_desc->m_axis);
                     copy_runtime_info(sub_graph_op, concat);
 
                     // connect the Concat layer to the corresponding TI outputs
@@ -144,7 +144,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                     }
                 } else {
                     // Connect outputs of the bodies to the corresponding TI outputs
-                    std::shared_ptr<ov::op::v0::Result> result =
+                    std::shared_ptr<v0::Result> result =
                         body_functions[0]->get_results().at(concat_desc->m_body_value_index);
                     const auto& input_to_res = result->get_input_source_output(0);
 
@@ -152,8 +152,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                         input.replace_source_output(input_to_res);
                     }
                 }
-            } else if (const auto& output_desc =
-                           ov::as_type_ptr<ov::op::v0::TensorIterator::BodyOutputDescription>(desc)) {
+            } else if (const auto& output_desc = ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(desc)) {
                 // Connect outputs of the bodies to the corresponding TI outputs
                 auto iter = output_desc->m_iteration;
                 iter = iter >= 0 ? iter : num_iter - 1;
@@ -194,7 +193,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                 for (int64_t idx = 0; idx < num_iter; ++idx) {
                     const auto iter_idx = loop->get_special_body_ports().current_iteration_input_idx;
                     const auto& param_to_delete = body_functions[idx]->get_parameters()[iter_idx];
-                    auto cur_iter_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, Shape{}, idx);
+                    auto cur_iter_const = std::make_shared<v0::Constant>(ov::element::i64, Shape{}, idx);
                     replace_node(param_to_delete, cur_iter_const);
                     body_functions[idx]->remove_parameter(param_to_delete);
                 }

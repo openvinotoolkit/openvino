@@ -13,33 +13,36 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using namespace ov::op::util;
+namespace v0 = ov::op::v0;
+namespace op_util = ov::op::util;
 
-ov::pass::EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
+namespace ov::pass {
+
+EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
     MATCHER_SCOPE(EliminateDuplicateTIInputs);
-    auto ti = pattern::wrap_type<ov::op::v0::TensorIterator>();
+    auto ti = pattern::wrap_type<v0::TensorIterator>();
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(m.get_match_root());
+        auto ti = ov::as_type_ptr<v0::TensorIterator>(m.get_match_root());
         if (ti == nullptr) {
             return false;
         }
 
-        std::vector<std::shared_ptr<SubGraphOp::InputDescription>> should_stay;
-        std::map<std::shared_ptr<SubGraphOp::InputDescription>,
-                 std::vector<std::shared_ptr<SubGraphOp::InputDescription>>>
+        std::vector<std::shared_ptr<op_util::SubGraphOp::InputDescription>> should_stay;
+        std::map<std::shared_ptr<op_util::SubGraphOp::InputDescription>,
+                 std::vector<std::shared_ptr<op_util::SubGraphOp::InputDescription>>>
             need_to_eliminate;
         auto input_descs = ti->get_input_descriptions();
         for (auto& key : input_descs) {
-            auto is_equal = [&](const std::shared_ptr<SubGraphOp::InputDescription>& input) -> bool {
+            auto is_equal = [&](const std::shared_ptr<op_util::SubGraphOp::InputDescription>& input) -> bool {
                 if (ti->input_value(input->m_input_index) == ti->input_value(key->m_input_index)) {
-                    auto invariant_l = ov::as_type_ptr<SubGraphOp::InvariantInputDescription>(input);
-                    auto invariant_r = ov::as_type_ptr<SubGraphOp::InvariantInputDescription>(key);
+                    auto invariant_l = ov::as_type_ptr<op_util::SubGraphOp::InvariantInputDescription>(input);
+                    auto invariant_r = ov::as_type_ptr<op_util::SubGraphOp::InvariantInputDescription>(key);
                     if (invariant_l && invariant_r) {
                         return true;
                     }
 
-                    auto slice_l = ov::as_type_ptr<SubGraphOp::SliceInputDescription>(input);
-                    auto slice_r = ov::as_type_ptr<SubGraphOp::SliceInputDescription>(key);
+                    auto slice_l = ov::as_type_ptr<op_util::SubGraphOp::SliceInputDescription>(input);
+                    auto slice_r = ov::as_type_ptr<op_util::SubGraphOp::SliceInputDescription>(key);
 
                     if (slice_l && slice_r) {
                         return slice_l->m_axis == slice_r->m_axis && slice_l->m_start == slice_r->m_start &&
@@ -47,8 +50,8 @@ ov::pass::EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
                                slice_l->m_stride == slice_r->m_stride;
                     }
 
-                    auto merged_l = ov::as_type_ptr<SubGraphOp::MergedInputDescription>(input);
-                    auto merged_r = ov::as_type_ptr<SubGraphOp::MergedInputDescription>(key);
+                    auto merged_l = ov::as_type_ptr<op_util::SubGraphOp::MergedInputDescription>(input);
+                    auto merged_r = ov::as_type_ptr<op_util::SubGraphOp::MergedInputDescription>(key);
 
                     if (merged_l && merged_r) {
                         return merged_l->m_body_value_index == merged_r->m_body_value_index;
@@ -79,7 +82,7 @@ ov::pass::EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
         }
 
         // Create new TI
-        auto new_ti = std::make_shared<ov::op::v0::TensorIterator>();
+        auto new_ti = std::make_shared<v0::TensorIterator>();
         new_ti->set_output_descriptions(0, ti->get_output_descriptions());
         ov::ParameterVector new_params;
         for (const auto& remain : should_stay) {
@@ -92,12 +95,12 @@ ov::pass::EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
         for (const auto& remain : should_stay) {
             auto par = body->get_parameters()[remain->m_body_parameter_index];
             auto in = ti->input_value(remain->m_input_index);
-            if (auto invariant = ov::as_type_ptr<SubGraphOp::InvariantInputDescription>(remain)) {
+            if (auto invariant = ov::as_type_ptr<op_util::SubGraphOp::InvariantInputDescription>(remain)) {
                 new_ti->set_invariant_input(par, in);
-            } else if (auto merged = ov::as_type_ptr<SubGraphOp::MergedInputDescription>(remain)) {
+            } else if (auto merged = ov::as_type_ptr<op_util::SubGraphOp::MergedInputDescription>(remain)) {
                 auto results = body->get_results();
                 new_ti->set_merged_input(par, in, results[merged->m_body_value_index]);
-            } else if (auto slice = ov::as_type_ptr<SubGraphOp::SliceInputDescription>(remain)) {
+            } else if (auto slice = ov::as_type_ptr<op_util::SubGraphOp::SliceInputDescription>(remain)) {
                 new_ti->set_sliced_input(par,
                                          in,
                                          slice->m_start,
@@ -117,3 +120,5 @@ ov::pass::EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
     auto m = std::make_shared<pattern::Matcher>(ti, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

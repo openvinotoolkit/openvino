@@ -23,59 +23,62 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace op_util = ov::op::util;
+
+namespace ov::pass {
+
+NormalizeL2Fusion::NormalizeL2Fusion() {
     MATCHER_SCOPE(NormalizeL2Fusion);
-    auto input = pass::pattern::any_input();
+    auto input = pattern::any_input();
 
-    auto exp = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto pow = std::make_shared<ov::op::v1::Power>(input, exp);
-    auto axes = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(pow, axes);
+    auto exp = pattern::wrap_type<v0::Constant>();
+    auto pow = std::make_shared<v1::Power>(input, exp);
+    auto axes = pattern::wrap_type<v0::Constant>();
+    auto reduce_sum = std::make_shared<v1::ReduceSum>(pow, axes);
 
-    auto eps_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto max = std::make_shared<ov::op::v1::Maximum>(reduce_sum, eps_const);
-    auto add = std::make_shared<ov::op::v1::Add>(reduce_sum, eps_const);
+    auto eps_const = pattern::wrap_type<v0::Constant>();
+    auto max = std::make_shared<v1::Maximum>(reduce_sum, eps_const);
+    auto add = std::make_shared<v1::Add>(reduce_sum, eps_const);
     auto max_or_add = std::make_shared<pattern::op::Or>(OutputVector{max, add});
 
     // Sqrt can be represented by Sqrt node or as Power node with exponent 0.5
-    auto sqrt = std::make_shared<ov::op::v0::Sqrt>(max_or_add);
-    auto exp2 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto pow_as_sqrt = std::make_shared<ov::op::v1::Power>(max_or_add, exp2);
+    auto sqrt = std::make_shared<v0::Sqrt>(max_or_add);
+    auto exp2 = pattern::wrap_type<v0::Constant>();
+    auto pow_as_sqrt = std::make_shared<v1::Power>(max_or_add, exp2);
     auto power_or_sqrt = std::make_shared<pattern::op::Or>(OutputVector{sqrt, pow_as_sqrt});
 
     // divide(input,sqrt(..)) can be represented as mul(input, power(..., -0.5f))
-    auto divide = std::make_shared<ov::op::v1::Divide>(input, power_or_sqrt);
-    auto exp3 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto reversed_pow_as_sqrt = std::make_shared<ov::op::v1::Power>(max_or_add, exp3);
-    auto mul = std::make_shared<ov::op::v1::Multiply>(input, reversed_pow_as_sqrt);
+    auto divide = std::make_shared<v1::Divide>(input, power_or_sqrt);
+    auto exp3 = pattern::wrap_type<v0::Constant>();
+    auto reversed_pow_as_sqrt = std::make_shared<v1::Power>(max_or_add, exp3);
+    auto mul = std::make_shared<v1::Multiply>(input, reversed_pow_as_sqrt);
     auto divide_or_mul = std::make_shared<pattern::op::Or>(OutputVector{divide, mul});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
-        const auto exp_input = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
-        const auto axes_input = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
-        const auto eps_attr =
-            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
-        const auto exp2_input =
-            pattern_to_output.count(exp2)
-                ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(exp2).get_node_shared_ptr())
-                : nullptr;
-        const auto exp3_input =
-            pattern_to_output.count(exp3)
-                ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(exp3).get_node_shared_ptr())
-                : nullptr;
+        const auto exp_input = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
+        const auto axes_input = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
+        const auto eps_attr = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
+        const auto exp2_input = pattern_to_output.count(exp2)
+                                    ? ov::as_type_ptr<v0::Constant>(pattern_to_output.at(exp2).get_node_shared_ptr())
+                                    : nullptr;
+        const auto exp3_input = pattern_to_output.count(exp3)
+                                    ? ov::as_type_ptr<v0::Constant>(pattern_to_output.at(exp3).get_node_shared_ptr())
+                                    : nullptr;
 
-        if (exp_input && !ov::op::util::has_constant_value<float>(exp_input, 2.0f)) {
+        if (exp_input && !op_util::has_constant_value<float>(exp_input, 2.0f)) {
             return false;
         }
 
-        if (exp2_input && !ov::op::util::has_constant_value<float>(exp2_input, 0.5f)) {
+        if (exp2_input && !op_util::has_constant_value<float>(exp2_input, 0.5f)) {
             return false;
         }
 
-        if (exp3_input && !ov::op::util::has_constant_value<float>(exp3_input, -0.5f)) {
+        if (exp3_input && !op_util::has_constant_value<float>(exp3_input, -0.5f)) {
             return false;
         }
 
@@ -96,7 +99,7 @@ ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
             return false;
         }
 
-        auto normalize_l2 = std::make_shared<ov::op::v0::NormalizeL2>(data_input, axes_input, eps_attr_value, mode);
+        auto normalize_l2 = std::make_shared<v0::NormalizeL2>(data_input, axes_input, eps_attr_value, mode);
         if (transformation_callback(normalize_l2)) {
             return false;
         }
@@ -130,6 +133,8 @@ ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(divide_or_mul, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(divide_or_mul, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

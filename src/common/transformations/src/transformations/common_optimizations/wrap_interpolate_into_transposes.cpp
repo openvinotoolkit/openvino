@@ -20,6 +20,12 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v4 = ov::op::v4;
+
+namespace ov::pass {
+
 namespace {
 std::vector<int64_t> reverse_permutation(const std::vector<int64_t>& perm) {
     if (perm.empty())
@@ -54,11 +60,11 @@ std::vector<int64_t> build_new_axes(size_t num_of_axes, size_t rank) {
 }
 }  // namespace
 
-ov::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
+WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
     MATCHER_SCOPE(WrapInterpolateIntoTransposes);
-    auto interpolate_pattern = ov::pass::pattern::wrap_type<ov::op::v4::Interpolate>();
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto interpolate = ov::as_type_ptr<ov::op::v4::Interpolate>(m.get_match_root());
+    auto interpolate_pattern = pattern::wrap_type<v4::Interpolate>();
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto interpolate = ov::as_type_ptr<v4::Interpolate>(m.get_match_root());
         if (!interpolate || interpolate->get_input_partial_shape(0).rank().is_dynamic() ||
             interpolate->inputs().size() != 4)
             return false;
@@ -68,7 +74,7 @@ ov::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
         if (input_rank < 3)
             return false;
 
-        auto axes_node = ov::as_type_ptr<ov::op::v0::Constant>(interpolate->input_value(3).get_node_shared_ptr());
+        auto axes_node = ov::as_type_ptr<v0::Constant>(interpolate->input_value(3).get_node_shared_ptr());
         if (!axes_node)
             return false;
 
@@ -83,15 +89,14 @@ ov::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
         const auto first_perm = build_transposition_for_axes(axes, input_rank);
         const auto last_perm = reverse_permutation(first_perm);
 
-        auto first_transpose_perm = ov::op::v0::Constant::create(element::i64, {first_perm.size()}, first_perm);
-        auto first_transpose =
-            std::make_shared<ov::op::v1::Transpose>(interpolate->input_value(0), first_transpose_perm);
+        auto first_transpose_perm = v0::Constant::create(element::i64, {first_perm.size()}, first_perm);
+        auto first_transpose = std::make_shared<v1::Transpose>(interpolate->input_value(0), first_transpose_perm);
         auto new_axes = build_new_axes(axes.size(), input_rank);
-        auto new_axes_node = ov::op::v0::Constant::create(element::i64, {new_axes.size()}, new_axes);
+        auto new_axes_node = v0::Constant::create(element::i64, {new_axes.size()}, new_axes);
         auto new_interpolate = interpolate->clone_with_new_inputs(
             {first_transpose, interpolate->input_value(1), interpolate->input_value(2), new_axes_node});
-        auto last_transpose_perm = ov::op::v0::Constant::create(element::i64, {last_perm.size()}, last_perm);
-        auto last_transpose = std::make_shared<ov::op::v1::Transpose>(new_interpolate, last_transpose_perm);
+        auto last_transpose_perm = v0::Constant::create(element::i64, {last_perm.size()}, last_perm);
+        auto last_transpose = std::make_shared<v1::Transpose>(new_interpolate, last_transpose_perm);
 
         last_transpose->set_friendly_name(interpolate->get_friendly_name());
         copy_runtime_info(interpolate,
@@ -109,3 +114,5 @@ ov::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
     auto m = std::make_shared<pattern::Matcher>(interpolate_pattern, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

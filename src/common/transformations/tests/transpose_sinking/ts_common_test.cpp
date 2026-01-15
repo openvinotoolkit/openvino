@@ -28,6 +28,8 @@ using namespace ov::pass::transpose_sinking;
 using namespace transpose_sinking::testing;
 using namespace transpose_sinking::testing::utils;
 
+namespace v0 = ov::op::v0;
+namespace v8 = ov::op::v8;
 namespace transpose_sinking {
 namespace testing {
 namespace common {
@@ -1697,9 +1699,9 @@ TEST_F(TransformationTestsF, TransposeSinkingCommonReshapeUnsqueezeBackwardSameS
         auto X = std::make_shared<Parameter>(element::f32, input_shape);
         auto transpose = create_transpose(X);
         auto reshape_const = std::make_shared<Constant>(element::u64, Shape{3}, Shape{4, 5, 6});
-        auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+        auto axis = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto indices = std::make_shared<Constant>(element::i32, Shape{3}, Shape{1, 0, 2});
-        auto gather = std::make_shared<ov::op::v8::Gather>(reshape_const, indices, axis);
+        auto gather = std::make_shared<v8::Gather>(reshape_const, indices, axis);
         auto reshape = std::make_shared<Reshape>(transpose, gather, false);
         model_ref = std::make_shared<Model>(ov::OutputVector{reshape}, ov::ParameterVector{X});
     }
@@ -1744,9 +1746,9 @@ TEST_F(TransformationTestsF, TransposeSinkingCommonReshapeUnsqueezeForwardSameSh
     {
         auto X = std::make_shared<Parameter>(element::f32, input_shape);
         auto reshape_const = std::make_shared<Constant>(element::u64, Shape{4}, Shape{5, 7, 4, 6});
-        auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+        auto axis = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto indices = std::make_shared<Constant>(element::i32, Shape{4}, Shape{2, 0, 3, 1});
-        auto gather = std::make_shared<ov::op::v8::Gather>(reshape_const, indices, axis);
+        auto gather = std::make_shared<v8::Gather>(reshape_const, indices, axis);
         auto reshape = std::make_shared<Reshape>(X, gather, false);
         auto transpose = create_transpose(reshape);
         model_ref = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});

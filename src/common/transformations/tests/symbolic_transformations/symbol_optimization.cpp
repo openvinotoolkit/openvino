@@ -22,9 +22,13 @@
 #include "transformations/symbolic_transformations/utils.hpp"
 
 using namespace ov;
-using namespace ov::op;
 using namespace std;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v4 = ov::op::v4;
+namespace v8 = ov::op::v8;
 TEST(TransformationTests, ApplySymbolEquivalence_Concat) {
     auto input_1 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
     auto input_2 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));

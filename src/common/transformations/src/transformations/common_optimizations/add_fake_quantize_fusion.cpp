@@ -23,34 +23,35 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace op_util = ov::op::util;
+
+namespace ov::pass {
+
+AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
     MATCHER_SCOPE(AddFakeQuantizeFusion);
-    auto input_pattern = pass::pattern::any_input();
-    auto const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto add_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Add>({input_pattern, const_pattern}, pattern::consumers_count(1));
-    auto fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({add_pattern,
-                                                                              pass::pattern::any_input(),
-                                                                              pass::pattern::any_input(),
-                                                                              pass::pattern::any_input(),
-                                                                              pass::pattern::any_input()});
+    auto input_pattern = pattern::any_input();
+    auto const_pattern = pattern::wrap_type<v0::Constant>();
+    auto add_pattern = pattern::wrap_type<v1::Add>({input_pattern, const_pattern}, pattern::consumers_count(1));
+    auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>(
+        {add_pattern, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& input = pattern_value_map.at(input_pattern);
         const auto& type = input.get_element_type();
         if (type.bitwidth() < element::f32.bitwidth())
             return false;
-        auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
+        auto fq = ov::as_type_ptr<v0::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
         if (!fq)
             return false;
         const auto& add_node = pattern_value_map.at(add_pattern).get_node_shared_ptr();
-        auto add_const =
-            ov::as_type_ptr<ov::op::v0::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
+        auto add_const = ov::as_type_ptr<v0::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
         if (!add_const)
             return false;
 
         auto const_shape = add_const->get_shape();
-        if (!ov::op::util::check_for_broadcast(input.get_partial_shape(), const_shape)) {
+        if (!op_util::check_for_broadcast(input.get_partial_shape(), const_shape)) {
             // We can't eliminate Add if Constant input broadcasts another input shape because
             // when we reconnect input from Add to FQ won't broadcast given input, so it will result
             // in shape collision.
@@ -63,9 +64,9 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
 
         if (!is_single_value) {
             float v;
-            is_single_value = ov::op::util::get_single_value(add_const, v);
+            is_single_value = op_util::get_single_value(add_const, v);
             if (is_single_value) {
-                new_const = std::make_shared<ov::op::v0::Constant>(add_const->get_element_type(), Shape{1}, v);
+                new_const = std::make_shared<v0::Constant>(add_const->get_element_type(), Shape{1}, v);
             }
         }
 
@@ -78,9 +79,9 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             if (diff > 0) {
                 // Reshape constants like (C, 1, 1) to (1, C, 1, 1)
                 const_shape.insert(const_shape.begin(), diff, 1);
-                new_const = std::make_shared<ov::op::v1::Reshape>(
+                new_const = std::make_shared<v1::Reshape>(
                     new_const,
-                    ov::op::v0::Constant::create(element::u64, Shape{const_shape.size()}, const_shape),
+                    v0::Constant::create(element::u64, Shape{const_shape.size()}, const_shape),
                     false);
             }
 
@@ -96,11 +97,9 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             bool add_parent_is_conv_or_mm =
                 std::any_of(add_inputs.begin(), add_inputs.end(), [](const Output<Node>& node) -> bool {
                     auto node_ptr = node.get_node();
-                    return is_type<ov::op::v1::Convolution>(node_ptr) ||
-                           is_type<ov::op::v1::GroupConvolution>(node_ptr) ||
-                           is_type<ov::op::v1::ConvolutionBackpropData>(node_ptr) ||
-                           is_type<ov::op::v1::GroupConvolutionBackpropData>(node_ptr) ||
-                           is_type<ov::op::v0::MatMul>(node_ptr);
+                    return is_type<v1::Convolution>(node_ptr) || is_type<v1::GroupConvolution>(node_ptr) ||
+                           is_type<v1::ConvolutionBackpropData>(node_ptr) ||
+                           is_type<v1::GroupConvolutionBackpropData>(node_ptr) || is_type<v0::MatMul>(node_ptr);
                 });
             if (add_parent_is_conv_or_mm)
                 return false;
@@ -108,17 +107,17 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             // Concat LPT transformation supports per tensor quantization only
             bool fq_user_is_concat =
                 std::any_of(fq_users.begin(), fq_users.end(), [](const std::shared_ptr<Node> node_ptr) -> bool {
-                    return is_type<ov::op::v0::Concat>(node_ptr);
+                    return is_type<v0::Concat>(node_ptr);
                 });
             if (fq_user_is_concat)
                 return false;
         }
 
-        auto input_low_sub = std::make_shared<ov::op::v1::Subtract>(fq->input_value(1), new_const);
+        auto input_low_sub = std::make_shared<v1::Subtract>(fq->input_value(1), new_const);
         std::shared_ptr<Node> new_input_low = ov::util::get_constant_from_source(input_low_sub);
         if (!new_input_low)
             new_input_low = input_low_sub;
-        auto input_high_sub = std::make_shared<ov::op::v1::Subtract>(fq->input_value(2), new_const);
+        auto input_high_sub = std::make_shared<v1::Subtract>(fq->input_value(2), new_const);
         std::shared_ptr<Node> new_input_high = ov::util::get_constant_from_source(input_high_sub);
         if (!new_input_high)
             new_input_high = input_high_sub;
@@ -133,6 +132,8 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(fq_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(fq_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

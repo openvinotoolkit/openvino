@@ -16,14 +16,17 @@
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov;
-using namespace ov::pass::pattern;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
+namespace v0 = ov::op::v0;
+namespace v4 = ov::op::v4;
+
+namespace ov::pass {
+
 TSInterpolateForward::TSInterpolateForward() {
     MATCHER_SCOPE(TSInterpolateForward);
-    create_pattern<ov::op::v4::Interpolate>({0});
+    create_pattern<v4::Interpolate>({0});
 
     auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {
@@ -32,12 +35,12 @@ TSInterpolateForward::TSInterpolateForward() {
         main_node->input(0).replace_source_output(transpose_parent);
 
         const auto transpose_axis_order = transpose_info.transpose_const->get_axis_vector_val();
-        auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+        auto axis = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
 
         const auto& new_axes = ChangeAxes(main_node->input_value(3), transpose_axis_order, axis);
         main_node->input(3).replace_source_output(new_axes);
 
-        const auto& interpolate = ov::as_type_ptr<ov::op::v4::Interpolate>(main_node);
+        const auto& interpolate = ov::as_type_ptr<v4::Interpolate>(main_node);
         if (interpolate) {
             op::v4::Interpolate::InterpolateAttrs attrs = interpolate->get_attrs();
             if (!attrs.pads_begin.empty() || !attrs.pads_end.empty()) {
@@ -65,21 +68,21 @@ TSInterpolateForward::TSInterpolateForward() {
 TSInterpolateBackward::TSInterpolateBackward() {
     MATCHER_SCOPE(TSInterpolateBackward);
 
-    auto main_node_label = wrap_type<ov::op::v4::Interpolate>([](const Output<Node>& output) -> bool {
-        return has_static_rank()(output) && CheckTransposeConsumers(output);
+    auto main_node_label = pattern::wrap_type<v4::Interpolate>([](const Output<Node>& output) -> bool {
+        return pattern::has_static_rank()(output) && CheckTransposeConsumers(output);
     });
 
-    auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
+    auto transpose_const_label = pattern::wrap_type<v0::Constant>();
 
-    auto transpose_label = wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
-                                                            [](const Output<Node>& output) -> bool {
-                                                                return has_static_rank()(output);
-                                                            });
+    auto transpose_label = pattern::wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
+                                                                     [](const Output<Node>& output) -> bool {
+                                                                         return pattern::has_static_rank()(output);
+                                                                     });
 
-    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
-            as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+            as_type_ptr<v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
         if (transformation_callback(main_node)) {
@@ -95,11 +98,11 @@ TSInterpolateBackward::TSInterpolateBackward() {
         RemoveTransposeConsumers(main_node);
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
-        auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+        auto axis = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto new_axes = ChangeAxes(main_node->input_value(3), reversed_transpose_order, axis);
         main_node->input(3).replace_source_output(new_axes);
 
-        const auto& interpolate = ov::as_type_ptr<ov::op::v4::Interpolate>(main_node);
+        const auto& interpolate = ov::as_type_ptr<v4::Interpolate>(main_node);
         if (interpolate) {
             op::v4::Interpolate::InterpolateAttrs attrs = interpolate->get_attrs();
             if (!attrs.pads_begin.empty() || !attrs.pads_end.empty()) {
@@ -120,6 +123,8 @@ TSInterpolateBackward::TSInterpolateBackward() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

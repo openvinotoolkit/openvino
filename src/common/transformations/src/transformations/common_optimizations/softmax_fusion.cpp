@@ -21,31 +21,34 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::SoftmaxFusion::SoftmaxFusion() {
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+
+namespace ov::pass {
+
+SoftmaxFusion::SoftmaxFusion() {
     MATCHER_SCOPE(SoftmaxFusion);
 
-    auto data_pattern = pass::pattern::any_input(pass::pattern::has_static_rank());
-    auto reduce_max_axes_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto reduce_max_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::ReduceMax>({data_pattern, reduce_max_axes_pattern});
-    auto sub_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({data_pattern, reduce_max_pattern});
+    auto data_pattern = pattern::any_input(pattern::has_static_rank());
+    auto reduce_max_axes_pattern = pattern::wrap_type<v0::Constant>();
+    auto reduce_max_pattern = pattern::wrap_type<v1::ReduceMax>({data_pattern, reduce_max_axes_pattern});
+    auto sub_pattern = pattern::wrap_type<v1::Subtract>({data_pattern, reduce_max_pattern});
 
     auto exp_input = std::make_shared<pattern::op::Or>(OutputVector{sub_pattern, data_pattern});
-    auto exp_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Exp>({exp_input});
+    auto exp_pattern = pattern::wrap_type<v0::Exp>({exp_input});
 
-    auto reduce_sum_axes_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto reduce_sum_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::ReduceSum>({exp_pattern, reduce_sum_axes_pattern});
-    auto div_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({exp_pattern, reduce_sum_pattern});
+    auto reduce_sum_axes_pattern = pattern::wrap_type<v0::Constant>();
+    auto reduce_sum_pattern = pattern::wrap_type<v1::ReduceSum>({exp_pattern, reduce_sum_axes_pattern});
+    auto div_pattern = pattern::wrap_type<v1::Divide>({exp_pattern, reduce_sum_pattern});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root()))
             return false;
 
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto reduce_sum_axes =
-            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(reduce_sum_axes_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<v0::Constant>(pattern_map.at(reduce_sum_axes_pattern).get_node_shared_ptr());
         if (!reduce_sum_axes || shape_size(reduce_sum_axes->get_shape()) != 1)
             return false;
         int64_t reduce_sum_axis = reduce_sum_axes->cast_vector<int64_t>()[0];
@@ -57,7 +60,7 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
         auto exp_input_is_subtract = pattern_map.count(sub_pattern) != 0;
         if (exp_input_is_subtract) {
             auto reduce_max_axes =
-                ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(reduce_max_axes_pattern).get_node_shared_ptr());
+                ov::as_type_ptr<v0::Constant>(pattern_map.at(reduce_max_axes_pattern).get_node_shared_ptr());
             if (!reduce_max_axes || shape_size(reduce_max_axes->get_shape()) != 1)
                 return false;
             int64_t reduce_max_axis = reduce_max_axes->cast_vector<int64_t>()[0];
@@ -71,7 +74,7 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
                 return false;
         }
 
-        auto softmax = register_new_node<ov::op::v1::Softmax>(pattern_map.at(data_pattern), reduce_sum_axis);
+        auto softmax = register_new_node<v1::Softmax>(pattern_map.at(data_pattern), reduce_sum_axis);
         auto div = pattern_map.at(div_pattern).get_node_shared_ptr();
         softmax->set_friendly_name(div->get_friendly_name());
 
@@ -90,6 +93,8 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(div_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(div_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

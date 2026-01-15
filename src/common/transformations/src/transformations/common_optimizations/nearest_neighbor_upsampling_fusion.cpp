@@ -26,6 +26,12 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v4 = ov::op::v4;
+
+namespace ov::pass {
+
 namespace {
 using namespace ov;
 
@@ -52,7 +58,7 @@ std::vector<float> get_scales_from_mul_const_shape(const Shape& s, uint64_t inpu
     return scales;
 }
 
-bool check_concat_1(const std::shared_ptr<ov::op::v0::Concat>& concat, const Shape& shape) {
+bool check_concat_1(const std::shared_ptr<v0::Concat>& concat, const Shape& shape) {
     size_t rank = shape.size();
 
     const auto inputs = concat->input_values();
@@ -63,17 +69,17 @@ bool check_concat_1(const std::shared_ptr<ov::op::v0::Concat>& concat, const Sha
 
     std::vector<int64_t> input_constants(num_of_input_values, 1);
     for (size_t i = 1; i < num_of_input_values; ++i) {
-        const auto& current_input = ov::as_type_ptr<ov::op::v0::Unsqueeze>(inputs[i].get_node_shared_ptr());
+        const auto& current_input = ov::as_type_ptr<v0::Unsqueeze>(inputs[i].get_node_shared_ptr());
         if (!current_input)
             return false;
 
         const auto current_input_axis =
-            ov::as_type_ptr<ov::op::v0::Constant>(current_input->input_value(1).get_node_shared_ptr());
+            ov::as_type_ptr<v0::Constant>(current_input->input_value(1).get_node_shared_ptr());
         if (!current_input_axis || current_input_axis->cast_vector<int64_t>() != std::vector<int64_t>{0})
             return false;
 
         const auto unsqueezed_const =
-            ov::as_type_ptr<ov::op::v0::Constant>(current_input->input_value(0).get_node_shared_ptr());
+            ov::as_type_ptr<v0::Constant>(current_input->input_value(0).get_node_shared_ptr());
         if (!unsqueezed_const)
             return false;
 
@@ -103,7 +109,7 @@ bool check_concat_1(const std::shared_ptr<ov::op::v0::Concat>& concat, const Sha
 //
 // This function gets a new spatial shape from unsqueezed constants of 'concat_2', that is, the vector with elements
 //      [newD_1, newD_2, ..., newD_{r - 2}].
-std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<ov::op::v0::Concat>& concat,
+std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<v0::Concat>& concat,
                                                          const Shape& input_shape) {
     size_t rank = input_shape.size();
 
@@ -116,17 +122,17 @@ std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<o
     std::vector<int64_t> input_constants(num_of_input_values - 1, 0);
 
     for (size_t i = 1; i < num_of_input_values; ++i) {
-        const auto& current_input = ov::as_type_ptr<ov::op::v0::Unsqueeze>(inputs[i].get_node_shared_ptr());
+        const auto& current_input = ov::as_type_ptr<v0::Unsqueeze>(inputs[i].get_node_shared_ptr());
         if (!current_input)
             return {};
 
         const auto current_input_axis =
-            ov::as_type_ptr<ov::op::v0::Constant>(current_input->input_value(1).get_node_shared_ptr());
+            ov::as_type_ptr<v0::Constant>(current_input->input_value(1).get_node_shared_ptr());
         if (!current_input_axis || current_input_axis->cast_vector<int64_t>() != std::vector<int64_t>{0})
             return {};
 
         const auto unsqueezed_const =
-            ov::as_type_ptr<ov::op::v0::Constant>(current_input->input_value(0).get_node_shared_ptr());
+            ov::as_type_ptr<v0::Constant>(current_input->input_value(0).get_node_shared_ptr());
         if (!unsqueezed_const)
             return {};
 
@@ -146,7 +152,7 @@ std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<o
 }
 }  // namespace
 
-ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
+NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     MATCHER_SCOPE(NearestNeighborUpsamplingFusion);
     // This transformation looks for Interpolate layer implemented using simple operations, namely ShapeOf,
     // StridedSlice, Concat, Reshape, Mul, and replaces found pattern with a sequence of Shape, StridedSlice, Const,
@@ -173,54 +179,29 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     //      |      |               |                                           |               |
     //      |      |               |                                           |               |
     //      |      |               |      |-------------|   |------------|     |               |      |-------------|
-    //      |--------------| |      |               |      |             |   | Constant   |     |               |      |
-    //      |   | Constant     | |      |               |      |            0|<--| value: H   |     |               | |
-    //      0|<--| value: new_H | |      |               |      |             |   |------------|     |               |
-    //      |             |   |--------------| |      |               |      |             |                      | | |
+    //      |      |               |      |             |   | Constant   |     |               |      |             |
+    //      |      |              1|<-----|            0|<--| value: H   |     |              1|<-----| 0|<--| Constant
     //      | |      |               |      | Unsqueeze   |   |------------|     |               |      | Unsqueeze   |
-    //      |------------| |      |               |      |             |   | Constant   |     |               |      |
-    //      |   | Constant   | |      |              1|<-----|            1|<--| value: 0   |     | 1|<-----| 1|<--|
-    //      value: 0   | |      |               |      |-------------|   |------------|     |               |
-    //      |-------------|   |------------| |      |               |                                           | | | |
-    //      |      |-------------|   |------------|     |               |      |-------------|   |--------------| | | |
-    //      |             |   | Constant   |     |               |      |             |   | Constant     | |      | | |
-    //      0|<--| value: 1   |     |               |      |            0|<--| value: new_W | |      |               |
-    //      |             |   |------------|     |               |      |             |   |--------------| |      | | |
-    //      |                      |               |      |             | |      |               |      | Unsqueeze   |
-    //      |------------|     |               |      | Unsqueeze   |   |------------| |      |               |      |
-    //      |   | Constant   |     |               |      |             |   | Constant   | |      | 2|<-----| 1|<--|
-    //      value: 0   |     |              2|<-----|            1|<--| value: 0   | |      |               |
+    //      | value: new_H | |      |               |      |             |                      |               |      |
+    //      |   |--------------| |      |               |      |            1|<-----|            1|<--| Constant   | |
+    //      |      |            1|<-----|            1|<--| Constant   | |      |               |      |-------------|
+    //      | value: 0   |     |               |      |-------------|   | value: 0   | |      |               |
     //      |-------------|   |------------|     |               |      |-------------|   |------------| |      | | | |
-    //      |      |               |      |-------------|   |------------|     |               |      |-------------|
-    //      |------------| |      |               |      |             |   | Constant   |     |               |      |
-    //      |   | Constant   | |      |               |      |            0|<--| value: W   |     |               | |
-    //      0|<--| value: C   | |      |               |      |             |   |------------|     |               | |
-    //      |   |------------| |      |               |      |             |                      |               | | |
-    //      |      |               |      | Unsqueeze   |   |------------|     |               |      | Unsqueeze   |
-    //      |------------| |      |               |      |             |   | Constant   |     |               |      |
-    //      |   | Constant   | |      |              3|<-----|            1|<--| value: 0   |     | 3|<-----| 1|<--|
-    //      value: 0   | |      |               |      |-------------|   |------------|     |------|--------|
-    //      |-------------|   |------------| |      |               |                                                  |
-    //      |      |               |      |-------------|   |------------|            |
-    //      |      |               |      |             |   | Constant   |            |
-    //      |      |               |      |            0|<--| value: 1   |            |
-    //      |      |               |      |             |   |------------|            |
-    //      |      |               |      |             |                             |
-    //      |      |               |      | Unsqueeze   |   |------------|            |
-    //      |      |               |      |             |   | Constant   |            |
-    //      |      |              4|<-----|            1|<--| value: 0   |            |
-    //      |      |               |      |-------------|   |------------|            |
-    //      |      |               |                                                  |
-    //      |      |               |      |-------------|   |------------|            |
-    //      |      |               |      |             |   | Constant   |            |
-    //      |      |               |      |            0|<--| value: C   |            |
-    //      |      |               |      |             |   |------------|            |
-    //      |      |               |      |             |                             |
-    //      |      |               |      | Unsqueeze   |   |------------|            |
-    //      |      |               |      |             |   | Constant   |            |
-    //      |      |              5|<-----|            1|<--| value: 0   |            |
-    //      |      |------|--------|      |-------------|   |------------|            |
-    //      |             |                                                           |
+    //      | Constant   |     |               |      |             |   | Constant     | |      |              2|<-----|
+    //      0|<--| value: 1   |     |              2|<-----|            0|<--| value: new_W | |      |               |
+    //      |             |   |------------|     |               |      |             |   |--------------| |      | | |
+    //      |                      |               |      | Unsqueeze   |   |------------| |      |               | |
+    //      Unsqueeze   |   |------------|     |               |      |             |   | Constant   | |      |
+    //      3|<-----|            1|<--| value: 0   |     |              3|<-----|            1|<--| value: 0   | | | |
+    //      |-------------|   |------------|     |------|--------|      |-------------|   |------------| |      | |
+    //      |-------------|   |------------|            |               |-------------|   |------------| |      | | | |
+    //      | Constant   |            |               |             |   | Constant   | |      |              4|<-----|
+    //      0|<--| value: W   |            |               |            0|<--| value: C   | |      |               | |
+    //      |   |------------|            |               |             |   |------------| |      |               | | |
+    //      |               |             | |      |               |      | Unsqueeze   |   |------------|            |
+    //      | Unsqueeze   |   |------------| |      |              5|<-----|            1|<--| value: 0   |            |
+    //      |            1|<--| value: 0   | |      |------|--------|      |-------------|   |------------|            |
+    //      |-------------|   |------------| |             |                                                           |
     //      |             |                                                           |
     //      |             |------------|                                              |
     //      |                          |                                              |
@@ -274,30 +255,28 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     //      4) 'axes' input as a constant with the value [1, 2, ..., r - 2].
     //
     // Of course, the replacement shouldn't be done, if all S_i are equal to 1.
-    auto input = pass::pattern::any_input(pattern::has_static_shape());
-    auto concat_1 = pattern::wrap_type<ov::op::v0::Concat>();
-    auto concat_2 = pattern::wrap_type<ov::op::v0::Concat>();
-    auto reshape_1 = pattern::wrap_type<ov::op::v1::Reshape>({input, concat_1});
-    auto mul_const = pattern::wrap_type<ov::op::v0::Constant>(pattern::has_static_shape());
-    auto mul = pattern::wrap_type<ov::op::v1::Multiply>({reshape_1, mul_const});
-    auto reshape_2 = pattern::wrap_type<ov::op::v1::Reshape>({mul, concat_2});
+    auto input = pattern::any_input(pattern::has_static_shape());
+    auto concat_1 = pattern::wrap_type<v0::Concat>();
+    auto concat_2 = pattern::wrap_type<v0::Concat>();
+    auto reshape_1 = pattern::wrap_type<v1::Reshape>({input, concat_1});
+    auto mul_const = pattern::wrap_type<v0::Constant>(pattern::has_static_shape());
+    auto mul = pattern::wrap_type<v1::Multiply>({reshape_1, mul_const});
+    auto reshape_2 = pattern::wrap_type<v1::Reshape>({mul, concat_2});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
-        const auto reshape_2_node =
-            ov::as_type_ptr<ov::op::v1::Reshape>(pattern_to_output.at(reshape_2).get_node_shared_ptr());
-        const auto mul_node = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr());
+        const auto reshape_2_node = ov::as_type_ptr<v1::Reshape>(pattern_to_output.at(reshape_2).get_node_shared_ptr());
+        const auto mul_node = ov::as_type_ptr<v1::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr());
         if (!reshape_2_node || !mul_node)
             return false;
 
         const auto mul_const_node =
-            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_const).get_node_shared_ptr());
+            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(mul_const).get_node_shared_ptr());
         if (!mul_const_node)
             return false;
 
-        const auto reshape_1_node =
-            ov::as_type_ptr<ov::op::v1::Reshape>(pattern_to_output.at(reshape_1).get_node_shared_ptr());
+        const auto reshape_1_node = ov::as_type_ptr<v1::Reshape>(pattern_to_output.at(reshape_1).get_node_shared_ptr());
         if (!reshape_1_node)
             return false;
 
@@ -317,8 +296,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
             return false;
         }
 
-        const auto concat_1_node =
-            ov::as_type_ptr<ov::op::v0::Concat>(pattern_to_output.at(concat_1).get_node_shared_ptr());
+        const auto concat_1_node = ov::as_type_ptr<v0::Concat>(pattern_to_output.at(concat_1).get_node_shared_ptr());
         if (!concat_1_node)
             return false;
 
@@ -326,8 +304,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         if (!check_concat_1(concat_1_node, input_shape))
             return false;
 
-        const auto concat_2_node =
-            ov::as_type_ptr<ov::op::v0::Concat>(pattern_to_output.at(concat_2).get_node_shared_ptr());
+        const auto concat_2_node = ov::as_type_ptr<v0::Concat>(pattern_to_output.at(concat_2).get_node_shared_ptr());
         if (!concat_2_node)
             return false;
 
@@ -336,9 +313,9 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
             return false;
 
         const auto ss_before_concat_1 =
-            ov::as_type_ptr<ov::op::v1::StridedSlice>(concat_1_node->input_value(0).get_node_shared_ptr());
+            ov::as_type_ptr<v1::StridedSlice>(concat_1_node->input_value(0).get_node_shared_ptr());
         const auto ss_before_concat_2 =
-            ov::as_type_ptr<ov::op::v1::StridedSlice>(concat_2_node->input_value(0).get_node_shared_ptr());
+            ov::as_type_ptr<v1::StridedSlice>(concat_2_node->input_value(0).get_node_shared_ptr());
         if (!ss_before_concat_1 || !ss_before_concat_2 || ss_before_concat_1.get() != ss_before_concat_2.get())
             return false;
 
@@ -352,28 +329,27 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         if (before_shapeof.get_node() != before_reshape_1.get_node())
             return false;
 
-        ov::op::v4::Interpolate::InterpolateAttrs attrs;
-        attrs.mode = ov::op::v4::Interpolate::InterpolateMode::NEAREST;
-        attrs.shape_calculation_mode = ov::op::v4::Interpolate::ShapeCalcMode::SCALES;
-        attrs.nearest_mode = ov::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR;
+        v4::Interpolate::InterpolateAttrs attrs;
+        attrs.mode = v4::Interpolate::InterpolateMode::NEAREST;
+        attrs.shape_calculation_mode = v4::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR;
         attrs.pads_begin = std::vector<size_t>{0};
         attrs.pads_end = std::vector<size_t>{0};
         attrs.antialias = false;
-        attrs.coordinate_transformation_mode = ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL;
+        attrs.coordinate_transformation_mode = v4::Interpolate::CoordinateTransformMode::HALF_PIXEL;
         attrs.cube_coeff = -0.75f;
 
         const auto& input_node = pattern_to_output.at(input);
         const auto& type = input_node.get_element_type();
-        const auto scales_node = ov::op::v0::Constant::create(type, {scales.size()}, scales);
-        const auto sizes_node =
-            ov::op::v0::Constant::create(element::i64, {new_spatial_shape.size()}, new_spatial_shape);
+        const auto scales_node = v0::Constant::create(type, {scales.size()}, scales);
+        const auto sizes_node = v0::Constant::create(element::i64, {new_spatial_shape.size()}, new_spatial_shape);
 
         std::vector<int64_t> axes(input_rank - 2);
         std::iota(axes.begin(), axes.end(), static_cast<int64_t>(1));
-        const auto axes_node = ov::op::v0::Constant::create(element::i64, {axes.size()}, axes);
+        const auto axes_node = v0::Constant::create(element::i64, {axes.size()}, axes);
 
         auto interpolate =
-            register_new_node<ov::op::v4::Interpolate>(before_shapeof, sizes_node, scales_node, axes_node, attrs);
+            register_new_node<v4::Interpolate>(before_shapeof, sizes_node, scales_node, axes_node, attrs);
 
         interpolate->set_friendly_name(reshape_2_node->get_friendly_name());
         copy_runtime_info(
@@ -384,6 +360,8 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_2, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(reshape_2, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

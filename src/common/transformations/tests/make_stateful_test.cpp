@@ -23,6 +23,7 @@ using namespace ov;
 using namespace opset8;
 using namespace std;
 
+namespace op_util = ov::op::util;
 std::shared_ptr<ov::Model> get_test_model(bool insert_squeeze, bool use_friendly_names) {
     std::shared_ptr<ov::Model> model;
     auto X = make_shared<Parameter>(element::f32, Shape{32, 1, 10});
@@ -63,12 +64,12 @@ std::shared_ptr<ov::Model> get_ref_model(bool insert_squeeze, bool use_friendly_
     std::shared_ptr<ov::Model> model;
     // create ReadValue for X
     auto variable_x =
-        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{Shape{32, 1, 10}, element::f32, "xres0"});
+        std::make_shared<op_util::Variable>(op_util::VariableInfo{Shape{32, 1, 10}, element::f32, "xres0"});
     auto read_val_x = make_shared<ReadValue>(variable_x);
 
     // create ReadValue for Y
     auto variable_y =
-        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{Shape{32, 1, 10}, element::f32, "yres1"});
+        std::make_shared<op_util::Variable>(op_util::VariableInfo{Shape{32, 1, 10}, element::f32, "yres1"});
     auto read_val_y = make_shared<ReadValue>(variable_y);
 
     if (!use_friendly_names) {

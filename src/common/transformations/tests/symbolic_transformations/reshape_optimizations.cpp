@@ -18,9 +18,11 @@
 #include "openvino/op/shape_of.hpp"
 
 using namespace ov;
-using namespace ov::op;
 using namespace std;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
 TEST_F(TransformationTestsF, FlattenOptimization) {
     // [A, B, C, D] -> [A, B, C*D]
 
@@ -31,14 +33,14 @@ TEST_F(TransformationTestsF, FlattenOptimization) {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 
         auto shape_of = make_shared<v3::ShapeOf>(data);
-        auto indices = ov::op::v0::Constant::create(element::i64, {2}, {0, 1});
-        auto axis = ov::op::v0::Constant::create(element::i64, {}, {0});
+        auto indices = v0::Constant::create(element::i64, {2}, {0, 1});
+        auto axis = v0::Constant::create(element::i64, {}, {0});
 
         auto as_is_dims = make_shared<v1::Gather>(shape_of, indices, axis);
 
         auto merged_dim = make_shared<v1::Multiply>(
-            make_shared<v1::Gather>(shape_of, ov::op::v0::Constant::create(element::i64, {1}, {2}), axis),
-            make_shared<v1::Gather>(shape_of, ov::op::v0::Constant::create(element::i64, {1}, {3}), axis));
+            make_shared<v1::Gather>(shape_of, v0::Constant::create(element::i64, {1}, {2}), axis),
+            make_shared<v1::Gather>(shape_of, v0::Constant::create(element::i64, {1}, {3}), axis));
 
         auto pattern = make_shared<v0::Concat>(OutputVector{as_is_dims, merged_dim}, 0);
 
@@ -49,7 +51,7 @@ TEST_F(TransformationTestsF, FlattenOptimization) {
     }
     {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
-        auto pattern = ov::op::v0::Constant::create(element::i64, {3}, {0, 0, -1});
+        auto pattern = v0::Constant::create(element::i64, {3}, {0, 0, -1});
 
         auto reshape = make_shared<v1::Reshape>(data, pattern, true);
 
@@ -67,11 +69,11 @@ TEST_F(TransformationTestsF, LastDimSplitStaticLast) {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 
         auto shape_of = make_shared<v3::ShapeOf>(data);
-        auto indices = ov::op::v0::Constant::create(element::i64, {3}, {0, 1, 2});
-        auto axis = ov::op::v0::Constant::create(element::i64, {}, {0});
+        auto indices = v0::Constant::create(element::i64, {3}, {0, 1, 2});
+        auto axis = v0::Constant::create(element::i64, {}, {0});
 
         auto as_is_dims = make_shared<v1::Gather>(shape_of, indices, axis);
-        auto splited_dim = ov::op::v0::Constant::create(element::i64, {2}, {-1, 8});
+        auto splited_dim = v0::Constant::create(element::i64, {2}, {-1, 8});
 
         auto pattern = make_shared<v0::Concat>(OutputVector{as_is_dims, splited_dim}, 0);
 
@@ -82,7 +84,7 @@ TEST_F(TransformationTestsF, LastDimSplitStaticLast) {
     }
     {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
-        auto pattern = ov::op::v0::Constant::create(element::i64, {5}, {0, 0, 0, -1, 8});
+        auto pattern = v0::Constant::create(element::i64, {5}, {0, 0, 0, -1, 8});
 
         auto reshape = make_shared<v1::Reshape>(data, pattern, true);
 
@@ -100,11 +102,11 @@ TEST_F(TransformationTestsF, LastDimSplitDymanicLast) {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 
         auto shape_of = make_shared<v3::ShapeOf>(data);
-        auto indices = ov::op::v0::Constant::create(element::i64, {3}, {0, 1, 2});
-        auto axis = ov::op::v0::Constant::create(element::i64, {}, {0});
+        auto indices = v0::Constant::create(element::i64, {3}, {0, 1, 2});
+        auto axis = v0::Constant::create(element::i64, {}, {0});
 
         auto as_is_dims = make_shared<v1::Gather>(shape_of, indices, axis);
-        auto splited_dim = ov::op::v0::Constant::create(element::i64, {2}, {8, -1});
+        auto splited_dim = v0::Constant::create(element::i64, {2}, {8, -1});
 
         auto pattern = make_shared<v0::Concat>(OutputVector{as_is_dims, splited_dim}, 0);
 
@@ -115,7 +117,7 @@ TEST_F(TransformationTestsF, LastDimSplitDymanicLast) {
     }
     {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
-        auto pattern = ov::op::v0::Constant::create(element::i64, {5}, {0, 0, 0, 8, -1});
+        auto pattern = v0::Constant::create(element::i64, {5}, {0, 0, 0, 8, -1});
 
         auto reshape = make_shared<v1::Reshape>(data, pattern, true);
 
@@ -132,14 +134,14 @@ TEST_F(TransformationTestsF, NegativeTest) {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 
         auto shape_of = make_shared<v3::ShapeOf>(data);
-        auto indices = ov::op::v0::Constant::create(element::i64, {3}, {0, 1, 2});
-        auto axis = ov::op::v0::Constant::create(element::i64, {}, {0});
+        auto indices = v0::Constant::create(element::i64, {3}, {0, 1, 2});
+        auto axis = v0::Constant::create(element::i64, {}, {0});
         auto as_is_dims = make_shared<v1::Gather>(shape_of, indices, axis);
 
-        auto D = make_shared<v1::Gather>(shape_of, ov::op::v0::Constant::create(element::i64, {1}, {3}), axis);
-        auto D_2 = make_shared<v1::Divide>(D, ov::op::v0::Constant::create(element::i64, {}, {2}));
-        auto D_3 = make_shared<v1::Divide>(D, ov::op::v0::Constant::create(element::i64, {}, {3}));
-        auto six = ov::op::v0::Constant::create(element::i64, {1}, {6});
+        auto D = make_shared<v1::Gather>(shape_of, v0::Constant::create(element::i64, {1}, {3}), axis);
+        auto D_2 = make_shared<v1::Divide>(D, v0::Constant::create(element::i64, {}, {2}));
+        auto D_3 = make_shared<v1::Divide>(D, v0::Constant::create(element::i64, {}, {3}));
+        auto six = v0::Constant::create(element::i64, {1}, {6});
 
         auto pattern = make_shared<v0::Concat>(OutputVector{as_is_dims, D_2, D_3, six}, 0);
 
@@ -157,11 +159,11 @@ TEST_F(TransformationTestsF, ZeroDimsInOutputShape) {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
         auto b = make_shared<v0::Parameter>(element::f32, PartialShape{-1});
 
-        auto a = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto a = v0::Constant::create(element::i64, Shape{1}, {0});
 
         auto shape_of = make_shared<v3::ShapeOf>(b);
-        auto indices = ov::op::v0::Constant::create(element::i64, {1}, {0});
-        auto axis = ov::op::v0::Constant::create(element::i64, {}, {0});
+        auto indices = v0::Constant::create(element::i64, {1}, {0});
+        auto axis = v0::Constant::create(element::i64, {}, {0});
         auto b_dim = make_shared<v1::Gather>(shape_of, indices, axis);
 
         auto pattern = make_shared<v0::Concat>(OutputVector{a, b_dim}, 0);

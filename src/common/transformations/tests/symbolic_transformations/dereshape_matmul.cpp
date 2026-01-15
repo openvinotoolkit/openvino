@@ -21,9 +21,11 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-using namespace ov::op;
 using namespace std;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace op_util = ov::op::util;
 namespace {
 /* Helps to organize dimension representation in the following tests:
  * 1. Creates requested amount of dimensions
@@ -95,7 +97,7 @@ shared_ptr<Node> reshape(const Output<Node>& source,
 void get_dims(const ov::Output<ov::Node>& source, const size_t& from, const size_t& to, ov::NodeVector& dims) {
     std::vector<size_t> non_constant_ids;
     for (size_t i = from; i < to; ++i) {
-        auto node = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(source, {i});
+        auto node = op_util::node_to_get_shape_value_of_indices_from_shape_source(source, {i});
         if (auto constant = ov::util::get_constant_from_source(node)) {
             node = constant;
         } else {
@@ -118,20 +120,20 @@ ov::Output<ov::Node> get_target_shape_from_sources(const ov::Output<ov::Node>& b
     size_t num_non_const_nodes = 0;  // candidates for becoming a Constant -1 -- special value for Reshape pattern
     for (size_t curr_i = 0; curr_i + 1 < dims.size(); ++curr_i) {
         auto curr_node = dims[curr_i], next_node = dims[curr_i + 1];
-        bool curr_is_const = ov::op::util::is_constant(curr_node), next_is_const = ov::op::util::is_constant(next_node);
+        bool curr_is_const = op_util::is_constant(curr_node), next_is_const = op_util::is_constant(next_node);
         if (num_non_const_nodes == 0 && !curr_is_const && next_is_const) {
-            curr_node = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+            curr_node = v0::Constant::create(ov::element::i64, {1}, {-1});
             curr_is_const = true;
             num_non_const_nodes += 1;
         }
         if (num_non_const_nodes == 0 && !next_is_const && curr_is_const) {
-            next_node = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+            next_node = v0::Constant::create(ov::element::i64, {1}, {-1});
             next_is_const = true;
             num_non_const_nodes += 1;
         }
         if (curr_is_const && next_is_const) {
             dims[curr_i] = nullptr;
-            dims[curr_i + 1] = ov::op::util::make_try_fold<ov::op::v0::Concat>(ov::NodeVector{curr_node, next_node}, 0);
+            dims[curr_i + 1] = op_util::make_try_fold<v0::Concat>(ov::NodeVector{curr_node, next_node}, 0);
         }
     }
     dims.erase(std::remove_if(dims.begin(),
@@ -140,7 +142,7 @@ ov::Output<ov::Node> get_target_shape_from_sources(const ov::Output<ov::Node>& b
                                   return node == nullptr;
                               }),
                dims.end());
-    auto target_shape = ov::op::util::make_try_fold<ov::op::v0::Concat>(dims, 0);
+    auto target_shape = op_util::make_try_fold<v0::Concat>(dims, 0);
     return target_shape->output(0);
 }
 
@@ -379,16 +381,13 @@ public:
 
         if (final_add_mode > 0) {
             const auto original_add_in = v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1});
-            auto divisor = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(lhs_input, {1});
+            auto divisor = op_util::node_to_get_shape_value_of_indices_from_shape_source(lhs_input, {1});
             auto first_batch_dim =
-                std::make_shared<ov::op::v1::Divide>(ov::op::v0::Constant::create(element::i64, {1}, {1}),
-                                                     divisor,
-                                                     true);
-            auto minus_one = ov::op::v0::Constant::create(element::i64, {1}, {-1});
-            auto non_batch_dims = ov::op::v0::Constant::create(element::i64, {2}, {1, 1});
-            auto pattern =
-                std::make_shared<ov::op::v0::Concat>(OutputVector{first_batch_dim, minus_one, non_batch_dims}, 0);
-            auto other_input_reshape = op::util::make_try_fold<ov::op::v1::Reshape>(original_add_in, pattern, true);
+                std::make_shared<v1::Divide>(v0::Constant::create(element::i64, {1}, {1}), divisor, true);
+            auto minus_one = v0::Constant::create(element::i64, {1}, {-1});
+            auto non_batch_dims = v0::Constant::create(element::i64, {2}, {1, 1});
+            auto pattern = std::make_shared<v0::Concat>(OutputVector{first_batch_dim, minus_one, non_batch_dims}, 0);
+            auto other_input_reshape = op::util::make_try_fold<v1::Reshape>(original_add_in, pattern, true);
 
             if (final_add_mode == 1) {  // 1 - add has matmul on lhs
                 matmul = make_shared<v1::Add>(matmul, other_input_reshape);

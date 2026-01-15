@@ -15,10 +15,10 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 
-using namespace ov;
-using namespace ov::pass::pattern;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
+
+namespace ov::pass {
 
 void TSForwardBase::transpose_sinking(const std::string& pass_name,
                                       const TSForwardBase::sinking_function& sinking_transformation) {
@@ -77,3 +77,5 @@ bool TSForwardBase::if_node_has_transpose_inputs(
         utils::GetFirstTransposeInput(output.get_node_shared_ptr(), transpose_indices, if_transpose_sinkable);
     return !inputs_info.isEmpty();
 }
+
+}  // namespace ov::pass

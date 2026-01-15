@@ -11,13 +11,16 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v15 = ov::op::v15;
 ov::pass::ConvertSqueeze15ToSqueeze0::ConvertSqueeze15ToSqueeze0() {
     MATCHER_SCOPE(ConvertSqueeze15ToSqueeze0);
 
-    const auto& squeeze_v15_pattern = pattern::wrap_type<ov::op::v15::Squeeze>();
+    const auto& squeeze_v15_pattern = ov::pass::pattern::wrap_type<v15::Squeeze>();
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        const auto& squeeze_v15 = ov::as_type_ptr<ov::op::v15::Squeeze>(m.get_match_root());
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto& squeeze_v15 = ov::as_type_ptr<v15::Squeeze>(m.get_match_root());
         if (!squeeze_v15 || transformation_callback(squeeze_v15)) {
             return false;
         }
@@ -36,6 +39,6 @@ ov::pass::ConvertSqueeze15ToSqueeze0::ConvertSqueeze15ToSqueeze0() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(squeeze_v15_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(squeeze_v15_pattern, matcher_name);
     register_matcher(m, callback);
 }

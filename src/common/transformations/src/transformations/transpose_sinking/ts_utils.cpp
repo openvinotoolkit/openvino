@@ -32,44 +32,43 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace pass {
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v8 = ov::op::v8;
+namespace ov::pass {
 namespace transpose_sinking {
 namespace utils {
-
-using namespace ov;
 
 using NodePtr = std::shared_ptr<Node>;
 using InsertBroadcastUnsqueezeT = std::function<NodePtr(const Output<Node>& node, size_t n_dims)>;
 
 Output<Node> ChangeValuesOrder(const Output<Node>& input,
                                const AxisVector& transpose_axis_order,
-                               const std::shared_ptr<ov::op::v0::Constant>& axis) {
+                               const std::shared_ptr<v0::Constant>& axis) {
     auto indices =
-        std::make_shared<ov::op::v0::Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
-    auto gather = std::make_shared<ov::op::v8::Gather>(input, indices, axis);
+        std::make_shared<v0::Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
+    auto gather = std::make_shared<v8::Gather>(input, indices, axis);
     copy_runtime_info(input.get_node_shared_ptr(), gather);
     return gather;
 }
 
 Output<Node> ChangeAxes(const Output<Node>& indices,
-                        const std::shared_ptr<ov::op::v0::Constant>& data,
-                        const std::shared_ptr<ov::op::v0::Constant>& axis) {
-    auto gather = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
+                        const std::shared_ptr<v0::Constant>& data,
+                        const std::shared_ptr<v0::Constant>& axis) {
+    auto gather = std::make_shared<v8::Gather>(data, indices, axis);
     copy_runtime_info(indices.get_node_shared_ptr(), gather);
     return gather;
 }
 
 Output<Node> ChangeAxes(const Output<Node>& indices,
                         const AxisVector& transpose_axis_order,
-                        const std::shared_ptr<ov::op::v0::Constant>& axis) {
-    auto data =
-        std::make_shared<ov::op::v0::Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
+                        const std::shared_ptr<v0::Constant>& axis) {
+    auto data = std::make_shared<v0::Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
     return ChangeAxes(indices, data, axis);
 }
 
-bool if_transpose_sinkable_default(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
-                                   const std::shared_ptr<ov::op::v0::Constant>& transpose_order) {
+bool if_transpose_sinkable_default(const std::shared_ptr<v1::Transpose>& transpose,
+                                   const std::shared_ptr<v0::Constant>& transpose_order) {
     if (!transpose || !transpose_order)
         return false;
     const auto partial_shape_rank = transpose->get_input_partial_shape(0).rank();
@@ -82,8 +81,8 @@ bool if_transpose_sinkable_default(const std::shared_ptr<ov::op::v1::Transpose>&
 TransposeInputsInfo GetFirstTransposeInput(
     const NodePtr& node,
     const std::vector<size_t>& indices,
-    const std::function<bool(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
-                             const std::shared_ptr<ov::op::v0::Constant>& transpose_order)>& if_transpose_sinkable) {
+    const std::function<bool(const std::shared_ptr<v1::Transpose>& transpose,
+                             const std::shared_ptr<v0::Constant>& transpose_order)>& if_transpose_sinkable) {
     auto indices_to_check = indices;
     if (indices.empty()) {
         indices_to_check.resize(node->get_input_size());
@@ -92,10 +91,10 @@ TransposeInputsInfo GetFirstTransposeInput(
 
     for (const auto& input_idx : indices_to_check) {
         NodePtr input_node = node->get_input_node_shared_ptr(input_idx);
-        auto transpose_node = as_type_ptr<ov::op::v1::Transpose>(input_node);
+        auto transpose_node = as_type_ptr<v1::Transpose>(input_node);
         if (!transpose_node)
             continue;
-        auto constant_node = as_type_ptr<ov::op::v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
+        auto constant_node = as_type_ptr<v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
         if (!if_transpose_sinkable(transpose_node, constant_node))
             continue;
         {
@@ -137,8 +136,8 @@ NodePtr InsertBroadcastUnsqueeze(const Output<Node>& node, size_t n_dims) {
     std::vector<size_t> dims(n_dims);
     std::iota(dims.begin(), dims.end(), 0);
 
-    auto unsqueeze_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, Shape{dims.size()}, dims);
-    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(node, unsqueeze_const);
+    auto unsqueeze_const = std::make_shared<v0::Constant>(ov::element::i64, Shape{dims.size()}, dims);
+    auto unsqueeze = std::make_shared<v0::Unsqueeze>(node, unsqueeze_const);
     copy_runtime_info(node.get_node_shared_ptr(), {unsqueeze, unsqueeze_const});
     return unsqueeze;
 }
@@ -244,11 +243,10 @@ bool UpdateInputTransposes(const NodePtr& main_node,
                 return false;
             }
             const auto reversed_transpose_axis_order = ReverseTransposeOrder(transpose_order);
-            auto new_transpose_const =
-                std::make_shared<ov::op::v0::Constant>(transpose_element_type,
-                                                       Shape{reversed_transpose_axis_order.size()},
-                                                       reversed_transpose_axis_order);
-            auto new_transpose = std::make_shared<ov::op::v1::Transpose>(input_node, new_transpose_const);
+            auto new_transpose_const = std::make_shared<v0::Constant>(transpose_element_type,
+                                                                      Shape{reversed_transpose_axis_order.size()},
+                                                                      reversed_transpose_axis_order);
+            auto new_transpose = std::make_shared<v1::Transpose>(input_node, new_transpose_const);
 
             main_node->input(i).replace_source_output(new_transpose->output(0));
 
@@ -277,9 +275,9 @@ NodeVector InsertOutputTransposes(const NodePtr& main_node, const TransposeInput
     for (size_t i = 0; i < main_node->get_output_size(); ++i) {
         auto aligned_order = AlignTransposeOrder(main_node->output(i), transpose_input_info);
         auto new_transpose_const =
-            std::make_shared<ov::op::v0::Constant>(transpose_element_type, Shape{aligned_order.size()}, aligned_order);
+            std::make_shared<v0::Constant>(transpose_element_type, Shape{aligned_order.size()}, aligned_order);
         auto main_node_consumers = main_node->output(i).get_target_inputs();
-        auto new_transpose = std::make_shared<ov::op::v1::Transpose>(main_node->output(i), new_transpose_const);
+        auto new_transpose = std::make_shared<v1::Transpose>(main_node->output(i), new_transpose_const);
         for (auto& consumer : main_node_consumers) {
             consumer.replace_source_output(new_transpose);
         }
@@ -300,7 +298,7 @@ NodeVector InsertOutputTransposes(const NodePtr& main_node, const TransposeInput
 
 namespace sink_backward {
 NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
-                                     const std::shared_ptr<ov::op::v0::Constant>& transpose_const,
+                                     const std::shared_ptr<v0::Constant>& transpose_const,
                                      std::vector<size_t> input_indexes,
                                      InsertBroadcastUnsqueezeT InsertUnsqueeze) {
     if (input_indexes.empty()) {
@@ -322,10 +320,10 @@ NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
     for (const auto& i : input_indexes) {
         auto input_node = FixInputNodeRank(main_node->input_value(i), max_input_rank, InsertUnsqueeze);
 
-        auto new_transpose_const = std::make_shared<ov::op::v0::Constant>(transpose_element_type,
-                                                                          Shape{transpose_axis_order.size()},
-                                                                          transpose_axis_order);
-        auto new_transpose = std::make_shared<ov::op::v1::Transpose>(input_node, new_transpose_const);
+        auto new_transpose_const = std::make_shared<v0::Constant>(transpose_element_type,
+                                                                  Shape{transpose_axis_order.size()},
+                                                                  transpose_axis_order);
+        auto new_transpose = std::make_shared<v1::Transpose>(input_node, new_transpose_const);
 
         main_node->input(i).replace_source_output(new_transpose->output(0));
 
@@ -340,12 +338,12 @@ NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
 
 namespace {
 
-std::shared_ptr<ov::op::v0::Constant> GetTransposeConstant(Node* node) {
-    auto transpose_node = ov::as_type<ov::op::v1::Transpose>(node);
+std::shared_ptr<v0::Constant> GetTransposeConstant(Node* node) {
+    auto transpose_node = ov::as_type<v1::Transpose>(node);
     if (!transpose_node)
         return {};
 
-    auto constant_node = as_type_ptr<ov::op::v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
+    auto constant_node = as_type_ptr<v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
     if (!constant_node)
         return {};
 
@@ -403,16 +401,16 @@ bool CheckTransposeConsumers(const Output<Node>& output) {
 }
 
 bool RemoveTransposeConsumers(const NodePtr& node) {
-    std::unordered_map<size_t, std::vector<ov::op::v1::Transpose*>> out_idx_to_redundant_transposes;
+    std::unordered_map<size_t, std::vector<v1::Transpose*>> out_idx_to_redundant_transposes;
 
     // in case of multiple Transposes connected directly to Result ops,
     // we can't guarantee that friendly names are copied correctly,
     // we preserve only one of possible variants.
     // This note related to friendly names only, not to tensor names.
-    ov::op::v1::Transpose* transpose_connected_to_result = nullptr;
+    v1::Transpose* transpose_connected_to_result = nullptr;
     for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
         for (auto& consumer_input : node->get_output_target_inputs(output_idx)) {
-            auto transpose = ov::as_type<ov::op::v1::Transpose>(consumer_input.get_node());
+            auto transpose = ov::as_type<v1::Transpose>(consumer_input.get_node());
             if (!transpose) {
                 // should never happen
                 // the check that all consumers of the main node are Transposes is added
@@ -422,7 +420,7 @@ bool RemoveTransposeConsumers(const NodePtr& node) {
             out_idx_to_redundant_transposes[output_idx].push_back(transpose);
 
             for (const auto& transpose_consumer_input : transpose->output(0).get_target_inputs()) {
-                if (ov::as_type<ov::op::v0::Result>(transpose_consumer_input.get_node())) {
+                if (ov::as_type<v0::Result>(transpose_consumer_input.get_node())) {
                     transpose_connected_to_result = transpose;
                 }
             }
@@ -495,5 +493,4 @@ std::vector<size_t> GetOrderBeforeReduction(const std::vector<size_t>& axes_valu
 
 }  // namespace utils
 }  // namespace transpose_sinking
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass

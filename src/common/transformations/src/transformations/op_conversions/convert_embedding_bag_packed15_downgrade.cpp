@@ -12,15 +12,19 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3::ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3() {
+namespace v15 = ov::op::v15;
+
+namespace ov::pass {
+
+ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3::ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3() {
     MATCHER_SCOPE(ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3);
 
-    const auto emb_v15_pattern = pattern::wrap_type<ov::op::v15::EmbeddingBagPacked>();
+    const auto emb_v15_pattern = pattern::wrap_type<v15::EmbeddingBagPacked>();
 
     const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        const auto emb_v15 = ov::as_type_ptr<ov::op::v15::EmbeddingBagPacked>(m.get_match_root());
+        const auto emb_v15 = ov::as_type_ptr<v15::EmbeddingBagPacked>(m.get_match_root());
         if (!emb_v15 || transformation_callback(emb_v15) ||
-            emb_v15->get_reduction() != ov::op::v15::EmbeddingBagPacked::Reduction::SUM) {
+            emb_v15->get_reduction() != v15::EmbeddingBagPacked::Reduction::SUM) {
             return false;
         }
         std::shared_ptr<ov::op::v3::EmbeddingBagPackedSum> emb_v3;
@@ -44,3 +48,5 @@ ov::pass::ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3::ConvertEmbeddingB
     auto m = std::make_shared<pattern::Matcher>(emb_v15_pattern, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

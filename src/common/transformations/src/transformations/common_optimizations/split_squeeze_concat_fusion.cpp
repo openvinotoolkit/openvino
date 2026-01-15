@@ -20,36 +20,40 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 static bool is_axis_squeezed_by_node(const std::shared_ptr<ov::Node>& squeeze_node, int64_t axis, bool use_shapes);
 
 ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion(bool use_shapes) {
     MATCHER_SCOPE(SplitSqueezeConcatFusion);
     // Detect only concat, because we don't know how many inputs will go into concat
-    auto concat_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Concat>();
+    auto concat_pattern = ov::pass::pattern::wrap_type<v0::Concat>();
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_to_output.at(concat_pattern).get_node_shared_ptr());
+        auto concat = ov::as_type_ptr<v0::Concat>(pattern_to_output.at(concat_pattern).get_node_shared_ptr());
         if (!concat)
             return false;
 
         NodeVector nodes_to_delete{concat};
 
-        std::shared_ptr<ov::op::v1::Split> split;
+        std::shared_ptr<v1::Split> split;
         int64_t split_axis = 0;
 
         for (size_t i = 0; i < concat->get_input_size(); i++) {
             auto squeeze_node = concat->get_input_node_shared_ptr(i);
-            if (!ov::is_type<ov::op::v0::Squeeze>(squeeze_node) && !ov::is_type<ov::op::v1::Reshape>(squeeze_node))
+            if (!ov::is_type<v0::Squeeze>(squeeze_node) && !ov::is_type<v1::Reshape>(squeeze_node))
                 return false;
-            auto split_to_check = ov::as_type_ptr<ov::op::v1::Split>(squeeze_node->get_input_node_shared_ptr(0));
+            auto split_to_check = ov::as_type_ptr<v1::Split>(squeeze_node->get_input_node_shared_ptr(0));
             if (!split_to_check)
                 return false;
 
             if (i == 0) {
                 nodes_to_delete.push_back(split_to_check);
                 split = split_to_check;
-                auto split_axis_node = ov::as_type_ptr<ov::op::v0::Constant>(split->get_input_node_shared_ptr(1));
+                auto split_axis_node = ov::as_type_ptr<v0::Constant>(split->get_input_node_shared_ptr(1));
                 if (!split_axis_node)
                     return false;
                 auto axis_vec = split_axis_node->cast_vector<int64_t>();
@@ -91,11 +95,11 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion(bool use_shapes) {
         order.erase(order.begin() + split_axis);
         order.insert(order.begin() + concat_axis, split_axis);
 
-        auto transpose_order = ov::op::v0::Constant::create(element::i64, {(size_t)rank.get_length()}, order);
-        auto transpose = register_new_node<ov::op::v1::Transpose>(input, transpose_order);
+        auto transpose_order = v0::Constant::create(element::i64, {(size_t)rank.get_length()}, order);
+        auto transpose = register_new_node<v1::Transpose>(input, transpose_order);
         auto shape_after =
-            ov::op::v0::Constant::create(element::i64, {(size_t)rank.get_length() - 1}, concat->get_output_shape(0));
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose, shape_after, false);
+            v0::Constant::create(element::i64, {(size_t)rank.get_length() - 1}, concat->get_output_shape(0));
+        auto reshape = std::make_shared<v1::Reshape>(transpose, shape_after, false);
 
         reshape->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(nodes_to_delete, {transpose, reshape});
@@ -103,7 +107,7 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion(bool use_shapes) {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(concat_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -124,7 +128,7 @@ bool is_axis_squeezed_by_node(const std::shared_ptr<ov::Node>& squeeze_node, int
     if (input_shape[axis].is_dynamic() || input_shape[axis] != 1)
         return false;
 
-    if (ov::is_type<ov::op::v1::Reshape>(squeeze_node)) {
+    if (ov::is_type<v1::Reshape>(squeeze_node)) {
         if (!use_shapes)
             return false;
         // clang-format off
@@ -156,7 +160,7 @@ bool is_axis_squeezed_by_node(const std::shared_ptr<ov::Node>& squeeze_node, int
             }
         } else {
             // The second Squeeze input has explicit axes
-            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(squeeze_node->get_input_node_shared_ptr(1));
+            auto constant = ov::as_type_ptr<v0::Constant>(squeeze_node->get_input_node_shared_ptr(1));
             if (!constant)
                 return false;
             if (ov::shape_size(constant->get_shape()) != 1)

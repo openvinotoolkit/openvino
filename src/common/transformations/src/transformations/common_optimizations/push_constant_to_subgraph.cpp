@@ -9,12 +9,14 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
-using MultiSubGraphOp = ov::op::util::MultiSubGraphOp;
+namespace v0 = ov::op::v0;
+namespace op_util = ov::op::util;
+using MultiSubGraphOp = op_util::MultiSubGraphOp;
 
-static std::shared_ptr<ov::op::v0::Constant> try_constantfold_input(
+static std::shared_ptr<v0::Constant> try_constantfold_input(
     const std::shared_ptr<MultiSubGraphOp>& op,
     const MultiSubGraphOp::InputDescription::Ptr& input_desc,
-    std::map<ov::Output<ov::Node>, std::shared_ptr<ov::op::v0::Constant>>& cache) {
+    std::map<ov::Output<ov::Node>, std::shared_ptr<v0::Constant>>& cache) {
     if (!ov::as_type_ptr<MultiSubGraphOp::InvariantInputDescription>(input_desc)) {
         return nullptr;
     }
@@ -31,9 +33,9 @@ static std::shared_ptr<ov::op::v0::Constant> try_constantfold_input(
 }
 
 static void replace_body_parameter(const std::shared_ptr<ov::Model>& body,
-                                   const std::shared_ptr<ov::op::v0::Parameter>& body_param,
+                                   const std::shared_ptr<v0::Parameter>& body_param,
                                    size_t body_parameter_index,
-                                   const std::shared_ptr<ov::op::v0::Constant>& constant,
+                                   const std::shared_ptr<v0::Constant>& constant,
                                    MultiSubGraphOp::MultiSubgraphInputDescriptionVector& descriptions) {
     body_param->output(0).replace(constant);
     body->remove_parameter(body_param);
@@ -75,13 +77,13 @@ bool ov::pass::PushConstantToSubgraph::run_on_model(const std::shared_ptr<Model>
 
     bool result = false;
     for (const auto& op : model->get_ordered_ops()) {
-        const auto multi_sub_graph_op = as_type_ptr<ov::op::util::MultiSubGraphOp>(op);
+        const auto multi_sub_graph_op = as_type_ptr<op_util::MultiSubGraphOp>(op);
         if (!multi_sub_graph_op) {
             continue;
         }
 
         // cache for already constant folded inputs
-        std::map<ov::Output<ov::Node>, std::shared_ptr<ov::op::v0::Constant>> cache;
+        std::map<ov::Output<ov::Node>, std::shared_ptr<v0::Constant>> cache;
         // bitmask describing which MultiSubGraphOp's input to remove
         std::vector<bool> remove_inputs_mask(multi_sub_graph_op->get_input_size(), false);
         int num_subgraphs = static_cast<int>(multi_sub_graph_op->get_internal_subgraphs_size());

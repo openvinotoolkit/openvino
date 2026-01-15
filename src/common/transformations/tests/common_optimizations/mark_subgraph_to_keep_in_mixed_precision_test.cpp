@@ -36,8 +36,8 @@ using namespace testing;
 using namespace ov;
 using namespace std;
 using namespace ov::opset10;
-using namespace ov::op;
 
+namespace v0 = ov::op::v0;
 TEST(TransformationTests, keep_precission_sensitive_fp32_1) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
@@ -1369,11 +1369,11 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_disable_for_quant
 
 TEST_F(TransformationTestsF, MarkRandomUniformAsPrecisionSensitive) {
     auto param = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{2});
-    auto random_uniform = std::make_shared<v8::RandomUniform>(param,
-                                                              v0::Constant::create(element::f32, {}, {0}),
-                                                              v0::Constant::create(element::f32, {}, {1}),
-                                                              element::f32);
-    auto less = std::make_shared<v1::Less>(random_uniform, v0::Constant::create(element::f32, {1, 1}, {0.5}));
+    auto random_uniform = std::make_shared<ov::op::v8::RandomUniform>(param,
+                                                                      v0::Constant::create(element::f32, {}, {0}),
+                                                                      v0::Constant::create(element::f32, {}, {1}),
+                                                                      element::f32);
+    auto less = std::make_shared<ov::op::v1::Less>(random_uniform, v0::Constant::create(element::f32, {1, 1}, {0.5}));
     auto res = std::make_shared<v0::Result>(less);
 
     model = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{param});

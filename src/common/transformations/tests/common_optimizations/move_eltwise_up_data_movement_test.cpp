@@ -27,6 +27,8 @@
 
 using namespace testing;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 class MoveEltwiseUpThroughDataMovTest : public TransformationTestsF {};
 
 TEST_F(MoveEltwiseUpThroughDataMovTest, SingleUnaryEltwise) {
@@ -421,7 +423,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelEltwiseSqueeze) {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
 
         auto squeeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {2});  // {10, 20, 1}
-        auto squeeze = std::make_shared<ov::op::v0::Squeeze>(input, squeeze_const);
+        auto squeeze = std::make_shared<v0::Squeeze>(input, squeeze_const);
 
         auto per_channel_const = ov::opset8::Constant::create(ov::element::f32, {10, 1, 1}, {0.5});
         auto add = std::make_shared<ov::opset8::Add>(squeeze, per_channel_const);
@@ -436,7 +438,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelEltwiseSqueeze) {
         auto add = std::make_shared<ov::opset8::Add>(input, per_channel_const);
 
         auto squeeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {2});  // {10, 20, 1}
-        auto squeeze = std::make_shared<ov::op::v0::Squeeze>(add, squeeze_const);
+        auto squeeze = std::make_shared<v0::Squeeze>(add, squeeze_const);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{squeeze}, ov::ParameterVector{input});
     }
@@ -448,7 +450,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelEltwiseSqueezeIllegal_1) {
     auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
 
     auto squeeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {1});  // {10, 20}
-    auto squeeze = std::make_shared<ov::op::v0::Squeeze>(input, squeeze_const);
+    auto squeeze = std::make_shared<v0::Squeeze>(input, squeeze_const);
 
     auto per_channel_const = ov::opset8::Constant::create(ov::element::f32, {1, 1, 20}, {0.5});
     auto add = std::make_shared<ov::opset8::Add>(squeeze, per_channel_const);
@@ -463,7 +465,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelEltwiseSqueezeIllegal_2) {
     auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
 
     auto squeeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {2});  // {10, 20, 1}
-    auto squeeze = std::make_shared<ov::op::v0::Squeeze>(input, squeeze_const);
+    auto squeeze = std::make_shared<v0::Squeeze>(input, squeeze_const);
 
     auto per_channel_const1 = ov::opset8::Constant::create(ov::element::f32, {10, 1, 1}, {0.5});
     auto add1 = std::make_shared<ov::opset8::Add>(squeeze, per_channel_const1);
@@ -484,11 +486,11 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelReshapeMultiply) {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
 
         auto reshape_constant =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{target_shape.size()}, target_shape);
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_constant, false);
+            std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{target_shape.size()}, target_shape);
+        auto reshape = std::make_shared<v1::Reshape>(input, reshape_constant, false);
 
         auto per_channel_const = ov::opset8::Constant::create(ov::element::f32, {1, 3, 1, 1}, {0.5});
-        auto multiply = std::make_shared<ov::op::v1::Multiply>(reshape, per_channel_const);
+        auto multiply = std::make_shared<v1::Multiply>(reshape, per_channel_const);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{multiply}, ov::ParameterVector{input});
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
@@ -497,11 +499,11 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelReshapeMultiply) {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
 
         auto per_channel_const = ov::opset8::Constant::create(ov::element::f32, {1, 3, 1}, {0.5});
-        auto multiply = std::make_shared<ov::op::v1::Multiply>(input, per_channel_const);
+        auto multiply = std::make_shared<v1::Multiply>(input, per_channel_const);
 
         auto reshape_constant =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{target_shape.size()}, target_shape);
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(multiply, reshape_constant, false);
+            std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{target_shape.size()}, target_shape);
+        auto reshape = std::make_shared<v1::Reshape>(multiply, reshape_constant, false);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{input});
     }

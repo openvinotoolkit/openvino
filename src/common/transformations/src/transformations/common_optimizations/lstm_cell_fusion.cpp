@@ -26,6 +26,15 @@
 using namespace ov;
 using namespace ov::pass;
 
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::has_static_shape;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::rank_equals;
+using ov::pass::pattern::wrap_type;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v4 = ov::op::v4;
 namespace {
 static std::string get_activation_name(const std::shared_ptr<ov::Node>& node) {
     std::string name = node->get_type_name();
@@ -41,21 +50,21 @@ void generate_gate_pattern(const std::shared_ptr<ov::Node>& x,
                            std::shared_ptr<ov::Node>& bi,
                            std::shared_ptr<ov::Node>& x_by_wi,
                            std::shared_ptr<ov::Node>& h_by_ri) {
-    wi = pattern::any_input([](const Output<Node>& output) {
-        return pattern::has_static_shape()(output) && pattern::rank_equals(2)(output);
+    wi = any_input([](const Output<Node>& output) {
+        return has_static_shape()(output) && rank_equals(2)(output);
     });
-    ri = pattern::any_input([](const Output<Node>& output) {
-        return pattern::has_static_shape()(output) && pattern::rank_equals(2)(output);
+    ri = any_input([](const Output<Node>& output) {
+        return has_static_shape()(output) && rank_equals(2)(output);
     });
-    bi = pattern::any_input([](const Output<Node>& output) {
-        return pattern::has_static_shape()(output) && pattern::rank_equals(1)(output);
+    bi = any_input([](const Output<Node>& output) {
+        return has_static_shape()(output) && rank_equals(1)(output);
     });
 
-    x_by_wi = pattern::wrap_type<ov::op::v0::MatMul>({x, wi});
-    auto x_by_wi_biased = pattern::wrap_type<ov::op::v1::Add>({x_by_wi, bi});
-    h_by_ri = pattern::wrap_type<ov::op::v0::MatMul>({h, ri});
-    it = pattern::wrap_type<ov::op::v1::Add>({x_by_wi_biased, h_by_ri});
-    it = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({it});
+    x_by_wi = wrap_type<v0::MatMul>({x, wi});
+    auto x_by_wi_biased = wrap_type<v1::Add>({x_by_wi, bi});
+    h_by_ri = wrap_type<v0::MatMul>({h, ri});
+    it = wrap_type<v1::Add>({x_by_wi_biased, h_by_ri});
+    it = wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({it});
 }
 
 bool check_weights_format(const ov::Output<ov::Node>& w,
@@ -82,7 +91,7 @@ bool check_weights_format(const ov::Output<ov::Node>& w,
     }
 
     // check transpose attributes for MatMul operations
-    if (const auto& matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(x_by_w_label).get_node_shared_ptr())) {
+    if (const auto& matmul = ov::as_type_ptr<v0::MatMul>(pattern_map.at(x_by_w_label).get_node_shared_ptr())) {
         if (matmul->get_transpose_a() || matmul->get_transpose_b()) {
             return false;
         }
@@ -90,7 +99,7 @@ bool check_weights_format(const ov::Output<ov::Node>& w,
         return false;
     }
 
-    if (const auto& matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(h_by_r_label).get_node_shared_ptr())) {
+    if (const auto& matmul = ov::as_type_ptr<v0::MatMul>(pattern_map.at(h_by_r_label).get_node_shared_ptr())) {
         if (matmul->get_transpose_a() || matmul->get_transpose_b()) {
             return false;
         }
@@ -109,13 +118,13 @@ ov::Output<ov::Node> prepare_weight_fico(const ov::Output<ov::Node>& f,
     // at this point input weights are of shape [input_size, hidden_size]
     // before concatenation it needs to transpose them
     // to get a shape equal to [hidden_size, input_size]
-    auto transpose_order = rg.make<ov::op::v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0});
-    auto f_tr = rg.make<ov::op::v1::Transpose>(f, transpose_order);
-    auto i_tr = rg.make<ov::op::v1::Transpose>(i, transpose_order);
-    auto c_tr = rg.make<ov::op::v1::Transpose>(c, transpose_order);
-    auto o_tr = rg.make<ov::op::v1::Transpose>(o, transpose_order);
+    auto transpose_order = rg.make<v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0});
+    auto f_tr = rg.make<v1::Transpose>(f, transpose_order);
+    auto i_tr = rg.make<v1::Transpose>(i, transpose_order);
+    auto c_tr = rg.make<v1::Transpose>(c, transpose_order);
+    auto o_tr = rg.make<v1::Transpose>(o, transpose_order);
 
-    ov::Output<ov::Node> w = rg.make<ov::op::v0::Concat>(ov::OutputVector{f_tr, i_tr, c_tr, o_tr}, 0);
+    ov::Output<ov::Node> w = rg.make<v0::Concat>(ov::OutputVector{f_tr, i_tr, c_tr, o_tr}, 0);
     if (const auto& constant = ov::util::constantfold_subgraph(w)) {
         w = constant;
     }
@@ -211,31 +220,31 @@ ov::Output<ov::Node> prepare_weight_fico(const ov::Output<ov::Node>& f,
 ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
     MATCHER_SCOPE(LSTMCellFusionWithJointWeights);
 
-    auto x_label = pattern::any_input(pattern::rank_equals(2));
-    auto h_label = pattern::any_input(pattern::rank_equals(2));
-    auto concat_label = pattern::wrap_type<ov::op::v0::Concat>({x_label, h_label});
-    auto weights_label = pattern::any_input([](const Output<Node>& output) {
-        return pattern::has_static_shape()(output) && pattern::rank_equals(2)(output);
+    auto x_label = any_input(rank_equals(2));
+    auto h_label = any_input(rank_equals(2));
+    auto concat_label = wrap_type<v0::Concat>({x_label, h_label});
+    auto weights_label = any_input([](const Output<Node>& output) {
+        return has_static_shape()(output) && rank_equals(2)(output);
     });
-    auto matmul_label = pattern::wrap_type<ov::op::v0::MatMul>({concat_label, weights_label});
-    auto bias_label = pattern::any_input(pattern::has_static_shape());
-    auto bias_add_label = pattern::wrap_type<ov::op::v1::Add>({matmul_label, bias_label});
-    auto axis_label = pattern::wrap_type<ov::op::v0::Constant>();
-    auto split_label = pattern::wrap_type<ov::op::v1::Split>({bias_add_label, axis_label});
-    auto it_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label});
-    auto ct_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label});
-    auto ft_additional_bias_label = pattern::wrap_type<ov::op::v0::Constant>();
-    auto add_label = pattern::wrap_type<ov::op::v1::Add>({split_label, ft_additional_bias_label});
-    auto ft_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({add_label});
-    auto ot_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label});
-    auto mul_label = pattern::wrap_type<ov::op::v1::Multiply>({it_label, ct_label});
-    auto c_label = pattern::any_input();
-    auto mul1_label = pattern::wrap_type<ov::op::v1::Multiply>({ft_label, c_label});
-    auto Co_label = pattern::wrap_type<ov::op::v1::Add>({mul_label, mul1_label});
-    auto Co_activation_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({Co_label});
-    auto Ho_label = pattern::wrap_type<ov::op::v1::Multiply>({Co_activation_label, ot_label});
+    auto matmul_label = wrap_type<v0::MatMul>({concat_label, weights_label});
+    auto bias_label = any_input(has_static_shape());
+    auto bias_add_label = wrap_type<v1::Add>({matmul_label, bias_label});
+    auto axis_label = wrap_type<v0::Constant>();
+    auto split_label = wrap_type<v1::Split>({bias_add_label, axis_label});
+    auto it_label = wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({split_label});
+    auto ct_label = wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({split_label});
+    auto ft_additional_bias_label = wrap_type<v0::Constant>();
+    auto add_label = wrap_type<v1::Add>({split_label, ft_additional_bias_label});
+    auto ft_label = wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({add_label});
+    auto ot_label = wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({split_label});
+    auto mul_label = wrap_type<v1::Multiply>({it_label, ct_label});
+    auto c_label = any_input();
+    auto mul1_label = wrap_type<v1::Multiply>({ft_label, c_label});
+    auto Co_label = wrap_type<v1::Add>({mul_label, mul1_label});
+    auto Co_activation_label = wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({Co_label});
+    auto Ho_label = wrap_type<v1::Multiply>({Co_activation_label, ot_label});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         const auto& X = pattern_map.at(x_label);
@@ -246,7 +255,7 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
         const auto& ft_additional_bias = pattern_map.at(ft_additional_bias_label);
         auto Ho = pattern_map.at(Ho_label);
         auto Co = pattern_map.at(Co_label);
-        const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(matmul_label).get_node_shared_ptr());
+        const auto matmul = ov::as_type_ptr<v0::MatMul>(pattern_map.at(matmul_label).get_node_shared_ptr());
         if (!matmul)
             return false;
         if (matmul->get_transpose_a())
@@ -297,7 +306,7 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
         if (!C_shape[1].compatible(hidden_size))
             return false;
 
-        const auto split_axis = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(axis_label).get_node_shared_ptr());
+        const auto split_axis = ov::as_type_ptr<v0::Constant>(pattern_map.at(axis_label).get_node_shared_ptr());
         int64_t split_axis_value = split_axis->cast_vector<int64_t>()[0];
         if (split_axis_value != 1 && split_axis_value != -1)
             return false;
@@ -338,7 +347,7 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
         std::string h_activation_name = get_activation_name(Co_activation);
 
         if (!weights_transposed) {
-            WR = std::make_shared<ov::op::v1::Transpose>(WR, ov::op::v0::Constant::create(element::i32, Shape{0}, {}));
+            WR = std::make_shared<v1::Transpose>(WR, v0::Constant::create(element::i32, Shape{0}, {}));
         }
         // Split WR to W, R and convert to the layout that OpenVino supports
         //
@@ -369,14 +378,14 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
         //  o |       |   o |   |
         //    +-------+     +---+
         //
-        auto zero_axis = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
-        auto WR_split = std::make_shared<ov::op::v1::Split>(WR, zero_axis, 4);
-        auto WR_fico = std::make_shared<ov::op::v0::Concat>(
+        auto zero_axis = v0::Constant::create(element::i32, Shape{}, {0});
+        auto WR_split = std::make_shared<v1::Split>(WR, zero_axis, 4);
+        auto WR_fico = std::make_shared<v0::Concat>(
             OutputVector{WR_split->output(2), WR_split->output(0), WR_split->output(1), WR_split->output(3)},
             0);
-        auto vsplit_axis = ov::op::v0::Constant::create(element::i32, Shape{}, {1});
-        auto split_lengths = ov::op::v0::Constant::create(element::i32, Shape{2}, {input_size, hidden_size});
-        auto vsplit = std::make_shared<ov::op::v1::VariadicSplit>(WR_fico, vsplit_axis, split_lengths);
+        auto vsplit_axis = v0::Constant::create(element::i32, Shape{}, {1});
+        auto split_lengths = v0::Constant::create(element::i32, Shape{2}, {input_size, hidden_size});
+        auto vsplit = std::make_shared<v1::VariadicSplit>(WR_fico, vsplit_axis, split_lengths);
         Output<Node> W = vsplit->output(0);
         if (auto constant = ov::util::constantfold_subgraph(W))
             W = constant;
@@ -385,20 +394,19 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
             R = constant;
 
         if (B_shape.size() > 1)
-            B = std::make_shared<ov::op::v0::Squeeze>(B, zero_axis);
+            B = std::make_shared<v0::Squeeze>(B, zero_axis);
 
         // Convert B layout from icfo to fico
-        auto B_split = std::make_shared<ov::op::v1::Split>(B, zero_axis, 4);
-        auto B_f = std::make_shared<ov::op::v1::Add>(B_split->output(2),
-                                                     std::make_shared<ov::op::v0::Squeeze>(ft_additional_bias));
+        auto B_split = std::make_shared<v1::Split>(B, zero_axis, 4);
+        auto B_f = std::make_shared<v1::Add>(B_split->output(2), std::make_shared<v0::Squeeze>(ft_additional_bias));
 
-        Output<Node> B_fico = std::make_shared<ov::op::v0::Concat>(
-            OutputVector{B_f, B_split->output(0), B_split->output(1), B_split->output(3)},
-            0);
+        Output<Node> B_fico =
+            std::make_shared<v0::Concat>(OutputVector{B_f, B_split->output(0), B_split->output(1), B_split->output(3)},
+                                         0);
         if (auto constant = ov::util::constantfold_subgraph(B_fico))
             B_fico = constant;
 
-        auto lstm_cell = std::make_shared<ov::op::v4::LSTMCell>(
+        auto lstm_cell = std::make_shared<v4::LSTMCell>(
             X,
             H,
             C,
@@ -443,7 +451,7 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(Ho_label, matcher_name);
+    auto m = std::make_shared<Matcher>(Ho_label, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -533,9 +541,9 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
 ov::pass::LSTMCellFusionWithSplitWeights::LSTMCellFusionWithSplitWeights() {
     MATCHER_SCOPE(LSTMCellFusionWithSplitWeights);
 
-    auto x_label = pattern::any_input(pattern::rank_equals(2));
-    auto h_label = pattern::any_input(pattern::rank_equals(2));
-    auto c_label = pattern::any_input(pattern::rank_equals(2));
+    auto x_label = any_input(rank_equals(2));
+    auto h_label = any_input(rank_equals(2));
+    auto c_label = any_input(rank_equals(2));
 
     // it expects a pattern with split weights (input, recurrent and bias) for each gate
     std::shared_ptr<Node> it_label, wi_label, ri_label, bi_label, x_by_wi_label, h_by_ri_label;
@@ -547,14 +555,14 @@ ov::pass::LSTMCellFusionWithSplitWeights::LSTMCellFusionWithSplitWeights() {
     std::shared_ptr<Node> c1t_label, wc_label, rc_label, bc_label, x_by_wc_label, h_by_rc_label;
     generate_gate_pattern(x_label, h_label, c1t_label, wc_label, rc_label, bc_label, x_by_wc_label, h_by_rc_label);
 
-    auto it_mul_c1t_label = pattern::wrap_type<ov::op::v1::Multiply>({it_label, c1t_label});
-    auto ft_mul_c_label = pattern::wrap_type<ov::op::v1::Multiply>({ft_label, c_label});
-    auto ct_label = pattern::wrap_type<ov::op::v1::Add>({ft_mul_c_label, it_mul_c1t_label});
+    auto it_mul_c1t_label = wrap_type<v1::Multiply>({it_label, c1t_label});
+    auto ft_mul_c_label = wrap_type<v1::Multiply>({ft_label, c_label});
+    auto ct_label = wrap_type<v1::Add>({ft_mul_c_label, it_mul_c1t_label});
 
-    auto ct_activated_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({ct_label});
-    auto ht_label = pattern::wrap_type<ov::op::v1::Multiply>({ct_activated_label, ot_label});
+    auto ct_activated_label = wrap_type<v0::Relu, v0::Sigmoid, v0::Tanh>({ct_label});
+    auto ht_label = wrap_type<v1::Multiply>({ct_activated_label, ot_label});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         NodeRegistry rg;
 
         const auto& pattern_map = m.get_pattern_value_map();
@@ -617,19 +625,19 @@ ov::pass::LSTMCellFusionWithSplitWeights::LSTMCellFusionWithSplitWeights() {
         ov::Output<ov::Node> W = prepare_weight_fico(wf, wi, wc, wo, rg);
         ov::Output<ov::Node> R = prepare_weight_fico(rf, ri, rc, ro, rg);
 
-        ov::Output<ov::Node> B = rg.make<ov::op::v0::Concat>(ov::OutputVector{bf, bi, bc, bo}, 0);
+        ov::Output<ov::Node> B = rg.make<v0::Concat>(ov::OutputVector{bf, bi, bc, bo}, 0);
         if (const auto& constant = ov::util::constantfold_subgraph(B))
             B = constant;
 
-        auto lstm_cell = rg.make<ov::op::v4::LSTMCell>(
-            x,
-            h,
-            c,
-            W,
-            R,
-            B,
-            static_cast<size_t>(hidden_size),
-            std::vector<std::string>{f_activation_name, g_activation_name, h_activation_name});
+        auto lstm_cell =
+            rg.make<v4::LSTMCell>(x,
+                                  h,
+                                  c,
+                                  W,
+                                  R,
+                                  B,
+                                  static_cast<size_t>(hidden_size),
+                                  std::vector<std::string>{f_activation_name, g_activation_name, h_activation_name});
 
         if (transformation_callback(lstm_cell)) {
             return false;
@@ -645,6 +653,6 @@ ov::pass::LSTMCellFusionWithSplitWeights::LSTMCellFusionWithSplitWeights() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(ht_label, matcher_name);
+    auto m = std::make_shared<Matcher>(ht_label, matcher_name);
     this->register_matcher(m, callback);
 }

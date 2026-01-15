@@ -32,6 +32,8 @@ using namespace ov;
 using namespace opset9;
 using namespace element;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 namespace {
 shared_ptr<Model> gen_model(size_t batch, size_t hidden_size, size_t input_size, bool use_dyn_shapes) {
     auto X = make_shared<Parameter>(f32, Shape{batch, input_size});
@@ -187,19 +189,15 @@ TEST_F(TransformationTestsF, AUGRUFusionDiffParamShapes) {
         auto H = make_shared<Parameter>(f32, Shape{batch, hidden_size});
         auto WRzr = make_shared<Parameter>(f32, Shape{input_size + hidden_size, 2 * hidden_size});
         auto WRzr_transpose =
-            make_shared<ov::op::v1::Transpose>(WRzr,
-                                               ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0}));
+            make_shared<v1::Transpose>(WRzr, v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0}));
         auto Bzr = make_shared<Parameter>(f32, Shape{2 * hidden_size});
-        auto Bzr_unsqz =
-            make_shared<ov::op::v0::Unsqueeze>(Bzr, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
+        auto Bzr_unsqz = make_shared<v0::Unsqueeze>(Bzr, v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
         auto WRh = make_shared<Parameter>(f32, Shape{input_size + hidden_size, hidden_size});
         auto WRh_transpose =
-            make_shared<ov::op::v1::Transpose>(WRh,
-                                               ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0}));
+            make_shared<v1::Transpose>(WRh, v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0}));
 
         auto Bh = make_shared<Parameter>(f32, Shape{hidden_size});
-        auto Bh_unsqz =
-            make_shared<ov::op::v0::Unsqueeze>(Bh, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
+        auto Bh_unsqz = make_shared<v0::Unsqueeze>(Bh, v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
         auto A = make_shared<Parameter>(f32, Shape{batch, 1});
 
         auto axis_0 = make_shared<Constant>(i64, Shape{}, 0);

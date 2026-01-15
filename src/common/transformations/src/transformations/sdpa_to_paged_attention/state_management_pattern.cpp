@@ -39,55 +39,62 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::op::Or;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v8 = ov::op::v8;
+namespace v13 = ov::op::v13;
+namespace v15 = ov::op::v15;
 constexpr const char* NUM_K_HEADS = "num_k_heads";
 constexpr const char* K_HEAD_SIZE = "k_head_size";
 constexpr const char* NUM_V_HEADS = "num_v_heads";
 constexpr const char* V_HEAD_SIZE = "v_head_size";
-
-using namespace ov::op;
 using namespace ov::pass;
 using ov::OutputVector;
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> general_alibi_pattern() {
     // Optional pattern to capture alibi slopes (based on pattern from bloom)
-    auto general_alibi = pattern::any_input();
-    auto general_sdpa_mask =
-        pattern::wrap_type<v1::Multiply>({pattern::any_input(), general_alibi});  // apply input position_ids
-    general_sdpa_mask = pattern::wrap_type<v1::Reshape>({general_sdpa_mask, pattern::any_input()});
-    general_sdpa_mask = pattern::wrap_type<v1::Reshape>({general_sdpa_mask, pattern::any_input()});
-    general_sdpa_mask = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), general_sdpa_mask});
+    auto general_alibi = any_input();
+    auto general_sdpa_mask = wrap_type<v1::Multiply>({any_input(), general_alibi});  // apply input position_ids
+    general_sdpa_mask = wrap_type<v1::Reshape>({general_sdpa_mask, any_input()});
+    general_sdpa_mask = wrap_type<v1::Reshape>({general_sdpa_mask, any_input()});
+    general_sdpa_mask = wrap_type<v1::Select>({any_input(), any_input(), general_sdpa_mask});
     return {general_alibi, general_sdpa_mask};
 }
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> jais_13b_alibi_pattern() {
-    auto jais_13b_alibi = pattern::any_input();
-    auto mirroring_abs = pattern::wrap_type<v0::Abs>({pattern::any_input()});
-    auto unsqueeze = pattern::wrap_type<v0::Unsqueeze>({mirroring_abs, pattern::any_input()});
-    auto jais_alibi_mask = pattern::wrap_type<v1::Multiply>({jais_13b_alibi, unsqueeze});
-    jais_alibi_mask = pattern::wrap_type<v3::Broadcast>({jais_alibi_mask, pattern::any_input()});
-    jais_alibi_mask = pattern::wrap_type<v0::Unsqueeze>({jais_alibi_mask, pattern::any_input()});
-    jais_alibi_mask = pattern::wrap_type<v1::Add>({pattern::any_input(), jais_alibi_mask});
+    auto jais_13b_alibi = any_input();
+    auto mirroring_abs = wrap_type<v0::Abs>({any_input()});
+    auto unsqueeze = wrap_type<v0::Unsqueeze>({mirroring_abs, any_input()});
+    auto jais_alibi_mask = wrap_type<v1::Multiply>({jais_13b_alibi, unsqueeze});
+    jais_alibi_mask = wrap_type<v3::Broadcast>({jais_alibi_mask, any_input()});
+    jais_alibi_mask = wrap_type<v0::Unsqueeze>({jais_alibi_mask, any_input()});
+    jais_alibi_mask = wrap_type<v1::Add>({any_input(), jais_alibi_mask});
     return {jais_13b_alibi, jais_alibi_mask};
 }
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> baichuan2_13b_alibi_pattern() {
-    auto baichuan2_alibi = pattern::any_input();
+    auto baichuan2_alibi = any_input();
     // this slice expected to be replaced with Slice(alibi_const, start {1, 1}, stop {2, 2}, step {1, 1}, axes{1, 2});
-    auto alibi_slice_to_replace = pattern::wrap_type<v8::Slice>(
-        {baichuan2_alibi, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto alibi_path = pattern::wrap_type<v3::ShapeOf>({alibi_slice_to_replace});
-    alibi_path = pattern::wrap_type<v8::Gather>({alibi_path, pattern::any_input(), pattern::any_input()});
-    alibi_path = pattern::wrap_type<v0::Concat>({pattern::any_input(), pattern::any_input(), alibi_path});
-    alibi_path = pattern::wrap_type<v3::Broadcast>({pattern::any_input(), alibi_path});
-    alibi_path = pattern::wrap_type<v0::Convert>({alibi_path});
-    alibi_path = pattern::wrap_type<v1::Multiply>({alibi_path, pattern::any_input()});
-    alibi_path = pattern::wrap_type<v1::Subtract>({pattern::any_input(), alibi_path});
-    alibi_path = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), alibi_path});
-    auto alibi_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({alibi_slice_to_replace, pattern::any_input()});
-    alibi_path = pattern::wrap_type<v1::Add>({alibi_path, alibi_unsqueeze});
-    auto mul = pattern::wrap_type<v1::Multiply>({pattern::any_input(), pattern::any_input()});
-    alibi_path = pattern::wrap_type<v8::Slice>(
-        {alibi_path, mul, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto alibi_slice_to_replace =
+        wrap_type<v8::Slice>({baichuan2_alibi, any_input(), any_input(), any_input(), any_input()});
+    auto alibi_path = wrap_type<v3::ShapeOf>({alibi_slice_to_replace});
+    alibi_path = wrap_type<v8::Gather>({alibi_path, any_input(), any_input()});
+    alibi_path = wrap_type<v0::Concat>({any_input(), any_input(), alibi_path});
+    alibi_path = wrap_type<v3::Broadcast>({any_input(), alibi_path});
+    alibi_path = wrap_type<v0::Convert>({alibi_path});
+    alibi_path = wrap_type<v1::Multiply>({alibi_path, any_input()});
+    alibi_path = wrap_type<v1::Subtract>({any_input(), alibi_path});
+    alibi_path = wrap_type<v1::Select>({any_input(), any_input(), alibi_path});
+    auto alibi_unsqueeze = wrap_type<v0::Unsqueeze>({alibi_slice_to_replace, any_input()});
+    alibi_path = wrap_type<v1::Add>({alibi_path, alibi_unsqueeze});
+    auto mul = wrap_type<v1::Multiply>({any_input(), any_input()});
+    alibi_path = wrap_type<v8::Slice>({alibi_path, mul, any_input(), any_input(), any_input()});
     return {baichuan2_alibi, alibi_path};
 }
 
@@ -186,45 +193,41 @@ static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
 }
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> phi3_sliding_window_pattern() {
-    using namespace ov::pass::pattern;
-
     auto offset = wrap_type<v0::Constant>();
     auto t196 = wrap_type<v1::Add>({any_input(), offset});
-    auto t197 = pattern::optional<v0::Convert>(t196);
-    auto t200 = pattern::wrap_type<v4::Range>({t197, any_input(), any_input()});
-    auto t201 = pattern::wrap_type<v0::Unsqueeze>({t200, any_input()});
-    auto t202 = pattern::wrap_type<v1::GreaterEqual>({any_input(), t201});
-    auto t208 = pattern::wrap_type<v1::Select>({t202, any_input(), any_input()});
-    auto t209 = pattern::wrap_type<v1::Subtract>({any_input(), t208});
-    auto t210 = pattern::optional<v0::Convert>(t209);
-    auto t211 = pattern::wrap_type<v1::Select>({t210, any_input(), any_input()});
-    auto t213 = pattern::wrap_type<v0::Unsqueeze>({t211, any_input()});
-    auto t214 = pattern::wrap_type<v0::Unsqueeze>({t213, any_input()});
-    auto t218 = pattern::wrap_type<v3::Broadcast>({t214, any_input()});
-    auto t219 = pattern::wrap_type<v1::Select>({any_input(), any_input(), t218});
-    auto mask = pattern::wrap_type<v8::Slice>({t219, any_input(), any_input(), any_input(), any_input()});
+    auto t197 = ov::pass::pattern::optional<v0::Convert>(t196);
+    auto t200 = wrap_type<ov::op::v4::Range>({t197, any_input(), any_input()});
+    auto t201 = wrap_type<v0::Unsqueeze>({t200, any_input()});
+    auto t202 = wrap_type<v1::GreaterEqual>({any_input(), t201});
+    auto t208 = wrap_type<v1::Select>({t202, any_input(), any_input()});
+    auto t209 = wrap_type<v1::Subtract>({any_input(), t208});
+    auto t210 = ov::pass::pattern::optional<v0::Convert>(t209);
+    auto t211 = wrap_type<v1::Select>({t210, any_input(), any_input()});
+    auto t213 = wrap_type<v0::Unsqueeze>({t211, any_input()});
+    auto t214 = wrap_type<v0::Unsqueeze>({t213, any_input()});
+    auto t218 = wrap_type<v3::Broadcast>({t214, any_input()});
+    auto t219 = wrap_type<v1::Select>({any_input(), any_input(), t218});
+    auto mask = wrap_type<v8::Slice>({t219, any_input(), any_input(), any_input(), any_input()});
     return {mask, offset};
 }
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gpt_oss_sliding_window_pattern() {
-    using namespace ov::pass::pattern;
+    auto q_idx = any_input();
+    auto kv_idx = any_input();
 
-    auto q_idx = pattern::any_input();
-    auto kv_idx = pattern::any_input();
-
-    auto kv_idx_opt_conv = pattern::optional<v0::Convert>(kv_idx);
+    auto kv_idx_opt_conv = ov::pass::pattern::optional<v0::Convert>(kv_idx);
 
     auto offset = wrap_type<v0::Constant>();
 
     auto add = wrap_type<v1::Add>({q_idx, offset});
-    auto greater = pattern::wrap_type<v1::Greater>({kv_idx_opt_conv, add});
-    auto bitwise_and = pattern::wrap_type<v13::BitwiseAnd>({any_input(), greater});
-    auto bitwise_and_1 = pattern::wrap_type<v13::BitwiseAnd>({bitwise_and, any_input()});
-    auto bitwise_and_2 = pattern::wrap_type<v13::BitwiseAnd>({any_input(), bitwise_and_1});
-    auto bitwise_and_3 = pattern::wrap_type<v13::BitwiseAnd>({bitwise_and_2, any_input()});
-    auto broadcast = pattern::wrap_type<v3::Broadcast>({bitwise_and_3, any_input()});
-    auto select = pattern::wrap_type<v1::Select>({broadcast, any_input(), any_input()});
-    auto mask = pattern::wrap_type<v8::Slice>({select, any_input(), any_input(), any_input(), any_input()});
+    auto greater = wrap_type<v1::Greater>({kv_idx_opt_conv, add});
+    auto bitwise_and = wrap_type<v13::BitwiseAnd>({any_input(), greater});
+    auto bitwise_and_1 = wrap_type<v13::BitwiseAnd>({bitwise_and, any_input()});
+    auto bitwise_and_2 = wrap_type<v13::BitwiseAnd>({any_input(), bitwise_and_1});
+    auto bitwise_and_3 = wrap_type<v13::BitwiseAnd>({bitwise_and_2, any_input()});
+    auto broadcast = wrap_type<v3::Broadcast>({bitwise_and_3, any_input()});
+    auto select = wrap_type<v1::Select>({broadcast, any_input(), any_input()});
+    auto mask = wrap_type<v8::Slice>({select, any_input(), any_input(), any_input(), any_input()});
 
     return {mask, offset};
 }
@@ -244,20 +247,18 @@ typedef std::
         node_tuple;
 
 static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
-    auto kv_past_var = pattern::wrap_type<v6::ReadValue>({pattern::any_input()});
-    auto kv_past_par = pattern::wrap_type<v0::Parameter>();
-    auto kv_past = std::make_shared<pattern::op::Or>(
-        OutputVector{pattern::wrap_type<v8::Gather>({kv_past_var, pattern::any_input(), pattern::any_input()}),
-                     kv_past_par});
-    kv_past = std::make_shared<pattern::op::Or>(
+    auto kv_past_var = wrap_type<ov::op::v6::ReadValue>({any_input()});
+    auto kv_past_par = wrap_type<v0::Parameter>();
+    auto kv_past =
+        std::make_shared<Or>(OutputVector{wrap_type<v8::Gather>({kv_past_var, any_input(), any_input()}), kv_past_par});
+    kv_past = std::make_shared<Or>(
         OutputVector{kv_past,
-                     pattern::wrap_type<v1::Transpose>(
-                         {kv_past, pattern::any_input()})});  // Transpose is used when kv-cache is stored in a not
-                                                              // usual layout, example: bloom
-    auto kv_current2 = pattern::any_input();
-    auto kv_current_reshaped = pattern::wrap_type<v1::Reshape>({kv_current2, pattern::any_input()});
-    auto kv_concat = pattern::wrap_type<v0::Concat>(
-        {kv_past, std::make_shared<pattern::op::Or>(OutputVector{kv_current_reshaped, kv_current})});
+                     wrap_type<v1::Transpose>({kv_past, any_input()})});  // Transpose is used when kv-cache is stored
+                                                                          // in a not usual layout, example: bloom
+    auto kv_current2 = any_input();
+    auto kv_current_reshaped = wrap_type<v1::Reshape>({kv_current2, any_input()});
+    auto kv_concat =
+        wrap_type<v0::Concat>({kv_past, std::make_shared<Or>(OutputVector{kv_current_reshaped, kv_current})});
     return node_tuple(kv_past_par, kv_current2, kv_current_reshaped, kv_concat);
 }
 
@@ -277,7 +278,7 @@ static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqu
             return ov::Dimension();
         }
         auto axis = unsqueeze->get_input_node_ptr(1);
-        auto constant = ov::as_type<ov::op::v0::Constant>(axis);
+        auto constant = ov::as_type<v0::Constant>(axis);
         if (!constant) {
             return ov::Dimension();
         }
@@ -322,11 +323,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params) {
     MATCHER_SCOPE(StateManagementPattern);
 
-    auto k_current = pattern::any_input();
+    auto k_current = any_input();
     std::shared_ptr<ov::Node> k_past_par, k_current2, k_concat, k_current_reshaped;
     std::tie(k_past_par, k_current2, k_current_reshaped, k_concat) = kv_read_and_concat(k_current);
 
-    auto v_current = pattern::any_input();
+    auto v_current = any_input();
     std::shared_ptr<ov::Node> v_past_par, v_current2, v_concat, v_current_reshaped;
     std::tie(v_past_par, v_current2, v_current_reshaped, v_concat) = kv_read_and_concat(v_current);
 
@@ -335,37 +336,28 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     // TODO: Consider not specifying VariadicSplit as an input for Concat, it is not really used in the pattern, but
     // just sets more strict requirement for the graph. The risk with not specifying VariadicSplit is that it can be
     // ambiguous which part the matcher should take: KV merged part or where K and V are separate, requires experiments.
-    auto qkv_current_split_node =
-        pattern::wrap_type<v1::VariadicSplit>({pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto qkv_current_split_node = wrap_type<v1::VariadicSplit>({any_input(), any_input(), any_input()});
     qkv_current_split_node->set_output_size(2);
     auto kv_current = qkv_current_split_node->output(1);
     std::shared_ptr<ov::Node> kv_past_par, kv_current2, kv_concat, kv_current_reshaped;
     std::tie(kv_past_par, kv_current2, kv_current_reshaped, kv_concat) = kv_read_and_concat(kv_current);
-    auto kv_concat_split =
-        pattern::wrap_type<v1::VariadicSplit>({kv_concat, pattern::any_input(), pattern::any_input()});
+    auto kv_concat_split = wrap_type<v1::VariadicSplit>({kv_concat, any_input(), any_input()});
     kv_concat_split->set_output_size(2);
 
-    k_concat = std::make_shared<pattern::op::Or>(OutputVector{kv_concat_split->output(0), k_concat});
-    v_concat = std::make_shared<pattern::op::Or>(OutputVector{kv_concat_split->output(1), v_concat});
+    k_concat = std::make_shared<Or>(OutputVector{kv_concat_split->output(0), k_concat});
+    v_concat = std::make_shared<Or>(OutputVector{kv_concat_split->output(1), v_concat});
 
     auto kv_shaping = [=](const std::shared_ptr<Node>& kv_concat, std::shared_ptr<Node>& unsqueeze) {
         // Return unsqeeze (return param) to deduce number of kv heads in
         // the place where they are being broadcases in case of GQA and MQ
-        auto interim = pattern::wrap_type<v1::StridedSlice>(
-            {kv_concat, pattern::any_input(), pattern::any_input(), pattern::any_input()});
-        interim = pattern::wrap_type<v1::StridedSlice>(
-            {interim, pattern::any_input(), pattern::any_input(), pattern::any_input()});
-        unsqueeze = pattern::wrap_type<v0::Unsqueeze>(
-            {std::make_shared<pattern::op::Or>(OutputVector{kv_concat, interim}), pattern::any_input()});
-        interim = pattern::wrap_type<v1::StridedSlice>(
-            {unsqueeze, pattern::any_input(), pattern::any_input(), pattern::any_input()});
-        interim = pattern::wrap_type<v1::StridedSlice>(
-            {interim, pattern::any_input(), pattern::any_input(), pattern::any_input()});
-        interim = pattern::wrap_type<v3::Broadcast>(
-            {std::make_shared<pattern::op::Or>(OutputVector{unsqueeze, interim}), pattern::any_input()});
-        interim = std::make_shared<pattern::op::Or>(
-            OutputVector{pattern::wrap_type<v1::Reshape>({interim, pattern::any_input()}),
-                         interim});  // Reshape is missing sometimes in MQA case
+        auto interim = wrap_type<v1::StridedSlice>({kv_concat, any_input(), any_input(), any_input()});
+        interim = wrap_type<v1::StridedSlice>({interim, any_input(), any_input(), any_input()});
+        unsqueeze = wrap_type<v0::Unsqueeze>({std::make_shared<Or>(OutputVector{kv_concat, interim}), any_input()});
+        interim = wrap_type<v1::StridedSlice>({unsqueeze, any_input(), any_input(), any_input()});
+        interim = wrap_type<v1::StridedSlice>({interim, any_input(), any_input(), any_input()});
+        interim = wrap_type<v3::Broadcast>({std::make_shared<Or>(OutputVector{unsqueeze, interim}), any_input()});
+        interim = std::make_shared<Or>(OutputVector{wrap_type<v1::Reshape>({interim, any_input()}),
+                                                    interim});  // Reshape is missing sometimes in MQA case
         return interim;
     };
 
@@ -374,17 +366,17 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     auto k_shaped = kv_shaping(k_concat, k_heads_unsqueeze);
     auto v_shaped = kv_shaping(v_concat, v_heads_unsqueeze);
 
-    auto k_simply_shaped = pattern::wrap_type<v1::Reshape>({k_concat, pattern::any_input()});
-    auto v_simply_shaped = pattern::wrap_type<v1::Reshape>({v_concat, pattern::any_input()});
+    auto k_simply_shaped = wrap_type<v1::Reshape>({k_concat, any_input()});
+    auto v_simply_shaped = wrap_type<v1::Reshape>({v_concat, any_input()});
 
-    auto k_order = pattern::any_input();
-    auto v_order = pattern::any_input();
+    auto k_order = any_input();
+    auto v_order = any_input();
 
     // KV-path may already have Transposes that will be rewritten based on PA KV inputs required layout
-    auto k_shaped_transposed = pattern::wrap_type<v1::Transpose>(
-        {std::make_shared<pattern::op::Or>(OutputVector{k_concat, k_shaped}), k_order});
-    auto v_shaped_transposed = pattern::wrap_type<v1::Transpose>(
-        {std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped}), v_order});
+    auto k_shaped_transposed =
+        wrap_type<v1::Transpose>({std::make_shared<Or>(OutputVector{k_concat, k_shaped}), k_order});
+    auto v_shaped_transposed =
+        wrap_type<v1::Transpose>({std::make_shared<Or>(OutputVector{v_concat, v_shaped}), v_order});
 
     // Optional pattern to capture alibi slopes (based on pattern from bloom)
     std::shared_ptr<ov::Node> general_alibi, general_alibi_mask;
@@ -412,31 +404,27 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                (output.get_partial_shape() == ov::PartialShape{1} && output.get_partial_shape()[0] == 1);
     };
 
-    auto q = pattern::any_input();
-    auto scale_input = pattern::any_input(scale_predicate);
-    auto sinks = pattern::any_input(pattern::has_static_shape() && pattern::rank_equals(4));
+    auto q = any_input();
+    auto scale_input = any_input(scale_predicate);
+    auto sinks = any_input(ov::pass::pattern::has_static_shape() && ov::pass::pattern::rank_equals(4));
 
-    auto k_to_sdpa =
-        std::make_shared<pattern::op::Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
-    auto v_to_sdpa =
-        std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
+    auto k_to_sdpa = std::make_shared<Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
+    auto v_to_sdpa = std::make_shared<Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
 
-    auto mask_to_sdpa = std::make_shared<pattern::op::Or>(OutputVector{phi3_mask,
-                                                                       general_alibi_mask,
-                                                                       jais_alibi_mask,
-                                                                       baichuan2_13b_alibi_mask,
-                                                                       gpt_oss_mask,
-                                                                       pattern::any_input()});
+    auto mask_to_sdpa = std::make_shared<Or>(OutputVector{phi3_mask,
+                                                          general_alibi_mask,
+                                                          jais_alibi_mask,
+                                                          baichuan2_13b_alibi_mask,
+                                                          gpt_oss_mask,
+                                                          any_input()});
 
-    auto sdpa_with_4_inputs =
-        pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
+    auto sdpa_with_4_inputs = wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
     auto sdpa_with_5_inputs =
-        pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input});
+        wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input});
     auto sdpa_with_6_inputs =
-        pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input, sinks});
+        wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input, sinks});
 
-    auto sdpa_variants =
-        std::make_shared<pattern::op::Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
+    auto sdpa_variants = std::make_shared<Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
 
     ov::matcher_pass_callback callback = [=,
                                           &kv_parameters,
@@ -450,7 +438,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &xattention_threshold_inputs_for_each_layer,
                                           &adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
                                           &adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
-                                          &adaptive_rkv_diversity_results](ov::pass::pattern::Matcher& m) {
+                                          &adaptive_rkv_diversity_results](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
 
@@ -804,6 +792,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(sdpa_variants, matcher_name);
+    auto m = std::make_shared<Matcher>(sdpa_variants, matcher_name);
     register_matcher(m, callback);
 }
