@@ -12,6 +12,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "util.hpp"
+#include "perf.hpp"
 
 namespace {
 
@@ -597,10 +598,10 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                 // move_tensor_inplace_by_dim currently supports only kv_dim_src == kv_dim_dst.
                 if (m_past_kv_bound) {
                     if (pre_kv_dim == gen_kv_dim) {
-                        prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv,
-                                                                   pre_kv_dim,
-                                                                   0u,
-                                                                   static_cast<uint32_t>(tokens_in_past_chunks));
+                        prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv,
+                                                                       pre_kv_dim,
+                                                                       0u,
+                                                                       static_cast<uint32_t>(tokens_in_past_chunks));
 
                         uu::copy_tensor_inplace_by_dim(prefill_past_kv_chunks,
                                                        kvcache_past_kv_chunks,
@@ -612,17 +613,17 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                                                                             m_pre_alloc_device,
                                                                             m_npuw_llm_compiled_model->get_plugin());
                         prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
-                        prefill_past_kv_chunks = make_tensor_slice(tmp_dense_kv_tensor,
-                                                                   pre_kv_dim,
-                                                                   0u,
-                                                                   static_cast<uint32_t>(tokens_in_past_chunks));
+                        prefill_past_kv_chunks = uu::make_tensor_slice(tmp_dense_kv_tensor,
+                                                                       pre_kv_dim,
+                                                                       0u,
+                                                                       static_cast<uint32_t>(tokens_in_past_chunks));
                         uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
                     }
                 } else {
-                    prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv,
-                                                               pre_kv_dim,
-                                                               0u,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks));
+                    prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv,
+                                                                   pre_kv_dim,
+                                                                   0u,
+                                                                   static_cast<uint32_t>(tokens_in_past_chunks));
                     uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
                 }
             }
@@ -975,13 +976,14 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     if (!m_generate_initialized) {
         LOG_DEBUG("Copy kv-cache from prefill to generate model.");
         if (kvcache_desc.num_stored_tokens > 0) {
-            // Start counting time.
-            auto t_start = std::chrono::high_resolution_clock::now();
-            copy_kvcache();
-            // End counting time.
-            auto t_end = std::chrono::high_resolution_clock::now();
-            auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
-            LOG_INFO("cost of copy_kvcache(): " << duration_ms << " ms");
+            using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
+            MS m_ms_copy_kvcache("copy_kvcache", /*active*/ true);
+
+            m_ms_copy_kvcache += ov::npuw::perf::ms_to_run([&]() {
+                copy_kvcache();
+            });
+
+            LOG_INFO("cost of copy_kvcache(): " << m_ms_copy_kvcache.med() << " ms");
         }
 
         LOG_DEBUG("Prepare inputs.");

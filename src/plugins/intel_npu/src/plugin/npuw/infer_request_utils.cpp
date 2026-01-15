@@ -343,24 +343,65 @@ void ov::npuw::util::copy_inplace_generic_rows(const ov::SoPtr<ov::ITensor> src_
     OPENVINO_ASSERT(src_strides0.size() == rank0);
     OPENVINO_ASSERT(dst_strides0.size() == rank0);
 
-    // Build default byte strides for given shape (same as ov::ITensor::copy_to logic).
     ov::Strides default_strides(rank0, 0);
     default_strides[rank0 - 1] = elem_size;
     for (size_t i = rank0 - 1; i > 0; --i) {
         default_strides[i - 1] = default_strides[i] * shape0[i];
     }
 
-    // Your explicit preconditions:
+    auto* base = static_cast<uint8_t*>(base_data);
+
+    auto compute_offset = [&](const ov::Shape& ix, const ov::Strides& strides_bytes) -> size_t {
+        size_t off = 0;
+        for (size_t d = 0; d < ix.size(); ++d) {
+            off += ix[d] * strides_bytes[d];
+        }
+        return off;
+    };
+
+    // ---------------------------------------------------------------------
+    // Last dimension not packed in either src or dst.
+    // We cannot memmove row_bytes as a contiguous block. Do element-wise memmove.
+    // Keep reverse lexicographic order to be overlap-safe for in-place move.
+    // ---------------------------------------------------------------------
+    if (src_strides0[rank0 - 1] != elem_size || dst_strides0[rank0 - 1] != elem_size) {
+        ov::Shape idx(shape0.size(), 0);
+        for (size_t d = 0; d < rank0; ++d) {
+            idx[d] = shape0[d] - 1;
+        }
+
+        auto dec_idx = [&]() -> bool {
+            for (int d = static_cast<int>(rank0) - 1; d >= 0; --d) {
+                const size_t ud = static_cast<size_t>(d);
+                if (idx[ud] > 0) {
+                    --idx[ud];
+                    return true;
+                }
+                idx[ud] = shape0[ud] - 1;
+            }
+            return false;
+        };
+
+        while (true) {
+            const size_t src_off = compute_offset(idx, src_strides0);
+            const size_t dst_off = compute_offset(idx, dst_strides0);
+
+            uint8_t* src_ptr = base + src_off;
+            uint8_t* dst_ptr = base + dst_off;
+            if (src_ptr != dst_ptr) {
+                std::memmove(dst_ptr, src_ptr, elem_size);
+            }
+
+            if (!dec_idx()) {
+                break;
+            }
+        }
+        return;
+    }
+
     OPENVINO_ASSERT(src_strides0[rank0 - 1] == elem_size);
     OPENVINO_ASSERT(dst_strides0[rank0 - 1] == elem_size);
     OPENVINO_ASSERT(default_strides[rank0 - 1] == elem_size);
-
-    if (rank0 >= 2) {
-        const size_t packed = shape0[rank0 - 1] * elem_size;
-        OPENVINO_ASSERT(src_strides0[rank0 - 2] == packed);
-        OPENVINO_ASSERT(dst_strides0[rank0 - 2] == packed);
-        OPENVINO_ASSERT(default_strides[rank0 - 2] == packed);
-    }
 
     // Find the COMMON trailing segment where src_stride == dst_stride == default_stride.
     // This is the only part eligible for flattening.
@@ -401,7 +442,6 @@ void ov::npuw::util::copy_inplace_generic_rows(const ov::SoPtr<ov::ITensor> src_
     shape.push_back(folded_last);
 
     // For the folded last dim, the step is element-size (bytes per element).
-    // (Since the whole folded tail is default-contiguous, this holds.)
     src_strides.push_back(elem_size);
     dst_strides.push_back(elem_size);
 
@@ -414,45 +454,34 @@ void ov::npuw::util::copy_inplace_generic_rows(const ov::SoPtr<ov::ITensor> src_
         return;
     }
 
-    // Iterate outer coordinates in reverse lexicographic order for overlap-safe memmove.
-    size_t num_rows = 1;
+    ov::Shape outer(rank - 1, 0);
     for (size_t d = 0; d + 1 < rank; ++d) {
-        num_rows *= shape[d];
+        outer[d] = shape[d] - 1;
     }
-    if (num_rows == 0) {
-        return;
-    }
-
-    auto* base = static_cast<uint8_t*>(base_data);
-
-    ov::Shape idx(rank - 1, 0);
-    for (size_t d = 0; d + 1 < rank; ++d) {
-        idx[d] = shape[d] - 1;
-    }
-
-    auto compute_offset = [&](const ov::Shape& outer, const ov::Strides& strides_bytes) -> size_t {
-        size_t off = 0;
-        for (size_t d = 0; d < outer.size(); ++d) {
-            off += outer[d] * strides_bytes[d];
-        }
-        return off;
-    };
 
     auto dec_outer = [&]() -> bool {
         for (int d = static_cast<int>(rank) - 2; d >= 0; --d) {
             const size_t ud = static_cast<size_t>(d);
-            if (idx[ud] > 0) {
-                --idx[ud];
+            if (outer[ud] > 0) {
+                --outer[ud];
                 return true;
             }
-            idx[ud] = shape[ud] - 1;
+            outer[ud] = shape[ud] - 1;
         }
         return false;
     };
 
+    auto compute_outer_offset = [&](const ov::Shape& o, const ov::Strides& strides_bytes) -> size_t {
+        size_t off = 0;
+        for (size_t d = 0; d < o.size(); ++d) {
+            off += o[d] * strides_bytes[d];
+        }
+        return off;
+    };
+
     while (true) {
-        const size_t src_off = compute_offset(idx, src_strides);
-        const size_t dst_off = compute_offset(idx, dst_strides);
+        const size_t src_off = compute_outer_offset(outer, src_strides);
+        const size_t dst_off = compute_outer_offset(outer, dst_strides);
 
         uint8_t* src_ptr = base + src_off;
         uint8_t* dst_ptr = base + dst_off;

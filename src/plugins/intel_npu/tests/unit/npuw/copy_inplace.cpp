@@ -6,32 +6,47 @@
 #    include "copy_inplace.hpp"
 
 namespace {
-
 static ov::Strides make_padded_strides_keep_tail_default(const ov::Shape& shape,
                                                          const ov::element::Type& et,
                                                          size_t kv_dim,
                                                          size_t pad_elems) {
     ov::Strides s = copy_inplace_details::default_byte_strides(shape, et);
 
-    // Keep last 2 dims default contiguous explicitly.
-    if (shape.size() >= 1) {
-        s.back() = et.size();
-    }
-    if (shape.size() >= 2) {
-        s[shape.size() - 2] = shape.back() * et.size();
+    const size_t rank = shape.size();
+    if (rank == 0) {
+        return s;
     }
 
-    const size_t rank = shape.size();
+    // Keep last 2 dims default contiguous explicitly.
+    s[rank - 1] = et.size();
+    if (rank >= 2) {
+        s[rank - 2] = shape[rank - 1] * et.size();
+    }
+
     if (rank <= 2) {
         return s;
     }
 
     const size_t last2_begin = rank - 2;
-    for (size_t d = 0; d < last2_begin; ++d) {
-        if (d <= kv_dim) {
-            s[d] += pad_elems * et.size();
+
+    // If kv_dim is in the last 2 dims, "keep tail default" means we should not pad there.
+    if (kv_dim >= last2_begin) {
+        // Recompute outer strides consistently (no padding)
+        for (size_t d = last2_begin; d-- > 0;) {
+            s[d] = s[d + 1] * shape[d + 1];
+        }
+        return s;
+    }
+
+    // Recompute strides from inner to outer; at kv_dim insert a gap measured in *inner blocks*.
+    for (size_t d = last2_begin; d-- > 0;) {
+        s[d] = s[d + 1] * shape[d + 1];
+        if (d == kv_dim) {
+            // pad_elems is number of extra "inner blocks" after each index-step in kv_dim
+            s[d] += pad_elems * s[d + 1];
         }
     }
+
     return s;
 }
 
