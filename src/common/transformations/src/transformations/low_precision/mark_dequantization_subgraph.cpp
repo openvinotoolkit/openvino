@@ -381,7 +381,7 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(pt_map.at(pattern).get_node_shared_ptr());
             if (!const_node)
                 return false;
-            auto values = const_node->template cast_vector<float>()
+            auto values = const_node->template cast_vector<float>();
             return std::any_of(values.begin(), values.end(), [](float v) {
                 return v > std::numeric_limits<ov::float16>::max();
                 });
