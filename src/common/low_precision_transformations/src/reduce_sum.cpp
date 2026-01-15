@@ -70,12 +70,14 @@ void ReduceSumTransformation::changeDequantizationValues(
         }
 
         // (a1 - s) + (a2 - s) + ... + (an - s) = (a1 + a2 + ... + an) - n * s
-        const auto reductionSizeConstant = ov::opset1::Constant::create(deqPrecision, Shape{}, { static_cast<float>(reductionSize) });
-        OPENVINO_ASSERT(deqPrecision == dequantization.subtract->get_input_element_type(0),
-                        "dequantization precision ", deqPrecision,
-                        " differs from zero point 0 input ", dequantization.subtract->get_input_element_type(0));
+        // Note: since original shift may be in low precision
+        // (in which we can't compute multiplication without accuracy loss because of overflow),
+        // we use precision of multiply constant (which is always float) for new shift computation
+        const auto& newShiftPrecision = dequantization.multiplyConstant->get_element_type();
+        const auto reductionSizeConstant = ov::opset1::Constant::create(newShiftPrecision, Shape{}, { static_cast<float>(reductionSize) });
+
         const auto result = fold<ov::opset1::Multiply>(
-            foldConvert(dequantization.subtractConstant, deqPrecision),
+            foldConvert(dequantization.subtractConstant, newShiftPrecision),
             reductionSizeConstant);
 
         replace_node(
