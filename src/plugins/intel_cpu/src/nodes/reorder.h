@@ -92,7 +92,6 @@ private:
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();
     void createReorderPrimitive(const DnnlMemoryDescPtr& srcDesc, const DnnlMemoryDescPtr& dstDesc);
-
 };
 
 }  // namespace ov::intel_cpu::node
