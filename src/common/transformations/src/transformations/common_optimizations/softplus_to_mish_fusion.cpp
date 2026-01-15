@@ -16,18 +16,22 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-ov::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
+namespace v4 = ov::op::v4;
+
+namespace ov::pass {
+
+SoftPlusToMishFusion::SoftPlusToMishFusion() {
     MATCHER_SCOPE(SoftPlusToMishFusion);
-    auto input = pass::pattern::any_input();
-    auto softplus = ov::pass::pattern::wrap_type<ov::op::v4::SoftPlus>({input}, pattern::consumers_count(1));
-    auto tanh = ov::pass::pattern::wrap_type<ov::op::v0::Tanh>({softplus}, pattern::consumers_count(1));
+    auto input = pattern::any_input();
+    auto softplus = pattern::wrap_type<v4::SoftPlus>({input}, pattern::consumers_count(1));
+    auto tanh = pattern::wrap_type<ov::op::v0::Tanh>({softplus}, pattern::consumers_count(1));
     auto mul = std::make_shared<ov::op::v1::Multiply>(input, tanh);
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto mish = std::make_shared<ov::op::v4::Mish>(exp_input);
+        auto mish = std::make_shared<v4::Mish>(exp_input);
 
         mish->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info({pattern_to_output.at(mul).get_node_shared_ptr(),
@@ -38,6 +42,8 @@ ov::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

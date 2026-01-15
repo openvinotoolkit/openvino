@@ -30,9 +30,19 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-using namespace ov::op;
-using namespace ov::pass::pattern;
 
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::has_static_shape;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::rank_equals;
+using ov::pass::pattern::wrap_type;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v7 = ov::op::v7;
+namespace v8 = ov::op::v8;
+namespace op_util = ov::op::util;
 pass::GroupedGatherElimination::GroupedGatherElimination() {
     MATCHER_SCOPE(GroupedGatherElimination);
     auto concat_label = wrap_type<v0::Concat>(rank_equals(1));
@@ -80,7 +90,7 @@ pass::GroupedGatherElimination::GroupedGatherElimination() {
 
             // curr and next are the same type of gather which takes data from the same source
             auto joint_indices =
-                new_ops.add(ov::op::util::make_try_fold<v0::Concat>(OutputVector{curr_indices, next_indices}, 0));
+                new_ops.add(op_util::make_try_fold<v0::Concat>(OutputVector{curr_indices, next_indices}, 0));
             std::shared_ptr<Node> new_gather;
             if (is_type<v1::Gather>(curr)) {
                 new_gather = register_new_node<v1::Gather>(curr->input_value(0),
@@ -121,7 +131,7 @@ pass::GroupedGatherElimination::GroupedGatherElimination() {
 
 pass::GatherNopElimination::GatherNopElimination() {
     MATCHER_SCOPE(GatherNopElimination);
-    const auto gather_label = wrap_type<ov::op::util::GatherBase>(
+    const auto gather_label = wrap_type<op_util::GatherBase>(
         {any_input(has_static_shape()), wrap_type<v0::Constant>(), wrap_type<v0::Constant>()});
 
     matcher_pass_callback callback = [](Matcher& m) {
@@ -145,7 +155,7 @@ pass::GatherNopElimination::GatherNopElimination() {
 
 pass::AbsSinking::AbsSinking() {
     MATCHER_SCOPE(AbsSinking);
-    const auto abs_label = wrap_type<ov::op::v0::Abs>(pattern::rank_equals(1));
+    const auto abs_label = wrap_type<v0::Abs>(rank_equals(1));
 
     matcher_pass_callback callback = [](Matcher& m) {
         NodeVector abs_ops = {m.get_match_root()};
@@ -154,7 +164,7 @@ pass::AbsSinking::AbsSinking() {
 
         if (auto concat = as_type_ptr<v0::Concat>(abs_ops[0]->get_input_node_shared_ptr(0))) {
             for (const auto& input : concat->inputs()) {
-                auto new_abs = ov::op::util::make_try_fold<v0::Abs>(input.get_source_output());
+                auto new_abs = op_util::make_try_fold<v0::Abs>(input.get_source_output());
                 if (!as_type_ptr<v0::Constant>(new_abs))
                     abs_ops.push_back(new_abs);
                 input.replace_source_output(new_abs);
@@ -186,15 +196,15 @@ pass::AbsSinking::AbsSinking() {
 
 pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
     MATCHER_SCOPE(SimplifyGatherShapeOf);
-    const auto data_pattern = pattern::any_input(pattern::has_static_rank());
-    const auto indices_pattern = pattern::any_input(pattern::has_static_rank());
-    const auto axis_pattern = wrap_type<ov::op::v0::Constant>();
-    const auto gather_pattern = wrap_type<ov::op::util::GatherBase>({data_pattern, indices_pattern, axis_pattern});
+    const auto data_pattern = any_input(ov::pass::pattern::has_static_rank());
+    const auto indices_pattern = any_input(ov::pass::pattern::has_static_rank());
+    const auto axis_pattern = wrap_type<v0::Constant>();
+    const auto gather_pattern = wrap_type<op_util::GatherBase>({data_pattern, indices_pattern, axis_pattern});
     const auto shape_of_pattern = wrap_type<v0::ShapeOf, v3::ShapeOf>({gather_pattern});
 
     matcher_pass_callback callback = [](Matcher& m) {
         auto node = m.get_match_root();
-        auto gather = as_type_ptr<ov::op::util::GatherBase>(node->input_value(0).get_node_shared_ptr());
+        auto gather = as_type_ptr<op_util::GatherBase>(node->input_value(0).get_node_shared_ptr());
         if (!gather || gather->get_batch_dims() != 0) {
             return false;
         }
@@ -281,13 +291,13 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
         auto data = m.get_pattern_value_map().at(input);
         if (is_type<v0::FakeQuantize>(data.get_node_shared_ptr()) ||
-            ov::op::util::is_unary_elementwise_arithmetic(data.get_node_shared_ptr())) {
+            op_util::is_unary_elementwise_arithmetic(data.get_node_shared_ptr())) {
             data = data.get_node_shared_ptr()->input_value(0);
         }
 
         auto check_shape_of_gather = [&](const std::shared_ptr<Node>& gather) {
             auto shape_of = gather->get_input_node_shared_ptr(0);
-            if (!is_type<ov::op::util::ShapeOfBase>(shape_of)) {
+            if (!is_type<op_util::ShapeOfBase>(shape_of)) {
                 return false;
             }
             return shape_of->input_value(0) == data;
@@ -311,7 +321,7 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
         // that change the arrangement of dimensions in the reshape pattern
         for (auto& concat_input : new_concat_inputs) {
             auto node = concat_input.get_node_shared_ptr();
-            if (ov::is_type<ov::op::util::GatherBase>(node) &&
+            if (ov::is_type<op_util::GatherBase>(node) &&
                 ov::is_type<v0::Constant>(node->get_input_node_shared_ptr(1)) && check_shape_of_gather(node)) {
                 auto indices_constant = as_type_ptr<v0::Constant>(node->get_input_node_shared_ptr(1));
                 bool gather_can_be_fused = true;
@@ -348,7 +358,7 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
             return false;
         }
 
-        const auto new_concat = ov::op::util::make_try_fold<v0::Concat>(new_concat_inputs, concat_axis);
+        const auto new_concat = op_util::make_try_fold<v0::Concat>(new_concat_inputs, concat_axis);
         new_concat->set_friendly_name(concat->get_friendly_name());
         copy_runtime_info(concat, new_concat);
 
