@@ -74,7 +74,7 @@ jobs:
       build-additional-python-wheels: true
       cmake-options: >-
             -G 'Ninja Multi-Config'
-            -DDENABLE_PDB_IN_RELEASE=ON
+            -DENABLE_PDB_IN_RELEASE=ON
             -DENABLE_PYTHON=ON
             -DENABLE_WHEEL=OFF
             -DENABLE_TESTS=ON
