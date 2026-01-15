@@ -574,9 +574,16 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             }
         }
 
-        // Override m_moe_output_buffer to point to MoEExecutor's accumulator
-        // This allows MoEExecutor to write directly to the output buffer
-        m_moe_output_buffer = m_moe_executor->get_output_accumulator();
+        // Set m_moe_output_buffer for prefill mode only
+        // Decoding mode: expert outputs go directly to downstream via normal tensor connections
+        // Prefill mode: expert outputs accumulate in a shared buffer for moe_experts_downstream layer
+        auto accumulator = m_moe_executor->get_output_accumulator();
+        if (accumulator) {
+            m_moe_output_buffer = accumulator;
+            LOG_DEBUG("MoE output buffer linked to executor's accumulator (prefill mode)");
+        } else {
+            LOG_DEBUG("No MoE output buffer needed (decoding mode)");
+        }
 
         LOG_INFO("MoE executor initialized successfully");
     }
