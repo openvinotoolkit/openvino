@@ -9,9 +9,11 @@
 #include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "utils/common.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 #include "utils/split.hpp"
+
 namespace {
 ov::op::PadMode get_pad_mode(std::string mode) {
     ov::op::PadMode pad_mode;
@@ -70,7 +72,7 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> padding_begin;
     ov::Output<ov::Node> padding_end;
 
-    if (inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
+    if (common::is_input_valid(node, 2)) {
         values = reshape::interpret_as_scalar(inputs[2]);
     } else {
         values = v0::Constant::create(data.get_element_type(), ov::Shape{}, {0});
