@@ -236,6 +236,8 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch,
                                                      bool build_state_initializer,
                                                      size_t num_groups,
                                                      bool kv_cache_reorder) {
+    OPENVINO_ASSERT(!(fuse_cache_reorder && kv_cache_reorder));
+
     ov::PartialShape kv_cache_size = {batch, n_heads / num_groups, -1, n_features};
     ov::PartialShape new_token_size = {batch, -1, n_heads / num_groups, n_features};
     ov::PartialShape matmul_in_size = {batch, n_heads, -1, -1};

@@ -398,9 +398,10 @@ class KVCacheTests: public ::testing::Test {
         auto input0 = model->get_parameters().at(0);
         auto input1 = model->get_parameters().at(1);
         auto input2 = fuse_cache_reorder ? model->get_parameters().at(2) : nullptr;
-        auto input3 = reorder_state ? model->get_parameters().at(3) : nullptr;
-        auto input4 = reorder_state ? model->get_parameters().at(4) : nullptr;
-        auto input5 = reorder_state ? model->get_parameters().at(5) : nullptr;
+        const auto updatekv_offset = fuse_cache_reorder ? 3 : 2;
+        auto input3 = reorder_state ? model->get_parameters().at(updatekv_offset + 0) : nullptr;
+        auto input4 = reorder_state ? model->get_parameters().at(updatekv_offset + 1) : nullptr;
+        auto input5 = reorder_state ? model->get_parameters().at(updatekv_offset + 2) : nullptr;
         auto output0 = model->get_results().at(0);
 
         auto beam_idx_shape = ov::Shape{batch};
@@ -415,9 +416,10 @@ class KVCacheTests: public ::testing::Test {
             auto input1 = ref_model->get_parameters().at(1);
             auto input2 = ref_model->get_parameters().at(2);
             auto input3 = fuse_cache_reorder ? ref_model->get_parameters().at(3) : nullptr;
-            auto input4 = reorder_state ? ref_model->get_parameters().at(4) : nullptr;
-            auto input5 = reorder_state ? ref_model->get_parameters().at(5) : nullptr;
-            auto input6 = reorder_state ? ref_model->get_parameters().at(6) : nullptr;
+            const auto updatekv_offset = fuse_cache_reorder ? 4 : 3;
+            auto input4 = reorder_state ? ref_model->get_parameters().at(updatekv_offset + 0) : nullptr;
+            auto input5 = reorder_state ? ref_model->get_parameters().at(updatekv_offset + 1) : nullptr;
+            auto input6 = reorder_state ? ref_model->get_parameters().at(updatekv_offset + 2) : nullptr;
             std::map<ov::Output<ov::Node>, ov::PartialShape> input_shapes = {
                 {input0, kv_cache.get_shape()},
                 {input1, new_token_data.get_shape()},
@@ -646,11 +648,11 @@ TEST_F(KVCacheTests, smoke_multipleIterations_stateful_with_set_state) {
 
 TEST_F(KVCacheTests, smoke_multipleIterations_stateful_trim_reorder) {
     kv_cache_reorder_params params;
-    params.trigger_len = 15;
+    params.trigger_len = 18;
     params.trim_seq = 14;
     params.src_idx = {12, 13, 14};
     params.dst_idx = {10, 11, 12};
-    this->test_smoke_multipleIterations_stateful(false, true, true, 1, 2, ov::element::f16, 1, 1, true, 1, &params);
+    this->test_smoke_multipleIterations_stateful(false, false, true, 1, 2, ov::element::f16, 5, 1, true, 1, &params);
 }
 
 class KVCacheIssueTests: public ::testing::Test {

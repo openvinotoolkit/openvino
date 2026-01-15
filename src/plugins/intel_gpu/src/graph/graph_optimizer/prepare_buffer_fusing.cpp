@@ -444,15 +444,35 @@ bool crop_in_place_optimization::can_crop_be_optimized_simple_data_format(const 
 }
 
 static bool can_read_value_be_optimize(const read_value_node& node) {
-    std::unordered_set<const cldnn::program_node*> unique_users(node.get_users().begin(), node.get_users().end());
-    if (unique_users.size() == 1)
+    std::unordered_set<const cldnn::program_node*> unique_users;
+    for (const auto user : node.get_users()) {
+        if (!user->is_type<shape_of>()) {
+            unique_users.insert(user);
+        }
+    }
+    if (unique_users.size() <= 1)
         return true;
 
-    const auto non_shape_of_users_count = std::count_if(unique_users.begin(), unique_users.end(), [](const program_node* user) {
-        return !user->is_type<shape_of>();
-    });
-    if (non_shape_of_users_count <= 1)
-        return true;
+    // following pattern can be optimized 
+    // readvalue --> gather
+    //       |         |
+    //       |         v
+    //       ------> kvcache
+    if (unique_users.size() == 2) {
+        const auto user0 = *unique_users.begin();
+        const auto user1 = *(++unique_users.begin());
+        const bool is_user0_kvcache = user0->is_type<kv_cache>();
+        const auto kvcache = is_user0_kvcache ? user0 : (user1->is_type<kv_cache>() ? user1 : nullptr);
+        if (kvcache) {
+            const auto other_user = is_user0_kvcache ? user1 : user0;
+            bool all_user_kvcache = std::find_if(other_user->get_users().begin(), other_user->get_users().end(), [kvcache](const auto user) {
+                return user != kvcache && !user->is_type<shape_of>();
+                                    }) == other_user->get_users().end();
+            if (all_user_kvcache) {
+                return true;
+            }
+        }
+    }
 
     return false;
 }
