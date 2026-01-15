@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <editor.hpp>
+#include <filesystem>
 #include <fstream>
 
 #include "core/place.hpp"
@@ -152,6 +154,7 @@ public:
     bool is_enabled_mmap() const;
     detail::MappedMemoryHandles get_mmap_cache() const;
     detail::LocalStreamHandles get_stream_cache() const;
+    std::filesystem::path get_model_dir() const;
 };
 }  // namespace unify
 
