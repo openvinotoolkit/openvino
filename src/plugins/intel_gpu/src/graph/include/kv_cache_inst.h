@@ -27,7 +27,7 @@ public:
     std::vector<size_t> get_shape_infer_dependencies() const override { 
         std::vector<size_t> vec;
         const auto desc = get_primitive();
-        if (desc->update_kv) {
+        if (desc->trim) {
             vec.push_back(2); // past_seq_len
         }
         return vec;
@@ -97,7 +97,7 @@ public:
     void update_shape_info_tensor(const kernel_impl_params& params) override;
     void release_variable() override;
 
-    // KV cache trim length - set during shape inference when update_kv is enabled
+    // KV cache trim length - set during shape inference when trim is enabled
     void set_trim_length(int64_t trim_length) { m_trim_length = trim_length; }
     int64_t get_trim_length() const { return m_trim_length; }
     static std::optional<int64_t> compute_trim_length(const kernel_impl_params& impl_param, const kv_cache& desc);

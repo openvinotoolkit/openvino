@@ -38,7 +38,6 @@
 #include "gather_inst.h"
 #include "broadcast_inst.h"
 #include "dynamic_quantize_inst.h"
-#include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "swiglu_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "lora_inst.h"
@@ -55,6 +54,7 @@
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
+#include "intel_gpu/runtime/tensor_accessor.hpp"
 
 #include "json_object.h"
 #include <string>
@@ -1483,7 +1483,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial present_layout : " << present_layout.to_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial past_layout : " << past_layout.to_string() << std::endl;
-    if (desc->update_kv && kv_inst.get_trim_length() > 0) {
+    if (desc->trim && kv_inst.get_trim_length() > 0) {
         GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " kv cache trim_length : " << kv_inst.get_trim_length() << std::endl;
         auto trimmed_past_shape = past_layout.get_shape();
         trimmed_past_shape[sequence_axis] -= kv_inst.get_trim_length();

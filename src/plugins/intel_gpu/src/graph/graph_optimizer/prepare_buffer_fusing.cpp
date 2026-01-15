@@ -466,7 +466,7 @@ static bool can_read_value_be_optimize(const read_value_node& node) {
         if (kvcache) {
             const auto other_user = is_user0_kvcache ? user1 : user0;
             bool all_user_kvcache = std::find_if(other_user->get_users().begin(), other_user->get_users().end(), [kvcache](const auto user) {
-                return user != kvcache && !user->is_type<shape_of>();
+                return user != kvcache && !user->template is_type<shape_of>();
                                     }) == other_user->get_users().end();
             if (all_user_kvcache) {
                 return true;

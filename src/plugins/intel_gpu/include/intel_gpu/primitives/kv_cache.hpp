@@ -28,18 +28,21 @@ struct kv_cache : public primitive_base<kv_cache> {
              const int64_t concat_axis,
              const int64_t gather_axis,
              const bool indirect,
+             const bool trim,
              const bool update_kv)
         : primitive_base(id, inputs)
         , variable_info(variable_info)
         , concat_axis(concat_axis)
         , gather_axis(gather_axis)
         , indirect(indirect)
+        , trim(trim || update_kv)
         , update_kv(update_kv) {}
 
     ov::op::util::VariableInfo variable_info;
     int64_t concat_axis = 0;
     int64_t gather_axis = 0;
     bool indirect = false;
+    bool trim = false;
     bool update_kv = false;
     bool compressed = false;
     QuantizationAttributes quantization_attributes;
@@ -49,6 +52,7 @@ struct kv_cache : public primitive_base<kv_cache> {
         seed = hash_combine(seed, concat_axis);
         seed = hash_combine(seed, gather_axis);
         seed = hash_combine(seed, indirect);
+        seed = hash_combine(seed, trim);
         seed = hash_combine(seed, update_kv);
         seed = hash_combine(seed, compressed);
         seed = hash_range(seed, quantization_attributes.scales_zp_output_order.begin(), quantization_attributes.scales_zp_output_order.end());
@@ -72,6 +76,7 @@ struct kv_cache : public primitive_base<kv_cache> {
                concat_axis == rhs_casted.concat_axis &&
                gather_axis == rhs_casted.gather_axis &&
                indirect == rhs_casted.indirect &&
+               trim == rhs_casted.trim &&
                update_kv == rhs_casted.update_kv &&
                compressed == rhs_casted.compressed &&
                quantization_attributes.scales_zp_output_order == rhs_casted.quantization_attributes.scales_zp_output_order &&
@@ -92,6 +97,7 @@ struct kv_cache : public primitive_base<kv_cache> {
         ob << concat_axis;
         ob << gather_axis;
         ob << indirect;
+        ob << trim;
         ob << update_kv;
         ob << compressed;
         ob << make_data(&quantization_attributes.quantization_type, sizeof(quantization_attributes.quantization_type));
@@ -115,6 +121,7 @@ struct kv_cache : public primitive_base<kv_cache> {
         ib >> concat_axis;
         ib >> gather_axis;
         ib >> indirect;
+        ib >> trim;
         ib >> update_kv;
         ib >> compressed;
         ib >> make_data(&quantization_attributes.quantization_type, sizeof(quantization_attributes.quantization_type));

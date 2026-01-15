@@ -33,7 +33,15 @@ public:
             int64_t gather_axis,
             const ov::element::Type output_type = ov::element::dynamic);
 
-    /// KVcache with reorder for tree-based speculative decoding
+    /// KVCache with seq_len trimming
+    KVCache(const Output<Node>& past,
+            const Output<Node>& new_token_data,
+            const Output<Node>& past_seq_len,
+            const std::shared_ptr<ov::op::util::Variable>& past_values,
+            int64_t concat_axis,
+            const ov::element::Type output_type = ov::element::dynamic);
+
+    /// KVCache with reorder&trimming for tree-based speculative decoding
     KVCache(const Output<Node>& past,
             const Output<Node>& new_token_data,
             const Output<Node>& past_seq_len,
@@ -61,7 +69,10 @@ public:
     void set_gather_axis(int64_t axis) { m_gather_axis = axis; }
 
     bool get_indirect() const { return m_indirect; }
+    bool get_trim() const { return m_trim; }
     bool get_update_kv() const { return m_update_kv; }
+    
+    void set_trim(bool trim) { m_trim = trim; }
     void set_update_kv(bool update_kv) { m_update_kv = update_kv; }
 
     uint64_t get_trim_length() const { return m_trim_length; }
@@ -78,6 +89,7 @@ protected:
     int64_t m_concat_axis = 0;
     int64_t m_gather_axis = 0;
     bool m_indirect = false;
+    bool m_trim = false;
     bool m_update_kv = false;
     uint64_t m_trim_length = 0;
 

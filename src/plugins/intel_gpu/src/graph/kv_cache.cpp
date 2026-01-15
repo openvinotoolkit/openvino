@@ -23,10 +23,10 @@ kv_cache_inst::typed_primitive_inst(network& network, const kv_cache_node& node)
 }
 
 std::optional<int64_t> kv_cache_inst::compute_trim_length(const kernel_impl_params& impl_param, const kv_cache& desc) {
-    if (!desc.update_kv)
+    if (!desc.trim)
         return std::nullopt;
 
-    OPENVINO_ASSERT(!desc.compressed && !desc.indirect);  // update_kv does not support compressed kv or indirect kv for now
+    OPENVINO_ASSERT(!desc.compressed && !desc.indirect);  // trimming does not support compressed kv or indirect kv for now
 
     constexpr size_t past_seq_len_idx = 2;
     const auto mem_dep_it = impl_param.memory_deps.find(past_seq_len_idx);
@@ -82,7 +82,7 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
 
     std::vector<ShapeType> output_shapes;
     if (desc->compressed) {
-        OPENVINO_ASSERT(!desc->update_kv && !kv_cache_trim_length);  // compressed kv does not support update_kv
+        OPENVINO_ASSERT(!desc->trim && !kv_cache_trim_length);  // compressed kv does not support trim
         ov::intel_gpu::op::KVCacheCompressed op;
         op.set_output_size(desc->num_outputs);
         op.set_concat_axis(desc->concat_axis);
@@ -95,7 +95,7 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
         op.set_output_size(desc->num_outputs);
         op.set_concat_axis(desc->concat_axis);
         op.set_gather_axis(desc->gather_axis);
-        op.set_update_kv(desc->update_kv);
+        op.set_trim(desc->trim);
         if (kv_cache_trim_length) {
             op.set_trim_length(static_cast<uint64_t>(*kv_cache_trim_length));
         }

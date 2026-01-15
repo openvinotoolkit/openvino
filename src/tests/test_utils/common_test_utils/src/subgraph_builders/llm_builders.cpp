@@ -235,8 +235,14 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch,
                                                      bool fuse_cache_reorder,
                                                      bool build_state_initializer,
                                                      size_t num_groups,
+                                                     bool kv_cache_trim,
                                                      bool kv_cache_reorder) {
-    OPENVINO_ASSERT(!(fuse_cache_reorder && kv_cache_reorder));
+    if (kv_cache_reorder) {
+        OPENVINO_ASSERT(kv_cache_trim);
+    }
+    if (kv_cache_trim) {
+        OPENVINO_ASSERT(!fuse_cache_reorder);
+    }
 
     ov::PartialShape kv_cache_size = {batch, n_heads / num_groups, -1, n_features};
     ov::PartialShape new_token_size = {batch, -1, n_heads / num_groups, n_features};
@@ -257,12 +263,9 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch,
         params.push_back(in_beam_idx);
         concat_input = make_kv_rearrange(in_kv_prev, in_beam_idx);
     }
+    auto context_axis_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {2});
     if (kv_cache_reorder) {
         OPENVINO_ASSERT(n_heads.is_static() && n_features.is_static());
-        ov::PartialShape unit_shape = {1};
-        auto seq_len = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, unit_shape);
-        seq_len->set_friendly_name("seq_len");
-        params.push_back(seq_len);
         ov::PartialShape src_shape = {-1};
         auto in_src_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, src_shape);
         in_src_idx->set_friendly_name("src_idx");
@@ -272,13 +275,19 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch,
         auto in_dst_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, dst_shape);
         in_dst_idx->set_friendly_name("dst_idx");
         params.push_back(in_dst_idx);
-        auto axis_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {2});
-        auto updates = std::make_shared<ov::op::v8::Gather>(concat_input, in_src_idx, axis_const);
+        auto updates = std::make_shared<ov::op::v8::Gather>(concat_input, in_src_idx, context_axis_const);
         concat_input =
-            std::make_shared<ov::op::v3::ScatterElementsUpdate>(concat_input, in_dst_idx, updates, axis_const);
+            std::make_shared<ov::op::v3::ScatterElementsUpdate>(concat_input, in_dst_idx, updates, context_axis_const);
+    }
+    if (kv_cache_trim) {
+        ov::PartialShape unit_shape = {1};
+        auto seq_len = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, unit_shape);
+        seq_len->set_friendly_name("seq_len");
+        params.push_back(seq_len);
         auto zero_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {0});
         auto one_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
-        concat_input = std::make_shared<ov::op::v8::Slice>(concat_input, zero_const, seq_len, one_const, axis_const);
+        concat_input =
+            std::make_shared<ov::op::v8::Slice>(concat_input, zero_const, seq_len, one_const, context_axis_const);
     }
 
     auto transpose_const = ov::op::v0::Constant::create(ov::element::i32, {new_token_size.size()}, {0, 2, 1, 3});

@@ -49,12 +49,11 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
     auto stride = any_input();
     auto step = wrap_type<ov::op::v0::Constant>();
     auto slice_axes = wrap_type<ov::op::v0::Constant>();
-    auto trim_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
-    auto trim_past = wrap_type<ov::op::v8::Slice>({trim_past_input, start, past_seq_len, step, slice_axes});
-    auto trim_past2 = wrap_type<ov::op::v1::StridedSlice>({trim_past_input, start, past_seq_len, stride});
+    auto trim_past = wrap_type<ov::op::v8::Slice>({gather_input, start, past_seq_len, step, slice_axes});
+    auto trim_past2 = wrap_type<ov::op::v1::StridedSlice>({gather_input, start, past_seq_len, stride});
     auto trim_reorder_past = wrap_type<ov::op::v8::Slice>({reorder_past, start, past_seq_len, step, slice_axes});
     auto trim_reorder_past2 = wrap_type<ov::op::v1::StridedSlice>({reorder_past, start, past_seq_len, stride});
-    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{trim_past_input, trim_past, trim_past2, trim_reorder_past, trim_reorder_past2});
+    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{gather_past, gather_convert, trim_past, trim_past2, trim_reorder_past, trim_reorder_past2});
     auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
     auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
     auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
@@ -96,9 +95,15 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         ov::copy_runtime_info(past_node, new_read_value_node);
         ov::replace_node(past_node, new_read_value_node);
 
+        const bool has_beam_idx = pattern_map.count(gather_past) > 0;
+        const bool has_update_kv = pattern_map.count(reorder_past) > 0;
+        const bool has_slice = pattern_map.count(trim_past) > 0 || pattern_map.count(trim_reorder_past) > 0;
+        const bool has_strided_slice = pattern_map.count(trim_past2) > 0 || pattern_map.count(trim_reorder_past2) > 0;
+        const bool has_trim = has_slice || has_strided_slice;
+
         std::shared_ptr<ov::Node> past_seq_len_node = pattern_map.at(past_seq_len).get_node_shared_ptr();
         // StridedSlice uses multi-dim for end tensor, extract only the slice dim
-        if (pattern_map.count(trim_past2) > 0 || pattern_map.count(trim_reorder_past2) > 0) {
+        if (has_strided_slice) {
             const auto strided_slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(concat_node->input_value(0).get_node_shared_ptr());
             const auto begin_mask = strided_slice->get_begin_mask();
             const auto end_mask = strided_slice->get_end_mask();
@@ -106,24 +111,31 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
             if (begin_mask != end_mask || begin_mask.empty()) {
                 return false;
             }
-            if (std::accumulate(begin_mask.begin(), begin_mask.end(), 0) != begin_mask.size() && begin_mask.back() != 0) {
+            if (begin_mask.size() != concat_axis + 1 || begin_mask.back() != 0 || std::accumulate(begin_mask.begin(), begin_mask.end(), 0) != concat_axis) {
                 return false;
             }
-            const auto slice_axis = ov::op::v0::Constant::create(element::i32, Shape{1}, {begin_mask.size() - 1});
+            const auto slice_axis = ov::op::v0::Constant::create(element::i32, Shape{1}, {concat_axis});
             const auto gather_axis = ov::op::v0::Constant::create(element::i32, Shape{1}, {0});
             past_seq_len_node = std::make_shared<ov::op::v8::Gather>(past_seq_len_node, slice_axis, gather_axis);
         }
 
-        const bool has_beam_idx = pattern_map.count(gather_past) > 0;
-        const bool has_update_kv = pattern_map.count(reorder_past) > 0;
         const auto input0 = has_beam_idx ? pattern_map.at(gather_past).get_node_shared_ptr() : new_read_value_node;
         if (has_update_kv) {
             OPENVINO_ASSERT(!has_beam_idx);
+            OPENVINO_ASSERT(has_trim);
             kv_cache_node = std::make_shared<op::KVCache>(input0,
                                                           concat_node->input(1).get_source_output(),
                                                           past_seq_len_node,
                                                           pattern_map.at(dst_idx).get_node_shared_ptr(),
                                                           pattern_map.at(gather_update).get_node_shared_ptr(),
+                                                          variable,
+                                                          concat_axis,
+                                                          new_read_value_node->get_output_element_type(0));
+        } else if (has_trim) {
+            OPENVINO_ASSERT(!has_beam_idx);
+            kv_cache_node = std::make_shared<op::KVCache>(input0,
+                                                          concat_node->input(1).get_source_output(),
+                                                          past_seq_len_node,
                                                           variable,
                                                           concat_axis,
                                                           new_read_value_node->get_output_element_type(0));

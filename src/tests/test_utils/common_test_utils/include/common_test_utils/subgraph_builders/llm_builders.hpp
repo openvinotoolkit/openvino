@@ -139,6 +139,7 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch = ov::D
                                                      bool fuse_cache_reorder = false,
                                                      bool build_state_initializer = false,
                                                      size_t num_groups = 1,
+                                                     bool kv_cache_trim = false,
                                                      bool kv_cache_reorder = false);
 
 /**
