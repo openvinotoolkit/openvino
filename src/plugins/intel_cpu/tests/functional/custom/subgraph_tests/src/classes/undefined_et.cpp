@@ -66,7 +66,7 @@ void UndefinedEtSubgraphTest::SetUp() {
     m_mode = it->second.as<hint::ExecutionMode>();
 
     init_input_shapes({ {{}, {{3}}}, {{}, {{1}}}, {{}, {{1}}} });
-    auto param_0 = std::make_shared<op::v0::Parameter>(element::i64, inputDynamicShapes[0]);
+    auto param_0 = std::make_shared<op::v0::Parameter>(element::i32, inputDynamicShapes[0]);
     param_0->set_friendly_name("shape");
     auto param_1 = std::make_shared<op::v0::Parameter>(m_data_et, inputDynamicShapes[1]);
     param_1->set_friendly_name("minval");
