@@ -766,7 +766,87 @@ public:
         }};
     }
 };
+class KVCacheReorderGenerator : public KernelGenerator {
+public:
+    KVCacheReorderGenerator() : KernelGenerator("pa_kv_cache_reorder_ref") {}
 
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
+        auto jit = make_base_jit_constants(params);
+
+        const auto& in_offsets_map = params.in_port_to_shape_info_offset;
+
+        constexpr static std::array input_ids = {PagedAttentionInputIdx::BLOCK_INDICES,
+                             PagedAttentionInputIdx::BLOCK_INDICES_BEGINS,
+                             PagedAttentionInputIdx::BLOCK_UPDATE_INDICES,
+                             PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS,
+                             PagedAttentionInputIdx::SUBSEQUENCE_BEGINS};
+
+        for (size_t i = 0; i < input_ids.size(); i++) {
+            const size_t tensor_id = input_ids.at(i);
+            jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+        }
+
+        constexpr size_t key_cache_id = PagedAttentionInputIdx::KEY_CACHE;
+        constexpr size_t value_cache_id = PagedAttentionInputIdx::VALUE_CACHE;
+
+        jit.add(make_layout_jit_constants("OUTPUT", params.input_layouts[key_cache_id], in_offsets_map.at(key_cache_id)));
+        jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(1), params.input_layouts[value_cache_id], in_offsets_map.at(value_cache_id)));
+
+        const auto desc = params.typed_desc<paged_attention>();
+        jit.make("K_HEAD_SIZE", desc->k_head_size);
+        jit.make("V_HEAD_SIZE", desc->v_head_size);
+        jit.make("KV_HEADS_NUM", desc->kv_heads_num);
+        jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+        jit.make("SUBGROUP_SIZE", subgroup_size);
+
+        const bool is_kv_compressed = get_kv_compressed(params);
+        jit.make("IS_KV_COMPRESSED", is_kv_compressed ? 1 : 0);
+
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override {
+        Arguments args;
+
+        if (params.is_dynamic()) {
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
+
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES}); // block_indices
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS}); // block_indices_begins
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_UPDATE_INDICES}); // block_update_indices
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS}); // block_update_indices_begins
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS}); // subsequence_begins
+
+        // Outputs
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});    // key_cache
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});  // value_cache
+
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            assert(!params.is_dynamic());
+            auto& wgs = kd.params.workGroups;
+            auto& scalars = kd.params.scalars;
+            scalars.clear();
+
+            const auto desc = params.typed_desc<paged_attention>();
+
+            auto heads_number = desc->kv_heads_num;
+
+            const auto& begins_input = params.input_layouts[PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS];
+            const auto begins_len = static_cast<size_t>(begins_input.get_partial_shape()[0].get_length());
+            OPENVINO_ASSERT(begins_len >= 1, "[GPU] BLOCK_UPDATE_INDICES_BEGINS must have at least 1 element");
+            const auto sequences_number = begins_len - 1;
+
+            wgs.global = {sequences_number, heads_number, subgroup_size};
+            wgs.local = {1, 1, subgroup_size};
+        }};
+    }
+};
 class KVCacheUpdateGenerator : public KernelGenerator {
 public:
     KVCacheUpdateGenerator() : KernelGenerator("pa_kv_cache_update_ref") {}
@@ -789,14 +869,20 @@ protected:
             const size_t tensor_id = input_ids.at(i);
             jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
         }
-
+        const auto desc = params.typed_desc<paged_attention>();
+        const bool has_qq_bias = desc->has_qq_bias;
+        uint32_t input_nums = static_cast<uint32_t>(input_ids.size());
+        if (has_qq_bias) {
+            jit.make("HAS_QQ_BIAS", 1);
+            jit.add(make_layout_jit_constants("INPUT" + to_code_string(input_nums++), params.input_layouts[PagedAttentionInputIdx::BLOCK_UPDATE_INDICES], in_offsets_map.at(PagedAttentionInputIdx::BLOCK_UPDATE_INDICES)));
+            jit.add(make_layout_jit_constants("INPUT" + to_code_string(input_nums++), params.input_layouts[PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS], in_offsets_map.at(PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS)));
+        }
         constexpr size_t key_cache_id = PagedAttentionInputIdx::KEY_CACHE;
         constexpr size_t value_cache_id = PagedAttentionInputIdx::VALUE_CACHE;
 
         jit.add(make_layout_jit_constants("OUTPUT", params.input_layouts[key_cache_id], in_offsets_map.at(key_cache_id)));
         jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(1), params.input_layouts[value_cache_id], in_offsets_map.at(value_cache_id)));
 
-        const auto desc = params.typed_desc<paged_attention>();
         const auto is_key_by_channel = desc->is_key_by_channel;
         OPENVINO_ASSERT(is_key_by_channel == (params.get_program().get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL),
                         "[GPU] Paged Attention key cache quantization mode mismatch: prim.key_cache_by_channel : ",
@@ -1106,7 +1192,7 @@ public:
 class PagedAttentionOptImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedAttentionOptImpl)
-
+    Stage::Ptr kv_cache_reorder = make_stage<KVCacheReorderGenerator>();
     Stage::Ptr kv_cache_update = make_stage<KVCacheUpdateGenerator>();
     Stage::Ptr pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();
     Stage::Ptr pa_gqa_single_token = make_stage<PagedAttentionGeneratorGQASingleToken>();
@@ -1134,7 +1220,7 @@ public:
             add_stage(pa_sdpa_micro_mixed, params);
         }
 #endif
-
+        add_stage(kv_cache_reorder, params);
         add_stage(kv_cache_update, params);
         add_stage(pa_multi_token, params);
         add_stage(pa_multi_token_finalization, params);
@@ -1273,7 +1359,7 @@ public:
         const auto desc = params.typed_desc<paged_attention>();
         const bool has_scores_output = params.output_layouts.size() > 1;
         const bool has_rotated_blocks = desc->has_rotated_blocks;
-
+        const bool has_qq_bias = desc->has_qq_bias;
         update_stages_flags(instance);
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         assert(rt_params != nullptr);
@@ -1284,6 +1370,11 @@ public:
             if (rotated_block_indices_input.get_partial_shape()[0].get_length() > 0) {
                 res_event = {execute_stage(res_event, instance, kv_cache_rotate)};
             }
+        }
+        if (has_qq_bias) {
+            const auto& block_update_indices_input = params.get_input_layout(PagedAttentionInputIdx::BLOCK_UPDATE_INDICES);
+            if (block_update_indices_input.get_partial_shape()[0].get_length() > 0)
+                res_event = {execute_stage(res_event, instance, kv_cache_reorder)};
         }
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 

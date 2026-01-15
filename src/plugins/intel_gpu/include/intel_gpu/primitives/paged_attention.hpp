@@ -36,6 +36,8 @@ struct paged_attention : public primitive_base<paged_attention> {
         XATTENTION_STRIDE = 19,
         SINKS = 20,
         QQ_BIAS = 21,
+        BLOCK_UPDATE_INDICES = 22,
+        BLOCK_UPDATE_INDICES_BEGINS = 23
     };
 
     static constexpr size_t block_size = 16;
@@ -46,7 +48,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     paged_attention(const primitive_id& id,
                     const std::vector<input_info>& inputs)
         : primitive_base(id, inputs) {
-        OPENVINO_ASSERT((inputs.size() == 22),
+        OPENVINO_ASSERT((inputs.size() == 24),
                         "[GPU] Unexpected inputs number for PagedAttention primitive: ",
                         inputs.size());
     }

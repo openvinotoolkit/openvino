@@ -74,6 +74,8 @@ public:
     memory::ptr xattention_stride_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::XATTENTION_STRIDE); }
     memory::ptr sinks_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::SINKS); }
     memory::ptr qq_bias_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::QQ_BIAS); }
+    memory::ptr block_update_indices_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::BLOCK_UPDATE_INDICES); }
+    memory::ptr block_update_indices_begins_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS); }
 };
 
 using paged_attention_inst = typed_primitive_inst<paged_attention>;

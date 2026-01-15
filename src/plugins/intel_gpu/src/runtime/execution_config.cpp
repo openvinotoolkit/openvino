@@ -237,14 +237,14 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
             // Enable KV-cache compression by default for:
             // 1) Non-systolic platforms in case of SDPA-based models
             // 2) For any platforms in case of PagedAttention-based model
-            m_kv_cache_precision = ov::element::i8;
+            m_kv_cache_precision = ov::element::f16;
         } else {
             m_kv_cache_precision = get_inference_precision();
         }
     }
 
     if (!is_set_by_user(ov::internal::key_cache_quant_mode) || get_key_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {
-        m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_CHANNEL;
+        m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
     }
 
     if (!is_set_by_user(ov::internal::value_cache_quant_mode) || get_value_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {

@@ -703,12 +703,20 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                 "No qq_bias input found. For using QQ bias, the model have to contain "
                 "an additional input (Parameter) called qq_bias.");
             pa_arguments.insert(pa_arguments.begin() + 21, optional_model_wide_params.at("qq_bias"));
+            pa_arguments.insert(pa_arguments.begin() + 22,
+                                optional_model_wide_params.at("block_update_indices"));
+            pa_arguments.insert(pa_arguments.begin() + 23,
+                                optional_model_wide_params.at("block_update_indices_begins"));
         } else {
             pa_arguments.insert(pa_arguments.begin() + 21,
-                                v0::Constant::create(element::f32, Shape{0, 0, 0}, {}));
+                                v0::Constant::create(element::u8, Shape{0, 0, 0}, {}));
+            pa_arguments.insert(pa_arguments.begin() + 22,
+                                v0::Constant::create(element::i32, Shape{0}, {}));
+            pa_arguments.insert(pa_arguments.begin() + 23,
+                                v0::Constant::create(element::i32, Shape{0}, {}));
         }
 
-        OPENVINO_ASSERT(pa_arguments.size() == 22);
+        OPENVINO_ASSERT(pa_arguments.size() == 24);
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
         paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
