@@ -32,6 +32,44 @@
         }                                                           \
     } while (0)
 
+// ====================================================================================================
+// ISubrequestAccessor Interface Implementation
+// ====================================================================================================
+
+ov::SoPtr<ov::IAsyncInferRequest> ov::npuw::JustInferRequest::get_subrequest(size_t idx) {
+    return m_subrequests[idx];
+}
+
+const void* ov::npuw::JustInferRequest::get_submodel_desc(size_t idx) {
+    return &m_npuw_model->m_compiled_submodels[idx];
+}
+
+ov::npuw::TensorPtr ov::npuw::JustInferRequest::allocate_mem(const ov::element::Type& type,
+                                                             const ov::Shape& shape,
+                                                             const std::string& device) {
+    return allocMem(type, shape, device);
+}
+
+void ov::npuw::JustInferRequest::unpack_closure(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request) {
+    IBaseInferRequest::unpack_closure(idx, request);
+}
+
+void ov::npuw::JustInferRequest::unpack_single_expert_closure(size_t idx,
+                                                              ov::SoPtr<ov::IAsyncInferRequest> request,
+                                                              size_t expert_id) {
+    IBaseInferRequest::unpack_single_expert_closure(idx, request, expert_id);
+}
+
+void ov::npuw::JustInferRequest::unpack_multiple_experts_closure(size_t idx,
+                                                                 ov::SoPtr<ov::IAsyncInferRequest> request,
+                                                                 const std::vector<size_t>& expert_ids) {
+    IBaseInferRequest::unpack_multiple_experts_closure(idx, request, expert_ids);
+}
+
+// ====================================================================================================
+// Memory Access Simulation & Function Memory Management
+// ====================================================================================================
+
 ov::npuw::MemAccessSim::MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model) {
     LOG_VERB("Running memory access simulation...");
     LOG_BLOCK();
@@ -2023,7 +2061,7 @@ void ov::npuw::JustInferRequest::run_moe_batch_experts_inference(std::size_t idx
     // Note: Use idx (not real_idx) because:
     //   - Cache is indexed by idx (each function call has its own pool)
     //   - Different function call sites may have different closure data
-    RqPtr request = nullptr;
+    RqPtr request{};
     size_t pool_idx = 0;
 
     if (m_moe_cache) {

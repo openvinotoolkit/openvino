@@ -12,6 +12,7 @@
 
 #include "base_sync_infer_request.hpp"
 #include "host_flash_attention.hpp"
+#include "moe/moe_executor.hpp"
 #include "moe_infer_utils.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
@@ -68,9 +69,20 @@ private:
     AllocFcn m_alloc;
 };
 
-class JustInferRequest final : public IBaseInferRequest {
+class JustInferRequest final : public IBaseInferRequest, public ISubrequestAccessor {
 public:
     explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
+
+    ////////////////////////////////////
+    // Implement ISubrequestAccessor interface
+    ov::SoPtr<ov::IAsyncInferRequest> get_subrequest(size_t idx) override;
+    const void* get_submodel_desc(size_t idx) override;
+    TensorPtr allocate_mem(const ov::element::Type& type, const ov::Shape& shape, const std::string& device) override;
+    void unpack_closure(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request) override;
+    void unpack_single_expert_closure(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request, size_t expert_id) override;
+    void unpack_multiple_experts_closure(size_t idx,
+                                         ov::SoPtr<ov::IAsyncInferRequest> request,
+                                         const std::vector<size_t>& expert_ids) override;
 
 protected:
     ////////////////////////////////////
