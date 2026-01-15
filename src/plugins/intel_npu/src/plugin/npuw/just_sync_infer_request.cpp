@@ -19,6 +19,13 @@
 #include "pyramid_attention.hpp"
 #include "weights_bank.hpp"
 
+// ====================================================================================================
+// Phase 2 Refactoring Toggle
+// ====================================================================================================
+// Set to 1 to use new MoEExecutor, 0 to use legacy run_moe_infer() implementation
+#define USE_NEW_MOE_EXECUTOR 1
+
+// ====================================================================================================
 // MoE Profiling Macros - Zero-overhead profiling helpers
 // Only execute profiling when m_moe_profiling_enabled is true
 #define MOE_PROFILE_RECORD(profile_area, metric_name, code)         \
@@ -411,7 +418,13 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     // Initialize MoE resources if MoE was detected
     if (has_moe) {
+#if USE_NEW_MOE_EXECUTOR
+        // New path: Use MoEExecutor (initialized below at line ~545)
+        // Do NOT call setup_moe_infer_requests() - MoEExecutor handles everything
+#else
+        // Legacy path: Use old setup_moe_infer_requests()
         setup_moe_infer_requests(moe_experts_sub_idx, is_pipelined(moe_experts_sub_idx), /* is_recreate */ false);
+#endif
     }
 
     // Identify connections for the funcall pipeline, if needed
@@ -533,6 +546,52 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found.");
         }
         LOG_VERB("Done");
+    }
+
+    // Initialize MoE executor if MoE was detected
+    if (has_moe) {
+        LOG_INFO("Creating MoE executor...");
+
+        // Create MoE executor with dependency injection
+        m_moe_executor = std::make_unique<ov::npuw::moe::MoEExecutor>(
+            *this,  // ISubrequestAccessor
+            [this](const std::string& area, const std::string& name, std::function<void()> fn) {
+                // Profiler callback
+                if (m_moe_profiling_enabled && m_moe_profile.has_value()) {
+                    if (area == "decoding") {
+                        m_moe_profile->decoding[name].record(std::move(fn));
+                    } else if (area == "prefill") {
+                        m_moe_profile->prefill[name].record(std::move(fn));
+                    }
+                } else {
+                    fn();  // Execute without profiling
+                }
+            },
+            [this](const ov::element::Type& type, const ov::Shape& shape, const std::string& device) {
+                // Allocator callback
+                return allocMem(type, shape, device);
+            });
+
+        // Prepare MoE resources for each sublayer (including function calls)
+        // - Config & shared resources: initialized once (global singleton)
+        // - Request cache: per-sublayer (indexed by idx in MoEResources.request_caches)
+        for (size_t i = 0; i < m_num_submodels; i++) {
+            auto& desc = m_npuw_model->m_compiled_submodels[i];
+
+            // Get real_idx (function body index)
+            size_t real_idx = desc.replaced_by.value_or(i);
+            auto& real_desc = m_npuw_model->m_compiled_submodels[real_idx];
+
+            // Check if the real function body has MoE experts
+            if (real_desc.moe_experts.has_value()) {
+                size_t pool_size = m_npuw_model->m_cfg.get<::intel_npu::NPUW_MOE_POOL_SIZE>();
+                LOG_DEBUG("Preparing MoE resources for submodel[" << i << "] (real_idx=" << real_idx
+                                                                  << "), pool_size=" << pool_size);
+                m_moe_executor->prepare(i, real_idx, m_num_submodels, pool_size);
+            }
+        }
+
+        LOG_INFO("MoE executor initialized successfully");
     }
 }
 
@@ -826,7 +885,6 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
 
                     // Expert inputs: decoding sets directly, prefill defers for chunking
                     if (moe._expert_input_param_idx.has_value() && i == moe._expert_input_param_idx.value()) {
-                        const bool is_decoding = (moe.input_token_count == 1);
                         // For decoding, save expert input tensor for cache request binding
                         // For prefill, save expert input tensor for chunk processing
                         m_moe_io[idx].expert_input = i_tensor;
@@ -840,8 +898,16 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 if (func_desc.moe_experts_downstream) {
                     const auto& moe_downstream = func_desc.moe_experts_downstream.value();
                     if (i == moe_downstream.expert_output_param_idx) {
+#if USE_NEW_MOE_EXECUTOR
+                        // New path: Use MoEExecutor's accumulator
+                        auto accumulator = m_moe_executor->get_output_accumulator();
+                        NPUW_ASSERT(accumulator && "MoE output accumulator not available");
+                        m_subrequests[real_idx]->set_tensor(iport, accumulator);
+#else
+                        // Legacy path: Use m_moe_output_buffer
                         NPUW_ASSERT(m_moe_output_buffer && "MoE output buffer not available");
                         m_subrequests[real_idx]->set_tensor(iport, m_moe_output_buffer);
+#endif
                     } else {
                         m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                     }
@@ -1901,7 +1967,13 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
     } else if (comp_model_desc.host_flash_attention) {
         run_hfa_tiled_inference(real_idx, idx);
     } else if (comp_model_desc.moe_experts.has_value()) {
+#ifdef USE_NEW_MOE_EXECUTOR
+        // Phase 2: Use new MoEExecutor
+        m_moe_executor->run(real_idx, idx, m_moe_io[idx], m_moe_token_to_experts, m_moe_expert_to_tokens);
+#else
+        // Legacy: Use old implementation
         run_moe_infer(real_idx, idx);
+#endif
     } else {
         r->infer();  // Run normally
     }

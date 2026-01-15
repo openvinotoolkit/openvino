@@ -14,6 +14,7 @@
 #include "../util.hpp"  // For TensorPtr
 #include "moe_config.hpp"
 #include "moe_resources.hpp"
+#include "moe_types.hpp"  // For MoEIO
 #include "openvino/runtime/so_ptr.hpp"
 
 // Forward declarations
@@ -21,7 +22,6 @@ namespace ov {
 class ITensor;
 namespace npuw {
 class CompiledModel;
-struct MoEIO;
 }  // namespace npuw
 }  // namespace ov
 
@@ -131,16 +131,20 @@ public:
     MoEExecutor(ISubrequestAccessor& accessor, ProfilerFn profiler, AllocatorFn allocator);
 
     /**
-     * @brief Prepare MoE resources for a submodel
+     * @brief Prepare MoE resources for a sublayer
      *
-     * Called during JustInferRequest construction. Initializes configuration
-     * and allocates cache resources.
+     * Must be called once for each sublayer (including function calls) before first run.
+     * Initializes:
+     * - Config: Once on first call (singleton, shared by all sublayers)
+     * - Shared resources: Once on first call (sorted_chunk_sizes, expert_output_accumulator)
+     * - Request cache: Created on first call (manages all sublayers)
      *
-     * @param real_idx Submodel index (after replaced_by resolution)
-     * @param compiled_model_desc CompiledModel descriptor (contains moe_experts config)
+     * @param idx Sublayer index (used for cache layer indexing, may be function call)
+     * @param real_idx Real function body index (for accessing config descriptor)
+     * @param num_sublayers Total number of sublayers (for cache creation on first call)
      * @param pool_size Request cache pool size (0 = disabled)
      */
-    void prepare(size_t real_idx, const void* compiled_model_desc, size_t pool_size);
+    void prepare(size_t idx, size_t real_idx, size_t num_sublayers, size_t pool_size);
 
     /**
      * @brief Execute MoE inference
@@ -152,8 +156,14 @@ public:
      * @param real_idx Submodel index (after replaced_by resolution)
      * @param idx Function call index
      * @param io MoE I/O tensors (router_scores, expert_input, outputs)
+     * @param token_to_experts Routing map: token_id -> [expert_ids] (reusable storage)
+     * @param expert_to_tokens Routing map: expert_id -> [token_ids] (reusable storage)
      */
-    void run(size_t real_idx, size_t idx, const MoEIO& io);
+    void run(size_t real_idx,
+             size_t idx,
+             const MoEIO& io,
+             std::map<size_t, std::vector<size_t>>& token_to_experts,
+             std::map<size_t, std::vector<size_t>>& expert_to_tokens);
 
     /**
      * @brief Recreate resources after subrequest rebuild
@@ -165,15 +175,35 @@ public:
      */
     void recreate_requests(size_t real_idx);
 
+    /**
+     * @brief Get expert output accumulator buffer
+     *
+     * Returns the shared output buffer used for accumulating expert outputs
+     * in prefill mode. This buffer is allocated during prepare() and reused
+     * across all inference calls.
+     *
+     * @return Pointer to expert output accumulator tensor
+     */
+    TensorPtr get_output_accumulator() const {
+        return m_resources.expert_output_accumulator;
+    }
+
 private:
     // === Dependency injection ===
     ISubrequestAccessor& m_accessor;  // Access to JustInferRequest internals
     ProfilerFn m_profiler;            // Performance profiling callback
     AllocatorFn m_allocator;          // Memory allocation function
 
-    // === Per-submodel state ===
-    std::map<size_t, MoEConfig> m_configs;       // Indexed by real_idx
-    std::map<size_t, MoEResources> m_resources;  // Indexed by real_idx
+    // === State management ===
+    // MoE configuration (single instance, shared by all sublayers)
+    // Sanity check in JustInferRequest ensures only one MoE type exists
+    MoEConfig m_config;
+
+    // Shared resources for all sublayers
+    // - request_caches: per-sublayer (map inside MoEResources, indexed by idx)
+    // - sorted_chunk_sizes: shared (single instance)
+    // - expert_output_accumulator: shared (single instance)
+    MoEResources m_resources;  // Single instance, shared by all sublayers
 
     // === Execution modes ===
 
@@ -200,11 +230,15 @@ private:
      * @param real_idx Submodel index
      * @param selected_experts List of selected expert IDs
      * @param io MoE I/O tensors
+     * @param token_to_experts Routing map: token_id -> [expert_ids]
+     * @param expert_to_tokens Routing map: expert_id -> [token_ids]
      */
     void run_iterative_experts(size_t idx,
                                size_t real_idx,
                                const std::vector<size_t>& selected_experts,
-                               const MoEIO& io);
+                               const MoEIO& io,
+                               std::map<size_t, std::vector<size_t>>& token_to_experts,
+                               std::map<size_t, std::vector<size_t>>& expert_to_tokens);
 
     // === Helper functions ===
 
@@ -228,10 +262,11 @@ private:
     /**
      * @brief Get device name for a submodel
      *
-     * @param real_idx Submodel index
+     * @param idx Submodel/function call index
+     * @param compiled_model_desc Optional compiled model descriptor (used during prepare)
      * @return Device name string
      */
-    std::string get_device_name(size_t real_idx) const;
+    std::string get_device_name(size_t idx, const void* compiled_model_desc = nullptr) const;
 };
 
 }  // namespace moe
