@@ -336,3 +336,23 @@ TEST_F(TransformationTestsF, ReduceMergeDifferentShapesAndTypes) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
+
+TEST_F(TransformationTestsF, ReduceMergeAxesLessThanZero) {
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 5, 5});
+        auto reduce1_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce1 = std::make_shared<opset9::ReduceL1>(data, reduce1_axes, false);
+        auto reduce2_axis = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        model = std::make_shared<Model>(OutputVector{std::make_shared<opset9::ReduceL1>(reduce1, reduce2_axis, false)},
+                                        ParameterVector{data});
+        manager.register_pass<ov::pass::ReduceMerge>();
+    }
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 5, 5});
+        auto axes = op::v0::Constant::create(element::i64, Shape{2}, {2, 1});
+        auto reduce = std::make_shared<opset9::ReduceL1>(data, axes, false);
+        model_ref = std::make_shared<Model>(OutputVector{reduce}, ParameterVector{data});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
