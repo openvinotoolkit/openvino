@@ -34,4 +34,23 @@ public:
     }
 };
 
+/**
+ * @ingroup ov_runtime_attr_api
+ * @brief ForceInvalidation class represents runtime info attribute that forces bounds invalidation
+ * even when SkipInvalidation is set. Used when input source changes and bounds need recalculation.
+ * The attribute is automatically removed after invalidation occurs.
+ */
+class OPENVINO_API ForceInvalidation : public RuntimeAttribute {
+public:
+    OPENVINO_RTTI("ForceInvalidation", "0", RuntimeAttribute);
+    ForceInvalidation() = default;
+    ~ForceInvalidation() override;
+    bool is_copyable() const override {
+        return false;
+    }
+};
+
+/// \brief Sets ForceInvalidation attribute on tensor to force bounds invalidation on next invalidate_values() call.
+OPENVINO_API void force_invalidation(ov::descriptor::Tensor& tensor);
+
 }  // namespace ov
