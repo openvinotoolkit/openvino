@@ -739,7 +739,9 @@ bool ov::default_symbol_evaluator(const Node* node,
     return false;
 }
 
-bool ov::util::tensors_equal(const Tensor& a, const Tensor& b) {
+namespace {
+// Internal helper - compares tensor data, returns true if both empty
+bool bounds_data_equal(const ov::Tensor& a, const ov::Tensor& b) {
     // Both empty = equal
     if (!a && !b) {
         return true;
@@ -759,8 +761,16 @@ bool ov::util::tensors_equal(const Tensor& a, const Tensor& b) {
     // Compare data
     return std::memcmp(a.data(), b.data(), a.get_byte_size()) == 0;
 }
+}  // namespace
 
-void ov::util::force_invalidate_bounds(descriptor::Tensor& tensor) {
+bool ov::util::have_same_bounds(const Output<Node>& lhs, const Output<Node>& rhs) {
+    const auto& lhs_tensor = lhs.get_tensor();
+    const auto& rhs_tensor = rhs.get_tensor();
+    return bounds_data_equal(lhs_tensor.get_lower_value(), rhs_tensor.get_lower_value()) &&
+           bounds_data_equal(lhs_tensor.get_upper_value(), rhs_tensor.get_upper_value());
+}
+
+void ov::util::set_bounds_to_invalidate(descriptor::Tensor& tensor) {
     const auto& skip_type = ov::SkipInvalidation::get_type_info_static();
     auto& rt_info = tensor.get_rt_info();
     bool had_skip = rt_info.count(skip_type) > 0;

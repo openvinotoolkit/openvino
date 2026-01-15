@@ -33,9 +33,13 @@ ov::descriptor::Input::~Input() {
 }
 
 void ov::descriptor::Input::replace_output(Output& new_output) {
-    Output* old_output = m_output;
-
+    // Save old bounds BEFORE remove_input() because the old output's node may be destroyed
+    // after we disconnect (if this was the last reference to it)
+    ov::Tensor old_lower, old_upper;
     if (m_output != nullptr) {
+        const auto& old_tensor = m_output->get_tensor();
+        old_lower = old_tensor.get_lower_value();
+        old_upper = old_tensor.get_upper_value();
         m_output->remove_input(this);
     }
     new_output.add_input(this);
@@ -54,35 +58,32 @@ void ov::descriptor::Input::replace_output(Output& new_output) {
     // This ensures:
     // - OptimizeSymbolsUsedAsValues: Same bounds → no invalidation → optimization works
     // - AbsSinking: New Abs node has no bounds yet → invalidation → correct recalculation
-    if (old_output != nullptr && m_node != nullptr) {
-        const auto& old_tensor = old_output->get_tensor();
-        const auto& new_tensor = new_output.get_tensor();
-
-        const auto& old_lower = old_tensor.get_lower_value();
-        const auto& old_upper = old_tensor.get_upper_value();
-        const auto& new_lower = new_tensor.get_lower_value();
-        const auto& new_upper = new_tensor.get_upper_value();
-
+    if (m_node != nullptr) {
         bool old_has_bounds = old_lower && old_upper;
-        bool new_has_bounds = new_lower && new_upper;
+        if (old_has_bounds) {
+            const auto& new_tensor = new_output.get_tensor();
+            const auto& new_lower = new_tensor.get_lower_value();
+            const auto& new_upper = new_tensor.get_upper_value();
 
-        // Invalidate if:
-        // 1. Old had bounds but new doesn't have bounds (node was replaced with newly created one)
-        // 2. Both have bounds but they differ
-        bool should_invalidate = false;
-        if (old_has_bounds && !new_has_bounds) {
-            // New source doesn't have bounds yet (e.g., newly created Abs in AbsSinking)
-            should_invalidate = true;
-        } else if (old_has_bounds && new_has_bounds) {
-            // Both have bounds - check if they differ
-            bool bounds_differ =
-                !ov::util::tensors_equal(old_lower, new_lower) || !ov::util::tensors_equal(old_upper, new_upper);
-            should_invalidate = bounds_differ;
-        }
+            // Internal comparison lambda (can't use have_same_bounds since old output is already gone)
+            auto tensors_match = [](const ov::Tensor& a, const ov::Tensor& b) {
+                if (!a && !b)
+                    return true;
+                if (!a || !b)
+                    return false;
+                if (a.get_shape() != b.get_shape())
+                    return false;
+                if (a.get_element_type() != b.get_element_type())
+                    return false;
+                return std::memcmp(a.data(), b.data(), a.get_byte_size()) == 0;
+            };
 
-        if (should_invalidate) {
-            for (size_t port = 0; port < m_node->get_output_size(); ++port) {
-                ov::util::force_invalidate_bounds(m_node->get_output_tensor(port));
+            bool same_bounds = tensors_match(old_lower, new_lower) && tensors_match(old_upper, new_upper);
+
+            if (!same_bounds) {
+                for (size_t port = 0; port < m_node->get_output_size(); ++port) {
+                    ov::util::set_bounds_to_invalidate(m_node->get_output_tensor(port));
+                }
             }
         }
     }
