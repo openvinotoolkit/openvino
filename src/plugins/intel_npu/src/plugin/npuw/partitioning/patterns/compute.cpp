@@ -326,6 +326,44 @@ DQMatMulConv::DQMatMulConv(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     register_matcher(std::make_shared<opp::Matcher>(transpose_out, "TagDQMatMulConv"), std::move(callback));
 }
 
+// Pattern:
+//     Param/Const --> Convert(f32) --> Multiply -> GroupConvolution ->
+//     Param/Const -> (Convert(f32)) ->
+
+DQGroupConv::DQGroupConv(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    auto param = opp::any_input();
+    auto convert = opp::wrap_type<ov::op::v0::Convert>({param->output(0)});
+    auto param2 = opp::any_input();
+    auto convert2 = opp::optional<ov::op::v0::Convert>({param2->output(0)});
+    auto multiply = opp::wrap_type<ov::op::v1::Multiply>({convert, convert2});
+    auto group_conv = opp::wrap_type<ov::op::v1::GroupConvolution>({opp::any_input(), multiply});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        const auto& matched_node_param = node_to_output.at(param);
+        const auto& matched_node_param2 = node_to_output.at(param2);
+
+        auto matched_node_multiply = node_to_output.at(multiply).get_node_shared_ptr();
+        auto matched_node_group_conv = node_to_output.at(group_conv).get_node_shared_ptr();
+
+        if ((matched_node_param.get_element_type() == ov::element::i4 ||
+             matched_node_param.get_element_type() == ov::element::i8) &&
+            (matched_node_param2.get_element_type() == ov::element::f32 ||
+             matched_node_param2.get_element_type() == ov::element::f16)) {
+            // Partitioning ignores Param/Const -> Convert nodes
+            node_to_gptr->at(matched_node_multiply)->isolate(isol_tag);
+            node_to_gptr->at(matched_node_group_conv)->isolate(isol_tag);
+        }
+
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(group_conv, "TagDQGroupConv"), std::move(callback));
+}
+
 // This is a case for Raw (f16/f32) MatMul connected directly to the Result.
 //
 // The following combinations are covered:
