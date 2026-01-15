@@ -255,6 +255,8 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_package.zip"
           }
           Compress-Archive @compress
+          $zip = Get-Item "${{ env.BUILD_DIR }}/openvino_package.zip"
+          Write-Host "openvino_package.zip size: $([Math]::Round($zip.Length / 1MB, 2)) MB ($($zip.Length) bytes)"
 
           $file=Get-ChildItem -Path "${{ env.INSTALL_DEV_PACKAGE }}/developer_package"
           $compress = @{
@@ -263,6 +265,8 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/developer_package.zip"
           }
           Compress-Archive @compress
+          $zip = Get-Item "${{ env.BUILD_DIR }}/developer_package.zip"
+          Write-Host "developer_package.zip size: $([Math]::Round($zip.Length / 1MB, 2)) MB ($($zip.Length) bytes)"
 
           $file=Get-ChildItem -Path "${{ env.INSTALL_TEST_DIR }}"
           $compress = @{
@@ -271,6 +275,8 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
           }
           Compress-Archive @compress
+          $zip = Get-Item "${{ env.BUILD_DIR }}/openvino_tests.zip"
+          Write-Host "openvino_tests.zip size: $([Math]::Round($zip.Length / 1MB, 2)) MB ($($zip.Length) bytes)"
 
           $file=Get-ChildItem -Path "${{ env.INSTALL_PDB_DIR }}"
           $compress = @{
@@ -279,6 +285,8 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_pdb.zip"
           }
           Compress-Archive @compress
+          $zip = Get-Item "${{ env.BUILD_DIR }}/openvino_pdb.zip"
+          Write-Host "openvino_pdb.zip size: $([Math]::Round($zip.Length / 1MB, 2)) MB ($($zip.Length) bytes)"
 
       # Setup Python 3.11 as the default one
       - name: Setup Python ${{ env.PYTHON_VERSION }}
@@ -309,6 +317,8 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_js_package.zip"
           }
           Compress-Archive @compress
+          $zip = Get-Item "${{ env.BUILD_DIR }}/openvino_js_package.zip"
+          Write-Host "openvino_js_package.zip size: $([Math]::Round($zip.Length / 1MB, 2)) MB ($($zip.Length) bytes)"
 
       - name: Pack openvino_node_npm_package
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
@@ -323,6 +333,8 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_node_npm_package.zip"
           }
           Compress-Archive @compress
+          $zip = Get-Item "${{ env.BUILD_DIR }}/openvino_node_npm_package.zip"
+          Write-Host "openvino_node_npm_package.zip size: $([Math]::Round($zip.Length / 1MB, 2)) MB ($($zip.Length) bytes)"
         working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
 
       - name: Cmake & Build - OpenVINO Contrib
@@ -336,73 +348,73 @@ jobs:
       # Upload build artifacts and logs
       #
 
-      - name: Upload OpenVINO package
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: openvino_package
-          path: ${{ env.BUILD_DIR }}/openvino_package.zip
-          if-no-files-found: 'error'
+      # - name: Upload OpenVINO package
+      #   uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+      #   with:
+      #     name: openvino_package
+      #     path: ${{ env.BUILD_DIR }}/openvino_package.zip
+      #     if-no-files-found: 'error'
 
-      - name: Upload OpenVINO wheels
-        if: ${{ inputs.build-type != 'Debug' }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: openvino_wheels
-          path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
-          if-no-files-found: 'error'
+      # - name: Upload OpenVINO wheels
+      #   if: ${{ inputs.build-type != 'Debug' }}
+      #   uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+      #   with:
+      #     name: openvino_wheels
+      #     path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
+      #     if-no-files-found: 'error'
 
-      - name: Upload OpenVINO tests package
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: openvino_tests
-          path: ${{ env.BUILD_DIR }}/openvino_tests.zip
-          if-no-files-found: 'error'
+      # - name: Upload OpenVINO tests package
+      #   uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+      #   with:
+      #     name: openvino_tests
+      #     path: ${{ env.BUILD_DIR }}/openvino_tests.zip
+      #     if-no-files-found: 'error'
 
-      - name: Upload OpenVINO developer package
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: openvino_developer_package
-          path: ${{ env.BUILD_DIR }}/developer_package.zip
-          if-no-files-found: 'error'
+      # - name: Upload OpenVINO developer package
+      #   uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+      #   with:
+      #     name: openvino_developer_package
+      #     path: ${{ env.BUILD_DIR }}/developer_package.zip
+      #     if-no-files-found: 'error'
 
-      - name: Upload OpenVINO PDB package
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: openvino_pdb
-          path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
-          if-no-files-found: 'error'
+      # - name: Upload OpenVINO PDB package
+      #   uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+      #   with:
+      #     name: openvino_pdb
+      #     path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
+      #     if-no-files-found: 'error'
 
-      - name: Upload OpenVINO js package
-        if: ${{ fromJSON(inputs.affected-components).JS_API }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: openvino_js_package
-          path: ${{ env.BUILD_DIR }}/openvino_js_package.zip
-          if-no-files-found: 'error'
+      # - name: Upload OpenVINO js package
+      #   if: ${{ fromJSON(inputs.affected-components).JS_API }}
+      #   uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+      #   with:
+      #     name: openvino_js_package
+      #     path: ${{ env.BUILD_DIR }}/openvino_js_package.zip
+      #     if-no-files-found: 'error'
 
-      - name: Upload openvino-node NPM package
-        if: ${{ fromJSON(inputs.affected-components).JS_API }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: openvino_node_npm_package
-          path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.zip
-          if-no-files-found: 'error'
+      # - name: Upload openvino-node NPM package
+      #   if: ${{ fromJSON(inputs.affected-components).JS_API }}
+      #   uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+      #   with:
+      #     name: openvino_node_npm_package
+      #     path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.zip
+      #     if-no-files-found: 'error'
 
-      - name: Store artifacts to a shared drive
-        id: store_artifacts
-        if: ${{ inputs.event-name != 'schedule' && inputs.event-name != 'merge_group' }}
-        uses: ./openvino/.github/actions/store_artifacts
-        with:
-          artifacts: |
-            ${{ env.BUILD_DIR }}/openvino_package.zip
-            ${{ env.BUILD_DIR }}/developer_package.zip
-            ${{ env.BUILD_DIR }}/openvino_tests.zip
-            ${{ env.MANIFEST_PATH }}
-            ${{ fromJSON(inputs.affected-components).JS_API && format('{0}/openvino_js_package.zip', env.BUILD_DIR) || '' }}
-            ${{ fromJSON(inputs.affected-components).JS_API && format('{0}/openvino_node_npm_package.zip', env.BUILD_DIR) || '' }}
-            ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
-          storage_dir: ${{ env.PRODUCT_TYPE }}
-          storage_root: ${{ env.ARTIFACTS_SHARE }}
-          branch_name: ${{ inputs.target-branch }}
-        env:
-          STORE_WHEELS: ${{ inputs.build-type != 'Debug' }}
+      # - name: Store artifacts to a shared drive
+      #   id: store_artifacts
+      #   if: ${{ inputs.event-name != 'schedule' && inputs.event-name != 'merge_group' }}
+      #   uses: ./openvino/.github/actions/store_artifacts
+      #   with:
+      #     artifacts: |
+      #       ${{ env.BUILD_DIR }}/openvino_package.zip
+      #       ${{ env.BUILD_DIR }}/developer_package.zip
+      #       ${{ env.BUILD_DIR }}/openvino_tests.zip
+      #       ${{ env.MANIFEST_PATH }}
+      #       ${{ fromJSON(inputs.affected-components).JS_API && format('{0}/openvino_js_package.zip', env.BUILD_DIR) || '' }}
+      #       ${{ fromJSON(inputs.affected-components).JS_API && format('{0}/openvino_node_npm_package.zip', env.BUILD_DIR) || '' }}
+      #       ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
+      #     storage_dir: ${{ env.PRODUCT_TYPE }}
+      #     storage_root: ${{ env.ARTIFACTS_SHARE }}
+      #     branch_name: ${{ inputs.target-branch }}
+      #   env:
+      #     STORE_WHEELS: ${{ inputs.build-type != 'Debug' }}
