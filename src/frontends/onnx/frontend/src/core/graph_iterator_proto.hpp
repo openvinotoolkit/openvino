@@ -149,7 +149,6 @@ protected:
     std::shared_ptr<DecoderProtoTensor> get_tensor(const std::string& name, GraphIteratorProto** owner);
 
 private:
-    void initialize_from_path(const std::filesystem::path& path);
 };
 
 }  // namespace onnx

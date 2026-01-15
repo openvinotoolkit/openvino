@@ -92,13 +92,10 @@ bool is_graph_iterator_enabled() {
         return it->second;
     }
 
-    // Unknown value - print error and default to enabled
-    OPENVINO_WARN("Unknown value for ONNX_ITERATOR environment variable: '",
-                  env_value,
-                  "'. "
-                  "Expected 1 (enable) or 0 (disable). "
-                  "Defaulting to enabled.");
-    return true;
+    OPENVINO_THROW("Unknown value for ONNX_ITERATOR environment variable: '",
+                   env_value,
+                   "'. "
+                   "Expected 1 (enable) or 0 (disable).");
 }
 
 // !!! Experimental feature, it may be changed or removed in the future !!!

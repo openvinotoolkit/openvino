@@ -8,6 +8,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 
@@ -84,11 +85,8 @@ inline bool is_graph_iterator_enabled() {
         return it->second;
     }
 
-    // Unknown value - print error and default to enabled
-    std::cerr << "Unknown value for ONNX_ITERATOR environment variable: '" << env_value << "'. "
-              << "Expected 1 (enable) or 0 (disable). "
-              << "Defaulting to enabled." << std::endl;
-    return true;
+    throw std::runtime_error(std::string{"Unknown value for ONNX_ITERATOR environment variable: '"} + env_value +
+                             "'. Expected 1 (enable) or 0 (disable).");
 }
 
 }  // namespace tests

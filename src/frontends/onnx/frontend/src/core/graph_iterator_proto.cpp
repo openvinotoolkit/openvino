@@ -336,7 +336,7 @@ GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphPr
     m_model = parent->m_model;
 }
 
-void GraphIteratorProto::initialize_from_path(const std::filesystem::path& path) {
+void GraphIteratorProto::initialize(const std::filesystem::path& path) {
     m_model_dir = ov::util::get_directory(path);
     const auto path_string = ov::util::path_to_string(path);
     try {
@@ -361,10 +361,6 @@ void GraphIteratorProto::initialize_from_path(const std::filesystem::path& path)
         m_tensors.clear();
         throw;
     }
-}
-
-void GraphIteratorProto::initialize(const std::filesystem::path& path) {
-    initialize_from_path(path);
 }
 std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::string& name,
                                                                    GraphIteratorProto** owner) {
