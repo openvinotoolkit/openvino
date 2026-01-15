@@ -59,21 +59,23 @@ void MoEExecutor::prepare(size_t idx, size_t real_idx, size_t num_sublayers, siz
                                              << ", input_token_count=" << m_config.input_token_count
                                              << ", mode=" << (m_config.is_decoding() ? "DECODING" : "PREFILL"));
 
-        // Step 2: Initialize shared resources (only once)
-        LOG_DEBUG("Initializing shared MoE resources...");
-        m_resources.initialize_shared(m_config, m_allocator, get_device_name(idx, &desc));
+        // Step 2: Initialize resources based on mode
+        LOG_DEBUG("Initializing MoE resources...");
+        if (m_config.is_decoding()) {
+            m_resources.initialize_for_decoding(m_config,
+                                                m_allocator,
+                                                get_device_name(idx, &desc),
+                                                num_sublayers,
+                                                pool_size);
+        } else {
+            m_resources.initialize_for_prefill(m_config, m_allocator, get_device_name(idx, &desc));
+        }
     } else {
         LOG_DEBUG("Reusing existing shared MoE config and resources");
     }
 
-    // Step 3: Initialize request cache and create request pool (for decoding mode only)
+    // Step 3: Initialize request pool for this sublayer (decoding mode only)
     if (pool_size > 0 && m_config.is_decoding()) {
-        LOG_DEBUG("Creating request cache pool for sublayer[" << idx << "] with pool_size=" << pool_size);
-
-        // Initialize cache structure (creates RequestCache on first call)
-        m_resources.initialize_cache(num_sublayers, pool_size);
-
-        // Create request pool for this sublayer
         std::vector<RqPtr> requests;
         requests.resize(pool_size);
 
