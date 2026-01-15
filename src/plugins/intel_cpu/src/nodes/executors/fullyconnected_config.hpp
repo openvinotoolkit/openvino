@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,9 +14,6 @@ namespace ov::intel_cpu {
 
 // @todo require explicit initialization of all the attributes?
 struct FCAttrs {
-    // @todo probably we don't want with bias flag, since this information is already
-    // a part of src memory descs
-    bool withBias = false;
     bool weightsNonTransposed = false;
     bool sparseWeights = false;
     uint64_t dynamicQuantizationGroupSize = 0;

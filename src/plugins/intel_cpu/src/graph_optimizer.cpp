@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,7 +112,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndConvertOnWeights");
-    FuseFCAndConvertOnWeights(graph);
+    FuseConvDeconvFCAndConvertOnWeights(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndTransposeOnWeights");
@@ -298,6 +298,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
                 return false;
             }
         }
+
         return true;
     };
 
@@ -832,7 +833,7 @@ void GraphOptimizer::MergeConvertAndEltwise(Graph& graph) {
     }
 }
 
-void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
+void GraphOptimizer::FuseConvDeconvFCAndConvertOnWeights(Graph& graph) {
 #if defined(OV_CPU_WITH_SHL)
     return;
 #endif
@@ -851,7 +852,7 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
 
     const auto& graphNodes = graph.GetNodes();
     for (const auto& fullyConnected : graphNodes) {
-        if (fullyConnected->getType() != Type::FullyConnected) {
+        if (none_of(fullyConnected->getType(), Type::FullyConnected, Type::Convolution, Type::Deconvolution)) {
             continue;
         }
 

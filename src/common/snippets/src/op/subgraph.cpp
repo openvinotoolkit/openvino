@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,6 +100,7 @@
 #include "snippets/utils/debug_caps_config.hpp"
 #include "snippets/utils/linear_ir_pass_dumper.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 
 using namespace ov::op::util;
 
@@ -482,6 +483,7 @@ void Subgraph::data_flow_transformations(
     manager.register_pass<snippets::pass::PropagatePrecision>(m_generator->get_target_machine());
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
+    manager.register_pass<ov::pass::EliminateConvert>();
 
     manager.register_positioned_passes(backend_passes);
     manager.run_passes(body_ptr());

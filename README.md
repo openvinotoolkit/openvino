@@ -6,7 +6,7 @@ Open-source software toolkit for optimizing and deploying deep learning models.
 </h3>
 
 <p align="center">
- <a href="https://docs.openvino.ai/2025/index.html"><b>Documentation</b></a> • <a href="https://blog.openvino.ai"><b>Blog</b></a> • <a href="https://docs.openvino.ai/2025/about-openvino/key-features.html"><b>Key Features</b></a> • <a href="https://docs.openvino.ai/2025/get-started/learn-openvino.html"><b>Tutorials</b></a> • <a href="https://docs.openvino.ai/2025/documentation/openvino-ecosystem.html"><b>Integrations</b></a> • <a href="https://docs.openvino.ai/2025/about-openvino/performance-benchmarks.html"><b>Benchmarks</b></a> • <a href="https://github.com/openvinotoolkit/openvino.genai"><b>Generative AI</b></a>
+ <a href="https://docs.openvino.ai/2025/index.html"><b>Documentation</b></a> • <a href="https://blog.openvino.ai"><b>Blog</b></a> • <a href="https://docs.openvino.ai/2025/about-openvino/key-features.html"><b>Key Features</b></a> • <a href="https://docs.openvino.ai/2025/get-started/learn-openvino.html"><b>Tutorials</b></a> • <a href="https://docs.openvino.ai/2025/documentation/openvino-ecosystem.html"><b>Integrations</b></a> • <a href="https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/model-hub.html"><b>Benchmarks</b></a> • <a href="https://github.com/openvinotoolkit/openvino.genai"><b>Generative AI</b></a>
 </p>
 
 [![PyPI Status](https://badge.fury.io/py/openvino.svg)](https://badge.fury.io/py/openvino)

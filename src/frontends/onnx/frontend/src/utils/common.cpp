@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -171,7 +171,8 @@ ov::OutputVector handle_opset6_binary_op(const ov::frontend::onnx::Node& node) {
                 auto new_shape = std::make_shared<v0::Concat>(ov::OutputVector{rhs_shape, ones}, 0);
                 rhs_node = std::make_shared<v1::Reshape>(rhs_node, new_shape, false);
             }
-        } else {
+        } else if (!std::is_base_of<op::util::BinaryElementwiseArithmetic, T>::value) {
+            // Broadcasting is done automatically in BinaryElementwiseArithmetic ops
             rhs_node = std::make_shared<v3::Broadcast>(rhs_node, std::make_shared<v0::ShapeOf>(lhs_node));
         }
     }

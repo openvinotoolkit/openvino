@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
         // since that breaks low precision transformations
-        if (op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+        if (ov::op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
@@ -94,7 +94,7 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
         // since that breaks low precision transformations
-        if (op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+        if (ov::op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
@@ -170,7 +170,7 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
         // since that breaks low precision transformations
-        if (op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+        if (ov::op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
@@ -247,7 +247,7 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
         // since that breaks low precision transformations
-        if (op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+        if (ov::op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);

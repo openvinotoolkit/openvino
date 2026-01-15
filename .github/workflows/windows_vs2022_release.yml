@@ -7,6 +7,11 @@ on:
         type: string
         required: false
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   merge_group:
   push:
     branches:
@@ -27,6 +32,7 @@ permissions: read-all
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
@@ -74,6 +80,7 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
+            -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
 
   Samples:
     needs: [ Build, Smart_CI ]
@@ -208,7 +215,7 @@ jobs:
         working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -394,7 +401,7 @@ jobs:
         run: python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-python-unittests
@@ -484,7 +491,7 @@ jobs:
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph_new_numpy.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-python-${{ matrix.python-version }}
@@ -506,6 +513,7 @@ jobs:
     name: Pytorch Layer Tests
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_pytorch_layer_tests.yml
+    if: ${{ fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test }}
     with:
       runner: 'aks-win-8-cores-16gb-test'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
@@ -515,6 +523,7 @@ jobs:
     name: Pytorch FX Layer Tests
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_pytorch_fx_layer_tests.yml
+    if: ${{ fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test }}
     with:
       runner: 'aks-win-8-cores-16gb-test'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
@@ -524,6 +533,7 @@ jobs:
     name: JAX Layer Tests
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_jax_layer_tests.yml
+    if: ${{ fromJSON(needs.smart_ci.outputs.affected_components).JAX_FE.test }}
     with:
       runner: 'aks-win-8-cores-16gb-test'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
@@ -597,7 +607,7 @@ jobs:
         run: python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -611,14 +621,14 @@ jobs:
         timeout-minutes: 60
 
       - name: Save tests execution time
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/save@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu

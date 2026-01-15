@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -219,6 +219,8 @@ public:
 
     /**
      * @brief Provides an access to the underlying host memory
+     * @note The method throws an exception:
+     * - if tensor implementation does not allow non-const access to memory.
      * @return A host pointer to tensor memory
      * @{
      */
@@ -229,8 +231,9 @@ public:
     /**
      * @brief Provides an access to the underlying host memory
      * @param type Optional type parameter.
-     * @note The method throws an exception
-     * if specified type's fundamental type does not match with tensor element type's fundamental type
+     * @note The method throws an exception:
+     * - if specified type's fundamental type does not match with tensor element type's fundamental type
+     * - if tensor implementation does not allow non-const access to memory.
      * @return A host pointer to tensor memory
      * @{
      */

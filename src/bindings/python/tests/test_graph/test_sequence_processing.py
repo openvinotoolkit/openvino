@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -58,7 +58,9 @@ def test_range_4(destination_type, expected_type):
     (3, 1, 0, -1, "normalize", [3, 3]),
     (4, 5, 10, 1, "normalize", [3, 4]),
 ])
-def test_one_hot_opset16_with_negative_indices_mode(depth, on_value, off_value, axis, negative_indices_mode, expected_shape):
+def test_one_hot_opset16_with_negative_indices_mode(
+    depth, on_value, off_value, axis, negative_indices_mode, expected_shape
+):
     param = ov.opset11.parameter([3], dtype=np.int32)
     node = ov16.one_hot(param, depth, on_value, off_value, axis, negative_indices_mode)
     assert node.get_output_size() == 1

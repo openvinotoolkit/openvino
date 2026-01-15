@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporationov::npuw::
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -121,7 +121,7 @@ ov::npuw::Group Group::toGroup() const {
         }
     }
 
-    g.tag = m_isol_tag;
+    g.settag(m_isol_tag);
 
     return g;
 }
@@ -133,6 +133,10 @@ std::shared_ptr<ov::Node> Group::getInitialNode() const {
     }
 
     return *(m_content.begin());
+}
+
+const std::unordered_set<std::shared_ptr<ov::Node>>& Group::getOutputs() const {
+    return m_output_layers;
 }
 
 void Group::addInput(const std::shared_ptr<ov::Node>& node) {

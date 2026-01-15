@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,9 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
         {ov::element::u8, py::dtype("uint8")},     {ov::element::u16, py::dtype("uint16")},
         {ov::element::u32, py::dtype("uint32")},   {ov::element::u64, py::dtype("uint64")},
         {ov::element::boolean, py::dtype("bool")}, {ov::element::u1, py::dtype("uint8")},
-        {ov::element::u4, py::dtype("uint8")},     {ov::element::nf4, py::dtype("uint8")},
+        {ov::element::u2, py::dtype("uint8")},     {ov::element::u3, py::dtype("uint8")},
+        {ov::element::u4, py::dtype("uint8")},     {ov::element::u6, py::dtype("uint8")},
+        {ov::element::nf4, py::dtype("uint8")},    {ov::element::nf4, py::dtype("uint8")},
         {ov::element::i4, py::dtype("int8")},      {ov::element::f8e4m3, py::dtype("uint8")},
         {ov::element::f8e5m2, py::dtype("uint8")}, {ov::element::string, py::dtype("bytes_")},
         {ov::element::f4e2m1, py::dtype("uint8")}, {ov::element::f8e8m0, py::dtype("uint8")},
@@ -272,6 +274,12 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
         return array.cast<py::array_t<bool, py::array::c_style | py::array::forcecast>>();
     case ov::element::u1:
         return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u2:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u3:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u6:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
     // need to create a view on array to cast it correctly
     case ov::element::f16:
     case ov::element::bf16:
@@ -399,7 +407,10 @@ std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
     switch (self.get_element_type()) {
     case i4:
     case u1:
+    case u2:
+    case u3:
     case u4:
+    case u6:
     case nf4:
     case f4e2m1:
         return _get_byte_strides(self.get_shape(), 8);
@@ -419,7 +430,7 @@ std::shared_ptr<ov::SharedBuffer<py::array>> get_shared_memory(py::array& array)
             array.ndim() == 0 ? array.itemsize() : array.nbytes(),
             array);
         std::shared_ptr<ov::SharedBuffer<py::array>> memory(buffer, [](ov::SharedBuffer<py::array>* buffer) {
-            ConditionalGILScopedAcquire acquire;
+            py::gil_scoped_acquire acquire;
             delete buffer;
         });
         return memory;
@@ -637,7 +648,7 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
 py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings) {
     py::dict res;
     for (const auto& out : request.m_outputs) {
-        auto t = request.m_request->get_tensor(out);
+        auto t = request.m_request.get_tensor(out);
         if (t.get_element_type() == ov::element::string) {
             if (share_outputs) {
                 PyErr_WarnEx(PyExc_RuntimeWarning, "Result of a string type will be copied to OVDict!", 1);

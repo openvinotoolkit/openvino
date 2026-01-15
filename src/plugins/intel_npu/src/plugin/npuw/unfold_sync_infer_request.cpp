@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
         LOG_INFO("DONE");
     }  // for(submodels)
 
-    alloc_io();
+    alloc_quant_gather();
 
     LOG_INFO("Connecting subrequests...");
     LOG_BLOCK();

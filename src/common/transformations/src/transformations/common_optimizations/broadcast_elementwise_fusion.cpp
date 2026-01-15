@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +75,7 @@ ov::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     auto broadcast =
         pattern::wrap_type<ov::op::v3::Broadcast>({broadcast_input, pattern::any_input()}, pattern::consumers_count(1));
     auto eltwise_input = pattern::any_input();
-    auto eltwise = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
+    auto eltwise = pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_value = m.get_pattern_value_map();

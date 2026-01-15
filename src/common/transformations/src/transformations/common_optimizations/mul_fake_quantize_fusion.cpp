@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,7 +65,7 @@ ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
 
         if (!is_single_value) {
             float v;
-            is_single_value = op::util::get_single_value(mul_const, v);
+            is_single_value = ov::op::util::get_single_value(mul_const, v);
             if (is_single_value) {
                 new_const = std::make_shared<ov::op::v0::Constant>(mul_const->get_element_type(), Shape{1}, v);
                 const_shape = Shape{1};

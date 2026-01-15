@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import glob
@@ -988,6 +988,10 @@ def test_patched_8bit_model_converts_e4m3fn():
     np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-2)
 
 
+@pytest.mark.skipif(
+    platform.system() == "Darwin" and platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'],
+    reason="PyTorch float8_e5m2 cleanup deadlock on macOS ARM64. Ticket: 172658"
+)
 def test_patched_8bit_model_converts_e5m2():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model
@@ -1035,7 +1039,7 @@ def test_patched_bitnet_model_converts():
     from openvino import convert_model, compile_model
     from transformers.integrations.bitnet import AutoBitLinear, pack_weights
     from transformers import PretrainedConfig, BitNetQuantConfig
-    
+
     rng = torch.Generator().manual_seed(42)
 
     class TestModel(torch.nn.Module):

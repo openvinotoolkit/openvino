@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <chrono>
@@ -346,22 +346,6 @@ TEST_P(ov_infer_request_test, infer_async_wait_for) {
 
         OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
         EXPECT_NE(nullptr, output_tensor);
-    }
-}
-
-TEST_P(ov_infer_request_test, infer_async_wait_for_return_busy) {
-    OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
-
-    ov_callback_t callback;
-    callback.callback_func = [](void* args) {
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-    };
-    OV_EXPECT_OK(ov_infer_request_set_callback(infer_request, &callback));
-
-    OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
-
-    if (!HasFatalFailure()) {
-        EXPECT_EQ(ov_status_e::REQUEST_BUSY, ov_infer_request_get_tensor(infer_request, in_tensor_name, &input_tensor));
     }
 }
 

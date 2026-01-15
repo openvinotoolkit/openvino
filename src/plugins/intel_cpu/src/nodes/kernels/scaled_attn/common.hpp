@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -388,35 +388,6 @@ inline void hmin(__m256& x) {
 #ifdef OPENVINO_ARCH_ARM64
 #    if defined(HAVE_SVE)
 inline svfloat32_t exp_ps_sve(svbool_t& pg, svfloat32_t& src) {
-    // Constants
-    const auto log2_e = svdup_n_f32(1.4426950409f);
-    const auto ln2 = svdup_n_f32(0.6931473921f);
-    const auto half_ln2_sq = svdup_n_f32(0.2413862043f);
-    const auto not_mask17 = svdup_n_u32(~((1U << 17) - 1));
-    const auto one = svdup_n_f32(1.0f);
-
-    // Algorithm starts here
-    svfloat32_t t0 = svmul_f32_z(pg, src, log2_e);  // y = x * log2(e)
-    svfloat32_t t1 = svrintm_f32_z(pg, t0);         // rount to int (float)
-    svint32_t t2 = svcvt_s32_f32_z(pg, t1);         // n
-
-    t1 = svsub_f32_z(pg, t0, t1);   // a = y - floor(y)
-    t1 = svadd_f32_z(pg, t1, one);  // b = a + 1
-
-    svuint32_t t3 = svlsr_n_u32_z(pg, svreinterpret_u32_f32(t1), 17);  // v = b >> 17 (u32)
-    svfloat32_t t4 = svexpa_f32(t3);                                   // c = fexpa(v)
-    t4 = svscale_f32_z(pg, t4, t2);                                    // fexpa(v) * 2^(n)
-
-    // and_(t2.d, t1.d, not_mask17.d)
-    svfloat32_t t5 = svreinterpret_f32_u32(svand_u32_z(pg, svreinterpret_u32_f32(t1), not_mask17));
-    t5 = svsub_f32_z(pg, t1, t5);                // z
-    t0 = svmla_f32_z(pg, ln2, t5, half_ln2_sq);  // ln2 + half_ln2_sq * z
-    t0 = svmla_f32_z(pg, one, t5, t0);           // 1 + (ln2 * z) + (half_ln2_sq * z * z)
-    t0 = svmul_f32_z(pg, t0, t4);                // Final result
-
-    return t0;
-}
-inline svfloat32_t exp_ps_sve_legacy(svbool_t& pg, svfloat32_t& src) {
     const auto c1 = svreinterpret_f32_u32(svdup_n_u32(0x3f7ffff6));
     const auto c2 = svreinterpret_f32_u32(svdup_n_u32(0x3efffedb));
     const auto c3 = svreinterpret_f32_u32(svdup_n_u32(0x3e2aaf33));
@@ -435,13 +406,20 @@ inline svfloat32_t exp_ps_sve_legacy(svbool_t& pg, svfloat32_t& src) {
     const auto zero = svdup_n_f32(0.F);
     const auto min_input = svdup_n_f32(-86.64f);  // Approximately ln(2^-125)
 
-    const auto z = svmla_f32_z(pg, shift, src, inv_ln2);
-    auto n = svsub_f32_z(pg, z, shift);
-    n = svsub_f32_z(pg, n, one);
-    const auto scale = svreinterpret_f32_u32(svlsl_n_u32_z(pg, svreinterpret_u32_f32(z), 23));  // 2^n
+    auto x = svmin_f32_z(pg, src, max_input);
+    x = svmax_f32_z(pg, x, min_input);
 
-    const auto r_hi = svmla_f32_z(pg, src, n, neg_ln2_hi);
+    const auto z = svmla_f32_z(pg, shift, x, inv_ln2);
+    auto n = svsub_f32_z(pg, z, shift);
+
+    const auto r_hi = svmla_f32_z(pg, x, n, neg_ln2_hi);
     const auto r = svmla_f32_z(pg, r_hi, n, neg_ln2_lo);
+    n = svsub_f32_z(pg, n, one);
+
+    const auto n_int = svcvt_s32_f32_z(pg, n);
+    const auto exponent_bias = svdup_n_s32(127);
+    const auto n_int_bias = svadd_s32_z(pg, n_int, exponent_bias);
+    const auto scale = svreinterpret_f32_s32(svlsl_n_s32_z(pg, n_int_bias, 23));  // 2^(n-1)
     const auto r2 = svmul_f32_z(pg, r, r);
 
     const auto p1 = svmul_f32_z(pg, c1, r);
@@ -478,13 +456,20 @@ inline float32x4_t exp_ps_neon_f32(const float32x4_t& src) {
     const auto zero = vdupq_n_f32(0.F);
     const auto min_input = vdupq_n_f32(-86.64f);  // Approximately ln(2^-125)
 
-    const auto z = vmlaq_f32(shift, src, inv_ln2);
-    auto n = z - shift;
-    n = vsubq_f32(n, one);
-    const auto scale = vreinterpretq_f32_u32(vreinterpretq_u32_f32(z) << 23);  // 2^n
+    auto x = vminq_f32(src, max_input);
+    x = vmaxq_f32(x, min_input);
 
-    const auto r_hi = vfmaq_f32(src, n, neg_ln2_hi);
+    const auto z = vmlaq_f32(shift, x, inv_ln2);
+    auto n = z - shift;
+
+    const auto r_hi = vfmaq_f32(x, n, neg_ln2_hi);
     const auto r = vfmaq_f32(r_hi, n, neg_ln2_lo);
+    n = vsubq_f32(n, one);
+
+    const auto n_int = vcvtq_s32_f32(n);
+    const auto exponent_bias = vdupq_n_s32(127);
+    const auto n_int_bias = vaddq_s32(n_int, exponent_bias);
+    const auto scale = vreinterpretq_f32_s32(vshlq_n_s32(n_int_bias, 23));  // 2^(n-1)
 
     const auto r2 = r * r;
 

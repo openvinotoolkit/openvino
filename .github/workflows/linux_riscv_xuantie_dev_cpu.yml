@@ -11,11 +11,17 @@ on:
         required: true
         default: 'CONCISE'
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
     paths:
       - '.github/workflows/linux_riscv_xuantie_dev_cpu.yml'
       - 'src/plugins/intel_cpu/src/emitters/plugin/aarch64/**'
       - 'src/plugins/intel_cpu/src/emitters/plugin/riscv64/**'
       - 'src/plugins/intel_cpu/src/emitters/plugin/x64/**'
+      - 'src/plugins/intel_cpu/src/emitters/snippets/riscv64/**'
       - 'src/plugins/intel_cpu/src/nodes/executors/aarch64/**'
       - 'src/plugins/intel_cpu/src/nodes/executors/shl/**'
       - 'src/plugins/intel_cpu/src/nodes/kernels/riscv64/**'
@@ -44,6 +50,7 @@ env:
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
@@ -175,7 +182,6 @@ jobs:
           -DCMAKE_VERBOSE_MAKEFILE=ON
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
-          -DENABLE_SYSTEM_TBB=ON
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-100-xuantie-gnu.toolchain.cmake
           -S ${OPENVINO_REPO}
           -B ${BUILD_DIR}
@@ -204,7 +210,7 @@ jobs:
         
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -212,7 +218,7 @@ jobs:
           
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -233,7 +239,7 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*' }}
+      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*:smoke_Snippets*' }}
 
     steps:
       - name: Download OpenVINO artifacts (package)
