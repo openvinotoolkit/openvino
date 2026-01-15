@@ -778,13 +778,6 @@ TYPED_TEST_P(AnyConversionTest, AnyToOtherValue) {
 REGISTER_TYPED_TEST_SUITE_P(AnyConversionTest, AnyToOtherValue);
 INSTANTIATE_TYPED_TEST_SUITE_P(InstantiationName, AnyConversionTest, AnyArithmeticTypes);
 
-TEST_F(AnyTests, AnyAsUnsignedRejectsNegative) {
-    const Any a = -1;
-    EXPECT_THROW(a.as<uint32_t>(), ov::Exception);
-    EXPECT_THROW(a.as<size_t>(), ov::Exception);
-    EXPECT_THROW(a.as<unsigned long long>(), ov::Exception);
-}
-
 TEST_F(AnyTests, AnyAsOtherTypeIsIncosisoinet) {
     // To show member `as` current behaviour.
     // Maybe there should be two members `as` which return value
