@@ -11,6 +11,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -229,7 +230,7 @@ void Reorder::prepareParams() {
     const auto& parentDesc = srcMemPtr->getDescPtr();
     const auto& childDesc = dstMemPtr->getDescPtr();
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
     // Allow using oneDNN fp16 reorders by default; keep env-guarded fallback.
     if (std::getenv("OV_CPU_FORCE_TRANSPOSE_F16") != nullptr &&
         all_of(ov::element::f16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
@@ -419,7 +420,7 @@ void Reorder::optimizedNspc2Ncsp() {
 }
 
 void Reorder::execute(const dnnl::stream& strm) {
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
     if (transposeExecutor) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);

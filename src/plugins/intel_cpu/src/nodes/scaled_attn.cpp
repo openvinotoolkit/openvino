@@ -32,18 +32,15 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/custom/scaled_attn.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
-
-#ifdef OPENVINO_ARCH_X86_64
-#    include "openvino/core/type/bfloat16.hpp"
-#    include "openvino/core/type/float16.hpp"
-#endif
 
 #ifdef OV_CPU_WITH_MLAS
 #    include "mlas/sgemm.hpp"
@@ -125,7 +122,7 @@ struct MHAKernel {
     }
 
     void softmax(float* a, int len, const float* sink) {
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
         if (len == 0) {
             return;
         }
@@ -134,20 +131,20 @@ struct MHAKernel {
         if (sink != nullptr) {
             max = max > (*sink) ? max : (*sink);
         }
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
         if (!std::isfinite(max)) {
             size_t inf_count = 0;
-            if (sink != nullptr && std::isinf(*sink) && *sink > 0.0f) {
+            if (sink != nullptr && std::isinf(*sink) && *sink > 0.0F) {
                 inf_count++;
             }
             for (int i = 0; i < len; i++) {
-                if (std::isinf(a[i]) && a[i] > 0.0f) {
+                if (std::isinf(a[i]) && a[i] > 0.0F) {
                     inf_count++;
                 }
             }
-            const float inv = inf_count ? (1.0f / static_cast<float>(inf_count)) : 0.0f;
+            const float inv = inf_count ? (1.0F / static_cast<float>(inf_count)) : 0.0F;
             for (int i = 0; i < len; i++) {
-                a[i] = (inf_count && std::isinf(a[i]) && a[i] > 0.0f) ? inv : 0.0f;
+                a[i] = (inf_count && std::isinf(a[i]) && a[i] > 0.0F) ? inv : 0.0F;
             }
             return;
         }
@@ -705,7 +702,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 }
             }
 
-#    if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    if defined(OPENVINO_ARCH_ARM64)
             auto run_f32_path = [&]() {
                 std::vector<float> q_f32(m_cnt * head_size);
                 std::vector<float> k_f32(kv_len * head_size);
@@ -768,13 +765,13 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 float* qk_ptr = qk;
                 size_t qk_ptr_stride = qk_row_stride;
                 if (qk_has_nan) {
-                    qk_f32.assign(m_cnt * kv_len, 0.0f);
+                    qk_f32.assign(m_cnt * kv_len, 0.0F);
                     for (size_t m = 0; m < m_cnt; m++) {
                         float* dst_row = qk_f32.data() + m * kv_len;
                         const float* q_row = q_f32.data() + m * head_size;
                         for (size_t n = 0; n < kv_len; n++) {
                             const float* k_row = k_f32.data() + n * head_size;
-                            float sum = 0.0f;
+                            float sum = 0.0F;
                             for (size_t s = 0; s < head_size; s++) {
                                 sum += q_row[s] * k_row[s];
                             }
@@ -871,12 +868,12 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 }
 
                 if (qk_has_nan || out_has_nan) {
-                    out_f32_fallback.assign(m_cnt * head_size_v, 0.0f);
+                    out_f32_fallback.assign(m_cnt * head_size_v, 0.0F);
                     for (size_t m = 0; m < m_cnt; m++) {
                         const float* qk_row = qk_ptr + m * qk_ptr_stride;
                         float* out_row = out_f32_fallback.data() + m * head_size_v;
                         for (size_t s = 0; s < head_size_v; s++) {
-                            float sum = 0.0f;
+                            float sum = 0.0F;
                             for (size_t n = 0; n < kv_len; n++) {
                                 sum += qk_row[n] * v_f32[n * head_size_v + s];
                             }
@@ -922,7 +919,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                                 kStrides);
 
             auto qk = reinterpret_cast<T*>(qkTensor.buffer());
-#    if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    if defined(OPENVINO_ARCH_ARM64)
             const size_t qk_row_stride = qkInfo.strides_in_bytes()[1] / sizeof(T);
             std::vector<float> qk_row_f32;
             if constexpr (std::is_same_v<T, ov::float16>) {
@@ -930,7 +927,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 for (size_t m_check = 0; m_check < m_cnt && !qk_has_nonfinite; m_check++) {
                     const T* row = qk + m_check * qk_row_stride;
                     for (size_t n = 0; n < kv_len; n++) {
-                        const float v = static_cast<float>(row[n]);
+                        const auto v = static_cast<float>(row[n]);
                         if (!std::isfinite(v)) {
                             qk_has_nonfinite = true;
                             break;
@@ -948,7 +945,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
                 uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
-#    if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    if defined(OPENVINO_ARCH_ARM64)
                 if constexpr (std::is_same_v<T, ov::float16>) {
                     T* qk_row = qk + (m - m_start) * qk_row_stride;
                     for (size_t n = 0; n < kv_len; n++) {
@@ -1006,7 +1003,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
 
             auto out = has_out_transpose ? &output_emb.at<T>({b, m_start, h * head_size_v})
                                          : &output_emb.at<T>({b, h, m_start});
-#    if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    if defined(OPENVINO_ARCH_ARM64)
             const int row_dim = has_out_transpose ? 1 : 2;
             const int col_dim = has_out_transpose ? 2 : 3;
             auto strides = arm_compute::Strides({output_emb.stride_bytes(col_dim), output_emb.stride_bytes(row_dim)});
@@ -1478,7 +1475,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                                 sink_input);
         }
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
         if (output_emb.get_precision() == ov::element::f16) {
             bool has_nan = false;
             if (output_emb.m_rank == 4) {
@@ -1580,7 +1577,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                             std::vector<float> scores(kv_len);
                             for (size_t n = 0; n < kv_len; n++) {
                                 const float* k_row = k_f32.data() + n * head_size;
-                                float sum = 0.0f;
+                                float sum = 0.0F;
                                 for (size_t s = 0; s < head_size; s++) {
                                     sum += q_row[s] * k_row[s];
                                 }
@@ -1604,7 +1601,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                                                                      nullptr);
 
                             for (size_t s = 0; s < head_size_v; s++) {
-                                float sum = 0.0f;
+                                float sum = 0.0F;
                                 for (size_t n = 0; n < kv_len; n++) {
                                     sum += scores[n] * v_f32[n * head_size_v + s];
                                 }
