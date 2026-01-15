@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,8 +103,8 @@ public:
                                                const bool alternativeWeights = false) {
         constexpr auto precision = element::f32;
 
-        const uint8_t weightsValue = !alternativeWeights ? 1 : 2;
-        auto weights = std::make_shared<op::v0::Constant>(precision, Shape{50000}, std::vector<uint8_t>{weightsValue});
+        const float weightsValue = !alternativeWeights ? 1.0f : 2.0f;
+        auto weights = std::make_shared<op::v0::Constant>(precision, Shape{5}, std::vector<float>{weightsValue});
         auto input = std::make_shared<op::v0::Parameter>(precision, Shape{1});
         auto add = std::make_shared<op::v1::Add>(input, weights);
 

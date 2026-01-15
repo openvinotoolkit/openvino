@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,6 +17,16 @@ set(NPU_INTERNAL_COMPONENT "${NPU_PLUGIN_COMPONENT}_internal")
 set(NPU_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 include(cmake/features.cmake)
+
+if(ENABLE_INTEL_NPU_COMPILER)
+    if(BUILD_SHARED_LIBS)
+        include(cmake/download_compiler_libs.cmake)
+    else()
+        message(FATAL_ERROR "Intel NPU Compiler library is not available when BUILD_SHARED_LIBS is OFF!")
+    endif()
+else()
+    message(STATUS "The download of Intel NPU Compiler library is skipped!")
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 

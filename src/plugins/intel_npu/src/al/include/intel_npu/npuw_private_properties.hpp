@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -249,11 +249,12 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 
 /**
  * @brief
- * Type: boolean.
- * Apply attention optimizations (e.g. DYNAMIC, PYRAMID, and others) when attention block detected.
- * Default value: true
+ * Type: std::string.
+ * Select attention optimization mode when attention block detected.
+ * Possible values: "DYNAMIC", "STATIC", "PYRAMID", "HFA"
+ * Default value: "STATIC"
  */
-static constexpr ov::Property<bool> attn{"NPUW_ATTN"};
+static constexpr ov::Property<std::string> attn{"NPUW_ATTN"};
 
 /**
  * @brief
@@ -688,6 +689,43 @@ namespace eagle {
  */
 static constexpr ov::Property<bool> enabled{"NPUW_EAGLE"};
 }  // namespace eagle
+
+namespace text_embed {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass text-embedding model.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_TEXT_EMBED"};
+
+}  // namespace text_embed
+
+namespace kokoro {
+/**
+ * @brief
+ * Type: bool
+ * Set this option to true to utilize Kokoro pipeline
+ * Default value: false
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_KOKORO"};
+
+/**
+ * @brief
+ * Type: size_t (uint64_t)
+ * Set the block size for Kokoro pipeline
+ * Default value: 200
+ */
+static constexpr ov::Property<uint64_t> block_size{"NPUW_KOKORO_BLOCK_SIZE"};
+
+/**
+ * @brief
+ * Type: size_t (uint64_t)
+ * Set the overlap size for Kokoro pipeline
+ * Default value: 20
+ */
+static constexpr ov::Property<uint64_t> overlap_size{"NPUW_KOKORO_OVERLAP_SIZE"};
+}  // namespace kokoro
 
 }  // namespace npuw
 }  // namespace intel_npu
