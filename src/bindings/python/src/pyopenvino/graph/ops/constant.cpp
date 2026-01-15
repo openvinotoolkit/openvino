@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -141,8 +141,9 @@ void regclass_graph_op_Constant(py::module m) {
             return _cast_vector<int32_t>(self);
         } else if (element_type == ov::element::i64) {
             return _cast_vector<int64_t>(self);
-        } else if (element_type == ov::element::u8 || element_type == ov::element::u1 ||
-                   element_type == ov::element::u2 || element_type == ov::element::u4) {
+        } else if (element_type == ov::element::u1 || element_type == ov::element::u2 ||
+                   element_type == ov::element::u3 || element_type == ov::element::u4 ||
+                   element_type == ov::element::u6 || element_type == ov::element::u8) {
             return _cast_vector<uint8_t>(self);
         } else if (element_type == ov::element::u16) {
             return _cast_vector<uint16_t>(self);
@@ -191,8 +192,9 @@ void regclass_graph_op_Constant(py::module m) {
             return _get_buffer_info<int32_t>(self);
         } else if (element_type == ov::element::i64) {
             return _get_buffer_info<int64_t>(self);
-        } else if (element_type == ov::element::u8 || element_type == ov::element::u1 ||
-                   element_type == ov::element::u2 || element_type == ov::element::u4) {
+        } else if (element_type == ov::element::u1 || element_type == ov::element::u2 ||
+                   element_type == ov::element::u3 || element_type == ov::element::u4 ||
+                   element_type == ov::element::u6 || element_type == ov::element::u8) {
             return _get_buffer_info<uint8_t>(self);
         } else if (element_type == ov::element::u16) {
             return _get_buffer_info<uint16_t>(self);
@@ -261,7 +263,7 @@ void regclass_graph_op_Constant(py::module m) {
             In such cases if `dtype` is used, function also creates a copy and
             unpacks the data.
 
-            Note: can be used to upcast BF16 data type to float32 or float64. 
+            Note: can be used to upcast BF16 data type to float32 or float64.
 
             :param dtype: Targeted data type.
             :type dtype: numpy.dtype, optional, keyword-only

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -555,7 +555,7 @@ public:
         auto input_data2 = engine.allocate_memory(input_actual_layout2);
         auto fc_weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx});
 
-        set_values(input_data1, { -0.5f, 2.0f, 0.5f, 
+        set_values(input_data1, { -0.5f, 2.0f, 0.5f,
                                    0.5f, -2.0f, -0.5f});
         set_values(input_data2, { 0.5f, -2.0f, -0.5f });
         set_values(fc_weights_data, { 1.5f, 1.0f, 0.5f,
@@ -583,7 +583,7 @@ public:
 
             auto outputs = network.execute();
 
-            ASSERT_EQ(std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu1"))->output_memory_ptr()->buffer_ptr(), 
+            ASSERT_EQ(std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu1"))->output_memory_ptr()->buffer_ptr(),
                       std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu2"))->output_memory_ptr()->buffer_ptr());
         }
 
@@ -592,7 +592,7 @@ public:
 
             auto outputs = network.execute();
 
-            ASSERT_EQ(std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu1"))->output_memory_ptr()->buffer_ptr(), 
+            ASSERT_EQ(std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu1"))->output_memory_ptr()->buffer_ptr(),
                       std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu2"))->output_memory_ptr()->buffer_ptr());
         }
     }
