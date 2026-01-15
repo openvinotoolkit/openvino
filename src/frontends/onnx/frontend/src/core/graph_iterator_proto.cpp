@@ -15,12 +15,12 @@
 #include <unordered_set>
 #include <vector>
 
-#include "transform.hpp"
 #include "decoder_proto.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
+#include "transform.hpp"
 
 namespace {
 // THis is copied from utils/common.hpp
@@ -76,10 +76,9 @@ void fixup_legacy_nodes(::ONNX_NAMESPACE::ModelProto& model_proto) {
     constexpr const char legacy_domain[] = "org.openvinotoolkit";
 
     for (auto& node : *graph_proto->mutable_node()) {
-        const auto needs_fix =
-            std::find(ov::frontend::onnx::transform::legacy_ops_to_fixup.begin(),
-                      ov::frontend::onnx::transform::legacy_ops_to_fixup.end(),
-                      node.op_type()) != ov::frontend::onnx::transform::legacy_ops_to_fixup.end();
+        const auto needs_fix = std::find(ov::frontend::onnx::transform::legacy_ops_to_fixup.begin(),
+                                         ov::frontend::onnx::transform::legacy_ops_to_fixup.end(),
+                                         node.op_type()) != ov::frontend::onnx::transform::legacy_ops_to_fixup.end();
         if (!needs_fix) {
             continue;
         }
