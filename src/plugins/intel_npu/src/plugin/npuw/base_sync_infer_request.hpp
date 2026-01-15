@@ -13,6 +13,7 @@
 
 #include "attention.hpp"
 #include "host_flash_attention.hpp"
+#include "moe/moe_types.hpp"
 #include "moe_infer_utils.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
@@ -156,11 +157,7 @@ protected:
     };
     std::vector<HostFlashAttentionIO> m_hfa_io;
 
-    struct MoEIO {
-        std::vector<ov::SoPtr<ov::ITensor>> outputs;  // # of elements - # of subgraph outputs
-        ov::SoPtr<ov::ITensor> router_scores;         // Expert model input: router output for expert selection
-        ov::SoPtr<ov::ITensor> expert_input;          // Expert model input: token embeddings
-    };
+    // MoE I/O structure
     std::vector<MoEIO> m_moe_io;
 
     // MoE expert output buffer: Accumulates outputs from all experts during multi-token inference
