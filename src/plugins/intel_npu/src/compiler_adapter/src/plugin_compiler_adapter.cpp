@@ -53,7 +53,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
         OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
         _compiler = ov::SoPtr<VCLCompilerImpl>(vclCompilerPtr, vclLib);
     } catch (const std::exception& vcl_exception) {
-        throw std::runtime_error("VCL compiler loading failed, aborting.");
+        OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vcl_exception.what());
     }
 
     if (_zeroInitStruct == nullptr) {
