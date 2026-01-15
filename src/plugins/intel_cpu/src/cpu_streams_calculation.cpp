@@ -618,7 +618,8 @@ int get_model_prefer_threads(const int num_streams,
         bool use_all_cores = proc_type_table[0][MAIN_CORE_PROC] <= (proc_type_table[0][EFFICIENT_CORE_PROC] /
                                                                     (int8_intensive ? int8_threshold : fp32_threshold));
 
-        if (use_all_cores && !is_LLM) {
+        if (use_all_cores &&
+            (!is_LLM || proc_type_table[0][EFFICIENT_CORE_PROC] > 2 * proc_type_table[0][MAIN_CORE_PROC])) {
             config.modelPreferThreadsLatency =
                 proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
         } else {
