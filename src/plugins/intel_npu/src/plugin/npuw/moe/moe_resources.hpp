@@ -43,6 +43,12 @@ struct MoEResources {
     // SHARED by all function calls
     std::vector<size_t> sorted_chunk_sizes;
 
+    // Prefill mode infer requests for different chunk sizes
+    // Map: chunk_size -> infer_request
+    // Created once during initialization, reused across all inferences
+    // SHARED by all function calls
+    std::map<size_t, ov::SoPtr<ov::IAsyncInferRequest>> chunk_infer_requests;
+
     // Output accumulation buffer (prefill mode)
     // Shape: [num_active_experts, 1, input_token_count, expert_hidden_dim]
     // Accumulates expert outputs before final reduction
@@ -54,6 +60,7 @@ struct MoEResources {
      *
      * Initializes resources shared by all function calls:
      * - sorted_chunk_sizes: extracted from config.compiled_models
+     * - chunk_infer_requests: created for each chunk size model
      * - expert_output_accumulator: allocated with given shape and device
      *
      * @param config MoE configuration

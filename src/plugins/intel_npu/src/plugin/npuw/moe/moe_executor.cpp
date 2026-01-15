@@ -309,10 +309,6 @@ void MoEExecutor::run_iterative_experts(size_t idx,
     auto output_shape = any_compiled_model->outputs()[0].get_shape();
     size_t embed_dim = (output_shape.size() == 4) ? output_shape[3] : output_shape[1];
 
-    // Get compiled model descriptor for accessing infer requests
-    const auto& desc =
-        *static_cast<const ov::npuw::CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
-
     // Process each expert sequentially
     for (size_t expert_id : selected_experts) {
         LOG_DEBUG("\n  Processing Expert[" << expert_id << "]...");
@@ -383,9 +379,9 @@ void MoEExecutor::run_iterative_experts(size_t idx,
             LOG_DEBUG("      Processing tokens [" << processed_tokens << ", " << (processed_tokens + current_chunk_size)
                                                   << ") with chunk_size=" << selected_chunk_size);
 
-            // Get selected infer request and compiled model from CompiledModelDesc
-            auto infer_request_it = desc.moe_infer_requests.find(selected_chunk_size);
-            if (infer_request_it == desc.moe_infer_requests.end()) {
+            // Get selected infer request from MoEResources
+            auto infer_request_it = m_resources.chunk_infer_requests.find(selected_chunk_size);
+            if (infer_request_it == m_resources.chunk_infer_requests.end()) {
                 OPENVINO_THROW("MoE: Infer request for chunk_size=", selected_chunk_size, " not found");
             }
             auto selected_infer_request = infer_request_it->second;
