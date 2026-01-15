@@ -317,7 +317,7 @@ RequestCache::RqPtr RequestCache::find(size_t sublayer_idx, const std::vector<si
 
     // Cache MISS
     LOG_VERB("MoE Cache MISS for sublayer[" << sublayer_idx << "] experts: " << cache_key);
-    return nullptr;
+    return {};
 }
 
 std::pair<RequestCache::RqPtr, size_t> RequestCache::get_idle_or_lru(size_t sublayer_idx) {
