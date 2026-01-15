@@ -199,7 +199,7 @@ OutputVector translate_while_loop_fx(const NodeContext& context) {
         if (node_map.count(source_node)) {
             cloned_body_outputs.push_back(node_map[source_node]->output(source.get_index()));
         } else {
-            cloned_body_outputs.push_back(std::move(source));
+            cloned_body_outputs.push_back(source);
         }
     }
 
