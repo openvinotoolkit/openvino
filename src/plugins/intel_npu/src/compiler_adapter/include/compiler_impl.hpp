@@ -14,7 +14,7 @@
 
 namespace intel_npu {
 
-class VCLCompilerImpl {
+class VCLCompilerImpl : public std::enable_shared_from_this<VCLCompilerImpl> {
 public:
     VCLCompilerImpl();
     ~VCLCompilerImpl();
