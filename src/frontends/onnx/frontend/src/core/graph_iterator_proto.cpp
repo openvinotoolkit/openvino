@@ -129,6 +129,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         return true;
     } else if (memory_mode == External_Stream) {
         auto cache = graph_iterator->get_stream_cache();
+        FRONT_END_GENERAL_CHECK(cache, "Stream cache is not initialized for external stream mode");
         auto cached_stream = cache->find(full_path_str);
         std::shared_ptr<std::ifstream> external_data_stream;
         if (cached_stream != cache->end()) {
@@ -294,7 +295,6 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
 GraphIteratorProto::GraphIteratorProto(const GraphIteratorProtoMemoryManagementMode mode)
     : m_graph(nullptr),
       m_parent(nullptr),
-      m_model_dir(nullptr),
       m_mode(mode),
       m_mmap_cache{mode == External_MMAP ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
                                          : nullptr},
@@ -313,11 +313,12 @@ GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphPr
     m_model = parent->m_model;
 }
 
-void GraphIteratorProto::initialize(const std::string& path) {
-    m_model_dir = std::make_shared<std::string>(ov::util::get_directory(path).string());
+void GraphIteratorProto::initialize(const std::filesystem::path& path) {
+    const auto path_str = ov::util::path_to_string(path);
+    m_model_dir = ov::util::get_directory(path);
     try {
         std::ifstream model_file(path, std::ios::binary | std::ios::in);
-        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path, "\"");
+        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path_str, "\"");
 
         m_model = std::make_shared<ModelProto>();
         FRONT_END_GENERAL_CHECK(m_model->ParseFromIstream(&model_file), "Model can't be parsed");
@@ -337,12 +338,6 @@ void GraphIteratorProto::initialize(const std::string& path) {
         throw;
     }
 }
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-void GraphIteratorProto::initialize(const std::wstring& path) {
-    initialize(ov::util::wstring_to_string(path));
-}
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::string& name,
                                                                    GraphIteratorProto** owner) {
