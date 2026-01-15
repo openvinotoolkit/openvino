@@ -418,13 +418,11 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     // Initialize MoE resources if MoE was detected
     if (has_moe) {
-#if USE_NEW_MOE_EXECUTOR
-        // New path: Use MoEExecutor (initialized below at line ~545)
-        // Do NOT call setup_moe_infer_requests() - MoEExecutor handles everything
-#else
-        // Legacy path: Use old setup_moe_infer_requests()
+        // Create MoE infer requests (desc.moe_infer_requests)
+        // These are used for:
+        // - Prefill mode (iterative experts with dynamic chunks)
+        // - Legacy path: also creates m_moe_output_buffer
         setup_moe_infer_requests(moe_experts_sub_idx, is_pipelined(moe_experts_sub_idx), /* is_recreate */ false);
-#endif
     }
 
     // Identify connections for the funcall pipeline, if needed
@@ -590,6 +588,10 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 m_moe_executor->prepare(i, real_idx, m_num_submodels, pool_size);
             }
         }
+
+        // Override m_moe_output_buffer to point to MoEExecutor's accumulator
+        // setup_moe_infer_requests() already created its own buffer, but we use executor's
+        m_moe_output_buffer = m_moe_executor->get_output_accumulator();
 
         LOG_INFO("MoE executor initialized successfully");
     }
@@ -898,16 +900,8 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 if (func_desc.moe_experts_downstream) {
                     const auto& moe_downstream = func_desc.moe_experts_downstream.value();
                     if (i == moe_downstream.expert_output_param_idx) {
-#if USE_NEW_MOE_EXECUTOR
-                        // New path: Use MoEExecutor's accumulator
-                        auto accumulator = m_moe_executor->get_output_accumulator();
-                        NPUW_ASSERT(accumulator && "MoE output accumulator not available");
-                        m_subrequests[real_idx]->set_tensor(iport, accumulator);
-#else
-                        // Legacy path: Use m_moe_output_buffer
                         NPUW_ASSERT(m_moe_output_buffer && "MoE output buffer not available");
                         m_subrequests[real_idx]->set_tensor(iport, m_moe_output_buffer);
-#endif
                     } else {
                         m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                     }
