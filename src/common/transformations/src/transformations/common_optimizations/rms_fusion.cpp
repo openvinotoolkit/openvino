@@ -50,7 +50,7 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
     auto power = wrap_type<ov::op::v1::Power>({x, const_power_convert});
 
     // ReduceMean(x^2,axes)
-    auto mean_axes = wrap_type<ov::op::v0::Constant>(constant_value(-1));
+    auto mean_axes = wrap_type<ov::op::v0::Constant>();
     auto mean = wrap_type<ov::op::v1::ReduceMean>({power, mean_axes});
 
     // ReduceMean(x^2,axes)+eps
