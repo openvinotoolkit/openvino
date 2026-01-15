@@ -11,7 +11,6 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -33,8 +32,6 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/reorder_prim.h"
 #include "nodes/executors/executor.hpp"
-#include "nodes/executors/transpose.hpp"
-#include "nodes/executors/transpose_list.hpp"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -157,55 +154,6 @@ void Reorder::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Reorder::prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc) {
-    auto getOrderAndBlockedDims = [](const MemoryDesc& lhs,
-                                     const MemoryDesc& rhs) -> std::pair<std::vector<size_t>, std::vector<size_t>> {
-        const auto& in = lhs.as<BlockedMemoryDesc>()->getBlockDims();
-        const auto rank = lhs.getShape().getRank();
-
-        if (lhs.hasLayoutType(LayoutType::ncsp) && rhs.hasLayoutType(LayoutType::nspc)) {
-            if (rank == 4) {
-                return {{0, 2, 3, 1}, {in[0], in[2], in[3], in[1]}};
-            }
-            return {{0, 2, 1}, {in[0], in[2], in[1]}};
-        }
-        if (lhs.hasLayoutType(LayoutType::nspc) && rhs.hasLayoutType(LayoutType::ncsp)) {
-            if (rank == 4) {
-                return {{0, 3, 1, 2}, {in[0], in[3], in[1], in[2]}};
-            }
-            return {{0, 2, 1}, {in[0], in[2], in[1]}};
-        }
-        if (rank == 4) {
-            return {{0, 1, 2, 3}, in};
-        }
-        return {{0, 1, 2}, in};
-    };
-
-    auto order = getOrderAndBlockedDims(*parentDesc, *childDesc);
-    const auto& transposeOrder = order.first;
-    const auto& transposedBlockDims = order.second;
-
-    auto transposedDesc =
-        std::make_shared<CpuBlockedMemoryDesc>(parentDesc->getPrecision(), Shape{transposedBlockDims});
-
-    TransposeParams transposeParams;
-    transposeParams.permuteParams.src_block_dims = parentDesc->as<BlockedMemoryDesc>()->getBlockDims();
-    transposeParams.permuteParams.src_block_order = parentDesc->as<BlockedMemoryDesc>()->getOrder();
-    transposeParams.permuteParams.dst_block_dims = transposedBlockDims;
-    transposeParams.permuteParams.dst_block_order = transposeParams.permuteParams.src_block_order;
-    transposeParams.permuteParams.order = transposeOrder;
-    transposeParams.permuteParams.data_size = parentDesc->getPrecision().size();
-
-    auto transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
-    auto factory = std::make_shared<TransposeExecutorFactory>(transposeParams,
-                                                              std::vector<MemoryDescPtr>{parentDesc},
-                                                              std::vector<MemoryDescPtr>{transposedDesc},
-                                                              transpose_context);
-    dnnl::primitive_attr attr;
-    transposeExecutor = factory->makeExecutor(transposeParams, {parentDesc}, {transposedDesc}, attr);
-    getSelectedPrimitiveDescriptor()->setImplementationType(transposeExecutor->implType());
-}
-
 void Reorder::prepareParams() {
     if (isOptimized) {
         return;
@@ -229,18 +177,6 @@ void Reorder::prepareParams() {
 
     const auto& parentDesc = srcMemPtr->getDescPtr();
     const auto& childDesc = dstMemPtr->getDescPtr();
-
-#if defined(OPENVINO_ARCH_ARM64)
-    // Allow using oneDNN fp16 reorders by default; keep env-guarded fallback.
-    if (std::getenv("OV_CPU_FORCE_TRANSPOSE_F16") != nullptr &&
-        all_of(ov::element::f16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
-        ((parentDesc->hasLayoutType(LayoutType::ncsp) && childDesc->hasLayoutType(LayoutType::nspc)) ||
-         (parentDesc->hasLayoutType(LayoutType::nspc) && childDesc->hasLayoutType(LayoutType::ncsp))) &&
-        any_of(parentDesc->getShape().getRank(), 3U, 4U)) {
-        prepareReorderAsTranspose(parentDesc, childDesc);
-        return;
-    }
-#endif
 
     if ((isNspc2NcspCase || isNcsp2NspcCase) && isSupportedDesc(*childDesc) && isSupportedDesc(*parentDesc)) {
         const auto& inDims = srcMemPtr->getStaticDims();
@@ -420,15 +356,6 @@ void Reorder::optimizedNspc2Ncsp() {
 }
 
 void Reorder::execute(const dnnl::stream& strm) {
-#if defined(OPENVINO_ARCH_ARM64)
-    if (transposeExecutor) {
-        auto dstMemPtr = getDstMemoryAtPort(0);
-        auto srcMemPtr = getSrcMemoryAtPort(0);
-        transposeExecutor->exec({srcMemPtr}, {dstMemPtr});
-        return;
-    }
-#endif
-
     if (isOptimized) {
         DEBUG_LOG("#",
                   getExecIndex(),

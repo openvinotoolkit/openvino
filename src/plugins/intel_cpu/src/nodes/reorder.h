@@ -17,7 +17,6 @@
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
-#include "nodes/executors/transpose.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/node.hpp"
 
@@ -94,8 +93,6 @@ private:
     void optimizedNcsp2Nspc();
     void createReorderPrimitive(const DnnlMemoryDescPtr& srcDesc, const DnnlMemoryDescPtr& dstDesc);
 
-    void prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc);
-    TransposeExecutorPtr transposeExecutor;
 };
 
 }  // namespace ov::intel_cpu::node
