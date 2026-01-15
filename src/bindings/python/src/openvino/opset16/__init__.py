@@ -196,4 +196,3 @@ from openvino.opset1.ops import transpose
 from openvino.opset10.ops import unique
 from openvino.opset1.ops import unsqueeze
 from openvino.opset1.ops import variadic_split
-
