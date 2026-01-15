@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -36,43 +36,43 @@ class TestIndexCopy(PytorchLayerTest):
         (
             {
                 "input_shape": [1],
-                "dim": 0, 
+                "dim": 0,
                 "values_shape": [1],
                 "index": torch.tensor([0], dtype=torch.long)
             },
             {
                 "input_shape": [10],
-                "dim": 0, 
+                "dim": 0,
                 "values_shape": [5],
                 "index": torch.tensor([2, 3, 6, 7, 1], dtype=torch.long)
             },
             {
                 "input_shape": [3, 3],
-                "dim": 0, 
+                "dim": 0,
                 "values_shape": [2, 3],
                 "index": torch.tensor([2, 0], dtype=torch.long)
             },
             {
                 "input_shape": [4, 3, 5],
-                "dim": 1, 
+                "dim": 1,
                 "values_shape": [4, 2, 5],
                 "index": torch.tensor([1, 0], dtype=torch.long)
             },
             {
                 "input_shape": [5, 6, 7, 8],
-                "dim": -2, 
+                "dim": -2,
                 "values_shape": [5, 6, 4, 8],
                 "index": torch.tensor([5, 0, 6, 3], dtype=torch.long)
             },
             {
                 "input_shape": [5, 6, 7, 8],
-                "dim": -3, 
+                "dim": -3,
                 "values_shape": [5, 3, 7, 8],
                 "index": torch.tensor([2, 0, 1], dtype=torch.long)
             },
             {
                 "input_shape": [5, 6, 7, 8],
-                "dim": 3, 
+                "dim": 3,
                 "values_shape": [5, 6, 7, 5],
                 "index": torch.tensor([2, 6, 0, 4, 1], dtype=torch.long)
             },

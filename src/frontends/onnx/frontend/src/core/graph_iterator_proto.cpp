@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,7 +92,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         }
     }
     const auto full_path =
-        ov::util::get_absolute_file_path(ov::util::path_join({graph_iterator->get_model_dir(), ext_location}).string());
+        ov::util::get_absolute_file_path(ov::util::path_join({graph_iterator->get_model_dir(), ext_location}));
     const int64_t file_size = ov::util::file_size(full_path);
     if ((file_size <= 0 && ext_data_length > 0) ||
         ext_data_offset + ext_data_length > static_cast<uint64_t>(file_size)) {
@@ -103,6 +103,8 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         throw std::runtime_error(ss.str());
     }
     auto memory_mode = graph_iterator->get_memory_management_mode();
+    // Remove when cache map will use path instead string.
+    const auto full_path_str = ov::util::path_to_string(full_path);
     if (ext_location == "*/_ORT_MEM_ADDR_/*") {
         // Specific ONNX Runtime Case when it passes a model with self-managed data
         tensor_meta_info.m_is_raw = true;
@@ -111,13 +113,13 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         return true;
     } else if (memory_mode == External_MMAP) {
         auto cache = graph_iterator->get_mmap_cache();
-        auto cached_mapped_memory = cache->find(full_path);
+        auto cached_mapped_memory = cache->find(full_path_str);
         std::shared_ptr<ov::MappedMemory> mapped_memory;
         if (cached_mapped_memory != cache->end()) {
             mapped_memory = cached_mapped_memory->second;
         } else {
             mapped_memory = ov::load_mmap_object(full_path);
-            (*cache)[full_path] = mapped_memory;
+            (*cache)[full_path_str] = mapped_memory;
         }
         tensor_meta_info.m_is_raw = true;
         tensor_meta_info.m_tensor_data =
@@ -127,18 +129,17 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         return true;
     } else if (memory_mode == External_Stream) {
         auto cache = graph_iterator->get_stream_cache();
-        auto cached_stream = cache->find(full_path);
+        auto cached_stream = cache->find(full_path_str);
         std::shared_ptr<std::ifstream> external_data_stream;
         if (cached_stream != cache->end()) {
             external_data_stream = cached_stream->second;
         } else {
-            external_data_stream = {
-                new std::ifstream(full_path.c_str(), std::ios::binary | std::ios::in | std::ios::ate),
-                [](std::ifstream* p) {
-                    p->close();
-                    delete p;
-                }};
-            (*cache)[full_path] = external_data_stream;
+            external_data_stream = {new std::ifstream(full_path, std::ios::binary | std::ios::in | std::ios::ate),
+                                    [](std::ifstream* p) {
+                                        p->close();
+                                        delete p;
+                                    }};
+            (*cache)[full_path_str] = external_data_stream;
         }
 
         if (external_data_stream->fail() || !external_data_stream->good()) {
@@ -158,7 +159,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
                                    tensor_meta_info.m_tensor_data_size);
         return true;
     } else if (memory_mode == Internal_MMAP || memory_mode == Internal_Stream) {
-        tensor_meta_info.m_external_location = std::make_shared<std::string>(full_path);
+        tensor_meta_info.m_external_location = std::make_shared<std::string>(full_path_str);
         tensor_meta_info.m_tensor_data = reinterpret_cast<uint8_t*>(ext_data_offset);
         tensor_meta_info.m_tensor_data_size = ext_data_length;
         return true;

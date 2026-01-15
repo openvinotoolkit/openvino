@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2025 Intel Corporation
+ Copyright (C) 2018-2026 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -228,7 +228,7 @@ def test_input_output_tensor_name_collision(sample_language, device, in_node_nam
 @pytest.mark.parametrize('device', get_devices())
 def test_benchmark_app_no_warmup_flag(sample_language, device, cache, tmp_path):
     """Test that -no_warmup flag skips warmup inference and produces correct output"""
-    
+
     # test with warmup (default behavior)
     output_with_warmup = get_cmd_output(
         get_executable(sample_language),
@@ -237,11 +237,11 @@ def test_benchmark_app_no_warmup_flag(sample_language, device, cache, tmp_path):
         '-niter', '1',
         '-nireq', '1'
     )
-    
+
     # verify default behavior shows warmup message
     assert 'FPS' in output_with_warmup
     assert 'First inference took' in output_with_warmup
-    
+
     # test without warmup
     output_no_warmup = get_cmd_output(
         get_executable(sample_language),
@@ -251,7 +251,7 @@ def test_benchmark_app_no_warmup_flag(sample_language, device, cache, tmp_path):
         '-nireq', '1',
         '-no_warmup'
     )
-    
+
     # verify -no_warmup behavior
     assert 'FPS' in output_no_warmup
     assert 'Skipping warmup inference due to -no_warmup flag' in output_no_warmup
@@ -280,7 +280,7 @@ def test_benchmark_app_no_warmup_with_api_modes(sample_language, device, api, ca
         '-api', api,
         '-no_warmup'
     )
-    
+
     assert 'FPS' in output
     assert 'Skipping warmup inference due to -no_warmup flag' in output
     assert 'First inference took' not in output
