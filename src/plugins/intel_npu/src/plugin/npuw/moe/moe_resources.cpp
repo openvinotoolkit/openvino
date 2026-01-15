@@ -13,23 +13,12 @@ namespace ov {
 namespace npuw {
 namespace moe {
 
-void MoEResources::initialize(
+void MoEResources::initialize_shared(
     const MoEConfig& config,
     std::function<TensorPtr(const ov::element::Type&, const ov::Shape&, const std::string&)> allocator,
-    size_t pool_size,
     const std::string& device) {
-    LOG_DEBUG("Initializing MoE resources...");
+    LOG_DEBUG("Initializing shared MoE resources...");
     LOG_BLOCK();
-
-    // Initialize request cache if pool_size > 0
-    if (pool_size > 0) {
-        LOG_DEBUG("Creating request cache with pool_size=" << pool_size);
-        // Note: Cache will be populated later when requests are created
-        // RequestCache constructor signature: RequestCache(size_t num_layers, size_t pool_size)
-        // We don't create it here as it needs to be populated per submodel index
-    } else {
-        LOG_DEBUG("Request cache disabled (pool_size=0)");
-    }
 
     // Pre-sort chunk sizes in descending order for greedy selection
     sorted_chunk_sizes.clear();
@@ -53,26 +42,39 @@ void MoEResources::initialize(
     auto first_model = config.compiled_models.begin()->second;
     auto output_element_type = first_model->outputs()[0].get_element_type();
 
-    output_buffer = allocator(output_element_type, buffer_shape, device);
+    expert_output_accumulator = allocator(output_element_type, buffer_shape, device);
 
-    LOG_DEBUG("Allocated output buffer: shape=" << buffer_shape << ", type=" << output_element_type
-                                                << ", device=" << device);
+    LOG_DEBUG("Allocated shared output buffer: shape=" << buffer_shape << ", type=" << output_element_type
+                                                       << ", device=" << device);
 
-    LOG_DEBUG("MoE resources initialization completed");
+    LOG_DEBUG("Shared MoE resources initialization completed");
 }
 
-void MoEResources::reset() {
-    LOG_DEBUG("Resetting MoE resources...");
-
-    // Clear request cache if exists
-    if (request_cache) {
-        request_cache.reset();
+void MoEResources::initialize_cache(size_t num_sublayers, size_t pool_size) {
+    if (pool_size == 0) {
+        LOG_DEBUG("Request cache disabled (pool_size=0)");
+        return;
     }
 
-    // Keep sorted_chunk_sizes (static data)
-    // Keep output_buffer (reusable allocation)
+    // Create the RequestCache once for all sublayers
+    if (!request_cache) {
+        LOG_DEBUG("Creating RequestCache for " << num_sublayers << " sublayers with pool_size=" << pool_size);
+        request_cache = std::make_unique<ov::npuw::moe::RequestCache>(num_sublayers, pool_size);
+        LOG_DEBUG("RequestCache created successfully");
+    }
 
-    LOG_DEBUG("MoE resources reset completed");
+    // Note: Actual request pool creation (initialize_layer) is done by caller
+    // after creating the inference requests for each sublayer
+}
+
+void MoEResources::reset_cache() {
+    LOG_DEBUG("Resetting request cache...");
+    request_cache.reset();
+
+    // Keep sorted_chunk_sizes (static data)
+    // Keep expert_output_accumulator (reusable allocation)
+
+    LOG_DEBUG("Request cache reset completed");
 }
 
 }  // namespace moe
