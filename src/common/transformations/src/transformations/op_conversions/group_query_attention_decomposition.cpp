@@ -31,11 +31,19 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v4 = ov::op::v4;
+namespace v8 = ov::op::v8;
+namespace v13 = ov::op::v13;
 ov::pass::GroupQueryAttentionDecomposition::GroupQueryAttentionDecomposition() {
     MATCHER_SCOPE(GroupQeuryAttentionDecomposition);
     auto pattern_node = ov::pass::pattern::wrap_type<ov::op::internal::GroupQueryAttention>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto node = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(
             pattern_to_output.at(pattern_node).get_node_shared_ptr());
@@ -49,14 +57,12 @@ ov::pass::GroupQueryAttentionDecomposition::GroupQueryAttentionDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_node, matcher_name);
+    auto m = std::make_shared<Matcher>(pattern_node, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     std::shared_ptr<ov::op::internal::GroupQueryAttention> node) {
-    using namespace ov::op;
-
     const auto num_heads = node->get_num_heads();
     const auto kv_num_heads = node->get_kv_num_heads();
     const auto scale = node->get_scale();
@@ -219,7 +225,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::make_split(const ov::Output<ov::Node>& value,
                                                                         int64_t num_splits,
                                                                         int64_t axis) {
-    using namespace ov::op;
     const auto axis_node = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {axis}));
     const auto split = register_new_node<v1::Split>(value, axis_node, num_splits);
 
@@ -227,9 +232,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::make_split(const ov
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimensions(
-    const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
+    const std::shared_ptr<v3::ShapeOf>& shape,
     const std::vector<int>& dims) {
-    using namespace ov::op;
     const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
     return register_new_node<v8::Gather>(shape, dims_const, zero);
@@ -238,14 +242,13 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimens
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimensions(
     const std::shared_ptr<ov::Node>& node,
     const std::vector<int>& dims) {
-    return get_dimensions(register_new_node<ov::op::v3::ShapeOf>(node), dims);
+    return get_dimensions(register_new_node<v3::ShapeOf>(node), dims);
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbedding(ov::Output<ov::Node> input,
                                                                                       ov::Output<ov::Node> cos,
                                                                                       ov::Output<ov::Node> sin,
                                                                                       bool interleaved) {
-    using namespace ov::op;
     auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
     auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
 

@@ -32,6 +32,7 @@ using namespace ov;
 using namespace op;
 using namespace ov::pass;
 
+using ov::pass::pattern::Matcher;
 namespace {
 // This function creates a shape to which we need to reshape the input
 // before normalization.
@@ -65,9 +66,9 @@ std::shared_ptr<Node> get_range(NodeRegistry& reg, int64_t start, int64_t stop) 
 ov::pass::GroupNormalizationDecomposition::GroupNormalizationDecomposition() {
     MATCHER_SCOPE(GroupNormalizationDecomposition);
 
-    auto group_norm_pattern = pattern::wrap_type<v12::GroupNormalization>();
+    auto group_norm_pattern = ov::pass::pattern::wrap_type<v12::GroupNormalization>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& matcher) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& matcher) {
         NodeRegistry reg;
 
         const auto group_norm_node = ov::as_type_ptr<v12::GroupNormalization>(matcher.get_match_root());
@@ -111,6 +112,6 @@ ov::pass::GroupNormalizationDecomposition::GroupNormalizationDecomposition() {
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(group_norm_pattern, matcher_name);
+    auto m = make_shared<Matcher>(group_norm_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

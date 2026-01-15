@@ -14,12 +14,15 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
 ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
     MATCHER_SCOPE(ConvertMVN1ToMVN6);
-    auto mvn = pattern::wrap_type<ov::op::v0::MVN>();
+    auto mvn = ov::pass::pattern::wrap_type<v0::MVN>();
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto mvn_node = ov::as_type_ptr<ov::op::v0::MVN>(m.get_match_root());
+    matcher_pass_callback callback = [](Matcher& m) {
+        auto mvn_node = ov::as_type_ptr<v0::MVN>(m.get_match_root());
         if (!mvn_node) {
             return false;
         }
@@ -38,7 +41,7 @@ ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
 
         std::vector<int64_t> axes_v(input_rank.get_length() - start_axis);
         std::iota(axes_v.begin(), axes_v.end(), start_axis);
-        auto axes = ov::op::v0::Constant::create(ov::element::i64, {axes_v.size()}, axes_v);
+        auto axes = v0::Constant::create(ov::element::i64, {axes_v.size()}, axes_v);
         auto mvn6_node = std::make_shared<ov::op::v6::MVN>(input,
                                                            axes,
                                                            mvn_node->get_normalize_variance(),
@@ -51,6 +54,6 @@ ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(mvn, matcher_name);
+    auto m = std::make_shared<Matcher>(mvn, matcher_name);
     register_matcher(m, callback);
 }

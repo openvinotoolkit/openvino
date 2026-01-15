@@ -15,11 +15,16 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
+namespace v0 = ov::op::v0;
+namespace op_util = ov::op::util;
+
+namespace ov::pass {
+
+FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
     MATCHER_SCOPE(FoldSubgraphEmptyInputs);
-    auto multi_subgraph_op_pattern = pattern::wrap_type<ov::op::util::MultiSubGraphOp>();
+    auto multi_subgraph_op_pattern = pattern::wrap_type<op_util::MultiSubGraphOp>();
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(m.get_match_root());
+        auto multi_subgraph_op = ov::as_type_ptr<op_util::MultiSubGraphOp>(m.get_match_root());
         if (multi_subgraph_op == nullptr) {
             return false;
         }
@@ -35,7 +40,7 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
                      std::back_inserter(empty_inputs),
                      [](const Output<Node>& input) {
                          // skip constants
-                         if (ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr())) {
+                         if (ov::as_type_ptr<v0::Constant>(input.get_node_shared_ptr())) {
                              return false;
                          }
                          // skip non-static shapes
@@ -51,7 +56,7 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
         if (empty_inputs.size()) {
             for (const auto& input : empty_inputs) {
                 const ov::Output<ov::Node> const_empty_replacement =
-                    std::make_shared<ov::op::v0::Constant>(input.get_element_type(), input.get_shape());
+                    std::make_shared<v0::Constant>(input.get_element_type(), input.get_shape());
                 std::replace(std::begin(multi_subgraph_op_inputs),
                              std::end(multi_subgraph_op_inputs),
                              input,
@@ -67,15 +72,17 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
     this->register_matcher(m, callback);
 }
 
-void ov::pass::disable_fold_subgraph_empty_inputs(const std::shared_ptr<ov::Node>& node) {
+void disable_fold_subgraph_empty_inputs(const std::shared_ptr<ov::Node>& node) {
     node->get_rt_info().emplace(DisableFoldSubgraphEmptyInputs::get_type_info_static(),
                                 DisableFoldSubgraphEmptyInputs{});
 }
 
-void ov::pass::enable_fold_subgraph_empty_inputs(const std::shared_ptr<ov::Node>& node) {
+void enable_fold_subgraph_empty_inputs(const std::shared_ptr<ov::Node>& node) {
     node->get_rt_info().erase(DisableFoldSubgraphEmptyInputs::get_type_info_static());
 }
 
-bool ov::pass::fold_subgraph_empty_inputs_is_disabled(const std::shared_ptr<ov::Node>& node) {
+bool fold_subgraph_empty_inputs_is_disabled(const std::shared_ptr<ov::Node>& node) {
     return node->get_rt_info().count(DisableFoldSubgraphEmptyInputs::get_type_info_static());
 }
+
+}  // namespace ov::pass

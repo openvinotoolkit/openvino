@@ -19,28 +19,33 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v5 = ov::op::v5;
 ov::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
     MATCHER_SCOPE(LogSoftmaxDecomposition);
     // Decomposes LogSoftmax(x, axis) op into sub-graph x - log(reduce_sum(exp(x), axis))
-    auto log_softmax = ov::pass::pattern::wrap_type<ov::op::v5::LogSoftmax>();
+    auto log_softmax = ov::pass::pattern::wrap_type<v5::LogSoftmax>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto log_softmax_node =
-            ov::as_type_ptr<ov::op::v5::LogSoftmax>(pattern_to_output.at(log_softmax).get_node_shared_ptr());
+            ov::as_type_ptr<v5::LogSoftmax>(pattern_to_output.at(log_softmax).get_node_shared_ptr());
 
         if (log_softmax_node == nullptr || transformation_callback(log_softmax_node)) {
             return false;
         }
 
-        auto axis1 = ov::op::v0::Constant::create(element::Type_t::i64, ov::Shape{1}, {log_softmax_node->get_axis()});
-        auto axis2 = ov::op::v0::Constant::create(element::Type_t::i64, ov::Shape{1}, {log_softmax_node->get_axis()});
-        auto max = std::make_shared<ov::op::v1::ReduceMax>(log_softmax_node->input_value(0), axis1, true);
-        auto sub = std::make_shared<ov::op::v1::Subtract>(log_softmax_node->input_value(0), max);
-        auto exp = std::make_shared<ov::op::v0::Exp>(sub);
-        auto sum = std::make_shared<ov::op::v1::ReduceSum>(exp, axis2, true);
-        auto log = std::make_shared<ov::op::v0::Log>(sum);
-        auto sub_end = std::make_shared<ov::op::v1::Subtract>(sub, log);
+        auto axis1 = v0::Constant::create(element::Type_t::i64, ov::Shape{1}, {log_softmax_node->get_axis()});
+        auto axis2 = v0::Constant::create(element::Type_t::i64, ov::Shape{1}, {log_softmax_node->get_axis()});
+        auto max = std::make_shared<v1::ReduceMax>(log_softmax_node->input_value(0), axis1, true);
+        auto sub = std::make_shared<v1::Subtract>(log_softmax_node->input_value(0), max);
+        auto exp = std::make_shared<v0::Exp>(sub);
+        auto sum = std::make_shared<v1::ReduceSum>(exp, axis2, true);
+        auto log = std::make_shared<v0::Log>(sum);
+        auto sub_end = std::make_shared<v1::Subtract>(sub, log);
 
         sub_end->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(log_softmax_node, {axis1, axis2, max, sub, exp, sum, log, sub_end});
@@ -48,6 +53,6 @@ ov::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(log_softmax, matcher_name);
+    auto m = std::make_shared<Matcher>(log_softmax, matcher_name);
     register_matcher(m, callback);
 }
