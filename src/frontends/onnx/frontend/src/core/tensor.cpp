@@ -15,8 +15,7 @@ namespace {
 template <typename StorageT>
 size_t raw_value_count(const std::shared_ptr<TensorONNXPlace>& place) {
     const size_t byte_size = place->get_data_size();
-    FRONT_END_GENERAL_CHECK(byte_size % sizeof(StorageT) == 0,
-                            "Raw tensor data size is not aligned with element size");
+    FRONT_END_GENERAL_CHECK(byte_size % sizeof(StorageT) == 0, "Raw tensor data size is not aligned with element size");
     return byte_size / sizeof(StorageT);
 }
 }  // namespace
@@ -74,8 +73,7 @@ std::vector<float> Tensor::get_data() const {
     }
     if (m_tensor_place != nullptr) {
         if (m_tensor_place->is_raw()) {
-            return detail::__get_data<float, float>(m_tensor_place->get_data(),
-                                                    raw_value_count<float>(m_tensor_place));
+            return detail::__get_data<float, float>(m_tensor_place->get_data(), raw_value_count<float>(m_tensor_place));
         }
         return detail::__get_data<float, float>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
     }
@@ -329,8 +327,9 @@ std::vector<ov::float8_e4m3> Tensor::get_data() const {
     }
     if (m_tensor_place != nullptr) {
         if (m_tensor_place->is_raw()) {
-            return detail::__get_data<ov::float8_e4m3, ov::float8_e4m3>(m_tensor_place->get_data(),
-                                                                        raw_value_count<ov::float8_e4m3>(m_tensor_place));
+            return detail::__get_data<ov::float8_e4m3, ov::float8_e4m3>(
+                m_tensor_place->get_data(),
+                raw_value_count<ov::float8_e4m3>(m_tensor_place));
         }
         return detail::__get_data<ov::float8_e4m3, int32_t>(m_tensor_place->get_data(),
                                                             m_tensor_place->get_data_size());
@@ -361,8 +360,9 @@ std::vector<ov::float8_e5m2> Tensor::get_data() const {
     }
     if (m_tensor_place != nullptr) {
         if (m_tensor_place->is_raw()) {
-            return detail::__get_data<ov::float8_e5m2, ov::float8_e5m2>(m_tensor_place->get_data(),
-                                                                        raw_value_count<ov::float8_e5m2>(m_tensor_place));
+            return detail::__get_data<ov::float8_e5m2, ov::float8_e5m2>(
+                m_tensor_place->get_data(),
+                raw_value_count<ov::float8_e5m2>(m_tensor_place));
         }
         return detail::__get_data<ov::float8_e5m2, int32_t>(m_tensor_place->get_data(),
                                                             m_tensor_place->get_data_size());
@@ -395,8 +395,7 @@ std::vector<char> Tensor::get_data() const {
     }
     if (m_tensor_place != nullptr) {
         if (m_tensor_place->is_raw()) {
-            return detail::__get_data<char, char>(m_tensor_place->get_data(),
-                                                  raw_value_count<char>(m_tensor_place));
+            return detail::__get_data<char, char>(m_tensor_place->get_data(), raw_value_count<char>(m_tensor_place));
         }
         return detail::__get_data<char, int32_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
     }
