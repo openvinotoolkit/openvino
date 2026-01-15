@@ -1,29 +1,17 @@
-name: Fedora 29 (RHEL 8.4), Python 3.10
+name: Fedora 29
+
 on:
   workflow_dispatch:
-    inputs:
-      target-branch:
-        description: 'Target branch for the build; taken from event context by default'
-        type: string
-        required: false
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-  merge_group:
   push:
-    branches:
-      - master
-      - 'releases/**'
-
-concurrency:
-  # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-fedora-29
-  cancel-in-progress: true
-
-permissions: read-all
+    paths:
+      - '.github/workflows/fedora_29.yml'
+      - 'cmake/**'
+      - 'src/**'
+  # pull_request:
+  #   paths:
+  #     - '.github/workflows/fedora_29.yml'
+  #     - 'cmake/**'
+  #     - 'src/**'
 
 jobs:
   Smart_CI:
@@ -107,13 +95,13 @@ jobs:
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
         -G 'Ninja'
-        -DENABLE_NCC_STYLE=OFF 
-        -DENABLE_INTEL_NPU=OFF 
-        -DENABLE_TESTS=ON 
-        -DENABLE_STRICT_DEPENDENCIES=OFF 
-        -DENABLE_SYSTEM_OPENCL=ON 
-        -DCPACK_GENERATOR=TGZ 
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON 
+        -DENABLE_NCC_STYLE=OFF
+        -DENABLE_INTEL_NPU=OFF
+        -DENABLE_TESTS=ON
+        -DENABLE_STRICT_DEPENDENCIES=OFF
+        -DENABLE_SYSTEM_OPENCL=ON
+        -DCPACK_GENERATOR=TGZ
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DCMAKE_BUILD_TYPE=Release
 
   RPM_Packages:
@@ -182,7 +170,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'fedora_29'
-  
+
   Overall_Status:
     name: ci/gha_overall_status_fedora
     needs: [Smart_CI, Build, CXX_Unit_Tests, RPM_Packages]

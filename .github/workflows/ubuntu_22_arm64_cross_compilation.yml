@@ -1,34 +1,23 @@
-name: Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)
+name: Ubuntu 22 ARM64 Cross Compilation
+
 on:
   workflow_dispatch:
-    inputs:
-      target-branch:
-        description: 'Target branch for the build; taken from event context by default'
-        type: string
-        required: false
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-  merge_group:
   push:
-    branches:
-      - master
-      - 'releases/**'
+    paths:
+      - '.github/workflows/ubuntu_22_arm64_cross_compilation.yml'
+      - 'cmake/**'
+      - 'src/**'
+  # pull_request:
+  #   paths:
+  #     - '.github/workflows/ubuntu_22_arm64_cross_compilation.yml'
+  #     - 'cmake/**'
+  #     - 'src/**'
 
 concurrency:
-  # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-ubuntu-22-arm64-cross-compilation
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions: read-all
-
-env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
-  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -93,7 +82,7 @@ jobs:
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
-  
+
   Docker_arm64:
     needs: Smart_CI
     runs-on: aks-linux-4-cores-8gb-arm-docker-build

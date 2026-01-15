@@ -1,18 +1,19 @@
 name: Code Style
+
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-  merge_group:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions: read-all
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/code_style.yml'
+      - 'cmake/**'
+      - 'src/**'
+      - 'samples/**'
+  # pull_request:
+  #   paths:
+  #     - '.github/workflows/code_style.yml'
+  #     - 'cmake/**'
+  #     - 'src/**'
+  #     - 'samples/**'
 
 jobs:
   Smart_CI:

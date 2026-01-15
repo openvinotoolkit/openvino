@@ -10,16 +10,16 @@ on:
     branches:
       - 'master'
       - 'releases/**'
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-    paths:
-      - 'src/bindings/python/**'
-      - 'samples/python/**'
-      - '.github/workflows/py_checks.yml'
+  # pull_request:
+  #   types:
+  #     - opened
+  #     - synchronize
+  #     - reopened
+  #     - ready_for_review
+  #   paths:
+  #     - 'src/bindings/python/**'
+  #     - 'samples/python/**'
+  #     - '.github/workflows/py_checks.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -108,7 +108,7 @@ jobs:
       - name: Run mypy on Python API
         run: python -m mypy ./src/openvino --config-file ./setup.cfg
         working-directory: src/bindings/python
-      
+
       # Run pyright to assert no regressions in type hinting
       - name: Run pyright on Python API
         run: python -m pyright --verbose
@@ -123,4 +123,4 @@ jobs:
                 python -m flake8 "$file" --config= ./setup.cfg
               fi
             fi
-          done            
+          done
