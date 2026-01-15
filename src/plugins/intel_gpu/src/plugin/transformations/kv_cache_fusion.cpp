@@ -129,7 +129,7 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
             if (!target_concat_axis.has_value() || 
                 begin_mask.size() != *target_concat_axis + 1 || 
                 begin_mask.back() != 0 ||
-                std::accumulate(begin_mask.begin(), begin_mask.end(), 0) != *target_concat_axis) {
+                std::accumulate(begin_mask.begin(), begin_mask.end(), static_cast<int64_t>(0)) != *target_concat_axis) {
                 return false;
             }
             const auto slice_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, {concat_axis});
