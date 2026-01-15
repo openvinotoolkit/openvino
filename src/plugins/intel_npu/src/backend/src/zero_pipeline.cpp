@@ -63,7 +63,26 @@ Pipeline::Pipeline(const Config& config,
                         _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
+    bool was_compiled_with_profiling = false;
+
+    auto graphExtVersion = _init_structs->getGraphDdiTable().version();
+    if (ZE_GRAPH_EXT_VERSION_CURRENT < ZE_MAKE_VERSION(1, 16)) {
+        OPENVINO_THROW("We don't know if the model was compiled with profiling");
+    } else {
+        ze_graph_properties_3_t graphProperties = {};
+        graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
+
+        auto result = _init_structs->getGraphDdiTable().pfnGetProperties3(graph->get_handle(), &graphProperties);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _init_structs->getGraphDdiTable());
+
+        was_compiled_with_profiling = graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED;
+    }
+
     if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
+        if (!was_compiled_with_profiling) {
+            OPENVINO_THROW("Blob was not compiled with profiling/PERF_COUNT=YES");
+        }
+
         auto profiling_pool =
             std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
         _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
@@ -77,6 +96,8 @@ Pipeline::Pipeline(const Config& config,
             _npu_profiling =
                 std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
         }
+    } else if (was_compiled_with_profiling) {
+        _logger.warning("ZeroInferRequest::ZeroInferRequest - blob was compiled with profiling but PERF_COUNT is set to 'NO'");
     }
 
     if (!_sync_output_with_fences || (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
