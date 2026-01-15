@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,6 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
     using parent::parent;
     static constexpr int COMMON = 0;
     static constexpr int PER_OC = 2;
-    static constexpr int PER_TENSOR = 7;
-    static constexpr int GROUPED = 3;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::fully_connected_onednn)
 
@@ -31,14 +29,6 @@ private:
     int _ds_group_size;
     dnnl::memory::data_type _ds_data_type;
     dnnl::memory::data_type _dzp_data_type;
-
-    static std::vector<int64_t> reshape_to_2d(const ov::PartialShape& shape, int64_t feature) {
-        auto staticShape = shape.to_shape();
-        size_t total =
-            std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-        std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
-        return reshapeSize;
-    }
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -69,14 +59,14 @@ protected:
             if (prim->decompression_scale.is_valid()) {
                 auto decompression_scale_idx = idx++;
                 auto scale_mem = instance.dep_memory_ptr(decompression_scale_idx);
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(scale_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(scale_mem->get_layout(), dnnl::memory::format_tag::a);
                 args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem->get_onednn_memory(desc)});
             }
 
             if (prim->decompression_zero_point.is_valid()) {
                 auto decompression_zp_idx = idx++;
                 auto zp_mem = instance.dep_memory_ptr(decompression_zp_idx);
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(zp_mem->get_layout(), dnnl::memory::format_tag::a);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
             }
             bool is_dyn_quan_input = instance.get_input_layout(0).data_type == data_types::i8 || instance.get_input_layout(0).data_type == data_types::u8;
@@ -84,55 +74,26 @@ protected:
             if (is_dyn_quan_input && prim->activation_scale.is_valid()) {
                 auto activation_scale_idx = idx++;
                 auto act_scale_mem = instance.dep_memory_ptr(activation_scale_idx);
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_scale_mem->get_layout(), dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(act_scale_mem->get_layout(), dnnl::memory::format_tag::ab);
                 args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC_0, act_scale_mem->get_onednn_memory(desc)});
             }
 
             if (is_dyn_quan_input && prim->activation_zero_point.is_valid()) {
                 auto activation_zp_idx = idx++;
                 auto act_zp_mem = instance.dep_memory_ptr(activation_zp_idx);
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_zp_mem->get_layout(), dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(act_zp_mem->get_layout(), dnnl::memory::format_tag::ab);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC_0, act_zp_mem->get_onednn_memory(desc)});
             }
 
             if (is_dyn_quan_input && prim->activation_precomputed_reduction.is_valid()) {
                 auto activation_precomputed_reduction_idx = idx++;
                 auto act_precomputed_reduction_mem = instance.dep_memory_ptr(activation_precomputed_reduction_idx);
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_precomputed_reduction_mem->get_layout(),
-                                                                        dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(act_precomputed_reduction_mem->get_layout(), dnnl::memory::format_tag::ab);
                 args.insert({DNNL_ARG_ATTR_PRECOMPUTED_REDUCTIONS | DNNL_ARG_SRC_0, act_precomputed_reduction_mem->get_onednn_memory(desc)});
             }
         }
 
         return args;
-    }
-
-    static void transform_layouts(layout& input_layout, layout& weights_layout, layout& output_layout, size_t prim_input_size) {
-        auto input_pshape = input_layout.get_partial_shape();
-        auto weights_pshape = weights_layout.get_partial_shape();
-
-        size_t input_size = (prim_input_size > input_pshape.size()) ? input_pshape.size() : prim_input_size;
-        int64_t feature = input_pshape[std::min(input_size, static_cast<size_t>(4)) - 1].get_length();
-        if (input_size == 3) {
-            feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
-        }
-
-        if (input_size > 3) {
-            input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
-        }
-        if (weights_pshape.size() != 2) {
-            weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
-        }
-        if (input_size == 3) {
-            output_layout.set_partial_shape({ input_layout.batch(), input_layout.feature(), weights_layout.batch(), 1 });
-        } else {
-            output_layout.set_partial_shape({ input_layout.batch(), weights_layout.batch() });
-        }
-
-        if (input_size == 3) {
-            combine_bf_with_first_spatial_dim(input_layout);
-            combine_bf_with_first_spatial_dim(output_layout);
-        }
     }
 
     static std::shared_ptr<dnnl::matmul::primitive_desc>
@@ -197,13 +158,16 @@ protected:
             weights_layout.format = input_layout.format;
         }
 
-        auto use_strides_for_weight_md = (weights_layout.data_padding
-                                         && format::is_default_format(weights_layout.format)
-                                         && (weights_layout.data_type == data_types::i4 || weights_layout.data_type == data_types::u4)) ?
-                                         onednn::mem_flags::use_strides : onednn::mem_flags::None;
+        dnnl::memory::desc weights_md;
+        if (weights_layout.data_padding
+            && format::is_default_format(weights_layout.format)
+            && (weights_layout.data_type == data_types::i4 || weights_layout.data_type == data_types::u4)) {
+            weights_md = onednn::layout_to_memory_desc_strides(weights_layout, weights_fmt);
+        } else {
+            weights_md = onednn::layout_to_memory_desc(weights_layout, weights_fmt);
+        }
 
         dnnl::memory::desc input_md = onednn::layout_to_memory_desc(input_layout, target_fmt);
-        dnnl::memory::desc weights_md = onednn::layout_to_memory_desc(weights_layout, weights_fmt, use_strides_for_weight_md);
         dnnl::memory::desc output_md = onednn::layout_to_memory_desc(output_layout, target_fmt);
 
         if (has_bias) {
@@ -303,7 +267,7 @@ public:
         auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
         int idx = !arg.bias_term() ? 1 : 2;
         int per_oc = PER_OC << shift_size;
-        int grouped = GROUPED | (1 << (prim->input_size - 1));
+        int grouped = (1 << prim->input_size) - 1;
 
         bool has_decompression_scale = prim->decompression_scale.is_valid();
         if (has_decompression_scale) {
@@ -356,7 +320,7 @@ public:
                 _attrs->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
             }
 
-            if (prim->dynamic_quantized_precomputed_reduction) {
+            if (dynamic_quantized_precomputed_reduction) {
                 auto activation_precomputed_reduction_idx = ++idx;
                 auto act_precomputed_reduction_data_type = convert_data_type(impl_params->get_input_layout(activation_precomputed_reduction_idx).data_type);
                 _attrs->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
@@ -401,7 +365,7 @@ public:
             OPENVINO_ASSERT(weight_rank <= 3, "Currently only weights with equal to or less than 3D is supported");
             auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
             int per_oc = PER_OC << shift_size;
-            int grouped = GROUPED | (1 << (prim->input_size - 1));
+            int grouped = (1 << prim->input_size) - 1;
 
             if (prim->decompression_scale.is_valid()) {
                 auto decompression_scale_idx = ++idx;

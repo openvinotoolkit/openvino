@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "openvino/op/cos.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
@@ -57,7 +58,8 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
 
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
 
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>(true);
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>(false);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(4);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(3);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
@@ -86,22 +88,24 @@ static std::shared_ptr<ov::Node> gen_chatglm_const() {
     return wrap_type<v0::Constant>(pred);
 }
 
-ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
+ov::pass::RoPEFusionFlux::RoPEFusionFlux(bool num_heads_transposed) {
     MATCHER_SCOPE(RoPEFusionFlux);
-    // x[?,24,?,128]
-    // x1 = reshape(x, [?,24,?,64,2])
+    // x[?,24,?,128 | [?,?,24,128]]
+    // x1 = reshape(x, [?,24,?,64,2] | [?,?,24,64,2])
     // x1_0, x1_1 = split(x1, -1)
     // x2 = concat(x1_0, x1_1 * (-1), -1)
-    // x3 = reshape(x2, [?,24,?,128])
+    // x3 = reshape(x2, [?,24,?,128] | [?,?,24,128])
     // y1 = x * t_cos
     // y2 = x3 * t_sin
     // y = y1 + y2
-    auto x = pattern::any_input(pattern::rank_equals(4) && pattern::shape_matches("[PRESERVED_DIMS..., head_size]"));
+    std::string num_heads_pattern = num_heads_transposed ? "?, num_heads, ?" : "?, ?, num_heads";
+    auto x =
+        pattern::any_input(pattern::rank_equals(4) && pattern::shape_matches("[" + num_heads_pattern + ", head_size]"));
     auto t_cos = pattern::any_input(pattern::rank_equals(4));
     auto t_sin = pattern::any_input(pattern::rank_equals(4));
 
     auto x1 = pattern::wrap_type<opset1::Reshape>({x, pattern::any_input()},
-                                                  pattern::shape_matches("[PRESERVED_DIMS..., ?, 2]"));
+                                                  pattern::shape_matches("[" + num_heads_pattern + ", ?, 2]"));
     auto split = pattern::wrap_type<opset1::Split>({x1, -1}, {{"num_splits", 2}});
     split->set_output_size(2);
 
@@ -113,7 +117,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
 
     auto x2 = pattern::wrap_type<opset1::Concat>({opt_unsqueeze, split->output(0)}, {{"axis", -1}});
     auto x3 = pattern::wrap_type<opset1::Reshape>({x2, pattern::any_input()},
-                                                  pattern::shape_matches("[PRESERVED_DIMS..., head_size]"));
+                                                  pattern::shape_matches("[" + num_heads_pattern + ", head_size]"));
 
     auto y1 = pattern::wrap_type<opset1::Multiply>({x, t_cos}, {{"auto_broadcast", "numpy"}});
     auto y2 = pattern::wrap_type<opset1::Multiply>({x3, t_sin}, {{"auto_broadcast", "numpy"}});
@@ -125,7 +129,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
         auto root = m.get_match_root();
 
         auto symbols = m.get_symbols();
-        auto num_heads = symbols["PRESERVED_DIMS"].g()[1];
+        auto num_heads = symbols["num_heads"];
         auto head_size = symbols["head_size"];
         if (!num_heads.is_static() || !head_size.is_static()) {
             return false;
@@ -773,6 +777,19 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
     this->register_matcher(m, callback);
 }
 
+static std::shared_ptr<ov::Node> build_ChatGLMHF_interleave_pattern(std::shared_ptr<ov::Node> cos_or_sin) {
+    auto transpose = pattern::wrap_type<ov::op::v1::Transpose>({cos_or_sin, pattern::any_input()});
+    auto reshape = pattern::wrap_type<ov::op::v1::Reshape>({transpose, pattern::any_input()});
+    auto multiply = pattern::wrap_type<ov::op::v1::Multiply>({reshape, pattern::any_input()});
+    auto gather_nd = pattern::wrap_type<ov::op::v8::GatherND>({multiply, pattern::any_input()});
+    auto transpose_1 = pattern::wrap_type<ov::op::v1::Transpose>({gather_nd, pattern::any_input()});
+
+    auto const_idx =
+        pattern::wrap_type<ov::opset1::Constant>(pattern::type_matches(ov::element::i32) && const_idx_predicate);
+    auto gather = pattern::wrap_type<v8::Gather>({cos_or_sin, const_idx, -1}, {{"batch_dims", 0}});
+    return transpose_1 | gather;
+}
+
 ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
     using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionChatGLMHF);
@@ -793,10 +810,8 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
         pattern::output_index_matches(1) && pattern::shape_matches("[?, head_cnt, 1, ndims]"));
     auto slice_1 = NewGenSlice(reshape, 0, "ndims", 1, 3) | vsplit_out0;
 
-    auto const_idx =
-        pattern::wrap_type<ov::opset1::Constant>(pattern::type_matches(ov::element::i32) && const_idx_predicate);
-    auto repeat_interleave_cos = pattern::wrap_type<v8::Gather>({cos, const_idx, -1}, {{"batch_dims", 0}});
-    auto repeat_interleave_sin = pattern::wrap_type<v8::Gather>({sin, const_idx, -1}, {{"batch_dims", 0}});
+    auto repeat_interleave_cos = build_ChatGLMHF_interleave_pattern(cos);
+    auto repeat_interleave_sin = build_ChatGLMHF_interleave_pattern(sin);
 
     auto multiply = pattern::wrap_type<v1::Multiply>({slice_1, repeat_interleave_cos}, {{"auto_broadcast", "numpy"}});
     auto slice_2 = NewGenSlice(slice_1, 1, INT_MAX, 2, 3);

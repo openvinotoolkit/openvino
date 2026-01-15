@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -315,6 +315,8 @@ void Plugin::init_options() {
     REGISTER_OPTION(STEPPING);
     REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
+    REGISTER_OPTION(EXPORT_RAW_BLOB);
+    REGISTER_OPTION(IMPORT_RAW_BLOB);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
     REGISTER_OPTION(WEIGHTLESS_BLOB);
@@ -322,6 +324,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(USE_BASE_MODEL_SERIALIZER);
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
+    REGISTER_OPTION(ENABLE_STRIDES_FOR);
 
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
@@ -382,6 +385,8 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE);
     REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS);
     REGISTER_OPTION(NPUW_WHISPER);
+    REGISTER_OPTION(NPUW_EAGLE);
+    REGISTER_OPTION(NPUW_TEXT_EMBED);
     REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
     REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_PREFILL_CONFIG);
@@ -392,6 +397,9 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_GENERATE_ATTENTION_HINT);
     REGISTER_OPTION(NPUW_LLM_SHARED_LM_HEAD_CONFIG);
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
+    REGISTER_OPTION(NPUW_KOKORO);
+    REGISTER_OPTION(NPUW_KOKORO_BLOCK_SIZE);
+    REGISTER_OPTION(NPUW_KOKORO_OVERLAP_SIZE);
 
     _globalConfig.enableRuntimeOptions();
 
@@ -671,8 +679,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
 
-    const auto set_cache_dir = localConfig.get<CACHE_DIR>();
-    if (!set_cache_dir.empty()) {
+    const auto setCacheDir = localConfig.get<CACHE_DIR>();
+    if (!setCacheDir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
         if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
             OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
@@ -724,6 +732,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         // Process batching
         std::tie(batchedModel, successfullyDebatched) =
             intel_npu::batch_helpers::handlePluginBatching(model, localConfig, updateBatchMode, originalBatch, _logger);
+    }
+
+    if (localConfig.has(ov::intel_npu::enable_strides_for.name())) {
+        if (model->is_dynamic()) {
+            OPENVINO_ASSERT(
+                !intel_npu::batch_helpers::checkModelDynamicDims(model),
+                "Dynamic shape tensors are not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
+
+            OPENVINO_ASSERT(successfullyDebatched || !localConfig.isAvailable(ov::intel_npu::batch_mode.name()) ||
+                                localConfig.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER,
+                            "Dynamic batching is not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
+        }
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
@@ -893,19 +913,25 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     try {
         const bool skipCompatibility =
-            npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end() &&
-            npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>() == true;
+            (npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end())
+                ? npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
+                : _globalConfig.get<DISABLE_VERSION_CHECK>();
+        const bool importRawBlob =
+            (npu_plugin_properties.find(IMPORT_RAW_BLOB::key().data()) != npu_plugin_properties.end())
+                ? npu_plugin_properties[IMPORT_RAW_BLOB::key().data()].as<bool>()
+                : _globalConfig.get<IMPORT_RAW_BLOB>();
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = MetadataBase::getFileSize(stream);
-        if (!skipCompatibility) {
+
+        if (!importRawBlob && !skipCompatibility) {
             // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
             // passes compatibility checks.
             metadata = read_metadata_from(stream);
-            if (!metadata->is_compatible()) {
-                OPENVINO_THROW("Incompatible blob version!");
-            }
             blobSize = metadata->get_blob_size();
+        } else {
+            _logger.info("Blob compatibility check skipped.");
         }
+
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
@@ -948,16 +974,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
 
     try {
         const bool skipCompatibility =
-            npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end() &&
-            npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>() == true;
+            (npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end())
+                ? npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
+                : _globalConfig.get<DISABLE_VERSION_CHECK>();
+        const bool importRawBlob =
+            (npu_plugin_properties.find(IMPORT_RAW_BLOB::key().data()) != npu_plugin_properties.end())
+                ? npu_plugin_properties[IMPORT_RAW_BLOB::key().data()].as<bool>()
+                : _globalConfig.get<IMPORT_RAW_BLOB>();
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = compiled_blob.get_byte_size();
-        if (!skipCompatibility) {
+
+        if (!importRawBlob && !skipCompatibility) {
             metadata = read_metadata_from(compiled_blob);
-            if (!metadata->is_compatible()) {
-                OPENVINO_THROW("Incompatible blob version!");
-            }
             blobSize = metadata->get_blob_size();
+        } else {
+            _logger.info("Blob compatibility check skipped.");
         }
         const ov::Tensor roiTensor(compiled_blob,
                                    ov::Coordinate{0},
@@ -1043,7 +1074,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ov::SupportedOpsMap supportedOpsMap;
     try {
-        supportedOpsMap = compiler->query(model, localConfig);
+        supportedOpsMap = compiler->query(model->clone(), localConfig);
     } catch (const std::runtime_error& e) {
         OPENVINO_THROW(e.what());
     } catch (...) {
@@ -1101,9 +1132,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         _logger.info("Blob compatibility check skipped.");
     }
 
-    ov::Tensor tensorMain(tensorBig,
-                          ov::Coordinate{0},
-                          ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
+    const ov::Tensor tensorMain(tensorBig,
+                                ov::Coordinate{0},
+                                ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
 
     std::vector<ov::Tensor> tensorsInits;
     const bool weightsSeparationEnabled = initSizes.has_value();
@@ -1112,7 +1143,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         // Read the init compiled models as well
         size_t cursorPosition = mainSize;
         for (uint64_t initSize : initSizes.value()) {
-            ov::Tensor tensorInit(tensorBig, ov::Coordinate{cursorPosition}, ov::Coordinate{cursorPosition + initSize});
+            const ov::Tensor tensorInit(tensorBig,
+                                        ov::Coordinate{cursorPosition},
+                                        ov::Coordinate{cursorPosition + initSize});
             tensorsInits.push_back(tensorInit);
             cursorPosition += initSize;
         }
@@ -1149,9 +1182,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         check_weightless_cache_attribute_occurrence(originalModel);
     }
 
-    auto graph = compiler->parse(std::move(tensorMain),
+    const std::optional<std::vector<ov::Tensor>> initBlobs =
+        weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt;
+
+    auto graph = compiler->parse(tensorMain,
                                  localConfig,
-                                 weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt,
+                                 initBlobs,
                                  weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));

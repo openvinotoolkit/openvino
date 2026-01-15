@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,12 @@
 #include <vector>
 
 #include "../attention.hpp"
+#include "../host_flash_attention.hpp"
 #include "../lazy_tensor.hpp"
 #include "../pyramid_attention.hpp"
 #include "../spatial.hpp"
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
 
 namespace ov {
@@ -34,7 +36,6 @@ struct Subgraph {
     bool _optimized_out = false;
 
     std::string _avoid_list;
-    std::string _tag;
 
     // Function calls only (note: all the above fields are not used)
     //
@@ -73,14 +74,23 @@ struct Subgraph {
     QuantUnpackGather _quant_unpack_gather;
 
     using Ref = std::reference_wrapper<Subgraph>;
+
+    void settag(const std::string& t) {
+        LOG_DEBUG("Subgraph set-tag=" << t);
+        _tag = t;
+    }
+    std::string gettag() const {
+        return _tag;
+    }
+
+private:
+    std::string _tag;
 };
 
 struct Function {
     std::shared_ptr<ov::Model> _model;
     std::size_t _param_offset;
     std::size_t _num_params_total;
-
-    std::string _tag;  // derived from the partitioning
 
     // Mapping: from a prototype {Layer/input_idx} to {param_idx}
     // NOTE: it seems it is required only for `matchRepeatedSubgraphs()'
@@ -91,10 +101,22 @@ struct Function {
     std::optional<ov::npuw::function::Attention> _attention;
     // Multiple attention graphs with different shapes
     std::optional<ov::npuw::function::PyramidAttention> _pyramid_attention;
+    // Host Flash Attention
+    std::optional<ov::npuw::function::HostFlashAttention> _host_flash_attention;
     // FIXME: They should exclude each other (introduce a hierarchy, finally?)
-
     // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
     std::set<std::size_t> _idx_lazy_unpack;
+
+    void settag(const std::string& t) {
+        LOG_DEBUG("Function set-tag=" << t);
+        _tag = t;
+    }
+    std::string gettag() const {
+        return _tag;
+    }
+
+private:
+    std::string _tag;  // derived from the partitioning
 };
 
 struct Group {
@@ -106,7 +128,6 @@ struct Group {
     float gflops;
 
     std::string avoid_list;
-    std::string tag;
 
     // Set to true if the Group was forcibly turned to functon. Such
     // function has just a single associated funcall and are subjects
@@ -114,6 +135,17 @@ struct Group {
     bool forced_to_fcall = false;
 
     ov::npuw::Subgraph sg;
+
+    void settag(const std::string& t) {
+        LOG_DEBUG("group set-tag=" << t);
+        _tag = t;
+    }
+    std::string gettag() const {
+        return _tag;
+    }
+
+private:
+    std::string _tag;
 };
 
 struct RepeatedBlock {
@@ -126,6 +158,7 @@ struct RepeatedBlock {
 
 struct Ensemble {
     float gflops;
+    bool irregular_results;
     std::vector<Group> groups;
 
     // Just a map as I don't expect 100s of _different_

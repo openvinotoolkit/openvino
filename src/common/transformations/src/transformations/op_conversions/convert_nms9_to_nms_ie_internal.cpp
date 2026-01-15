@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,9 +14,9 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/util/node_util.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
-#include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
     MATCHER_SCOPE(ConvertNMS9ToNMSIEInternal);
@@ -110,18 +110,14 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
         Output<Node> output_0 = nms_legacy->output(0);
         if (nms_9->output(0).get_element_type() != output_0.get_element_type()) {
             output_0 = std::make_shared<ov::op::v0::Convert>(output_0, nms_9->output(0).get_element_type());
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            output_0.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms_9->output(0)));
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            output_0.get_node_shared_ptr()->set_friendly_name(ov::util::make_default_tensor_name(nms_9->output(0)));
             new_ops.emplace_back(output_0.get_node_shared_ptr());
         }
 
         Output<Node> output_2 = nms_legacy->output(2);
         if (nms_9->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<ov::op::v0::Convert>(output_2, nms_9->output(2).get_element_type());
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            output_2.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms_9->output(2)));
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            output_2.get_node_shared_ptr()->set_friendly_name(ov::util::make_default_tensor_name(nms_9->output(2)));
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 

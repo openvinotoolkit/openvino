@@ -791,17 +791,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- C#165445 -->
-    <skip_config>
-        <message>OVBlobCompatibilityNPU tests designed for NPU3720</message>
-        <enable_rules>
-            <device>!3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*OVBlobCompatibilityNPU.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#170977 -->
     <skip_config>
         <message>Data type u1/u2 not supported by NPU3720.</message>
@@ -841,6 +830,13 @@ Example:
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_INFO.*</filter>
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_DEBUG.*</filter>
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_TRACE.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Strides are not supported with the current driver</message>
+        <filters>
+            <filter>.*RoiTensorsTestsRun.*</filter>
         </filters>
     </skip_config>
 

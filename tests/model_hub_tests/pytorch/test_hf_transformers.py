@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -53,7 +53,9 @@ class TestTransformersModel(TestTorchConvertModel):
         self.infer_timeout = 1800
 
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
-        self.image = Image.open(requests.get(url, stream=True).raw)
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        self.image = Image.open(response.raw)
 
     @retry(10, exceptions=(OSError,), delay=5, exponential_backoff=True, backoff_multiplier=2, max_delay=300)
     def load_model(self, name, type):

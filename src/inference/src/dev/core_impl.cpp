@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -396,9 +396,11 @@ ov::Parsed parse_device_config(const std::string& device_name,
     return parsed;
 }
 
-void emplace_cache_dir_if_supported(ov::AnyMap& config, const ov::Plugin& plugin, const std::string& cache_dir) {
+void emplace_cache_dir_if_supported(ov::AnyMap& config,
+                                    const ov::Plugin& plugin,
+                                    const std::filesystem::path& cache_dir) {
     if (ov::util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir)) {
-        config.emplace(ov::cache_dir(cache_dir));
+        config.emplace(ov::cache_dir(ov::util::path_to_string(cache_dir)));
     }
 }
 }  // namespace
@@ -597,22 +599,19 @@ void ov::CoreImpl::register_compile_time_plugins() {
     }
 }
 
-void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path) {
+void ov::CoreImpl::register_plugins_in_registry(const std::filesystem::path& xml_config_file, const bool by_abs_path) {
     using namespace ov::util;
-    auto parse_result = pugixml::parse_xml(xml_config_file.c_str());
-    if (!parse_result.error_msg.empty()) {
-        OPENVINO_THROW(parse_result.error_msg);
-    }
+    const auto parse_result = pugixml::parse_xml(xml_config_file);
+    OPENVINO_ASSERT(parse_result.error_msg.empty(), parse_result.error_msg);
 
-    pugi::xml_document& xml_doc = *parse_result.xml;
-
-    pugi::xml_node ie_node = xml_doc.document_element();
-    pugi::xml_node devices_node = ie_node.child("plugins");
+    const auto& xml_doc = *parse_result.xml;
+    const auto ie_node = xml_doc.document_element();
+    const auto devices_node = ie_node.child("plugins");
 
     std::lock_guard<std::mutex> lock(get_mutex());
 
-    FOREACH_CHILD (pluginNode, devices_node, "plugin") {
-        std::string device_name = pugixml::get_str_attr(pluginNode, "name");
+    FOREACH_CHILD (plugin_node, devices_node, "plugin") {
+        const auto device_name = pugixml::get_str_attr(plugin_node, "name");
         if (m_plugin_registry.find(device_name) != m_plugin_registry.end()) {
             OPENVINO_THROW("Device with \"", device_name, "\"  is already registered in the OpenVINO Runtime");
         }
@@ -620,39 +619,29 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
             OPENVINO_THROW("Device name must not contain dot '.' symbol");
         }
 
-        const auto& plugin_path =
-            ov::util::get_plugin_path(ov::util::make_path(pugixml::get_str_attr(pluginNode, "location")),
-                                      ov::util::make_path(xml_config_file),
-                                      by_abs_path);
+        PluginDescriptor plugin_desc{
+            get_plugin_path(make_path(pugixml::get_str_attr(plugin_node, "location")), xml_config_file, by_abs_path)};
 
         // check properties
-        auto propertiesNode = pluginNode.child("properties");
-        ov::AnyMap config;
-
-        if (propertiesNode) {
-            FOREACH_CHILD (propertyNode, propertiesNode, "property") {
-                std::string key = pugixml::get_str_attr(propertyNode, "key");
-                std::string value = pugixml::get_str_attr(propertyNode, "value");
-                config[key] = value;
+        const auto properties_node = plugin_node.child("properties");
+        if (properties_node) {
+            FOREACH_CHILD (property_node, properties_node, "property") {
+                const auto key = pugixml::get_str_attr(property_node, "key");
+                plugin_desc.m_default_config[key] = pugixml::get_str_attr(property_node, "value");
             }
         }
 
         // check extensions
-        auto extensionsNode = pluginNode.child("extensions");
-        std::vector<ov::util::FilePath> listOfExtentions;
-
-        if (extensionsNode) {
-            FOREACH_CHILD (extensionNode, extensionsNode, "extension") {
-                const auto extension_location = pugixml::get_str_attr(extensionNode, "location");
-                listOfExtentions.push_back(ov::util::make_path(extension_location));
+        const auto extensions_node = plugin_node.child("extensions");
+        if (extensions_node) {
+            FOREACH_CHILD (extension_node, extensions_node, "extension") {
+                const auto extension_location = pugixml::get_str_attr(extension_node, "location");
+                plugin_desc.m_list_of_extensions.push_back(make_path(extension_location));
             }
         }
 
         // fill value in plugin registry for later lazy initialization
-        {
-            PluginDescriptor desc{plugin_path, config, listOfExtentions};
-            register_plugin_in_registry_unsafe(device_name, desc);
-        }
+        register_plugin_in_registry_unsafe(device_name, plugin_desc);
     }
 }
 
@@ -704,7 +693,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
             desc.m_plugin_create_func(plugin_impl);
             plugin = Plugin{plugin_impl, {}};
         } else {
-            so = ov::util::load_shared_object(desc.m_lib_location.c_str());
+            so = ov::util::load_shared_object(desc.m_lib_location);
             std::shared_ptr<ov::IPlugin> plugin_impl;
             reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
             const auto& plugin_name = plugin_impl->get_device_name();
@@ -712,7 +701,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
             // Check that device plugin name is the same as requested for HW plugins
             if (!plugin_name.empty() && !ov::is_virtual_device(plugin_name)) {
                 OPENVINO_ASSERT(device_name.find(plugin_name) != std::string::npos,
-                                ov::util::path_to_string(desc.m_lib_location),
+                                desc.m_lib_location,
                                 " is used for ",
                                 device_name,
                                 " , while it contains implementation for ",
@@ -820,7 +809,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
         return m_plugins.emplace(device_name, plugin).first->second;
     } catch (const ov::Exception& ex) {
         OPENVINO_THROW("Failed to create plugin ",
-                       ov::util::path_to_string(desc.m_lib_location),
+                       desc.m_lib_location,
                        " for device ",
                        device_name,
                        "\n",
@@ -851,9 +840,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
-        CacheContent cache_content{cache_manager,
-                                   parsed.m_core_config.get_enable_mmap(),
-                                   get_cache_model_path(config).string()};
+        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config)};
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
         cache_content.model = model;
@@ -898,9 +885,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
-        CacheContent cache_content{cache_manager,
-                                   parsed.m_core_config.get_enable_mmap(),
-                                   get_cache_model_path(config).string()};
+        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config)};
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
         cache_content.model = model;
@@ -929,9 +914,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CoreConfig::remove_core(parsed.m_config);
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
-        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), model_path};
+        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), util::make_path(model_path)};
         cache_content.m_blob_id =
-            ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed.m_config));
+            ov::ModelCache::compute_hash(cache_content.m_model_path, create_compile_config(plugin, parsed.m_config));
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
         compiled_model = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
             const auto model =
@@ -1266,7 +1251,7 @@ ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
         const auto flag = ov::threading::executor_manager()->get_property(name).as<bool>();
         return decltype(ov::force_tbb_terminate)::value_type(flag);
     } else if (name == ov::cache_dir.name()) {
-        return ov::Any(m_core_config.get_cache_dir());
+        return ov::Any(util::path_to_string(m_core_config.get_cache_dir()));
     } else if (name == ov::enable_mmap.name()) {
         const auto flag = m_core_config.get_enable_mmap();
         return decltype(ov::enable_mmap)::value_type(flag);
@@ -1296,7 +1281,8 @@ ov::Any ov::CoreImpl::get_property(const std::string& device_name,
     if (parsed.m_device_name.empty()) {
         return get_property_for_core(name);
     } else if (name == ov::cache_dir.name()) {
-        return m_core_config.get_cache_config_for_device(get_plugin(parsed.m_device_name)).m_cache_dir;
+        return util::path_to_string(
+            m_core_config.get_cache_config_for_device(get_plugin(parsed.m_device_name)).m_cache_dir);
     }
     return get_plugin(parsed.m_device_name).get_property(name, parsed.m_config);
 }
@@ -1495,7 +1481,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                                                         ov::ModelCache::calculate_file_info(cacheContent.m_model_path),
                                                         compiled_model_runtime_properties,
                                                         header_size_alignment);
-
                 compiled_model->export_model(networkStream);
             });
         } catch (...) {
@@ -1584,7 +1569,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     weights_path.replace_extension(".bin");
 
                     if (ov::util::file_exists(weights_path)) {
-                        update_config[ov::weights_path.name()] = weights_path.string();
+                        update_config[ov::weights_path.name()] = util::path_to_string(weights_path);
                     }
                 }
 
@@ -1666,7 +1651,7 @@ ov::CoreConfig::CoreConfig(const CoreConfig& other) {
 
 void ov::CoreConfig::set(const ov::AnyMap& config, const std::string& device_name) {
     if (const auto cfg_entry = config.find(ov::cache_dir.name()); cfg_entry != config.end()) {
-        const auto& cache_dir = cfg_entry->second.as<std::string>();
+        const auto cache_dir = util::make_path(cfg_entry->second.as<std::string>());
         if (std::lock_guard<std::mutex> lock(m_cache_config_mutex); device_name.empty()) {
             // fill global cache config
             m_cache_config = CoreConfig::CacheConfig::create(cache_dir);
@@ -1699,7 +1684,7 @@ void ov::CoreConfig::remove_core(ov::AnyMap& config) {
     }
 }
 
-std::string ov::CoreConfig::get_cache_dir() const {
+std::filesystem::path ov::CoreConfig::get_cache_dir() const {
     std::lock_guard<std::mutex> lock(m_cache_config_mutex);
     return m_cache_config.m_cache_dir;
 }
@@ -1714,10 +1699,10 @@ ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov
                                                            : m_cache_config;
 }
 
-ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::string& dir) {
+ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::filesystem::path& dir) {
     CacheConfig cache_config{dir, nullptr};
     if (!dir.empty()) {
-        ov::util::create_directory_recursive(ov::util::make_path(dir));
+        ov::util::create_directory_recursive(dir);
         cache_config.m_cache_manager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
     return cache_config;
