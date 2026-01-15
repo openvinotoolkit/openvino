@@ -1421,8 +1421,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                      is_paged_attention,
                                      is_prefill);
         break;
-    case gpu_arch::xe2:
-    case gpu_arch::xe3: {
+    default: {
         config = choose_config_xe2(static_cast<int32_t>(k_head_size),
                                    static_cast<int32_t>(nkeys_v),
                                    thin_q,
@@ -1432,8 +1431,6 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                    is_prefill);
         break;
     }
-    default:
-        break;
     }
 
     OPENVINO_ASSERT(config != nullptr);
