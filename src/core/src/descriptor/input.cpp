@@ -31,7 +31,7 @@ ov::descriptor::Input::~Input() {
 }
 
 void ov::descriptor::Input::replace_output(Output& new_output) {
-    // Save old bounds BEFORE remove_input() because the old output's node may be destroyed
+    // Save old bounds before remove_input() because the old output's node may be destroyed
     // after we disconnect (if this was the last reference to it)
     ov::Tensor old_lower, old_upper;
     if (m_output != nullptr) {
