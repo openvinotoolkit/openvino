@@ -1025,7 +1025,7 @@ def test_string_constant_shared_memory_warning(capfd):
     assert result == ["hello", "world"]
 
     captured = capfd.readouterr()
-    # assert "Creating a String Constant with shared memory is not supported. Data will be copied" in captured.err
+    assert "Creating a String Constant with shared memory is not supported. Data will be copied" in captured.out
 
 
 def test_string_constant_unicode():
