@@ -132,6 +132,9 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
             }
         }
         model->remove_parameter(beam_idx);
+    } else {
+        OPENVINO_THROW(
+            "Stateful models without `beam_idx` input are not supported in StatefulToStateless transformation");
     }
 
     // Process ReadValues that are NOT connected via beam_idx (e.g., Conv caches in LFM2)
