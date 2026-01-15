@@ -147,6 +147,7 @@ offer a limited set of supported OpenVINO features.
          ov::intel_npu::qdq_optimization
          ov::intel_npu::qdq_optimization_aggressive
          ov::intel_npu::turbo
+         ov::intel_npu::platform
          ov::intel_npu::tiles
          ov::intel_npu::max_tiles
          ov::intel_npu::bypass_umd_caching

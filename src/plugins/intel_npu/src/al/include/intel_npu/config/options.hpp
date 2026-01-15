@@ -249,7 +249,7 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
 #endif
 
     static bool isPublic() {
-        return false;
+        return true;
     }
 
     static uint32_t compilerSupportVersion() {
