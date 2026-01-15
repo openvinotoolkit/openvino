@@ -517,11 +517,13 @@ void program::init_graph() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::init_graph");
     apply_opt_pass<graph_initializations>();
 
-    apply_opt_pass<mark_nodes>();
     for (auto& node : processing_order) {
         if (!node->is_type<data>())
             node->get_output_layouts();
     }
+
+    apply_opt_pass<mark_nodes>();
+
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
 }
