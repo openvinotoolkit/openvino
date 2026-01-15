@@ -888,7 +888,8 @@ class PagedAttnVSRefPluginTest : public PagedAttnTestBase {
 public:
     std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
                                              ov::Dimension::value_type head_size = 64,
-                                             ov::Dimension::value_type head_num = 8) override {
+                                             ov::Dimension::value_type head_num = 8,
+                                            bool use_sink_input = false) override {
         // Use default model
         const auto& model = get_model(data_type, head_size, head_num);
         return model;
@@ -978,7 +979,7 @@ TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
 
 TEST_P(PagedAttnVSRefPluginTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices, additional_config] = this->GetParam();
+    const auto& [inType, inputShapes, extendBlockIndices,  enableXattn, sinkInput, slidingWindow, additional_config] = this->GetParam();
     const bool isSageAttn = intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
