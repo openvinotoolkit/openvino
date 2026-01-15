@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,13 +8,24 @@
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "model_generator/model_generator.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/openvino.hpp"
 #include "partitioning/online/compiler.hpp"
 #include "partitioning/online/group.hpp"
 #include "partitioning/online/snapshot.hpp"
-#include "model_generator/model_generator.hpp"
+
+namespace {
+
+::intel_npu::Config createConfigWithKeepBlockSize(std::size_t size) {
+    auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
+    auto cfg = ::intel_npu::Config(opt_desc);
+    ::intel_npu::registerNPUWOptions(*opt_desc);
+    std::map<std::string, std::string> cfg_map = {{"NPUW_ONLINE_KEEP_BLOCK_SIZE", std::to_string(size)}};
+    cfg.update(cfg_map);
+    return cfg;
+}
 
 bool isEqualEns(ov::npuw::Ensemble& ens1, ov::npuw::Ensemble& ens2);
 bool isEqualEns(ov::npuw::Ensemble& ens1, ov::npuw::Ensemble& ens2) {
@@ -89,16 +100,15 @@ bool isEqualEns(ov::npuw::Ensemble& ens1, ov::npuw::Ensemble& ens2) {
     return true;
 }
 
+class IsRegularResultCaseParametrized : public ::testing::TestWithParam<std::tuple<std::vector<std::size_t>, bool>> {};
+
+};  // namespace
+
 TEST(OnlinePartitioningTest, Partitioning_IsTheSame_SmallModel) {
     ModelGenerator mg;
     auto model = mg.get_model_without_repeated_blocks();
 
-    auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
-    auto cfg = ::intel_npu::Config(opt_desc);
-    ::intel_npu::registerNPUWOptions(*opt_desc);
-    std::map<std::string, std::string> cfg_map = {{"NPUW_ONLINE_KEEP_BLOCK_SIZE", "9"}};
-    cfg.update(cfg_map);
-
+    auto cfg = createConfigWithKeepBlockSize(9);
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
 
     for (size_t i = 0; i < 100; ++i) {
@@ -111,12 +121,7 @@ TEST(OnlinePartitioningTest, Partitioning_IsTheSame_RepeatedModel) {
     ModelGenerator mg;
     auto model = mg.get_model_with_repeated_blocks();
 
-    auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
-    auto cfg = ::intel_npu::Config(opt_desc);
-    ::intel_npu::registerNPUWOptions(*opt_desc);
-    std::map<std::string, std::string> cfg_map = {{"NPUW_ONLINE_KEEP_BLOCK_SIZE", "9"}};
-    cfg.update(cfg_map);
-
+    auto cfg = createConfigWithKeepBlockSize(9);
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
 
     for (size_t i = 0; i < 100; ++i) {
@@ -527,7 +532,8 @@ TEST(OnlinePartitioningTest, Partitioning_Compiler_Compute_RepeatedModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_Avoids_Pipeline_None) {
-    std::shared_ptr<ov::op::v0::Parameter> input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    std::shared_ptr<ov::op::v0::Parameter> input =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
     input->set_friendly_name("input");
 
     auto n1 = std::make_shared<ov::op::v1::Add>(input, input);
@@ -563,3 +569,58 @@ TEST(OnlinePartitioningTest, Partitioning_Avoids_Pipeline_None) {
 
     EXPECT_EQ(ens.groups.size(), 3);
 }
+
+TEST(OnlinePartitioningTest, IsRegularResultCaseMultipleOutputs) {
+    ModelGenerator mg;
+    std::vector<std::pair<std::shared_ptr<ov::Model>, bool>> model_expected = {
+        {mg.get_model_with_multi_output_repeating_blocks(10, /*irregular_results=*/true), /*irregular_results=*/true},
+        {mg.get_model_with_multi_output_repeating_blocks(10, /*irregular_results=*/false),
+         /*irregular_results=*/false}};
+
+    for (auto [model, expected_result] : model_expected) {
+        auto cfg = createConfigWithKeepBlockSize(3);
+        auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+        EXPECT_EQ(ens.irregular_results, expected_result);
+    }
+}
+
+TEST(OnlinePartitioningTest, IsRegularResultCaseWhenNoRB) {
+    bool expected_result = false;
+
+    ModelGenerator mg;
+    std::vector<std::shared_ptr<ov::Model>> models = {mg.get_model_with_one_op(),
+                                                      mg.get_model_without_repeated_blocks()};
+
+    for (auto model : models) {
+        auto cfg = createConfigWithKeepBlockSize(9);
+        auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+        EXPECT_EQ(ens.irregular_results, expected_result);
+    }
+}
+
+TEST_P(IsRegularResultCaseParametrized, CheckForDifferentResultConfigs) {
+    auto [block_indices, expected_result] = GetParam();
+
+    ModelGenerator mg;
+    auto model = mg.get_model_with_repeated_blocks_and_results(10, block_indices);
+
+    auto cfg = createConfigWithKeepBlockSize(9);
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_EQ(ens.irregular_results, expected_result);
+}
+
+INSTANTIATE_TEST_SUITE_P(OnlinePartitioningTest,
+                         IsRegularResultCaseParametrized,
+                         ::testing::Values(
+                             // All blocks have an ov::Result consumer
+                             std::make_tuple(std::vector<std::size_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+                                             /*irregular_results=*/false),
+                             // Some blocks have an ov::Result consumer
+                             std::make_tuple(std::vector<std::size_t>{2, 5, 8}, /*irregular_results=*/true),
+                             // Only last block has an additional ov::Result consumer
+                             std::make_tuple(std::vector<std::size_t>{9}, /*irregular_results=*/true),
+                             // No blocks have additional ov::Result consumers
+                             std::make_tuple(std::vector<std::size_t>{}, /*irregular_results=*/false)));
