@@ -15,6 +15,7 @@
 #include <cctype>
 #include <iomanip>
 #include <istream>
+#include <limits>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -150,6 +151,20 @@ class Property : public util::BaseProperty<T, mutability_> {
                                               !std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
+            using UType = typename std::decay<U>::type;
+            using VType = typename std::decay<V>::type;
+
+            if constexpr (std::is_integral<UType>::value && std::is_unsigned<UType>::value &&
+                          std::is_integral<VType>::value && std::is_signed<VType>::value) {
+                if (value < 0) {
+                    OPENVINO_THROW("Bad cast from signed negative value to unsigned property value: ", value);
+                }
+                if (static_cast<unsigned long long>(value) >
+                    static_cast<unsigned long long>(std::numeric_limits<UType>::max())) {
+                    OPENVINO_THROW("Bad cast (out of range) from ", value, " to: ", typeid(UType).name());
+                }
+            }
+
             return value;
         }
 
