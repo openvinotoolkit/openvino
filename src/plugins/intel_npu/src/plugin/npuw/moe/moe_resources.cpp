@@ -20,15 +20,35 @@ void MoEResources::initialize_shared(
     LOG_DEBUG("Initializing shared MoE resources...");
     LOG_BLOCK();
 
-    // Pre-sort chunk sizes in descending order for greedy selection
+    // Step 1: Create infer requests and collect chunk sizes
+    LOG_DEBUG("Creating infer requests for chunk size models...");
     sorted_chunk_sizes.clear();
+    chunk_infer_requests.clear();
     sorted_chunk_sizes.reserve(config.compiled_models.size());
-    for (const auto& entry : config.compiled_models) {
-        sorted_chunk_sizes.push_back(entry.first);
-    }
-    std::sort(sorted_chunk_sizes.begin(), sorted_chunk_sizes.end(), std::greater<size_t>());
 
-    LOG_DEBUG("Sorted chunk sizes: " << sorted_chunk_sizes.size() << " entries");
+    for (const auto& entry : config.compiled_models) {
+        const size_t chunk_size = entry.first;
+        const auto& compiled_model = entry.second;
+
+        if (!compiled_model) {
+            LOG_WARN("Compiled model for chunk_size=" << chunk_size << " is null, skipping...");
+            continue;
+        }
+
+        try {
+            auto infer_request = compiled_model->create_infer_request();
+            chunk_infer_requests[chunk_size] = std::move(infer_request);
+            sorted_chunk_sizes.push_back(chunk_size);
+            LOG_DEBUG("  Created infer request for chunk_size=" << chunk_size);
+        } catch (const std::exception& ex) {
+            LOG_ERROR("Failed to create infer request for chunk_size=" << chunk_size << ": " << ex.what());
+            OPENVINO_THROW("MoE chunk infer request creation failed for chunk_size=", chunk_size, ": ", ex.what());
+        }
+    }
+
+    // Step 2: Sort chunk sizes in descending order for greedy selection
+    std::sort(sorted_chunk_sizes.begin(), sorted_chunk_sizes.end(), std::greater<size_t>());
+    LOG_DEBUG("Created " << chunk_infer_requests.size() << " chunk infer requests with sorted sizes");
 
     // Allocate output buffer for prefill mode
     const size_t active_experts = config.num_active_experts;

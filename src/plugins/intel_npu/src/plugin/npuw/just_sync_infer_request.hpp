@@ -122,15 +122,6 @@ protected:
 
     void run_hfa_tiled_inference(std::size_t real_idx, std::size_t idx);
 
-    // MoE inference functions
-    void run_moe_infer(std::size_t real_idx, std::size_t idx);
-    void run_moe_batch_experts_inference(std::size_t idx,
-                                         std::size_t real_idx,
-                                         const std::vector<size_t>& selected_experts);
-    void run_moe_iterative_experts_inference(std::size_t idx,
-                                             std::size_t real_idx,
-                                             const std::vector<size_t>& selected_experts);
-
     // HFA helper functions
     static void hfa_extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
                                           const ov::SoPtr<ov::ITensor>& dest_tensor,
@@ -145,12 +136,6 @@ protected:
                                                int64_t sequence_offset,
                                                int64_t tile_length);
 
-    // MoE helper functions
-    void set_unrolled_router_scores(std::size_t idx,
-                                    std::size_t real_idx,
-                                    const std::vector<size_t>& selected_experts,
-                                    RqPtr& request);
-
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
 
@@ -162,9 +147,6 @@ protected:
                                   bool is_piped,
                                   bool is_recreate,
                                   bool enable_hfa_optimizations = true);
-
-    // Helper function to setup MoE expert infer requests
-    void setup_moe_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate);
 
     FuncMemMgr m_func_mem_mgr;                       // Owns memory
     std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
