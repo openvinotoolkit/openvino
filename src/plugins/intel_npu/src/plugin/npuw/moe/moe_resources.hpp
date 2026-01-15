@@ -22,67 +22,76 @@ using ov::npuw::util::TensorPtr;
 /**
  * @brief MoE runtime resources for reusable allocations across inferences
  *
- * Manages resources that are allocated once and reused across multiple
- * inference calls. Resources are organized into:
- * - Per-sublayer resources: Request cache (each function call has independent cache)
- * - Shared resources: Sorted chunk sizes and output buffer (shared by all function calls)
+ * Resources are mode-specific:
+ * - Prefill mode (input_token_count > 1): Uses chunk_infer_requests + expert_output_accumulator
+ * - Decoding mode (input_token_count = 1): Uses request_cache only
  *
- * Design rationale:
- * - request_caches is per-sublayer because each function call may have different closures
- * - sorted_chunk_sizes is shared because all function calls use the same compiled models
- * - expert_output_accumulator is shared because JustInferRequest executes synchronously (no concurrent access)
+ * Each JustInferRequest (prefill or decoding) has independent MoEResources.
+ * Resources are initialized once and reused across multiple inference calls.
  */
 struct MoEResources {
-    // Single request cache managing all sublayers (decoding mode optimization)
-    // Created on first initialize_cache() call with total number of sublayers
+    // ============================================================================
+    // DECODING MODE ONLY (nullptr/empty in prefill mode)
+    // ============================================================================
+
+    // Request cache for expert combination caching (decoding optimization)
+    // Created only when pool_size > 0 and is_decoding() = true
     std::unique_ptr<ov::npuw::moe::RequestCache> request_cache;
+
+    // ============================================================================
+    // PREFILL MODE ONLY (nullptr/empty in decoding mode)
+    // ============================================================================
 
     // Pre-sorted chunk sizes in descending order for greedy selection
     // Example: [256, 128, 64, 32, 16]
-    // Used in prefill mode to efficiently select chunk sizes
-    // SHARED by all function calls
+    // Used to select optimal chunk size for token batches
     std::vector<size_t> sorted_chunk_sizes;
 
-    // Prefill mode infer requests for different chunk sizes
+    // Infer requests for different chunk sizes
     // Map: chunk_size -> infer_request
-    // Created once during initialization, reused across all inferences
-    // SHARED by all function calls
+    // Reused across experts by unpacking different weights
     std::map<size_t, ov::SoPtr<ov::IAsyncInferRequest>> chunk_infer_requests;
 
-    // Output accumulation buffer (prefill mode)
+    // Output accumulation buffer
     // Shape: [num_active_experts, 1, input_token_count, expert_hidden_dim]
     // Accumulates expert outputs before final reduction
-    // SHARED by all function calls
     TensorPtr expert_output_accumulator;
 
     /**
-     * @brief Initialize shared MoE resources (called once for function body)
+     * @brief Initialize resources for prefill mode (multi-token inference)
      *
-     * Initializes resources shared by all function calls:
+     * Initializes:
      * - sorted_chunk_sizes: extracted from config.compiled_models
      * - chunk_infer_requests: created for each chunk size model
      * - expert_output_accumulator: allocated with given shape and device
      *
-     * @param config MoE configuration
+     * @param config MoE configuration (must have input_token_count > 1)
      * @param allocator Memory allocation function
      * @param device Target device for buffer allocation
      */
-    void initialize_shared(
+    void initialize_for_prefill(
         const MoEConfig& config,
         std::function<TensorPtr(const ov::element::Type&, const ov::Shape&, const std::string&)> allocator,
         const std::string& device);
 
     /**
-     * @brief Initialize request cache structure
+     * @brief Initialize resources for decoding mode (single-token inference)
      *
-     * Creates RequestCache on first call (for all sublayers).
-     * Subsequent calls are no-ops. Actual layer initialization is done
-     * via request_cache->initialize_layer() after creating requests.
+     * Creates request cache if pool_size > 0. Request cache enables expert
+     * combination caching for improved decoding performance.
      *
-     * @param num_sublayers Total number of sublayers
-     * @param pool_size Request cache pool size (0 = disabled)
+     * @param config MoE configuration (must have input_token_count = 1)
+     * @param allocator Memory allocation function
+     * @param device Target device for buffer allocation
+     * @param num_sublayers Total number of sublayers (for cache structure)
+     * @param pool_size Request cache pool size (0 = cache disabled)
      */
-    void initialize_cache(size_t num_sublayers, size_t pool_size);
+    void initialize_for_decoding(
+        const MoEConfig& config,
+        std::function<TensorPtr(const ov::element::Type&, const ov::Shape&, const std::string&)> allocator,
+        const std::string& device,
+        size_t num_sublayers,
+        size_t pool_size);
 
     /**
      * @brief Reset request cache (for recreation after failure)
