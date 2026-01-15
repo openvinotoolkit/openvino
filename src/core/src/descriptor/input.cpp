@@ -6,7 +6,7 @@
 
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/util/symbolic_info.hpp"
 #include "shared_node_info.hpp"
 
 ov::descriptor::Input::Input(ov::Node* node, size_t index, Output& output)
@@ -31,7 +31,13 @@ ov::descriptor::Input::~Input() {
 }
 
 void ov::descriptor::Input::replace_output(Output& new_output) {
+    // Save old bounds BEFORE remove_input() because the old output's node may be destroyed
+    // after we disconnect (if this was the last reference to it)
+    ov::Tensor old_lower, old_upper;
     if (m_output != nullptr) {
+        const auto& old_tensor = m_output->get_tensor();
+        old_lower = old_tensor.get_lower_value();
+        old_upper = old_tensor.get_upper_value();
         m_output->remove_input(this);
     }
     new_output.add_input(this);
@@ -45,6 +51,31 @@ void ov::descriptor::Input::replace_output(Output& new_output) {
              [](const std::shared_ptr<SharedRTInfo>& info) {
                  info->set_use_topological_cache(false);
              });
+
+    // Conditional bounds invalidation: only if bounds differ or new source doesn't have bounds
+    // This ensures:
+    // - OptimizeSymbolsUsedAsValues: Same tensor pointer → no invalidation → optimization works
+    // - AbsSinking: New Abs node has no bounds yet → invalidation → correct recalculation
+    if (m_node != nullptr) {
+        bool old_has_bounds = old_lower && old_upper;
+        if (old_has_bounds) {
+            const auto& new_tensor = new_output.get_tensor();
+            const auto& new_lower = new_tensor.get_lower_value();
+            const auto& new_upper = new_tensor.get_upper_value();
+
+            // Compare by pointer - if different tensor objects, assume bounds changed
+            // For small tensors this doesn't matter much, for large ones recalculation
+            // is cheaper than comparing all data
+            bool same_lower = old_lower && new_lower && old_lower.data() == new_lower.data();
+            bool same_upper = old_upper && new_upper && old_upper.data() == new_upper.data();
+
+            if (!same_lower || !same_upper) {
+                for (size_t port = 0; port < m_node->get_output_size(); ++port) {
+                    ov::force_invalidation(m_node->get_output_tensor(port));
+                }
+            }
+        }
+    }
 }
 
 void ov::descriptor::Input::replace_output(const std::shared_ptr<ov::Node>& node, size_t i) {

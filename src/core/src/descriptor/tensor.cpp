@@ -150,8 +150,18 @@ Tensor::Tensor(const element::Type& element_type,
     : m_impl(std::make_shared<BasicTensor>(element_type, pshape, names)) {}
 
 void Tensor::invalidate_values() {
-    if (ov::skip_invalidation(*this))
+    // Check and remove ForceInvalidation attribute if present
+    auto& rt_info = get_rt_info();
+    const auto& force_type = ov::ForceInvalidation::get_type_info_static();
+    bool force = rt_info.count(force_type) > 0;
+    if (force) {
+        rt_info.erase(force_type);
+    }
+
+    // Skip invalidation unless forced
+    if (!force && ov::skip_invalidation(*this))
         return;
+
     m_upper_value = {};
     m_lower_value = {};
     m_value_symbol.clear();
