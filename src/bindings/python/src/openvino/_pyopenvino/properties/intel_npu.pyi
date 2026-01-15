@@ -5,7 +5,7 @@ import typing
 """
 openvino.properties.intel_npu submodule that simulates ov::intel_npu
 """
-__all__: list[str] = ['bypass_umd_caching', 'compilation_mode_params', 'compiler_dynamic_quantization', 'compiler_version', 'defer_weights_load', 'device_alloc_mem_size', 'device_total_mem_size', 'driver_version', 'max_tiles', 'qdq_optimization', 'qdq_optimization_aggressive', 'run_inferences_sequentially', 'tiles', 'turbo']
+__all__: list[str] = ['bypass_umd_caching', 'compilation_mode_params', 'compiler_dynamic_quantization', 'compiler_version', 'defer_weights_load', 'device_alloc_mem_size', 'device_total_mem_size', 'driver_version', 'max_tiles', 'qdq_optimization', 'qdq_optimization_aggressive', 'run_inferences_sequentially', 'tiles', 'turbo', 'platform']
 @typing.overload
 def bypass_umd_caching() -> str:
     ...
@@ -73,4 +73,10 @@ def turbo() -> str:
     ...
 @typing.overload
 def turbo(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]:
+    ...
+@typing.overload
+def platform() -> str:
+    ...
+@typing.overload
+def platform(arg0: str) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...

@@ -462,6 +462,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((True, True),),
         ),
         (
+            intel_npu.platform,
+            "NPU_PLATFORM",
+            (("3720", "3720"),("4000", "4000"),("5010", "5010"),),
+        ),
+        (
             intel_npu.tiles,
             "NPU_TILES",
             ((128, 128),),
