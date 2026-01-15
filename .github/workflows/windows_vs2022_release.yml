@@ -67,7 +67,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-16-cores-32gb-build-st'
+      runner: 'aks-win-16-cores-32gb-build'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
