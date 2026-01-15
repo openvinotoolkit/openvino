@@ -24,7 +24,8 @@ const std::vector<int64_t> op_seeds = {10, 50};
 const std::vector<ov::Shape> output_shapes = {
         {1, 3, 3,  3},
         {1, 1, 5,  5},
-        {2, 1, 10, 10}
+        {2, 1, 10, 10},
+        {1, 3, 1, 512, 512}
 };
 
 INSTANTIATE_TEST_SUITE_P(
