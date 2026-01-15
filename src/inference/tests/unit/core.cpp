@@ -14,6 +14,7 @@
 #include "dev/core_impl.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov::test {
@@ -493,4 +494,15 @@ TEST_F(ApplyAutoBatchThreading, ApplyAutoBatch) {
         core.apply_auto_batching(model, device, config);
     });
 }
+
+TEST(PropertiesValidation, HintNumRequestsRejectsNegativeSigned) {
+    EXPECT_THROW((void)ov::hint::num_requests(-1), ov::Exception);
+}
+
+TEST(PropertiesValidation, HintNumRequestsAcceptsUnsigned) {
+    auto kv = ov::hint::num_requests(uint32_t{4});
+    EXPECT_EQ(kv.first, ov::hint::num_requests.name());
+    EXPECT_EQ(kv.second.as<uint32_t>(), 4u);
+}
+
 }  // namespace ov::test
