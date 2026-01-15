@@ -18,6 +18,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/profiling_info.hpp"
 
 namespace intel_npu {
 
@@ -155,7 +156,28 @@ struct NetworkMetadata final {
      * to the index of the entry which bears the same name.
      */
     void bindRelatedDescriptors();
+};
 
-};  // namespace intel_npu
+/**
+ * @struct NetworkDescription
+ * @brief The object returned by the compiler
+ * to provide such information about a network as description of inputs and outputs,
+ * name and compiled network in a format executable by device
+ */
+struct NetworkDescription final {
+    NetworkDescription(std::vector<uint8_t>&& compiledNetwork, NetworkMetadata&& metadata)
+        : compiledNetwork(std::move(compiledNetwork)),
+          metadata(std::move(metadata)) {}
+    // Force move semantics to prevent blob copies
+    NetworkDescription(const NetworkDescription&) = delete;
+    NetworkDescription(NetworkDescription&&) = default;
+    NetworkDescription& operator=(const NetworkDescription&) = delete;
+    NetworkDescription& operator=(NetworkDescription&&) = default;
+    ~NetworkDescription() = default;
+
+    std::vector<uint8_t> compiledNetwork;
+
+    NetworkMetadata metadata;
+};
 
 }  // namespace intel_npu
