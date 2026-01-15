@@ -103,7 +103,7 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
 
         std::shared_ptr<ov::Node> past_seq_len_node = pattern_map.at(past_seq_len).get_node_shared_ptr();
         // StridedSlice uses multi-dim for end tensor, extract only the slice dim
-        if (has_strided_slice) {
+        if (has_strided_slice && concat_axis >= 0) {
             const auto strided_slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(concat_node->input_value(0).get_node_shared_ptr());
             const auto begin_mask = strided_slice->get_begin_mask();
             const auto end_mask = strided_slice->get_end_mask();
@@ -111,11 +111,13 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
             if (begin_mask != end_mask || begin_mask.empty()) {
                 return false;
             }
-            if (begin_mask.size() != concat_axis + 1 || begin_mask.back() != 0 || std::accumulate(begin_mask.begin(), begin_mask.end(), 0) != concat_axis) {
+            if (begin_mask.size() != static_cast<uint64_t>(concat_axis + 1) || 
+                begin_mask.back() != 0 || 
+                std::accumulate(begin_mask.begin(), begin_mask.end(), 0) != static_cast<uint64_t>(concat_axis)) {
                 return false;
             }
-            const auto slice_axis = ov::op::v0::Constant::create(element::i32, Shape{1}, {concat_axis});
-            const auto gather_axis = ov::op::v0::Constant::create(element::i32, Shape{1}, {0});
+            const auto slice_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, {concat_axis});
+            const auto gather_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
             past_seq_len_node = std::make_shared<ov::op::v8::Gather>(past_seq_len_node, slice_axis, gather_axis);
         }
 
