@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <filesystem>
+
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/frontend/onnx/decoder.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
@@ -49,6 +51,9 @@ public:
 
     /// \brief Retrieves metadata associated with the graph.
     virtual std::map<std::string, std::string> get_metadata() const = 0;
+
+    /// \brief Returns the directory path where the model is located.
+    virtual std::filesystem::path get_model_dir() const = 0;
 
     /// \brief Destructor
     virtual ~GraphIterator();

@@ -7,6 +7,7 @@
 #include <onnx/onnx_pb.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <utility>
 #include <vector>
 
@@ -141,6 +142,7 @@ public:
 
     detail::MappedMemoryHandles get_mmap_cache();
     detail::LocalStreamHandles get_stream_cache();
+    std::filesystem::path get_model_dir() const;
 
 protected:
     int64_t m_input_idx = -1, m_output_idx = -1;
@@ -179,7 +181,7 @@ public:
     };
 
     Tensor() = delete;
-    Tensor(const TensorProto& tensor, const std::string& model_dir, detail::MappedMemoryHandles mmap_cache)
+    Tensor(const TensorProto& tensor, const std::filesystem::path& model_dir, detail::MappedMemoryHandles mmap_cache)
         : m_tensor_proto{&tensor},
           m_tensor_place(nullptr),
           m_shape{std::begin(tensor.dims()), std::end(tensor.dims())},
@@ -315,9 +317,9 @@ private:
         if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
             buffer = ext_data.load_external_mem_data();
         } else if (m_mmap_cache) {
-            buffer = ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache);
+            buffer = ext_data.load_external_mmap_data(m_model_dir.string(), m_mmap_cache);
         } else {
-            buffer = ext_data.load_external_data(m_model_dir);
+            buffer = ext_data.load_external_data(m_model_dir.string());
         }
         return std::vector<T>(buffer->get_ptr<T>(), buffer->get_ptr<T>() + (buffer->size() / sizeof(T)));
     }
@@ -415,7 +417,7 @@ private:
     const TensorProto* m_tensor_proto;
     std::shared_ptr<TensorONNXPlace> m_tensor_place;
     ov::Shape m_shape;
-    std::string m_model_dir;
+    std::filesystem::path m_model_dir;
     detail::MappedMemoryHandles m_mmap_cache;
 };
 

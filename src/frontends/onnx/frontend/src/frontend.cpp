@@ -17,6 +17,7 @@
 #    include <google/protobuf/stubs/logging.h>
 #endif
 
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 
@@ -91,17 +92,21 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     // enable mmap by default
     const bool enable_mmap = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : true;
 
+    const auto create_iterator_model = [&](const std::filesystem::path& model_path) {
+        OPENVINO_DEBUG("[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!");
+        GraphIteratorProto::Ptr graph_iterator =
+            std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
+        graph_iterator->initialize(model_path);
+        graph_iterator->reset();
+        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
+    };
+
     if (variants[0].is<std::string>()) {
         const auto path = variants[0].as<std::string>();
         if (!gi_enabled) {
             return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
         }
-        OPENVINO_DEBUG("[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!");
-        GraphIteratorProto::Ptr graph_iterator =
-            std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
-        graph_iterator->initialize(path);
-        graph_iterator->reset();
-        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
+        return create_iterator_model(std::filesystem::path{path});
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     if (variants[0].is<std::wstring>()) {
@@ -109,12 +114,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         if (!gi_enabled) {
             return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
         }
-        OPENVINO_DEBUG("[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!");
-        GraphIteratorProto::Ptr graph_iterator =
-            std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
-        graph_iterator->initialize(path);
-        graph_iterator->reset();
-        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
+        return create_iterator_model(std::filesystem::path{path});
     }
 #endif
     if (variants[0].is<std::istream*>()) {
