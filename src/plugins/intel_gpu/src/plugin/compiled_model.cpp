@@ -2,49 +2,45 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/iplugin.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
-#include "openvino/runtime/internal_properties.hpp"
-#include "openvino/runtime/plugin_config.hpp"
-#include "openvino/util/weights_path.hpp"
-
-#include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
-#include "intel_gpu/plugin/async_infer_request.hpp"
 
 #include <sys/types.h>
+
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/plugin/async_infer_request.hpp"
+#include "intel_gpu/plugin/graph.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/plugin_config.hpp"
+#include "openvino/util/weights_path.hpp"
 
 namespace ov::intel_gpu {
 
 namespace {
-std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                                   const ExecutionConfig& config) {
+std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::shared_ptr<const ov::IPlugin>& plugin, const ExecutionConfig& config) {
     if (config.get_exclusive_async_requests()) {
         // exclusive_async_requests essentially disables the streams (and hence should be checked first) => aligned with
         // the CPU behavior
         return plugin->get_executor_manager()->get_executor("GPU");
-    } else if (config.get_enable_cpu_pinning() ||
-               config.get_enable_cpu_reservation()) {
+    } else if (config.get_enable_cpu_pinning() || config.get_enable_cpu_reservation()) {
         bool enable_cpu_pinning = config.get_enable_cpu_pinning();
         bool enable_cpu_reservation = config.get_enable_cpu_reservation();
-        return std::make_shared<ov::threading::CPUStreamsExecutor>(
-            ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
-                                                    config.get_num_streams(),
-                                                    1,
-                                                    ov::hint::SchedulingCoreType::PCORE_ONLY,
-                                                    enable_cpu_reservation,
-                                                    enable_cpu_pinning});
+        return std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
+                                                                                                           config.get_num_streams(),
+                                                                                                           1,
+                                                                                                           ov::hint::SchedulingCoreType::PCORE_ONLY,
+                                                                                                           enable_cpu_reservation,
+                                                                                                           enable_cpu_pinning});
     } else {
-        return std::make_shared<ov::threading::CPUStreamsExecutor>(
-            ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
-                                                    config.get_num_streams(),
-                                                    0,
-                                                    ov::hint::SchedulingCoreType::ANY_CORE,
-                                                    false,
-                                                    false,
-                                                    false});
+        return std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
+                                                                                                           config.get_num_streams(),
+                                                                                                           0,
+                                                                                                           ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                                                           false,
+                                                                                                           false,
+                                                                                                           false});
     }
 }
 }  // namespace
@@ -56,8 +52,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     : ov::ICompiledModel(model, plugin, context, create_task_executor(plugin, config), nullptr),
       m_context(context),
       m_config(config),
-      m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(
-          ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"})),
+      m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"})),
       m_model_name(model->get_friendly_name()),
       m_inputs(ov::ICompiledModel::inputs()),
       m_outputs(ov::ICompiledModel::outputs()),
@@ -74,16 +69,12 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config,
                              const bool loaded_from_cache)
-    : ov::ICompiledModel(nullptr,
-                         plugin,
-                         context,
-                         create_task_executor(plugin, config),
-                         nullptr)
-    , m_context(context)
-    , m_config(config)
-    , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model_name("")
-    , m_loaded_from_cache(loaded_from_cache) {
+    : ov::ICompiledModel(nullptr, plugin, context, create_task_executor(plugin, config), nullptr),
+      m_context(context),
+      m_config(config),
+      m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"})),
+      m_model_name(""),
+      m_loaded_from_cache(loaded_from_cache) {
     {
         size_t num_params;
         ib >> num_params;
@@ -185,10 +176,9 @@ void CompiledModel::export_model(std::ostream& model) const {
     const ov::EncryptionCallbacks encryption_callbacks = m_config.get_cache_encryption_callbacks();
 
     const ov::CacheMode cache_mode = m_config.get_cache_mode();
-    std::unique_ptr<cldnn::BinaryOutputBuffer> ob_ptr =
-        encryption_callbacks.encrypt
-            ? std::make_unique<cldnn::EncryptedBinaryOutputBuffer>(model, encryption_callbacks.encrypt)
-            : std::make_unique<cldnn::BinaryOutputBuffer>(model);
+    std::unique_ptr<cldnn::BinaryOutputBuffer> ob_ptr = encryption_callbacks.encrypt
+                                                            ? std::make_unique<cldnn::EncryptedBinaryOutputBuffer>(model, encryption_callbacks.encrypt)
+                                                            : std::make_unique<cldnn::BinaryOutputBuffer>(model);
     auto& ob = *ob_ptr;
 
     ob << cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
@@ -252,6 +242,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::supported_properties)::value_type{
             // Metrics
             ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::log::level.name(), PropertyMutability::RO},
             ov::PropertyName{ov::model_name.name(), PropertyMutability::RO},
             ov::PropertyName{ov::optimal_number_of_infer_requests.name(), PropertyMutability::RO},
 
@@ -280,14 +271,14 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
         };
     } else if (name == ov::model_name) {
-        return decltype(ov::model_name)::value_type {m_model_name};
+        return decltype(ov::model_name)::value_type{m_model_name};
     } else if (name == ov::loaded_from_cache) {
-        return decltype(ov::loaded_from_cache)::value_type {m_loaded_from_cache};
+        return decltype(ov::loaded_from_cache)::value_type{m_loaded_from_cache};
     } else if (name == ov::optimal_number_of_infer_requests) {
         unsigned int nr = m_config.get_num_streams();
         if (m_config.get_performance_mode() != ov::hint::PerformanceMode::LATENCY)
             nr *= 2;
-        return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
+        return decltype(ov::optimal_number_of_infer_requests)::value_type{nr};
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_context->get_device_name()};
     }
@@ -306,7 +297,6 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
     return std::make_shared<SyncInferRequest>(std::static_pointer_cast<const CompiledModel>(shared_from_this()));
 }
-
 
 void CompiledModel::release_memory() {
 #ifdef ENABLE_ONEDNN_FOR_GPU

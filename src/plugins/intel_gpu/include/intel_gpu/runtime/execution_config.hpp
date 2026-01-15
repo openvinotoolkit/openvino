@@ -9,6 +9,7 @@
 #include "intel_gpu/runtime/device_info.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/properties.hpp"
 #include <thread>
 
 namespace ov::intel_gpu {
