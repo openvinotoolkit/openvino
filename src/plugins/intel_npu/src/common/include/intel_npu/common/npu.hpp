@@ -38,12 +38,14 @@ public:
     virtual bool isCommandQueueExtSupported() const = 0;
     /** @brief Backend has support for LUID info */
     virtual bool isLUIDExtSupported() const = 0;
+    /** @brief Backend has support for npu context dditable ext */
+    virtual bool isContextExtSupported() const = 0;
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
     /** @brief Get Level Zero context*/
     virtual void* getContext() const;
     /** @brief Update backend and device info */
-    virtual void updateInfo(const Config& config) = 0;
+    virtual void updateInfo(const ov::AnyMap& properties) = 0;
     /** @brief Get LevelZero structures */
     virtual const std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const;
 
@@ -75,7 +77,7 @@ public:
         const std::shared_ptr<const ICompiledModel>& compiledModel,
         const Config& config) = 0;
 
-    virtual void updateInfo(const Config& config) = 0;
+    virtual void updateInfo(const ov::AnyMap& properties) = 0;
 
 protected:
     virtual ~IDevice() = default;

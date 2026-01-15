@@ -6,6 +6,7 @@
 
 #include <ze_api.h>
 #include <ze_command_queue_npu_ext.h>
+#include <ze_context_npu_ext.h>
 #include <ze_driver_npu_ext.h>
 #include <ze_graph_ext.h>
 #include <ze_graph_profiling_ext.h>
@@ -349,7 +350,59 @@ public:
     }
 };
 
+/**
+ * @brief Context function wrappers
+ * @details Use function wrappers for function from within higher driver versions in order to throw when loaded driver
+ * is older than required
+ */
+struct ze_context_npu_dditable_ext_decorator final {
+private:
+    ze_context_npu_dditable_ext_t* const _impl;
+    const uint32_t _contextExtVersion;
+
+    ze_context_npu_dditable_ext_decorator(const ze_context_npu_dditable_ext_decorator&) = delete;
+    ze_context_npu_dditable_ext_decorator(ze_context_npu_dditable_ext_decorator&&) = delete;
+
+    ze_context_npu_dditable_ext_decorator& operator=(const ze_context_npu_dditable_ext_decorator&) = delete;
+    ze_context_npu_dditable_ext_decorator& operator=(ze_context_npu_dditable_ext_decorator&&) = delete;
+
+    void throwWhenUnsupported(std::string_view func, uint32_t since) {
+        if (_contextExtVersion < since) {
+            OPENVINO_THROW("Driver Context extension function ",
+                           func,
+                           " is only available with version ",
+                           ZE_MAJOR_VERSION(since),
+                           ".",
+                           ZE_MINOR_VERSION(since),
+                           " or later");
+        }
+    }
+
+public:
+    ze_context_npu_dditable_ext_decorator(ze_context_npu_dditable_ext_t* impl, uint32_t contextExtVersion)
+        : _impl(impl),
+          _contextExtVersion(contextExtVersion) {}
+    ~ze_context_npu_dditable_ext_decorator() = default;
+
+    inline uint32_t version() const {
+        return _contextExtVersion;
+    }
+
+    // version 1.0
+    ze_result_t ZE_APICALL pfnSetProperties(ze_context_handle_t hContext,
+                                            ze_context_properties_npu_ext_t* contextProperties) {
+        throwWhenUnsupported("pfnSetProperties", ZE_CONTEXT_NPU_EXT_VERSION_1_0);
+        return _impl->pfnSetProperties(hContext, contextProperties);
+    }
+
+    ze_result_t ZE_APICALL pfnReleaseMemory(ze_context_handle_t hContext) {
+        throwWhenUnsupported("pfnReleaseMemory", ZE_CONTEXT_NPU_EXT_VERSION_1_0);
+        return _impl->pfnReleaseMemory(hContext);
+    }
+};
+
 using ze_graph_dditable_ext_curr_t = ze_graph_dditable_ext_decorator;
 using ze_command_queue_npu_dditable_ext_curr_t = ze_command_queue_npu_dditable_ext_decorator;
 using ze_graph_profiling_dditable_ext_curr_t = ze_graph_profiling_dditable_ext_decorator;
 using ze_driver_npu_dditable_ext_curr_t = ze_driver_npu_dditable_ext_decorator;
+using ze_context_npu_dditable_ext_curr_t = ze_context_npu_dditable_ext_decorator;
