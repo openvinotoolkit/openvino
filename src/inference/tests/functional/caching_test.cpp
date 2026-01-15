@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,8 +128,8 @@ public:
 
     ~MkDirGuard() {
         if (!m_dir.empty()) {
-            ov::test::utils::removeFilesWithExt(m_dir, "blob");
-            ov::test::utils::removeDir(m_dir);
+            ov::test::utils::removeFilesWithExt<ov::test::opt::FORCE>(m_dir, "blob");
+            std::filesystem::remove_all(m_dir);
         }
     }
 };
@@ -188,12 +188,6 @@ public:
     std::shared_ptr<ov::Model> m_model;
     std::map<std::string, std::shared_ptr<ov::Model>> m_models;
 
-    static std::string get_mock_engine_path() {
-        std::string mockEngineName("mock_engine");
-        return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                  mockEngineName + OV_BUILD_POSTFIX);
-    }
-
     void initParamTest() {
         m_type = std::get<0>(std::get<0>(GetParam()));
         m_cacheDir = std::get<1>(GetParam());
@@ -241,8 +235,8 @@ public:
         initParamTest();
         mockPlugin = std::make_shared<MockCachingIPlugin>();
         setupMock(*mockPlugin);
-        std::string libraryPath = get_mock_engine_path();
-        sharedObjectLoader = ov::util::load_shared_object(libraryPath.c_str());
+        const auto libraryPath = ov::util::make_path(ov::test::utils::get_mock_engine_path());
+        sharedObjectLoader = ov::util::load_shared_object(libraryPath);
         injectPlugin = make_std_function<void(ov::IPlugin*)>("InjectPlugin");
 
         ov::pass::Manager manager;
@@ -255,6 +249,10 @@ public:
             EXPECT_TRUE(Mock::VerifyAndClearExpectations(model.get()));
         }
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockPlugin.get()));
+        comp_models.clear();
+        m_models.clear();
+        m_model.reset();
+        mockPlugin.reset();
         ov::test::utils::removeIRFiles(modelName, weightsName);
     }
 
@@ -1396,9 +1394,8 @@ TEST_P(CachingTest, TestCacheDirCreateRecursive) {
             EXPECT_NO_THROW(m_testFunction(core));
         });
     }
-    ov::test::utils::removeFilesWithExt(newCacheDir2, "blob");
-    ov::test::utils::removeDir(newCacheDir2);
-    ov::test::utils::removeDir(newCacheDir1);
+    std::filesystem::remove_all(newCacheDir2);
+    std::filesystem::remove_all(newCacheDir1);
 }
 
 TEST_P(CachingTest, TestDeviceArchitecture) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -658,9 +658,9 @@ INSTANTIATE_TEST_SUITE_P(
     }));
 
 
-/// 
+///
 /// GemmPaddingTest: checking the pad propagation is working for reshape before matmul(onednn).
-/// 
+///
 struct gemm_test_params2 {
     std::vector<ov::PartialShape> in_shapes;
     ov::PartialShape out_shape;
