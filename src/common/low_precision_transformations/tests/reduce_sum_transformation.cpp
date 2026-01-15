@@ -389,6 +389,29 @@ namespace testValues3 {
                     {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}
                 }
             }
+        },
+        {
+            LayerTransformation::createParamsU8I8(),
+            {0},
+            true,
+            {
+                ov::element::i8,
+                {
+                    {ov::element::f16},
+                    {{40.f}, ov::element::f16, {}, false, {}, ov::element::f16, true},
+                    {{0.1f}, ov::element::f16, {}}
+                }
+            },
+            {
+                ov::element::i8,
+                {},
+                ov::element::f16,
+                {
+                    {},
+                    {{160.f}, ov::element::f16, {}},
+                    {{0.1f}, ov::element::f16, {}}
+                }
+            }
         }
     };
 
