@@ -100,6 +100,7 @@
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
+#include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
