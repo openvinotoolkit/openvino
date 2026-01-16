@@ -28,9 +28,10 @@ using namespace std;
 
 namespace {
 void mockPlugin(ov::Core& core, std::shared_ptr<ov::IPlugin>& plugin, std::shared_ptr<void>& m_so) {
-    std::string libraryPath = ov::test::utils::get_mock_engine_path();
-    if (!m_so)
-        m_so = ov::util::load_shared_object(libraryPath.c_str());
+    if (!m_so) {
+        const auto libraryPath = ov::test::utils::get_mock_engine_path();
+        m_so = ov::util::load_shared_object(libraryPath);
+    }
     std::function<void(ov::IPlugin*)> injectProxyEngine =
         ov::test::utils::make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
 
@@ -89,8 +90,8 @@ TEST(RegisterPluginTests, getVersionforNoRegisteredPluginNoThrows) {
 }
 
 namespace {
-int get_mock_extension_counter(const std::string& so_path) {
-    auto so = ov::util::load_shared_object(so_path.c_str());
+int get_mock_extension_counter(const std::filesystem::path& so_path) {
+    auto so = ov::util::load_shared_object(so_path);
     using CreateFunction = int();
     auto extension_count = reinterpret_cast<CreateFunction*>(ov::util::get_symbol(so, "get_mock_extension_counter"))();
     return extension_count;
@@ -101,8 +102,7 @@ TEST(RegisterPluginTests, removeExtensionOnPluginUnload) {
     ov::Core core;
     std::string mock_plugin_name{"MOCK_HARDWARE"};
 
-    auto mock_plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                               std::string("mock_engine") + OV_BUILD_POSTFIX);
+    auto mock_plugin_path = ov::test::utils::get_mock_engine_path();
     EXPECT_EQ(get_mock_extension_counter(mock_plugin_path), 0);
 
     OV_ASSERT_NO_THROW(core.register_plugin(mock_plugin_path, mock_plugin_name));

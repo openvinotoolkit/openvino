@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import defusedxml.ElementTree as ET
@@ -140,8 +140,10 @@ class CommonLayerTest:
     # Feed dict for each input is filled with random number.
     # It is possible to redefine this function and generate your own input
     def _prepare_input(self, inputs_dict):
+        rng = np.random.default_rng(43)
+
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.randint(-10, 10, inputs_dict[input]).astype(np.float32)
+            inputs_dict[input] = rng.integers(-10, 10, inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
     def compare_ie_results_with_framework(self, infer_res, framework_res, framework_eps):
