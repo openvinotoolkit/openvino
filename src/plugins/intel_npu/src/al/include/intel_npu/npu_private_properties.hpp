@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -375,7 +375,8 @@ static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
 
 /**
  * @brief [Experimental, only for NPU Plugin]
- * Type: enum. Default is "ITERATIVE".
+ * Type: enum. Default is "ITERATIVE". If the compiler-in-plugin is used (intel_npu::compiler_type =
+ * intel_npu::CompilerType::PLUGIN), then the default becomes "ONE_SHOT".
  *
  * The value stored in this entry indicates which implementation of the "weights separation" feature will be used.
  * Note: NPU_COMPILER_TYPE = DRIVER & NPU_SEPARATE_WEIGHTS_VERSION = ONE_SHOT are not compatible.
@@ -490,8 +491,34 @@ static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKE
  * @brief [Only for NPU Plugin]
  * Type: boolean, default is false.
  * This option allows to skip the blob version check
+ * Will be dropped when blob compatibility with OV 25.4 will no longer be required
+ * Usage will exclusively be covered by NPU_IMPORT_RAW_BLOB property
  */
 static constexpr ov::Property<bool> disable_version_check{"NPU_DISABLE_VERSION_CHECK"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows to skip reading plugin metadata from the imported compiled model
+ * Mirrors usage of NPU_DISABLE_VERSION_CHECK
+ */
+static constexpr ov::Property<bool> import_raw_blob{"NPU_IMPORT_RAW_BLOB"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows to skip writing plugin metadata to compiled model when exporting it
+ */
+static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: std::string, default is empty
+ * Enables custom stride support for specified input/output tensors by name. This allows working with non-contiguous
+ * memory layouts without copying data. The plugin automatically maps these names to the appropriate input/output
+ * indices for the compiler.
+ */
+static constexpr ov::Property<std::string> enable_strides_for("NPU_ENABLE_STRIDES_FOR");
 
 }  // namespace intel_npu
 }  // namespace ov

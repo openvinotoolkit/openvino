@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <editor.hpp>
+#include <filesystem>
 #include <fstream>
 #include <openvino/frontend/input_model.hpp>
 
@@ -152,6 +153,7 @@ public:
     bool is_enabled_mmap() const;
     detail::MappedMemoryHandles get_mmap_cache() const;
     detail::LocalStreamHandles get_stream_cache() const;
+    std::filesystem::path get_model_dir() const;
 };
 }  // namespace unify
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,12 @@ public:
 protected:
     bool insert_converts_before_if_needed(const std::shared_ptr<ov::Node>& node, const ov::element::Type desired_et, size_t& input_idx);
     void insert_converts_after_if_needed(const std::shared_ptr<ov::Node>& node, const ov::element::Type original_et, size_t& output_idx);
+};
+
+class IncreasePositionIdsPrecisionForQwen25VL : public IncreasePositionIdsPrecisionForRoPE {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForQwen25VL");
+    IncreasePositionIdsPrecisionForQwen25VL();
 };
 
 class IncreasePositionIdsPrecisionForLtxVideo : public IncreasePositionIdsPrecisionForRoPE {

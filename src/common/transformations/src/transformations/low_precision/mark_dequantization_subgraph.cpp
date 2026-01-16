@@ -328,8 +328,8 @@ KeepConstPrecision::KeepConstPrecision(const element::TypeVector& precisions,
     this->register_matcher(m, callback);
 }
 
-ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVector& precisions,
-    bool add_precision_sensitive_convert) {
+KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVector& precisions,
+                                                         bool add_precision_sensitive_convert) {
     MATCHER_SCOPE(KeepDequantizationPrecision);
     auto data_pattern = pattern::any_input();
     auto input_low_pattern = pattern::any_input();
@@ -353,7 +353,8 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
     // scale:
     auto scale_pattern = pattern::wrap_type<v0::Constant>();
     auto scale_convert_pattern = pattern::optional<v0::Convert>(scale_pattern);
-    auto scale_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, pattern::any_input()});
+    auto scale_reshape_pattern =
+        pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, pattern::any_input()});
     auto multiply_pattern = pattern::wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,19 @@ static constexpr ov::Property<std::string> weights_bank{"NPUW_WEIGHTS_BANK"};
  * Default value: "".
  */
 static constexpr ov::Property<std::string> weights_bank_alloc{"NPUW_WEIGHTS_BANK_ALLOC"};
+
+/**
+ * @brief
+ * Type: ov::FileHandleProvider.
+ * Callback function to get file handle for weights (cross-platform).
+ * The callback takes no arguments and returns a platform-specific file handle.
+ * On Linux/Unix: returns int (file descriptor)
+ * On Windows: returns void* (HANDLE)
+ * This is useful for scenarios where file access needs to be controlled externally,
+ * such as Android content providers or restricted file access scenarios.
+ * Default value: nullptr.
+ */
+static constexpr ov::Property<ov::FileHandleProvider> weights_handle_provider{"NPUW_WEIGHTS_HANDLE_PROVIDER"};
 
 /**
  * @brief
@@ -236,11 +249,12 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 
 /**
  * @brief
- * Type: boolean.
- * Apply attention optimizations (e.g. DYNAMIC, PYRAMID, and others) when attention block detected.
- * Default value: true
+ * Type: std::string.
+ * Select attention optimization mode when attention block detected.
+ * Possible values: "DYNAMIC", "STATIC", "PYRAMID", "HFA"
+ * Default value: "STATIC"
  */
-static constexpr ov::Property<bool> attn{"NPUW_ATTN"};
+static constexpr ov::Property<std::string> attn{"NPUW_ATTN"};
 
 /**
  * @brief
@@ -665,6 +679,53 @@ namespace whisper {
  */
 static constexpr ov::Property<bool> enabled{"NPUW_WHISPER"};
 }  // namespace whisper
+
+namespace eagle {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass Eagle3 model for speculative decoding.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_EAGLE"};
+}  // namespace eagle
+
+namespace text_embed {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass text-embedding model.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_TEXT_EMBED"};
+
+}  // namespace text_embed
+
+namespace kokoro {
+/**
+ * @brief
+ * Type: bool
+ * Set this option to true to utilize Kokoro pipeline
+ * Default value: false
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_KOKORO"};
+
+/**
+ * @brief
+ * Type: size_t (uint64_t)
+ * Set the block size for Kokoro pipeline
+ * Default value: 200
+ */
+static constexpr ov::Property<uint64_t> block_size{"NPUW_KOKORO_BLOCK_SIZE"};
+
+/**
+ * @brief
+ * Type: size_t (uint64_t)
+ * Set the overlap size for Kokoro pipeline
+ * Default value: 20
+ */
+static constexpr ov::Property<uint64_t> overlap_size{"NPUW_KOKORO_OVERLAP_SIZE"};
+}  // namespace kokoro
 
 }  // namespace npuw
 }  // namespace intel_npu

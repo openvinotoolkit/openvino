@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -8,7 +8,7 @@ import tempfile
 '''
 @brief Time in seconds of measurement performance on each of the networks. This time doesn't include
 loading and heating and includes measurement only one of 2 models - got through convert and read_model.
-Both "converted" and "read_model" modes will be 2 * runtime_measure_duration 
+Both "converted" and "read_model" modes will be 2 * runtime_measure_duration
 '''
 precommit_runtime_measure_duration = os.environ.get('PRECOMMIT_RUNTIME_MEASURE_DURATION', '60')
 nightly_runtime_measure_duration = os.environ.get('NIGHTLY_RUNTIME_MEASURE_DURATION', '15')

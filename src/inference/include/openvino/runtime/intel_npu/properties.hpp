@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,6 +110,7 @@ static constexpr ov::Property<bool> turbo{"NPU_TURBO"};
  * @brief [Only for NPU Compiler]
  * Type: integer, default is -1
  * Sets the number of npu tiles to compile the model for.
+ * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<int64_t> tiles{"NPU_TILES"};
 
@@ -118,6 +119,7 @@ static constexpr ov::Property<int64_t> tiles{"NPU_TILES"};
  * Type: integer, default is -1
  * Maximum number of tiles supported by the device we compile for. Can be set for offline compilation. If not set, it
  * will be populated by driver.
+ * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<int64_t> max_tiles{"NPU_MAX_TILES"};
 
@@ -133,6 +135,7 @@ static constexpr ov::Property<bool> bypass_umd_caching{"NPU_BYPASS_UMD_CACHING"}
  * @brief [Only for NPU Plugin]
  * Type: boolean, default is false
  * This option allows to delay loading the weights until inference is created
+ * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"};
 
@@ -144,6 +147,14 @@ static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"}
  * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows to disable pruning of memory during idle time.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> disable_idle_memory_prunning{"NPU_DISABLE_IDLE_MEMORY_PRUNING"};
 
 }  // namespace intel_npu
 }  // namespace ov
