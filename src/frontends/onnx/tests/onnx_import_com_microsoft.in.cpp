@@ -1973,6 +1973,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {
     std::vector<float> past_key = {};
     std::vector<float> past_value = {};
     std::vector<int> seqlens_k = {0};
+    std::vector<int> total_sequence_length = {1};
     std::vector<float> cos_cache = {
         0.8437f,
         -0.7849f,
@@ -2038,6 +2039,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {
     test_case.add_input<float>(Shape{1, 1, 0, 16}, past_key);
     test_case.add_input<float>(Shape{1, 1, 0, 16}, past_value);
     test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
     test_case.add_input<float>(Shape{1, 8}, cos_cache);
     test_case.add_input<float>(Shape{1, 8}, sin_cache);
     test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
@@ -2060,6 +2062,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary_interleaved)
     std::vector<float> past_key = {};
     std::vector<float> past_value = {};
     std::vector<int> seqlens_k = {0};
+    std::vector<int> total_sequence_length = {1};
     std::vector<float> cos_cache = {
         0.8437f,
         -0.7849f,
@@ -2125,6 +2128,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary_interleaved)
     test_case.add_input<float>(Shape{1, 1, 0, 16}, past_key);
     test_case.add_input<float>(Shape{1, 1, 0, 16}, past_value);
     test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
     test_case.add_input<float>(Shape{1, 8}, cos_cache);
     test_case.add_input<float>(Shape{1, 8}, sin_cache);
     test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
@@ -2181,6 +2185,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary) {
         0.8058f,
     };
     std::vector<int> seqlens_k = {1};
+    std::vector<int> total_sequence_length = {2};
     std::vector<float> cos_cache = {
         0.8437f,
         -0.7849f,
@@ -2240,6 +2245,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary) {
     test_case.add_input<float>(Shape{1, 1, 1, 16}, past_key);
     test_case.add_input<float>(Shape{1, 1, 1, 16}, past_value);
     test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
     test_case.add_input<float>(Shape{2, 8}, cos_cache);
     test_case.add_input<float>(Shape{2, 8}, sin_cache);
     test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
@@ -2296,6 +2302,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary_interleaved)
         0.8058f,
     };
     std::vector<int> seqlens_k = {1};
+    std::vector<int> total_sequence_length = {2};
     std::vector<float> cos_cache = {
         0.8437f,
         -0.7849f,
@@ -2355,6 +2362,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary_interleaved)
     test_case.add_input<float>(Shape{1, 1, 1, 16}, past_key);
     test_case.add_input<float>(Shape{1, 1, 1, 16}, past_value);
     test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
     test_case.add_input<float>(Shape{2, 8}, cos_cache);
     test_case.add_input<float>(Shape{2, 8}, sin_cache);
     test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
