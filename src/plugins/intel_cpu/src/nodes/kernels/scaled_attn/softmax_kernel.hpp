@@ -35,29 +35,22 @@ namespace ov::Extensions::Cpu::XARCH {
 
 #if defined(OPENVINO_ARCH_ARM64)
 namespace detail {
-inline void zero_out_dst(void* a_dst, ov::element::Type dst_precision, size_t total_size, bool allow_bf16) {
+inline void zero_out_dst(void* a_dst, ov::element::Type dst_precision, size_t total_size) {
     if (total_size == 0) {
         return;
     }
     if (dst_precision == ov::element::f32) {
         memset(static_cast<float*>(a_dst), 0, sizeof(float) * total_size);
-    } else if (dst_precision == ov::element::bf16) {
-        OPENVINO_ASSERT(allow_bf16, "CPU: bf16 softmax is not supported on ARM64.");
-        memset(static_cast<ov::bfloat16*>(a_dst), 0, sizeof(ov::bfloat16) * total_size);
     } else {
         memset(static_cast<ov::float16*>(a_dst), 0, sizeof(ov::float16) * total_size);
     }
 }
 
-inline bool handle_empty_len(size_t len,
-                             void* a_dst,
-                             ov::element::Type dst_precision,
-                             size_t total_size,
-                             bool allow_bf16) {
+inline bool handle_empty_len(size_t len, void* a_dst, ov::element::Type dst_precision, size_t total_size) {
     if (len != 0) {
         return false;
     }
-    zero_out_dst(a_dst, dst_precision, total_size, allow_bf16);
+    zero_out_dst(a_dst, dst_precision, total_size);
     return true;
 }
 
@@ -77,8 +70,7 @@ inline bool handle_inf_logits(const T* a,
                               ov::element::Type dst_precision,
                               size_t len,
                               size_t total_size,
-                              const float* sink,
-                              bool allow_bf16) {
+                              const float* sink) {
     size_t inf_count = 0;
     if (sink != nullptr && std::isinf(*sink) && *sink > 0.0F) {
         inf_count++;
@@ -98,16 +90,6 @@ inline bool handle_inf_logits(const T* a,
         }
         if (total_size > len) {
             memset(dst + len, 0, sizeof(float) * (total_size - len));
-        }
-    } else if (dst_precision == ov::element::bf16) {
-        OPENVINO_ASSERT(allow_bf16, "CPU: bf16 softmax is not supported on ARM64.");
-        auto* dst = static_cast<ov::bfloat16*>(a_dst);
-        for (size_t i = 0; i < len; i++) {
-            const float aval = to_float(a[i]);
-            dst[i] = (inf_count && std::isinf(aval) && aval > 0.0F) ? ov::bfloat16(inv) : ov::bfloat16(0.0F);
-        }
-        if (total_size > len) {
-            memset(dst + len, 0, sizeof(ov::bfloat16) * (total_size - len));
         }
     } else {
         auto* dst = static_cast<ov::float16*>(a_dst);
@@ -1300,7 +1282,7 @@ inline void attn_softmax_kernel<float>(float* a,
                                     const uint8_t*,
                                     size_t);
 #if defined(OPENVINO_ARCH_ARM64)
-    if (detail::handle_empty_len(len, a_dst, dst_precision, total_size, false)) {
+    if (detail::handle_empty_len(len, a_dst, dst_precision, total_size)) {
         return;
     }
 #endif
@@ -1410,7 +1392,7 @@ inline void attn_softmax_kernel<float>(float* a,
     }
 #if defined(OPENVINO_ARCH_ARM64)
     if (std::isinf(max)) {
-        detail::handle_inf_logits(a, a_dst, dst_precision, len, total_size, sink, false);
+        detail::handle_inf_logits(a, a_dst, dst_precision, len, total_size, sink);
         return;
     }
 #endif
@@ -1515,7 +1497,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                                     scale_add2_reduce_max<true, true, true>};
     int dispatch = (alibi ? 0b100 : 0) | (attn_mask ? 0b010 : 0) | (causal_mask ? 0b001 : 0);
 #    if defined(OPENVINO_ARCH_ARM64)
-    if (detail::handle_empty_len(len, a_dst, dst_precision, total_size, false)) {
+    if (detail::handle_empty_len(len, a_dst, dst_precision, total_size)) {
         return;
     }
 #    endif
@@ -1558,7 +1540,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
 #    if defined(OPENVINO_ARCH_ARM64)
     const float max_f = static_cast<float>(max);
     if (std::isinf(max_f)) {
-        detail::handle_inf_logits(a, a_dst, dst_precision, len, total_size, sink, false);
+        detail::handle_inf_logits(a, a_dst, dst_precision, len, total_size, sink);
         return;
     }
 #    endif
