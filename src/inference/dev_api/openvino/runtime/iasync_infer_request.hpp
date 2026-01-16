@@ -19,6 +19,18 @@
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
 
+#if defined(ENABLE_PROFILING_ITT_FULL) || defined(ENABLE_PROFILING_ITT_BASE)
+#define DECLARE_ID_COUNTER uint64_t m_infer_id
+#define INITIALIZE_ID_COUNTER m_infer_id = 0
+#define UPDATE_ID_COUNTER m_infer_id = g_uid++
+#define USE_ID_COUNTER m_infer_id
+#else
+#define DECLARE_ID_COUNTER
+#define INITIALIZE_ID_COUNTER
+#define UPDATE_ID_COUNTER
+#define USE_ID_COUNTER
+#endif
+
 namespace ov {
 
 /**
@@ -193,6 +205,10 @@ protected:
 
     Pipeline m_pipeline;       //!< Pipeline variable that should be filled by inherited class.
     Pipeline m_sync_pipeline;  //!< Synchronous pipeline variable that should be filled by inherited class.
+    /*
+     * Only enable tracking of the pipeline stages when base or full profiling is enabled
+     */
+    DECLARE_ID_COUNTER;
 
 private:
     enum InferState { IDLE, BUSY, CANCELLED, STOP };

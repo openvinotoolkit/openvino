@@ -16,6 +16,8 @@ namespace itt {
 namespace domains {
 OV_ITT_DOMAIN(Plugin)
 OV_ITT_DOMAIN(PluginLoadTime)
+// Domain to define Inference phase tasks
+OV_ITT_DOMAIN(Inference, "ov::phases::inference")
 }  // namespace domains
 }  // namespace itt
 }  // namespace ov
