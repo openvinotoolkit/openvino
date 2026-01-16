@@ -407,7 +407,7 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
     const size_t kv_partition_size = get_partition_size(desc->has_xattention);
     auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-
+    const auto& key_cache_quant_mode = params.get_program().get_config().get_key_cache_quant_mode();
     jit.make("KV_PARTITION_SIZE", kv_partition_size);
     if (desc->has_xattention) {
         jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
@@ -422,8 +422,14 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
 
     if (get_kv_compressed(params)) {
         jit.make("KV_CACHE_COMPRESSION", 1);
+        if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN) {
+            jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", 1);
+        } else {
+            jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", 0);
+        }
     } else {
         jit.make("KV_CACHE_COMPRESSION", 0);
+        jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", 0);
     }
 
     return jit;
