@@ -16,7 +16,6 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "cache/multi_cache.h"
@@ -24,14 +23,31 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
-#include "memory_desc/cpu_blocked_memory_desc.h"
+#if defined(OPENVINO_ARCH_ARM)
+#    include "memory_desc/cpu_blocked_memory_desc.h"
+#endif
+#if defined(OV_CPU_WITH_ACL)
+#    include "memory_desc/blocked_memory_desc.h"
+#endif
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "node.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/reorder_prim.h"
-#include "nodes/executors/executor.hpp"
+#if defined(OPENVINO_ARCH_ARM)
+#    include "nodes/executors/transpose.hpp"
+#    include "nodes/executors/transpose_list.hpp"
+#endif
+#if defined(OV_CPU_WITH_ACL)
+#    include <arm_compute/core/CoreTypes.h>
+#    include <arm_compute/core/TensorInfo.h>
+#    include <arm_compute/core/TensorShape.h>
+#    include <arm_compute/runtime/NEON/functions/NECopy.h>
+#    include <arm_compute/runtime/Tensor.h>
+
+#    include "nodes/executors/acl/acl_utils.hpp"
+#endif
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -154,6 +170,97 @@ void Reorder::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
+#if defined(OPENVINO_ARCH_ARM)
+void Reorder::prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc) {
+    auto getOrderAndBlockedDims = [](const MemoryDesc& lhs,
+                                     const MemoryDesc& rhs) -> std::pair<std::vector<size_t>, std::vector<size_t>> {
+        const auto& in = lhs.as<BlockedMemoryDesc>()->getBlockDims();
+        const auto rank = lhs.getShape().getRank();
+
+        if (lhs.hasLayoutType(LayoutType::ncsp) && rhs.hasLayoutType(LayoutType::nspc)) {
+            if (rank == 4) {
+                return {{0, 2, 3, 1}, {in[0], in[2], in[3], in[1]}};
+            }
+            return {{0, 2, 1}, {in[0], in[2], in[1]}};
+        }
+        if (lhs.hasLayoutType(LayoutType::nspc) && rhs.hasLayoutType(LayoutType::ncsp)) {
+            if (rank == 4) {
+                return {{0, 3, 1, 2}, {in[0], in[3], in[1], in[2]}};
+            }
+            return {{0, 2, 1}, {in[0], in[2], in[1]}};
+        }
+        if (rank == 4) {
+            return {{0, 1, 2, 3}, in};
+        }
+        return {{0, 1, 2}, in};
+    };
+
+    auto order = getOrderAndBlockedDims(*parentDesc, *childDesc);
+    const auto& transposeOrder = order.first;
+    const auto& transposedBlockDims = order.second;
+
+    auto transposedDesc =
+        std::make_shared<CpuBlockedMemoryDesc>(parentDesc->getPrecision(), Shape{transposedBlockDims});
+
+    TransposeParams transposeParams;
+    transposeParams.permuteParams.src_block_dims = parentDesc->as<BlockedMemoryDesc>()->getBlockDims();
+    transposeParams.permuteParams.src_block_order = parentDesc->as<BlockedMemoryDesc>()->getOrder();
+    transposeParams.permuteParams.dst_block_dims = transposedBlockDims;
+    transposeParams.permuteParams.dst_block_order = transposeParams.permuteParams.src_block_order;
+    transposeParams.permuteParams.order = transposeOrder;
+    transposeParams.permuteParams.data_size = parentDesc->getPrecision().size();
+
+    auto transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
+    auto factory = std::make_shared<TransposeExecutorFactory>(transposeParams,
+                                                              std::vector<MemoryDescPtr>{parentDesc},
+                                                              std::vector<MemoryDescPtr>{transposedDesc},
+                                                              transpose_context);
+    dnnl::primitive_attr attr;
+    transposeExecutor = factory->makeExecutor(transposeParams, {parentDesc}, {transposedDesc}, attr);
+    getSelectedPrimitiveDescriptor()->setImplementationType(transposeExecutor->implType());
+}
+#endif
+
+#if defined(OV_CPU_WITH_ACL)
+bool Reorder::prepareAclCopy(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc) {
+    if (!parentDesc->isCompatible(*childDesc)) {
+        return false;
+    }
+
+    const auto aclPrecision = precisionToAclDataType(parentDesc->getPrecision());
+    if (aclPrecision == arm_compute::DataType::UNKNOWN) {
+        return false;
+    }
+
+    const auto* parentBlocked = parentDesc->as<BlockedMemoryDesc>();
+    if (parentBlocked == nullptr) {
+        return false;
+    }
+
+    const auto elemCount = parentBlocked->getPaddedElementsCount();
+    if (elemCount == 0) {
+        return false;
+    }
+
+    const arm_compute::TensorInfo tensorInfo(arm_compute::TensorShape(elemCount), 1, aclPrecision);
+    const auto status = arm_compute::NECopy::validate(&tensorInfo, &tensorInfo);
+    if (!status) {
+        DEBUG_LOG("NECopy validation failed: ", status.error_description());
+        return false;
+    }
+
+    aclSrcTensor.allocator()->init(tensorInfo);
+    aclDstTensor.allocator()->init(tensorInfo);
+    aclCopy = std::make_unique<arm_compute::NECopy>();
+    configureThreadSafe([&] {
+        aclCopy->configure(&aclSrcTensor, &aclDstTensor);
+    });
+    useAclCopy = true;
+    getSelectedPrimitiveDescriptor()->setImplementationType(impl_desc_type::acl);
+    return true;
+}
+#endif
+
 void Reorder::prepareParams() {
     if (isOptimized) {
         return;
@@ -177,6 +284,22 @@ void Reorder::prepareParams() {
 
     const auto& parentDesc = srcMemPtr->getDescPtr();
     const auto& childDesc = dstMemPtr->getDescPtr();
+
+#if defined(OPENVINO_ARCH_ARM)
+    if (all_of(ov::element::f16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
+        ((parentDesc->hasLayoutType(LayoutType::ncsp) && childDesc->hasLayoutType(LayoutType::nspc)) ||
+         (parentDesc->hasLayoutType(LayoutType::nspc) && childDesc->hasLayoutType(LayoutType::ncsp))) &&
+        any_of(parentDesc->getShape().getRank(), 3U, 4U)) {
+        prepareReorderAsTranspose(parentDesc, childDesc);
+        return;
+    }
+#endif
+
+#if defined(OV_CPU_WITH_ACL)
+    if (prepareAclCopy(parentDesc, childDesc)) {
+        return;
+    }
+#endif
 
     if ((isNspc2NcspCase || isNcsp2NspcCase) && isSupportedDesc(*childDesc) && isSupportedDesc(*parentDesc)) {
         const auto& inDims = srcMemPtr->getStaticDims();
@@ -356,6 +479,28 @@ void Reorder::optimizedNspc2Ncsp() {
 }
 
 void Reorder::execute(const dnnl::stream& strm) {
+#if defined(OPENVINO_ARCH_ARM)
+    if (transposeExecutor) {
+        auto dstMemPtr = getDstMemoryAtPort(0);
+        auto srcMemPtr = getSrcMemoryAtPort(0);
+        transposeExecutor->exec({srcMemPtr}, {dstMemPtr});
+        return;
+    }
+#endif
+
+#if defined(OV_CPU_WITH_ACL)
+    if (useAclCopy) {
+        auto dstMemPtr = getDstMemoryAtPort(0);
+        auto srcMemPtr = getSrcMemoryAtPort(0);
+        aclSrcTensor.allocator()->import_memory(srcMemPtr->getData());
+        aclDstTensor.allocator()->import_memory(dstMemPtr->getData());
+        aclCopy->run();
+        aclSrcTensor.allocator()->free();
+        aclDstTensor.allocator()->free();
+        return;
+    }
+#endif
+
     if (isOptimized) {
         DEBUG_LOG("#",
                   getExecIndex(),
