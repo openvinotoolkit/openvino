@@ -53,9 +53,20 @@ protected:
         auto input_layout = impl_params.get_input_layout(0);
         auto output_layout = impl_params.get_output_layout();
 
-        // A clDNN Reduce reorders un-reduced axes of its output tensor to b-f and spatial order when keep_dims is false.
-        // oneDNN reduction does not allow this. So this function reverts it.
-        reorder_unreduced_axis_no_fusion(input_layout, output_layout, prim->axes);
+        if (!impl_params.get_program().is_new_shape_infer()) {
+            // A clDNN Reduce reorders un-reduced axes of its output tensor to b-f and spatial order when keep_dims is false.
+            // oneDNN reduction does not allow this. So this function reverts it.
+            reorder_unreduced_axis_no_fusion(input_layout, output_layout, prim->axes);
+        } else {
+            // The onednn reduction primitive requires the source and destination tensors to have the same number of dimensions.
+            if (output_layout.get_partial_shape().size() < input_layout.get_partial_shape().size()) {
+                auto new_p_shape = input_layout.get_partial_shape();
+                for (auto axis : prim->axes)
+                    new_p_shape[axis] = 1;
+                output_layout.set_partial_shape(new_p_shape);
+                output_layout.format = input_layout.format;
+            }
+        }
 
         auto input_md = onednn::layout_to_memory_desc_blocked(input_layout, dnnl::memory::format_tag::undef);
         auto output_md = onednn::layout_to_memory_desc_blocked(output_layout, dnnl::memory::format_tag::undef);
