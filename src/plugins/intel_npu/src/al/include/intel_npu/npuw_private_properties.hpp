@@ -267,7 +267,7 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
  *
  * Default value: 0 (dynamic multi-model compilation).
  */
-static constexpr ov::Property<uint64_t> moe_fixed_token_chunk_size{"NPUW_MOE_FIXED_TOKEN_CHUNK_SIZE"};
+static constexpr ov::Property<uint64_t> moe_token_chunk_size{"NPUW_MOE_TOKEN_CHUNK_SIZE"};
 
 /**
  * @brief Configure MoE request pool size per layer for caching expert configurations.
