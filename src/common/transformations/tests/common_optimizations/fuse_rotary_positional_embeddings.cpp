@@ -13,6 +13,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -33,6 +34,10 @@
 using namespace testing;
 using namespace ov::gen_pattern;
 
+const std::vector<int> MOCK_VALUE = {1};
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 static ov::OutputVector makeCosSinCache(size_t max_position_embeddings, size_t rotary_ndims) {
     std::vector<float> lut_sin(max_position_embeddings * rotary_ndims, 0.0f);
     std::vector<float> lut_cos(max_position_embeddings * rotary_ndims, 0.0f);
@@ -1135,6 +1140,81 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM_nano_2d_rope) {
     }
 }
 
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLMHF_2d_rope_GatherND) {
+    disable_rt_info_check();
+    const int seq_len = 7;
+    const int num_heads = 32;
+    const int ndims = 128;
+    const int rotary_ndims = 64;
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{seq_len, 1, 4096});
+        auto Reshape = makeOP<ov::op::v1::Reshape>({input, {-1, 32, 1, 128}}, {{"special_zero", false}});
+        auto VariadicSplit = makeOP<ov::op::v1::VariadicSplit>({Reshape, 3, {64, 64}});
+
+        auto sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                           ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
+        auto Transpose = makeOP<ov::op::v1::Transpose>({sin, {3, 1, 2, 0}});
+        auto Reshape0 = makeOP<ov::op::v1::Reshape>({Transpose, {32, 1, 1, 1, -1}}, {{"special_zero", false}});
+        auto Param = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 1, 1, seq_len});
+        auto Multiply = makeOP<ov::op::v1::Multiply>({Reshape0, Param}, {{"auto_broadcast", "numpy"}});
+        auto Constant = makeConst(ov::element::i32, ov::Shape({64, 2}), MOCK_VALUE);
+        auto GatherND = makeOP<ov::op::v8::GatherND>({Multiply, Constant}, {{"batch_dims", 0}});
+        auto Transpose0 = makeOP<ov::op::v1::Transpose>({GatherND, {3, 1, 2, 0}});
+
+        auto cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                           ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
+        auto Transpose1 = makeOP<ov::op::v1::Transpose>({cos, {3, 1, 2, 0}});
+        auto Reshape1 = makeOP<ov::op::v1::Reshape>({Transpose1, {32, 1, 1, 1, -1}}, {{"special_zero", false}});
+        auto Param1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 1, 1, seq_len});
+        auto Multiply0 = makeOP<ov::op::v1::Multiply>({Reshape1, Param1}, {{"auto_broadcast", "numpy"}});
+        auto GatherND0 = makeOP<ov::op::v8::GatherND>({Multiply0, Constant}, {{"batch_dims", 0}});
+        auto Transpose2 = makeOP<ov::op::v1::Transpose>({GatherND0, {3, 1, 2, 0}});
+
+        auto Slice = makeOP<ov::op::v8::Slice>({VariadicSplit->output(0), {1}, {INT_MAX}, {2}, {3}});
+        auto Constant0 = makeConst(ov::element::f32, ov::Shape({1, 1, 1, 1}), {-1.000000f});
+        auto Multiply1 = makeOP<ov::op::v1::Multiply>({Slice, Constant0}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze = makeOP<ov::op::v1::Reshape>({Multiply1, {-1, 32, 1, 32, 1}}, {{"special_zero", false}});
+        auto Slice0 = makeOP<ov::op::v8::Slice>({VariadicSplit->output(0), {0}, {INT_MAX}, {2}, {3}});
+        auto Unsqueeze0 = makeOP<ov::op::v1::Reshape>({Slice0, {-1, 32, 1, 32, 1}}, {{"special_zero", false}});
+        auto Concat = makeOP<ov::op::v0::Concat>({Unsqueeze, Unsqueeze0}, {{"axis", -1}});
+        auto Reshape2 = makeOP<ov::op::v1::Reshape>({Concat, {0, 32, 0, 64}}, {{"special_zero", true}});
+
+        auto Multiply2 = makeOP<ov::op::v1::Multiply>({Reshape2, Transpose2}, {{"auto_broadcast", "numpy"}});
+
+        auto Multiply3 =
+            makeOP<ov::op::v1::Multiply>({VariadicSplit->output(0), Transpose0}, {{"auto_broadcast", "numpy"}});
+        auto Add = makeOP<ov::op::v1::Add>({Multiply3, Multiply2}, {{"auto_broadcast", "numpy"}});
+        auto Concat0 = makeOP<ov::op::v0::Concat>({Add, VariadicSplit->output(1)}, {{"axis", -1}});
+
+        model =
+            std::make_shared<ov::Model>(ov::OutputVector{Concat0}, ov::ParameterVector{input, cos, sin, Param, Param1});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{seq_len, 1, 4096});
+        auto cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                           ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
+        auto sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                           ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
+        auto rope = makeOP<ov::op::internal::RoPE>({input, cos, sin},
+                                                   {{"config.slice_start", 0},
+                                                    {"config.slice_stop", 0},
+                                                    {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
+                                                    {"config.is_interleaved", false},
+                                                    {"config.rotary_ndims", rotary_ndims},
+                                                    {"config.is_chatglm", true},
+                                                    {"config.support_2d_rope", true},
+                                                    {"config.support_3d_rope", false},
+                                                    {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", false},
+                                                    {"config.head_cnt", num_heads},
+                                                    {"config.head_size", ndims},
+                                                    {"config.gather_position_arg_id", 0}});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, cos, sin});
+    }
+}
+
 TEST_F(TransformationTestsF, ConvertToROPE_chatGLMHF_2d_rope) {
     disable_rt_info_check();
     const int seq_len = 7;
@@ -1240,22 +1320,22 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul) {
         auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
 
         auto x1_shape = makeConst(ov::element::i64, ov::Shape({5}), {0, num_heads, 0, -1, 2});
-        auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
+        auto x1 = std::make_shared<v1::Reshape>(x, x1_shape, true);
 
         auto split_axis = makeConst(ov::element::i64, ov::Shape(), {-1});
-        auto split = std::make_shared<ov::op::v1::Split>(x1, split_axis, 2);
+        auto split = std::make_shared<v1::Split>(x1, split_axis, 2);
 
         auto minus_one = makeConst(ov::element::f32, ov::Shape({}), {-1.0f});
-        auto x1_1_neg = std::make_shared<ov::op::v1::Multiply>(split->output(1), minus_one);
+        auto x1_1_neg = std::make_shared<v1::Multiply>(split->output(1), minus_one);
 
-        auto x2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{x1_1_neg->output(0), split->output(0)}, -1);
+        auto x2 = std::make_shared<v0::Concat>(ov::OutputVector{x1_1_neg->output(0), split->output(0)}, -1);
 
         auto x3_shape = makeConst(ov::element::i64, ov::Shape({4}), {0, num_heads, 0, ndims});
-        auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
+        auto x3 = std::make_shared<v1::Reshape>(x2, x3_shape, true);
 
-        auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
-        auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
-        auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+        auto y1 = std::make_shared<v1::Multiply>(x, t_cos);
+        auto y2 = std::make_shared<v1::Multiply>(x3, t_sin);
+        auto y = std::make_shared<v1::Add>(y1, y2);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x, t_cos, t_sin});
     }
@@ -1288,28 +1368,28 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_squeeze_mul_unsqueeze) {
         auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
 
         auto x1_shape = makeConst(ov::element::i64, ov::Shape({5}), {0, num_heads, 0, -1, 2});
-        auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
+        auto x1 = std::make_shared<v1::Reshape>(x, x1_shape, true);
 
         auto split_axis = makeConst(ov::element::i64, ov::Shape(), {-1});
-        auto split = std::make_shared<ov::op::v1::Split>(x1, split_axis, 2);
+        auto split = std::make_shared<v1::Split>(x1, split_axis, 2);
 
         auto squeeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
-        auto squeeze = std::make_shared<ov::op::v0::Squeeze>(split->output(1), squeeze_axis);
+        auto squeeze = std::make_shared<v0::Squeeze>(split->output(1), squeeze_axis);
 
         auto minus_one = makeConst(ov::element::f32, ov::Shape({}), {-1.0f});
-        auto x1_1_neg = std::make_shared<ov::op::v1::Multiply>(squeeze, minus_one);
+        auto x1_1_neg = std::make_shared<v1::Multiply>(squeeze, minus_one);
 
         auto unsqueeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
-        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(x1_1_neg, unsqueeze_axis);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(x1_1_neg, unsqueeze_axis);
 
-        auto x2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{unsqueeze->output(0), split->output(0)}, -1);
+        auto x2 = std::make_shared<v0::Concat>(ov::OutputVector{unsqueeze->output(0), split->output(0)}, -1);
 
         auto x3_shape = makeConst(ov::element::i64, ov::Shape({4}), {0, num_heads, 0, ndims});
-        auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
+        auto x3 = std::make_shared<v1::Reshape>(x2, x3_shape, true);
 
-        auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
-        auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
-        auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+        auto y1 = std::make_shared<v1::Multiply>(x, t_cos);
+        auto y2 = std::make_shared<v1::Multiply>(x3, t_sin);
+        auto y = std::make_shared<v1::Add>(y1, y2);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x, t_cos, t_sin});
     }
@@ -1342,28 +1422,28 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul_squeeze_unsqueeze) {
         auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
 
         auto x1_shape = makeConst(ov::element::i64, ov::Shape({5}), {0, num_heads, 0, -1, 2});
-        auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
+        auto x1 = std::make_shared<v1::Reshape>(x, x1_shape, true);
 
         auto split_axis = makeConst(ov::element::i64, ov::Shape(), {-1});
-        auto split = std::make_shared<ov::op::v1::Split>(x1, split_axis, 2);
+        auto split = std::make_shared<v1::Split>(x1, split_axis, 2);
 
         auto minus_one = makeConst(ov::element::f32, ov::Shape({}), {-1.0f});
-        auto x1_1_neg = std::make_shared<ov::op::v1::Multiply>(split->output(1), minus_one);
+        auto x1_1_neg = std::make_shared<v1::Multiply>(split->output(1), minus_one);
 
         auto squeeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
-        auto squeeze = std::make_shared<ov::op::v0::Squeeze>(x1_1_neg, squeeze_axis);
+        auto squeeze = std::make_shared<v0::Squeeze>(x1_1_neg, squeeze_axis);
 
         auto unsqueeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
-        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(squeeze, unsqueeze_axis);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(squeeze, unsqueeze_axis);
 
-        auto x2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{unsqueeze->output(0), split->output(0)}, -1);
+        auto x2 = std::make_shared<v0::Concat>(ov::OutputVector{unsqueeze->output(0), split->output(0)}, -1);
 
         auto x3_shape = makeConst(ov::element::i64, ov::Shape({4}), {0, num_heads, 0, ndims});
-        auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
+        auto x3 = std::make_shared<v1::Reshape>(x2, x3_shape, true);
 
-        auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
-        auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
-        auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+        auto y1 = std::make_shared<v1::Multiply>(x, t_cos);
+        auto y2 = std::make_shared<v1::Multiply>(x3, t_sin);
+        auto y = std::make_shared<v1::Add>(y1, y2);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x, t_cos, t_sin});
     }
@@ -1692,8 +1772,6 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_PagedAttention) {
             std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, aten_gather_GatherElements});
     }
 }
-
-std::vector<int> MOCK_VALUE = {1};
 
 TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention) {
     {
