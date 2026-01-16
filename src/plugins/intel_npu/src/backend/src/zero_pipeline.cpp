@@ -75,9 +75,13 @@ Pipeline::Pipeline(const Config& config,
         was_compiled_with_profiling = graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED;
     }
 
-    if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
+    if ((_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) || was_compiled_with_profiling) {
         if (graphExtVersion >= ZE_MAKE_VERSION(1, 16) && !was_compiled_with_profiling) {
-            OPENVINO_THROW("Blob was not compiled with profiling/PERF_COUNT=YES");
+            OPENVINO_THROW("Blob was not compiled for profiling");
+        }
+
+        if (!_config.get<PERF_COUNT>() && was_compiled_with_profiling) {
+            _logger.warning("ZeroInferRequest::ZeroInferRequest - blob was compiled with profiling but PERF_COUNT is set to 'NO'");
         }
 
         auto profiling_pool =
@@ -93,8 +97,6 @@ Pipeline::Pipeline(const Config& config,
             _npu_profiling =
                 std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
         }
-    } else if (was_compiled_with_profiling) {
-        _logger.warning("ZeroInferRequest::ZeroInferRequest - blob was compiled with profiling but PERF_COUNT is set to 'NO'");
     }
 
     if (!_sync_output_with_fences || (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
