@@ -87,19 +87,6 @@ void CopyInplaceTestsBase::make_input() {
     baseTensor = ov::Tensor(ov::element::u8, ov::Shape{byte_size}, base_bytes_initial.data());
 }
 
-void CopyInplaceTestsBase::make_views() {
-    src_strides = copy_inplace_details::default_byte_strides(shape, type);
-
-    const size_t pad_elems = 13;
-    dst_strides = make_padded_strides_keep_tail_default(shape, type, kv_dim, pad_elems);
-
-    void* base_ptr = baseTensor.data();
-    ASSERT_NE(base_ptr, nullptr);
-
-    srcView = ov::Tensor(type, shape, base_ptr, src_strides);
-    dstView = ov::Tensor(type, shape, base_ptr, dst_strides);
-}
-
 bool CopyInplaceTestsBase::isNegative() const {
     if (shape.size() < 2) {
         return true;
@@ -164,17 +151,6 @@ void CopyInplaceTestsBase::SetUp(const CopyInplaceTestsParams& getParam) {
     if (!isNegative()) {
         make_ref_output();
     }
-}
-
-std::string CopyInplaceTestsBase::ToString() const {
-    std::ostringstream oss;
-    oss << "[";
-    for (size_t i = 0; i < shape.size(); ++i) {
-        oss << shape[i] << ((i + 1 == shape.size()) ? "" : "x");
-    }
-    oss << "]"
-        << "_type_" << type << "_kv_" << kv_dim;
-    return oss.str();
 }
 
 TEST_P(CopyInplaceTests, copy_tensor_inplace_by_dim_correctness) {

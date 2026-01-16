@@ -104,13 +104,11 @@ protected:
     ov::Strides dst_strides;
 
     void make_input();
-    void make_views();
     void make_ref_output();
     bool isNegative() const;
 
 public:
     void SetUp(const CopyInplaceTestsParams& getParam);
-    std::string ToString() const;
 };
 
 template <class T>
