@@ -389,8 +389,8 @@ KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVect
             auto values = const_node->template cast_vector<float>();
             return std::any_of(values.begin(), values.end(), [](float v) {
                 return v > std::numeric_limits<ov::float16>::max();
-                });
             });
+        });
         if (max_reach) {
             for (const auto& node_to_mark : nodes_to_mark) {
                 if (pt_map.count(node_to_mark)) {
@@ -414,7 +414,7 @@ KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVect
         }
 
         return false;
-        };
+    };
 
     auto m = std::make_shared<pattern::Matcher>(multiply_pattern, "KeepDequantizationPrecision");
     this->register_matcher(m, callback);
