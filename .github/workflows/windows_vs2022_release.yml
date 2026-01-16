@@ -26,6 +26,9 @@ env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
+  PIP_PROGRESS_BAR: "off"
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
 
 permissions: read-all
 
