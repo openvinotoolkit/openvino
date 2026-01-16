@@ -103,18 +103,14 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
         }
     }
 
-    std::shared_ptr<Node> axes =
-        std::make_shared<v0::Concat>(OutputVector{top_reduce->input_value(1), bottom_reduce->input_value(1)},
-                                     int64_t(0));
-    if (auto constant = ov::util::get_constant_from_source(axes)) {
-        const auto first_axes = top_reduce->get_reduction_axes();
-        const auto second_axes = bottom_reduce->get_reduction_axes();
-        std::vector<int64_t> axes_values;
-        axes_values.reserve(first_axes.size() + second_axes.size());
-        axes_values.insert(axes_values.end(), first_axes.begin(), first_axes.end());
-        axes_values.insert(axes_values.end(), second_axes.begin(), second_axes.end());
-        axes = op::v0::Constant::create(element::i64, Shape{axes_values.size()}, axes_values);
-    }
+    const auto first_axes = top_reduce->get_reduction_axes();
+    const auto second_axes = bottom_reduce->get_reduction_axes();
+    std::vector<int64_t> axes_values;
+    axes_values.reserve(first_axes.size() + second_axes.size());
+    axes_values.insert(axes_values.end(), first_axes.begin(), first_axes.end());
+    axes_values.insert(axes_values.end(), second_axes.begin(), second_axes.end());
+    std::shared_ptr<Node> axes = v0::Constant::create(element::i64, Shape{axes_values.size()}, axes_values);
+
     axes->set_friendly_name(bottom_reduce->get_friendly_name() + "/Axes");
     auto new_reduce = bottom_reduce->copy_with_new_inputs({top_reduce->input_value(0), axes->get_default_output()});
     new_reduce->set_friendly_name(bottom_reduce->get_friendly_name());
