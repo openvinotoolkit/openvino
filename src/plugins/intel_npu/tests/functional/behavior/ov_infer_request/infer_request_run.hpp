@@ -564,7 +564,7 @@ TEST_P(BatchingRunTests, CheckBatchingSupportInfer) {
 TEST_P(BatchingRunTests, CheckBatchingSupportAsync) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        ov::CompiledModel compiled_model;
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     auto batch_shape = Shape{4, 2, 32, 32};
     std::shared_ptr<ov::Model> ov_model_batch = createModel(element::f32, batch_shape, "N...");

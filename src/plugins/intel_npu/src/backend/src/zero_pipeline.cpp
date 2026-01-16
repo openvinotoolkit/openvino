@@ -81,7 +81,8 @@ Pipeline::Pipeline(const Config& config,
         }
 
         if (!_config.get<PERF_COUNT>() && was_compiled_with_profiling) {
-            _logger.warning("ZeroInferRequest::ZeroInferRequest - blob was compiled with profiling but PERF_COUNT is set to 'NO'");
+            _logger.warning(
+                "ZeroInferRequest::ZeroInferRequest - blob was compiled with profiling but PERF_COUNT is set to 'NO'");
         }
 
         auto profiling_pool =
