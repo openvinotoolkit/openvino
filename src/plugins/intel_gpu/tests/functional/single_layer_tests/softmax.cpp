@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include <gtest/gtest.h>
@@ -8,8 +8,9 @@
 #include "shared_test_classes/single_op/softmax.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
-using namespace ov::test;
-using namespace ov::test::subgraph;
+namespace ov {
+namespace test {
+namespace subgraph {
 
 // =======================
 // GPU Numerical Edge Cases
@@ -30,6 +31,8 @@ static void prepare_input(const std::vector<float>& values,
 
 static void check_output(const std::vector<float>& expected,
                          const std::vector<float>& actual) {
+    ASSERT_EQ(expected.size(), actual.size());
+
     for (size_t i = 0; i < expected.size(); ++i) {
         if (std::isnan(expected[i])) {
             EXPECT_TRUE(std::isnan(actual[i]));
@@ -72,7 +75,9 @@ TEST_P(SoftMaxLayerTest, NegativeInfinityOnlyCase) {
     prepare_input({-INFINITY, 1.f, 2.f}, inputsData, inputDynamicShapes);
     run();
     auto out = get_runtime_output()[0].as<std::vector<float>>();
-    check_output({0.f, 0.2689414f, 0.7310586f}, out);
+
+    std::vector<float> expected = {0.f, 0.2689414f, 0.7310586f};
+    EXPECT_THAT(out, ::testing::ElementsAreArray(expected));
 }
 
 TEST_P(SoftMaxLayerTest, NaNPropagationCases) {
@@ -86,8 +91,12 @@ TEST_P(SoftMaxLayerTest, NaNPropagationCases) {
         prepare_input(c, inputsData, inputDynamicShapes);
         run();
         auto out = get_runtime_output()[0].as<std::vector<float>>();
-        for (float v : out) {
-            EXPECT_TRUE(std::isnan(v));
-        }
+
+        std::vector<float> expected(out.size(), std::numeric_limits<float>::quiet_NaN());
+        EXPECT_THAT(out, ::testing::ElementsAreArray(expected));
     }
 }
+
+} // namespace subgraph
+} // namespace test
+} // namespace ov
