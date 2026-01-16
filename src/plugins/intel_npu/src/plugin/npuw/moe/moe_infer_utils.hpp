@@ -26,12 +26,7 @@ struct MoEProfile {
     ov::npuw::perf::Profile<ov::npuw::perf::metric<ov::npuw::perf::MSec>> prefill;
     ov::npuw::perf::Profile<ov::npuw::perf::metric<ov::npuw::perf::MSec>> decoding;
 
-    explicit MoEProfile(bool enable_profile) {
-        prefill.area = "MoE Prefill";
-        decoding.area = "MoE Decoding";
-        prefill.report_on_die = enable_profile;
-        decoding.report_on_die = enable_profile;
-    }
+    MoEProfile();
 };
 
 /**

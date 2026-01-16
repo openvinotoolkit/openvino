@@ -122,9 +122,8 @@ public:
      *
      * @param accessor Interface to access JustInferRequest internals
      * @param allocator Memory allocation function
-     * @param profiling_enabled Enable/disable profiling
      */
-    MoEExecutor(ISubrequestAccessor& accessor, AllocatorFn allocator, bool profiling_enabled);
+    MoEExecutor(ISubrequestAccessor& accessor, AllocatorFn allocator);
 
     /**
      * @brief Prepare MoE resources for a sublayer
@@ -199,8 +198,8 @@ private:
     AllocatorFn m_allocator;          // Memory allocation function
 
     // === Profiling ===
-    std::optional<MoEProfile> m_profile;  // Performance statistics
-    bool m_profiling_enabled;             // Enable/disable profiling
+    std::optional<MoEProfile>
+        m_profile;  // Performance statistics (always collects, reports based on profiling_enabled())
 
     // === Weight unpacking methods ===
     /**
