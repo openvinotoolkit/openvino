@@ -711,7 +711,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             //   This limitations is recommended to prevent performance drop in models with small head size, such as SD,
             //   until the SDPA operation is optimized for these cases
             bool valid_head_size = (head_size >= 64 && head_size <= device_info.max_work_group_size);
-            if (!valid_head_size) {
+            if (!valid_head_size || head_size % 2 != 0) { // head_size should be an even number (until the SDPA opt kernel is fixed for odd head size)
                 return false;
             }
 
