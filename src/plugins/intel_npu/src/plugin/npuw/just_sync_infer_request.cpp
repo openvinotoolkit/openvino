@@ -1943,7 +1943,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
         run_hfa_tiled_inference(real_idx, idx);
     } else if (comp_model_desc.moe_experts.has_value()) {
         // Use MoEExecutor
-        m_moe_executor->run(real_idx, idx, m_moe_io[idx], m_moe_token_to_experts, m_moe_expert_to_tokens);
+        m_moe_executor->run(real_idx, idx, m_moe_io[idx]);
     } else {
         r->infer();  // Run normally
     }
