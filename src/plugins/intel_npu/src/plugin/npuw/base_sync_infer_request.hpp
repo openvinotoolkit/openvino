@@ -240,14 +240,6 @@ protected:
 
     RqPtrs m_ref_subrequests;
 
-    // MoE Request Cache: Manages cached inference requests for expert combinations
-    // Encapsulates pool management, LRU eviction, and hit rate statistics
-    std::unique_ptr<ov::npuw::moe::RequestCache> m_moe_cache;
-    // MoE pool size is now configurable via NPUW_MOE_POOL_SIZE option
-
-    // Initialize MoE request pools (called during setup)
-    void initialize_moe_request_pools();
-
     using now_t = std::optional<std::size_t>;
     now_t now_idx() const;
 
