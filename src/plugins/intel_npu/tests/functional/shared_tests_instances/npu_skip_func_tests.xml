@@ -810,6 +810,7 @@ Example:
         <message>Data type u1 not supported by NPU4000.</message>
         <enable_rules>
             <device>4000</device>
+            <device>5010</device>
         </enable_rules>
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
@@ -837,6 +838,16 @@ Example:
         <message>Strides are not supported with the current driver</message>
         <filters>
             <filter>.*RoiTensorsTestsRun.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010</message>
+        <enable_rules>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*OVBlobCompatibilityNPU.*</filter>
         </filters>
     </skip_config>
 
