@@ -86,30 +86,30 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto conv1x1 = ov::as_type_ptr<ov::op::v1::Convolution>(pattern_map.at(conv1x1_m).get_node_shared_ptr());
+        auto conv1x1 = ov::as_type_ptr<ov::op::v1::Convolution>(pattern_map.at(std::move(conv1x1_m)).get_node_shared_ptr());
         auto weight_convert =
-            ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weight_convert_m).get_node_shared_ptr());
-        auto weight_sub = (pattern_map.count(weight_subtract_m) > 0)
+            ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(std::move(weight_convert_m)).get_node_shared_ptr());
+        auto weight_sub = (pattern_map.count(std::move(weight_subtract_m)) > 0)
                               ? pattern_map.at(weight_subtract_m).get_node_shared_ptr()
                               : nullptr;
-        auto weight_mult = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(weight_mult_m).get_node_shared_ptr());
-        auto bias_out = (pattern_map.count(bias_m) > 0) ? pattern_map.at(bias_m).get_node_shared_ptr() : nullptr;
+        auto weight_mult = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(std::move(weight_mult_m)).get_node_shared_ptr());
+        auto bias_out = (pattern_map.count(std::move(bias_m)) > 0) ? pattern_map.at(std::move(bias_m)).get_node_shared_ptr() : nullptr;
         auto bias_const =
-            (pattern_map.count(bias_const_m) > 0) ? pattern_map.at(bias_const_m).get_node_shared_ptr() : nullptr;
+            (pattern_map.count(std::move(bias_const_m)) > 0) ? pattern_map.at(std::move(bias_const_m)).get_node_shared_ptr() : nullptr;
         auto convert_out =
-            (pattern_map.count(convert_m) > 0) ? pattern_map.at(convert_m).get_node_shared_ptr() : nullptr;
-        auto out_order = (pattern_map.count(c_order_m) > 0) ? pattern_map.at(c_order_m).get_node_shared_ptr() : nullptr;
-        auto reshape_out = (pattern_map.count(reshape_output_m) > 0)
-                               ? pattern_map.at(reshape_output_m).get_node_shared_ptr()
+            (pattern_map.count(std::move(convert_m)) > 0) ? pattern_map.at(std::move(convert_m)).get_node_shared_ptr() : nullptr;
+        auto out_order = (pattern_map.count(std::move(c_order_m)) > 0) ? pattern_map.at(std::move(c_order_m)).get_node_shared_ptr() : nullptr;
+        auto reshape_out = (pattern_map.count(std::move(reshape_output_m)) > 0)
+                               ? pattern_map.at(std::move(reshape_output_m)).get_node_shared_ptr()
                                : nullptr;
         if (!conv1x1 || transformation_callback(conv1x1)) {
             return false;
         }
 
-        auto weight = pattern_map.at(weights_m).get_node_shared_ptr();
-        auto scale = pattern_map.at(weights_scales_m).get_node_shared_ptr();
-        auto zp = (pattern_map.count(weights_zp_m) > 0) ? pattern_map.at(weights_zp_m).get_node_shared_ptr() : nullptr;
-        auto activation = pattern_map.at(first_input_m).get_node_shared_ptr();
+        auto weight = pattern_map.at(std::move(weights_m)).get_node_shared_ptr();
+        auto scale = pattern_map.at(std::move(weights_scales_m)).get_node_shared_ptr();
+        auto zp = (pattern_map.count(std::move(weights_zp_m)) > 0) ? pattern_map.at(std::move(weights_zp_m)).get_node_shared_ptr() : nullptr;
+        auto activation = pattern_map.at(std::move(first_input_m)).get_node_shared_ptr();
 
         auto reshape_const_to_2d = [](std::shared_ptr<ov::Node> node) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
@@ -181,7 +181,7 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
             MatcherPass::register_new_node(Reshape_zp);
             Reshape_zp->set_friendly_name(zp->get_friendly_name() + "_Reshape_zp");
             auto weights_zp_convert =
-                ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weights_zp_convert_m).get_node_shared_ptr());
+                ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(std::move(weights_zp_convert_m)).get_node_shared_ptr());
             auto zp_squeezed_convert = weights_zp_convert->clone_with_new_inputs({Reshape_zp});
             ov::copy_runtime_info(weights_zp_convert, zp_squeezed_convert);
             ov::disable_constant_folding(zp_squeezed_convert);
