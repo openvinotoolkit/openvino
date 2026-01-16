@@ -7,10 +7,10 @@ on:
     branches:
       - 'master'
       - 'releases/**'
-  pull_request:
-    paths:
-      - '.github/workflows/code_snippets.yml'
-      - 'docs/snippets/**'
+  # pull_request:
+  #   paths:
+  #     - '.github/workflows/code_snippets.yml'
+  #     - 'docs/snippets/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

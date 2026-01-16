@@ -1,23 +1,12 @@
 name: Linux CPU Plugin Snippets with LIBXSMM (Ubuntu 22.04)
 on:
   workflow_dispatch:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+  push:
     paths:
       - '.github/workflows/dev_cpu_linux_snippets_libxsmm.yml'
-      - 'src/common/snippets/**'
-      - 'src/plugins/intel_cpu/src/nodes/subgraph.cpp'
-      - 'src/plugins/intel_cpu/src/nodes/subgraph.h'
-      - 'src/plugins/intel_cpu/src/emitters/snippets/**'
-      - 'src/plugins/intel_cpu/src/emitters/tpp/**'
-      - 'src/plugins/intel_cpu/src/transformations/snippets/**'
-      - 'src/plugins/intel_cpu/src/transformations/tpp/**'
-      - 'src/plugins/intel_cpu/tests/unit/snippets_transformations/**'
-      - 'src/plugins/intel_cpu/tests/functional/shared_tests_instances/snippets/**'
+      - 'cmake/**'
+      - 'src/**'
+      - 'samples/**'
 
 concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-cpu-dev

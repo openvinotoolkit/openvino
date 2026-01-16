@@ -1,17 +1,14 @@
 name: Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)
 on:
   workflow_dispatch:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-  merge_group:
   push:
     branches:
       - master
       - 'releases/**'
+    paths:
+      - '.github/workflows/clang_tidy.yml'
+      - 'cmake/**'
+      - 'src/**'
 
 concurrency:
   # github.ref is not unique in post-commit

@@ -6,12 +6,12 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+  # pull_request:
+  #   types:
+  #     - opened
+  #     - synchronize
+  #     - reopened
+  #     - ready_for_review
   merge_group:
   push:
     branches:
@@ -56,7 +56,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
-      
+
       - name: Get target branch
         id: set_target_branch
         run: |
@@ -131,7 +131,7 @@ jobs:
 
       - name: System info
         uses: ./openvino/.github/actions/system_info
-        
+
       - name: Setup ccache
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
