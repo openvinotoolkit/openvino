@@ -26,13 +26,6 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
         m_ref_subrequests.resize(m_num_submodels);
     }
 
-    // Initialize MoE request cache (if enabled)
-    const auto moe_pool_size = m_npuw_model->m_cfg.get<::intel_npu::NPUW_MOE_POOL_SIZE>();
-    if (moe_pool_size > 0) {
-        m_moe_cache = std::make_unique<ov::npuw::moe::RequestCache>(m_num_submodels, moe_pool_size);
-        initialize_moe_request_pools();
-    }
-
     // Initialize profiling
     m_profile.report_on_die = ov::npuw::profiling_enabled();
     m_profile.area = m_npuw_model->m_name + "/performance";
@@ -507,81 +500,6 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
             ov::npuw::util::unpack(ov::get_tensor_impl(closure), clparam);
         }
     }
-}
-
-void ov::npuw::IBaseInferRequest::initialize_moe_request_pools() {
-    LOG_DEBUG("Initializing MoE request pools...");
-
-    const auto moe_pool_size = m_npuw_model->m_cfg.get<::intel_npu::NPUW_MOE_POOL_SIZE>();
-    if (moe_pool_size == 0) {
-        LOG_DEBUG("MoE request cache is disabled (NPUW_MOE_POOL_SIZE=0)");
-        return;
-    }
-
-    // Iterate through all submodels to find MoE layers
-    for (size_t idx = 0; idx < m_npuw_model->m_compiled_submodels.size(); ++idx) {
-        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-
-        // Skip if not a function call or doesn't have MoE experts
-        if (!comp_model_desc.replaced_by) {
-            continue;
-        }
-
-        const auto real_idx = comp_model_desc.replaced_by.value();
-        auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
-
-        // Skip if not MoE expert sublayer or not decoding (single token)
-        if (!func_desc.moe_experts.has_value() || func_desc.moe_experts->input_token_count > 1) {
-            continue;
-        }
-
-        LOG_DEBUG("  Creating MoE request pool for sublayer[" << idx << "] with " << moe_pool_size << " entries");
-
-        // Pre-create all requests for this layer
-        std::vector<ov::npuw::moe::RequestCache::RqPtr> requests;
-        requests.resize(moe_pool_size);
-
-        // Create first request separately (needed for tensor sharing)
-        try {
-            requests[0] = func_desc.compiled_model->create_infer_request();
-            requests[0]->infer();  // Warmup
-        } catch (const std::exception& ex) {
-            LOG_ERROR("Failed to create MoE pool request[0] for sublayer[" << idx << "]: " << ex.what());
-            throw;
-        }
-
-        // Create remaining requests in parallel, sharing tensors from first request
-        ov::parallel_for(moe_pool_size - 1, [&](size_t i) {
-            const size_t req_idx = i + 1;  // Skip first request (already created)
-            try {
-                auto request = func_desc.compiled_model->create_infer_request();
-
-                // Share all input & output tensors from first request to save memory
-                const auto& inputs = func_desc.compiled_model->inputs();
-                for (size_t input_idx = 0; input_idx < inputs.size(); ++input_idx) {
-                    request->set_tensor(inputs[input_idx], requests[0]->get_tensor(inputs[input_idx]));
-                }
-                const auto& outputs = func_desc.compiled_model->outputs();
-                for (size_t output_idx = 0; output_idx < outputs.size(); ++output_idx) {
-                    request->set_tensor(outputs[output_idx], requests[0]->get_tensor(outputs[output_idx]));
-                }
-
-                request->infer();  // Warmup
-                requests[req_idx] = std::move(request);
-            } catch (const std::exception& ex) {
-                LOG_ERROR("Failed to create MoE pool request[" << req_idx << "] for sublayer[" << idx
-                                                               << "]: " << ex.what());
-                throw;
-            }
-        });
-
-        // Initialize cache layer with pre-allocated requests
-        m_moe_cache->initialize_layer(idx, std::move(requests));
-
-        LOG_DEBUG("  Pool created with " << moe_pool_size << " requests");
-    }
-
-    LOG_DEBUG("MoE request pools initialization completed");
 }
 
 void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr request) {
