@@ -21,6 +21,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
+#include "patterns/moe.hpp"
 #include "patterns/opt.hpp"
 #include "traits.hpp"
 
@@ -241,7 +242,7 @@ private:
     // Helper method to find and cache router model for MoE transformations
     // Returns cached router model if available, otherwise searches P.functions
     // for a function tagged as "router" and caches it for future use
-    std::shared_ptr<ov::Model> ensureAndGetRouterModel();
+    std::shared_ptr<ov::Model> getRouterModel();
 
     void createFunction(FunctionPipeline& func_ggg);
 
@@ -1955,7 +1956,7 @@ void Partitioner::attention(const std::string& func_name) {
     }
 }
 
-std::shared_ptr<ov::Model> Partitioner::ensureAndGetRouterModel() {
+std::shared_ptr<ov::Model> Partitioner::getRouterModel() {
     // Find and cache router model in context if not already cached
     if (part_ctx.router_model != nullptr) {
         return part_ctx.router_model;
@@ -1963,7 +1964,7 @@ std::shared_ptr<ov::Model> Partitioner::ensureAndGetRouterModel() {
 
     for (const auto& [name, func] : P.functions) {
         LOG_DEBUG("Checking function " << name << " with tag " << func.gettag());
-        if (func.gettag() != "router") {
+        if (func.gettag() != ov::npuw::patterns::moe::ROUTER_TAG) {
             continue;
         }
 
@@ -1979,18 +1980,19 @@ void Partitioner::transformMoeExperts(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
 
     // Only process functions tagged as "expert"
-    if (f.gettag() != "expert") {
+    if (f.gettag() != ov::npuw::patterns::moe::EXPERT_TAG) {
         return;
     }
 
     // Retrieve router model (required for extracting K from TopK node)
-    auto router_model = ensureAndGetRouterModel();
+    auto router_model = getRouterModel();
     if (!router_model) {
-        LOG_DEBUG("Router model not available yet, skipping MoE expert transformation for " << func_name);
+        LOG_WARN("Router model not available yet, skipping MoE expert transformation for " << func_name);
         return;
     }
 
-    LOG_INFO("Transforming " << func_name << " into MoE expert block in model " << model->get_friendly_name() << "...");
+    LOG_DEBUG("Transforming " << func_name << " into MoE expert block in model " << model->get_friendly_name()
+                              << "...");
     LOG_BLOCK();
 
     // Determine compilation strategy from configuration:
@@ -2010,13 +2012,13 @@ void Partitioner::transformMoeDownstream(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
 
     // Retrieve router model (required for extracting active expert count)
-    auto router_model = ensureAndGetRouterModel();
+    auto router_model = getRouterModel();
     if (!router_model) {
-        LOG_DEBUG("Router model not available, skipping MoE downstream transformation for " << func_name);
+        LOG_WARN("Router model not available, skipping MoE downstream transformation for " << func_name);
         return;
     }
 
-    LOG_VERB("Attempting MoE downstream transformation for " << func_name << "...");
+    LOG_DEBUG("Attempting MoE downstream transformation for " << func_name << "...");
     LOG_BLOCK();
 
     // Detect and transform MoE downstream processing pattern:
