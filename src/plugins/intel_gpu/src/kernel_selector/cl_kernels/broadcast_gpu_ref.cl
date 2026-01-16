@@ -410,6 +410,7 @@ KERNEL(broadcast_gpu_ref)(
 #endif
         #if HAS_FUSED_OPS
             const uint offset = 0;
+            const uint i = 0;
             INPUT0_TYPE res = input[idx_pos];
             FUSED_OPS
             output[out_pos] = FUSED_OPS_RESULT;
