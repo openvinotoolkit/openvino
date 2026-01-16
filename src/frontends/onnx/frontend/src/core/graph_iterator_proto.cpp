@@ -227,9 +227,10 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
     if (value_info != nullptr) {
         tensor_meta_info.m_tensor_name = value_info->has_name() ? &value_info->name() : &empty_name;
         const auto* value_type = value_info->has_type() ? get_tensor_type(value_info->type()) : nullptr;
-        const auto value_case = value_info->has_type() ? value_info->type().value_case()
-                                                      : ::ONNX_NAMESPACE::TypeProto::VALUE_NOT_SET;
-        if (value_info->has_type() && value_type == nullptr && value_case != ::ONNX_NAMESPACE::TypeProto::VALUE_NOT_SET) {
+        const auto value_case =
+            value_info->has_type() ? value_info->type().value_case() : ::ONNX_NAMESPACE::TypeProto::VALUE_NOT_SET;
+        if (value_info->has_type() && value_type == nullptr &&
+            value_case != ::ONNX_NAMESPACE::TypeProto::VALUE_NOT_SET) {
             throw std::runtime_error("Unsupported value_info type: " + (*tensor_meta_info.m_tensor_name));
         }
         if (value_type != nullptr && value_type->has_shape()) {

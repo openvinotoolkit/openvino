@@ -15,8 +15,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "../frontend/src/core/graph_iterator_proto.hpp"
 #include "../frontend/src/core/decoder_proto.hpp"
+#include "../frontend/src/core/graph_iterator_proto.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_case.hpp"
 #include "load_from.hpp"
@@ -250,8 +250,8 @@ TEST(FrontEndGraphIteratorTest, loads_bfloat16_raw_initializer_via_iterator) {
 
 TEST(FrontEndGraphIteratorTest, handles_optional_value_info) {
     const std::string model_name = "graph_iterator/optional_value_info.onnx";
-    const auto model_path = ov::util::path_join(
-        {ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name});
+    const auto model_path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name});
 
     GraphIteratorProtoAccessor iterator(ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::Internal_Stream);
     ASSERT_NO_THROW(iterator.initialize(model_path));
@@ -272,8 +272,8 @@ TEST(FrontEndGraphIteratorTest, handles_optional_value_info) {
 
 TEST(FrontEndGraphIteratorTest, handles_sequence_value_info) {
     const std::string model_name = "graph_iterator/sequence_value_info.onnx";
-    const auto model_path = ov::util::path_join(
-        {ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name});
+    const auto model_path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name});
 
     GraphIteratorProtoAccessor iterator(ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::Internal_Stream);
     ASSERT_NO_THROW(iterator.initialize(model_path));
