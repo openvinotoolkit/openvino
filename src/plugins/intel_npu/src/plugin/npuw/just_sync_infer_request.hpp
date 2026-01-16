@@ -79,10 +79,6 @@ public:
     const void* get_submodel_desc(size_t idx) override;
     TensorPtr allocate_mem(const ov::element::Type& type, const ov::Shape& shape, const std::string& device) override;
     void unpack_closure(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request) override;
-    void unpack_single_expert_closure(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request, size_t expert_id) override;
-    void unpack_multiple_experts_closure(size_t idx,
-                                         ov::SoPtr<ov::IAsyncInferRequest> request,
-                                         const std::vector<size_t>& expert_ids) override;
 
 protected:
     ////////////////////////////////////
