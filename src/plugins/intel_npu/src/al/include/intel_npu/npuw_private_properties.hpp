@@ -466,16 +466,6 @@ static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};
  */
 static constexpr ov::Property<std::string> io_iters{"NPUW_DUMP_IO_ITERS"};
 
-/**
- * @brief
- * Type: bool.
- * Enable MoE (Mixture of Experts) performance profiling and statistics reporting.
- * When enabled, detailed timing metrics will be collected and printed on exit for:
- * - Prefill phase: router parsing, closure unpacking, expert inference, etc.
- * - Decoding phase: batch expert processing steps.
- * Default value: false.
- */
-static constexpr ov::Property<bool> moe_profiling{"NPUW_ENABLE_MOE_PROFILING"};
 }  // namespace dump
 
 namespace llm {
