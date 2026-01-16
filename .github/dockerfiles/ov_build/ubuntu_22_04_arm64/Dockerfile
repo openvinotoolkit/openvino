@@ -41,6 +41,9 @@ RUN apt-get update && \
         python3.12-venv \
         python3.13-dev \
         python3.13-venv \
+        python3.14-nogil \
+        python3.14-venv \
+        python3.14-dev \
         libhdf5-dev \
         # For Java API
         default-jdk \
@@ -90,6 +93,8 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.14 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
 # Use Python 3.11 as default instead of Python 3.10
