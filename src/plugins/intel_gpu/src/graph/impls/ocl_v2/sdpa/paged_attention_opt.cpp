@@ -1477,7 +1477,7 @@ public:
         }
         bool can_use_micro_sdpa = false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        can_use_micro_sdpa = supports_micro_sdpa(params) && rt_params->stage != PagedAttentionStage::GENERATE;
+        can_use_micro_sdpa = has_stage(pa_sdpa_micro) && stage != PagedAttentionStage::GENERATE;
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
@@ -1557,7 +1557,7 @@ public:
 
         const auto multi_tokens_mode = stage == PagedAttentionStage::MIXED;
         if (multi_tokens_mode && !can_use_micro_sdpa) {
-            internal_buffers.emplace_back(total_tokens, softmax_accumulator_type, lockable);  // 9                               // 10
+            internal_buffers.emplace_back(total_tokens, softmax_accumulator_type, lockable);  // 9
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1668,7 +1668,7 @@ public:
             } else if (has_scores_output) {
                 sequential_gws_subseq_mapping_idx = 8;
             }
-            
+
             OPENVINO_ASSERT(intermediates_memories.size() > sequential_gws_subseq_mapping_idx,
                             "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage");
 
