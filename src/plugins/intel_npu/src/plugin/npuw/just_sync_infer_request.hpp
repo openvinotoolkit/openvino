@@ -13,7 +13,7 @@
 #include "base_sync_infer_request.hpp"
 #include "host_flash_attention.hpp"
 #include "moe/moe_executor.hpp"
-#include "moe_infer_utils.hpp"
+#include "moe/moe_infer_utils.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
