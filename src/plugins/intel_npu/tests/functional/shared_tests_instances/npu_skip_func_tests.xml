@@ -807,7 +807,7 @@ Example:
 
     <!-- E###### -->
     <skip_config>
-        <message>Data type u1 not supported by NPU4000.</message>
+        <message>Data type u1 not supported by NPU4000 and NPU5010.</message>
         <enable_rules>
             <device>4000</device>
             <device>5010</device>
