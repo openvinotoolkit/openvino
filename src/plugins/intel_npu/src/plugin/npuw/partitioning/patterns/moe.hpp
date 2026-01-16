@@ -18,6 +18,10 @@ namespace npuw {
 namespace patterns {
 namespace moe {
 
+// MoE pattern matching keywords
+constexpr const char* ROUTER_TAG = "router";
+constexpr const char* EXPERT_TAG = "expert";
+
 class GPTOSSExpert : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::GPTOSSExpert");
