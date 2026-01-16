@@ -86,7 +86,7 @@ TEST_P(broadcast_fused_prims, broadcast_activation_with_broadcast) {
         data("out_lo", get_mem(get_single_element_layout(p), -128)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         quantize("quantize", input_info("eltwise"), input_info("in_lo"), input_info("in_hi"), input_info("out_lo"), input_info("out_hi"), 256, quantize_dt),
-        activation("activation", input_info("quantize"), activation_func::abs),
+        activation("activation", input_info("quantize"), activation_func::relu),
         reorder("out", input_info("activation"), p.default_format, data_types::f32));
 
     tolerance = default_tolerance(quantize_dt);
