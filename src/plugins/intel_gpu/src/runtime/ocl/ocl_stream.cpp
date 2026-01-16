@@ -86,14 +86,6 @@ void set_arguments_impl(ocl_kernel_type& kernel,
     using scalar_t = scalar_desc::Types;
     for (uint32_t i = 0; i < static_cast<uint32_t>(args.size()); i++) {
         cl_int status = CL_INVALID_ARG_VALUE;
-
-        auto kname = kernel.getInfo<CL_KERNEL_FUNCTION_NAME>();
-        GPU_DEBUG_INFO << "[set_args] kernel=" << kname
-                    << " i=" << i
-                    << " arg_t=" << static_cast<int>(args[i].t)
-                    << " arg_index=" << args[i].index
-                    << std::endl;
-
         switch (args[i].t) {
             case args_t::INPUT:
                 OPENVINO_ASSERT(args[i].index < data.inputs.size() && data.inputs[args[i].index],
@@ -137,13 +129,8 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                 status = set_kernel_arg(kernel, i, data.slope);
                 break;
             case args_t::SCALAR:
-            if (data.scalars && args[i].index < data.scalars->size()) {
-                const auto& scalar = (*data.scalars)[args[i].index];
-                GPU_DEBUG_INFO << "[set_args] kernel=" << kname
-                            << " i=" << i
-                            << " scalar_index=" << args[i].index
-                            << " scalar_t=" << static_cast<int>(scalar.t)
-                            << std::endl;
+                if (data.scalars && args[i].index < data.scalars->size()) {
+                    const auto& scalar = (*data.scalars)[args[i].index];
                     switch (scalar.t) {
                         case scalar_t::UINT8:
                             status = kernel.setArg(i, scalar.v.u8);
@@ -158,9 +145,6 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                             GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u32): " << scalar.v.u32 << "\n";
                             break;
                         case scalar_t::UINT64:
-                        GPU_DEBUG_INFO << "[set_args] kernel=" << kname
-                                    << " i=" << i << " u64=" << scalar.v.u64
-                                    << std::endl;
                             status = kernel.setArg(i, scalar.v.u64);
                             GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u64): " << scalar.v.u64 << "\n";
                             break;
@@ -173,9 +157,6 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                             GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s16): " << scalar.v.s16 << "\n";
                             break;
                         case scalar_t::INT32:
-                            GPU_DEBUG_INFO << "[set_args] kernel=" << kname
-                                        << " i=" << i << " s32=" << scalar.v.s32
-                                        << std::endl;
                             status = kernel.setArg(i, scalar.v.s32);
                             GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s32): " << scalar.v.s32 << "\n";
                             break;

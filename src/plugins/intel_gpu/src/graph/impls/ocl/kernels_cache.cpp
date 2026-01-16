@@ -409,9 +409,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
 
 
             program.createKernels(&kernels);
-GPU_DEBUG_INFO << "Kernels created from program:\n";
-for (auto& k : kernels)
-    GPU_DEBUG_INFO << "  - " << k.getInfo<CL_KERNEL_FUNCTION_NAME>() << "\n";
+
             if (is_cache_enabled()) {
                 // If kernels caching is enabled, then we save compiled bucket to binary file with name ${code_hash_value}.cl_cache
                 // Note: Bin file contains full bucket, not separate kernels, so kernels reuse across different models is quite limited
@@ -426,9 +424,6 @@ for (auto& k : kernels)
                 throw std::runtime_error("Failed in building program with a precompiled kernel.");
 
             program.createKernels(&kernels);
-GPU_DEBUG_INFO << "Kernels created from program:\n";
-for (auto& k : kernels)
-    GPU_DEBUG_INFO << "  - " << k.getInfo<CL_KERNEL_FUNCTION_NAME>() << "\n";
         }
 
         {
@@ -450,12 +445,6 @@ for (auto& k : kernels)
                        _kernel_batch_hash[params] = batch.hash_value;
                     }
                 } else {
-                    GPU_DEBUG_INFO << "Unexpected kernel entry point from program: [" << entry_point << "]\n";
-
-                    GPU_DEBUG_INFO << "Expected entry points (batch.entry_point_to_id):\n";
-                    for (const auto& kv : batch.entry_point_to_id) {
-                        GPU_DEBUG_INFO << "  - [" << kv.first << "]\n";
-                    }
                     throw std::runtime_error("Could not find entry point");
                 }
             }
