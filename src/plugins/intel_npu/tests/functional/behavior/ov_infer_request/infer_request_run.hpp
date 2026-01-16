@@ -188,6 +188,91 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
     }
 }
 
+using ProfilingBlob = InferRequestRunTests;
+
+TEST_P(ProfilingBlob, NoProfilingCompileImportProfiling) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::CompiledModel compiled_model;
+
+    configuration[ov::enable_profiling.name()] = false;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration[ov::enable_profiling.name()] = true;
+    OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    OV_ASSERT_NO_THROW(input = compiled_model.input());
+    OV_ASSERT_NO_THROW(output = compiled_model.output());
+
+    ov::InferRequest inferReq;
+
+    OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(inferReq.get_tensor(input));
+
+    OV_ASSERT_NO_THROW(inferReq.start_async());
+
+    ASSERT_ANY_THROW(inferReq.wait());
+}
+
+TEST_P(ProfilingBlob, ProfilingCompileNoProfilingImport) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::CompiledModel compiled_model;
+
+    configuration[ov::enable_profiling.name()] = true;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration[ov::enable_profiling.name()] = false;
+    OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    OV_ASSERT_NO_THROW(input = compiled_model.input());
+    OV_ASSERT_NO_THROW(output = compiled_model.output());
+
+    ov::InferRequest inferReq;
+
+    OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(inferReq.get_tensor(input));
+
+    OV_ASSERT_NO_THROW(inferReq.start_async());
+
+    OV_ASSERT_NO_THROW(inferReq.wait());
+}
+
+TEST_P(ProfilingBlob, ProfilingCompileProfilingImport) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::CompiledModel compiled_model;
+
+    configuration[ov::enable_profiling.name()] = true;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    OV_ASSERT_NO_THROW(input = compiled_model.input());
+    OV_ASSERT_NO_THROW(output = compiled_model.output());
+
+    ov::InferRequest inferReq;
+
+    OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(inferReq.get_tensor(input));
+
+    OV_ASSERT_NO_THROW(inferReq.start_async());
+
+    OV_ASSERT_NO_THROW(inferReq.wait());
+}
+
 TEST_P(InferRequestRunTests, MultipleExecutorTestsSyncInfers) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::CompiledModel compiled_model;
