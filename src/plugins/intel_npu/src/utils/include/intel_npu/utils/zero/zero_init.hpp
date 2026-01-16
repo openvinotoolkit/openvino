@@ -72,6 +72,9 @@ public:
         return _external_memory_fd_win32_supported;
     }
 
+    void setContextOptions(const uint32_t options);
+    void clearContextOptions(const uint32_t options);
+
     static const std::shared_ptr<ZeroInitStructsHolder> getInstance();
 
     ze_device_graph_properties_t getCompilerProperties();
@@ -81,6 +84,7 @@ public:
 private:
     void initNpuDriver();
     void getExtensionFunctionAddress(const std::string& name, const uint32_t version, void** function_address);
+    void setContextProperties();
 
     // keep zero_api alive until context is destroyed
     std::shared_ptr<ZeroApi> _zero_api;
@@ -96,6 +100,7 @@ private:
     std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator> _command_queue_npu_dditable_ext_decorator;
     std::unique_ptr<ze_graph_profiling_dditable_ext_decorator> _graph_profiling_npu_dditable_ext_decorator;
     std::unique_ptr<ze_driver_npu_dditable_ext_decorator> _driver_npu_dditable_ext_decorator;
+    std::unique_ptr<ze_context_npu_dditable_ext_decorator> _context_npu_dditable_ext_decorator;
 
     ze_driver_properties_t _driver_properties = {};
     uint32_t _mutable_command_list_ext_version = 0;
@@ -106,6 +111,8 @@ private:
 
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
+
+    uint32_t _context_options = 0;
 
     std::mutex _mutex;
 };

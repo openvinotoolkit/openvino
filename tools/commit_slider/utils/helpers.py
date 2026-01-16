@@ -5,7 +5,7 @@ import importlib
 import shutil
 import os
 import sys
-import subprocess
+import subprocess  # nosec B404
 from enum import Enum
 import re
 import json

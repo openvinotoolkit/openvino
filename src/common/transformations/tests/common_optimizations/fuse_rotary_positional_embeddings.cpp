@@ -36,6 +36,8 @@ using namespace ov::gen_pattern;
 
 const std::vector<int> MOCK_VALUE = {1};
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 static ov::OutputVector makeCosSinCache(size_t max_position_embeddings, size_t rotary_ndims) {
     std::vector<float> lut_sin(max_position_embeddings * rotary_ndims, 0.0f);
     std::vector<float> lut_cos(max_position_embeddings * rotary_ndims, 0.0f);
@@ -1318,22 +1320,22 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul) {
         auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
 
         auto x1_shape = makeConst(ov::element::i64, ov::Shape({5}), {0, num_heads, 0, -1, 2});
-        auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
+        auto x1 = std::make_shared<v1::Reshape>(x, x1_shape, true);
 
         auto split_axis = makeConst(ov::element::i64, ov::Shape(), {-1});
-        auto split = std::make_shared<ov::op::v1::Split>(x1, split_axis, 2);
+        auto split = std::make_shared<v1::Split>(x1, split_axis, 2);
 
         auto minus_one = makeConst(ov::element::f32, ov::Shape({}), {-1.0f});
-        auto x1_1_neg = std::make_shared<ov::op::v1::Multiply>(split->output(1), minus_one);
+        auto x1_1_neg = std::make_shared<v1::Multiply>(split->output(1), minus_one);
 
-        auto x2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{x1_1_neg->output(0), split->output(0)}, -1);
+        auto x2 = std::make_shared<v0::Concat>(ov::OutputVector{x1_1_neg->output(0), split->output(0)}, -1);
 
         auto x3_shape = makeConst(ov::element::i64, ov::Shape({4}), {0, num_heads, 0, ndims});
-        auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
+        auto x3 = std::make_shared<v1::Reshape>(x2, x3_shape, true);
 
-        auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
-        auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
-        auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+        auto y1 = std::make_shared<v1::Multiply>(x, t_cos);
+        auto y2 = std::make_shared<v1::Multiply>(x3, t_sin);
+        auto y = std::make_shared<v1::Add>(y1, y2);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x, t_cos, t_sin});
     }
@@ -1366,28 +1368,28 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_squeeze_mul_unsqueeze) {
         auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
 
         auto x1_shape = makeConst(ov::element::i64, ov::Shape({5}), {0, num_heads, 0, -1, 2});
-        auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
+        auto x1 = std::make_shared<v1::Reshape>(x, x1_shape, true);
 
         auto split_axis = makeConst(ov::element::i64, ov::Shape(), {-1});
-        auto split = std::make_shared<ov::op::v1::Split>(x1, split_axis, 2);
+        auto split = std::make_shared<v1::Split>(x1, split_axis, 2);
 
         auto squeeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
-        auto squeeze = std::make_shared<ov::op::v0::Squeeze>(split->output(1), squeeze_axis);
+        auto squeeze = std::make_shared<v0::Squeeze>(split->output(1), squeeze_axis);
 
         auto minus_one = makeConst(ov::element::f32, ov::Shape({}), {-1.0f});
-        auto x1_1_neg = std::make_shared<ov::op::v1::Multiply>(squeeze, minus_one);
+        auto x1_1_neg = std::make_shared<v1::Multiply>(squeeze, minus_one);
 
         auto unsqueeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
-        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(x1_1_neg, unsqueeze_axis);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(x1_1_neg, unsqueeze_axis);
 
-        auto x2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{unsqueeze->output(0), split->output(0)}, -1);
+        auto x2 = std::make_shared<v0::Concat>(ov::OutputVector{unsqueeze->output(0), split->output(0)}, -1);
 
         auto x3_shape = makeConst(ov::element::i64, ov::Shape({4}), {0, num_heads, 0, ndims});
-        auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
+        auto x3 = std::make_shared<v1::Reshape>(x2, x3_shape, true);
 
-        auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
-        auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
-        auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+        auto y1 = std::make_shared<v1::Multiply>(x, t_cos);
+        auto y2 = std::make_shared<v1::Multiply>(x3, t_sin);
+        auto y = std::make_shared<v1::Add>(y1, y2);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x, t_cos, t_sin});
     }
@@ -1420,28 +1422,28 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul_squeeze_unsqueeze) {
         auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
 
         auto x1_shape = makeConst(ov::element::i64, ov::Shape({5}), {0, num_heads, 0, -1, 2});
-        auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
+        auto x1 = std::make_shared<v1::Reshape>(x, x1_shape, true);
 
         auto split_axis = makeConst(ov::element::i64, ov::Shape(), {-1});
-        auto split = std::make_shared<ov::op::v1::Split>(x1, split_axis, 2);
+        auto split = std::make_shared<v1::Split>(x1, split_axis, 2);
 
         auto minus_one = makeConst(ov::element::f32, ov::Shape({}), {-1.0f});
-        auto x1_1_neg = std::make_shared<ov::op::v1::Multiply>(split->output(1), minus_one);
+        auto x1_1_neg = std::make_shared<v1::Multiply>(split->output(1), minus_one);
 
         auto squeeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
-        auto squeeze = std::make_shared<ov::op::v0::Squeeze>(x1_1_neg, squeeze_axis);
+        auto squeeze = std::make_shared<v0::Squeeze>(x1_1_neg, squeeze_axis);
 
         auto unsqueeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
-        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(squeeze, unsqueeze_axis);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(squeeze, unsqueeze_axis);
 
-        auto x2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{unsqueeze->output(0), split->output(0)}, -1);
+        auto x2 = std::make_shared<v0::Concat>(ov::OutputVector{unsqueeze->output(0), split->output(0)}, -1);
 
         auto x3_shape = makeConst(ov::element::i64, ov::Shape({4}), {0, num_heads, 0, ndims});
-        auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
+        auto x3 = std::make_shared<v1::Reshape>(x2, x3_shape, true);
 
-        auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
-        auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
-        auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+        auto y1 = std::make_shared<v1::Multiply>(x, t_cos);
+        auto y2 = std::make_shared<v1::Multiply>(x3, t_sin);
+        auto y = std::make_shared<v1::Add>(y1, y2);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x, t_cos, t_sin});
     }

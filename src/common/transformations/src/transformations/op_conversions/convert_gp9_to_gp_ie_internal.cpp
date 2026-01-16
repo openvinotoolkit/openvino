@@ -12,10 +12,13 @@
 #include "ov_ops/generate_proposals_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v9 = ov::op::v9;
 ov::pass::ConvertGP9ToGPIEInternal::ConvertGP9ToGPIEInternal() {
-    matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [](Matcher& m) {
         const auto root = m.get_match_root();
-        const auto old_node = ov::as_type_ptr<ov::op::v9::GenerateProposals>(root);
+        const auto old_node = ov::as_type_ptr<v9::GenerateProposals>(root);
         if (!old_node) {
             return false;
         }
@@ -49,7 +52,7 @@ ov::pass::ConvertGP9ToGPIEInternal::ConvertGP9ToGPIEInternal() {
         return true;
     };
 
-    const auto generate_proposals = ov::pass::pattern::wrap_type<ov::op::v9::GenerateProposals>();
-    const auto matcher = std::make_shared<ov::pass::pattern::Matcher>(generate_proposals, "ConvertGP9ToGPIEInternal");
+    const auto generate_proposals = ov::pass::pattern::wrap_type<v9::GenerateProposals>();
+    const auto matcher = std::make_shared<Matcher>(generate_proposals, "ConvertGP9ToGPIEInternal");
     register_matcher(matcher, callback);
 }

@@ -10,8 +10,9 @@
 #include "openvino/op/parameter.hpp"
 #include "transformations/hash.hpp"
 
+namespace v0 = ov::op::v0;
 namespace ov::test {
-using ov::op::v0::Parameter, ov::op::v0::Constant, ov::op::v1::Add;
+using v0::Parameter, v0::Constant, ov::op::v1::Add;
 
 TEST(HashTest, same_model_hashed_without_weights) {
     uint64_t hash1 = 0, hash2 = 0;

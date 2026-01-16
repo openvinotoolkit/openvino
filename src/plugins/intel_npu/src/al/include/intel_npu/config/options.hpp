@@ -1491,4 +1491,22 @@ struct ENABLE_STRIDES_FOR final : OptionBase<ENABLE_STRIDES_FOR, std::string> {
     }
 };
 
+struct DISABLE_IDLE_MEMORY_PRUNING final : OptionBase<DISABLE_IDLE_MEMORY_PRUNING, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::disable_idle_memory_prunning.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+};
+
 }  // namespace intel_npu

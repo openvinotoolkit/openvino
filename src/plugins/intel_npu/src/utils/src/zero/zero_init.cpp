@@ -5,6 +5,7 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 
 #include <ze_command_queue_npu_ext.h>
+#include <ze_context_npu_ext.h>
 #include <ze_driver_npu_ext.h>
 #include <ze_graph_ext.h>
 #include <ze_mem_import_system_memory_ext.h>
@@ -22,6 +23,7 @@ constexpr uint32_t TARGET_ZE_DRIVER_NPU_EXT_VERSION = ZE_DRIVER_NPU_EXT_VERSION_
 constexpr uint32_t TARGET_ZE_GRAPH_NPU_EXT_VERSION = ZE_GRAPH_EXT_VERSION_1_16;
 constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION = ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_1;
 constexpr uint32_t TARGET_ZE_PROFILING_NPU_EXT_VERSION = ZE_PROFILING_DATA_EXT_VERSION_1_0;
+constexpr uint32_t TARGET_ZE_CONTEXT_NPU_EXT_VERSION = ZE_CONTEXT_NPU_EXT_VERSION_1_0;
 constexpr uint32_t TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION = ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1;
 
 constexpr ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
@@ -288,15 +290,15 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
                ZE_MINOR_VERSION(command_queue_ext_version));
 
     // Load npu command queue extension
-    ze_command_queue_npu_dditable_ext_t* _command_queue_npu_dditable_ext = nullptr;
+    ze_command_queue_npu_dditable_ext_t* command_queue_npu_dditable_ext = nullptr;
     if (command_queue_ext_version) {
         getExtensionFunctionAddress(command_queue_ext_name,
                                     command_queue_ext_version,
-                                    reinterpret_cast<void**>(&_command_queue_npu_dditable_ext));
+                                    reinterpret_cast<void**>(&command_queue_npu_dditable_ext));
     }
 
     _command_queue_npu_dditable_ext_decorator =
-        std::make_unique<ze_command_queue_npu_dditable_ext_decorator>(_command_queue_npu_dditable_ext,
+        std::make_unique<ze_command_queue_npu_dditable_ext_decorator>(command_queue_npu_dditable_ext,
                                                                       command_queue_ext_version);
 
     // Query the mutable command list version
@@ -325,13 +327,34 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
         queryDriverExtensionVersion(ZE_PROFILING_DATA_EXT_NAME, TARGET_ZE_PROFILING_NPU_EXT_VERSION, extProps, count);
 
     // Load npu profiling extension
-    ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;
+    ze_graph_profiling_dditable_ext_t* graph_profiling_ddi_table_ext = nullptr;
     getExtensionFunctionAddress(profiling_ext_name,
                                 profiling_ext_version,
-                                reinterpret_cast<void**>(&_graph_profiling_ddi_table_ext));
+                                reinterpret_cast<void**>(&graph_profiling_ddi_table_ext));
 
     _graph_profiling_npu_dditable_ext_decorator =
-        std::make_unique<ze_graph_profiling_dditable_ext_decorator>(_graph_profiling_ddi_table_ext);
+        std::make_unique<ze_graph_profiling_dditable_ext_decorator>(graph_profiling_ddi_table_ext);
+
+    // Query npu context extension version
+    std::string context_ext_name;
+    uint32_t context_ext_version = 0;
+    std::tie(context_ext_version, context_ext_name) =
+        queryDriverExtensionVersion(ZE_CONTEXT_NPU_EXT_NAME, TARGET_ZE_CONTEXT_NPU_EXT_VERSION, extProps, count);
+
+    _log.debug("NPU context version %d.%d",
+               ZE_MAJOR_VERSION(context_ext_version),
+               ZE_MINOR_VERSION(context_ext_version));
+
+    // Load npu command queue extension
+    ze_context_npu_dditable_ext_t* context_npu_dditable_ext = nullptr;
+    if (context_ext_version) {
+        getExtensionFunctionAddress(context_ext_name,
+                                    context_ext_version,
+                                    reinterpret_cast<void**>(&context_npu_dditable_ext));
+    }
+
+    _context_npu_dditable_ext_decorator =
+        std::make_unique<ze_context_npu_dditable_ext_decorator>(context_npu_dditable_ext, context_ext_version);
 
     uint32_t device_count = 1;
     // Get npu target device
@@ -415,6 +438,25 @@ void ZeroInitStructsHolder::getExtensionFunctionAddress(const std::string& name,
             "zeDriverGetExtensionFunctionAddress" + name,
             zeDriverGetExtensionFunctionAddress(_driver_handle, name.c_str(), function_address));
     }
+}
+
+void ZeroInitStructsHolder::setContextProperties() {
+    ze_context_properties_npu_ext_t context_properties_npu_ext = {ZE_STRUCTURE_TYPE_CONTEXT_PROPERTIES_NPU_EXT,
+                                                                  nullptr,
+                                                                  _context_options};
+    _context_npu_dditable_ext_decorator->pfnSetProperties(_context, &context_properties_npu_ext);
+}
+
+void ZeroInitStructsHolder::clearContextOptions(const uint32_t options) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    _context_options &= ~options;
+    setContextProperties();
+}
+
+void ZeroInitStructsHolder::setContextOptions(const uint32_t options) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    _context_options |= options;
+    setContextProperties();
 }
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {

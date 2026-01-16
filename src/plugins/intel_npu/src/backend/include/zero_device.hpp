@@ -34,9 +34,8 @@ public:
 
     std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
                                                          const Config& config) override;
-    void updateInfo(const Config& config) override {
-        log.setLevel(config.get<LOG_LEVEL>());
-    }
+
+    void updateInfo(const ov::AnyMap& properties) override;
 
     ZeroDevice& operator=(const ZeroDevice&) = delete;
     ZeroDevice(const ZeroDevice&) = delete;
@@ -46,18 +45,15 @@ public:
 private:
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
 
-    ze_device_properties_t device_properties = {};
+    ze_device_properties_t _device_properties = {};
+    ze_pci_ext_properties_t _pci_properties = {};
+    ze_device_luid_ext_properties_t _device_luid = {};
+    std::map<ov::element::Type, float> _device_gops = {{ov::element::f32, 0.f},
+                                                       {ov::element::f16, 0.f},
+                                                       {ov::element::bf16, 0.f},
+                                                       {ov::element::u8, 0.f},
+                                                       {ov::element::i8, 0.f}};
 
-    ze_pci_ext_properties_t pci_properties = {};
-
-    ze_device_luid_ext_properties_t device_luid = {};
-
-    std::map<ov::element::Type, float> device_gops = {{ov::element::f32, 0.f},
-                                                      {ov::element::f16, 0.f},
-                                                      {ov::element::bf16, 0.f},
-                                                      {ov::element::u8, 0.f},
-                                                      {ov::element::i8, 0.f}};
-
-    Logger log;
+    Logger _log;
 };
 }  // namespace intel_npu
