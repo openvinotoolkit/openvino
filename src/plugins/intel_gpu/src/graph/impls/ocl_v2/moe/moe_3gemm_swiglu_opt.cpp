@@ -1672,13 +1672,13 @@ public:
             expert_mask_gpu& expert_mask_mem = scratch.expert_masks[expert_no];
             copy_expert_mask_to_gpu(stream, expert_mask, expert_no, expert_mask_mem);
 
-            auto n_token = static_cast<int64_t>(expert_mask.batch[expert_no].size());
+            auto n_token = static_cast<size_t>(expert_mask.batch[expert_no].size());
 
             // Be careful about possible overflow
-            if (n_token > std::numeric_limits<int64>::max() / max_topk)
+            if (max_topk > std::numeric_limits<int64>::max() / n_token)
                 OPENVINO_THROW("n_token * max_topk overflow detected, n_token=", n_token, " max_topk=", max_topk);
 
-            auto routing_weights_size = n_token * max_topk;
+            auto routing_weights_size = static_cast<int64_t>(n_token * max_topk);
             
             onednn_kernel& kernel = get_kernel(n_token, static_cast<int>(expert_no), instance);
 
