@@ -16,23 +16,24 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
+namespace v0 = ov::op::v0;
+
+namespace ov::pass {
+
+ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
     MATCHER_SCOPE(ReluFakeQuantizeFusion);
-    auto data_pattern = pass::pattern::any_input();
-    auto relu_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({data_pattern}, pattern::consumers_count(1));
-    auto input_low_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({relu_pattern,
-                                                                              input_low_pattern,
-                                                                              pass::pattern::any_input(),
-                                                                              pass::pattern::any_input(),
-                                                                              pass::pattern::any_input()});
+    auto data_pattern = pattern::any_input();
+    auto relu_pattern = pattern::wrap_type<v0::Relu>({data_pattern}, pattern::consumers_count(1));
+    auto input_low_pattern = pattern::wrap_type<v0::Constant>();
+    auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>(
+        {relu_pattern, input_low_pattern, pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto relu = pattern_map[relu_pattern];
         auto input_low = pattern_map[input_low_pattern];
-        auto input_low_const = ov::as_type_ptr<ov::op::v0::Constant>(input_low.get_node_shared_ptr());
+        auto input_low_const = ov::as_type_ptr<v0::Constant>(input_low.get_node_shared_ptr());
         if (!input_low_const)
             return false;
         auto input_low_values = input_low_const->cast_vector<float>();
@@ -40,16 +41,16 @@ ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
                 return f < 0;
             }))
             return false;
-        auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
+        auto fq = ov::as_type_ptr<v0::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
         if (!fq)
             return false;
 
-        auto new_fq = register_new_node<ov::op::v0::FakeQuantize>(data,
-                                                                  fq->input_value(1),
-                                                                  fq->input_value(2),
-                                                                  fq->input_value(3),
-                                                                  fq->input_value(4),
-                                                                  fq->get_levels());
+        auto new_fq = register_new_node<v0::FakeQuantize>(data,
+                                                          fq->input_value(1),
+                                                          fq->input_value(2),
+                                                          fq->input_value(3),
+                                                          fq->input_value(4),
+                                                          fq->get_levels());
         new_fq->set_friendly_name(fq->get_friendly_name());
 
         copy_runtime_info({relu.get_node_shared_ptr(), fq}, new_fq);
@@ -58,6 +59,8 @@ ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(fq_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(fq_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

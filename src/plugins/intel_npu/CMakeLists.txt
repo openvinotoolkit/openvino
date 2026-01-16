@@ -62,6 +62,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WX")
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    ov_add_compiler_flags(-fno-gnu-unique)
+endif()
+
 if(CMAKE_COMPILE_WARNING_AS_ERROR)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
         remove_compiler_flags(-Wno-error=deprecated-declarations)

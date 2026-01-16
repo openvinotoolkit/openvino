@@ -10,6 +10,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/manager.hpp"
 
+namespace v0 = ov::op::v0;
 namespace {
 
 struct ConvertPromoteTypesTestParams {
@@ -41,8 +42,8 @@ protected:
                                                 const ov::element::Type& lhsType,
                                                 const ov::PartialShape& rhsShape,
                                                 const ov::element::Type& rhsType) {
-        const auto lhs = std::make_shared<ov::op::v0::Parameter>(lhsType, lhsShape);
-        const auto rhs = std::make_shared<ov::op::v0::Parameter>(rhsType, rhsShape);
+        const auto lhs = std::make_shared<v0::Parameter>(lhsType, lhsShape);
+        const auto rhs = std::make_shared<v0::Parameter>(rhsType, rhsShape);
         const auto convert_promote_types = std::make_shared<ov::op::v14::ConvertPromoteTypes>(lhs, rhs, true);
         return std::make_shared<ov::Model>(convert_promote_types->outputs(), ov::ParameterVector{lhs, rhs}, "Actual");
     }
@@ -52,10 +53,10 @@ protected:
                                                 const ov::PartialShape& rhsShape,
                                                 const ov::element::Type& rhsType,
                                                 const ov::element::Type& alignType) {
-        const auto lhs = std::make_shared<ov::op::v0::Parameter>(lhsType, lhsShape);
-        const auto rhs = std::make_shared<ov::op::v0::Parameter>(rhsType, rhsShape);
-        const auto lhs_converted = std::make_shared<ov::op::v0::Convert>(lhs, alignType);
-        const auto rhs_converted = std::make_shared<ov::op::v0::Convert>(rhs, alignType);
+        const auto lhs = std::make_shared<v0::Parameter>(lhsType, lhsShape);
+        const auto rhs = std::make_shared<v0::Parameter>(rhsType, rhsShape);
+        const auto lhs_converted = std::make_shared<v0::Convert>(lhs, alignType);
+        const auto rhs_converted = std::make_shared<v0::Convert>(rhs, alignType);
         return std::make_shared<ov::Model>(ov::OutputVector{lhs_converted, rhs_converted},
                                            ov::ParameterVector{lhs, rhs},
                                            "Reference");
