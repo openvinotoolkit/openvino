@@ -126,10 +126,85 @@ void MoEExecutor::prepare(size_t idx, size_t real_idx, size_t num_sublayers, siz
                                                        << ")");
     }
 
+    // Step 4: Initialize MoE I/O structure for this sublayer
+    if (m_moe_io.empty()) {
+        m_moe_io.resize(num_sublayers);
+        LOG_DEBUG("Pre-allocated MoE I/O storage for " << num_sublayers << " sublayers");
+    }
+    NPUW_ASSERT(idx < m_moe_io.size() && "Sublayer index out of range");
+
+    const auto num_outputs = desc.compiled_model->outputs().size();
+    m_moe_io[idx].outputs.resize(num_outputs);
+    LOG_DEBUG("Initialized MoE I/O with " << num_outputs << " outputs");
+
     LOG_INFO("MoE preparation completed for sublayer[" << idx << "]");
 }
 
-void MoEExecutor::run(size_t real_idx, size_t idx, const MoEIO& io) {
+bool MoEExecutor::function_prologue_moe_input(size_t idx,
+                                              size_t real_idx,
+                                              size_t param_idx,
+                                              const ov::SoPtr<ov::ITensor>& i_tensor) {
+    // Get descriptor
+    const auto& desc =
+        *static_cast<const ov::npuw::CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
+
+    // MoE expert layer: handle router scores and expert inputs
+    if (desc.moe_experts) {
+        const auto& moe = desc.moe_experts.value();
+
+        // Router scores: store for later use in MoE inference
+        if (moe._router_scores_idx.has_value() && param_idx == moe._router_scores_idx.value()) {
+            NPUW_ASSERT(idx < m_moe_io.size() && "MoEExecutor::prepare() must be called first");
+            m_moe_io[idx].router_scores = i_tensor;
+            return true;  // Handled by MoE
+        }
+
+        // Expert inputs: store for later use (decoding: cache binding, prefill: chunking)
+        if (moe._expert_input_param_idx.has_value() && param_idx == moe._expert_input_param_idx.value()) {
+            NPUW_ASSERT(idx < m_moe_io.size() && "MoEExecutor::prepare() must be called first");
+            m_moe_io[idx].expert_input = i_tensor;
+            return true;  // Handled by MoE
+        }
+
+        // For expert layer, all param_base parameters should be router_scores or expert_input
+        NPUW_ASSERT(false && "Unknown MoE expert parameter index");
+        return false;  // Unreachable
+    }
+
+    // MoE downstream layer: bind expert output accumulator or other parameters
+    if (desc.moe_experts_downstream) {
+        const auto& moe_downstream = desc.moe_experts_downstream.value();
+        const auto& iport = desc.compiled_model->inputs()[param_idx];
+        auto real_request = m_accessor.get_subrequest(real_idx);
+
+        if (param_idx == moe_downstream.expert_output_param_idx) {
+            // Bind expert output accumulator
+            auto output_buffer = m_resources.expert_output_accumulator;
+            NPUW_ASSERT(output_buffer && "MoE output buffer not available");
+            real_request->set_tensor(iport, output_buffer);
+        } else {
+            // Other parameters use the input tensor directly
+            real_request->set_tensor(iport, i_tensor);
+        }
+        return true;  // All downstream layer parameters handled by MoE
+    }
+
+    // Should not reach here if is_moe flag is set correctly
+    NPUW_ASSERT(false && "MoE flag set but no moe_experts/moe_experts_downstream found");
+    return false;
+}
+
+bool MoEExecutor::function_prologue_moe_output(size_t idx, size_t output_idx, const ov::SoPtr<ov::ITensor>& o_tensor) {
+    NPUW_ASSERT(idx < m_moe_io.size() && "MoEExecutor::prepare() must be called first");
+
+    // Store output tensor in MoE I/O structure
+    // For decoding: deferred for cache lookup
+    // For prefill: relayouted from expert outputs, expert_output_accumulator will be used eventually
+    m_moe_io[idx].outputs.at(output_idx) = o_tensor;
+    return true;  // Always handled by MoE for expert layers
+}
+
+void MoEExecutor::run(size_t real_idx, size_t idx) {
     // Validate config is initialized
     if (!m_config.is_valid()) {
         OPENVINO_THROW("MoEExecutor::run() - Configuration not initialized");
@@ -145,6 +220,9 @@ void MoEExecutor::run(size_t real_idx, size_t idx, const MoEIO& io) {
     LOG_DEBUG("MoE Config: num_experts=" << num_experts << ", num_active_experts=" << num_active_experts
                                          << ", input_token_count=" << input_token_count
                                          << ", mode=" << (is_decoding ? "DECODING" : "PREFILL"));
+
+    // Get I/O for this sublayer
+    const auto& io = m_moe_io[idx];
 
     if (!io.router_scores) {
         OPENVINO_THROW("MoE: Router scores are required but not available");
@@ -191,31 +269,29 @@ void MoEExecutor::run(size_t real_idx, size_t idx, const MoEIO& io) {
     if (is_decoding) {
         if (m_profiling_enabled) {
             m_profile->decoding["Total Decoding"].record([&]() {
-                run_batch_experts(idx, real_idx, selected_experts, io);
+                run_batch_experts(idx, real_idx, selected_experts);
             });
         } else {
-            run_batch_experts(idx, real_idx, selected_experts, io);
+            run_batch_experts(idx, real_idx, selected_experts);
         }
     } else {
         if (m_profiling_enabled) {
             m_profile->prefill["Total Prefill"].record([&]() {
-                run_iterative_experts(idx, real_idx, selected_experts, io);
+                run_iterative_experts(idx, real_idx, selected_experts);
             });
         } else {
-            run_iterative_experts(idx, real_idx, selected_experts, io);
+            run_iterative_experts(idx, real_idx, selected_experts);
         }
     }
 
     LOG_DEBUG("========== MoE Expert Inference Completed ==========");
 }
 
-void MoEExecutor::run_batch_experts(size_t idx,
-                                    size_t real_idx,
-                                    const std::vector<size_t>& selected_experts,
-                                    const MoEIO& io) {
+void MoEExecutor::run_batch_experts(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts) {
     LOG_DEBUG("\n[BATCH EXPERTS] Processing single token with " << selected_experts.size() << " experts in parallel");
 
     const auto num_active_experts = m_config.num_active_experts;
+    const auto& io = m_moe_io[idx];
 
     // Validate expert count
     if (selected_experts.size() != num_active_experts) {
@@ -286,10 +362,10 @@ void MoEExecutor::run_batch_experts(size_t idx,
     // Step 5: Set unrolled router scores (always needed, even on cache hit)
     if (m_profiling_enabled) {
         m_profile->decoding["Set Router Input"].record([&]() {
-            set_router_scores(idx, real_idx, selected_experts, request, io);
+            set_router_scores(idx, real_idx, selected_experts, request);
         });
     } else {
-        set_router_scores(idx, real_idx, selected_experts, request, io);
+        set_router_scores(idx, real_idx, selected_experts, request);
     }
 
     // Step 6: Execute inference once for all K experts in parallel
@@ -302,13 +378,11 @@ void MoEExecutor::run_batch_experts(size_t idx,
     }
 }
 
-void MoEExecutor::run_iterative_experts(size_t idx,
-                                        size_t real_idx,
-                                        const std::vector<size_t>& selected_experts,
-                                        const MoEIO& io) {
+void MoEExecutor::run_iterative_experts(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts) {
     LOG_DEBUG("\n[ITERATIVE EXPERTS] Processing multiple tokens by iterating through experts");
 
     const auto input_token_count = m_config.input_token_count;
+    const auto& io = m_moe_io[idx];
 
     // Clear output buffer before accumulating expert outputs
     if (!m_resources.expert_output_accumulator) {
@@ -515,9 +589,9 @@ void MoEExecutor::run_iterative_experts(size_t idx,
 void MoEExecutor::set_router_scores(size_t idx,
                                     size_t real_idx,
                                     const std::vector<size_t>& selected_experts,
-                                    RqPtr& request,
-                                    const MoEIO& io) {
+                                    RqPtr& request) {
     const auto num_active_experts = m_config.num_active_experts;
+    const auto& io = m_moe_io[idx];
 
     // Validate router scores index is provided
     if (!m_config.router_scores_idx.has_value()) {

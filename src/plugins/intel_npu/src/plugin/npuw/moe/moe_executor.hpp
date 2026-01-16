@@ -158,22 +158,38 @@ public:
      *
      * @param real_idx Submodel index (after replaced_by resolution)
      * @param idx Function call index
-     * @param io MoE I/O tensors (router_scores, expert_input, outputs)
      */
-    void run(size_t real_idx, size_t idx, const MoEIO& io);
+    void run(size_t real_idx, size_t idx);
 
     /**
-     * @brief Get expert output accumulator buffer
+     * @brief Handle MoE input parameter binding in function_prologue
      *
-     * Returns the shared output buffer used for accumulating expert outputs
-     * in prefill mode. This buffer is allocated during prepare() and reused
-     * across all inference calls.
+     * Called for each input parameter in function_prologue loop.
+     * Handles router_scores, expert_input, and downstream layer inputs.
      *
-     * @return Pointer to expert output accumulator tensor
+     * @param idx Function call index
+     * @param real_idx Real function body index
+     * @param param_idx Input parameter index
+     * @param i_tensor Input tensor
+     * @return true if this parameter was handled by MoE (skip default binding)
      */
-    TensorPtr get_output_accumulator() const {
-        return m_resources.expert_output_accumulator;
-    }
+    bool function_prologue_moe_input(size_t idx,
+                                     size_t real_idx,
+                                     size_t param_idx,
+                                     const ov::SoPtr<ov::ITensor>& i_tensor);
+
+    /**
+     * @brief Handle MoE output binding in function_prologue
+     *
+     * Called for each output in function_prologue loop.
+     * Stores output tensor in MoE I/O structure for later use.
+     *
+     * @param idx Function call index
+     * @param output_idx Output index
+     * @param o_tensor Output tensor
+     * @return true if this output was handled by MoE (skip default binding)
+     */
+    bool function_prologue_moe_output(size_t idx, size_t output_idx, const ov::SoPtr<ov::ITensor>& o_tensor);
 
     /**
      * @brief Get MoE performance profile statistics
@@ -225,6 +241,9 @@ private:
     std::map<size_t, std::vector<size_t>> m_token_to_experts;
     std::map<size_t, std::vector<size_t>> m_expert_to_tokens;
 
+    // MoE I/O storage (per-sublayer)
+    std::vector<MoEIO> m_moe_io;
+
     // === Execution modes ===
 
     /**
@@ -236,9 +255,8 @@ private:
      * @param idx Function call index
      * @param real_idx Submodel index
      * @param selected_experts List of selected expert IDs
-     * @param io MoE I/O tensors
      */
-    void run_batch_experts(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts, const MoEIO& io);
+    void run_batch_experts(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts);
 
     /**
      * @brief Execute iterative experts inference (prefill mode)
@@ -249,12 +267,8 @@ private:
      * @param idx Function call index
      * @param real_idx Submodel index
      * @param selected_experts List of selected expert IDs
-     * @param io MoE I/O tensors
      */
-    void run_iterative_experts(size_t idx,
-                               size_t real_idx,
-                               const std::vector<size_t>& selected_experts,
-                               const MoEIO& io);
+    void run_iterative_experts(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts);
 
     // === Helper functions ===
 
@@ -267,13 +281,8 @@ private:
      * @param real_idx Submodel index
      * @param selected_experts List of selected expert IDs
      * @param request Target infer request
-     * @param io MoE I/O tensors (contains router_scores)
      */
-    void set_router_scores(size_t idx,
-                           size_t real_idx,
-                           const std::vector<size_t>& selected_experts,
-                           RqPtr& request,
-                           const MoEIO& io);
+    void set_router_scores(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts, RqPtr& request);
 
     /**
      * @brief Get device name for a submodel
