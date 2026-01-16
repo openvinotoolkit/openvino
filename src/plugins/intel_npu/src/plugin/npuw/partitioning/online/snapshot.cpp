@@ -32,8 +32,6 @@ namespace npuw {
 namespace online {
 namespace detail {
 
-using NodeSPtr = std::shared_ptr<ov::Node>;
-
 bool isOp(const std::shared_ptr<ov::Node>& node) {
     if (ov::op::util::is_constant(node) || ov::op::util::is_parameter(node) || ov::op::util::is_output(node)) {
         return false;
@@ -75,6 +73,17 @@ std::vector<ov::element::Type> getConstsPrecision(const std::shared_ptr<ov::Node
 
     return precisions;
 }
+
+}  // namespace detail
+}  // namespace online
+}  // namespace npuw
+}  // namespace ov
+
+namespace {
+
+using NodeSPtr = std::shared_ptr<ov::Node>;
+using ov::npuw::online::Repeated;
+using ov::npuw::online::detail::GPtrSet;
 
 bool isRegularResultCase(const std::unordered_map<std::shared_ptr<Repeated>, GPtrSet>& reptag_to_gset,
                          const std::unordered_map<std::string, NodeSPtr>& node_id_cache,
@@ -192,10 +201,7 @@ bool isRegularParameterCase(const std::unordered_map<std::shared_ptr<Repeated>, 
     return true;
 }
 
-}  // namespace detail
-}  // namespace online
-}  // namespace npuw
-}  // namespace ov
+}  // namespace
 
 using ov::npuw::online::detail::getConstsPrecision;
 using ov::npuw::online::detail::isOp;
@@ -1394,7 +1400,7 @@ bool Snapshot::isRegularIOCase() const {
     LOG_INFO("Online partitioning: executing isRegularIOCase pass...");
     LOG_BLOCK();
 
-    std::unordered_map<std::string, detail::NodeSPtr> node_id_cache;
+    std::unordered_map<std::string, NodeSPtr> node_id_cache;
     for (auto&& node_ptr : m_model->get_ordered_ops()) {
         node_id_cache[node_ptr->get_friendly_name()] = node_ptr;
     }
@@ -1409,11 +1415,11 @@ bool Snapshot::isRegularIOCase() const {
     // The issue was initially observed in a model where only the final block has an additional ov::Result consumer.
     // For example, Group[0..30] has only external consumers (i.e. consumers that belong to other groups):
     //   OpA -> OpB(external group)
-    //       -> OpC(external group)
+    //        -> OpC(external group)
     // but very last Group[31] has an additional ov::Result consumer:
     //   OpA -> ov::Result
-    //       -> OpB(external group)
-    //       -> OpC(external group)
+    //        -> OpB(external group)
+    //        -> OpC(external group)
     // Later, if NPUW_F16IC is set, "Partitioner::identifySubgraphs" method adds output Converts to each Group[0..30],
     // but skips Group[31] due to internal implementation details.
     // "Partitioner::identifySubgraphs" can't:
@@ -1423,7 +1429,7 @@ bool Snapshot::isRegularIOCase() const {
     //        be also eliminated
     // Therefore, we disable F16IC early in such cases.
 
-    if (!detail::isRegularResultCase(reptag_to_gset, node_id_cache, m_layer_matches)) {
+    if (!isRegularResultCase(reptag_to_gset, node_id_cache, m_layer_matches)) {
         LOG_INFO("This is not a regular result case");
         LOG_INFO("DONE");
         return false;
@@ -1432,21 +1438,21 @@ bool Snapshot::isRegularIOCase() const {
     // This method is similar to isRegularResultCase but checks for irregular input ov::Parameters.
     // For example, Group[1..31] has only external producers (i.e. producers that belong to other groups):
     //   OpA(external group)
-    //                      \
+    //                       |
     //                        -> AddOp
-    //                      /
+    //                       |
     //   OpB(external group)
     // but the first Group[0] has an ov::Parameter producer:
     //   ov::Parameter
-    //                      \
+    //                       |
     //                        -> AddOp
-    //                      /
+    //                       |
     //   OpB(external group)
     // Later, if NPUW_F16IC is set, "Partitioner::identifySubgraphs" method adds two input Converts to each Group[1..31]
     // but only one input Convert to Group[0], since it skips adding Convert for ov::Parameter.
     // Therefore, sanity check fails due to different number of input Converts across repeated block groups.
 
-    if (!detail::isRegularParameterCase(reptag_to_gset, node_id_cache, m_layer_matches)) {
+    if (!isRegularParameterCase(reptag_to_gset, node_id_cache, m_layer_matches)) {
         LOG_INFO("This is not a regular parameter case");
         LOG_INFO("DONE");
         return false;
