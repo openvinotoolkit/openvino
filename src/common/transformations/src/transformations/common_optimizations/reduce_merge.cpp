@@ -58,6 +58,17 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
         return false;
     }
 
+    auto in_rank = top_reduce->get_input_partial_shape(0).rank();
+    if (in_rank.is_dynamic()) {
+        return false;
+    }
+
+    auto top_axis_const = ov::util::get_constant_from_source(top_reduce->input_value(1));
+    auto bottom_axis_const = ov::util::get_constant_from_source(bottom_reduce->input_value(1));
+    if (!top_axis_const || !bottom_axis_const) {
+        return false;
+    }
+
     if (!top_reduce->get_keep_dims()) {
         const auto first_axes = top_reduce->get_reduction_axes();
         const auto second_axes = bottom_reduce->get_reduction_axes();
