@@ -4,7 +4,7 @@
 
 set(TARGET_NAME openvino_protobuf_shutdown)
 
-add_library(${TARGET_NAME} STATIC shutdown_protobuf.cpp)
+add_library(${TARGET_NAME} OBJECT shutdown_protobuf.cpp)
 
 add_library(openvino::protobuf_shutdown ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME protobuf_shutdown)
