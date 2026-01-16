@@ -37,10 +37,6 @@ ov::npuw::TensorPtr ov::npuw::JustInferRequest::allocate_mem(const ov::element::
     return allocMem(type, shape, device);
 }
 
-void ov::npuw::JustInferRequest::unpack_closure(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request) {
-    IBaseInferRequest::unpack_closure(idx, request);
-}
-
 bool ov::npuw::JustInferRequest::is_gather_closure(size_t idx, size_t cidx) {
     return m_npuw_model->is_gather_closure(idx, cidx);
 }
@@ -249,7 +245,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     std::size_t dynamic_sub_idx = -1;
     std::size_t pyramid_sub_idx = -1;
     std::size_t hfa_sub_idx = -1;
-    std::size_t moe_experts_sub_idx = -1;
+    std::size_t moe_real_idx = -1;  // Track which real function has MoE
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -332,12 +328,12 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
             // Initialize the MoE IO placeholders, if required
             if (proto_comp_model_desc.moe_experts) {
-                // Sanity check first
-                if (has_moe && moe_experts_sub_idx != real_idx) {
+                // Sanity check: ensure only one MoE function type exists
+                if (has_moe && moe_real_idx != real_idx) {
                     OPENVINO_THROW("Only single MoE type is permitted for model");
                 }
                 has_moe = true;
-                moe_experts_sub_idx = real_idx;
+                moe_real_idx = real_idx;
             }  // if(moe_experts)
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
@@ -513,41 +509,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     // Initialize MoE executor if MoE was detected
     if (has_moe) {
-        LOG_INFO("Creating MoE executor...");
-
-        // Get MoE profiling configuration
-        bool moe_profiling_enabled = m_npuw_model->m_cfg.get<::intel_npu::NPUW_ENABLE_MOE_PROFILING>();
-
-        // Create MoE executor with dependency injection
-        m_moe_executor = std::make_unique<ov::npuw::moe::MoEExecutor>(
-            *this,  // ISubrequestAccessor
-            [this](const ov::element::Type& type, const ov::Shape& shape, const std::string& device) {
-                // Allocator callback
-                return allocMem(type, shape, device);
-            },
-            moe_profiling_enabled  // Pass profiling flag to executor
-        );
-
-        // Prepare MoE resources for each sublayer (including function calls)
-        // - Config & shared resources: initialized once (global singleton)
-        // - Request cache: per-sublayer (indexed by idx in MoEResources.request_caches)
-        for (size_t i = 0; i < m_num_submodels; i++) {
-            auto& desc = m_npuw_model->m_compiled_submodels[i];
-
-            // Get real_idx (function body index)
-            size_t real_idx = desc.replaced_by.value_or(i);
-            auto& real_desc = m_npuw_model->m_compiled_submodels[real_idx];
-
-            // Check if the real function body has MoE experts
-            if (real_desc.moe_experts.has_value()) {
-                size_t pool_size = m_npuw_model->m_cfg.get<::intel_npu::NPUW_MOE_POOL_SIZE>();
-                LOG_DEBUG("Preparing MoE resources for submodel[" << i << "] (real_idx=" << real_idx
-                                                                  << "), pool_size=" << pool_size);
-                m_moe_executor->prepare(i, real_idx, m_num_submodels, pool_size);
-            }
-        }
-
-        LOG_INFO("MoE executor initialized successfully");
+        initialize_moe_executor();
     }
 }
 
@@ -1083,7 +1045,7 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
         }
         // Recreate MoE resources if this function has MoE
         if (proto_comp_model_desc.moe_experts) {
-            recreate_moe_resources(idx, real_idx, is_piped);
+            recreate_moe_resources(idx, real_idx);
         }
     }
 
@@ -1096,24 +1058,46 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     m_subrequest_devices[idx] = *comp_model_desc.device_it;
 }
 
-void ov::npuw::JustInferRequest::recreate_moe_resources(std::size_t idx, std::size_t real_idx, bool is_piped) {
-    LOG_INFO("Recreating MoE resources for submodel[" << idx << "] (real_idx=" << real_idx << ")...");
-    LOG_BLOCK();
+void ov::npuw::JustInferRequest::initialize_moe_executor() {
+    LOG_INFO("Creating MoE executor...");
 
-    // Step 1: Reset and recreate MoE executor
-    // Create a new MoE executor to ensure complete state reset
+    // Get MoE profiling configuration
     bool moe_profiling_enabled = m_npuw_model->m_cfg.get<::intel_npu::NPUW_ENABLE_MOE_PROFILING>();
 
-    m_moe_executor.reset();
+    // Create MoE executor with dependency injection
     m_moe_executor = std::make_unique<ov::npuw::moe::MoEExecutor>(
         *this,  // ISubrequestAccessor
         [this](const ov::element::Type& type, const ov::Shape& shape, const std::string& device) {
+            // Allocator callback
             return allocMem(type, shape, device);
         },
         moe_profiling_enabled  // Pass profiling flag to executor
     );
 
-    // Step 2: Re-prepare MoE resources (same as initial setup)
+    LOG_INFO("MoE executor created");
+
+    // Prepare MoE resources for each sublayer
+    size_t pool_size = m_npuw_model->m_cfg.get<::intel_npu::NPUW_MOE_POOL_SIZE>();
+    for (size_t i = 0; i < m_num_submodels; i++) {
+        auto& desc = m_npuw_model->m_compiled_submodels[i];
+
+        size_t real_idx = desc.replaced_by.value_or(i);
+        auto& real_desc = m_npuw_model->m_compiled_submodels[real_idx];
+
+        // Check if the real function body has MoE experts
+        if (real_desc.moe_experts.has_value()) {
+            m_moe_executor->prepare(i, real_idx, m_num_submodels, pool_size);
+        }
+    }
+
+    LOG_INFO("MoE executor initialized successfully");
+}
+
+void ov::npuw::JustInferRequest::recreate_moe_resources(std::size_t idx, std::size_t real_idx) {
+    LOG_INFO("Recreating MoE resources for submodel[" << idx << "] (real_idx=" << real_idx << ")...");
+    LOG_BLOCK();
+
+    // Re-prepare MoE resources for this specific submodel
     size_t pool_size = m_npuw_model->m_cfg.get<::intel_npu::NPUW_MOE_POOL_SIZE>();
     m_moe_executor->prepare(idx, real_idx, m_num_submodels, pool_size);
 
