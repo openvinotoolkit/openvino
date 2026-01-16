@@ -200,8 +200,6 @@ protected:
 
     virtual void init_gio();
     void unpack_closure(std::size_t idx, RqPtr request);
-    void unpack_single_expert_closure(std::size_t idx, RqPtr request, size_t expert_id);
-    void unpack_multiple_experts_closure(std::size_t idx, RqPtr request, const std::vector<size_t>& expert_ids);
 
     virtual void bind_global_params(std::size_t idx, RqPtr request);
     virtual void bind_global_results(std::size_t idx, RqPtr request);

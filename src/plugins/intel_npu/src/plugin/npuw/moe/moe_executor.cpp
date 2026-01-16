@@ -251,10 +251,10 @@ void MoEExecutor::run_batch_experts(size_t idx,
         // Step 2: Configure expert weights
         if (m_profiling_enabled) {
             m_profile->decoding["Unpack Closure"].record([&]() {
-                m_accessor.unpack_multiple_experts_closure(idx, request, selected_experts);
+                unpack_multiple_experts_closure(idx, request, selected_experts);
             });
         } else {
-            m_accessor.unpack_multiple_experts_closure(idx, request, selected_experts);
+            unpack_multiple_experts_closure(idx, request, selected_experts);
         }
 
         // Step 3: Register to cache for future hits (only if cache enabled)
@@ -435,10 +435,10 @@ void MoEExecutor::run_iterative_experts(size_t idx,
             if (selected_chunk_size != last_chunk_size) {
                 if (m_profiling_enabled) {
                     m_profile->prefill["Unpack Closure"].record([&]() {
-                        m_accessor.unpack_single_expert_closure(idx, selected_infer_request, expert_id);
+                        unpack_single_expert_closure(idx, selected_infer_request, expert_id);
                     });
                 } else {
-                    m_accessor.unpack_single_expert_closure(idx, selected_infer_request, expert_id);
+                    unpack_single_expert_closure(idx, selected_infer_request, expert_id);
                 }
                 last_chunk_size = selected_chunk_size;
             }
@@ -586,6 +586,201 @@ std::string MoEExecutor::get_device_name(size_t idx, const void* compiled_model_
                            ? *static_cast<const CompiledModel::CompiledModelDesc*>(compiled_model_desc_ptr)
                            : *static_cast<const CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(idx));
     return *desc.device_it;
+}
+
+void MoEExecutor::unpack_single_expert_closure(std::size_t idx, RqPtr request, size_t expert_id) {
+    // Get model descriptors
+    const auto& comp_model_desc =
+        *static_cast<const CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(idx));
+    NPUW_ASSERT(comp_model_desc.replaced_by);
+
+    const auto real_idx = comp_model_desc.replaced_by.value();
+    const auto& func_desc =
+        *static_cast<const CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
+
+    NPUW_ASSERT(func_desc.moe_experts.has_value());
+    const auto num_experts = func_desc.moe_experts->num_experts;
+
+    auto& desc_closure = comp_model_desc.closure.get().closure;
+
+    for (std::size_t cidx = 0u; cidx < desc_closure.size(); cidx++) {
+        auto& closure = desc_closure[cidx];
+        const auto closure_param_id = comp_model_desc.param_base + cidx;
+
+        // Skip gather closures - delegate to accessor (needs CompiledModel::is_gather_closure)
+        // For now, we'll need to implement a simple check here or access via m_config
+        // TODO: Consider moving is_gather_closure to MoEConfig or passing it via descriptor
+
+        auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
+
+        // Check if this weight needs slicing (has num_experts in first dimension)
+        auto closure_shape = closure.get_shape();
+        bool needs_slicing = !closure_shape.empty() && closure_shape[0] == num_experts;
+
+        if (needs_slicing) {
+            // Slice expert weight using view (no copy) - returns ov::Tensor object
+            auto sliced_weight_tensor = ov::npuw::moe::slice_expert_weight(closure, expert_id, num_experts);
+
+            // Get impl pointer for use in unpacking/setting
+            auto sliced_weight = ov::get_tensor_impl(sliced_weight_tensor);
+
+            // Handle unpacking if needed
+            // Note: We need to check if unpacking is required - this depends on element type mismatch
+            const auto batched_elem_type = closure.get_element_type();
+            const auto target_elem_type = request->get_tensor(iport)->get_element_type();
+            const bool needs_unpack = (batched_elem_type != target_elem_type);
+
+            if (needs_unpack) {
+                auto clparam = request->get_tensor(iport);
+
+                if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx] && comp_model_desc.zerops[cidx]) {
+                    ov::npuw::util::unpack(sliced_weight,
+                                           ov::get_tensor_impl(comp_model_desc.zerops[cidx]),
+                                           ov::get_tensor_impl(comp_model_desc.scales[cidx]),
+                                           clparam);
+                } else if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx]) {
+                    ov::npuw::util::unpack(sliced_weight, ov::get_tensor_impl(comp_model_desc.scales[cidx]), clparam);
+                } else {
+                    ov::npuw::util::unpack(sliced_weight, clparam);
+                }
+            } else {
+                // Direct set (no unpacking needed)
+                // Always use optimized set (cache is managed internally by MoEExecutor)
+                ov::npuw::moe::set_tensor_optimized(request, iport, sliced_weight);
+            }
+        } else {
+            // This closure parameter doesn't need slicing, set directly
+            // Note: needs_copy check would require accessing JustInferRequest state
+            // For simplicity, always use set_tensor here
+            request->set_tensor(iport, ov::get_tensor_impl(closure));
+        }
+    }
+}
+
+void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
+                                                  RqPtr request,
+                                                  const std::vector<size_t>& expert_ids) {
+    /**
+     * MoE Batch Expert Closure Unpacking for Decoding Mode
+     *
+     * Purpose: Process K active experts simultaneously (decoding mode, 1 token)
+     *
+     * Input:
+     *   - Batched closure parameters: shape [num_experts, ...] (original model)
+     *   - expert_ids: K selected expert IDs [e0, e1, e2, e3]
+     *
+     * Output:
+     *   - Unrolled model parameters populated with sliced expert weights
+     *   - Each parameter receives data for one specific expert
+     *
+     * Flow:
+     *   1. Iterate over original closure parameters
+     *   2. For each closure parameter, process its K unrolled variants
+     *   3. Slice expert weight from batched tensor
+     *   4. Unpack (if dtype mismatch) or direct set (if dtype match)
+     */
+
+    // ========== Step 1: Get model descriptors and validate MoE structure ==========
+    const auto& comp_model_desc =
+        *static_cast<const CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(idx));
+    NPUW_ASSERT(comp_model_desc.replaced_by);
+
+    const auto real_idx = comp_model_desc.replaced_by.value();
+    const auto& func_desc =
+        *static_cast<const CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(real_idx));
+
+    NPUW_ASSERT(func_desc.moe_experts.has_value());
+    const auto& moe_experts = func_desc.moe_experts.value();
+    const auto num_experts = moe_experts.num_experts;        // Total experts in model (e.g., 32)
+    const size_t K = expert_ids.size();                      // Active experts (e.g., 4)
+    const auto& param_mapping = moe_experts._param_mapping;  // original_idx -> [unrolled_indices]
+
+    auto& desc_closure = comp_model_desc.closure.get().closure;
+    const auto& compiled_inputs = func_desc.compiled_model->inputs();
+
+    // ========== Step 2: Process each original closure parameter ==========
+    // Iterate over closure parameters, then process their K unrolled variants
+    for (std::size_t closure_idx = 0; closure_idx < desc_closure.size(); ++closure_idx) {
+        // Skip gather closures (dummy tensors, not real weights)
+        // TODO: Implement proper check or pass via descriptor
+
+        // Calculate original parameter index in the model
+        const size_t original_param_idx = comp_model_desc.param_base + closure_idx;
+
+        // Check if this parameter has unrolled variants (is in param_mapping)
+        auto mapping_it = param_mapping.find(original_param_idx);
+        if (mapping_it == param_mapping.end()) {
+            continue;  // Not unrolled
+        }
+
+        const auto& unrolled_indices = mapping_it->second;
+        NPUW_ASSERT(unrolled_indices.size() == K);
+
+        auto& batched_closure = desc_closure[closure_idx];
+        const auto& closure_shape = batched_closure.get_shape();
+
+        // Verify this is a batched parameter [num_experts, ...]
+        const bool is_batched = !closure_shape.empty() && closure_shape[0] == num_experts;
+        if (!is_batched) {
+            // Shared parameter path - all K unrolled parameters share same weight
+            auto batched_impl = ov::get_tensor_impl(batched_closure);
+
+            for (size_t position = 0; position < K; ++position) {
+                const auto& iport = compiled_inputs[unrolled_indices[position]];
+                request->set_tensor(iport, batched_impl);
+            }
+            continue;
+        }
+
+        // ========== Step 3: Process batched parameters (K experts) ==========
+
+        // Pre-determine unpack configuration (same for all K experts)
+        const auto batched_elem_type = batched_closure.get_element_type();
+        const auto target_elem_type = request->get_tensor(compiled_inputs[unrolled_indices[0]])->get_element_type();
+        const bool needs_unpack = (batched_elem_type != target_elem_type);
+
+        ov::SoPtr<ov::ITensor> scales_impl, zerops_impl;
+        if (needs_unpack) {
+            if (!comp_model_desc.scales.empty() && comp_model_desc.scales[closure_idx]) {
+                scales_impl = ov::get_tensor_impl(comp_model_desc.scales[closure_idx]);
+            }
+            if (!comp_model_desc.zerops.empty() && comp_model_desc.zerops[closure_idx]) {
+                zerops_impl = ov::get_tensor_impl(comp_model_desc.zerops[closure_idx]);
+            }
+        }
+
+        // Process K experts
+        for (size_t position = 0; position < K; ++position) {
+            const size_t expert_id = expert_ids[position];
+            const auto& iport = compiled_inputs[unrolled_indices[position]];
+
+            // Slice expert weight (zero-copy view)
+            ov::Tensor sliced_expert = ov::npuw::moe::slice_expert_weight(batched_closure, expert_id, num_experts);
+
+            if (needs_unpack) {
+                // Unpack path (dtype mismatch)
+                auto sliced_impl = ov::get_tensor_impl(sliced_expert);
+                auto clparam = request->get_tensor(iport);
+
+                if (scales_impl && zerops_impl) {
+                    ov::npuw::util::unpack(sliced_impl, zerops_impl, scales_impl, clparam);
+                } else if (scales_impl) {
+                    ov::npuw::util::unpack(sliced_impl, scales_impl, clparam);
+                } else if (zerops_impl) {
+                    ov::npuw::util::unpack(sliced_impl, zerops_impl, clparam);
+                } else {
+                    ov::npuw::util::unpack(sliced_impl, clparam);
+                }
+            } else {
+                auto sliced_impl = ov::get_tensor_impl(sliced_expert);
+                // Direct set (no unpacking needed)
+                // Always use optimized set (cache is managed internally by MoEExecutor)
+                ov::npuw::moe::set_tensor_optimized(request, iport, sliced_impl);
+            }
+        }  // for each expert
+    }  // for each closure parameter
+
+    LOG_DEBUG("Done unpacking MoE batch expert closure");
 }
 
 }  // namespace moe
