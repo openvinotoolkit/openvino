@@ -7,10 +7,10 @@
 #include <map>
 #include <vector>
 
+#include "../perf.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "perf.hpp"
 
 namespace ov {
 namespace npuw {
