@@ -33,13 +33,19 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/custom/scaled_attn.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_X86)
+#    include "openvino/core/type/bfloat16.hpp"
+#    include "openvino/core/type/float16.hpp"
+#elif defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/core/type/float16.hpp"
+#endif
 
 #ifdef OV_CPU_WITH_MLAS
 #    include "mlas/sgemm.hpp"
