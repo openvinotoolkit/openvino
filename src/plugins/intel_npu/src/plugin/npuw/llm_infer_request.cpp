@@ -11,8 +11,8 @@
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "util.hpp"
 #include "perf.hpp"
+#include "util.hpp"
 
 namespace {
 
