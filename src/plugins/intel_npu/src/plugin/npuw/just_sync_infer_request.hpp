@@ -182,10 +182,6 @@ protected:
 
     // MoE executor (encapsulates MoE inference logic and profiling)
     std::unique_ptr<ov::npuw::moe::MoEExecutor> m_moe_executor;
-
-    // MoE routing maps (reused across inferences to avoid stack allocation)
-    std::map<size_t, std::vector<size_t>> m_moe_token_to_experts;
-    std::map<size_t, std::vector<size_t>> m_moe_expert_to_tokens;
 };
 
 }  // namespace npuw
