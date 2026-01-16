@@ -1997,7 +1997,7 @@ void Partitioner::transformMoeExperts(const std::string& func_name) {
     // - moe_chunk_size = 0 (default): Compile multiple models for various chunk sizes
     //   {16, 32, 64, 128, 256} to enable dynamic chunk selection at runtime
     // - moe_chunk_size > 0: Compile a single model with the specified fixed chunk size
-    const auto moe_chunk_size = cfg.get<::intel_npu::NPUW_MOE_FIXED_TOKEN_CHUNK_SIZE>();
+    const auto moe_chunk_size = cfg.get<::intel_npu::NPUW_MOE_TOKEN_CHUNK_SIZE>();
 
     // Create MoEExperts using factory method:
     // - Analyzes expert model structure
