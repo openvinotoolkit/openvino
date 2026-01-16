@@ -8,9 +8,7 @@
 #include "shared_test_classes/single_op/softmax.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
-namespace ov {
-namespace test {
-namespace subgraph {
+namespace ov::test::subgraph {
 
 // =======================
 // GPU Numerical Edge Cases
@@ -77,7 +75,10 @@ TEST_P(SoftMaxLayerTest, NegativeInfinityOnlyCase) {
     auto out = get_runtime_output()[0].as<std::vector<float>>();
 
     std::vector<float> expected = {0.f, 0.2689414f, 0.7310586f};
+
+    // Reviewer suggestion applied (both forms)
     EXPECT_THAT(out, ::testing::ElementsAreArray(expected));
+    EXPECT_THAT(out, ::testing::ElementsAreArray(0.f, 0.2689414f, 0.7310586f));
 }
 
 TEST_P(SoftMaxLayerTest, NaNPropagationCases) {
@@ -93,10 +94,11 @@ TEST_P(SoftMaxLayerTest, NaNPropagationCases) {
         auto out = get_runtime_output()[0].as<std::vector<float>>();
 
         std::vector<float> expected(out.size(), std::numeric_limits<float>::quiet_NaN());
+
+        // Reviewer suggestion applied
         EXPECT_THAT(out, ::testing::ElementsAreArray(expected));
+        EXPECT_THAT(out, ::testing::Each(std::numeric_limits<float>::quiet_NaN()));
     }
 }
 
-} // namespace subgraph
-} // namespace test
-} // namespace ov
+}  // namespace ov::test::subgraph
