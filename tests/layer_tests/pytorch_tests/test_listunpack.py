@@ -332,13 +332,15 @@ class TestComplexListUnpack(PytorchLayerTest):
     """
 
     def _prepare_input(self):
-        return (np.random.randn(2, 4, 2).astype(np.float32),)
+        rng = np.random.default_rng(43)
+        return (rng.standard_normal((2, 4, 2)).astype(np.float32),)
 
     def create_model(self):
         class ComplexListUnpack(torch.nn.Module):
             def __init__(self):
                 super().__init__()
-                freqs = torch.randn(4, 2)
+                g = torch.Generator().manual_seed(42)
+                freqs = torch.randn(4, 2, generator=g)
                 complex_freqs = torch.view_as_complex(freqs)
                 self.register_buffer('freqs', torch.view_as_real(complex_freqs))
 

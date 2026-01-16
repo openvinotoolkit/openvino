@@ -19,9 +19,6 @@ class FrameworkNode;
 }  // namespace op
 
 namespace frontend {
-
-class ComplexTypeMark;
-
 namespace pytorch {
 
 const std::string pytorch_prefix = "[PyTorch Frontend] ";

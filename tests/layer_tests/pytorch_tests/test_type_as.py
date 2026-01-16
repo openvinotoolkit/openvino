@@ -39,8 +39,9 @@ class TestComplexTypeAs(PytorchLayerTest):
 
     def _prepare_input(self, input_dtype=np.float32, cast_dtype=np.float64):
         # Complex tensor represented as real with shape [..., 2]
-        return (np.random.randn(2, 4, 2).astype(input_dtype),
-                np.random.randn(2, 4, 2).astype(cast_dtype))
+        rng = np.random.default_rng(43)
+        return (rng.standard_normal((2, 4, 2)).astype(input_dtype),
+                rng.standard_normal((2, 4, 2)).astype(cast_dtype))
 
     def create_model(self):
         import torch

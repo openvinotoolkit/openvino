@@ -18,14 +18,16 @@ class TestRoPEPattern(PytorchLayerTest):
     """
 
     def _prepare_input(self, seq_len=8, dim=64):
-        return (np.random.randn(1, seq_len, dim).astype(np.float32),)
+        rng = np.random.default_rng(43)
+        return (rng.standard_normal((1, seq_len, dim)).astype(np.float32),)
 
     def create_model(self, dim=64):
         class RoPEModule(torch.nn.Module):
             def __init__(self, dim):
                 super().__init__()
                 # Create freqs_cis as complex buffer (like in Qwen-Image)
-                freqs = torch.randn(8, dim // 2)
+                g = torch.Generator().manual_seed(42)
+                freqs = torch.randn(8, dim // 2, generator=g)
                 self.register_buffer("freqs_cis",
                     torch.polar(torch.ones_like(freqs), freqs))
 
@@ -60,14 +62,16 @@ class TestComplexBufferUnsqueeze(PytorchLayerTest):
     """
 
     def _prepare_input(self):
-        return (np.random.randn(1, 4, 8).astype(np.float32),)
+        rng = np.random.default_rng(43)
+        return (rng.standard_normal((1, 4, 8)).astype(np.float32),)
 
     def create_model(self):
         class ComplexBufferUnsqueeze(torch.nn.Module):
             def __init__(self):
                 super().__init__()
-                real = torch.randn(4, 8)
-                imag = torch.randn(4, 8)
+                g = torch.Generator().manual_seed(42)
+                real = torch.randn(4, 8, generator=g)
+                imag = torch.randn(4, 8, generator=g)
                 self.register_buffer("pos_embed", torch.complex(real, imag))
 
             def forward(self, x):
@@ -92,13 +96,15 @@ class TestComplexBufferMultipleOps(PytorchLayerTest):
     """
 
     def _prepare_input(self):
-        return (np.random.randn(1, 4, 2).astype(np.float32),)
+        rng = np.random.default_rng(43)
+        return (rng.standard_normal((1, 4, 2)).astype(np.float32),)
 
     def create_model(self):
         class ComplexBufferMultipleOps(torch.nn.Module):
             def __init__(self):
                 super().__init__()
-                freqs = torch.randn(4, 2)
+                g = torch.Generator().manual_seed(42)
+                freqs = torch.randn(4, 2, generator=g)
                 complex_freqs = torch.view_as_complex(freqs)
                 self.register_buffer("freqs_a", complex_freqs)
                 self.register_buffer("freqs_b", complex_freqs * 2)
