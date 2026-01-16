@@ -8,9 +8,7 @@
 #include "shared_test_classes/single_op/softmax.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
-namespace ov {
-namespace test {
-namespace subgraph {
+namespace ov::test {
 
 // =======================
 // GPU Numerical Edge Cases
