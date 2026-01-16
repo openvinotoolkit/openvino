@@ -9,11 +9,6 @@
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
 ov::SkipInvalidation::~SkipInvalidation() = default;
-ov::ForceInvalidation::~ForceInvalidation() = default;
-
-void ov::force_invalidation(ov::descriptor::Tensor& tensor) {
-    tensor.get_rt_info()[ov::ForceInvalidation::get_type_info_static()] = nullptr;
-}
 
 void ov::skip_invalidation(const ov::Output<ov::Node>& output) {
     output.get_tensor().get_rt_info()[ov::SkipInvalidation::get_type_info_static()] = nullptr;
