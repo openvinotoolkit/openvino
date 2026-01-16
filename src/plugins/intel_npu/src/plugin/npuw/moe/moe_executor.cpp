@@ -187,15 +187,6 @@ void MoEExecutor::run(size_t real_idx,
     LOG_DEBUG("========== MoE Expert Inference Completed ==========");
 }
 
-void MoEExecutor::recreate_requests(size_t real_idx) {
-    LOG_INFO("Recreating MoE requests for submodel[" << real_idx << "]...");
-
-    // Reset entire request cache (all sublayers will need re-initialization)
-    m_resources.reset_cache();
-
-    LOG_INFO("MoE requests recreated for submodel[" << real_idx << "]");
-}
-
 void MoEExecutor::run_batch_experts(size_t idx,
                                     size_t real_idx,
                                     const std::vector<size_t>& selected_experts,

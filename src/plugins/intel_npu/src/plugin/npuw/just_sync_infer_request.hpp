@@ -148,6 +148,9 @@ protected:
                                   bool is_recreate,
                                   bool enable_hfa_optimizations = true);
 
+    // Helper function to recreate MoE resources after subrequest recreation
+    void recreate_moe_resources(std::size_t idx, std::size_t real_idx, bool is_piped);
+
     FuncMemMgr m_func_mem_mgr;                       // Owns memory
     std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
 

@@ -20,20 +20,6 @@
 #include "weights_bank.hpp"
 
 // ====================================================================================================
-// MoE Profiling Macros - Zero-overhead profiling helpers
-// Only execute profiling when m_moe_profiling_enabled is true
-#define MOE_PROFILE_RECORD(profile_area, metric_name, code)         \
-    do {                                                            \
-        if (m_moe_profiling_enabled) {                              \
-            m_moe_profile->profile_area[metric_name].record([&]() { \
-                code;                                               \
-            });                                                     \
-        } else {                                                    \
-            code;                                                   \
-        }                                                           \
-    } while (0)
-
-// ====================================================================================================
 // ISubrequestAccessor Interface Implementation
 // ====================================================================================================
 
@@ -574,17 +560,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             }
         }
 
-        // Set m_moe_output_buffer for prefill mode only
-        // Decoding mode: expert outputs go directly to downstream via normal tensor connections
-        // Prefill mode: expert outputs accumulate in a shared buffer for moe_experts_downstream layer
-        auto accumulator = m_moe_executor->get_output_accumulator();
-        if (accumulator) {
-            m_moe_output_buffer = accumulator;
-            LOG_DEBUG("MoE output buffer linked to executor's accumulator (prefill mode)");
-        } else {
-            LOG_DEBUG("No MoE output buffer needed (decoding mode)");
-        }
-
         LOG_INFO("MoE executor initialized successfully");
     }
 }
@@ -892,8 +867,9 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 if (func_desc.moe_experts_downstream) {
                     const auto& moe_downstream = func_desc.moe_experts_downstream.value();
                     if (i == moe_downstream.expert_output_param_idx) {
-                        NPUW_ASSERT(m_moe_output_buffer && "MoE output buffer not available");
-                        m_subrequests[real_idx]->set_tensor(iport, m_moe_output_buffer);
+                        auto output_buffer = m_moe_executor->get_output_accumulator();
+                        NPUW_ASSERT(output_buffer && "MoE output buffer not available");
+                        m_subrequests[real_idx]->set_tensor(iport, output_buffer);
                     } else {
                         m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                     }
@@ -1151,6 +1127,10 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
         if (proto_comp_model_desc.host_flash_attention) {
             setup_hfa_infer_requests(real_idx, is_piped, /* is_recreate */ true, /* enable_hfa_optimizations */ true);
         }
+        // Recreate MoE resources if this function has MoE
+        if (proto_comp_model_desc.moe_experts) {
+            recreate_moe_resources(idx, real_idx, is_piped);
+        }
     }
 
     // After an infer request is recreated, the internal cross-request
@@ -1160,6 +1140,38 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     // but it is a more complex thing and can be implemented separately
     connect_subrequests();
     m_subrequest_devices[idx] = *comp_model_desc.device_it;
+}
+
+void ov::npuw::JustInferRequest::recreate_moe_resources(std::size_t idx, std::size_t real_idx, bool is_piped) {
+    LOG_INFO("Recreating MoE resources for submodel[" << idx << "] (real_idx=" << real_idx << ")...");
+    LOG_BLOCK();
+
+    // Step 1: Reset and recreate MoE executor
+    // Create a new MoE executor to ensure complete state reset
+    m_moe_executor.reset();
+    m_moe_executor = std::make_unique<ov::npuw::moe::MoEExecutor>(
+        *this,  // ISubrequestAccessor
+        [this](const std::string& area, const std::string& name, std::function<void()> fn) {
+            // Profiler callback
+            if (m_moe_profiling_enabled && m_moe_profile.has_value()) {
+                if (area == "decoding") {
+                    m_moe_profile->decoding[name].record(std::move(fn));
+                } else if (area == "prefill") {
+                    m_moe_profile->prefill[name].record(std::move(fn));
+                }
+            } else {
+                fn();  // Execute without profiling
+            }
+        },
+        [this](const ov::element::Type& type, const ov::Shape& shape, const std::string& device) {
+            return allocMem(type, shape, device);
+        });
+
+    // Step 2: Re-prepare MoE resources (same as initial setup)
+    size_t pool_size = m_npuw_model->m_cfg.get<::intel_npu::NPUW_MOE_POOL_SIZE>();
+    m_moe_executor->prepare(idx, real_idx, m_num_submodels, pool_size);
+
+    LOG_INFO("MoE resources recreated successfully");
 }
 
 void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {
