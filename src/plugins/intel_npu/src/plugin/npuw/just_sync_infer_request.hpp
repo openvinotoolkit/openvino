@@ -78,7 +78,6 @@ public:
     ov::SoPtr<ov::IAsyncInferRequest> get_subrequest(size_t idx) override;
     const void* get_submodel_desc(size_t idx) override;
     TensorPtr allocate_mem(const ov::element::Type& type, const ov::Shape& shape, const std::string& device) override;
-    void unpack_closure(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request) override;
     bool is_gather_closure(size_t idx, size_t cidx) override;
     bool unpack_required(size_t idx, size_t cidx) override;
     bool needs_copy_closure(size_t idx, size_t cidx) override;
@@ -147,8 +146,11 @@ protected:
                                   bool is_recreate,
                                   bool enable_hfa_optimizations = true);
 
+    // Helper function to initialize/reinitialize MoE executor
+    void initialize_moe_executor();
+
     // Helper function to recreate MoE resources after subrequest recreation
-    void recreate_moe_resources(std::size_t idx, std::size_t real_idx, bool is_piped);
+    void recreate_moe_resources(std::size_t idx, std::size_t real_idx);
 
     FuncMemMgr m_func_mem_mgr;                       // Owns memory
     std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link

@@ -11,7 +11,6 @@
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "logging.hpp"
-#include "moe_infer_utils.hpp"
 #include "openvino/core/parallel.hpp"
 #include "util.hpp"
 

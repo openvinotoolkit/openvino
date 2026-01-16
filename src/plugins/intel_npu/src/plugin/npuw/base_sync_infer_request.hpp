@@ -13,8 +13,6 @@
 
 #include "attention.hpp"
 #include "host_flash_attention.hpp"
-#include "moe/moe_types.hpp"
-#include "moe_infer_utils.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -197,7 +195,6 @@ protected:
 
     virtual void init_gio();
     void unpack_closure(std::size_t idx, RqPtr request);
-
     virtual void bind_global_params(std::size_t idx, RqPtr request);
     virtual void bind_global_results(std::size_t idx, RqPtr request);
     void alloc_quant_gather_tensors(std::size_t idx, RqPtr request);
