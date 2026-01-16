@@ -234,10 +234,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         m_funcall_pipeline.resize(m_num_submodels);
     }
 
-    // Initialize MoE profiling based on configuration
-    m_moe_profiling_enabled = m_npuw_model->m_cfg.get<::intel_npu::NPUW_ENABLE_MOE_PROFILING>();
-    m_moe_profile.emplace(m_moe_profiling_enabled);
-
     m_spatial_io.resize(m_num_submodels);
     m_attention_io.resize(m_num_submodels);
     m_hfa_io.resize(m_num_submodels);
@@ -521,25 +517,18 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     if (has_moe) {
         LOG_INFO("Creating MoE executor...");
 
+        // Get MoE profiling configuration
+        bool moe_profiling_enabled = m_npuw_model->m_cfg.get<::intel_npu::NPUW_ENABLE_MOE_PROFILING>();
+
         // Create MoE executor with dependency injection
         m_moe_executor = std::make_unique<ov::npuw::moe::MoEExecutor>(
             *this,  // ISubrequestAccessor
-            [this](const std::string& area, const std::string& name, std::function<void()> fn) {
-                // Profiler callback
-                if (m_moe_profiling_enabled && m_moe_profile.has_value()) {
-                    if (area == "decoding") {
-                        m_moe_profile->decoding[name].record(std::move(fn));
-                    } else if (area == "prefill") {
-                        m_moe_profile->prefill[name].record(std::move(fn));
-                    }
-                } else {
-                    fn();  // Execute without profiling
-                }
-            },
             [this](const ov::element::Type& type, const ov::Shape& shape, const std::string& device) {
                 // Allocator callback
                 return allocMem(type, shape, device);
-            });
+            },
+            moe_profiling_enabled  // Pass profiling flag to executor
+        );
 
         // Prepare MoE resources for each sublayer (including function calls)
         // - Config & shared resources: initialized once (global singleton)
@@ -1148,24 +1137,16 @@ void ov::npuw::JustInferRequest::recreate_moe_resources(std::size_t idx, std::si
 
     // Step 1: Reset and recreate MoE executor
     // Create a new MoE executor to ensure complete state reset
+    bool moe_profiling_enabled = m_npuw_model->m_cfg.get<::intel_npu::NPUW_ENABLE_MOE_PROFILING>();
+
     m_moe_executor.reset();
     m_moe_executor = std::make_unique<ov::npuw::moe::MoEExecutor>(
         *this,  // ISubrequestAccessor
-        [this](const std::string& area, const std::string& name, std::function<void()> fn) {
-            // Profiler callback
-            if (m_moe_profiling_enabled && m_moe_profile.has_value()) {
-                if (area == "decoding") {
-                    m_moe_profile->decoding[name].record(std::move(fn));
-                } else if (area == "prefill") {
-                    m_moe_profile->prefill[name].record(std::move(fn));
-                }
-            } else {
-                fn();  // Execute without profiling
-            }
-        },
         [this](const ov::element::Type& type, const ov::Shape& shape, const std::string& device) {
             return allocMem(type, shape, device);
-        });
+        },
+        moe_profiling_enabled  // Pass profiling flag to executor
+    );
 
     // Step 2: Re-prepare MoE resources (same as initial setup)
     size_t pool_size = m_npuw_model->m_cfg.get<::intel_npu::NPUW_MOE_POOL_SIZE>();
