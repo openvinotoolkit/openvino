@@ -99,7 +99,8 @@ public:
     void TearDown() override {
         for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
             std::wstring postfix = ov::test::utils::test_unicode_postfix_vector[testIndex];
-            std::wstring unicode_path = ov::test::utils::stringToWString(ov::util::get_ov_lib_path() + "/") + postfix;
+            std::wstring unicode_path =
+                ov::test::utils::stringToWString(ov::util::path_to_string(ov::util::get_ov_lib_path()) + "/") + postfix;
 #ifndef _WIN32
             removeDirFilesRecursive(ov::util::wstring_to_string(unicode_path));
 #else
