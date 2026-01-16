@@ -38,11 +38,11 @@ JitConstants BroadcastKernelBase::GetJitConstants(const broadcast_params& params
         kernel_selector::Datatype input_dt = params.outputs[0].GetDType();
         std::vector<std::string> idx_order;
         if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
-            idx_order = {"out_b", "out_f", "out_y", "out_x + offset"};
+            idx_order = {"out_b", "out_f", "out_y + i", "out_x + offset"};
         } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
-            idx_order = {"out_b", "out_f", "out_z", "out_y", "out_x + offset"};
+            idx_order = {"out_b", "out_f", "out_z", "out_y + i", "out_x + offset"};
         } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 6) {
-            idx_order = {"out_b", "out_f", "out_w", "out_z", "out_y", "out_x + offset"};
+            idx_order = {"out_b", "out_f", "out_w", "out_z", "out_y + i", "out_x + offset"};
         }
 
         FusedOpsConfiguration conf = {"", idx_order, "res", input_dt, 1};
