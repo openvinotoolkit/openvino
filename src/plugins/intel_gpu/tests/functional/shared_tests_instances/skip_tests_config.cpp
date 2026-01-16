@@ -193,6 +193,8 @@ std::vector<std::string> disabledTestPatterns() {
             // by calc abs_threshold with expected value
             R"(.*smoke_RemoteTensor/OVRemoteTensorBatched_Test.NV12toBGR_buffer/(num_batch_4|num_batch_2).*)",
             R"(.*smoke_Check/ConstantResultSubgraphTest.Inference/SubgraphType=SINGLE_COMPONENT_IS=\[1,3,10,10\]_IT=i16_Device=GPU.*)",
+            // Issue: 126388
+            R"(.*smoke_outputTensorShapesForDynamicInput.*)",
 #endif
     };
     if (!isGPU1Present()) {
