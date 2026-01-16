@@ -795,8 +795,10 @@ void ZeroDynamicInferRequest::infer_async() {
                         inputPros[i].sizes[j] = shape[j];
                     }
                     auto& strides = userTensor->get_strides();
+                    size_t elementSize =
+                        userTensor->get_element_type().bitwidth() < 8 ? 1 : userTensor->get_element_type().size();
                     for (size_t j = 0; j < strides.size(); j++) {
-                        inputPros[i].strides[j] = strides[j];
+                        inputPros[i].strides[j] = strides[j] / elementSize;
                     }
                     inputPros[i].dimsCount = shape.size();
 
@@ -810,8 +812,11 @@ void ZeroDynamicInferRequest::infer_async() {
                         inputPros[i].sizes[j] = shape[j];
                     }
                     auto& strides = levelZeroTensor->get_strides();
+                    size_t elementSize = levelZeroTensor->get_element_type().bitwidth() < 8
+                                             ? 1
+                                             : levelZeroTensor->get_element_type().size();
                     for (size_t j = 0; j < strides.size(); j++) {
-                        inputPros[i].strides[j] = strides[j];
+                        inputPros[i].strides[j] = strides[j] / elementSize;
                     }
                     inputPros[i].dimsCount = shape.size();
                 } else {
@@ -844,8 +849,10 @@ void ZeroDynamicInferRequest::infer_async() {
                         outputPros[i].sizes[j] = shape[j];
                     }
                     auto& strides = userTensor->get_strides();
+                    size_t elementSize =
+                        userTensor->get_element_type().bitwidth() < 8 ? 1 : userTensor->get_element_type().size();
                     for (size_t j = 0; j < strides.size(); j++) {
-                        outputPros[i].strides[j] = strides[j];
+                        outputPros[i].strides[j] = strides[j] / elementSize;
                     }
                     outputPros[i].dimsCount = shape.size();
 
@@ -859,8 +866,11 @@ void ZeroDynamicInferRequest::infer_async() {
                         outputPros[i].sizes[j] = shape[j];
                     }
                     auto& strides = levelZeroTensor->get_strides();
+                    size_t elementSize = levelZeroTensor->get_element_type().bitwidth() < 8
+                                             ? 1
+                                             : levelZeroTensor->get_element_type().size();
                     for (size_t j = 0; j < strides.size(); j++) {
-                        outputPros[i].strides[j] = strides[j];
+                        outputPros[i].strides[j] = strides[j] / elementSize;
                     }
                     outputPros[i].dimsCount = shape.size();
                 } else {
