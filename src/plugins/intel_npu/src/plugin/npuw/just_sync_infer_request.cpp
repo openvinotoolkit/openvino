@@ -41,6 +41,18 @@ void ov::npuw::JustInferRequest::unpack_closure(size_t idx, ov::SoPtr<ov::IAsync
     IBaseInferRequest::unpack_closure(idx, request);
 }
 
+bool ov::npuw::JustInferRequest::is_gather_closure(size_t idx, size_t cidx) {
+    return m_npuw_model->is_gather_closure(idx, cidx);
+}
+
+bool ov::npuw::JustInferRequest::unpack_required(size_t idx, size_t cidx) {
+    return m_npuw_model->unpack_required(idx, cidx);
+}
+
+bool ov::npuw::JustInferRequest::needs_copy_closure(size_t idx, size_t cidx) {
+    return IBaseInferRequest::needs_copy(idx, cidx);
+}
+
 // ====================================================================================================
 // Memory Access Simulation & Function Memory Management
 // ====================================================================================================
