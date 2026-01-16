@@ -4,6 +4,8 @@
 
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 
+#include <algorithm>
+
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -39,14 +41,41 @@ GroupNormalizationFusion::GroupNormalizationFusion() {
         return (output_ps.rank().is_static()) && (output_ps.rank().get_length() >= 2);
     };
 
+    // This pattern matches GroupNormalization decomposed as InstanceNormalization.
+    // Two variants are supported:
+    //
+    // 1. 3D MVN pattern:
+    //    Input -> Reshape{N,G,-1} -> MVN(axes={2}) -> [Mul] -> [Add]
+    //          -> Reshape(original) -> Mul(gamma) -> Add(beta)
+    //
+    // 2. 4D MVN pattern:
+    //    Input -> Reshape{N,G,-1,1} -> MVN(axes={2,3}) -> [Mul] -> [Add]
+    //          -> Reshape(original) -> Mul(gamma) -> Add(beta)
+    //
+    //    Some frameworks decompose GroupNormalization via InstanceNormalization
+    //    and reshape directly to 4D {N,G,-1,1} with a trailing unit dimension.
+    //    MVN then reduces over axes {2,3}, which is mathematically equivalent
+    //    to the 3D variant since the trailing dimension is always 1.
+    //
+    // In both variants, optional instance-norm scale [Mul] and bias [Add] may
+    // appear immediately after MVN, before the reshape back to original shape.
+
     auto input_m = pattern::any_input(
         pattern::all_of({has_real_not_quantized_type, has_at_least_2d_shape, pattern::has_static_dim(1)}));
+
+    auto is_rank_3_or_4 = [](const ov::Output<ov::Node>& output) -> bool {
+        const auto& ps = output.get_partial_shape();
+        if (ps.rank().is_dynamic())
+            return false;
+        const auto r = ps.rank().get_length();
+        return r == 3 || r == 4;
+    };
 
     auto pre_mvn_shape_const_m =
         pattern::wrap_type<v0::Constant>(pattern::all_of({pattern::rank_equals(1), pattern::has_static_dim(0)}));
     auto pre_mvn_reshape_m = pattern::wrap_type<v1::Reshape>(
         {input_m, pre_mvn_shape_const_m},
-        pattern::all_of({has_real_not_quantized_type, pattern::rank_equals(3), pattern::has_static_dim(1)}));
+        pattern::all_of({has_real_not_quantized_type, is_rank_3_or_4, pattern::has_static_dim(1)}));
 
     auto mvn_reduction_axes_const_m =
         pattern::wrap_type<v0::Constant>(pattern::all_of({pattern::rank_equals(1), pattern::has_static_dim(0)}));
@@ -95,29 +124,52 @@ GroupNormalizationFusion::GroupNormalizationFusion() {
         const auto& pre_mvn_shape_const =
             ov::as_type_ptr<v0::Constant>(pattern_map.at(pre_mvn_shape_const_m).get_node_shared_ptr());
         const auto& pre_mvn_shape_out_ps = pre_mvn_shape.get_shape();
-        if (pre_mvn_shape_out_ps[0] != 3)
+        const auto pre_mvn_rank = pre_mvn_reshape_out_ps.rank().get_length();
+        if (pre_mvn_shape_out_ps[0] != static_cast<size_t>(pre_mvn_rank))
             return false;
+
+        // For 4D pattern, the trailing dimension must be 1
+        const bool is_4d_pattern = (pre_mvn_rank == 4);
+        if (is_4d_pattern) {
+            if (!pre_mvn_reshape_out_ps[3].is_static() || pre_mvn_reshape_out_ps[3].get_length() != 1)
+                return false;
+        }
 
         auto pre_mvn_shape_vals_correct = [](const std::vector<int64_t>& pre_mvn_shape_vals,
                                              const ov::PartialShape& input_ps,
-                                             const ov::Dimension::value_type num_groups) -> bool {
-            bool res = true;
+                                             const ov::Dimension::value_type num_groups,
+                                             const ov::PartialShape& reshape_out_ps) -> bool {
+            // Validate first dimension (batch): must be 0 (special value) or match input batch size
             if (input_ps[0].is_dynamic()) {
                 if (pre_mvn_shape_vals[0] != 0ll)
-                    res = false;
+                    return false;
             } else {
                 if ((pre_mvn_shape_vals[0] != 0ll) &&
                     (pre_mvn_shape_vals[0] != static_cast<long long>(input_ps[0].get_max_length())))
-                    res = false;
+                    return false;
             }
+            // Validate second dimension (groups): must match num_groups
             if ((pre_mvn_shape_vals[1] != 0ll) && (pre_mvn_shape_vals[1] != static_cast<long long>(num_groups)))
-                res = false;
-            if (pre_mvn_shape_vals[2] != -1ll)
-                res = false;
-            return res;
+                return false;
+            // Validate third dimension: can be -1 (infer) or the actual flattened size
+            // The actual size is verified through reshape_out_ps which is already validated
+            if (pre_mvn_shape_vals[2] != -1ll) {
+                // If not -1, it must match the actual output dimension
+                if (!reshape_out_ps[2].is_static())
+                    return false;
+                if (pre_mvn_shape_vals[2] != static_cast<long long>(reshape_out_ps[2].get_length()))
+                    return false;
+            }
+            // For 4D pattern, validate the trailing dimension value is 1
+            if (pre_mvn_shape_vals.size() == 4) {
+                if (pre_mvn_shape_vals[3] != 1ll)
+                    return false;
+            }
+            return true;
         };
 
-        if (!pre_mvn_shape_vals_correct(pre_mvn_shape_const->cast_vector<int64_t>(), input_ps, num_groups))
+        if (!pre_mvn_shape_vals_correct(pre_mvn_shape_const->cast_vector<int64_t>(), input_ps, num_groups,
+                                        pre_mvn_reshape_out_ps))
             return false;
 
         // number of channels has to be divisible by number of groups
@@ -129,22 +181,30 @@ GroupNormalizationFusion::GroupNormalizationFusion() {
         if (input_ps[0].get_max_length() != pre_mvn_reshape_out_ps[0].get_max_length())
             return false;
 
-        // we expect to execute normalization over last dimension of MVN input
+        // we expect to execute normalization over last dimension(s) of MVN input
         const auto& mvn_reduction_axes = pattern_map.at(mvn_reduction_axes_const_m);
         const auto& mvn_reduction_axes_const = ov::as_type_ptr<v0::Constant>(mvn_reduction_axes.get_node_shared_ptr());
         const auto& mvn_reduction_axes_out_shape = mvn_reduction_axes.get_shape();
-        if (mvn_reduction_axes_out_shape[0] != 1)
-            return false;
 
-        auto mvn_reduction_axes_correct = [](const std::vector<int64_t>& mvn_reduction_axes) -> bool {
-            bool res = true;
-            if ((mvn_reduction_axes[0] != 2ll) && (mvn_reduction_axes[0] != -1ll))
+        auto axes = mvn_reduction_axes_const->cast_vector<int64_t>();
+        if (is_4d_pattern) {
+            // 4D pattern: MVN axes must be {2, 3}
+            if (mvn_reduction_axes_out_shape[0] != 2)
                 return false;
-            return res;
-        };
-
-        if (!mvn_reduction_axes_correct(mvn_reduction_axes_const->cast_vector<int64_t>()))
-            return false;
+            for (auto& ax : axes) {
+                if (ax < 0)
+                    ax += 4;  // normalize negative axes
+            }
+            std::sort(axes.begin(), axes.end());
+            if (axes.size() != 2 || axes[0] != 2 || axes[1] != 3)
+                return false;
+        } else {
+            // 3D pattern: MVN axis must be 2 (or -1 which equals 2 for rank-3)
+            if (mvn_reduction_axes_out_shape[0] != 1)
+                return false;
+            if (axes[0] != 2 && axes[0] != -1)
+                return false;
+        }
 
         const auto& post_instance_norm_reshape_out_ps =
             pattern_map.at(post_instance_norm_reshape_m).get_partial_shape();
