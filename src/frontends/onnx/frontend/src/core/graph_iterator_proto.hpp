@@ -148,6 +148,8 @@ protected:
     /// \param name Name of tensor
     /// \param owner Returns real owner of the tensor
     std::shared_ptr<DecoderProtoTensor> get_tensor(const std::string& name, GraphIteratorProto** owner);
+
+private:
 };
 
 }  // namespace onnx
