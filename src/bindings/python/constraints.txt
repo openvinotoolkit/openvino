@@ -8,7 +8,7 @@ pytest-html==4.1.1
 pytest-timeout==2.4.0
 
 # Python bindings
-build<1.4
+build<1.5
 pygments>=2.8.1
 setuptools>=77,<80.10
 sympy>=1.10
