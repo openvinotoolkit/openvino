@@ -237,7 +237,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     m_spatial_io.resize(m_num_submodels);
     m_attention_io.resize(m_num_submodels);
     m_hfa_io.resize(m_num_submodels);
-    m_moe_io.resize(m_num_submodels);
 
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
@@ -339,7 +338,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 }
                 has_moe = true;
                 moe_experts_sub_idx = real_idx;
-                m_moe_io[i].outputs.resize(num_outputs);
             }  // if(moe_experts)
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
@@ -831,41 +829,10 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 // Host Flash Attention case - defer, use dedicated HFA I/O structure
                 m_hfa_io[idx].inputs.at(i) = i_tensor;
             } else if (is_moe) {
-                // MoE expert layer: handle router scores and expert inputs
-                if (func_desc.moe_experts) {
-                    const auto& moe = func_desc.moe_experts.value();
-
-                    // Router scores: defer to MoE inference dispatcher
-                    if (moe._router_scores_idx.has_value() && i == moe._router_scores_idx.value()) {
-                        m_moe_io[idx].router_scores = i_tensor;
-                        continue;
-                    }
-
-                    // Expert inputs: decoding sets directly, prefill defers for chunking
-                    if (moe._expert_input_param_idx.has_value() && i == moe._expert_input_param_idx.value()) {
-                        // For decoding, save expert input tensor for cache request binding
-                        // For prefill, save expert input tensor for chunk processing
-                        m_moe_io[idx].expert_input = i_tensor;
-                        continue;
-                    }
-
-                    NPUW_ASSERT(false && "Unknown MoE expert parameter index");
-                }
-
-                // MoE downstream layer: connect to relayouted expert outputs
-                if (func_desc.moe_experts_downstream) {
-                    const auto& moe_downstream = func_desc.moe_experts_downstream.value();
-                    if (i == moe_downstream.expert_output_param_idx) {
-                        auto output_buffer = m_moe_executor->get_output_accumulator();
-                        NPUW_ASSERT(output_buffer && "MoE output buffer not available");
-                        m_subrequests[real_idx]->set_tensor(iport, output_buffer);
-                    } else {
-                        m_subrequests[real_idx]->set_tensor(iport, i_tensor);
-                    }
+                // MoE layer: delegate to executor for input binding
+                if (m_moe_executor->function_prologue_moe_input(idx, real_idx, i, i_tensor)) {
                     continue;
                 }
-
-                NPUW_ASSERT(false && "MoE flag set but no moe_experts/moe_experts_downstream found");
             } else {
                 // Default case
                 m_subrequests[real_idx]->set_tensor(iport, i_tensor);
@@ -905,10 +872,8 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         auto& oport = func_desc.compiled_model->outputs()[i];
         auto o_tensor = m_funcall_result.at({idx, i});
         if (func_desc.moe_experts) {
-            // MoE case - defer, store in dedicated MoE I/O structure
-            // For decoding, defer output tensor binding for cache lookup later
-            // For prefill, o_tensor is not used (will be relayouted from expert outputs)
-            m_moe_io[idx].outputs.at(i) = o_tensor;
+            // MoE case - delegate to executor for output binding
+            m_moe_executor->function_prologue_moe_output(idx, i, o_tensor);
         } else if (is_hfa) {
             // HFA case - defer, store in dedicated HFA I/O structure
             m_hfa_io[idx].outputs.at(i) = o_tensor;
@@ -1943,7 +1908,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
         run_hfa_tiled_inference(real_idx, idx);
     } else if (comp_model_desc.moe_experts.has_value()) {
         // Use MoEExecutor
-        m_moe_executor->run(real_idx, idx, m_moe_io[idx]);
+        m_moe_executor->run(real_idx, idx);
     } else {
         r->infer();  // Run normally
     }
