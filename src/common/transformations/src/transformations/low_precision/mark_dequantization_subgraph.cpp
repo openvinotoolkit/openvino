@@ -5,12 +5,12 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
