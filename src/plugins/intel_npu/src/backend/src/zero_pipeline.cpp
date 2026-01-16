@@ -64,11 +64,8 @@ Pipeline::Pipeline(const Config& config,
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
     bool was_compiled_with_profiling = false;
-
     auto graphExtVersion = _init_structs->getGraphDdiTable().version();
-    if (ZE_GRAPH_EXT_VERSION_CURRENT < ZE_MAKE_VERSION(1, 16)) {
-        OPENVINO_THROW("We don't know if the model was compiled with profiling");
-    } else {
+    if (graphExtVersion >= ZE_MAKE_VERSION(1, 16)) {
         ze_graph_properties_3_t graphProperties = {};
         graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
 
@@ -79,7 +76,7 @@ Pipeline::Pipeline(const Config& config,
     }
 
     if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
-        if (!was_compiled_with_profiling) {
+        if (graphExtVersion >= ZE_MAKE_VERSION(1, 16) && !was_compiled_with_profiling) {
             OPENVINO_THROW("Blob was not compiled with profiling/PERF_COUNT=YES");
         }
 
