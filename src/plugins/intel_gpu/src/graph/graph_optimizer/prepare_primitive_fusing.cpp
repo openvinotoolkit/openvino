@@ -763,8 +763,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
 
             if (consumer->is_type<eltwise>()) {
-                auto input_layout = bcast_node.get_output_layout();
-                auto output_layout = consumer->get_output_layout();
+                const auto& input_layout = bcast_node.get_output_layout();
+                const auto& output_layout = consumer->get_output_layout();
                 if (input_layout.data_type != output_layout.data_type) {
                     return false;
                 }
