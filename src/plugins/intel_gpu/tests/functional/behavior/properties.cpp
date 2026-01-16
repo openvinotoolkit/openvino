@@ -104,4 +104,55 @@ TEST_F(TestPropertiesGPU, RTInfoPropertiesWithUserValuesFromCompileModel) {
     ASSERT_EQ(scale.as<float>(), 4.0f);
 }
 
+TEST_F(TestPropertiesGPU, DefaultUSMHostTensorAllocationProperty) {
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+
+    // Test default value is false
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
+    ov::Any default_value;
+    OV_ASSERT_NO_THROW(default_value = compiled_model.get_property(ov::intel_gpu::default_usm_host_tensor_allocation));
+    ASSERT_FALSE(default_value.as<bool>());
+}
+
+TEST_F(TestPropertiesGPU, SetDefaultUSMHostTensorAllocationTrue) {
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    ov::AnyMap config;
+    config[ov::intel_gpu::default_usm_host_tensor_allocation.name()] = true;
+
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config));
+    ov::Any value;
+    OV_ASSERT_NO_THROW(value = compiled_model.get_property(ov::intel_gpu::default_usm_host_tensor_allocation));
+    ASSERT_TRUE(value.as<bool>());
+}
+
+TEST_F(TestPropertiesGPU, SetDefaultUSMHostTensorAllocationFalse) {
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    ov::AnyMap config;
+    config[ov::intel_gpu::default_usm_host_tensor_allocation.name()] = false;
+
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config));
+    ov::Any value;
+    OV_ASSERT_NO_THROW(value = compiled_model.get_property(ov::intel_gpu::default_usm_host_tensor_allocation));
+    ASSERT_FALSE(value.as<bool>());
+}
+
+TEST_F(TestPropertiesGPU, DefaultUSMHostTensorAllocationViaSetProperty) {
+    ov::Core core;
+    
+    // Set property via core.set_property
+    ov::AnyMap config;
+    config[ov::intel_gpu::default_usm_host_tensor_allocation.name()] = true;
+    OV_ASSERT_NO_THROW(core.set_property(ov::test::utils::DEVICE_GPU, config));
+    
+    // Compile model and verify property is set
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
+    ov::Any value;
+    OV_ASSERT_NO_THROW(value = compiled_model.get_property(ov::intel_gpu::default_usm_host_tensor_allocation));
+    ASSERT_TRUE(value.as<bool>());
+}
+
 } // namespace
