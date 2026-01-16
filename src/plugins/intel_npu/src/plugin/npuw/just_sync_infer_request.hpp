@@ -181,12 +181,8 @@ protected:
     // HFA runtime context (holds cached masks, pre-allocated buffers, and state buffers)
     std::optional<runtime::host_flash_attention::HFARuntimeContext> m_hfa_runtime_ctx;
 
-    // MoE executor (encapsulates MoE inference logic)
+    // MoE executor (encapsulates MoE inference logic and profiling)
     std::unique_ptr<ov::npuw::moe::MoEExecutor> m_moe_executor;
-
-    // MoE performance statistics using ov::npuw::moe::MoEProfile
-    std::optional<ov::npuw::moe::MoEProfile> m_moe_profile;
-    bool m_moe_profiling_enabled = false;
 
     // MoE routing maps (reused across inferences to avoid stack allocation)
     std::map<size_t, std::vector<size_t>> m_moe_token_to_experts;

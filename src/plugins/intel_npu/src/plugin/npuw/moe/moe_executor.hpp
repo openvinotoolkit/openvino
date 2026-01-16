@@ -119,16 +119,15 @@ class MoEExecutor {
 public:
     using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;
     using AllocatorFn = std::function<TensorPtr(const ov::element::Type&, const ov::Shape&, const std::string&)>;
-    using ProfilerFn = std::function<void(const std::string& area, const std::string& name, std::function<void()> fn)>;
 
     /**
      * @brief Constructor
      *
      * @param accessor Interface to access JustInferRequest internals
-     * @param profiler Profiling callback (area, metric name, function)
      * @param allocator Memory allocation function
+     * @param profiling_enabled Enable/disable profiling
      */
-    MoEExecutor(ISubrequestAccessor& accessor, ProfilerFn profiler, AllocatorFn allocator);
+    MoEExecutor(ISubrequestAccessor& accessor, AllocatorFn allocator, bool profiling_enabled);
 
     /**
      * @brief Prepare MoE resources for a sublayer
@@ -178,11 +177,23 @@ public:
         return m_resources.expert_output_accumulator;
     }
 
+    /**
+     * @brief Get MoE performance profile statistics
+     *
+     * @return Optional reference to MoE profile (nullopt if profiling disabled)
+     */
+    const std::optional<MoEProfile>& get_profile() const {
+        return m_profile;
+    }
+
 private:
     // === Dependency injection ===
     ISubrequestAccessor& m_accessor;  // Access to JustInferRequest internals
-    ProfilerFn m_profiler;            // Performance profiling callback
     AllocatorFn m_allocator;          // Memory allocation function
+
+    // === Profiling ===
+    std::optional<MoEProfile> m_profile;  // Performance statistics
+    bool m_profiling_enabled;             // Enable/disable profiling
 
     // === State management ===
     // MoE configuration (single instance, shared by all sublayers)
