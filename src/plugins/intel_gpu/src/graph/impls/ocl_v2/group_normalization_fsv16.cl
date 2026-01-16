@@ -112,32 +112,66 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
     const __global ACCUMULATOR_TYPE* internal_mean,
     const __global ACCUMULATOR_TYPE* internal_variance
 ) {
-    const uint b = get_global_id(1) % OUTPUT_BATCH_NUM;
-    const uint f = get_global_id(1) / OUTPUT_BATCH_NUM * FSV + (get_sub_group_local_id() % FSV);
-    uint yx = get_global_id(0) / FSV;
+    const uint data_set_idx = get_global_id(1);     // batch * feature split
+    const uint in_data_set_idx = get_global_id(0);
+    const uint workers_per_dataset = LWS0 / FSV;    // 16 datasets are handled by one local workgroup
+    const uint data_set_size = INPUT0_SIZE_X * INPUT0_SIZE_Y;
+    const uint padded_data_set_size = (INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) * (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y);
+    const uint items_num = padded_data_set_size / workers_per_dataset;
+    const uint leftovers = padded_data_set_size - (items_num * workers_per_dataset);
+
+    const uint INPUT0_ALIGNED_FEATURE_NUM = ALIGN(INPUT0_FEATURE_NUM, FSV);
+    const uint b = (data_set_idx * FSV) / INPUT0_ALIGNED_FEATURE_NUM;
+    const uint f_base = (data_set_idx * FSV) % INPUT0_ALIGNED_FEATURE_NUM;
+    const uint data_set_offset = INPUT0_GET_INDEX(b, f_base, -INPUT0_PAD_BEFORE_SIZE_Y, -INPUT0_PAD_BEFORE_SIZE_X);
+    const uint input_data_offset = data_set_offset + in_data_set_idx;
+    const uint output_base_offset = OUTPUT_GET_INDEX(b, f_base, -INPUT0_PAD_BEFORE_SIZE_Y, -INPUT0_PAD_BEFORE_SIZE_X);
+    const uint output_data_offset = output_base_offset + in_data_set_idx;
+
+    const uint f = f_base + in_data_set_idx % FSV;
     const uint bf = b * OUTPUT_FEATURE_NUM + f;
     ACTIVATION_TYPE mean = TO_ACTIVATION_TYPE(internal_mean[bf]);
     ACTIVATION_TYPE variance = TO_ACTIVATION_TYPE(internal_variance[bf]);
     ACTIVATION_TYPE scale_f = TO_ACTIVATION_TYPE(scale[f]);
     ACTIVATION_TYPE bias_f = TO_ACTIVATION_TYPE(bias[f]);
-    for (uint i = 0; i < INPUT0_SIZE_X * INPUT0_SIZE_Y / GWS0 * FSV; ++i, yx += GWS0 / FSV) {
-        uint y = yx / OUTPUT_SIZE_X;
-        uint x = yx % OUTPUT_SIZE_X;
-        uint input_index = INPUT0_GET_INDEX(b, f, y, x);
-        uint output_index = OUTPUT_GET_INDEX(b, f, y, x);
+    ACTIVATION_TYPE input_data[32];
 
+    for (uint j = 0; j < (items_num + 31) / 32; ++j) {
+        for (uint i = 0; (i < 32) && (i + j * 32 < items_num); ++i) {
+            input_data[i] = TO_ACTIVATION_TYPE(input[input_data_offset + (i + j * 32) * workers_per_dataset * FSV]);
+            input_data[i] = (input_data[i] - mean) * variance;
+        }
+
+        for (uint i = 0; (i < 32) && (i + j * 32 < items_num); ++i) {
+            ACTIVATION_TYPE normalized = input_data[i] * scale_f + bias_f;
+            if (f < OUTPUT_FEATURE_NUM) {
+                #if HAS_FUSED_OPS
+                    FUSED_OPS;
+                    output[output_data_offset + (i  + j * 32) * workers_per_dataset * FSV] = FUSED_OPS_RESULT;
+                #else
+                    output[output_data_offset + (i  + j * 32) * workers_per_dataset * FSV] = TO_OUTPUT_TYPE(normalized);
+                #endif
+            } else {
+                #ifdef OUTPUT_LAYOUT_B_FS_YX_FSV16
+                    output[output_data_offset + (i  + j * 32) * workers_per_dataset * FSV] = OUTPUT_VAL_ZERO;
+                #endif
+            }
+        }
+    }
+
+    if (in_data_set_idx < leftovers) {
+        ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[input_data_offset + items_num * workers_per_dataset * FSV]) - mean) * variance;
+        normalized = normalized * scale_f + bias_f;
         if (f < OUTPUT_FEATURE_NUM) {
-            ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[input_index]) - mean) * variance;
-            normalized = normalized * scale_f + bias_f;
             #if HAS_FUSED_OPS
                 FUSED_OPS;
-                output[output_index] = FUSED_OPS_RESULT;
+                output[output_data_offset + items_num * workers_per_dataset * FSV] = FUSED_OPS_RESULT;
             #else
-                output[output_index] = TO_OUTPUT_TYPE(normalized);
+                output[output_data_offset + items_num * workers_per_dataset * FSV] = TO_OUTPUT_TYPE(normalized);
             #endif
         } else {
             #ifdef OUTPUT_LAYOUT_B_FS_YX_FSV16
-                output[output_index] = OUTPUT_VAL_ZERO;
+                output[output_data_offset + items_num * workers_per_dataset * FSV] = OUTPUT_VAL_ZERO;
             #endif
         }
     }
