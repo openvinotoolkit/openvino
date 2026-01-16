@@ -22,7 +22,6 @@ using namespace ov;
 using namespace ov::intel_gpu::ocl;
 using namespace cldnn;
 namespace {
-constexpr size_t WG_SIZE = 16;
 constexpr size_t reduce_split_step = 16;
 }  // namespace
 
@@ -38,17 +37,6 @@ inline std::pair<size_t, size_t> get_kv_split_size(size_t arch) {
     }
     OPENVINO_ASSERT(false, "Unsupported architecture for KV split size");
     return {0, 0};  // Fallback case, should not be reached
-}
-
-inline size_t get_q_step(size_t arch, bool is_single_token = false) {
-    if (arch == 1) {
-        return is_single_token ? 1 : 8;  // For Xe1
-    } else if (arch == 2) {
-        // For Xe2, q_step = CM_GRF_WIDTH / 32
-        return is_single_token ? 1 : 16;  // For Xe2
-    }
-    OPENVINO_ASSERT(false, "Unsupported architecture for Q step");
-    return 0;  // Fallback case, should not be reached
 }
 
 inline size_t get_kv_len(const RuntimeParams& params, const PagedAttentionStage& stage) {
@@ -758,7 +746,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
 JitConstants XAttentionEstimatePostProc::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = XAttentionEstimateGeneratorBase::get_jit_constants(params);
 
-    jit.make("MERGED_Q_NUM", MERGED_Q_NUM);
+    jit.make("MERGED_Q_NUM", get_merged_q_num(params));
 
     return jit;
 }

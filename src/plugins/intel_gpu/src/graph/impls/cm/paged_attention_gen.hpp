@@ -33,6 +33,7 @@ constexpr auto get_pa_build_options() {
 
 constexpr uint32_t SG_M = 4;
 constexpr uint32_t SG_N = 8;
+constexpr size_t WG_SIZE = 16;
 constexpr int STRIDE = 16;
 constexpr uint32_t XATTN_BLOCK_SIZE = 128;
 constexpr uint32_t MERGED_Q_NUM = PA_KV_CACHE_BLOCK_SIZE_XATTN / XATTN_BLOCK_SIZE;  // for xattn post_proc
@@ -56,6 +57,25 @@ inline uint32_t get_block_wg_m(const kernel_impl_params& params) {
 
 inline uint32_t get_block_wg_n(const kernel_impl_params& params) {
     return get_block_sg_n(params) * SG_N;
+}
+
+inline size_t get_q_step(size_t arch, bool is_single_token = false) {
+    if (arch == 1) {
+        return is_single_token ? 1 : 8;  // For Xe1
+    } else if (arch == 2) {
+        // For Xe2, q_step = CM_GRF_WIDTH / 32
+        return is_single_token ? 1 : 16;  // For Xe2
+    }
+    OPENVINO_ASSERT(false, "Unsupported architecture for Q step");
+    return 0;  // Fallback case, should not be reached
+}
+
+inline uint32_t get_merged_q_num(const kernel_impl_params& params) {
+    auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+    const size_t q_step = get_q_step(xe_arch, false);
+    const size_t wg_seq_len = WG_SIZE * q_step;
+
+    return  wg_seq_len / XATTN_BLOCK_SIZE;
 }
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };

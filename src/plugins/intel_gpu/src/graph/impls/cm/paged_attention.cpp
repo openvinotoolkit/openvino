@@ -73,7 +73,7 @@ public:
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         rt_params->q_block_pad = q_block_pad;
         rt_params->k_block_pad = k_block_pad;
-        rt_params->q_block_pad_merged = ceil_div(q_block_pad, MERGED_Q_NUM);
+        rt_params->q_block_pad_merged = ceil_div(q_block_pad, get_merged_q_num(params));
 
         const size_t head_size = desc->k_head_size;
 
