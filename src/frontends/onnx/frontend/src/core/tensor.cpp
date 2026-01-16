@@ -5,6 +5,7 @@
 #include "core/tensor.hpp"
 
 #include "input_model.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ov {
 namespace frontend {
@@ -19,10 +20,18 @@ detail::LocalStreamHandles TensorONNXPlace::get_stream_cache() {
     return model_onnx->get_stream_cache();
 }
 
+std::filesystem::path TensorONNXPlace::get_model_dir() const {
+    const auto model_onnx = dynamic_cast<const unify::InputModel*>(&m_input_model);
+    if (!model_onnx) {
+        return {};
+    }
+    return model_onnx->get_model_dir();
+}
+
 Tensor::Tensor(const std::shared_ptr<TensorONNXPlace>& tensor_place) {
     m_tensor_proto = nullptr;
     m_shape = tensor_place->get_partial_shape().get_shape();
-    m_model_dir = "";
+    m_model_dir = tensor_place->get_model_dir();
     m_mmap_cache = tensor_place->get_mmap_cache();
     m_tensor_place = tensor_place;
 }
@@ -407,13 +416,14 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
         if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, ext_data.load_external_mem_data());
         } else if (m_mmap_cache) {
-            constant =
-                std::make_shared<ov::op::v0::Constant>(ov_type,
-                                                       m_shape,
-                                                       ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache));
+            constant = std::make_shared<ov::op::v0::Constant>(
+                ov_type,
+                m_shape,
+                ext_data.load_external_mmap_data(m_model_dir.string(), m_mmap_cache));
         } else {
-            constant =
-                std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, ext_data.load_external_data(m_model_dir));
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type,
+                                                              m_shape,
+                                                              ext_data.load_external_data(m_model_dir.string()));
         }
         // ext_data.size() might be zero, need to recalc by using info about actually red data (for byte-size)
         element_count = constant->get_byte_size() / ov_type.size();
