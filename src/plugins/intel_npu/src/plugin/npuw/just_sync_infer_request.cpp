@@ -1061,18 +1061,13 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
 void ov::npuw::JustInferRequest::initialize_moe_executor() {
     LOG_INFO("Creating MoE executor...");
 
-    // Get MoE profiling configuration
-    bool moe_profiling_enabled = m_npuw_model->m_cfg.get<::intel_npu::NPUW_ENABLE_MOE_PROFILING>();
-
     // Create MoE executor with dependency injection
     m_moe_executor = std::make_unique<ov::npuw::moe::MoEExecutor>(
         *this,  // ISubrequestAccessor
         [this](const ov::element::Type& type, const ov::Shape& shape, const std::string& device) {
             // Allocator callback
             return allocMem(type, shape, device);
-        },
-        moe_profiling_enabled  // Pass profiling flag to executor
-    );
+        });
 
     LOG_INFO("MoE executor created");
 

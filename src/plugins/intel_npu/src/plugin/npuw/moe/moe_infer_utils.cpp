@@ -16,6 +16,14 @@ namespace ov {
 namespace npuw {
 namespace moe {
 
+// MoEProfile constructor - uses existing profiling infrastructure
+MoEProfile::MoEProfile() {
+    prefill.area = "MoE Prefill";
+    decoding.area = "MoE Decoding";
+    prefill.report_on_die = ov::npuw::profiling_enabled();
+    decoding.report_on_die = ov::npuw::profiling_enabled();
+}
+
 ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_id, size_t num_experts) {
     // Slice weight tensor from batched (num_experts, ...) to single expert (1, ...)
     auto shape = batched_weight.get_shape();

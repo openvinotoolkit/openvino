@@ -15,15 +15,12 @@ namespace ov {
 namespace npuw {
 namespace moe {
 
-MoEExecutor::MoEExecutor(ISubrequestAccessor& accessor, AllocatorFn allocator, bool profiling_enabled)
+MoEExecutor::MoEExecutor(ISubrequestAccessor& accessor, AllocatorFn allocator)
     : m_accessor(accessor),
-      m_allocator(std::move(allocator)),
-      m_profiling_enabled(profiling_enabled) {
-    // Initialize profile storage if profiling is enabled
-    if (m_profiling_enabled) {
-        m_profile.emplace(true);  // Pass true to enable profiling in MoEProfile
-    }
-    LOG_DEBUG("MoEExecutor created (profiling " << (m_profiling_enabled ? "enabled" : "disabled") << ")");
+      m_allocator(std::move(allocator)) {
+    // Profile will be initialized using profiling_enabled() in MoEProfile constructor
+    m_profile.emplace();  // MoEProfile constructor reads profiling_enabled()
+    LOG_DEBUG("MoEExecutor created");
 }
 
 void MoEExecutor::prepare(size_t idx, size_t real_idx, size_t num_sublayers, size_t pool_size) {
@@ -232,33 +229,19 @@ void MoEExecutor::run(size_t real_idx, size_t idx) {
     // Note: parse_selected_experts_from_router() clears the maps internally before populating
     std::vector<size_t> selected_experts;
     if (is_decoding) {
-        if (m_profiling_enabled) {
-            m_profile->decoding["Parse Router Output"].record([&]() {
-                selected_experts = ov::npuw::moe::parse_selected_experts_from_router(io.router_scores,
-                                                                                     num_experts,
-                                                                                     m_token_to_experts,
-                                                                                     m_expert_to_tokens);
-            });
-        } else {
+        m_profile->decoding["Parse Router Output"].record([&]() {
             selected_experts = ov::npuw::moe::parse_selected_experts_from_router(io.router_scores,
                                                                                  num_experts,
                                                                                  m_token_to_experts,
                                                                                  m_expert_to_tokens);
-        }
+        });
     } else {
-        if (m_profiling_enabled) {
-            m_profile->prefill["Parse Router Output"].record([&]() {
-                selected_experts = ov::npuw::moe::parse_selected_experts_from_router(io.router_scores,
-                                                                                     num_experts,
-                                                                                     m_token_to_experts,
-                                                                                     m_expert_to_tokens);
-            });
-        } else {
+        m_profile->prefill["Parse Router Output"].record([&]() {
             selected_experts = ov::npuw::moe::parse_selected_experts_from_router(io.router_scores,
                                                                                  num_experts,
                                                                                  m_token_to_experts,
                                                                                  m_expert_to_tokens);
-        }
+        });
     }
 
     if (selected_experts.empty()) {
@@ -267,21 +250,13 @@ void MoEExecutor::run(size_t real_idx, size_t idx) {
 
     // Dispatch to appropriate inference function
     if (is_decoding) {
-        if (m_profiling_enabled) {
-            m_profile->decoding["Total Decoding"].record([&]() {
-                run_batch_experts(idx, real_idx, selected_experts);
-            });
-        } else {
+        m_profile->decoding["Total Decoding"].record([&]() {
             run_batch_experts(idx, real_idx, selected_experts);
-        }
+        });
     } else {
-        if (m_profiling_enabled) {
-            m_profile->prefill["Total Prefill"].record([&]() {
-                run_iterative_experts(idx, real_idx, selected_experts);
-            });
-        } else {
+        m_profile->prefill["Total Prefill"].record([&]() {
             run_iterative_experts(idx, real_idx, selected_experts);
-        }
+        });
     }
 
     LOG_DEBUG("========== MoE Expert Inference Completed ==========");
@@ -321,13 +296,9 @@ void MoEExecutor::run_batch_experts(size_t idx, size_t real_idx, const std::vect
         }
 
         // Step 2: Configure expert weights
-        if (m_profiling_enabled) {
-            m_profile->decoding["Unpack Closure"].record([&]() {
-                unpack_multiple_experts_closure(idx, request, selected_experts);
-            });
-        } else {
+        m_profile->decoding["Unpack Closure"].record([&]() {
             unpack_multiple_experts_closure(idx, request, selected_experts);
-        }
+        });
 
         // Step 3: Register to cache for future hits (only if cache enabled)
         if (cache_enabled) {
@@ -360,22 +331,14 @@ void MoEExecutor::run_batch_experts(size_t idx, size_t real_idx, const std::vect
     request->set_tensor(output_port, output_tensor);
 
     // Step 5: Set unrolled router scores (always needed, even on cache hit)
-    if (m_profiling_enabled) {
-        m_profile->decoding["Set Router Input"].record([&]() {
-            set_router_scores(idx, real_idx, selected_experts, request);
-        });
-    } else {
+    m_profile->decoding["Set Router Input"].record([&]() {
         set_router_scores(idx, real_idx, selected_experts, request);
-    }
+    });
 
     // Step 6: Execute inference once for all K experts in parallel
-    if (m_profiling_enabled) {
-        m_profile->decoding["Expert Inference"].record([&]() {
-            request->infer();
-        });
-    } else {
+    m_profile->decoding["Expert Inference"].record([&]() {
         request->infer();
-    }
+    });
 }
 
 void MoEExecutor::run_iterative_experts(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts) {
@@ -501,74 +464,38 @@ void MoEExecutor::run_iterative_experts(size_t idx, size_t real_idx, const std::
             // Important: last_chunk_size is reset to 0 at the start of each expert loop,
             // so the first chunk of a new expert will always trigger unpacking (0 != selected_chunk_size)
             if (selected_chunk_size != last_chunk_size) {
-                if (m_profiling_enabled) {
-                    m_profile->prefill["Unpack Closure"].record([&]() {
-                        unpack_single_expert_closure(idx, selected_infer_request, expert_id);
-                    });
-                } else {
+                m_profile->prefill["Unpack Closure"].record([&]() {
                     unpack_single_expert_closure(idx, selected_infer_request, expert_id);
-                }
+                });
                 last_chunk_size = selected_chunk_size;
             }
 
             // Step 2: Gather router scores for this chunk
-            if (m_profiling_enabled) {
-                m_profile->prefill["Gather Router Scores"].record([&]() {
-                    ov::npuw::moe::gather_router_scores(router_source,
-                                                        selected_router_dest,
-                                                        expert_id,
-                                                        tokens_for_expert,
-                                                        processed_tokens,
-                                                        current_chunk_size);
-                });
-            } else {
+            m_profile->prefill["Gather Router Scores"].record([&]() {
                 ov::npuw::moe::gather_router_scores(router_source,
                                                     selected_router_dest,
                                                     expert_id,
                                                     tokens_for_expert,
                                                     processed_tokens,
                                                     current_chunk_size);
-            }
+            });
 
             // Step 3: Gather expert inputs for this chunk
-            if (m_profiling_enabled) {
-                m_profile->prefill["Gather Expert Input"].record([&]() {
-                    ov::npuw::moe::gather_expert_inputs(expert_input_source,
-                                                        selected_expert_input_dest,
-                                                        tokens_for_expert,
-                                                        processed_tokens,
-                                                        current_chunk_size);
-                });
-            } else {
+            m_profile->prefill["Gather Expert Input"].record([&]() {
                 ov::npuw::moe::gather_expert_inputs(expert_input_source,
                                                     selected_expert_input_dest,
                                                     tokens_for_expert,
                                                     processed_tokens,
                                                     current_chunk_size);
-            }
+            });
 
             // Step 4: Execute expert inference
-            if (m_profiling_enabled) {
-                m_profile->prefill["Expert Inference"].record([&]() {
-                    selected_infer_request->infer();
-                });
-            } else {
+            m_profile->prefill["Expert Inference"].record([&]() {
                 selected_infer_request->infer();
-            }
+            });
 
             // Step 5: Scatter expert outputs back to global buffer
-            if (m_profiling_enabled) {
-                m_profile->prefill["Scatter Output"].record([&]() {
-                    ov::npuw::moe::scatter_expert_outputs(selected_expert_output,
-                                                          m_resources.expert_output_accumulator,
-                                                          tokens_for_expert,
-                                                          processed_tokens,
-                                                          current_chunk_size,
-                                                          embed_dim,
-                                                          input_token_count,
-                                                          expert_slots_for_tokens);
-                });
-            } else {
+            m_profile->prefill["Scatter Output"].record([&]() {
                 ov::npuw::moe::scatter_expert_outputs(selected_expert_output,
                                                       m_resources.expert_output_accumulator,
                                                       tokens_for_expert,
@@ -577,7 +504,7 @@ void MoEExecutor::run_iterative_experts(size_t idx, size_t real_idx, const std::
                                                       embed_dim,
                                                       input_token_count,
                                                       expert_slots_for_tokens);
-            }
+            });
 
             // Move to next chunk
             processed_tokens += current_chunk_size;
