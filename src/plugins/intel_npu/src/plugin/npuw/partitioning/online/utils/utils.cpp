@@ -169,69 +169,41 @@ std::vector<ov::npuw::online::Isolate> ov::npuw::online::util::getIsolates(const
     }
 
     std::vector<Isolate> isolates;
-    std::string s = isolates_unparsed;
 
-    // First, try to expand presets by splitting the input string
-    std::string expanded_rules;
-    size_t pos = 0;
-    size_t start = 0;
-    std::string token;
+    // Lambda to split comma-separated string into tokens
+    auto splitByComma = [](const std::string& s) {
+        std::vector<std::string> tokens;
+        size_t pos = 0;
+        size_t start = 0;
 
-    while ((pos = s.find(',', start)) != std::string::npos) {
-        token = s.substr(start, pos - start);
+        while ((pos = s.find(',', start)) != std::string::npos) {
+            tokens.push_back(s.substr(start, pos - start));
+            start = pos + 1;
+        }
+        tokens.push_back(s.substr(start, s.size() - start));  // Handle tail
 
-        // Check if this token is a preset
+        return tokens;
+    };
+
+    // Split input and expand presets
+    std::vector<std::string> expanded_tokens;
+    for (const auto& token : splitByComma(isolates_unparsed)) {
         auto preset_iter = ov::npuw::online::util::ISOL_PRESETS.find(token);
         if (preset_iter != ov::npuw::online::util::ISOL_PRESETS.end()) {
-            if (!expanded_rules.empty()) {
-                expanded_rules += ",";
-            }
-            expanded_rules += preset_iter->second;
+            // Expand preset into individual tokens
+            auto preset_tokens = splitByComma(preset_iter->second);
+            expanded_tokens.insert(expanded_tokens.end(), preset_tokens.begin(), preset_tokens.end());
         } else {
-            if (!expanded_rules.empty()) {
-                expanded_rules += ",";
-            }
-            expanded_rules += token;
+            expanded_tokens.push_back(token);
         }
-        start = pos + 1;
     }
 
-    // Handle the tail
-    token = s.substr(start, s.size() - start);
-
-    auto preset_iter = ov::npuw::online::util::ISOL_PRESETS.find(token);
-    if (preset_iter != ov::npuw::online::util::ISOL_PRESETS.end()) {
-        if (!expanded_rules.empty()) {
-            expanded_rules += ",";
-        }
-        expanded_rules += preset_iter->second;
-    } else {
-        if (!expanded_rules.empty()) {
-            expanded_rules += ",";
-        }
-        expanded_rules += token;
-    }
-
-    // Now parse the expanded rules
-    s = expanded_rules;
-    pos = 0;
-    start = 0;
-
-    while ((pos = s.find(',', start)) != std::string::npos) {
-        token = s.substr(start, pos - start);
+    // Parse the expanded tokens
+    for (const auto& token : expanded_tokens) {
         auto isolate_opt = util::parseIsolate(token);
-        // Check that parsing was a success
         if (isolate_opt) {
             isolates.push_back(*isolate_opt);
         }
-        start = pos + 1;
-    }
-
-    // Parse the tail
-    auto isolate_opt = util::parseIsolate(s.substr(start, s.size() - start));
-    // Check that parsing was a success
-    if (isolate_opt) {
-        isolates.push_back(*isolate_opt);
     }
 
     if (!isolates.empty()) {
