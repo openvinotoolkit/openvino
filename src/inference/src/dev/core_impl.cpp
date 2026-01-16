@@ -275,9 +275,9 @@ std::filesystem::path get_cache_model_path(const ov::AnyMap& config) {
     return it == config.end() ? std::filesystem::path{} : it->second.as<std::filesystem::path>();
 }
 
-std::vector<ov::Extension::Ptr> try_get_extensions(const std::filesystem::path& path) {
+std::vector<ov::Extension::Ptr> try_get_extensions(std::shared_ptr<void>& so) {
     try {
-        return ov::detail::load_extensions(path);
+        return ov::detail::load_extensions(so);
     } catch (const std::runtime_error&) {
         return {};
     }
@@ -802,7 +802,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
                 // the same extension can be registered multiple times - ignore it!
             }
         } else {
-            ext = try_get_extensions(desc.m_lib_location);
+            ext = try_get_extensions(so);
         }
         std::move(ext.begin(), ext.end(), std::back_inserter(m_plugin_registry.at(device_name).m_extensions));
 
