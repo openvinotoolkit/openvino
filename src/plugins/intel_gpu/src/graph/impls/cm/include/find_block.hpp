@@ -33,11 +33,17 @@
 #define CUR_TYPE CUR_TYPE_(SOFTMAX_TYPE)
 
 template <int M, int N>
-CM_INLINE void cm_load_2d(matrix_ref<SOFTMAX_TYPE, M, N> out, svmptr_t base, uint offset, uint pitch, uint valid_m) {
+CM_INLINE void cm_load_2d(matrix_ref<SOFTMAX_TYPE, M, N> out,
+                          svmptr_t base, uint offset, uint pitch, uint valid_m) {
     #pragma unroll
-    for(int i = 0; i < out.n_rows(); i++) {
-        if(offset + i * pitch < valid_m*pitch)
-            out.row(i).format<uint>() = cm_ptr_load<uint, N,DataSize::U32, CacheHint::Cached, CacheHint::Cached>((uint*)base, offset + i * pitch);
+    for (int i = 0; i < out.n_rows(); i++) {
+        if (i < (int)valid_m) {
+            out.row(i).format<uint>() =
+                cm_ptr_load<uint, N, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                    (uint*)base, offset + i * pitch);
+        } else {
+            out.row(i) = SOFTMAX_TYPE(0);
+        }
     }
 }
 
