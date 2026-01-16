@@ -987,6 +987,10 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     const auto v_head_size = micro_get_head_size(params, 2);
 
     const auto d_max = get_d_max(k_head_size);
+    const bool enable_d_tiling = !config.is_paged_attention && k_head_size > 256;
+    const size_t d_chunk = enable_d_tiling ? 256 : d_max;
+    const size_t d_chunks = enable_d_tiling ? (k_head_size + d_chunk - 1) / d_chunk : 1;
+    const size_t d_last = enable_d_tiling ? (k_head_size - (d_chunks - 1) * d_chunk) : d_chunk;
     const auto batch = out_ps[0] * out_ps[1];
 
     auto ldq = k_head_size * ov::element::Type(Q.data_type).size();
@@ -994,11 +998,15 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     auto ldv = v_head_size * ov::element::Type(V.data_type).size();
     auto lda = v_head_size * ov::element::Type(out.data_type).size();
 
-    jit.make("D_MAX", d_max);
+    jit.make("D_MAX", d_chunk);
     jit.make("SUBGROUP_SIZE", get_subgroup_size(device_info.arch));
     jit.make("INVERT_SCALE", false);
     jit.make("SCALE_DATA_T", "half");
     jit.make("HEAD_SIZE", k_head_size);
+    jit.make("ENABLE_D_TILING", enable_d_tiling ? 1 : 0);
+    jit.make("D_CHUNK", d_chunk);
+    jit.make("D_CHUNKS", d_chunks);
+    jit.make("D_LAST", d_last);
 
     auto data_inputs_num = micro_get_input_num(params, config);
 
@@ -1123,7 +1131,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     // const ov::Dimension n_values = micro_get_seq_length(params, 2);
     const ov::Dimension n_values = ov::Dimension(v_head_size);
 
-    bool d_full = (head_size == static_cast<size_t>(d_max));
+    bool d_full = (head_size == static_cast<size_t>(d_chunk));
     bool v_full = (head_size == static_cast<size_t>(tile_v));
     bool k_full = !n_keys.is_dynamic() && (n_keys.get_length() % tile_k) == 0;
     bool q_full = !n_queries.is_dynamic() && (n_queries.get_length() % tile_q) == 0;
@@ -1141,7 +1149,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         // if (lda % 4 == 0 && v_full)
         //     jit.make("BLOCK_A", 1);
         jit.make("REMAINDER_Q", !q_full);
-    } else if (device_info.arch >= gpu_arch::xe_hpc) {
+    } else if (!enable_d_tiling && device_info.arch >= gpu_arch::xe_hpc) {
         auto vbytes = n_values.get_length() * ov::element::Type(V.data_type).size();
         if (lda % 16 == 0 && vbytes % 4 == 0)
             jit.make("BLOCK_2D_A", 1);
@@ -1149,12 +1157,13 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     if (device_info.arch >= gpu_arch::xe_hpc) {
         jit.make("PREFETCH_MASK", 1);
-        jit.make("PREFETCH_K0", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
-        jit.make("PREFETCH_K", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
-        jit.make("PREFETCH_V", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
+        const int prefetch_enable = (config.is_paged_attention && !m_is_prefill) || enable_d_tiling ? 0 : 1;
+        jit.make("PREFETCH_K0", prefetch_enable);
+        jit.make("PREFETCH_K", prefetch_enable);
+        jit.make("PREFETCH_V", prefetch_enable);
         bool no_rem = d_full && v_full && k_full;
         jit.make("PREFETCH_REMAINDER", !no_rem);
-        jit.make("PREFETCH_D_MAX", std::min<int64_t>(d_max, 64));
+        jit.make("PREFETCH_D_MAX", std::min<int64_t>(d_chunk, 64));
     }
 
     auto convert_strides = [](std::string target_prefix, std::string source_prefix, const std::vector<int64_t> order) {
@@ -1400,6 +1409,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const auto k_head_size = micro_get_head_size(params, 1);
     const auto v_head_size = micro_get_head_size(params, 2);
     const auto d_max = get_d_max(k_head_size);
+    const bool enable_d_tiling = !is_paged_attention && k_head_size > 256;
+    const auto d_chunk = enable_d_tiling ? static_cast<size_t>(256) : d_max;
 
     const ov::Dimension n_keys = micro_get_seq_length(params, 1);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0);
@@ -1408,6 +1419,9 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     GPU_DEBUG_TRACE_DETAIL << "\nconfiguration.is_kv_compressed = " << configuration.is_kv_compressed << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << ", d_max = " << d_max << ", batch = " << batch << "\n";
+    if (enable_d_tiling) {
+        GPU_DEBUG_TRACE_DETAIL << "sdpa_micro: enable D tiling, d_chunk = " << d_chunk << "\n";
+    }
     GPU_DEBUG_TRACE_DETAIL << "n_keys = " << n_keys.to_string() << ", n_queries = " << n_queries.to_string() << ", n_values = " << n_values.to_string() << "\n";
 
     /* Retrieve pre-tuned kernel configuration */
@@ -1550,14 +1564,14 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
     problem_kq.B.setAlignment(64);  // Q is packed in VNNI format in SLM
     problem_kq.B.crosspack = 2;
-    problem_kq.B.tileR = static_cast<uint16_t>(d_max);
+    problem_kq.B.tileR = static_cast<uint16_t>(d_chunk);
     problem_kq.B.tileC = static_cast<uint16_t>(get_subgroup_size(device_info.arch));
 
     /* Set up problem size information */
     micro::SizeParams sizes;
     sizes.m = n_keys.is_dynamic() ? 0 : n_keys.get_length();
     sizes.n = n_queries.is_dynamic() ? 0 : n_queries.get_length();
-    sizes.k = static_cast<int64_t>(k_head_size);
+    sizes.k = static_cast<int64_t>(enable_d_tiling ? d_chunk : k_head_size);
     sizes.batch = batch.is_dynamic() ? 0 : batch.get_length();
 
     GPU_DEBUG_TRACE_DETAIL << "kq: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
@@ -1644,7 +1658,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_vs.A.setAlignment(micro::alignment_for_ld(v_head_size * problem.Ta));
     problem_vs.B.setAlignment(64);  // S is packed in SLM
     problem_vs.B.crosspack = 16;
-    sizes.m = n_values.is_dynamic() ? -1 : n_values.get_length();
+    sizes.m = n_values.is_dynamic() ? -1 : (enable_d_tiling ? static_cast<int64_t>(d_chunk) : n_values.get_length());
     sizes.n = gemm_kq.getSetting("wg_tile_n");
     sizes.k = gemm_kq.getSetting("wg_tile_m");
 
