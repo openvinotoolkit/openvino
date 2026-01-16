@@ -240,9 +240,6 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch,
     if (kv_cache_reorder) {
         OPENVINO_ASSERT(kv_cache_trim);
     }
-    if (kv_cache_trim) {
-        OPENVINO_ASSERT(!fuse_cache_reorder);
-    }
 
     ov::PartialShape kv_cache_size = {batch, n_heads / num_groups, -1, n_features};
     ov::PartialShape new_token_size = {batch, -1, n_heads / num_groups, n_features};

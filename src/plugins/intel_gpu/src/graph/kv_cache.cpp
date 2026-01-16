@@ -22,21 +22,19 @@ kv_cache_inst::typed_primitive_inst(network& network, const kv_cache_node& node)
     kv_cache_id = kv_cache_counter++;
 }
 
-std::optional<int64_t> kv_cache_inst::compute_trim_length(const kernel_impl_params& impl_param, const kv_cache& desc) {
+int64_t kv_cache_inst::compute_trim_length(const kernel_impl_params& impl_param, const kv_cache& desc) {
     if (!desc.trim)
-        return std::nullopt;
+        return 0;
 
-    OPENVINO_ASSERT(!desc.compressed && !desc.indirect);  // trimming does not support compressed kv or indirect kv for now
-
-    constexpr size_t past_seq_len_idx = 2;
+    const size_t past_seq_len_idx = desc.indirect ? 3 : 2;
     const auto mem_dep_it = impl_param.memory_deps.find(past_seq_len_idx);
     if (mem_dep_it == impl_param.memory_deps.end())
-        return std::nullopt;
+        return 0;
 
     const auto& past_seq_len_mem = mem_dep_it->second;
     const auto past_seq_len_layout = past_seq_len_mem->get_layout();
     if (past_seq_len_layout.count() == 0)
-        return std::nullopt;
+        return 0;
 
     OPENVINO_ASSERT(past_seq_len_layout.count() == 1);
     cldnn::mem_lock<uint8_t, mem_lock_type::read> past_seq_len_mem_lock(past_seq_len_mem, impl_param.get_stream());
@@ -66,8 +64,9 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
 
     std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>(),
                                            impl_param.get_input_layout(1).get<ShapeType>()};
+    size_t input_idx = 2;
     if (desc->indirect) {
-        input_shapes.push_back(impl_param.get_input_layout(2).get<ShapeType>());
+        input_shapes.push_back(impl_param.get_input_layout(input_idx++).get<ShapeType>());
     }
 
     if (desc->compressed) {
@@ -82,12 +81,13 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
 
     std::vector<ShapeType> output_shapes;
     if (desc->compressed) {
-        OPENVINO_ASSERT(!desc->trim && !kv_cache_trim_length);  // compressed kv does not support trim
+        OPENVINO_ASSERT(kv_cache_trim_length == 0);  // compressed kv should not do any trim
         ov::intel_gpu::op::KVCacheCompressed op;
         op.set_output_size(desc->num_outputs);
         op.set_concat_axis(desc->concat_axis);
         op.set_gather_axis(desc->gather_axis);
         op.set_quantization_attrs(desc->quantization_attributes);
+        op.set_trim(desc->trim);
 
         output_shapes = shape_infer(&op, input_shapes);
     } else {
@@ -96,9 +96,8 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
         op.set_concat_axis(desc->concat_axis);
         op.set_gather_axis(desc->gather_axis);
         op.set_trim(desc->trim);
-        if (kv_cache_trim_length) {
-            op.set_trim_length(static_cast<uint64_t>(*kv_cache_trim_length));
-        }
+        op.set_trim_length(kv_cache_trim_length);
+
         output_shapes = shape_infer(&op, input_shapes);
     }
 

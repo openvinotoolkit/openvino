@@ -454,7 +454,7 @@ static bool can_read_value_be_optimize(const read_value_node& node) {
         return true;
 
     // following pattern can be optimized 
-    // readvalue --> gather
+    // readvalue --> any
     //       |         |
     //       |         v
     //       ------> kvcache
@@ -465,10 +465,10 @@ static bool can_read_value_be_optimize(const read_value_node& node) {
         const auto kvcache = is_user0_kvcache ? user0 : (user1->is_type<kv_cache>() ? user1 : nullptr);
         if (kvcache) {
             const auto other_user = is_user0_kvcache ? user1 : user0;
-            bool all_user_kvcache = std::find_if(other_user->get_users().begin(), other_user->get_users().end(), [kvcache](const auto user) {
+            const bool only_used_by_kvcache = std::none_of(other_user->get_users().begin(), other_user->get_users().end(), [kvcache](const auto user) {
                 return user != kvcache && !user->template is_type<shape_of>();
-                                    }) == other_user->get_users().end();
-            if (all_user_kvcache) {
+            });
+            if (only_used_by_kvcache) {
                 return true;
             }
         }

@@ -517,11 +517,18 @@ void primitive_inst::update_shape() {
 
     if (get_node().is_type<kv_cache>()) {
         auto& kv_inst = downcast<kv_cache_inst>(*this);
-        kv_inst.set_trim_length(0);
-
         auto desc = get_node().as<kv_cache>().get_primitive();
-        if (const auto trim_length = kv_cache_inst::compute_trim_length(*_impl_params, *desc))
-            kv_inst.set_trim_length(*trim_length);
+        const auto trim_length = kv_cache_inst::compute_trim_length(*_impl_params, *desc);
+        if (trim_length > 0) {
+            OPENVINO_ASSERT(!(desc->indirect || desc->compressed),
+                            "[GPU] Unsupported trim for indirect or compressed kvcache:  indirect:",
+                            desc->indirect,
+                            "  compressed:",
+                            desc->compressed,
+                            "  trim:",
+                            trim_length);
+        }
+        kv_inst.set_trim_length(trim_length);
 
         auto var_mem_size = get_network().get_variable(desc->variable_info.variable_id).get_actual_mem_size();
         // Need to trigger realloc_if_needed

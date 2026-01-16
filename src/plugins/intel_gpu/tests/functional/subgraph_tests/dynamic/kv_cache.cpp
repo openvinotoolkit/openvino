@@ -691,6 +691,13 @@ TEST_F(KVCacheTests, smoke_multipleIterations_stateful_trim) {
     this->test_smoke_multipleIterations_stateful(false, false, true, 1, 2, ov::element::f16, 5, 1, true, 1, &trim);
 }
 
+TEST_F(KVCacheTests, smoke_multipleIterations_stateful_beam_trim) {
+    kv_cache_trim_params trim;
+    trim.trigger_len = 200;
+    trim.trim_seq = 200;
+    this->test_smoke_multipleIterations_stateful(false, true, true, 1, 2, ov::element::f16, 5, 1, true, 1, &trim);
+}
+
 TEST_F(KVCacheTests, smoke_multipleIterations_stateful_trim_reorder) {
     kv_cache_trim_params trim;
     kv_cache_reorder_params reorder;

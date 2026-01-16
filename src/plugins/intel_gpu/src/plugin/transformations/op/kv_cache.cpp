@@ -45,7 +45,6 @@ KVCache::KVCache(const Output<Node>& past,
                  int64_t concat_axis,
                  const ov::element::Type output_type)
     : KVCache({past, new_token_data}, past_variable, false, concat_axis, 0, output_type) {
-    m_variable = past_variable;
     validate_and_infer_types();
 }
 
@@ -57,7 +56,21 @@ KVCache::KVCache(const Output<Node>& past,
                  const ov::element::Type output_type)
     : KVCache({past, new_token_data, past_seq_len}, past_variable, false, concat_axis, 0, output_type) {
     m_trim = true;
-    m_variable = past_variable;
+    validate_and_infer_types();
+}
+
+KVCache::KVCache(const Output<Node>& past,
+                 const Output<Node>& new_token_data,
+                 const Output<Node>& beam_idx,
+                 const Output<Node>& past_seq_len,
+                 const std::shared_ptr<ov::op::util::Variable>& past_variable,
+                 int64_t concat_axis,
+                 int64_t gather_axis,
+                 const ov::element::Type output_type)
+    : KVCache({past, new_token_data, beam_idx, past_seq_len}, past_variable, true, concat_axis, gather_axis, output_type) {
+    m_trim = true;
+    if (m_indirect)
+        set_output_size(2);
     validate_and_infer_types();
 }
 
@@ -72,7 +85,6 @@ KVCache::KVCache(const Output<Node>& past,
     : KVCache({past, new_token_data, past_seq_len, dst_idx, update_data}, past_variable, false, concat_axis, 0, output_type) {
     m_trim = true;
     m_update_kv = true;
-    m_variable = past_variable;
     validate_and_infer_types();
 }
 
@@ -133,6 +145,15 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
                                              m_gather_axis,
                                              m_output_type);
         }
+    } else if (new_args.size() == 4) {
+        return std::make_shared<KVCache>(new_args.at(0),
+                                         new_args.at(1),
+                                         new_args.at(2),
+                                         new_args.at(3),
+                                         m_variable,
+                                         m_concat_axis,
+                                         m_gather_axis,
+                                         m_output_type);
     } else if (new_args.size() == 5) {
         return std::make_shared<KVCache>(new_args.at(0),
                                          new_args.at(1),

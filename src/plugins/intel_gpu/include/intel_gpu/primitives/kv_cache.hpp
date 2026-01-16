@@ -35,8 +35,12 @@ struct kv_cache : public primitive_base<kv_cache> {
         , concat_axis(concat_axis)
         , gather_axis(gather_axis)
         , indirect(indirect)
-        , trim(trim || update_kv)
-        , update_kv(update_kv) {}
+        , trim(trim)
+        , update_kv(update_kv) {
+            if (update_kv){
+                OPENVINO_ASSERT(trim, "update_kv must use trim");
+            }
+        }
 
     ov::op::util::VariableInfo variable_info;
     int64_t concat_axis = 0;
