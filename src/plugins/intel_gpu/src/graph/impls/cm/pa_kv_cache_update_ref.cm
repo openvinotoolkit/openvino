@@ -25,7 +25,7 @@
 constexpr uint wg_size = WG_SIZE;
 #define REG_K 16
 
-CM_INLINE uint cm_global_id2(uint dim) {
+CM_INLINE uint cm_get_global_id(uint dim) {
     return cm_group_id(dim) * cm_local_size(dim) + cm_local_id(dim);
 }
 
@@ -67,7 +67,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const auto wg_local_id = cm_local_id(2);
     const auto local_size = cm_local_size(2);
 
-    const uint token_idx = cm_global_id2(2);
+    const uint token_idx = cm_get_global_id(2);
 
     // token_idx -> subsequence_idx
     if (token_idx >= subsequence_begins[batch_size_in_sequences]) return;
@@ -97,14 +97,14 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                 scale_val = half(0.0);
                 zp_val = max_val;
             } else {
-                scale_val = 255.0 / (max_val - min_val);
-                zp_val = (0.0 - min_val) * scale_val;
+                scale_val = half(255.0) / (max_val - min_val);
+                zp_val = (half(0.0) - min_val) * scale_val;
             }
             vector<half, K_HEAD_SIZE>  dequant_data = cm_mul<half>(data, scale_val) + zp_val;
             vector<uchar, K_HEAD_SIZE> data_u8 = cm_rnde<uchar, K_HEAD_SIZE>(dequant_data);
             cm_ptr_store<uint32_t, K_HEAD_SIZE / 4>((uint32_t*)(out + out_offset + token_pos * K_HEAD_SIZE), 0, data_u8.format<uint32_t>());
             half *out_scale_zp = (half*)(out + scale_offset);
-            out_scale_zp[0] = (max_val - min_val) / 255.0;
+            out_scale_zp[0] = (max_val - min_val) / half(255.0);
             out_scale_zp[PAGED_ATTENTION_BLOCK_SIZE] = zp_val;
     };
     #endif
