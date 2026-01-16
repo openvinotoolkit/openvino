@@ -224,8 +224,8 @@ GPTOSSRouter::GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         }
 
         std::string topk_name = matched_topk->get_friendly_name();
-        bool is_router = (topk_name.find("router") != std::string::npos ||
-                          topk_name.find("gate") != std::string::npos || topk_name.find("expert") != std::string::npos);
+        bool is_router =
+            (topk_name.find(ROUTER_TAG) != std::string::npos || topk_name.find(EXPERT_TAG) != std::string::npos);
         if (!is_router) {
             return false;
         }
