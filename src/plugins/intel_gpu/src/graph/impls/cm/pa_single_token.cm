@@ -79,7 +79,7 @@ CM_INLINE void Transpose_8x8(matrix_ref<T1, 8, 8> in, matrix_ref<T2, 8, 8> out) 
   out.row(7) = temp.template select<4, 1, 2, 4>(4, 3);
 }
 
-CM_INLINE uint cm_global_id1(uint dim) {
+CM_INLINE uint get_cm_global_id_2nd(uint dim) {
     return cm_group_id(dim) * cm_local_size(dim) + cm_local_id(dim);
 }
 
@@ -109,11 +109,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
     //# Each WG processes a partition, which is KV_PARTITION_SIZE long and multiple of KV_BLOCK_SIZE.
     //# KV_BLOCK_SIZE can be 32/64/128/256, etc.
-    const auto seq_idx = cm_global_id1(0);
-    const auto kv_head_num_idx = cm_global_id1(1);
+    const auto seq_idx = get_cm_global_id_2nd(0);
+    const auto kv_head_num_idx = get_cm_global_id_2nd(1);
     const auto head_num_idx = kv_head_num_idx * (HEADS_NUM/KV_HEADS_NUM);
     //# KV_PARTITION_SIZE --> EU thread
-    const auto wg_thread_id = cm_global_id1(2);
+    const auto wg_thread_id = get_cm_global_id_2nd(2);
     const uint kv_partition_num = cm_group_count(2);
     const uint kv_partition_idx = cm_group_id(2);
 
@@ -125,7 +125,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     // The code here requires KV_PARTITION_SIZE to be an integer multiple of KV_BLOCK_SIZE.
     const uint start_block_idx = block_indices_begins[seq_idx] + kv_partition_idx * (KV_PARTITION_SIZE / KV_BLOCK_SIZE);
 
-    //if(cm_global_id1(0)==0 && cm_global_id1(1)==0 && cm_global_id1(2)==0)
+    //if(get_cm_global_id_2nd(0)==0 && get_cm_global_id_2nd(1)==0 && get_cm_global_id_2nd(2)==0)
     //{
     //    printf("cm_sdpa_2nd: kv_len = %d\n", kv_len);
     //}

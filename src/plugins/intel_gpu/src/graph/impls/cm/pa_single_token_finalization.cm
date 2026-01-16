@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
-CM_INLINE uint cm_global_id3(uint dim) {
+CM_INLINE uint cm_get_global_id_2nd(uint dim) {
     return cm_group_id(dim) * cm_local_size(dim) + cm_local_id(dim);
 }
 
@@ -24,8 +24,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     float* lse [[type("svmptr_t")]],
     int kv_partition_num
     ) {
-        auto batch = cm_global_id3(0);
-        auto head = cm_global_id3(1);
+        auto batch = cm_get_global_id_2nd(0);
+        auto head = cm_get_global_id_2nd(1);
         auto offset = cm_group_id(2) * REDUCE_SPLIT_SIZE;
         const int total_partition_num = (kv_partition_num * HEADS_NUM);
 
