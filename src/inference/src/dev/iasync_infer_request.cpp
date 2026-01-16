@@ -13,6 +13,17 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/variable_state.hpp"
 
+// Only enable tracking of the pipeline stages when base or full profiling is enabled
+#if defined(ENABLE_PROFILING_ITT_FULL) || defined(ENABLE_PROFILING_ITT_BASE)
+#define INITIALIZE_ID_COUNTER m_infer_id = 0
+#define UPDATE_ID_COUNTER m_infer_id = g_uid++
+#define USE_ID_COUNTER m_infer_id
+#else
+#define INITIALIZE_ID_COUNTER
+#define UPDATE_ID_COUNTER
+#define USE_ID_COUNTER
+#endif
+
 namespace {
 
 struct ImmediateStreamsExecutor : public ov::threading::ITaskExecutor {
