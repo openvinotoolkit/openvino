@@ -17,6 +17,13 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace op_util = ov::op::util;
 namespace {
 bool check_shapes(const ov::PartialShape& pshape_input,
                   const ov::PartialShape& pshape_reshape_before,
@@ -55,7 +62,7 @@ bool check_shapes(const ov::PartialShape& pshape_input,
                                    pshape_input[3]};
     }
 
-    if (!ov::op::util::shapes_equal_except_dynamic_expected_batch(expected_reshape_before, pshape_reshape_before)) {
+    if (!op_util::shapes_equal_except_dynamic_expected_batch(expected_reshape_before, pshape_reshape_before)) {
         return false;
     }
 
@@ -74,7 +81,7 @@ bool check_shapes(const ov::PartialShape& pshape_input,
     }
 
     // y = reshape(x'', [N, C, H, W])
-    if (!ov::op::util::shapes_equal_except_dynamic_expected_batch(pshape_input, pshape_reshape_after)) {
+    if (!op_util::shapes_equal_except_dynamic_expected_batch(pshape_input, pshape_reshape_after)) {
         return false;
     }
 
@@ -85,34 +92,28 @@ bool check_shapes(const ov::PartialShape& pshape_input,
 
 ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_constants_check) {
     MATCHER_SCOPE(ShuffleChannelsFusion);
-    auto input = pass::pattern::any_input(pattern::rank_equals(4));
-    auto reshape_before_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto transpose_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto reshape_after_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto input = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(4));
+    auto reshape_before_const_pattern = wrap_type<v0::Constant>();
+    auto transpose_const_pattern = wrap_type<v0::Constant>();
+    auto reshape_after_const_pattern = wrap_type<v0::Constant>();
 
-    auto reshape_before_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({input, reshape_before_const_pattern},
-                                                          pattern::consumers_count(1));
+    auto reshape_before_pattern = wrap_type<v1::Reshape>({input, reshape_before_const_pattern}, consumers_count(1));
     auto transpose_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({reshape_before_pattern, transpose_const_pattern},
-                                                            pattern::consumers_count(1));
-    auto reshape_after_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({transpose_pattern, reshape_after_const_pattern});
+        wrap_type<v1::Transpose>({reshape_before_pattern, transpose_const_pattern}, consumers_count(1));
+    auto reshape_after_pattern = wrap_type<v1::Reshape>({transpose_pattern, reshape_after_const_pattern});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto data = pattern_map.at(input);
         auto reshape_before_constant =
-            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(reshape_before_const_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<v0::Constant>(pattern_map.at(reshape_before_const_pattern).get_node_shared_ptr());
         auto reshape_before =
-            ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(reshape_before_pattern).get_node_shared_ptr());
-        auto transpose =
-            ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(transpose_pattern).get_node_shared_ptr());
-        auto reshape_after =
-            ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(reshape_after_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<v1::Reshape>(pattern_map.at(reshape_before_pattern).get_node_shared_ptr());
+        auto transpose = ov::as_type_ptr<v1::Transpose>(pattern_map.at(transpose_pattern).get_node_shared_ptr());
+        auto reshape_after = ov::as_type_ptr<v1::Reshape>(pattern_map.at(reshape_after_pattern).get_node_shared_ptr());
         auto reshape_after_constant =
-            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(reshape_after_const_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<v0::Constant>(pattern_map.at(reshape_after_const_pattern).get_node_shared_ptr());
         if (!reshape_after || !transpose || !reshape_before || !reshape_before_constant || !reshape_after_constant) {
             return false;
         }
@@ -137,7 +138,7 @@ ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_consta
         auto pshape_reshape_after = reshape_after->get_output_partial_shape(0);
 
         auto transpose_constant =
-            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(transpose_const_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<v0::Constant>(pattern_map.at(transpose_const_pattern).get_node_shared_ptr());
         auto transpose_constant_values = transpose_constant->get_axis_vector_val();
         if (!check_shapes(pshape_input, pshape_reshape_before, transpose_constant_values, pshape_reshape_after)) {
             return false;
@@ -146,7 +147,7 @@ ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_consta
         int64_t axis = 1ul;
         int64_t group = pshape_reshape_before[1].get_length();
 
-        auto shuffle_shannels = std::make_shared<ov::op::v0::ShuffleChannels>(data, axis, group);
+        auto shuffle_shannels = std::make_shared<v0::ShuffleChannels>(data, axis, group);
         shuffle_shannels->set_friendly_name(reshape_after->get_friendly_name());
         ov::copy_runtime_info({reshape_before,
                                reshape_before_constant,
@@ -159,6 +160,6 @@ ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_consta
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_after_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(reshape_after_pattern, matcher_name);
     register_matcher(m, callback);
 }

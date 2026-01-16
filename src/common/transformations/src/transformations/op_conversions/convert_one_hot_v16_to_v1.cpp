@@ -10,12 +10,13 @@
 #include "openvino/op/one_hot.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+using ov::pass::pattern::Matcher;
 ov::pass::ConvertOneHot16To1::ConvertOneHot16To1() {
     MATCHER_SCOPE(ConvertOneHot16To1);
 
-    auto one_hot_v16 = pattern::wrap_type<ov::op::v16::OneHot>();
+    auto one_hot_v16 = ov::pass::pattern::wrap_type<ov::op::v16::OneHot>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](Matcher& m) {
         auto one_hot_v16_node = ov::as_type_ptr<ov::op::v16::OneHot>(m.get_match_root());
         if (!one_hot_v16_node)
             return false;
@@ -35,6 +36,6 @@ ov::pass::ConvertOneHot16To1::ConvertOneHot16To1() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(one_hot_v16, matcher_name);
+    auto m = std::make_shared<Matcher>(one_hot_v16, matcher_name);
     register_matcher(m, callback);
 }

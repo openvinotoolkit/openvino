@@ -225,7 +225,7 @@ std::filesystem::path ov::util::get_compiled_plugin_path(const std::filesystem::
 }
 
 std::filesystem::path ov::util::get_plugin_path(const std::filesystem::path& plugin,
-                                                const std::filesystem::path& xml_dir,
+                                                const std::filesystem::path& xml_path,
                                                 bool as_abs_only) {
     // Assume `plugin` (from XML "location" record) contains only:
     // 1. /path/to/libexample.so absolute path
@@ -236,8 +236,7 @@ std::filesystem::path ov::util::get_plugin_path(const std::filesystem::path& plu
     if (plugin.is_absolute()) {
         // 1st case
         return plugin;
-    } else if (const auto rel_path = get_directory((xml_dir.has_parent_path() ? xml_dir : "." / xml_dir));
-               plugin.has_parent_path()) {
+    } else if (const auto rel_path = get_directory(xml_path); plugin.has_parent_path()) {
         // 2nd case
         return std::filesystem::absolute(std::filesystem::weakly_canonical(rel_path / plugin));
     } else {
