@@ -20,6 +20,7 @@
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
+#include "transform.hpp"
 
 namespace {
 // THis is copied from utils/common.hpp
@@ -78,6 +79,27 @@ const ::ONNX_NAMESPACE::TypeProto_Tensor* get_tensor_type(const ::ONNX_NAMESPACE
         return get_tensor_type(type_proto.sequence_type().elem_type());
     }
     return nullptr;
+}
+
+void fixup_legacy_nodes(::ONNX_NAMESPACE::ModelProto& model_proto) {
+    auto* graph_proto = model_proto.mutable_graph();
+    if (!graph_proto) {
+        return;
+    }
+    constexpr const char legacy_domain[] = "org.openvinotoolkit";
+
+    for (auto& node : *graph_proto->mutable_node()) {
+        const auto needs_fix = std::find(ov::frontend::onnx::transform::legacy_ops_to_fixup.begin(),
+                                         ov::frontend::onnx::transform::legacy_ops_to_fixup.end(),
+                                         node.op_type()) != ov::frontend::onnx::transform::legacy_ops_to_fixup.end();
+        if (!needs_fix) {
+            continue;
+        }
+
+        if (!node.has_domain() || node.domain().empty() || node.domain() == "ai.onnx") {
+            node.set_domain(legacy_domain);
+        }
+    }
 }
 }  // namespace
 
@@ -329,16 +351,17 @@ GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphPr
 }
 
 void GraphIteratorProto::initialize(const std::filesystem::path& path) {
-    const auto path_str = ov::util::path_to_string(path);
     m_model_dir = ov::util::get_directory(path);
+    const auto path_string = ov::util::path_to_string(path);
     try {
         std::ifstream model_file(path, std::ios::binary | std::ios::in);
-        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path_str, "\"");
+        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path_string, "\"");
 
         m_model = std::make_shared<ModelProto>();
         FRONT_END_GENERAL_CHECK(m_model->ParseFromIstream(&model_file), "Model can't be parsed");
         model_file.close();
         if (m_model->has_graph()) {
+            fixup_legacy_nodes(*m_model);
             m_graph = &m_model->graph();
         } else {
             m_graph = nullptr;
@@ -353,7 +376,6 @@ void GraphIteratorProto::initialize(const std::filesystem::path& path) {
         throw;
     }
 }
-
 std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::string& name,
                                                                    GraphIteratorProto** owner) {
     if (m_tensors.count(name) == 0) {
