@@ -641,8 +641,13 @@ void MoEExecutor::unpack_single_expert_closure(std::size_t idx, RqPtr request, s
                 }
             } else {
                 // Direct set (no unpacking needed)
-                // Always use optimized set (cache is managed internally by MoEExecutor)
-                ov::npuw::moe::set_tensor_optimized(request, iport, sliced_weight);
+                // When cache is enabled: Use direct set_tensor to avoid polluting shared input tensors
+                // When cache is disabled: Use set_tensor_optimized for better performance (copies small tensors)
+                if (m_resources.request_cache) {
+                    request->set_tensor(iport, sliced_weight);
+                } else {
+                    ov::npuw::moe::set_tensor_optimized(request, iport, sliced_weight);
+                }
             }
         } else {
             // This closure parameter doesn't need slicing, use original logic
@@ -780,8 +785,13 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
             } else {
                 auto sliced_impl = ov::get_tensor_impl(sliced_expert);
                 // Direct set (no unpacking needed)
-                // Always use optimized set (cache is managed internally by MoEExecutor)
-                ov::npuw::moe::set_tensor_optimized(request, iport, sliced_impl);
+                // When cache is enabled: Use direct set_tensor to avoid polluting shared input tensors
+                // When cache is disabled: Use set_tensor_optimized for better performance (copies small tensors)
+                if (m_resources.request_cache) {
+                    request->set_tensor(iport, sliced_impl);
+                } else {
+                    ov::npuw::moe::set_tensor_optimized(request, iport, sliced_impl);
+                }
             }
         }  // for each expert
     }  // for each closure parameter
