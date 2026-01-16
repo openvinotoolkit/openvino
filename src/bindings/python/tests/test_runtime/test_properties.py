@@ -496,6 +496,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             "NPU_QDQ_OPTIMIZATION_AGGRESSIVE",
             ((True, True),),
         ),
+        (
+            intel_npu.disable_idle_memory_prunning,
+            "NPU_DISABLE_IDLE_MEMORY_PRUNING",
+            ((True, True),),
+        ),
         (props.enable_weightless, "ENABLE_WEIGHTLESS", ((True, True), (False, False))),
     ],
 )

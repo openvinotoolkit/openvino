@@ -17,9 +17,13 @@
 #    include <google/protobuf/stubs/logging.h>
 #endif
 
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <string>
 
 #include "core/graph_iterator_proto.hpp"
 #include "input_model.hpp"
@@ -49,6 +53,51 @@ using ::ONNX_NAMESPACE::ModelProto;
 using ::ONNX_NAMESPACE::Version;
 
 namespace {
+
+bool is_graph_iterator_enabled() {
+    const char* env_value = std::getenv("ONNX_ITERATOR");
+    if (env_value == nullptr) {
+        return true;  // Enabled by default
+    }
+
+    std::string value(env_value);
+    // Remove whitespace
+    value.erase(std::remove_if(value.begin(),
+                               value.end(),
+                               [](unsigned char ch) {
+                                   return std::isspace(ch);
+                               }),
+                value.end());
+    // Convert to lowercase
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+
+    static const std::unordered_map<std::string, bool> valid_values = {{"1", true},
+                                                                       {"true", true},
+                                                                       {"on", true},
+                                                                       {"enable", true},
+                                                                       {"0", false},
+                                                                       {"false", false},
+                                                                       {"off", false},
+                                                                       {"disable", false}};
+
+    auto it = valid_values.find(value);
+    if (it != valid_values.end()) {
+        if (!it->second) {
+            OPENVINO_WARN(
+                "DEPRECATED: Disabling ONNX graph iterator via ONNX_ITERATOR environment variable is deprecated and "
+                "will be removed in a future release. The graph iterator will become mandatory.");
+        }
+        return it->second;
+    }
+
+    OPENVINO_THROW("Unknown value for ONNX_ITERATOR environment variable: '",
+                   env_value,
+                   "'. "
+                   "Expected 1 (enable) or 0 (disable).");
+}
+
 // !!! Experimental feature, it may be changed or removed in the future !!!
 void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
     const auto& operations = model->get_ordered_ops();
@@ -85,7 +134,7 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    const bool gi_enabled = std::getenv("ONNX_ITERATOR") != nullptr;
+    const bool gi_enabled = is_graph_iterator_enabled();
     if (variants.empty()) {
         return nullptr;
     }
