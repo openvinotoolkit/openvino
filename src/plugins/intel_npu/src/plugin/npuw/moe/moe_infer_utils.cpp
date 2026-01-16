@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,10 @@
 #include <iomanip>
 #include <iostream>
 
-#include "logging.hpp"
+#include "../logging.hpp"
+#include "../util.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-#include "util.hpp"
 
 namespace ov {
 namespace npuw {

@@ -8,9 +8,9 @@
 #include <memory>
 #include <vector>
 
-#include "../moe_infer_utils.hpp"  // For RequestCache
-#include "../util.hpp"             // For TensorPtr
+#include "../util.hpp"  // For TensorPtr
 #include "moe_config.hpp"
+#include "moe_infer_utils.hpp"  // For RequestCache
 
 namespace ov {
 namespace npuw {

@@ -6,7 +6,7 @@
 
 #include "../compiled_model.hpp"  // For CompiledModel::CompiledModelDesc
 #include "../logging.hpp"
-#include "../moe_infer_utils.hpp"
+#include "moe_infer_utils.hpp"
 #include "moe_types.hpp"  // For MoEIO definition
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"  // For ov::parallel_for
