@@ -487,7 +487,7 @@ inline void scale_add2_reduce_max(float* a,
         if (has_sparse_mask) {
             size_t mask_idx = i / sparse_block_size;
             uint8_t mask_val = sparse_mask[mask_idx];
-            float32x4_t v_mask_block = vdupq_n_f32(mask_val ? 0.f : -FLT_MAX);
+            float32x4_t v_mask_block = vdupq_n_f32(mask_val ? 0.0F : -FLT_MAX);
             v_a = vaddq_f32(v_a, v_mask_block);
         }
 
@@ -497,9 +497,9 @@ inline void scale_add2_reduce_max(float* a,
             uint32x4_t v_maski32_low = vmovl_u16(vget_low_u16(v_maski16));
             uint32x4_t v_maski32_high = vmovl_u16(vget_high_u16(v_maski16));
             uint32x4_t v_maski32[2] = {v_maski32_low, v_maski32_high};
-            for (int j = 0; j < 2; ++j) {
-                uint32x4_t kmask = vceqq_u32(v_maski32[j], v_zeroi32);  // ==0
-                v_a = vbslq_f32(kmask, v_nfltmax, v_a);                 // mask => -FLT_MAX
+            for (const auto& mask_vec : v_maski32) {
+                uint32x4_t kmask = vceqq_u32(mask_vec, v_zeroi32);  // ==0
+                v_a = vbslq_f32(kmask, v_nfltmax, v_a);             // mask => -FLT_MAX
             }
         }
 
@@ -523,7 +523,7 @@ inline void scale_add2_reduce_max(float* a,
         if (has_sparse_mask) {
             size_t mask_idx = i / sparse_block_size;
             uint8_t mask_val = sparse_mask[mask_idx];
-            a[i] += (mask_val ? 0.f : -FLT_MAX);
+            a[i] += (mask_val ? 0.0F : -FLT_MAX);
         }
 
         if (has_causal_mask) {
@@ -929,7 +929,7 @@ inline void exp_reduce_sum_f32(ov::float16* a, const ov::float16 max, const size
 #    endif
     // Handle remaining elements
     for (; i < size; ++i) {
-        float val = exp(static_cast<float>(a[i] - max));
+        const float val = std::exp(static_cast<float>(a[i] - max));
         a[i] = static_cast<ov::float16>(val);
         total_sum += val;
     }
@@ -1056,7 +1056,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
 }
 
 template <typename T, typename = std::enable_if_t<ov::intel_cpu::any_of_v<T, ov::bfloat16, ov::float16>>>
-inline void multiply_scalar(float* a, T* a_dst, const float val, const size_t size) {
+inline void multiply_scalar(const float* a, T* a_dst, const float val, const size_t size) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(val);
@@ -1099,7 +1099,7 @@ inline void multiply_scalar(ov::float16* a, float* a_dst, const ov::float16 val,
     }
 
     for (; i < size; ++i) {
-        float a_f32 = static_cast<float>(a[i]);
+        const auto a_f32 = static_cast<float>(a[i]);
         a_dst[i] = a_f32 * static_cast<float>(val);
     }
 }
