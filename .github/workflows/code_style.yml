@@ -199,7 +199,7 @@ jobs:
 
   NamingConventionCheck:
     needs: Docker
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_code_style }}
       volumes:
@@ -218,4 +218,4 @@ jobs:
         run: cmake -B build
 
       - name: Naming convention check
-        run: cmake --build build --target ncc_all -j8
+        run: cmake --build build --target ncc_all -j$(nproc)
