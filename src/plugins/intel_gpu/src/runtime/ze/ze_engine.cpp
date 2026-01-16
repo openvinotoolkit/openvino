@@ -127,7 +127,7 @@ memory_ptr ze_engine::create_subbuffer(const memory& memory, const layout& new_l
     if (new_layout.format.is_image_2d()) {
         OPENVINO_NOT_IMPLEMENTED;
     }
-    OPENVINO_ASSERT(!memory_capabilities::is_usm_type(memory.get_allocation_type()), "[GPU] Trying to create subbuffer for non usm memory");
+    OPENVINO_ASSERT(memory_capabilities::is_usm_type(memory.get_allocation_type()), "[GPU] Trying to create subbuffer for non usm memory");
     auto& new_buf = reinterpret_cast<const ze::gpu_usm&>(memory);
     auto ptr = new_buf.get_buffer().get();
     auto sub_buffer = ze::UsmMemory(get_context(), get_device(), ptr, byte_offset);
