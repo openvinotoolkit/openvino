@@ -79,6 +79,30 @@ public:
      * @param request Target infer request
      */
     virtual void unpack_closure(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request) = 0;
+
+    /**
+     * @brief Check if closure parameter is a gather closure (should be skipped)
+     * @param idx Submodel index
+     * @param cidx Closure parameter index
+     * @return True if it's a gather closure
+     */
+    virtual bool is_gather_closure(size_t idx, size_t cidx) = 0;
+
+    /**
+     * @brief Check if unpacking is required for closure parameter
+     * @param idx Submodel index
+     * @param cidx Closure parameter index
+     * @return True if unpacking is required
+     */
+    virtual bool unpack_required(size_t idx, size_t cidx) = 0;
+
+    /**
+     * @brief Check if tensor copy is needed for closure parameter
+     * @param idx Submodel index
+     * @param cidx Closure parameter index
+     * @return True if copy is needed
+     */
+    virtual bool needs_copy_closure(size_t idx, size_t cidx) = 0;
 };
 
 namespace moe {
