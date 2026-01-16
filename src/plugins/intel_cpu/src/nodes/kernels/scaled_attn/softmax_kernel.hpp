@@ -33,6 +33,97 @@
 
 namespace ov::Extensions::Cpu::XARCH {
 
+#if defined(OPENVINO_ARCH_ARM64)
+namespace detail {
+inline void zero_out_dst(void* a_dst, ov::element::Type dst_precision, size_t total_size, bool allow_bf16) {
+    if (total_size == 0) {
+        return;
+    }
+    if (dst_precision == ov::element::f32) {
+        memset(static_cast<float*>(a_dst), 0, sizeof(float) * total_size);
+    } else if (dst_precision == ov::element::bf16) {
+        OPENVINO_ASSERT(allow_bf16, "CPU: bf16 softmax is not supported on ARM64.");
+        memset(static_cast<ov::bfloat16*>(a_dst), 0, sizeof(ov::bfloat16) * total_size);
+    } else {
+        memset(static_cast<ov::float16*>(a_dst), 0, sizeof(ov::float16) * total_size);
+    }
+}
+
+inline bool handle_empty_len(size_t len,
+                             void* a_dst,
+                             ov::element::Type dst_precision,
+                             size_t total_size,
+                             bool allow_bf16) {
+    if (len != 0) {
+        return false;
+    }
+    zero_out_dst(a_dst, dst_precision, total_size, allow_bf16);
+    return true;
+}
+
+template <typename T>
+inline float to_float(T value) {
+    return static_cast<float>(value);
+}
+
+template <>
+inline float to_float<float>(float value) {
+    return value;
+}
+
+template <typename T>
+inline bool handle_inf_logits(const T* a,
+                              void* a_dst,
+                              ov::element::Type dst_precision,
+                              size_t len,
+                              size_t total_size,
+                              const float* sink,
+                              bool allow_bf16) {
+    size_t inf_count = 0;
+    if (sink != nullptr && std::isinf(*sink) && *sink > 0.0F) {
+        inf_count++;
+    }
+    for (size_t i = 0; i < len; i++) {
+        const float aval = to_float(a[i]);
+        if (std::isinf(aval) && aval > 0.0F) {
+            inf_count++;
+        }
+    }
+    const float inv = inf_count ? (1.0F / static_cast<float>(inf_count)) : 0.0F;
+    if (dst_precision == ov::element::f32) {
+        auto* dst = static_cast<float*>(a_dst);
+        for (size_t i = 0; i < len; i++) {
+            const float aval = to_float(a[i]);
+            dst[i] = (inf_count && std::isinf(aval) && aval > 0.0F) ? inv : 0.0F;
+        }
+        if (total_size > len) {
+            memset(dst + len, 0, sizeof(float) * (total_size - len));
+        }
+    } else if (dst_precision == ov::element::bf16) {
+        OPENVINO_ASSERT(allow_bf16, "CPU: bf16 softmax is not supported on ARM64.");
+        auto* dst = static_cast<ov::bfloat16*>(a_dst);
+        for (size_t i = 0; i < len; i++) {
+            const float aval = to_float(a[i]);
+            dst[i] = (inf_count && std::isinf(aval) && aval > 0.0F) ? ov::bfloat16(inv) : ov::bfloat16(0.0F);
+        }
+        if (total_size > len) {
+            memset(dst + len, 0, sizeof(ov::bfloat16) * (total_size - len));
+        }
+    } else {
+        auto* dst = static_cast<ov::float16*>(a_dst);
+        for (size_t i = 0; i < len; i++) {
+            const float aval = to_float(a[i]);
+            dst[i] = (inf_count && std::isinf(aval) && aval > 0.0F) ? ov::float16(inv) : ov::float16(0.0F);
+        }
+        if (total_size > len) {
+            memset(dst + len, 0, sizeof(ov::float16) * (total_size - len));
+        }
+    }
+    return true;
+}
+}  // namespace detail
+#endif
+
 #if defined(HAVE_AVX2)
 inline void exp_ps_avx2(__m256& src) {
 #    define REPEAT8(x) x, x, x, x, x, x, x, x
@@ -1209,20 +1300,7 @@ inline void attn_softmax_kernel<float>(float* a,
                                     const uint8_t*,
                                     size_t);
 #if defined(OPENVINO_ARCH_ARM64)
-    if (len == 0) {
-        if (dst_precision == ov::element::f32) {
-            if (total_size > 0) {
-                memset(static_cast<float*>(a_dst), 0, sizeof(float) * total_size);
-            }
-        } else if (dst_precision == ov::element::bf16) {
-            if (total_size > 0) {
-                memset(static_cast<ov::bfloat16*>(a_dst), 0, sizeof(ov::bfloat16) * total_size);
-            }
-        } else {
-            if (total_size > 0) {
-                memset(static_cast<ov::float16*>(a_dst), 0, sizeof(ov::float16) * total_size);
-            }
-        }
+    if (detail::handle_empty_len(len, a_dst, dst_precision, total_size, false)) {
         return;
     }
 #endif
@@ -1331,42 +1409,8 @@ inline void attn_softmax_kernel<float>(float* a,
         max = max > (*sink) ? max : (*sink);
     }
 #if defined(OPENVINO_ARCH_ARM64)
-    if (!std::isfinite(max)) {
-        size_t inf_count = 0;
-        if (sink != nullptr && std::isinf(*sink) && *sink > 0.0F) {
-            inf_count++;
-        }
-        for (size_t i = 0; i < len; i++) {
-            if (std::isinf(a[i]) && a[i] > 0.0F) {
-                inf_count++;
-            }
-        }
-        const float inv = inf_count ? (1.0F / static_cast<float>(inf_count)) : 0.0F;
-        if (dst_precision == ov::element::f32) {
-            auto* dst = static_cast<float*>(a_dst);
-            for (size_t i = 0; i < len; i++) {
-                dst[i] = (inf_count && std::isinf(a[i]) && a[i] > 0.0F) ? inv : 0.0F;
-            }
-            if (total_size > len) {
-                memset(dst + len, 0, sizeof(float) * (total_size - len));
-            }
-        } else if (dst_precision == ov::element::bf16) {
-            auto* dst = static_cast<ov::bfloat16*>(a_dst);
-            for (size_t i = 0; i < len; i++) {
-                dst[i] = (inf_count && std::isinf(a[i]) && a[i] > 0.0F) ? ov::bfloat16(inv) : ov::bfloat16(0.0F);
-            }
-            if (total_size > len) {
-                memset(dst + len, 0, sizeof(ov::bfloat16) * (total_size - len));
-            }
-        } else {
-            auto* dst = static_cast<ov::float16*>(a_dst);
-            for (size_t i = 0; i < len; i++) {
-                dst[i] = (inf_count && std::isinf(a[i]) && a[i] > 0.0F) ? ov::float16(inv) : ov::float16(0.0F);
-            }
-            if (total_size > len) {
-                memset(dst + len, 0, sizeof(ov::float16) * (total_size - len));
-            }
-        }
+    if (std::isinf(max)) {
+        detail::handle_inf_logits(a, a_dst, dst_precision, len, total_size, sink, false);
         return;
     }
 #endif
@@ -1471,16 +1515,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                                     scale_add2_reduce_max<true, true, true>};
     int dispatch = (alibi ? 0b100 : 0) | (attn_mask ? 0b010 : 0) | (causal_mask ? 0b001 : 0);
 #    if defined(OPENVINO_ARCH_ARM64)
-    if (len == 0) {
-        if (dst_precision == ov::element::f32) {
-            if (total_size > 0) {
-                memset(static_cast<float*>(a_dst), 0, sizeof(float) * total_size);
-            }
-        } else {
-            if (total_size > 0) {
-                memset(static_cast<ov::float16*>(a_dst), 0, sizeof(ov::float16) * total_size);
-            }
-        }
+    if (detail::handle_empty_len(len, a_dst, dst_precision, total_size, false)) {
         return;
     }
 #    endif
@@ -1522,37 +1557,8 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
     ov::float16 sum = 0.0F;
 #    if defined(OPENVINO_ARCH_ARM64)
     const float max_f = static_cast<float>(max);
-    if (!std::isfinite(max_f)) {
-        size_t inf_count = 0;
-        if (sink != nullptr && std::isinf(*sink) && *sink > 0.0F) {
-            inf_count++;
-        }
-        for (size_t i = 0; i < len; i++) {
-            const float aval = static_cast<float>(a[i]);
-            if (std::isinf(aval) && aval > 0.0F) {
-                inf_count++;
-            }
-        }
-        const float inv = inf_count ? (1.0F / static_cast<float>(inf_count)) : 0.0F;
-        if (dst_precision == ov::element::f32) {
-            auto* dst = static_cast<float*>(a_dst);
-            for (size_t i = 0; i < len; i++) {
-                const float aval = static_cast<float>(a[i]);
-                dst[i] = (inf_count && std::isinf(aval) && aval > 0.0F) ? inv : 0.0F;
-            }
-            if (total_size > len) {
-                memset(dst + len, 0, sizeof(float) * (total_size - len));
-            }
-        } else {
-            auto* dst = static_cast<ov::float16*>(a_dst);
-            for (size_t i = 0; i < len; i++) {
-                const float aval = static_cast<float>(a[i]);
-                dst[i] = (inf_count && std::isinf(aval) && aval > 0.0F) ? ov::float16(inv) : ov::float16(0.0F);
-            }
-            if (total_size > len) {
-                memset(dst + len, 0, sizeof(ov::float16) * (total_size - len));
-            }
-        }
+    if (std::isinf(max_f)) {
+        detail::handle_inf_logits(a, a_dst, dst_precision, len, total_size, sink, false);
         return;
     }
 #    endif

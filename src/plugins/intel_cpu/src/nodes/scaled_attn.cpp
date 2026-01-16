@@ -933,6 +933,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                     }
                 }
                 if (qk_has_nonfinite) {
+                    qkTensor.allocator()->free();
                     run_f32_path();
                     return;
                 }
@@ -1512,6 +1513,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             }
 
             if (has_nan) {
+                const auto& causal_mask = kernel.causal_mask;
+                const bool select_nfltmax_at_0 = kernel.select_nfltmax_at_0;
                 const size_t Bn = q_input.size(0);
                 const size_t Hn = q_input.size(1);
                 const size_t q_len = q_input.size(2);
@@ -1563,6 +1566,14 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                                 attn_mask_stride = attn_mask.stride_bytes(2);
                             }
                         }
+                        uint8_t* cmask_ptr = nullptr;
+                        size_t cmask_stride = 0;
+                        if (causal_mask) {
+                            cmask_ptr = &causal_mask.template at<uint8_t>({b, h, 0, 0}, true);
+                            if (causal_mask.size(2) > 1) {
+                                cmask_stride = causal_mask.stride(2);
+                            }
+                        }
 
                         for (size_t m = 0; m < q_len; m++) {
                             std::vector<float> q_row(head_size);
@@ -1589,8 +1600,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                                                                      d_scale,
                                                                      nullptr,
                                                                      attn_mask_row,
-                                                                     nullptr,
-                                                                     false,
+                                                                     cmask_ptr ? cmask_ptr + m * cmask_stride : nullptr,
+                                                                     select_nfltmax_at_0,
                                                                      ncausal,
                                                                      kv_len,
                                                                      ov::element::f32,
