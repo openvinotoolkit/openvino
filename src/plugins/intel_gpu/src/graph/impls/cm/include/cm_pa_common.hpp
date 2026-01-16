@@ -78,64 +78,44 @@ void pa_lsc_u8(
             rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
         }
         #else
-            // // for xe1, load original Q
-            // matrix<half, REG_N, head_size> rQtmp;
-            // #pragma unroll
-            // for(int r = 0; r < q_tokens_left; r++){
-            //     cm_svm_block_read<half, head_size>((svmptr_t)((half*)q_base + r * (q_pitch / sizeof(half))), rQtmp.row(r));
-            // }
-            // if (q_tokens_left < q_step) {
-            //     for(int r = q_tokens_left; r < q_step; r++) {
-            //         rQtmp.row(r) = 0.f;
-            //     }
-            // }
-            // // Transpose Q
-            // auto rQref = rQtmp.format<uint, REG_N, head_size / 2>();
-            // for (int k = 0, ri = 0; k < head_size/2; k += REG_K/2, ri++) {
-            //     #if CMPA_XE_ARCH == 1
-            //     Transpose_8x8(rQref.select<REG_N, 1, REG_K/2, 1>(0, k), rQ[ri].format<uint, REG_K/2, REG_N>());
-            //     #else
-            //     Transpose2DMatrix(rQref.select<REG_N, 1, REG_K/2, 1>(0, k), rQ[ri].format<uint, REG_K/2, REG_N>());
-            //     #endif
-            //     rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
-            // }
-            constexpr int q_tile_uints  = REG_K / 2;
-            constexpr int q_tile_elems  = q_tile_uints * REG_N;
-            vector<ushort, q_tile_elems> gather_pred;
+        constexpr int q_tile_uints  = REG_K / 2;
+        constexpr int q_tile_elems  = q_tile_uints * REG_N;
+        vector<ushort, q_tile_elems> gather_pred;
+
+        #pragma unroll
+        for (int ri = 0; ri < head_size/REG_K; ri++) {
+            vector<unsigned, q_tile_elems> gather_offsets;
+            uint col_uint_base = ri * q_tile_uints;
 
             #pragma unroll
-            for (int ri = 0; ri < head_size/REG_K; ri++) {
-                vector<unsigned, q_tile_elems> gather_offsets;
-                uint col_uint_base = ri * q_tile_uints;
+            for (int col = 0; col < REG_N; col++) {
+                bool active     = (col < q_tokens_left);
+                uint token_base = q_gather_offset_bytes + col * q_pitch;
 
                 #pragma unroll
-                for (int col = 0; col < REG_N; col++) {
-                    bool active     = (col < q_tokens_left);
-                    uint token_base = q_gather_offset_bytes + col * q_pitch;
-
-                    #pragma unroll
-                    for (int row = 0; row < q_tile_uints; row++) {
-                        int idx      = row * REG_N + col;
-                        uint col_byte = (col_uint_base + row) * sizeof(uint);
-                        gather_offsets[idx] = token_base + col_byte;
-                        gather_pred[idx]    = active ? 0xFFFF : 0;
-                    }
+                for (int row = 0; row < q_tile_uints; row++) {
+                    int idx      = row * REG_N + col;
+                    uint col_byte = (col_uint_base + row) * sizeof(uint);
+                    gather_offsets[idx] = token_base + col_byte;
+                    gather_pred[idx]    = active ? 0xFFFF : 0;
                 }
-
-                rQ[ri] = 0;
-                auto gathered = cm_load<uint,
-                                        VectorSize::N1,
-                                        DataSize::U32,
-                                        CacheHint::Cached,
-                                        CacheHint::Cached>(q_gather, gather_offsets, gather_pred);
-                rQ[ri].format<uint>()  = gathered;
-                rQ[ri].format<half>()  = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
             }
+
+            rQ[ri] = 0;
+            auto gathered = cm_load<uint,
+                                    VectorSize::N1,
+                                    DataSize::U32,
+                                    CacheHint::Cached,
+                                    CacheHint::Cached>(q_gather, gather_offsets, gather_pred);
+            rQ[ri].format<uint>()  = gathered;
+            rQ[ri].format<half>()  = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+        }
         #endif
     }
-
+    #if USE_LSC
     lsc::block_2d_desc<uint8_t, 1, kv_step, REG_K> b2dK(k_cache_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
     lsc::block_2d_desc<uint8_t, 1, REG_K, REG_N> b2dV(v_cache_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
+    #endif
     constexpr int quan_blk_stride = CMFLA_NUM_KV_HEADS * (CMFLA_HEAD_SIZE+4) * CMPA_BLOCK_SZ * sizeof(uint8_t);
     int causal_left = q_start + past_lens;
 
@@ -183,16 +163,17 @@ void pa_lsc_u8(
 
                 matrix<half, kv_step, REG_K> kmat;
                 auto quanKmat = kmat.format<half, 2, kv_step * REG_K/2>()[1].format<uint8_t, kv_step, REG_K>();
+                #if USE_LSC
                 b2dK.set_base_ptr(reinterpret_cast<uint8_t*>(k_cache_base+cur_block_id*quan_blk_stride));
                 b2dK.set_block_y(kv_pos%CMPA_BLOCK_SZ);
+                #endif
                 
                 // This condition only works for head_size <= 128
                 for(int k = REG_K*wg_local_id; k < head_size; k += REG_K*(local_size/2)) {
                     #if USE_LSC
                     cm_load<lsc::Normal>(quanKmat.format<uint8_t>(), b2dK.set_block_x(k));
                     #else
-                    b2dK.set_block_x(k);
-                    auto k_base = reinterpret_cast<svmptr_t>((int8_t*)b2dK.get_base() + b2dK.get_block_y()*kv_pitch + b2dK.get_block_x());
+                    auto k_base = reinterpret_cast<svmptr_t>((int8_t*)k_cache_base + cur_block_id * quan_blk_stride + (kv_pos % CMPA_BLOCK_SZ) * kv_pitch + k);
                     #pragma unroll
                     for(int r = 0; r < kv_step; r++) {
                         cm_svm_block_read(k_base + r * kv_pitch, quanKmat.row(r));
@@ -223,16 +204,16 @@ void pa_lsc_u8(
                 matrix<half, REG_K/2, REG_N*2> VmatVNNI;
                 matrix<half, REG_K, REG_N> Vmat;
                 auto quanVmat = Vmat.format<half, 2, REG_K*REG_N/2>().row(1).format<uint8_t, REG_K, REG_N>();
+                #if USE_LSC
                 b2dV.set_base_ptr(reinterpret_cast<uint8_t*>(v_cache_base+cur_block_id*quan_blk_stride));
                 b2dV.set_block_y(kv_pos%CMPA_BLOCK_SZ);
-
+                #endif
                 #pragma unroll
                 for(int k = REG_N*(wg_local_id-(local_size/2)); k < head_size; k += REG_N*(local_size/2)) {
                     #if USE_LSC
                     cm_load<lsc::Normal>(quanVmat.format<uint8_t>(), b2dV.set_block_x(k));
                     #else
-                    b2dV.set_block_x(k);
-                    auto v_base = reinterpret_cast<svmptr_t>((int8_t*)b2dV.get_base() + b2dV.get_block_y()*kv_pitch + b2dV.get_block_x());
+                    auto v_base = reinterpret_cast<svmptr_t>((int8_t*)v_cache_base + cur_block_id * quan_blk_stride + (kv_pos % CMPA_BLOCK_SZ) * kv_pitch + k);
                     #pragma unroll
                     for(int r = 0; r < REG_K; r++) {
                         cm_svm_block_read(v_base + r * kv_pitch, quanVmat.row(r));
@@ -655,8 +636,7 @@ void pa_kernel_lsc_prefetch_f16(
                 Vmat.row(r).select<REG_N*VALUE_TILE_NUM, 2>(1) = Vmat_tmp.row(r*2+1);
             }
             #endif
-
-            // TO-DO, if needed on xe1
+            #if USE_LSC
             // somtimes KV cache would be filled with random Nan, so need to clean up the unused value data.
             if ((kv_pos + kv_step) > kv_stop) {
                 uint valid_rows = kv_stop - kv_pos;
@@ -666,6 +646,7 @@ void pa_kernel_lsc_prefetch_f16(
                 if (valid_rows % 2 == 1)
                     Vmat.row(valid_rows_vnni-1).select<REG_N, 2>(1) = 0.f;
             }
+            #endif
 
             if (kv_pos == 0) {
                 #pragma unroll
