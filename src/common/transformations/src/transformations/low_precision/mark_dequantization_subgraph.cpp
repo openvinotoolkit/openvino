@@ -10,6 +10,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -377,25 +378,6 @@ KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVect
             if (pt_map.count(node_to_mark)) {
                 auto node_ptr = pt_map.at(node_to_mark).get_node_shared_ptr();
                 disable_fp16_compression(node_ptr);
-            }
-        }
-        // we can check if zp const values are between 65504 to 65535, disable fp16 compression
-        auto patterns = {zp_pattern, scale_pattern};
-        bool max_reach = std::any_of(patterns.begin(), patterns.end(), [&](const auto& pattern) {
-            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(pt_map.at(pattern).get_node_shared_ptr());
-            if (!const_node)
-                return false;
-            auto values = const_node->template cast_vector<float>();
-            return std::any_of(values.begin(), values.end(), [](float v) {
-                return v > std::numeric_limits<ov::float16>::max();
-            });
-        });
-        if (max_reach) {
-            for (const auto& node_to_mark : nodes_to_mark) {
-                if (pt_map.count(node_to_mark)) {
-                    auto node_ptr = pt_map.at(node_to_mark).get_node_shared_ptr();
-                    disable_fp16_compression(node_ptr);
-                }
             }
         }
 
