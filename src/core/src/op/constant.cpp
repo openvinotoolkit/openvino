@@ -25,8 +25,7 @@
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/variant_visitor.hpp"
 
-namespace ov {
-namespace op {
+namespace ov::op {
 
 #define SUPPORTED_ET                                                                                                 \
     boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, f8e5m2, \
@@ -734,8 +733,8 @@ OPENVINO_API void Constant::data::copy_n(const element::Type& type,
 
 template <>
 OPENVINO_API void Constant::data::cast_n(const element::Type& type, const void* src, const size_t n, pointer dst) {
-    const auto is_vistable = (type == element::string) == std::holds_alternative<std::string*>(dst);
-    OPENVINO_ASSERT(is_vistable,
+    const auto is_visitable = (type == element::string) == std::holds_alternative<std::string*>(dst);
+    OPENVINO_ASSERT(is_visitable,
                     "Constant does not support casting elements of type '",
                     type,
                     "' into std::vector of type '",
@@ -752,5 +751,4 @@ OPENVINO_API void Constant::data::cast_n(const element::Type& type, const void* 
     std::visit(cast_visitor, dst);
 }
 }  // namespace v0
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op
