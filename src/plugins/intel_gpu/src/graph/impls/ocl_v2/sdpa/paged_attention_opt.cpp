@@ -15,9 +15,7 @@
 #include <utility>
 
 #include "../primitive_ocl_base.hpp"
-#include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
-#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "kv_cache_inst.h"
 #include "openvino/core/partial_shape.hpp"
@@ -27,26 +25,11 @@
 #include "sdpa_gen_opt.hpp"
 namespace ov::intel_gpu::ocl {
 namespace {
-enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 
 constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
 constexpr size_t paged_attention_block_size = 16;
 constexpr size_t seq_len_partition_size = 256;
 constexpr size_t subgroup_size = 16;
-
-struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
-    PagedAttentionStage stage;
-    size_t num_of_partitions;
-    size_t partition_size;
-    size_t max_context_len;
-    size_t paged_attention_aligned_seq_len;
-    size_t sdpa_opt_seq_len_partition_size;
-
-    size_t paged_attention_snap_kv_tokens;
-    bool use_micro_sdpa = false;
-    bool use_gqa_kernel = false;
-    size_t query_block_size = 16;
-};
 
 inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
@@ -331,7 +314,7 @@ public:
         return jit;
     }
 
-    static void add_intermediate_inputs(Arguments& args, bool has_scores_output, bool is_multi_token_kernel = false, bool has_score_aggregation = false, bool has_qq_bias = false) {
+    static void add_intermediate_inputs(Arguments& args, bool has_scores_output, bool is_multi_token_kernel = false, bool has_score_aggregation = false) {
         uint32_t internal_buffers_num = 3;  // kv cache update buffers
         if (has_scores_output) {
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_buffers_num++});  // softmax_results
@@ -351,12 +334,6 @@ public:
             // launched kernel instances to subsequence indexes
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_buffers_num++});  // gws_subseq_mapping
         }
-        if (has_qq_bias)
-        {
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_buffers_num++});  // qq_bias_tokens_num
-        }
-        
-        
     }
 };
 
@@ -630,7 +607,9 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
         }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-        add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation, has_qq_bias);
+        add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation);
+        if (has_qq_bias)
+            args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // speculative validation length
         return args;
     }
 
@@ -640,7 +619,7 @@ public:
             auto& wgs = kd.params.workGroups;
             const auto desc = params.typed_desc<paged_attention>();
             auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-
+            auto& scalars = kd.params.scalars;
             const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
             const size_t heads_num = desc->heads_num;
             const size_t head_size = desc->v_head_size;
@@ -648,6 +627,12 @@ public:
             auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS, get_kv_compressed(params));
             wgs.global = {total_tokens, heads_num, head_size * rtp->num_of_partitions * sg_scale};
             wgs.local = {1, 1, head_size * sg_scale};
+
+            if (desc->has_qq_bias) {
+                scalars.resize(1);
+                scalars[0].t = ScalarDescriptor::Types::UINT32;
+                scalars[0].v.u32 = static_cast<uint32_t>(rtp->paged_attention_speculative_validation_len);
+            }
         }};
     }
 };
@@ -870,13 +855,7 @@ protected:
             jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
         }
         const auto desc = params.typed_desc<paged_attention>();
-        const bool has_qq_bias = desc->has_qq_bias;
-        uint32_t input_nums = static_cast<uint32_t>(input_ids.size());
-        if (has_qq_bias) {
-            jit.make("HAS_QQ_BIAS", 1);
-            jit.add(make_layout_jit_constants("INPUT" + to_code_string(input_nums++), params.input_layouts[PagedAttentionInputIdx::BLOCK_UPDATE_INDICES], in_offsets_map.at(PagedAttentionInputIdx::BLOCK_UPDATE_INDICES)));
-            jit.add(make_layout_jit_constants("INPUT" + to_code_string(input_nums++), params.input_layouts[PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS], in_offsets_map.at(PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS)));
-        }
+
         constexpr size_t key_cache_id = PagedAttentionInputIdx::KEY_CACHE;
         constexpr size_t value_cache_id = PagedAttentionInputIdx::VALUE_CACHE;
 
@@ -1334,7 +1313,7 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        rt_params->use_micro_sdpa = false;
+        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && rt_params->stage != PagedAttentionStage::GENERATE;
 #else
         rt_params->use_micro_sdpa = false;
 #endif
@@ -1344,6 +1323,13 @@ public:
             rt_params->use_gqa_kernel = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
         } else {
             rt_params->use_gqa_kernel = false;
+        }
+
+        if (rt_params->stage == PagedAttentionStage::MIXED && desc->has_qq_bias) {
+            const auto& qq_bias_ps = params.get_input_layout(PagedAttentionInputIdx::QQ_BIAS).get_partial_shape();
+            OPENVINO_ASSERT(qq_bias_ps.is_static(),
+                                "[GPU] Unexpected shape of qq_bias memory for Paged Attention for mixed stage with qq bias");
+            rt_params->paged_attention_speculative_validation_len = static_cast<size_t>(qq_bias_ps[-1].get_length());
         }
         return;
     }
@@ -1394,11 +1380,11 @@ public:
             if (rt_params->use_gqa_kernel) {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_gqa_single_token)};
             } else {
-/*#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef ENABLE_ONEDNN_FOR_GPU
                 if (multi_tokens_mode && rt_params->use_micro_sdpa)
                     res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
                 else
-#endif*/
+#endif
                     res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};
             }
             if (num_of_partitions > 1 && !rt_params->use_micro_sdpa) {
@@ -1491,7 +1477,7 @@ public:
         }
         bool can_use_micro_sdpa = false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        can_use_micro_sdpa = false;
+        can_use_micro_sdpa = supports_micro_sdpa(params) && rt_params->stage != PagedAttentionStage::GENERATE;
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
@@ -1571,8 +1557,7 @@ public:
 
         const auto multi_tokens_mode = stage == PagedAttentionStage::MIXED;
         if (multi_tokens_mode && !can_use_micro_sdpa) {
-            internal_buffers.emplace_back(total_tokens, softmax_accumulator_type, lockable);  // 9
-            internal_buffers.emplace_back(element_size, indexes_dt, lockable);                               // 10
+            internal_buffers.emplace_back(total_tokens, softmax_accumulator_type, lockable);  // 9                               // 10
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1594,7 +1579,6 @@ public:
         const auto& desc = instance.get_impl_params()->typed_desc<paged_attention>();
         const bool has_scores_output = desc->has_scores_output();
         const bool has_score_aggregation = desc->has_score_aggregation;
-        const bool has_qq_bias = desc->has_qq_bias;
 
         if ((stage == PagedAttentionStage::UNKNOWN) || (stage == PagedAttentionStage::GENERATE && !has_scores_output))
             return;
@@ -1676,7 +1660,6 @@ public:
         mem_lock<int32_t, mem_lock_type::write> blocked_gws_subseq_mapping_mem_lock(blocked_gws_subseq_mapping_mem, stream);
         std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> sequential_gws_subseq_mapping_lock = nullptr;
         std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> micro_sdpa_block_starts_and_gws_mapping_lock = nullptr;
-        std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> speculative_validation_len_lock = nullptr;
 
         if (stage == PagedAttentionStage::MIXED && !use_micro_sdpa) {
             size_t sequential_gws_subseq_mapping_idx = 6;
@@ -1691,15 +1674,6 @@ public:
 
             auto sequential_gws_subseq_mapping_mem = intermediates_memories[sequential_gws_subseq_mapping_idx];
             sequential_gws_subseq_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(sequential_gws_subseq_mapping_mem, stream));
-            if (has_qq_bias) {
-                size_t speculative_validation_len_idx = sequential_gws_subseq_mapping_idx + 1;
-                OPENVINO_ASSERT(intermediates_memories.size() > speculative_validation_len_idx,
-                                "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage with qq bias");
-
-                auto speculative_validation_len_mem = intermediates_memories[speculative_validation_len_idx];
-                speculative_validation_len_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(speculative_validation_len_mem, stream));
-                (*speculative_validation_len_lock)[0] = static_cast<int32_t>(past_lens_mem_lock.size());
-            }
         }
 
         if (use_micro_sdpa) {

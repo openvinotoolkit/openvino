@@ -82,7 +82,7 @@ KERNEL(pa_sdpa_opt)(
 #if MULTI_TOKENS_PROCESSING
     , __global const int* gws_subseq_mapping
 #if HAS_QQ_BIAS
-    , __global const int* seq_num
+    , const uint spec_num
 #endif
 #endif
 ) {
@@ -103,7 +103,6 @@ KERNEL(pa_sdpa_opt)(
     // exp_sums: [sequences_num, HEADS_NUM, total_partitions_num]
     // max_logits: [sequences_num, HEADS_NUM, total_partitions_num]
     // tmp_out: [sequences_num, HEADS_NUM, total_partitions_num, V_HEAD_SIZE]
-    const uint token_num = get_global_size(0);
     const uint seq_idx = get_global_id(0);
 #if HEADS_PER_WI > 1
     const uint heads_group_idx = get_global_id(1);
@@ -327,10 +326,9 @@ KERNEL(pa_sdpa_opt)(
             // token_idx < seq_len, speculative tree mask
             if (token_idx >= past_len && token_idx < seq_len) {
                 uint spec_offset = token_idx - past_len;
-                uint spec_num = token_num / seq_num[0];
                 uint qq_bias_offset = subsequence_idx * spec_num * spec_num + seq_idx * spec_num + spec_offset;
-                //if (seq_idx == 5 && head_num_idx == 0)
-                    //printf("sub group id %d, simd id %d, I'm handling kv relation with token %d, relation is %d, past_len is %d, seq_len is %d\n", sgid, sglid, token_idx, qq_bias[qq_bias_offset], past_len, seq_len);
+                if (seq_idx == 5 && head_num_idx == 0)
+                    printf("sub group id %d, simd id %d, I'm handling kv relation with token %d, relation is %d, past_len is %d, seq_len is %d\n", sgid, sglid, token_idx, qq_bias[qq_bias_offset], past_len, seq_len);
                 if (qq_bias[qq_bias_offset] == 0) {
                     qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
                 }

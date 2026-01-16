@@ -136,6 +136,5 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool has_sink_input = false;
     bool is_key_by_channel = false;
     bool has_qq_bias = false;
-    int32_t qq_bias_num = 0;
 };
 }  // namespace cldnn
