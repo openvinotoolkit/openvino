@@ -9,6 +9,37 @@
 namespace ov {
 namespace intel_npu {
 
+namespace Platform {
+
+constexpr std::string_view AUTO_DETECT = "AUTO_DETECT";  // Auto detection
+constexpr std::string_view NPU3720 = "3720";             // NPU3720
+constexpr std::string_view NPU4000 = "4000";             // NPU4000
+constexpr std::string_view NPU5010 = "5010";             // NPU5010
+
+/**
+ * @brief Converts the given platform value to the standard one.
+ * @details The same platform value can be defined in multiple ways (e.g. "3720" vs "VPU3720" vs "NPU3720"). The current
+ * function converts the prefixed variants to the non-prefixed ones in order to enable the comparison between platform
+ * values.
+ *
+ * The values already found in the standard form are returned as they are.
+ *
+ * @param platform The value to be converted.
+ * @return The same platform value given as parameter but converted to the standard form.
+ */
+inline std::string standardize(const std::string_view platform) {
+    constexpr std::string_view VPUPrefix = "VPU";
+    constexpr std::string_view NPUPrefix = "NPU";
+
+    if (!platform.compare(0, VPUPrefix.length(), VPUPrefix) || !platform.compare(0, NPUPrefix.length(), NPUPrefix)) {
+        return std::string(platform).substr(NPUPrefix.length());
+    }
+
+    return std::string(platform);
+}
+
+}  // namespace Platform
+
 /**
  * @enum ColorFormat
  * @brief Extra information about input color format for preprocessing
