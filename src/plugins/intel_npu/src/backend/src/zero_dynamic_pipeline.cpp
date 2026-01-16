@@ -25,8 +25,8 @@
 namespace {
 std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, size_t element_size) {
     std::vector<size_t> element_strides(strides_in_bytes.size());
-    std::transform(strides_in_bytes.rbegin(),
-                   strides_in_bytes.rend(),
+    std::transform(strides_in_bytes.begin(),
+                   strides_in_bytes.end(),
                    element_strides.begin(),
                    [element_size](size_t byte_stride) {
                        OPENVINO_ASSERT(byte_stride % element_size == 0,
@@ -139,45 +139,47 @@ _levelZeroOutputTensors(output_tensors)*/
             if (input_tensors.at(io_index).size() > 1) {
                 _logger.debug("DynamicPipeline - set args for input index: %zu", io_index);
                 const auto& tensor = input_tensors.at(io_index).at(i);
-
                 if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() ||
                     tensor->get_strides().empty()) {
                     irGraph->set_argument_value(desc.indexUsedByDriver, tensor->data());
-                    graphArguments.setArgumentValue(desc.indexUsedByDriver, tensor->data());
                 } else {
                     irGraph->set_argument_value_with_strides(
                         desc.indexUsedByDriver,
                         tensor->data(),
                         get_strides(tensor->get_strides(), tensor->get_element_type().size()));
-                    graphArguments.setArgumentValueWithStrides(
-                        desc.indexUsedByDriver,
-                        tensor->data(),
-                        get_strides(tensor->get_strides(), tensor->get_element_type().size()));
                 }
+                size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
+                graphArguments.setArgumentProperties(desc.indexUsedByDriver,
+                                                     tensor->data(),
+                                                     tensor->get_shape(),
+                                                     get_strides(tensor->get_strides(), elementSize));
                 ++io_index;
                 continue;
             }
 
             _logger.debug(" update tensor property for input desc index: %d", desc.indexUsedByDriver);
             const auto& tensor = input_tensors.at(io_index).at(0);
+            size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
                 irGraph->set_argument_value(desc.indexUsedByDriver,
                                             static_cast<unsigned char*>(tensor->data()) +
                                                 (i * tensor->get_byte_size()) / _number_of_command_lists);
-                graphArguments.setArgumentValue(desc.indexUsedByDriver,
-                                                static_cast<unsigned char*>(tensor->data()) +
-                                                    (i * tensor->get_byte_size()) / _number_of_command_lists);
+                graphArguments.setArgumentProperties(desc.indexUsedByDriver,
+                                                     static_cast<unsigned char*>(tensor->data()) +
+                                                         (i * tensor->get_byte_size()) / _number_of_command_lists,
+                                                     tensor->get_shape(),
+                                                     get_strides(tensor->get_strides(), elementSize));
             } else {
                 irGraph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
                     get_strides(tensor->get_strides(), tensor->get_element_type().size()));
-                graphArguments.setArgumentValueWithStrides(
+                graphArguments.setArgumentProperties(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    get_strides(tensor->get_strides(), tensor->get_element_type().size()));
+                    tensor->get_shape(),
+                    get_strides(tensor->get_strides(), elementSize));
             }
-
             ++io_index;
         }
 
@@ -185,23 +187,28 @@ _levelZeroOutputTensors(output_tensors)*/
         for (const auto& desc : _graph->get_metadata().outputs) {
             _logger.debug("DynamicPipeline - update tensor property for output desc index: %d", desc.indexUsedByDriver);
             const auto& tensor = output_tensors.at(io_index);
+            size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
                 irGraph->set_argument_value(desc.indexUsedByDriver,
                                             static_cast<unsigned char*>(tensor->data()) +
                                                 (i * tensor->get_byte_size()) / _number_of_command_lists);
-                graphArguments.setArgumentValue(desc.indexUsedByDriver,
-                                                static_cast<unsigned char*>(tensor->data()) +
-                                                    (i * tensor->get_byte_size()) / _number_of_command_lists);
+                graphArguments.setArgumentProperties(desc.indexUsedByDriver,
+                                                     static_cast<unsigned char*>(tensor->data()) +
+                                                         (i * tensor->get_byte_size()) / _number_of_command_lists,
+                                                     tensor->get_shape(),
+                                                     get_strides(tensor->get_strides(), elementSize));
             } else {
+                std::cout << __LINE__ << std::endl;
                 irGraph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    tensor->get_strides());
+                    get_strides(tensor->get_strides(), elementSize));
 
-                graphArguments.setArgumentValueWithStrides(
+                graphArguments.setArgumentProperties(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    get_strides(tensor->get_strides(), tensor->get_element_type().size()));
+                    tensor->get_shape(),
+                    get_strides(tensor->get_strides(), elementSize));
             }
             ++io_index;
         }
@@ -390,7 +397,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     // This is the tensor with right shape and strides
     // The required check is alredy done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
-
+    size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
     const size_t number_of_command_lists = _command_lists.size();
 
     for (size_t i = 0; i < number_of_command_lists; i++) {
@@ -398,13 +405,13 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
             _command_lists.at(i)->updateMutableCommandList(index,
                                                            static_cast<const unsigned char*>(zeroTensor->data()) +
                                                                (i * tensor->get_byte_size()) / number_of_command_lists,
-                                                           tensor->get_strides(),
+                                                           get_strides(tensor->get_strides(), elementSize),
                                                            tensor->get_shape());
         } else {
             _command_lists.at(i)->updateMutableCommandList(
                 index,
                 static_cast<const unsigned char*>(zeroTensor->data()) + (i * tensor->get_strides()[0]),
-                get_strides(tensor->get_strides(), tensor->get_element_type().size()),
+                get_strides(tensor->get_strides(), elementSize),
                 tensor->get_shape());
         }
     }
@@ -422,7 +429,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     // This is the tensor with right shape and strides
     // The required check is alredy done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
-
+    size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
     const size_t number_of_command_lists = _command_lists.size();
 
     OPENVINO_ASSERT(batch_index < number_of_command_lists,
@@ -431,12 +438,15 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
 
     if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
         _command_lists.at(batch_index)
-            ->updateMutableCommandList(index, zeroTensor->data(), tensor->get_strides(), tensor->get_shape());
+            ->updateMutableCommandList(index,
+                                       zeroTensor->data(),
+                                       get_strides(tensor->get_strides(), elementSize),
+                                       tensor->get_shape());
     } else {
         _command_lists.at(batch_index)
             ->updateMutableCommandList(index,
                                        zeroTensor->data(),
-                                       get_strides(tensor->get_strides(), tensor->get_element_type().size()),
+                                       get_strides(tensor->get_strides(), elementSize),
                                        tensor->get_shape());
     }
 }

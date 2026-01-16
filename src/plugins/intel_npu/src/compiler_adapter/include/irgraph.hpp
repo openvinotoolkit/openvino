@@ -160,7 +160,10 @@ public:
         Logger _logger = Logger("GraphArguments", Logger::global().level());
 
         void setArgumentValue(uint32_t argi, const void* argv);
-        void setArgumentValueWithStrides(uint32_t argi, const void* argv, const std::vector<size_t>& strides);
+        void setArgumentProperties(uint32_t argi,
+                                   const void* argv,
+                                   const ov::Shape& shapes,
+                                   const std::vector<size_t>& strides);
     };
 
     class Impl {
