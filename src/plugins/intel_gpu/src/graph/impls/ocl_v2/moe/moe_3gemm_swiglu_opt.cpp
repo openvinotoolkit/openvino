@@ -1648,7 +1648,7 @@ public:
             OPENVINO_THROW("hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
         };
         auto lws_size = get_best_lws(_hidden_size);
-        int max_topk = static_cast<int64_t>(config.top_k);
+        auto max_topk = static_cast<int64_t>(config.top_k);
 
         if (max_topk <= 0)
             OPENVINO_THROW("Invalid negative or zero max_topk value, max_topk=", max_topk);
