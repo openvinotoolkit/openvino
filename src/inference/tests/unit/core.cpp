@@ -505,4 +505,22 @@ TEST(PropertiesValidation, HintNumRequestsAcceptsUnsigned) {
     EXPECT_EQ(kv.second.as<uint32_t>(), 4u);
 }
 
+TEST(PropertiesValidation, CoreSetPropertyRejectsNegativeNumRequests) {
+    ov::Core core;
+    std::string device = "CPU";
+
+    try {
+        (void)core.get_property(device, ov::available_devices);
+    } catch (...) {
+        device = "GPU";
+        try {
+            (void)core.get_property(device, ov::available_devices);
+        } catch (...) {
+            GTEST_SKIP() << "No suitable device (CPU/GPU) available in this test environment";
+        }
+    }
+
+    EXPECT_THROW(core.set_property(device, ov::hint::num_requests(-1)), ov::Exception);
+}
+
 }  // namespace ov::test
