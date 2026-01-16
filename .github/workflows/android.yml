@@ -353,13 +353,13 @@ jobs:
         timeout-minutes: 15
 
       - name: Download CPU test binaries
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: ov_cpu_tests_android_x64
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Download OpenVINO runtime package (Android)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: ov_android_package_x64
           path: ${{ env.INSTALL_DIR }}
@@ -379,7 +379,7 @@ jobs:
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
 
       - name: AVD cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         id: avd-cache
         if: github.ref_name == 'master'
         with:
@@ -447,13 +447,13 @@ jobs:
         timeout-minutes: 15
 
       - name: Download CPU test binaries
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: ov_cpu_tests_android_x64
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Download OpenVINO runtime package (Android)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: ov_android_package_x64
           path: ${{ env.INSTALL_DIR }}
@@ -473,7 +473,7 @@ jobs:
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
 
       - name: AVD cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         id: avd-cache
         if: github.ref_name == 'master'
         with:
