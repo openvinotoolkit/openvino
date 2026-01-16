@@ -1678,7 +1678,7 @@ public:
             if (static_cast<uint64_t>(n_token) > static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) / static_cast<uint64_t>(max_topk))
                 OPENVINO_THROW("n_token * max_topk overflow detected, n_token=", n_token, " max_topk=", max_topk);
 
-            auto routing_weights_size = n_token * max_topk;
+            int64_t routing_weights_size = n_token * max_topk;
             onednn_kernel& kernel = get_kernel(n_token, static_cast<int>(expert_no), instance);
 
             // gather
