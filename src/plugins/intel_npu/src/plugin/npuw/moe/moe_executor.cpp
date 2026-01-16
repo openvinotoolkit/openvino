@@ -607,9 +607,10 @@ void MoEExecutor::unpack_single_expert_closure(std::size_t idx, RqPtr request, s
         auto& closure = desc_closure[cidx];
         const auto closure_param_id = comp_model_desc.param_base + cidx;
 
-        // Skip gather closures - delegate to accessor (needs CompiledModel::is_gather_closure)
-        // For now, we'll need to implement a simple check here or access via m_config
-        // TODO: Consider moving is_gather_closure to MoEConfig or passing it via descriptor
+        // Skip gather closures
+        if (m_accessor.is_gather_closure(idx, cidx)) {
+            continue;
+        }
 
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
 
@@ -625,12 +626,7 @@ void MoEExecutor::unpack_single_expert_closure(std::size_t idx, RqPtr request, s
             auto sliced_weight = ov::get_tensor_impl(sliced_weight_tensor);
 
             // Handle unpacking if needed
-            // Note: We need to check if unpacking is required - this depends on element type mismatch
-            const auto batched_elem_type = closure.get_element_type();
-            const auto target_elem_type = request->get_tensor(iport)->get_element_type();
-            const bool needs_unpack = (batched_elem_type != target_elem_type);
-
-            if (needs_unpack) {
+            if (m_accessor.unpack_required(idx, cidx)) {
                 auto clparam = request->get_tensor(iport);
 
                 if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx] && comp_model_desc.zerops[cidx]) {
@@ -649,10 +645,13 @@ void MoEExecutor::unpack_single_expert_closure(std::size_t idx, RqPtr request, s
                 ov::npuw::moe::set_tensor_optimized(request, iport, sliced_weight);
             }
         } else {
-            // This closure parameter doesn't need slicing, set directly
-            // Note: needs_copy check would require accessing JustInferRequest state
-            // For simplicity, always use set_tensor here
-            request->set_tensor(iport, ov::get_tensor_impl(closure));
+            // This closure parameter doesn't need slicing, use original logic
+            if (m_accessor.needs_copy_closure(idx, cidx)) {
+                auto clparam = request->get_tensor(iport);
+                ov::get_tensor_impl(closure)->copy_to(clparam._ptr);
+            } else {
+                request->set_tensor(iport, ov::get_tensor_impl(closure));
+            }
         }
     }
 }
@@ -702,7 +701,9 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
     // Iterate over closure parameters, then process their K unrolled variants
     for (std::size_t closure_idx = 0; closure_idx < desc_closure.size(); ++closure_idx) {
         // Skip gather closures (dummy tensors, not real weights)
-        // TODO: Implement proper check or pass via descriptor
+        if (m_accessor.is_gather_closure(idx, closure_idx)) {
+            continue;
+        }
 
         // Calculate original parameter index in the model
         const size_t original_param_idx = comp_model_desc.param_base + closure_idx;
@@ -723,11 +724,16 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
         const bool is_batched = !closure_shape.empty() && closure_shape[0] == num_experts;
         if (!is_batched) {
             // Shared parameter path - all K unrolled parameters share same weight
+            const bool do_copy = m_accessor.needs_copy_closure(idx, closure_idx);
             auto batched_impl = ov::get_tensor_impl(batched_closure);
 
             for (size_t position = 0; position < K; ++position) {
                 const auto& iport = compiled_inputs[unrolled_indices[position]];
-                request->set_tensor(iport, batched_impl);
+                if (do_copy) {
+                    batched_impl->copy_to(request->get_tensor(iport)._ptr);
+                } else {
+                    request->set_tensor(iport, batched_impl);
+                }
             }
             continue;
         }

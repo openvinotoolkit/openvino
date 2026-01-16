@@ -79,6 +79,9 @@ public:
     const void* get_submodel_desc(size_t idx) override;
     TensorPtr allocate_mem(const ov::element::Type& type, const ov::Shape& shape, const std::string& device) override;
     void unpack_closure(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request) override;
+    bool is_gather_closure(size_t idx, size_t cidx) override;
+    bool unpack_required(size_t idx, size_t cidx) override;
+    bool needs_copy_closure(size_t idx, size_t cidx) override;
 
 protected:
     ////////////////////////////////////
