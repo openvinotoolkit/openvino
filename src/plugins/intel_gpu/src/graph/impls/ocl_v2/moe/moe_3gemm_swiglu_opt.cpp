@@ -1648,7 +1648,10 @@ public:
             OPENVINO_THROW("hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
         };
         auto lws_size = get_best_lws(_hidden_size);
-        int max_topk = static_cast<int>(config.top_k);
+        auto max_topk = static_cast<int64_t>(config.top_k);
+
+        if (max_topk <= 0)
+            OPENVINO_THROW("Invalid negative or zero max_topk value, max_topk=", max_topk);
 
         // [batch, max_topk]
         auto topk_id_mem = scratch.topk_id;
@@ -1669,7 +1672,14 @@ public:
             expert_mask_gpu& expert_mask_mem = scratch.expert_masks[expert_no];
             copy_expert_mask_to_gpu(stream, expert_mask, expert_no, expert_mask_mem);
 
-            auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
+            auto n_token = static_cast<int64_t>(expert_mask.batch[expert_no].size());
+
+            // Be careful about possible overflow
+            if (n_token > std::numeric_limits<int64>::max() / max_topk)
+                OPENVINO_THROW("n_token * max_topk overflow detected, n_token=", n_token, " max_topk=", max_topk);
+
+            auto routing_weights_size = n_token * max_topk;
+            
             onednn_kernel& kernel = get_kernel(n_token, static_cast<int>(expert_no), instance);
 
             // gather
@@ -1685,23 +1695,23 @@ public:
             // up
             kernel.up.forward(dnn_stream,
                               n_token,
-                              convert2dnnl(scratch.x, {static_cast<int>(n_token), dnnl_weights[1].ic}, dnnl::memory::format_tag::ab),
-                              convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
+                              convert2dnnl(scratch.x, {static_cast<int64_t>(n_token), dnnl_weights[1].ic}, dnnl::memory::format_tag::ab),
+                              convert2dnnl(scratch.up, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
                               dnnl::memory());
 
             // gate
             kernel.gate.forward(dnn_stream,
                                 n_token,
-                                convert2dnnl(scratch.x, {static_cast<int>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab));
+                                convert2dnnl(scratch.x, {static_cast<int64_t>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.gate, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.up, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab));
 
             // down
             kernel.down.forward(dnn_stream,
                                 n_token,
-                                convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.y, {static_cast<int>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.routing_weights, {static_cast<int>(n_token * max_topk)}, dnnl::memory::format_tag::a));
+                                convert2dnnl(scratch.gate, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.y, {static_cast<int64_t>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.routing_weights, {static_cast<int64_t>(routing_weights_size)}, dnnl::memory::format_tag::a));
 
             // index_add
             result_event = execute_stage({result_event},
