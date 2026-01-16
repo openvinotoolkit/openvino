@@ -65,33 +65,34 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
     const ov::AxisSet axes_bottom = bottom_reduce->get_reduction_axes();
     std::shared_ptr<Node> axes = nullptr;
     if (!axes_top.empty() && !axes_bottom.empty()) {
+        // case when both axes are constants
         std::set<size_t> fused_axes;
         fused_axes.insert(axes_top.begin(), axes_top.end());
 
         if (top_reduce->get_keep_dims()) {
             fused_axes.insert(axes_bottom.begin(), axes_bottom.end());
         } else {
-            for (size_t b : axes_bottom) {
-                size_t remaining = b;
-                size_t i = 0;
+            for (size_t bottom_axis : axes_bottom) {
+                size_t remaining = bottom_axis;
+                size_t original_axis = 0;
 
-                auto it1 = axes_top.begin();
-                while (true) {
+                auto top_axes_iter = axes_top.begin();
+                while (original_axis <= bottom_axis + axes_top.size()) {
                     bool removed = false;
-                    if (it1 != axes_top.end() && *it1 == i) {
+                    if (top_axes_iter != axes_top.end() && *top_axes_iter == original_axis) {
                         removed = true;
-                        ++it1;
+                        ++top_axes_iter;
                     }
 
                     if (!removed) {
                         if (remaining == 0) {
-                            fused_axes.insert(i);
+                            fused_axes.insert(original_axis);
                             break;
                         }
                         --remaining;
                     }
 
-                    ++i;
+                    ++original_axis;
                 }
             }
         }
@@ -105,9 +106,9 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
 
         auto cast = [](const ov::Output<ov::Node>& in, const element::Type& target_type) -> ov::Output<ov::Node> {
             if (in.get_element_type() != target_type) {
-                const auto cast = std::make_shared<ov::op::v0::Convert>(in, target_type);
-                copy_runtime_info(in.get_node_shared_ptr(), cast);
-                return cast;
+                const auto convert_op = std::make_shared<ov::op::v0::Convert>(in, target_type);
+                copy_runtime_info(in.get_node_shared_ptr(), convert_op);
+                return convert_op;
             }
             return in;
         };
