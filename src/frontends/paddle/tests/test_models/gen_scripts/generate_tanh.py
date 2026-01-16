@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -13,11 +13,11 @@ data_type = 'float32'
 
 def tanh(name:str, x):
     paddle.enable_static()
-    
+
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         data = paddle.static.data(name='x', shape=x.shape, dtype = data_type)
         out = paddle.tanh(data)
-        
+
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.
@@ -33,7 +33,7 @@ def tanh(name:str, x):
 
 def main():
     x = np.random.rand(8, 24, 32).astype(data_type)
-    
+
     tanh("tanh", x)
 
 if __name__ == "__main__":
