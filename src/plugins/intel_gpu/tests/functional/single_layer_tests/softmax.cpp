@@ -95,6 +95,5 @@ TEST_P(SoftMaxLayerTest, NaNPropagationCases) {
     }
 }
 
-} // namespace subgraph
-} // namespace test
+
 } // namespace ov
