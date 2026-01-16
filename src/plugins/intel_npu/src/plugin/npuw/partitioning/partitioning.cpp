@@ -387,7 +387,7 @@ void Partitioner::identifySubgraphs() {
     // Apply partitioning changes to the original model
     // but first cache all nodes to identify by name
     using NodeSPtr = std::shared_ptr<ov::Node>;
-    std::unordered_map<ov::Output<ov::Node>, LinkPtrFrom> result_cache;
+    std::unordered_map<ov::Output<ov::Node>, std::vector<LinkPtrFrom>> result_cache;
     std::unordered_map<std::string, NodeSPtr> node_id_cache;
     for (auto&& node_ptr : model->get_ordered_ops()) {
         node_id_cache[node_ptr->get_friendly_name()] = node_ptr;
@@ -624,9 +624,15 @@ void Partitioner::identifySubgraphs() {
                     // so it is a cut-off point (see above, parameter_from()):
                     // - record connectivity between subgraphs.
                     // Exception: param is registered via slice or convert
-                    const auto& link_from = result_cache.at(src_node);
+                    const auto& links_from = result_cache.at(src_node);
+                    NPUW_ASSERT(links_from.size() > 0);
+                    if (links_from.size() > 1) {
+                        LOG_INFO("Parameter " << this_param->get_friendly_name()
+                                              << " has more than one possible Result nodes to connect!"
+                                              << " Will pick the first one: " << (*links_from.begin()).second);
+                    }
                     const auto link_to = LinkPtrTo{this_group_idx, this_param};
-                    subgraph_ptr_links[link_to] = link_from;
+                    subgraph_ptr_links[link_to] = *links_from.begin();
                 }
             } else {
                 // assert is_constant(), there's no other way
@@ -650,6 +656,9 @@ void Partitioner::identifySubgraphs() {
             // set as part of kvcache conversion routune.
             LOG_BLOCK();
             std::set<std::string> output_layers_cache(group.output_layers.begin(), group.output_layers.end());
+            for (auto&& ol_name : group.output_layers) {
+                LOG_VERB("Initially registered output layer: " << ol_name);
+            }
 
             // Have to switch clang-format here to make cpplint happy
             // clang-format off
@@ -700,7 +709,10 @@ void Partitioner::identifySubgraphs() {
                 //    v
                 //    op102
                 bool has_external_readers = false;
-                NodeSPtr maybe_result = nullptr;
+                // NB: It turns out sometime we may end up with multiple
+                // readers from the output node and more than 1 of them
+                // will be the Result node!
+                std::vector<NodeSPtr> maybe_results;
                 auto readers = output_desc.get_target_inputs();
                 // This is possible then some of layer's outputs are not used in the model.
                 if (readers.empty()) {
@@ -714,19 +726,24 @@ void Partitioner::identifySubgraphs() {
                     // at the npuw::CompiledModel level)
                     auto reader_node_ptr = r.get_node()->shared_from_this();
                     if (ov::op::util::is_output(reader_node_ptr)) {
-                        maybe_result = std::move(reader_node_ptr);
+                        maybe_results.push_back(std::move(reader_node_ptr));
                     } else if (group_nodes.find(reader_node_ptr) == group_nodes.end()) {
                         has_external_readers = true;
                     }
                 }
-                if (maybe_result) {
+                if (!maybe_results.empty()) {
+                    for (auto&& mr: maybe_results) {
+                        LOG_VERB(mr);
+                    }
                     // This layer's output was connected to Result already.
                     // It happens when this layer is the original model's output
                     // Keep it to make the ugly top-level I/O matching procedure work.
                     // FIXME: This needs to be refactored
-                    group.sg._results.push_back(ov::as_type_ptr<ov::op::v0::Result>(maybe_result));
-                    result_cache[output_desc] =
-                        LinkPtrFrom{this_group_idx, ov::as_type_ptr<ov::op::v0::Result>(maybe_result)};
+                    for (auto&& mr : maybe_results) {
+                        group.sg._results.push_back(ov::as_type_ptr<ov::op::v0::Result>(mr));
+                        result_cache[output_desc].push_back(
+                            LinkPtrFrom{this_group_idx, ov::as_type_ptr<ov::op::v0::Result>(mr)});
+                    }
                 } else if (has_external_readers) {
                     // Introduce and record a new Result
                     // As the graph is processed in the topological order,
@@ -754,8 +771,7 @@ void Partitioner::identifySubgraphs() {
                             }
                         }
                         auto new_result = std::make_shared<ov::op::v0::Result>(result_src);
-                        result_cache[output_desc] = LinkPtrFrom{this_group_idx, new_result};
-
+                        result_cache[output_desc].push_back(LinkPtrFrom{this_group_idx, new_result});
                         ov::copy_runtime_info(output_desc.get_node_shared_ptr(), new_result);
                         group.sg._results.push_back(std::move(new_result));
                     }
@@ -2430,19 +2446,29 @@ void Partitioner::finalizeLinks() {
         // result order.. but how? But how... see above, the complexity
         // is there.
 
+        LOG_VERB("before get_idx_param");
         std::size_t subgraph_idx_to;
         PPtr subgraph_param_to;
         std::tie(subgraph_idx_to, subgraph_param_to) = ptr_link.first;
+        LOG_VERB("subgraph_idx_to: " << subgraph_idx_to);
+        LOG_VERB("subgraph_param_to: " << subgraph_param_to);
         auto param_idx = get_idx_param(subgraph_idx_to, subgraph_param_to);
+        LOG_VERB("after get_idx_param");
 
+        LOG_VERB("before get_idx_result");
         std::size_t subgraph_idx_from;
         RPtr subgraph_result_from;
         std::tie(subgraph_idx_from, subgraph_result_from) = ptr_link.second;
+        LOG_VERB("subgraph_idx_from: " << subgraph_idx_from);
+        LOG_VERB("subgraph_result_from: " << subgraph_result_from);
         auto result_idx = get_idx_result(subgraph_idx_from, subgraph_result_from);
+        LOG_VERB("after get_idx_result");
 
+        LOG_VERB("before subgraph_links");
         subgraph_links[ov::npuw::LinkTo{subgraph_idx_to, param_idx}] =
             ov::npuw::LinkFrom{subgraph_idx_from, result_idx};
-
+        LOG_VERB("after subgraph_links");
+    
         LOG_BLOCK();
         LOG_DEBUG("Record link [" << subgraph_idx_to << "]:" << param_idx << "  <---  [" << subgraph_idx_from << "]/"
                                   << result_idx);
@@ -2534,8 +2560,11 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveRepeatedConstants(func_group);
                 p.saveTailDictConstants(func_group);
                 p.matchParameters(func_group);
+                std::cout << "here" << std::endl;
                 p.matchResults(func_group);
+                std::cout << "here 2" << std::endl;
                 p.matchRepeatedSubgraphs(func_group);
+
                 p.spatial(func_group);
                 p.attention(func_group);
                 p.optimize(func_group);
