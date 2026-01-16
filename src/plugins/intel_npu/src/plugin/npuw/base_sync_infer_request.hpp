@@ -160,14 +160,6 @@ protected:
     // MoE I/O structure
     std::vector<MoEIO> m_moe_io;
 
-    // MoE expert output buffer: Accumulates outputs from all experts during multi-token inference
-    // - Allocated once in setup_moe_infer_requests() with element type inferred from expert model output
-    // - Cleared to zero before each prefill inference (iterative experts mode)
-    // - Each expert's output is scattered to designated [expert_id, token_id, embed_dim] slots
-    // - Shape: [num_active_experts, 1, num_tokens, embed_dim]
-    // - Shared by all MoE subgraphs in this infer request
-    ov::SoPtr<ov::ITensor> m_moe_output_buffer;
-
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
     // Represents spatial run-time info

@@ -166,16 +166,6 @@ public:
              std::map<size_t, std::vector<size_t>>& expert_to_tokens);
 
     /**
-     * @brief Recreate resources after subrequest rebuild
-     *
-     * Called when JustInferRequest::recreate_subrequests() is invoked.
-     * Resets cache and re-initializes resources.
-     *
-     * @param real_idx Submodel index to recreate
-     */
-    void recreate_requests(size_t real_idx);
-
-    /**
      * @brief Get expert output accumulator buffer
      *
      * Returns the shared output buffer used for accumulating expert outputs
