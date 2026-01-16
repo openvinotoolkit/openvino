@@ -100,6 +100,19 @@ protected:
         in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts, impl_params.get_program().is_new_shape_infer());
         out_l = gemm_inst::transform_output_layout(prim, in_layouts, out_l);
 
+        int64_t in0_batch = in_layouts[0].batch();
+        int64_t in1_batch = in_layouts[1].batch();
+
+        // Broadcast batches to avoid onednn checks failure
+        if (in0_batch != in1_batch && one_of(1, {in0_batch, in1_batch})) {
+            auto& modified_layout = in0_batch == 1 ? in_layouts[0] : in_layouts[1];
+            int64_t target_batch = std::max(in0_batch, in1_batch);
+
+            auto new_pshape = modified_layout.get_partial_shape();
+            new_pshape[0] = ov::Dimension(target_batch);
+            modified_layout.set_partial_shape(new_pshape);
+        }
+
         const auto& in0_l = in_layouts[0];
         const auto& in1_l = in_layouts[1];
 
