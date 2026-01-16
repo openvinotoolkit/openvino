@@ -50,8 +50,14 @@ OPENVINO_API Tensor evaluate_upper_bound(const Output<Node>& output);
 /// \return pair with Tensors for lower and upper value estimation.
 OPENVINO_API std::pair<Tensor, Tensor> evaluate_both_bounds(const Output<Node>& output);
 
+/// \brief Compares bounds (lower and upper values) of two tensors.
+/// \param lhs First tensor to compare.
+/// \param rhs Second tensor to compare.
+/// \return True if both tensors have the same lower and upper bound values, false otherwise.
 OPENVINO_API bool have_same_bounds(const descriptor::Tensor& lhs, const descriptor::Tensor& rhs);
 
+/// \brief Sets ForceInvalidation attribute on tensor to force bounds invalidation on next invalidate_values() call.
+/// \param tensor Tensor to set the ForceInvalidation attribute on.
 OPENVINO_API void set_force_invalidation(ov::descriptor::Tensor& tensor);
 }  // namespace util
 }  // namespace ov
