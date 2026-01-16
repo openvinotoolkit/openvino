@@ -118,7 +118,7 @@ DEFINE_OPT(NPUW_SPATIAL, bool, false, npuw::partitioning::spatial, RunTime);
 DEFINE_OPT(NPUW_F16IC, bool, true, npuw::partitioning::f16_interconnect, RunTime);
 DEFINE_OPT(NPUW_SPATIAL_NWAY, std::size_t, 128, npuw::partitioning::spatial_nway, RunTime);
 DEFINE_OPT(NPUW_SPATIAL_DYN, bool, true, npuw::partitioning::spatial_dyn, RunTime);
-DEFINE_OPT(NPUW_MOE_FIXED_TOKEN_CHUNK_SIZE, uint64_t, 0, npuw::partitioning::moe_fixed_token_chunk_size, RunTime);
+DEFINE_OPT(NPUW_MOE_TOKEN_CHUNK_SIZE, uint64_t, 0, npuw::partitioning::moe_token_chunk_size, RunTime);
 DEFINE_OPT(NPUW_MOE_POOL_SIZE, std::size_t, 8, npuw::partitioning::moe_pool_size, RunTime);
 DEFINE_OPT(NPUW_ATTN, std::string, "STATIC", npuw::partitioning::attn, RunTime);
 DEFINE_OPT(NPUW_ATTN_DYN, bool, true, npuw::partitioning::attn_dyn, RunTime);
