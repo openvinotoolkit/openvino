@@ -79,26 +79,6 @@ public:
      * @param request Target infer request
      */
     virtual void unpack_closure(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request) = 0;
-
-    /**
-     * @brief Unpack single expert's closure (expert-specific weights)
-     * @param idx Function call index
-     * @param request Target infer request
-     * @param expert_id Expert ID to unpack
-     */
-    virtual void unpack_single_expert_closure(size_t idx,
-                                              ov::SoPtr<ov::IAsyncInferRequest> request,
-                                              size_t expert_id) = 0;
-
-    /**
-     * @brief Unpack multiple experts' closure (batch expert mode)
-     * @param idx Function call index
-     * @param request Target infer request
-     * @param expert_ids Expert IDs to unpack
-     */
-    virtual void unpack_multiple_experts_closure(size_t idx,
-                                                 ov::SoPtr<ov::IAsyncInferRequest> request,
-                                                 const std::vector<size_t>& expert_ids) = 0;
 };
 
 namespace moe {
@@ -194,6 +174,23 @@ private:
     // === Profiling ===
     std::optional<MoEProfile> m_profile;  // Performance statistics
     bool m_profiling_enabled;             // Enable/disable profiling
+
+    // === Weight unpacking methods ===
+    /**
+     * @brief Unpack single expert's closure (expert-specific weights)
+     * @param idx Function call index
+     * @param request Target infer request
+     * @param expert_id Expert ID to unpack
+     */
+    void unpack_single_expert_closure(size_t idx, RqPtr request, size_t expert_id);
+
+    /**
+     * @brief Unpack multiple experts' closure (batch expert mode)
+     * @param idx Function call index
+     * @param request Target infer request
+     * @param expert_ids Expert IDs to unpack
+     */
+    void unpack_multiple_experts_closure(size_t idx, RqPtr request, const std::vector<size_t>& expert_ids);
 
     // === State management ===
     // MoE configuration (single instance, shared by all sublayers)
