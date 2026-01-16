@@ -157,9 +157,6 @@ protected:
     };
     std::vector<HostFlashAttentionIO> m_hfa_io;
 
-    // MoE I/O structure
-    std::vector<MoEIO> m_moe_io;
-
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
     // Represents spatial run-time info
