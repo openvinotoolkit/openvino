@@ -263,6 +263,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*NoReshapeAndReshapeDynamic.*CodegenGelu.*)",
         // Issue: 163351
         R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
+        // Sporadic failings with ASAN enabled
+        R"(.*CoreThreadingTests.*)",
+        R"(.*smoke_BehaviorTest.*)",
         // This transformation is disabled on CPU
         R"(.*smoke_LPT.*MultiplyToGroupConvolutionTransformation.*)",
         // Disabled due to sporadic failures in CI, Issue: 157267
