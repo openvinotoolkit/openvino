@@ -129,11 +129,7 @@ void MoEExecutor::prepare(size_t idx, size_t real_idx, size_t num_sublayers, siz
     LOG_INFO("MoE preparation completed for sublayer[" << idx << "]");
 }
 
-void MoEExecutor::run(size_t real_idx,
-                      size_t idx,
-                      const MoEIO& io,
-                      std::map<size_t, std::vector<size_t>>& token_to_experts,
-                      std::map<size_t, std::vector<size_t>>& expert_to_tokens) {
+void MoEExecutor::run(size_t real_idx, size_t idx, const MoEIO& io) {
     // Validate config is initialized
     if (!m_config.is_valid()) {
         OPENVINO_THROW("MoEExecutor::run() - Configuration not initialized");
@@ -162,28 +158,28 @@ void MoEExecutor::run(size_t real_idx,
             m_profile->decoding["Parse Router Output"].record([&]() {
                 selected_experts = ov::npuw::moe::parse_selected_experts_from_router(io.router_scores,
                                                                                      num_experts,
-                                                                                     token_to_experts,
-                                                                                     expert_to_tokens);
+                                                                                     m_token_to_experts,
+                                                                                     m_expert_to_tokens);
             });
         } else {
             selected_experts = ov::npuw::moe::parse_selected_experts_from_router(io.router_scores,
                                                                                  num_experts,
-                                                                                 token_to_experts,
-                                                                                 expert_to_tokens);
+                                                                                 m_token_to_experts,
+                                                                                 m_expert_to_tokens);
         }
     } else {
         if (m_profiling_enabled) {
             m_profile->prefill["Parse Router Output"].record([&]() {
                 selected_experts = ov::npuw::moe::parse_selected_experts_from_router(io.router_scores,
                                                                                      num_experts,
-                                                                                     token_to_experts,
-                                                                                     expert_to_tokens);
+                                                                                     m_token_to_experts,
+                                                                                     m_expert_to_tokens);
             });
         } else {
             selected_experts = ov::npuw::moe::parse_selected_experts_from_router(io.router_scores,
                                                                                  num_experts,
-                                                                                 token_to_experts,
-                                                                                 expert_to_tokens);
+                                                                                 m_token_to_experts,
+                                                                                 m_expert_to_tokens);
         }
     }
 
@@ -203,10 +199,10 @@ void MoEExecutor::run(size_t real_idx,
     } else {
         if (m_profiling_enabled) {
             m_profile->prefill["Total Prefill"].record([&]() {
-                run_iterative_experts(idx, real_idx, selected_experts, io, token_to_experts, expert_to_tokens);
+                run_iterative_experts(idx, real_idx, selected_experts, io);
             });
         } else {
-            run_iterative_experts(idx, real_idx, selected_experts, io, token_to_experts, expert_to_tokens);
+            run_iterative_experts(idx, real_idx, selected_experts, io);
         }
     }
 
@@ -309,9 +305,7 @@ void MoEExecutor::run_batch_experts(size_t idx,
 void MoEExecutor::run_iterative_experts(size_t idx,
                                         size_t real_idx,
                                         const std::vector<size_t>& selected_experts,
-                                        const MoEIO& io,
-                                        std::map<size_t, std::vector<size_t>>& token_to_experts,
-                                        std::map<size_t, std::vector<size_t>>& expert_to_tokens) {
+                                        const MoEIO& io) {
     LOG_DEBUG("\n[ITERATIVE EXPERTS] Processing multiple tokens by iterating through experts");
 
     const auto input_token_count = m_config.input_token_count;
@@ -345,7 +339,7 @@ void MoEExecutor::run_iterative_experts(size_t idx,
         LOG_DEBUG("\n  Processing Expert[" << expert_id << "]...");
 
         // Get tokens assigned to this expert
-        const auto& tokens_for_expert = expert_to_tokens.at(expert_id);
+        const auto& tokens_for_expert = m_expert_to_tokens.at(expert_id);
         const size_t total_tokens = tokens_for_expert.size();
 
         LOG_DEBUG("    Expert[" << expert_id << "] processing " << total_tokens << " tokens");
@@ -355,7 +349,7 @@ void MoEExecutor::run_iterative_experts(size_t idx,
         std::vector<size_t> expert_slots_for_tokens(total_tokens);
         for (size_t i = 0; i < total_tokens; ++i) {
             size_t token_id = tokens_for_expert[i];
-            const auto& expert_ids = token_to_experts.at(token_id);
+            const auto& expert_ids = m_token_to_experts.at(token_id);
             auto it = std::find(expert_ids.begin(), expert_ids.end(), expert_id);
             if (it == expert_ids.end()) {
                 OPENVINO_THROW("MoE: Token should have this expert");

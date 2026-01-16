@@ -159,14 +159,8 @@ public:
      * @param real_idx Submodel index (after replaced_by resolution)
      * @param idx Function call index
      * @param io MoE I/O tensors (router_scores, expert_input, outputs)
-     * @param token_to_experts Routing map: token_id -> [expert_ids] (reusable storage)
-     * @param expert_to_tokens Routing map: expert_id -> [token_ids] (reusable storage)
      */
-    void run(size_t real_idx,
-             size_t idx,
-             const MoEIO& io,
-             std::map<size_t, std::vector<size_t>>& token_to_experts,
-             std::map<size_t, std::vector<size_t>>& expert_to_tokens);
+    void run(size_t real_idx, size_t idx, const MoEIO& io);
 
     /**
      * @brief Get expert output accumulator buffer
@@ -227,6 +221,10 @@ private:
     // - expert_output_accumulator: shared (single instance)
     MoEResources m_resources;  // Single instance, shared by all sublayers
 
+    // Routing maps (reused across inferences to avoid repeated allocation)
+    std::map<size_t, std::vector<size_t>> m_token_to_experts;
+    std::map<size_t, std::vector<size_t>> m_expert_to_tokens;
+
     // === Execution modes ===
 
     /**
@@ -252,15 +250,11 @@ private:
      * @param real_idx Submodel index
      * @param selected_experts List of selected expert IDs
      * @param io MoE I/O tensors
-     * @param token_to_experts Routing map: token_id -> [expert_ids]
-     * @param expert_to_tokens Routing map: expert_id -> [token_ids]
      */
     void run_iterative_experts(size_t idx,
                                size_t real_idx,
                                const std::vector<size_t>& selected_experts,
-                               const MoEIO& io,
-                               std::map<size_t, std::vector<size_t>>& token_to_experts,
-                               std::map<size_t, std::vector<size_t>>& expert_to_tokens);
+                               const MoEIO& io);
 
     // === Helper functions ===
 
