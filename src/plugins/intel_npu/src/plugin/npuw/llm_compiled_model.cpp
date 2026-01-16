@@ -1093,6 +1093,19 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
+bool is_int8_compressed(const std::shared_ptr<ov::Model>& model) {
+    std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "mode"};
+    if (!model->has_rt_info(rt_info_path)) {
+        // NB: Model isn't compressed by NNCF - skip
+        return false;
+    }
+    auto mode = model->get_rt_info<std::string>(rt_info_path);
+    if (mode.find("int8") != std::string::npos) {
+        return true;
+    }
+    return false;
+}
+
 struct NPUDesc {
     std::string arch;
     int64_t max_tiles = 0;
@@ -1259,13 +1272,10 @@ void update_config_for_whisper(ov::AnyMap& config) {
     config.erase("NPUW_SLICE_OUT");
 }
 
-bool is_int8_model(const std::shared_ptr<ov::Model>& model) {
-    for (const auto& op : model->get_ops()) {
-        if (op->get_element_type() == ov::element::i8 || op->get_element_type() == ov::element::u8) {
-            return true;
-        }
-    }
-    return false;
+void disable_ws_for_whisper(ov::AnyMap& config) {
+    config.erase("NPUW_FUNCALL_FOR_ALL");
+    config.erase("NPUW_FOLD");
+    config.erase("NPUW_CWAI");
 }
 
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
@@ -1493,13 +1503,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
         m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
-
-        if (auto it = other_props.find("NPUW_FUNCALL_FOR_ALL");
-            it != other_props.end() && it->second.as<bool>() == true && is_int8_model(model)) {
-            other_props.at("NPUW_FUNCALL_FOR_ALL") = "NO";
-            other_props.at("NPUW_FOLD") = "NO";
-            LOG_INFO("WS is disabled for Whisper int8 model!");
-        }
     }
 
     m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
@@ -1783,6 +1786,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (m_is_whisper) {
         update_config_for_whisper(prefill_config);
+        if (is_int8_compressed(model)) {
+            disable_ws_for_whisper(prefill_config);
+            disable_ws_for_whisper(generate_config);
+            LOG_INFO(" WS is disabled for Whisper int8 model!");
+        }
     }
 
     if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
