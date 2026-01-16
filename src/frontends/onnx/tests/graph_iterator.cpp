@@ -7,25 +7,21 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <fstream>
-#include <iostream>
 #include <map>
 #include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/graph_iterator.hpp>
 #include <openvino/frontend/input_model.hpp>
 #include <openvino/openvino.hpp>
-#include <system_error>
 #include <unordered_map>
+#include <vector>
 
 #include "../frontend/src/core/graph_iterator_proto.hpp"
+#include "../frontend/src/core/decoder_proto.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_case.hpp"
 #include "load_from.hpp"
 #include "onnx_utils.hpp"
 #include "utils.hpp"
-
-using ::ONNX_NAMESPACE::ModelProto;
-using ::ONNX_NAMESPACE::Version;
 
 class SimpleIterator : public ov::frontend::onnx::GraphIterator {
 public:
@@ -64,6 +60,20 @@ public:
 
     ~SimpleIterator() override {};
 };
+
+namespace {
+
+class GraphIteratorProtoAccessor : public ov::frontend::onnx::GraphIteratorProto {
+public:
+    using ov::frontend::onnx::GraphIteratorProto::GraphIteratorProto;
+
+    std::shared_ptr<ov::frontend::onnx::DecoderProtoTensor> get_tensor_by_name(const std::string& name) {
+        GraphIteratorProto* owner = nullptr;
+        return GraphIteratorProto::get_tensor(name, &owner);
+    }
+};
+
+}  // namespace
 
 TEST_P(FrontEndLoadFromTest, testLoadUsingSimpleGraphIterator) {
     ov::frontend::FrontEnd::Ptr fe;
@@ -236,4 +246,48 @@ TEST(FrontEndGraphIteratorTest, loads_bfloat16_raw_initializer_via_iterator) {
     ov::test::TestCase test_case(model);
     test_case.add_expected_output<ov::bfloat16>(ov::Shape{2, 2}, expected_data);
     test_case.run();
+}
+
+TEST(FrontEndGraphIteratorTest, handles_optional_value_info) {
+    const std::string model_name = "graph_iterator/optional_value_info.onnx";
+    const auto model_path = ov::util::path_join(
+        {ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name});
+
+    GraphIteratorProtoAccessor iterator(ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::Internal_Stream);
+    ASSERT_NO_THROW(iterator.initialize(model_path));
+    ASSERT_NO_THROW(iterator.reset());
+
+    auto optional_input = iterator.get_tensor_by_name("optional_input");
+    ASSERT_NE(optional_input, nullptr);
+    const auto& input_info = optional_input->get_tensor_info();
+    EXPECT_EQ(input_info.m_element_type, ov::element::f32);
+    EXPECT_EQ(input_info.m_partial_shape, ov::PartialShape({2, 3}));
+
+    auto optional_output = iterator.get_tensor_by_name("optional_output");
+    ASSERT_NE(optional_output, nullptr);
+    const auto& output_info = optional_output->get_tensor_info();
+    EXPECT_EQ(output_info.m_element_type, ov::element::f32);
+    EXPECT_EQ(output_info.m_partial_shape, ov::PartialShape({2, 3}));
+}
+
+TEST(FrontEndGraphIteratorTest, handles_sequence_value_info) {
+    const std::string model_name = "graph_iterator/sequence_value_info.onnx";
+    const auto model_path = ov::util::path_join(
+        {ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name});
+
+    GraphIteratorProtoAccessor iterator(ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::Internal_Stream);
+    ASSERT_NO_THROW(iterator.initialize(model_path));
+    ASSERT_NO_THROW(iterator.reset());
+
+    auto sequence_input = iterator.get_tensor_by_name("sequence_input");
+    ASSERT_NE(sequence_input, nullptr);
+    const auto& input_info = sequence_input->get_tensor_info();
+    EXPECT_EQ(input_info.m_element_type, ov::element::i64);
+    EXPECT_EQ(input_info.m_partial_shape, ov::PartialShape({4}));
+
+    auto sequence_output = iterator.get_tensor_by_name("sequence_output");
+    ASSERT_NE(sequence_output, nullptr);
+    const auto& output_info = sequence_output->get_tensor_info();
+    EXPECT_EQ(output_info.m_element_type, ov::element::i64);
+    EXPECT_EQ(output_info.m_partial_shape, ov::PartialShape({4}));
 }
