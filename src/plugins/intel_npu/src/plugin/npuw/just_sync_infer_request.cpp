@@ -41,18 +41,6 @@ void ov::npuw::JustInferRequest::unpack_closure(size_t idx, ov::SoPtr<ov::IAsync
     IBaseInferRequest::unpack_closure(idx, request);
 }
 
-void ov::npuw::JustInferRequest::unpack_single_expert_closure(size_t idx,
-                                                              ov::SoPtr<ov::IAsyncInferRequest> request,
-                                                              size_t expert_id) {
-    IBaseInferRequest::unpack_single_expert_closure(idx, request, expert_id);
-}
-
-void ov::npuw::JustInferRequest::unpack_multiple_experts_closure(size_t idx,
-                                                                 ov::SoPtr<ov::IAsyncInferRequest> request,
-                                                                 const std::vector<size_t>& expert_ids) {
-    IBaseInferRequest::unpack_multiple_experts_closure(idx, request, expert_ids);
-}
-
 // ====================================================================================================
 // Memory Access Simulation & Function Memory Management
 // ====================================================================================================
