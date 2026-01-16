@@ -308,7 +308,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     }
                     #if KV_CACHE_COMPRESSION_BY_TOKEN
                     matrix<half, REG_N, REG_K> KtNormal = temp;
-                    KtNormal = KtNormal - temp_scale;
+                    KtNormal = KtNormal - temp_zp;
                     KtNormal = cm_mul<half>(KtNormal, temp_scale);
                     #else
                     vector<half, REG_K> temp_scale, temp_zp;
