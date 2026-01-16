@@ -74,13 +74,6 @@ public:
                                    const std::string& device) = 0;
 
     /**
-     * @brief Unpack function closure (non-expert parameters)
-     * @param idx Function call index
-     * @param request Target infer request
-     */
-    virtual void unpack_closure(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request) = 0;
-
-    /**
      * @brief Check if closure parameter is a gather closure (should be skipped)
      * @param idx Submodel index
      * @param cidx Closure parameter index
