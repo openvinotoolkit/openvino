@@ -306,7 +306,7 @@ void Split::prepareParams() {
 
     if (!canUseOptimizedNspc2Ncsp) {
         const auto inDesc = srcMemPtr->getDescWithType<BlockedMemoryDesc>();
-        execPtr = std::make_shared<SplitOptimizedExecutor>(inDesc, outDescs, axis, context->getCpuParallel());
+        execPtr = std::make_shared<SplitOptimizedExecutor>(inDesc, outDescs, axis);
     }
 }
 
@@ -334,7 +334,7 @@ void Split::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     auto* srcData = srcMem.getDataAs<uint8_t>();
     CPU_NODE_ASSERT(execPtr, "Split executor is not initialized");
-    execPtr->exec(srcData, getRawDstMemPtrs());
+    execPtr->exec(srcData, getRawDstMemPtrs(), context->getCpuParallel());
 }
 
 bool Split::created() const {
@@ -516,9 +516,7 @@ std::vector<uint8_t*> Split::getRawDstMemPtrs() const {
 
 Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPtr& inDesc,
                                                       const std::vector<BlockedMemoryDescCPtr>& outDescs,
-                                                      const size_t axis,
-                                                      const std::shared_ptr<CpuParallel>& parallel)
-    : cpuParallel(parallel) {
+                                                      const size_t axis) {
     // find axis order position
     const auto& order = inDesc->getOrder();
     unsigned axisOrderPos = std::numeric_limits<unsigned>::max();
@@ -561,7 +559,9 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPt
     }
 }
 
-void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) {
+void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData,
+                                         const std::vector<uint8_t*>& dstRawMemPtrs,
+                                         const CpuParallelPtr& cpuParallel) {
     size_t execCountStrides = countStrides;
     cpuParallel->parallel_for2d(dstRawMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
         uint8_t* dstData = dstRawMemPtrs[i];

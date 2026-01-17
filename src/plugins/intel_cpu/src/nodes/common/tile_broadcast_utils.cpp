@@ -287,7 +287,7 @@ void TileBroadcastCommon::broadcastScalar(const char* srcData, char* dstData, si
 
 void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory,
                                            const MemoryPtr& dstMemory,
-                                           const std::shared_ptr<CpuParallel>& cpuParallel) {
+                                           const CpuParallelPtr& cpuParallel) {
     const auto* srcData = srcMemory->getDataAs<const char>();
     auto* dstData = dstMemory->getDataAs<char>();
 

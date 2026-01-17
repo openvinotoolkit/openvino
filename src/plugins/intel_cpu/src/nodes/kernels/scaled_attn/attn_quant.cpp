@@ -65,7 +65,7 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
                                       ov::intel_cpu::PlainTensor& temp_buffer,
                                       size_t sub_seq_id,
                                       size_t h,
-                                      const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel) {
+                                      const CpuParallelPtr& cpu_parallel) {
     // scale f32[S] zp f32[S] offset in bytes
     const auto S = src.m_dims[3];
     const size_t params_offset = 2 * sizeof(float) * S;
@@ -175,7 +175,7 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                           const bool quant_key_by_channel,
                           const size_t key_group_size,
                           const size_t value_group_size,
-                          const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel) {
+                          const CpuParallelPtr& cpu_parallel) {
     // For compatibility, all input_kvs are permuted to BHLS
     size_t B = k_src.m_dims[0];
     size_t H = k_src.m_dims[1];
@@ -287,7 +287,7 @@ static void saged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const ov::intel_cpu::PlainTensor& slot_mapping,
                                 ov::intel_cpu::PlainTensor& temp_buffer,
                                 const QuantizeParam& quant_param,
-                                const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel) {
+                                const CpuParallelPtr& cpu_parallel) {
     const size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2];
     const size_t block_size = quant_param.quant_key_by_channel
                                   ? k_dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(KEY_DST_PREC)
@@ -332,7 +332,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const ov::intel_cpu::PlainTensor& slot_mapping,
                                 ov::intel_cpu::PlainTensor& temp_buffer,
                                 const QuantizeParam& quant_param,
-                                const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel) {
+                                const CpuParallelPtr& cpu_parallel) {
     const size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2];
     const size_t block_size = quant_param.quant_key_by_channel
                                   ? k_dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(KEY_DST_PREC)
@@ -413,7 +413,7 @@ void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                   const bool quant_k_by_channel,
                   const size_t k_group_size,
                   const size_t v_group_size,
-                  const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel) {
+                  const CpuParallelPtr& cpu_parallel) {
     if (k_src.get_precision() == ov::element::f32 && k_dst.get_precision() == ov::element::u8) {
         attn_quant_mt<float, uint8_t>(k_src,
                                       v_src,
@@ -473,7 +473,7 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                         const ov::intel_cpu::PlainTensor& slot_mapping,
                         ov::intel_cpu::PlainTensor& temp_buffer,
                         const QuantizeParam& quant_param,
-                        const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel) {
+                        const CpuParallelPtr& cpu_parallel) {
     using function_type = void (*)(const ov::intel_cpu::PlainTensor&,
                                    const ov::intel_cpu::PlainTensor&,
                                    const ov::intel_cpu::PlainTensor&,
@@ -485,7 +485,7 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                                    const ov::intel_cpu::PlainTensor&,
                                    ov::intel_cpu::PlainTensor&,
                                    const QuantizeParam&,
-                                   const std::shared_ptr<ov::intel_cpu::CpuParallel>&);
+                                   const CpuParallelPtr&);
     static constexpr function_type funcs_fp32[] = {paged_attn_quant_mt<float, ov::element::u8, ov::element::u8>,
                                                    paged_attn_quant_mt<float, ov::element::u8, ov::element::u4>,
                                                    paged_attn_quant_mt<float, ov::element::u4, ov::element::u8>,

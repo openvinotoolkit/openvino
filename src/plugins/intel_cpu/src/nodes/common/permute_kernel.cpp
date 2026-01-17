@@ -184,9 +184,8 @@ private:
 
 #endif  // OPENVINO_ARCH_X86_64
 
-PermuteKernel::PermuteKernel(const PermuteParams& params, const std::shared_ptr<CpuParallel>& parallel)
-    : params(params),
-      cpu_parallel(parallel) {
+PermuteKernel::PermuteKernel(const PermuteParams& params)
+    : params(params) {
     jcp = TransposeExecutor::prepareParams(params);
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
@@ -203,26 +202,32 @@ PermuteKernel::PermuteKernel(const PermuteParams& params, const std::shared_ptr<
     }
 }
 
-void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
+void PermuteKernel::execute(const uint8_t* src_data,
+                            uint8_t* dst_data,
+                            const int mb,
+                            const CpuParallelPtr& cpu_parallel) {
     if (permute_kernel) {
-        optimizedExecute(src_data, dst_data, mb);
+        optimizedExecute(src_data, dst_data, mb, cpu_parallel);
         return;
     }
 
     RefTransposeExecutor::referenceExecute(src_data, dst_data, jcp, mb);
 }
 
-void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data) {
+void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const CpuParallelPtr& cpu_parallel) {
     VectorDims dst_dims = jcp.dst_block_dims;
     if (permute_kernel) {
-        optimizedExecute(src_data, dst_data, dst_dims[0]);
+        optimizedExecute(src_data, dst_data, dst_dims[0], cpu_parallel);
         return;
     }
 
     RefTransposeExecutor::referenceExecute(src_data, dst_data, jcp, dst_dims[0]);
 }
 
-void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst_data, const int mb) {
+void PermuteKernel::optimizedExecute(const uint8_t* src_data,
+                                     const uint8_t* dst_data,
+                                     const int mb,
+                                     const CpuParallelPtr& cpu_parallel) {
     VectorDims dst_dims = jcp.dst_block_dims;
     const VectorDims dst_strides = jcp.dst_strides;
     const VectorDims src_strides = jcp.src_strides;

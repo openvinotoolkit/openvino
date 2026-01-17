@@ -70,22 +70,20 @@ class Converter : public ColorConvert::Converter {
     using Base = ColorConvert::Converter;
 
 public:
-    explicit Converter(Node* node, const std::shared_ptr<CpuParallel>& parallel);
+    explicit Converter(Node* node);
 
     [[nodiscard]] bool singlePlane() const;
 
     template <typename T>
     std::tuple<T, T, T> yuv_to_rgb(float y, float u, float v);
-    std::shared_ptr<CpuParallel> cpu_parallel;
 };
 
-Converter::Converter(Node* node, const std::shared_ptr<CpuParallel>& parallel)
+Converter::Converter(Node* node)
     : Base(node,
            node->getAlgorithm() == Algorithm::ColorConvertNV12toRGB ||
                    node->getAlgorithm() == Algorithm::ColorConvertI420toRGB
                ? ColorFormat{{0, 1, 2}}
-               : ColorFormat{{2, 1, 0}}),
-      cpu_parallel(parallel) {}
+               : ColorFormat{{2, 1, 0}}) {}
 
 bool Converter::singlePlane() const {
     return _node->getOriginalInputsNumber() == 1;
@@ -327,7 +325,7 @@ class TwoPlaneConvert;
 
 class RefConverter : public Converter {
 public:
-    explicit RefConverter(Node* node, const std::shared_ptr<CpuParallel>& parallel);
+    explicit RefConverter(Node* node);
 
 protected:
     template <typename T>
@@ -338,10 +336,11 @@ protected:
                  size_t height,
                  size_t width,
                  size_t stride_y,
-                 size_t stride_uv);
+                 size_t stride_uv,
+                 const CpuParallelPtr& cpu_parallel);
 };
 
-RefConverter::RefConverter(Node* node, const std::shared_ptr<CpuParallel>& parallel) : Converter(node, parallel) {
+RefConverter::RefConverter(Node* node) : Converter(node) {
     OPENVINO_ASSERT(node->getOriginalInputsNumber() == (singlePlane() ? 1 : 2),
                     "NV12Converter node has incorrect number of inputs");
     OPENVINO_ASSERT(node->getOriginalOutputsNumber(), "NV12Converter node has incorrect number of outputs");
@@ -355,7 +354,8 @@ void RefConverter::convert(const T* y,
                            size_t height,
                            size_t width,
                            size_t stride_y,
-                           size_t stride_uv) {
+                           size_t stride_uv,
+                           const CpuParallelPtr& cpu_parallel) {
     cpu_parallel->parallel_for2d(batch_size, height, [&](int batch, int h) {
         T* out = dst + batch * width * height * 3;
         auto y_ptr = y + batch * stride_y;
@@ -380,7 +380,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -391,7 +391,7 @@ public:
         const T* uv = y + width * height;
         T* dst = static_cast<T*>(output(0));
 
-        convert<T>(y, uv, dst, batch_size, height, width, height * width * 3 / 2, height * width * 3 / 2);
+        convert<T>(y, uv, dst, batch_size, height, width, height * width * 3 / 2, height * width * 3 / 2, cpu_parallel);
     }
 };
 
@@ -400,7 +400,7 @@ class TwoPlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -411,7 +411,7 @@ public:
         const size_t height = dims[H_DIM];
         const size_t width = dims[W_DIM];
 
-        convert<T>(y, uv, dst, batch_size, height, width, height * width, height * width / 2);
+        convert<T>(y, uv, dst, batch_size, height, width, height * width, height * width / 2, cpu_parallel);
     }
 };
 
@@ -559,11 +559,11 @@ const jit_uni_converter& jit_converter_get() {
 template <typename T>
 class SinglePlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    explicit SinglePlaneConvert(Node* node, const std::shared_ptr<CpuParallel>& parallel) : Converter(node, parallel) {
+    explicit SinglePlaneConvert(Node* node) : Converter(node) {
         jit_converter_create<T>();
     }
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -595,11 +595,11 @@ public:
 template <typename T>
 class TwoPlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    explicit TwoPlaneConvert(Node* node, const std::shared_ptr<CpuParallel>& parallel) : Converter(node, parallel) {
+    explicit TwoPlaneConvert(Node* node) : Converter(node) {
         jit_converter_create<T>();
     }
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -656,7 +656,7 @@ class ThreePlaneConvert;
 
 class RefConverter : public Converter {
 public:
-    explicit RefConverter(Node* node, const std::shared_ptr<CpuParallel>& parallel);
+    explicit RefConverter(Node* node);
 
 protected:
     template <typename T>
@@ -668,10 +668,11 @@ protected:
                  size_t height,
                  size_t width,
                  size_t stride_y,
-                 size_t stride_uv);
+                 size_t stride_uv,
+                 const CpuParallelPtr& cpu_parallel);
 };
 
-RefConverter::RefConverter(Node* node, const std::shared_ptr<CpuParallel>& parallel) : Converter(node, parallel) {
+RefConverter::RefConverter(Node* node) : Converter(node) {
     OPENVINO_ASSERT(node->getOriginalInputsNumber() == (singlePlane() ? 1 : 3),
                     "I420Converter node has incorrect number of inputs");
     OPENVINO_ASSERT(node->getOriginalOutputsNumber(), "I420Converter node has incorrect number of outputs");
@@ -686,7 +687,8 @@ void RefConverter::convert(const T* y,
                            size_t height,
                            size_t width,
                            size_t stride_y,
-                           size_t stride_uv) {
+                           size_t stride_uv,
+                           const CpuParallelPtr& cpu_parallel) {
     cpu_parallel->parallel_for2d(batch_size, height, [&](int batch, int h) {
         T* out = dst + batch * width * height * 3;
         auto y_ptr = y + batch * stride_y;
@@ -712,7 +714,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -724,7 +726,7 @@ public:
         const T* v = y + 5 * width * height / 4;
         T* dst = static_cast<T*>(output(0));
 
-        convert<T>(y, u, v, dst, batch_size, height, width, height * width * 3 / 2, height * width * 3 / 2);
+        convert<T>(y, u, v, dst, batch_size, height, width, height * width * 3 / 2, height * width * 3 / 2, cpu_parallel);
     }
 };
 
@@ -733,7 +735,7 @@ class ThreePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -745,7 +747,7 @@ public:
         const size_t height = dims[H_DIM];
         const size_t width = dims[W_DIM];
 
-        convert<T>(y, u, v, dst, batch_size, height, width, height * width, height * width / 4);
+        convert<T>(y, u, v, dst, batch_size, height, width, height * width, height * width / 4, cpu_parallel);
     }
 };
 
@@ -892,11 +894,11 @@ const jit_uni_converter& jit_converter_get() {
 template <typename T>
 class SinglePlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    explicit SinglePlaneConvert(Node* node, const std::shared_ptr<CpuParallel>& parallel) : Converter(node, parallel) {
+    explicit SinglePlaneConvert(Node* node) : Converter(node) {
         jit_converter_create<T>();
     }
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -929,11 +931,11 @@ public:
 template <typename T>
 class ThreePlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    explicit ThreePlaneConvert(Node* node, const std::shared_ptr<CpuParallel>& parallel) : Converter(node, parallel) {
+    explicit ThreePlaneConvert(Node* node) : Converter(node) {
         jit_converter_create<T>();
     }
 
-    void execute([[maybe_unused]] const dnnl::stream& strm) override {
+    void execute(const CpuParallelPtr& cpu_parallel, [[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -998,8 +1000,7 @@ bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
 }
 
 ColorConvert::ColorConvert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, ColorConvertShapeInferFactory(op)),
-      _cpuParallel(context->getCpuParallel()) {
+    : Node(op, context, ColorConvertShapeInferFactory(op)) {
     std::string errorMessage;
     std::tie(algorithm, errorMessage) = getAlgorithmFor(op);
     if (algorithm == Algorithm::Default) {
@@ -1043,9 +1044,9 @@ void ColorConvert::initSupportedPrimitiveDescriptors() {
 }
 
 void ColorConvert::initSupportedNV12Impls() {
-#define SUPPORTED_IMPL(Impl, type, desc_type)                                       \
-    [](Node* node, const std::shared_ptr<CpuParallel>& cpu_parallel) {              \
-        return new nv12::Impl<type, impl_desc_type::desc_type>(node, cpu_parallel); \
+#define SUPPORTED_IMPL(Impl, type, desc_type)                         \
+    [](Node* node) {                                                  \
+        return new nv12::Impl<type, impl_desc_type::desc_type>(node); \
     };
 
     // ref
@@ -1071,9 +1072,9 @@ void ColorConvert::initSupportedNV12Impls() {
 }
 
 void ColorConvert::initSupportedI420Impls() {
-#define SUPPORTED_IMPL(Impl, type, desc_type)                                       \
-    [](Node* node, const std::shared_ptr<CpuParallel>& cpu_parallel) {              \
-        return new i420::Impl<type, impl_desc_type::desc_type>(node, cpu_parallel); \
+#define SUPPORTED_IMPL(Impl, type, desc_type)                         \
+    [](Node* node) {                                                  \
+        return new i420::Impl<type, impl_desc_type::desc_type>(node); \
     };
 
     // ref
@@ -1110,13 +1111,13 @@ void ColorConvert::createPrimitive() {
         _impl = std::unique_ptr<Converter>(_supportedImpls.at(desc->getImplementationType())
                                                .at(algorithm)
                                                .at(precision)
-                                               .at(isSinglePlane)(this, _cpuParallel));
+                                               .at(isSinglePlane)(this));
     }
 }
 
 void ColorConvert::execute(const dnnl::stream& strm) {
     CPU_NODE_ASSERT(_impl, "has no any implemented converter");
-    _impl->execute(strm);
+    _impl->execute(context->getCpuParallel(), strm);
 }
 
 bool ColorConvert::created() const {

@@ -49,8 +49,7 @@ bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
 }
 
 Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, NgraphShapeInferFactory(op)),
-      cpuParallel(context->getCpuParallel()) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -179,7 +178,7 @@ void Tile::executeDynamicImpl(const dnnl::stream& strm) {
 
 void Tile::execute(const dnnl::stream& strm) {
     if (optimizedCase) {
-        optimizedExecute(getSrcMemoryAtPort(TILE_INPUT), getDstMemoryAtPort(0), cpuParallel);
+        optimizedExecute(getSrcMemoryAtPort(TILE_INPUT), getDstMemoryAtPort(0), context->getCpuParallel());
     } else {
         plainExecute(strm);
     }

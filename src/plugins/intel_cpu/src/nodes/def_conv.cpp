@@ -745,7 +745,6 @@ struct DefConvKey {
     std::vector<std::shared_ptr<BlockedMemoryDesc>> descVector;
     DeformableConvolution::DefConvAttr defConvAttr;
     impl_desc_type implType;
-    std::shared_ptr<CpuParallel> cpuParallel;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const DefConvKey& rhs) const;
@@ -933,6 +932,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
 }
 
 void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float* offsets,
+                                                                    const CpuParallelPtr& cpuParallel,
                                                                     const float* modulation,
                                                                     [[maybe_unused]] bool enforceRef) {
     const int MB = jcp.mb;
@@ -1059,9 +1059,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
 
 DeformableConvolution::DefConvExecutor::DefConvExecutor(
     const DefConvAttr& defConvAttr,
-    const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector,
-    const std::shared_ptr<CpuParallel>& parallel)
-    : cpuParallel(parallel) {
+    const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector) {
     OPENVINO_ASSERT(any_of(descVector.size(), 4U, 5U),
                     "Deformable Convolution executor got incorrect desc's count (",
                     descVector.size(),
@@ -1141,9 +1139,8 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(
 
 DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(
     const DefConvAttr& defConvAttr,
-    const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector,
-    const std::shared_ptr<CpuParallel>& parallel)
-    : DefConvExecutor(defConvAttr, descVector, parallel) {
+    const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector)
+    : DefConvExecutor(defConvAttr, descVector) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         def_conv_kernel = std::make_shared<jit_uni_def_conv_kernel_f32<cpu::x64::avx512_core>>(jcp);
@@ -1168,10 +1165,11 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
                                                      const float* modulation,
                                                      float* dst,
                                                      int* pSampledCoordsVector,
-                                                     float* pInterpWeightsVector) {
+                                                     float* pInterpWeightsVector,
+                                                     const CpuParallelPtr& cpuParallel) {
     this->pSampledCoordsVector = pSampledCoordsVector;
     this->pInterpWeightsVector = pInterpWeightsVector;
-    prepareSamplingWeights(offsets, modulation, true);
+    prepareSamplingWeights(offsets, cpuParallel, modulation, true);
     const int G = jcp.ngroups;
     const int MB = jcp.mb;
     const int OH = jcp.oh;
@@ -1284,10 +1282,7 @@ void DeformableConvolution::prepareParams() {
     }
     descVector.push_back(getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>());
 
-    DefConvKey key = {descVector,
-                      defConvAttr,
-                      getSelectedPrimitiveDescriptor()->getImplementationType(),
-                      context->getCpuParallel()};
+    DefConvKey key = {descVector, defConvAttr, getSelectedPrimitiveDescriptor()->getImplementationType()};
 
     const int MB = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims()[0];
     const int OH = getChildEdgeAt(0)->getMemory().getStaticDims()[2];
@@ -1307,9 +1302,9 @@ void DeformableConvolution::prepareParams() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, [](const DefConvKey& key) -> std::shared_ptr<DefConvExecutor> {
         if (key.implType == impl_desc_type::ref) {
-            return std::make_shared<DefConvRefExecutor>(key.defConvAttr, key.descVector, key.cpuParallel);
+            return std::make_shared<DefConvRefExecutor>(key.defConvAttr, key.descVector);
         }
-        return std::make_shared<DefConvJitExecutor>(key.defConvAttr, key.descVector, key.cpuParallel);
+        return std::make_shared<DefConvJitExecutor>(key.defConvAttr, key.descVector);
     });
     execPtr = result.first;
 
@@ -1326,10 +1321,11 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src,
                                                      const float* modulation,
                                                      float* dst,
                                                      int* pSampledCoordsVector,
-                                                     float* pInterpWeightsVector) {
+                                                     float* pInterpWeightsVector,
+                                                     const CpuParallelPtr& cpuParallel) {
     this->pSampledCoordsVector = pSampledCoordsVector;
     this->pInterpWeightsVector = pInterpWeightsVector;
-    prepareSamplingWeights(offsets, modulation, false);
+    prepareSamplingWeights(offsets, cpuParallel, modulation, false);
     size_t buffer_size = static_cast<size_t>(jcp.nthr) * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic * jcp.typesize_in;
     std::vector<float> input_buffer(buffer_size, 0);
     float* input_buffer_ptr = input_buffer.data();
@@ -1380,7 +1376,14 @@ void DeformableConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     CPU_NODE_ASSERT(execPtr, "executor doesn't exist");
-    execPtr->exec(src, offsets, weights, modulation, dst, sampledCoordsVector.data(), interpWeightsVector.data());
+    execPtr->exec(src,
+                  offsets,
+                  weights,
+                  modulation,
+                  dst,
+                  sampledCoordsVector.data(),
+                  interpWeightsVector.data(),
+                  context->getCpuParallel());
 }
 
 void DeformableConvolution::updatePadding() {

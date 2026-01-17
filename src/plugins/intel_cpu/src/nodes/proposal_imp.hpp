@@ -47,7 +47,7 @@ void proposal_exec(const float* input0,
                    float* output0,
                    float* output1,
                    proposal_conf& conf,
-                   const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel);
+                   const CpuParallelPtr& cpu_parallel);
 
 }  // namespace XARCH
 }  // namespace ov::Extensions::Cpu

@@ -460,7 +460,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
                          int dim,
                          int w_rank,
                          int w_size,
-                         const std::shared_ptr<CpuParallel>& cpu_parallel,
+                         const CpuParallelPtr& cpu_parallel,
                          bool need_fill = true);
 
 }  // namespace ov::intel_cpu

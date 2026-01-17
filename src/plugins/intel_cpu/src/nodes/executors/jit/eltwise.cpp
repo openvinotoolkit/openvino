@@ -320,7 +320,9 @@ EltwiseJitExecutor::EltwiseJitExecutor(const Key& key)
     m_kernel->create_ker();
 }
 
-void EltwiseJitExecutor::exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) {
+void EltwiseJitExecutor::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+                              const VectorDims& dims_out,
+                              const CpuParallelPtr& cpu_parallel) {
     if (!m_kernel) {
         OPENVINO_THROW("Can't execute, kernel for eltwise node is not compiled");
     }

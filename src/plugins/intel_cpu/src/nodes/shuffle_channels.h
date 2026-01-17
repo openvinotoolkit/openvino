@@ -41,7 +41,6 @@ public:
         size_t dataSize = 1LU;
         VectorDims srcDims;
         VectorDims srcBlockedDims;
-        std::shared_ptr<CpuParallel> cpuParallel;
         [[nodiscard]] size_t hash() const;
         bool operator==(const ShuffleChannelsAttributes& rhs) const;
     };
@@ -54,12 +53,11 @@ private:
 
     struct ShuffleChannelsExecutor final {
         explicit ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs);
-        void exec(const uint8_t* srcData, uint8_t* dstData, int MB);
+        void exec(const uint8_t* srcData, uint8_t* dstData, int MB, const CpuParallelPtr& cpuParallel);
         ~ShuffleChannelsExecutor() = default;
 
     private:
         std::unique_ptr<PermuteKernel> permuteKernel = nullptr;
-        std::shared_ptr<CpuParallel> cpuParallel;
     };
     using executorPtr = std::shared_ptr<ShuffleChannelsExecutor>;
     executorPtr execPtr = nullptr;

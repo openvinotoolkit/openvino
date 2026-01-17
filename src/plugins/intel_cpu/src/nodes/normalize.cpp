@@ -84,7 +84,6 @@ struct NormalizeKey {
     NormalizeL2::NormalizeL2Attrs attrs;
     dnnl::primitive_attr kernel_attrs;
     VectorDims dims;
-    std::shared_ptr<CpuParallel> cpu_parallel;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const NormalizeKey& rhs) const;
@@ -1007,10 +1006,10 @@ void NormalizeL2::prepareParams() {
 
     setPostOps(kernel_attrs, dims, true);
 
-    NormalizeKey key = {attrs, kernel_attrs, dims, context->getCpuParallel()};
+    NormalizeKey key = {attrs, kernel_attrs, dims};
 
     auto builder = [](const NormalizeKey& key) -> std::shared_ptr<NormalizeL2::NormalizeL2Executor> {
-        return NormalizeL2Executor::getNormalizeL2Executor(key.attrs, key.kernel_attrs, key.dims, key.cpu_parallel);
+        return NormalizeL2Executor::getNormalizeL2Executor(key.attrs, key.kernel_attrs, key.dims);
     };
 
     auto cache = context->getParamsCache();
@@ -1030,7 +1029,7 @@ void NormalizeL2::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const auto* src_ptr = getSrcDataAtPortAs<const uint8_t>(DATA);
     auto* dst_ptr = getDstDataAtPortAs<uint8_t>(DATA);
-    execPtr->exec(src_ptr, dst_ptr, postOpsDataPtrs.data());
+    execPtr->exec(src_ptr, dst_ptr, context->getCpuParallel(), postOpsDataPtrs.data());
 }
 
 // *====================* CornerCase *===================*
@@ -1038,16 +1037,18 @@ void NormalizeL2::execute([[maybe_unused]] const dnnl::stream& strm) {
 template <typename in_data_t, typename out_data_t>
 class NormalizeL2::NormalizeL2CornerCaseExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
-    explicit NormalizeL2CornerCaseExecutor(const VectorDims& dims, const std::shared_ptr<CpuParallel>& parallel)
-        : workAmount(std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>())),
-          cpu_parallel(parallel) {}
+    explicit NormalizeL2CornerCaseExecutor(const VectorDims& dims)
+        : workAmount(std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>())) {}
 
-    void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, [[maybe_unused]] const void** post_ops_data) override {
-        normalize(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
+    void exec(const uint8_t* src_ptr,
+              uint8_t* dst_ptr,
+              const CpuParallelPtr& cpu_parallel,
+              [[maybe_unused]] const void** post_ops_data) override {
+        normalize(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr), cpu_parallel);
     }
 
 private:
-    void normalize(const in_data_t* src_data, out_data_t* dst_data) {
+    void normalize(const in_data_t* src_data, out_data_t* dst_data, const CpuParallelPtr& cpu_parallel) {
         cpu_parallel->parallel_for(workAmount, [&](size_t i) {
             dst_data[i] = src_data[i] == 0 ? 0 : 1;
         });
@@ -1066,10 +1067,8 @@ class NormalizeL2::NormalizeL2JitExecutor : public NormalizeL2::NormalizeL2Execu
 public:
     NormalizeL2JitExecutor(const NormalizeL2Attrs& attrs_,
                            const dnnl::primitive_attr& kernel_attrs,
-                           const VectorDims& dims,
-                           const std::shared_ptr<CpuParallel>& parallel)
-        : attrs(attrs_),
-          cpu_parallel(parallel) {
+                           const VectorDims& dims)
+        : attrs(attrs_) {
         OPENVINO_ASSERT(
             any_of(attrs.layout, LayoutType::ncsp, LayoutType::nspc, LayoutType::nCsp8c, LayoutType::nCsp16c),
             "Normalaize2L executor has selected layout which is not supported");
@@ -1117,24 +1116,30 @@ public:
         }
     }
 
-    void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, const void** post_ops_data) override {
+    void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, const CpuParallelPtr& cpu_parallel, const void** post_ops_data) override {
         if (jcp.is_nchw) {
             normalize_nchw(reinterpret_cast<const in_data_t*>(src_ptr),
                            reinterpret_cast<out_data_t*>(dst_ptr),
-                           post_ops_data);
+                           post_ops_data,
+                           cpu_parallel);
         } else if (jcp.is_nhwc) {
             normalize_nhwc(reinterpret_cast<const in_data_t*>(src_ptr),
                            reinterpret_cast<out_data_t*>(dst_ptr),
-                           post_ops_data);
+                           post_ops_data,
+                           cpu_parallel);
         } else if (jcp.is_blk) {
             normalize_blk(reinterpret_cast<const in_data_t*>(src_ptr),
                           reinterpret_cast<out_data_t*>(dst_ptr),
-                          post_ops_data);
+                          post_ops_data,
+                          cpu_parallel);
         }
     }
 
 private:
-    void normalize_nchw(const in_data_t* src_data, out_data_t* dst_data, const void** post_ops_data) {
+    void normalize_nchw(const in_data_t* src_data,
+                        out_data_t* dst_data,
+                        const void** post_ops_data,
+                        const CpuParallelPtr& cpu_parallel) {
         const size_t spatial_dims = jcp.h * jcp.w;
         for (size_t b = 0LU; b < jcp.n; b++) {
             const in_data_t* src_data_b = src_data + b * jcp.c * spatial_dims;
@@ -1225,7 +1230,10 @@ private:
         }
     }
 
-    void normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data, const void** post_ops_data) {
+    void normalize_nhwc(const in_data_t* src_data,
+                        out_data_t* dst_data,
+                        const void** post_ops_data,
+                        const CpuParallelPtr& cpu_parallel) {
         const size_t spatial_dims = jcp.h * jcp.w;
         const size_t c_w_dims = jcp.c * jcp.w;
         for (size_t b = 0LU; b < jcp.n; b++) {
@@ -1306,7 +1314,10 @@ private:
         }
     }
 
-    void normalize_blk(const in_data_t* src_data, out_data_t* dst_data, const void** post_ops_data) {
+    void normalize_blk(const in_data_t* src_data,
+                       out_data_t* dst_data,
+                       const void** post_ops_data,
+                       const CpuParallelPtr& cpu_parallel) {
         const size_t CB = div_up(jcp.c, blk_size);
         const size_t spatial_dims = jcp.h * jcp.w;
         const size_t w_blk_dims = jcp.w * blk_size;
@@ -1409,12 +1420,10 @@ class NormalizeL2::NormalizeL2ReferenceExecutor : public NormalizeL2::NormalizeL
 public:
     NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs,
                                  const dnnl::primitive_attr& kernel_attrs,
-                                 VectorDims dims,
-                                 const std::shared_ptr<CpuParallel>& parallel)
+                                 VectorDims dims)
         : dims(std::move(dims)),
           kernel_attrs(kernel_attrs),
-          attrs(attrs),
-          cpu_parallel(parallel) {
+          attrs(attrs) {
         OPENVINO_ASSERT(attrs.layout == LayoutType::ncsp,
                         "Reference Executor of 'NormalizeL2' supports only ncsp layout!");
 
@@ -1433,14 +1442,21 @@ public:
         }
     }
 
-    void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, const void** post_ops_data) override {
+    void exec(const uint8_t* src_ptr,
+              uint8_t* dst_ptr,
+              const CpuParallelPtr& cpu_parallel,
+              const void** post_ops_data) override {
         normalize_nchw_ref(reinterpret_cast<const in_data_t*>(src_ptr),
                            reinterpret_cast<out_data_t*>(dst_ptr),
-                           post_ops_data);
+                           post_ops_data,
+                           cpu_parallel);
     }
 
 private:
-    void normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data, const void** post_ops_data) {
+    void normalize_nchw_ref(const in_data_t* src_data,
+                            out_data_t* dst_data,
+                            const void** post_ops_data,
+                            const CpuParallelPtr& cpu_parallel) {
         size_t dims_size = dims.size();
         const size_t N = dims[0];
         const size_t C = dims[1];
@@ -1581,7 +1597,6 @@ private:
 
     std::vector<std::shared_ptr<dnnl::impl::cpu::ref_eltwise_scalar_fwd_t>> eltwise_injectors_ref;
     std::vector<std::shared_ptr<dnnl::impl::cpu::ref_depthwise_scalar_fwd_t>> depthwise_injectors_ref;
-    std::shared_ptr<CpuParallel> cpu_parallel;
 };
 
 // *=================* *======* *=================*
@@ -1589,9 +1604,8 @@ private:
 std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Executor::getNormalizeL2Executor(
     const NormalizeL2Attrs& attrs,
     const dnnl::primitive_attr& kernel_attrs,
-    const VectorDims& dims,
-    const std::shared_ptr<CpuParallel>& parallel) {
-    NormalizeContext ctx = {nullptr, attrs, kernel_attrs, dims, parallel};
+    const VectorDims& dims) {
+    NormalizeContext ctx = {nullptr, attrs, kernel_attrs, dims};
 
     OV_SWITCH(intel_cpu,
               NormalizeExecutorCreation,
@@ -1616,21 +1630,19 @@ template <typename in_data_t, typename out_data_t>
 std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Executor::makeExecutor(
     const NormalizeL2Attrs& attrs,
     const dnnl::primitive_attr& kernel_attrs,
-    const VectorDims& dims,
-    const std::shared_ptr<CpuParallel>& parallel) {
+    const VectorDims& dims) {
     if (attrs.cornerCase) {
-        return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims, parallel);
+        return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims);
 #if defined(OPENVINO_ARCH_X86_64)
     }
     if (mayiuse(cpu::x64::sse41)) {
-        return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims, parallel);
+        return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
 #endif
     }
     if (attrs.layout == LayoutType::ncsp) {
         return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs,
                                                                                      kernel_attrs,
-                                                                                     dims,
-                                                                                     parallel);
+                                                                                     dims);
     }
     OPENVINO_THROW("'NormalizeL2' cannot create Executor");
 }

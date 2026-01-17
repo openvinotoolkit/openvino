@@ -169,7 +169,6 @@ void ShuffleChannels::prepareParams() {
     };
     attrs.srcDims = srcMemPtr->getStaticDims();
     attrs.srcBlockedDims = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    attrs.cpuParallel = context->getCpuParallel();
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
@@ -178,8 +177,7 @@ void ShuffleChannels::prepareParams() {
     execPtr = result.first;
 }
 
-ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs)
-    : cpuParallel(attrs.cpuParallel) {
+ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs) {
     OPENVINO_ASSERT(
         any_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp),
         "ShuffleChannels executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.");
@@ -288,16 +286,19 @@ ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleC
         params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
     }
 
-    permuteKernel = std::make_unique<PermuteKernel>(params, cpuParallel);
+    permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
-void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint8_t* dstData, int MB) {
+void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData,
+                                                    uint8_t* dstData,
+                                                    int MB,
+                                                    const CpuParallelPtr& cpuParallel) {
     OPENVINO_ASSERT(permuteKernel, "Could not execute. Kernel for Transpose node was not compiled.");
 
     if (MB > 0) {
-        permuteKernel->execute(srcData, dstData, MB);
+        permuteKernel->execute(srcData, dstData, MB, cpuParallel);
     } else {
-        permuteKernel->execute(srcData, dstData);
+        permuteKernel->execute(srcData, dstData, cpuParallel);
     }
 }
 
@@ -312,7 +313,7 @@ void ShuffleChannels::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);
-    execPtr->exec(srcData, dstData, MB);
+    execPtr->exec(srcData, dstData, MB, context->getCpuParallel());
 }
 
 bool ShuffleChannels::created() const {

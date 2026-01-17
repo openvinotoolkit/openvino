@@ -44,7 +44,6 @@ private:
     int tiles = 0;
     bool noTiling = false;
     VectorDims originRepeats;
-    std::shared_ptr<CpuParallel> cpuParallel;
 };
 
 }  // namespace ov::intel_cpu::node

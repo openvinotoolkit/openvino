@@ -206,7 +206,6 @@ void DepthToSpace::createPrimitive() {
 
 void DepthToSpace::prepareParams() {
     attrs.srcBlockedDims = getSrcMemoryAtPort(0)->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    attrs.cpuParallel = context->getCpuParallel();
     auto builder = [](const DepthToSpaceAttrs& key) -> std::shared_ptr<DepthToSpaceExecutor> {
         return std::make_shared<DepthToSpaceExecutor>(key);
     };
@@ -218,8 +217,7 @@ void DepthToSpace::prepareParams() {
     execPtr = result.first;
 }
 
-DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs)
-    : cpuParallel(attrs.cpuParallel) {
+DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs) {
     OPENVINO_ASSERT(
         any_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp),
         "DepthToSpace executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.");
@@ -312,23 +310,26 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
         params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
     }
 
-    permuteKernel = std::make_unique<PermuteKernel>(params, cpuParallel);
+    permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
-void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, int MB) {
+void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr,
+                                              const MemoryPtr& dstMemPtr,
+                                              int MB,
+                                              const CpuParallelPtr& cpuParallel) {
     OPENVINO_ASSERT(permuteKernel, "Could not execute. Kernel for Transpose node was not compiled.");
 
     const auto* srcData = srcMemPtr->getDataAs<const uint8_t>();
     auto* dstData = dstMemPtr->getDataAs<uint8_t>();
 
-    permuteKernel->execute(srcData, dstData, MB);
+    permuteKernel->execute(srcData, dstData, MB, cpuParallel);
 }
 
 void DepthToSpace::execute([[maybe_unused]] const dnnl::stream& strm) {
     CPU_NODE_ASSERT(execPtr, "doesn't have a compiled executor.");
 
     int MB = getSrcMemoryAtPort(0)->getStaticDims()[0];
-    execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0), MB);
+    execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0), MB, context->getCpuParallel());
 }
 
 void DepthToSpace::executeDynamicImpl(const dnnl::stream& strm) {

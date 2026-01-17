@@ -458,3 +458,5 @@ private:
 };
 
 }  // namespace ov::intel_cpu
+
+using CpuParallelPtr = std::shared_ptr<ov::intel_cpu::CpuParallel>;

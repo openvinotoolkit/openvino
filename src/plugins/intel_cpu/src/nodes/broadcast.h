@@ -47,7 +47,6 @@ private:
 
     std::vector<int32_t> targetShape;
     std::vector<int32_t> axesMapping;
-    std::shared_ptr<CpuParallel> cpuParallel;
 };
 
 }  // namespace ov::intel_cpu::node

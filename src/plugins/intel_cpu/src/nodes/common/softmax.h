@@ -44,18 +44,24 @@ static inline void softmax_many_batches(const float* src_data, float* dst_data, 
 
 class SoftmaxGeneric {
 public:
-    SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPrc, const std::shared_ptr<CpuParallel>& cpuParallel);
+    SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPrc);
 
-    void execute(const uint8_t* src_data, uint8_t* dst_data, int B, int C, int H, int W);
+    void
+    execute(const uint8_t* src_data, uint8_t* dst_data, int B, int C, int H, int W, const CpuParallelPtr& cpu_parallel);
 
 private:
     template <typename in_data_t, typename out_data_t>
-    void calculate(const in_data_t* src_data, out_data_t* dst_data, int B, int C, int H, int W);
+    void calculate(const in_data_t* src_data,
+                   out_data_t* dst_data,
+                   int B,
+                   int C,
+                   int H,
+                   int W,
+                   const CpuParallelPtr& cpu_parallel);
 
     int block_size;
     ov::element::Type input_prec, output_prec;
     std::shared_ptr<jit_uni_softmax_kernel> softmax_kernel;
-    std::shared_ptr<CpuParallel> cpu_parallel;
 };
 
 }  // namespace ov::intel_cpu

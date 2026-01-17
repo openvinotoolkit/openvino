@@ -59,7 +59,7 @@ The functionality is equivalent to following python code:
 */
 template <typename T>
 struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPreprocess::Executor {
-    ExecutorCausalMaskPreprocess(const std::shared_ptr<CpuParallel>& parallel) : cpuParallel(parallel) {}
+    ExecutorCausalMaskPreprocess(const CpuParallelPtr& parallel) : cpuParallel(parallel) {}
     void execute([[maybe_unused]] const dnnl::stream& strm,
                  intel_cpu::Node* pnode,
                  [[maybe_unused]] const intel_cpu::CausalMaskPreprocessNode::Config& config) override {

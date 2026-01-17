@@ -184,7 +184,8 @@ void RDFT::execute([[maybe_unused]] const dnnl::stream& strm) {
                       inputShape,
                       outputShape,
                       inputStrides,
-                      outputStrides);
+                      outputStrides,
+                      context->getCpuParallel());
 }
 
 void RDFT::executeDynamicImpl(const dnnl::stream& strm) {
@@ -236,7 +237,7 @@ void RDFT::prepareParams() {
     }
 
     const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
-    twiddles = executor->generateTwiddles(signalSizes, outputShape, axes);
+    twiddles = executor->generateTwiddles(signalSizes, outputShape, axes, context->getCpuParallel());
 }
 
 bool RDFT::axesChanged() const {
@@ -327,7 +328,8 @@ void RDFTExecutor::execute(float* inputPtr,
                            VectorDims inputShape,
                            const VectorDims& outputShape,
                            const VectorDims& inputStrides,
-                           const VectorDims& outputStrides) {
+                           const VectorDims& outputStrides,
+                           const CpuParallelPtr& cpuParallel) {
     adjustInputSize(inputShape, signalSizes, axes, isInverse);
 
     if (rank == 1) {
@@ -340,7 +342,8 @@ void RDFTExecutor::execute(float* inputPtr,
                   outputShape[0],
                   isInverse ? complex_to_real : real_to_complex,
                   canUseFFT(signalSizes[0]),
-                  false);
+                  false,
+                  cpuParallel);
     } else {
         if (!isInverse) {
             rdftNd(inputPtr,
@@ -351,7 +354,8 @@ void RDFTExecutor::execute(float* inputPtr,
                    inputShape,
                    inputStrides,
                    outputShape,
-                   outputStrides);
+                   outputStrides,
+                   cpuParallel);
         } else {
             irdftNd(inputPtr,
                     outputPtr,
@@ -361,7 +365,8 @@ void RDFTExecutor::execute(float* inputPtr,
                     inputShape,
                     inputStrides,
                     outputShape,
-                    outputStrides);
+                    outputStrides,
+                    cpuParallel);
         }
     }
 }
@@ -459,7 +464,7 @@ static void fftCopyInverseInputData(float* dst,
                                     size_t inputSize,
                                     size_t signalSize,
                                     bool parallelize,
-                                    const std::shared_ptr<CpuParallel>& cpuParallel) {
+                                    const CpuParallelPtr& cpuParallel) {
     if (!parallelize) {
         cpu_memcpy(dst, src, inputSize * complex_type_size<float>());
         src = src + 2 * inputSize - 4;
@@ -485,7 +490,7 @@ static void fftCopyRealInputData(float* dst,
                                  const float* src,
                                  size_t inputSize,
                                  bool parallelize,
-                                 const std::shared_ptr<CpuParallel>& cpuParallel) {
+                                 const CpuParallelPtr& cpuParallel) {
     if (!parallelize) {
         for (size_t i = 0; i < inputSize; i++) {
             dst[2 * i] = src[i];
@@ -503,7 +508,7 @@ static void fftCopyInverseRealOutput(float* dst,
                                      const float* src,
                                      size_t signalSize,
                                      bool parallelize,
-                                     const std::shared_ptr<CpuParallel>& cpuParallel) {
+                                     const CpuParallelPtr& cpuParallel) {
     if (!parallelize) {
         for (size_t i = 0; i < signalSize; i++) {
             dst[i] = src[2 * i];
@@ -522,7 +527,8 @@ void RDFTExecutor::fft(float* input,
                        size_t signalSize,
                        size_t outputSize,
                        enum dft_type type,
-                       bool parallelize) {
+                       bool parallelize,
+                       const CpuParallelPtr& cpuParallel) {
     std::vector<float> scratchSpace(4 * signalSize, 0);
 
     float* inputPtr = input;
@@ -600,11 +606,12 @@ void RDFTExecutor::dftCommon(float* inputPtr,
                              size_t outputSize,
                              enum dft_type type,
                              bool useFFT,
-                             bool parallelize) {
+                             bool parallelize,
+                             const CpuParallelPtr& cpuParallel) {
     if (useFFT) {
-        fft(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, type, parallelize);
+        fft(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, type, parallelize, cpuParallel);
     } else {
-        dft(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, type, parallelize);
+        dft(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, type, parallelize, cpuParallel);
     }
 }
 
@@ -618,7 +625,8 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
                              const VectorDims& inputStrides,
                              const VectorDims& outputShape,
                              const VectorDims& outputStrides,
-                             const std::vector<size_t>& iterationRange) {
+                             const std::vector<size_t>& iterationRange,
+                             const CpuParallelPtr& cpuParallel) {
     size_t inputSize = inputShape[axis];
     size_t outputSize = outputShape[axis];
 
@@ -681,7 +689,8 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
                       outputSize,
                       type,
                       useFFT,
-                      !parallelizeOuterAxes);
+                      !parallelizeOuterAxes,
+                      cpuParallel);
             scatter(outputPtr, scatterBuffer, axis, coords, outputSize, outputStrides);
         });
     } else {
@@ -700,7 +709,8 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
                       outputSize,
                       type,
                       useFFT,
-                      !parallelizeOuterAxes);
+                      !parallelizeOuterAxes,
+                      cpuParallel);
             scatter(outputPtr, scatterBuffer, axis, coords, outputSize, outputStrides);
         }
     }
@@ -715,7 +725,8 @@ void RDFTExecutor::rdftNd(float* inputPtr,
                           const VectorDims& inputShape,
                           const VectorDims& inputStrides,
                           const VectorDims& outputShape,
-                          const VectorDims& outputStrides) {
+                          const VectorDims& outputStrides,
+                          const CpuParallelPtr& cpuParallel) {
     const std::vector<size_t> iterationRange(outputShape.begin(), outputShape.end() - 1);
 
     dftOnAxis(real_to_complex,
@@ -728,7 +739,8 @@ void RDFTExecutor::rdftNd(float* inputPtr,
               inputStrides,
               outputShape,
               outputStrides,
-              iterationRange);
+              iterationRange,
+              cpuParallel);
     inputPtr = outputPtr;
 
     for (size_t i = 0; i < axes.size() - 1; i++) {
@@ -743,7 +755,8 @@ void RDFTExecutor::rdftNd(float* inputPtr,
                   outputStrides,
                   outputShape,
                   outputStrides,
-                  iterationRange);
+                  iterationRange,
+                  cpuParallel);
     }
 }
 
@@ -756,7 +769,8 @@ void RDFTExecutor::irdftNd(float* inputPtr,
                            const VectorDims& inputShape,
                            const VectorDims& originalInputStrides,
                            const VectorDims& outputShape,
-                           const VectorDims& outputStrides) {
+                           const VectorDims& outputStrides,
+                           const CpuParallelPtr& cpuParallel) {
     const std::vector<size_t> iterationRange(inputShape.begin(), inputShape.end() - 1);
 
     if (axes.size() == 1) {
@@ -770,7 +784,8 @@ void RDFTExecutor::irdftNd(float* inputPtr,
                   originalInputStrides,
                   outputShape,
                   outputStrides,
-                  iterationRange);
+                  iterationRange,
+                  cpuParallel);
         return;
     }
 
@@ -801,7 +816,8 @@ void RDFTExecutor::irdftNd(float* inputPtr,
                   originalInputStrides,
                   inputShape,
                   inputStrides,
-                  iterationRange);
+                  iterationRange,
+                  cpuParallel);
         inputPtr = output;
     }
     dftOnAxis(complex_to_real,
@@ -814,7 +830,8 @@ void RDFTExecutor::irdftNd(float* inputPtr,
               inputStrides,
               outputShape,
               outputStrides,
-              iterationRange);
+              iterationRange,
+              cpuParallel);
 }
 
 std::vector<float> RDFTExecutor::generateTwiddlesFFT(size_t N) {
@@ -832,16 +849,18 @@ std::vector<float> RDFTExecutor::generateTwiddlesFFT(size_t N) {
 std::vector<float> RDFTExecutor::generateTwiddlesCommon(size_t signalSize,
                                                         size_t outputSize,
                                                         enum dft_type type,
-                                                        bool useFFT) {
+                                                        bool useFFT,
+                                                        const CpuParallelPtr& cpuParallel) {
     if (useFFT) {
         return generateTwiddlesFFT(signalSize);
     }
-    return generateTwiddlesDFT(signalSize, outputSize, type);
+    return generateTwiddlesDFT(signalSize, outputSize, cpuParallel, type);
 }
 
 std::vector<std::vector<float>> RDFTExecutor::generateTwiddles(const std::vector<int>& signalSizes,
                                                                const std::vector<size_t>& outputShape,
-                                                               const std::vector<int>& axes) {
+                                                               const std::vector<int>& axes,
+                                                               const CpuParallelPtr& cpuParallel) {
     std::vector<std::vector<float>> twiddles;
     twiddles.reserve(axes.size());
     for (size_t i = 0; i < axes.size(); i++) {
@@ -852,14 +871,13 @@ std::vector<std::vector<float>> RDFTExecutor::generateTwiddles(const std::vector
         if (i == axes.size() - 1) {
             type = isInverse ? complex_to_real : real_to_complex;
         }
-        twiddles.push_back(generateTwiddlesCommon(N, K, type, canUseFFT(N)));
+        twiddles.push_back(generateTwiddlesCommon(N, K, type, canUseFFT(N), cpuParallel));
     }
     return twiddles;
 }
 #if defined(OPENVINO_ARCH_X86_64)
 struct RDFTJitExecutor : public RDFTExecutor {
-    RDFTJitExecutor(bool inverse, NodeDesc* primDesc, const std::shared_ptr<CpuParallel>& cpuParallel)
-        : RDFTExecutor(inverse, cpuParallel) {
+    RDFTJitExecutor(bool inverse, NodeDesc* primDesc) : RDFTExecutor(inverse) {
         enum dft_type rdftType = isInverse ? complex_to_real : real_to_complex;
         if (mayiuse(cpu::x64::avx512_core)) {
             rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx512_core>>(isInverse, rdftType);
@@ -894,7 +912,10 @@ struct RDFTJitExecutor : public RDFTExecutor {
         }
     }
 
-    std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override {
+    std::vector<float> generateTwiddlesDFT(size_t inputSize,
+                                           size_t outputSize,
+                                           const CpuParallelPtr& cpuParallel,
+                                           enum dft_type type) override {
         std::vector<float> twiddles(inputSize * outputSize * 2);
         int simdSize = vlen / sizeof(float);
         if (type == real_to_complex) {
@@ -940,7 +961,8 @@ struct RDFTJitExecutor : public RDFTExecutor {
              size_t signalSize,
              size_t outputSize,
              enum dft_type type,
-             bool parallelize) override {
+             bool parallelize,
+             const CpuParallelPtr& cpuParallel) override {
         jit_dft_kernel* kernel = type == complex_to_complex ? dftKernel.get() : rdftKernel.get();
         if (parallelize) {
             const int cachelineSize = 64;
@@ -972,12 +994,12 @@ struct RDFTJitExecutor : public RDFTExecutor {
 #endif
 
 struct RDFTRefExecutor : public RDFTExecutor {
-    explicit RDFTRefExecutor(bool inverse, const std::shared_ptr<CpuParallel>& cpuParallel)
-        : RDFTExecutor(inverse, cpuParallel) {}
+    explicit RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
 
 private:
     std::vector<float> generateTwiddlesDFT(size_t inputSize,
                                            size_t outputSize,
+                                           const CpuParallelPtr& cpuParallel,
                                            [[maybe_unused]] enum dft_type type) override {
         std::vector<float> twiddles(inputSize * outputSize * 2);
         cpuParallel->parallel_for2d(outputSize, inputSize, [&](size_t k, size_t n) {
@@ -996,7 +1018,8 @@ private:
                           float* outputPtr,
                           size_t inputSize,
                           size_t outputSize,
-                          bool parallelize) {
+                          bool parallelize,
+                          const CpuParallelPtr& cpuParallel) {
         auto dftIteration = [&](size_t k) {
             float real = 0;
             float imag = 0;
@@ -1024,7 +1047,8 @@ private:
                              size_t inputSize,
                              size_t signalSize,
                              size_t outputSize,
-                             bool parallelize) {
+                             bool parallelize,
+                             const CpuParallelPtr& cpuParallel) {
         auto dftIteration = [&](size_t k) {
             float real = 0;
             float imag = 0;
@@ -1067,7 +1091,8 @@ private:
                           size_t inputSize,
                           size_t signalSize,
                           size_t outputSize,
-                          bool parallelize) {
+                          bool parallelize,
+                          const CpuParallelPtr& cpuParallel) {
         auto dftIteration = [&](size_t k) {
             float real = 0;
             for (size_t n = 0; n < inputSize; n++) {
@@ -1106,13 +1131,28 @@ private:
              size_t signalSize,
              size_t outputSize,
              enum dft_type type,
-             bool parallelize) override {
+             bool parallelize,
+             const CpuParallelPtr& cpuParallel) override {
         if (type == real_to_complex) {
-            dftRealToComplex(inputPtr, twiddlesPtr, outputPtr, inputSize, outputSize, parallelize);
+            dftRealToComplex(inputPtr, twiddlesPtr, outputPtr, inputSize, outputSize, parallelize, cpuParallel);
         } else if (type == complex_to_complex) {
-            dftComplexToComplex(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, parallelize);
+            dftComplexToComplex(inputPtr,
+                                twiddlesPtr,
+                                outputPtr,
+                                inputSize,
+                                signalSize,
+                                outputSize,
+                                parallelize,
+                                cpuParallel);
         } else if (type == complex_to_real) {
-            dftComplexToReal(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, parallelize);
+            dftComplexToReal(inputPtr,
+                             twiddlesPtr,
+                             outputPtr,
+                             inputSize,
+                             signalSize,
+                             outputSize,
+                             parallelize,
+                             cpuParallel);
         }
     }
 };
@@ -1120,18 +1160,17 @@ private:
 void RDFT::createPrimitive() {
     RDFTKey key{};
     key.isInverse = inverse;
-    key.cpuParallel = context->getCpuParallel();
 
     auto buildExecutor = [&](const RDFTKey& key) -> std::shared_ptr<RDFTExecutor> {
         std::shared_ptr<RDFTExecutor> executor;
         NodeDesc* primDesc = getSelectedPrimitiveDescriptor();
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::sse41)) {
-            executor = std::make_shared<RDFTJitExecutor>(key.isInverse, primDesc, key.cpuParallel);
+            executor = std::make_shared<RDFTJitExecutor>(key.isInverse, primDesc);
             return executor;
         }
 #endif
-        executor = std::make_shared<RDFTRefExecutor>(key.isInverse, key.cpuParallel);
+        executor = std::make_shared<RDFTRefExecutor>(key.isInverse);
         primDesc->setImplementationType(ref_any);
         return executor;
     };
@@ -1143,19 +1182,17 @@ void RDFT::createPrimitive() {
     Node::createPrimitive();
 }
 
-std::shared_ptr<RDFTExecutor> RDFTExecutor::build(bool inverse,
-                                                  const std::shared_ptr<CpuParallel>& cpuParallel,
-                                                  NodeDesc* primDesc) {
+std::shared_ptr<RDFTExecutor> RDFTExecutor::build(bool inverse, NodeDesc* primDesc) {
     std::shared_ptr<RDFTExecutor> executor;
 #if defined(OPENVINO_ARCH_X86_64)
     using namespace dnnl::impl;
     using namespace dnnl::impl::cpu::x64;
     if (mayiuse(cpu::x64::sse41)) {
-        executor = std::make_shared<RDFTJitExecutor>(inverse, primDesc, cpuParallel);
+        executor = std::make_shared<RDFTJitExecutor>(inverse, primDesc);
         return executor;
     }
 #endif
-    executor = std::make_shared<RDFTRefExecutor>(inverse, cpuParallel);
+    executor = std::make_shared<RDFTRefExecutor>(inverse);
     primDesc->setImplementationType(ref_any);
     return executor;
 }

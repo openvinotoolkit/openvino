@@ -97,13 +97,15 @@ void GatherTree::execute([[maybe_unused]] const dnnl::stream& strm) {
                              getSrcMemoryAtPort(GATHER_TREE_PARENT_IDX),
                              getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN),
                              getSrcMemoryAtPort(GATHER_TREE_END_TOKEN),
-                             getDstMemoryAtPort(0));
+                             getDstMemoryAtPort(0),
+                             context->getCpuParallel());
     } else {
         execPtr->exec<int32_t>(getSrcMemoryAtPort(GATHER_TREE_STEP_IDX),
                                getSrcMemoryAtPort(GATHER_TREE_PARENT_IDX),
                                getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN),
                                getSrcMemoryAtPort(GATHER_TREE_END_TOKEN),
-                               getDstMemoryAtPort(0));
+                               getDstMemoryAtPort(0),
+                               context->getCpuParallel());
     }
 }
 
@@ -127,8 +129,7 @@ void GatherTree::prepareParams() {
     execPtr = std::make_shared<GatherTreeExecutor>(stepIdxDims,
                                                    parentIdxDims,
                                                    maxSeqLenDims,
-                                                   dstDims,
-                                                   context->getCpuParallel());
+                                                   dstDims);
 }
 
 void GatherTree::executeDynamicImpl(const dnnl::stream& strm) {
@@ -138,14 +139,12 @@ void GatherTree::executeDynamicImpl(const dnnl::stream& strm) {
 GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims,
                                                    const VectorDims& parentIdxDims,
                                                    const VectorDims& maxSeqLenDims,
-                                                   const VectorDims& dstDims,
-                                                   const std::shared_ptr<CpuParallel>& parallel)
+                                                   const VectorDims& dstDims)
     : maxTime{static_cast<int32_t>(stepIdxDims[0])},
       batchSize{stepIdxDims[1]},
       beamWidth{stepIdxDims[2]},
       bbSize{batchSize * beamWidth},
-      parentIdxSize{std::accumulate(parentIdxDims.cbegin(), parentIdxDims.cend(), 1LU, std::multiplies<>())},
-      cpuParallel(parallel) {
+      parentIdxSize{std::accumulate(parentIdxDims.cbegin(), parentIdxDims.cend(), 1LU, std::multiplies<>())} {
     if (maxTime != static_cast<int32_t>(parentIdxDims[0]) || maxTime != static_cast<int32_t>(dstDims[0]) ||
         batchSize != parentIdxDims[1] || batchSize != dstDims[1] || batchSize != maxSeqLenDims[0] ||
         beamWidth != parentIdxDims[2] || beamWidth != dstDims[2]) {
@@ -159,7 +158,8 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr,
                                           const MemoryPtr& parentIdxMemPtr,
                                           const MemoryPtr& maxSeqLenMemPtr,
                                           const MemoryPtr& endTokenMemPtr,
-                                          const MemoryPtr& dstMemPtr) {
+                                          const MemoryPtr& dstMemPtr,
+                                          const CpuParallelPtr& cpuParallel) {
     const auto* stepIdx = stepIdxMemPtr->getDataAs<DATA_T>();
     const auto* parentIdx = parentIdxMemPtr->getDataAs<DATA_T>();
     const auto* maxSeqLen = maxSeqLenMemPtr->getDataAs<DATA_T>();

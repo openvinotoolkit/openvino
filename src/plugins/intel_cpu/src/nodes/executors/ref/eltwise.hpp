@@ -42,7 +42,9 @@ public:
 
     [[nodiscard]] size_t getBatchDimIdx() const override;
 
-    void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) override;
+    void exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+              const VectorDims& dims_out,
+              const CpuParallelPtr& cpu_parallel) override;
 
 protected:
     void init_ptr(const jit_eltwise_call_args_ptrs& args_ptrs,
@@ -76,14 +78,13 @@ constexpr bool supported_eltwise_ref_types_v = one_of_v<T, float, dnnl::impl::fl
 template <typename T, typename Enable = std::enable_if_t<supported_eltwise_ref_types_v<T>>>
 class EltwiseRefExecutor : public EltwiseRefBaseExecutor<T> {
 public:
-    EltwiseRefExecutor(const EltwiseRefKey& key, const std::shared_ptr<CpuParallel>& cpu_parallel);
+    EltwiseRefExecutor(const EltwiseRefKey& key);
 
-    void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) override;
+    void exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+              const VectorDims& dims_out,
+              const CpuParallelPtr& cpu_parallel) override;
 
     static bool supports([[maybe_unused]] const EltwiseConfig& config);
-
-private:
-    std::shared_ptr<CpuParallel> cpuParallel;
 };
 
 template <typename T>
@@ -92,14 +93,13 @@ constexpr bool supported_bitwise_ref_types_v = one_of_v<T, int8_t, uint8_t, int1
 template <typename T, typename Enable = std::enable_if_t<supported_bitwise_ref_types_v<T>>>
 class BitwiseRefExecutor : public EltwiseRefBaseExecutor<T> {
 public:
-    BitwiseRefExecutor(const EltwiseRefKey& key, const std::shared_ptr<CpuParallel>& cpu_parallel);
+    BitwiseRefExecutor(const EltwiseRefKey& key);
 
-    void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) override;
+    void exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+              const VectorDims& dims_out,
+              const CpuParallelPtr& cpu_parallel) override;
 
     static bool isSupportedConfiguration(const EltwiseConfig& config);
-
-private:
-    std::shared_ptr<CpuParallel> cpuParallel;
 };
 
 EltwiseExecutorPtr createEltwiseRefExecutor(const std::vector<VectorDims>& inDims,

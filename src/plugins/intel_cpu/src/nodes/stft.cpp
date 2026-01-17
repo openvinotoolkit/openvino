@@ -163,7 +163,8 @@ void STFT::execute([[maybe_unused]] const dnnl::stream& strm) {
                        std::multiplies<>());
 
         const auto result_idx = (batch_frames_out + frame_idx) * fft_out_shape_size;
-        auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(signal_slice.size())}, fft_out_shape, {0});
+        auto twiddles =
+            rdft_executor->generateTwiddles({static_cast<int>(signal_slice.size())}, fft_out_shape, {0}, cpu_parallel);
         rdft_executor->execute(signal_slice.data(),
                                dst + result_idx,
                                twiddles,
@@ -173,7 +174,8 @@ void STFT::execute([[maybe_unused]] const dnnl::stream& strm) {
                                {frame_size_dim},
                                fft_out_shape,
                                {1},
-                               {2, 1});
+                               {2, 1},
+                               cpu_parallel);
     });
     if (m_transpose_frames) {
         const auto stft_transp_out_shape = VectorDims{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]};
@@ -198,9 +200,8 @@ bool STFT::needShapeInfer() const {
 void STFT::createPrimitive() {
     RDFTKey key{};
     key.isInverse = false;
-    key.cpuParallel = context->getCpuParallel();
     auto buildExecutor = [&](const RDFTKey& key) -> std::shared_ptr<RDFTExecutor> {
-        return RDFTExecutor::build(key.isInverse, key.cpuParallel, getSelectedPrimitiveDescriptor());
+        return RDFTExecutor::build(key.isInverse, getSelectedPrimitiveDescriptor());
     };
 
     auto cache = context->getParamsCache();

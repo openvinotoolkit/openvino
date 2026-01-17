@@ -37,6 +37,6 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       size_t value_group_size,
                       bool quant_key_by_channel,
                       const ov::intel_cpu::PlainTensor& sink_input,
-                      const std::shared_ptr<ov::intel_cpu::CpuParallel>& cpu_parallel);
+                      const CpuParallelPtr& cpu_parallel);
 
 }  // namespace ov::Extensions::Cpu::XARCH

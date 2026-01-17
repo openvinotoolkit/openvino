@@ -100,12 +100,11 @@ private:
         ROIPoolingExecutor() = default;
         virtual void exec(const ov::intel_cpu::IMemory& srcData,
                           const ov::intel_cpu::IMemory& srcRoi,
-                          const ov::intel_cpu::IMemory& dst) = 0;
+                          const ov::intel_cpu::IMemory& dst,
+                          const CpuParallelPtr& cpuParallel) = 0;
         virtual ~ROIPoolingExecutor() = default;
 
-        static std::shared_ptr<ROIPoolingExecutor> createROIPoolingNewExecutor(
-            const jit_roi_pooling_params& jpp,
-            const std::shared_ptr<CpuParallel>& cpu_parallel);
+        static std::shared_ptr<ROIPoolingExecutor> createROIPoolingNewExecutor(const jit_roi_pooling_params& jpp);
 
     protected:
         static std::tuple<int, int, int, int> getBordersForMaxMode(int roi_start_h,
@@ -131,19 +130,17 @@ private:
 
     private:
         template <typename T>
-        static std::shared_ptr<ROIPoolingExecutor> makeExecutor(const jit_roi_pooling_params& jpp,
-                                                                const std::shared_ptr<CpuParallel>& cpu_parallel);
+        static std::shared_ptr<ROIPoolingExecutor> makeExecutor(const jit_roi_pooling_params& jpp);
 
         struct ROIPoolingContext {
             std::shared_ptr<ROIPoolingExecutor> executor;
             jit_roi_pooling_params jpp;
-            std::shared_ptr<CpuParallel> cpuParallel;
         };
 
         template <typename T>
         struct ROIPoolingExecutorCreation {
             void operator()(ROIPoolingContext& ctx) {
-                ctx.executor = ROIPoolingExecutor::makeExecutor<T>(ctx.jpp, ctx.cpuParallel);
+                ctx.executor = ROIPoolingExecutor::makeExecutor<T>(ctx.jpp);
             }
         };
     };

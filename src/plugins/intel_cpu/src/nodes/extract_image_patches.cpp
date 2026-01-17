@@ -365,7 +365,6 @@ struct ExtractImagePatchesKey {
     VectorDims rates;
     ExtractImagePatches::ExtImgPatcherPadType padType;
     size_t prcSize;
-    std::shared_ptr<CpuParallel> cpuParallel;
     [[nodiscard]] size_t hash() const;
     bool operator==(const ExtractImagePatchesKey& rhs) const;
 };
@@ -452,7 +451,7 @@ void ExtractImagePatches::prepareParams() {
     const auto& out_dims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const auto prcSize = getOriginalInputPrecisionAtPort(0).size();
     ExtractImagePatchesKey key =
-        {in_dims, out_dims, _ksizes, _strides, _rates, _auto_pad, prcSize, context->getCpuParallel()};
+        {in_dims, out_dims, _ksizes, _strides, _rates, _auto_pad, prcSize};
     const auto isJit = mayiuse(x64::sse41);
     auto buildExecutor = [&isJit](const ExtractImagePatchesKey& key) -> executorPtr {
         if (isJit) {
@@ -462,8 +461,7 @@ void ExtractImagePatches::prepareParams() {
                                                                     key.strides,
                                                                     key.rates,
                                                                     key.padType,
-                                                                    key.prcSize,
-                                                                    key.cpuParallel);
+                                                                    key.prcSize);
         }
         return std::make_shared<ExtractImagePatchesRefExecutor>(key.inDims,
                                                                 key.outDims,
@@ -471,8 +469,7 @@ void ExtractImagePatches::prepareParams() {
                                                                 key.strides,
                                                                 key.rates,
                                                                 key.padType,
-                                                                key.prcSize,
-                                                                key.cpuParallel);
+                                                                key.prcSize);
     };
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
@@ -498,7 +495,7 @@ void ExtractImagePatches::execute([[maybe_unused]] const dnnl::stream& strm) {
         auto* dst = getDstDataAtPort(0);
         const auto inStrides = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto outStrides = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
-        execPtr->exec(src, dst, inStrides, outStrides);
+        execPtr->exec(src, dst, inStrides, outStrides, context->getCpuParallel());
     } else {
         CPU_NODE_THROW("Primitive wasn't created");
     }
@@ -508,10 +505,12 @@ void ExtractImagePatches::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(void* src,
-                                                                           void* dst,
-                                                                           const VectorDims& istrides,
-                                                                           const VectorDims& ostrides) const {
+void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(
+    void* src,
+    void* dst,
+    const VectorDims& istrides,
+    const VectorDims& ostrides,
+    const CpuParallelPtr& cpu_parallel) const {
     const auto* src_data = reinterpret_cast<const char*>(src);
     auto* dst_data = reinterpret_cast<char*>(dst);
 
@@ -520,7 +519,7 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(void*
                                                   IC * ostrides[1],
                                                   ostrides[1]};
 
-    cpuParallel->parallel_for4d(
+    cpu_parallel->parallel_for4d(
         OB,
         jpp.KH,
         jpp.KW,
@@ -584,10 +583,12 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(void*
         });
 }
 
-void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneric(void* src,
-                                                                                  void* dst,
-                                                                                  const VectorDims& istrides,
-                                                                                  const VectorDims& ostrides) const {
+void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneric(
+    void* src,
+    void* dst,
+    const VectorDims& istrides,
+    const VectorDims& ostrides,
+    const CpuParallelPtr& cpu_parallel) const {
 #if defined(OPENVINO_ARCH_X86_64)
     const auto* src_data = reinterpret_cast<const char*>(src);
     auto* dst_data = reinterpret_cast<char*>(dst);
@@ -598,7 +599,7 @@ void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneri
                                                   IC * ostrides[1],
                                                   ostrides[1]};
 
-    cpuParallel->parallel_for4d(
+    cpu_parallel->parallel_for4d(
         OB,
         jpp.KH,
         jpp.KW,
@@ -725,9 +726,7 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
     [[maybe_unused]] const VectorDims& strides,
     [[maybe_unused]] const VectorDims& rates,
     [[maybe_unused]] const ExtImgPatcherPadType& padType,
-    [[maybe_unused]] const size_t prcSize,
-    [[maybe_unused]] const std::shared_ptr<CpuParallel>& parallel)
-    : cpuParallel(parallel) {
+    [[maybe_unused]] const size_t prcSize) {
 #if defined(OPENVINO_ARCH_X86_64)
     auto jpp = fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize);
     if (mayiuse(x64::avx512_core)) {
@@ -749,28 +748,27 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
 void ExtractImagePatches::ExtractImagePatchesJitExecutor::exec(void* src,
                                                                void* dst,
                                                                const VectorDims& istrides,
-                                                               const VectorDims& ostrides) {
+                                                               const VectorDims& ostrides,
+                                                               const CpuParallelPtr& cpu_parallel) {
     OPENVINO_ASSERT(pKernel, "Can't execute, kernel for extract image patches node is not compiled");
-    executeOptimizedGeneric(src, dst, istrides, ostrides);
+    executeOptimizedGeneric(src, dst, istrides, ostrides, cpu_parallel);
 }
 
-ExtractImagePatches::ExtractImagePatchesRefExecutor::ExtractImagePatchesRefExecutor(
-    const VectorDims& inDims,
-    const VectorDims& outDims,
-    const VectorDims& kSizes,
-    const VectorDims& strides,
-    const VectorDims& rates,
-    const ExtImgPatcherPadType& padType,
-    const size_t prcSize,
-    const std::shared_ptr<CpuParallel>& parallel)
-    : jpp(fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize)),
-      cpuParallel(parallel) {}
+ExtractImagePatches::ExtractImagePatchesRefExecutor::ExtractImagePatchesRefExecutor(const VectorDims& inDims,
+                                                                                    const VectorDims& outDims,
+                                                                                    const VectorDims& kSizes,
+                                                                                    const VectorDims& strides,
+                                                                                    const VectorDims& rates,
+                                                                                    const ExtImgPatcherPadType& padType,
+                                                                                    const size_t prcSize)
+    : jpp(fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize)) {}
 
 void ExtractImagePatches::ExtractImagePatchesRefExecutor::exec(void* src,
                                                                void* dst,
                                                                const VectorDims& istrides,
-                                                               const VectorDims& ostrides) {
-    executeReference(src, dst, istrides, ostrides);
+                                                               const VectorDims& ostrides,
+                                                               const CpuParallelPtr& cpu_parallel) {
+    executeReference(src, dst, istrides, ostrides, cpu_parallel);
 }
 
 const std::set<size_t> ExtractImagePatches::_supported_precisions_sizes = {1, 2, 4};

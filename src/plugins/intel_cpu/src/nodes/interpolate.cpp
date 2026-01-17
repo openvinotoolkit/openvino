@@ -1669,7 +1669,6 @@ struct InterpolateKey {
     VectorDims dstDims;
     std::vector<float> dataScales;
     dnnl::primitive_attr attr;
-    std::shared_ptr<CpuParallel> cpuParallel;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const InterpolateKey& rhs) const;
@@ -2530,8 +2529,7 @@ void Interpolate::prepareParams() {
         return;
     }
 
-    InterpolateKey key =
-        {interpAttrs, src5DDims, dst5DDims, scales5D, dnnl::primitive_attr(), context->getCpuParallel()};
+    InterpolateKey key = {interpAttrs, src5DDims, dst5DDims, scales5D, dnnl::primitive_attr()};
     setPostOps(key.attr, dst5DDims);
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutorBase> {
@@ -2552,14 +2550,12 @@ void Interpolate::prepareParams() {
                                                                 key.srcDims,
                                                                 key.dstDims,
                                                                 key.dataScales,
-                                                                key.attr,
-                                                                key.cpuParallel);
+                                                                key.attr);
         } else {
             executor = std::make_shared<InterpolateRefExecutor>(key.nodeAttrs,
                                                                 key.srcDims,
                                                                 key.dstDims,
-                                                                key.dataScales,
-                                                                key.cpuParallel);
+                                                                key.dataScales);
         }
         return executor;
     };
@@ -2775,7 +2771,7 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
             src_data = src_data_origin;
         }
 
-        execPtr->exec(src_data, dst_data, reinterpret_cast<void*>(postOpsDataPtrs.data()));
+        execPtr->exec(src_data, dst_data, reinterpret_cast<void*>(postOpsDataPtrs.data()), context->getCpuParallel());
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, reinterpret_cast<void*>(postOpsDataPtrs.data()));
     } else {
@@ -2795,7 +2791,8 @@ void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
                                                       int IW,
                                                       int OD,
                                                       int OH,
-                                                      int OW) {
+                                                      int OW,
+                                                      const CpuParallelPtr& cpu_parallel) {
     auto* index_d = static_cast<int*>(auxTable.data());
     auto* index_h = static_cast<int*>(&auxTable[OD]);
     auto* index_w = static_cast<int*>(&auxTable[OD + OH]);
@@ -2810,7 +2807,7 @@ void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
             for (int ox = 0; ox < OW; ox++) {
                 index_w_kernel[ox] = index_w[ox] * C * srcDataSize;
             }
-            cpuParallel->parallel_for2d(OD, OH, [&](size_t d, size_t h) {
+            cpu_parallel->parallel_for2d(OD, OH, [&](size_t d, size_t h) {
                 // kernel for C * OW
                 uint8_t* out_ptr_dh = out_ptr + (C * OW * OH * d + C * OW * h) * dstDataSize;
                 const uint8_t* in_ptr_dh = in_ptr + (C * IW * IH * index_d[d] + C * IW * index_h[h]) * srcDataSize;
@@ -2832,7 +2829,7 @@ void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
             for (int ox = 0; ox < OW; ox++) {
                 index_w_kernel[ox] = index_w[ox] * blk_size * srcDataSize;
             }
-            cpuParallel->parallel_for2d(CB, OD, [&](size_t cb, size_t d) {
+            cpu_parallel->parallel_for2d(CB, OD, [&](size_t cb, size_t d) {
                 uint8_t* out_ptr_cbd = out_ptr + (blk_size * OW * OH * OD * cb + blk_size * OW * OH * d) * dstDataSize;
                 const uint8_t* in_ptr_cbd =
                     in_ptr + (blk_size * IW * IH * ID * cb + blk_size * IW * IH * index_d[d]) * srcDataSize;
@@ -2861,7 +2858,8 @@ void Interpolate::InterpolateJitExecutor::NNPlanar(const uint8_t* in_ptr_,
                                                    int IW,
                                                    int OD,
                                                    int OH,
-                                                   int OW) {
+                                                   int OW,
+                                                   const CpuParallelPtr& cpu_parallel) {
     auto* index_d = static_cast<int*>(auxTable.data());
     auto* index_h = static_cast<int*>(&auxTable[OD]);
     auto* index_w = static_cast<int*>(&auxTable[OD + OH]);
@@ -2876,7 +2874,7 @@ void Interpolate::InterpolateJitExecutor::NNPlanar(const uint8_t* in_ptr_,
         index_kernel[OH + ow] = index_w[ow] * srcDataSize;
     }
 
-    cpuParallel->parallel_for3d(B, C, OD, [&](size_t b, size_t c, size_t od) {
+    cpu_parallel->parallel_for3d(B, C, OD, [&](size_t b, size_t c, size_t od) {
         const uint8_t* in_ptr =
             in_ptr_ + (IW * IH * ID * C * b + IW * IH * ID * c + IW * IH * index_d[od]) * srcDataSize;
         uint8_t* out_ptr = out_ptr_ + (OW * OH * OD * C * b + OW * OH * OD * c + OW * OH * od) * dstDataSize;
@@ -2903,7 +2901,8 @@ void Interpolate::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t* in_ptr
                                                            int IW,
                                                            int OD,
                                                            int OH,
-                                                           int OW) {
+                                                           int OW,
+                                                           const CpuParallelPtr& cpu_parallel) {
     // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3, EndTopLeft:4,   EndTopRight:5,
     // EndBottomLeft:6,   EndBottomRight:7 weight: Left:0, ritht:1, top:2, bottom:3, front:4, end:5
     auto* index = static_cast<int*>(auxTable.data());
@@ -2919,7 +2918,7 @@ void Interpolate::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t* in_ptr
     int scratchLen = rnd_up(eltInGrid * OW * OH * OD, 16);
     auto* weight = reinterpret_cast<float*>(&auxTable[scratchLen]);
 
-    cpuParallel->parallel_for2d(B, C, [&](size_t b, size_t c) {
+    cpu_parallel->parallel_for2d(B, C, [&](size_t b, size_t c) {
         uint8_t* out_ptr_nc = out_ptr_ + (OH * OW * OD * C * b + OH * OW * OD * c) * dstDataSize;
         const uint8_t* in_ptr_nc = in_ptr_ + (IH * IW * ID * C * b + IH * IW * ID * c) * srcDataSize;
         auto arg = jit_interpolate_call_args();
@@ -2944,7 +2943,8 @@ void Interpolate::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t* in_
                                                               int IW,
                                                               int OD,
                                                               int OH,
-                                                              int OW) {
+                                                              int OW,
+                                                              const CpuParallelPtr& cpu_parallel) {
     // left:OW right:OW Top:OH Bottom:OH Front:OD End:OD
     std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, nullptr);
     std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, nullptr);
@@ -2978,7 +2978,7 @@ void Interpolate::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t* in_
     int I1 = IH * I0;
     int I2 = ID * I1;
     int I3 = CB * I2;
-    cpuParallel->parallel_for3d(B, OD, OH, [&](size_t b, size_t d, size_t h) {
+    cpu_parallel->parallel_for3d(B, OD, OH, [&](size_t b, size_t d, size_t h) {
         uint8_t* out_ptr_ndh = out_ptr_ + (C3 * b + C1 * d + C0 * h) * dstDataSize;
 
         const uint8_t* in_ptr_n = in_ptr_ + (I3 * b) * srcDataSize;
@@ -3023,7 +3023,8 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
                                                          int IH,
                                                          int IW,
                                                          int OH,
-                                                         int OW) {
+                                                         int OW,
+                                                         const CpuParallelPtr& cpu_parallel) {
     const int idxNum = 1;
     auto* xOrigin = static_cast<int*>(auxTable.data());
     auto* xFactor = reinterpret_cast<float*>(&auxTable[OW]);
@@ -3036,7 +3037,7 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
     int CGatherLen = configured_for_layout == InterpolateLayoutType::by_channel ? C : blkSize;
     int workAmount = configured_for_layout == InterpolateLayoutType::by_channel ? C : CB;
 
-    cpuParallel->parallel_for3d(B, OH, OW, [&](size_t b, size_t h, size_t w) {
+    cpu_parallel->parallel_for3d(B, OH, OW, [&](size_t b, size_t h, size_t w) {
         uint8_t* out_ptr_nhw = out_ptr_ + (OH * OW * CSize * b + OW * CGatherLen * h + CGatherLen * w) * dstDataSize;
         const uint8_t* in_ptr_n = in_ptr_ + (IH * IW * CSize * b) * srcDataSize;
 
@@ -3077,7 +3078,8 @@ void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
                                                       int IH,
                                                       int IW,
                                                       int OH,
-                                                      int OW) {
+                                                      int OW,
+                                                      const CpuParallelPtr& cpu_parallel) {
     int tblAdvance = 0;
     auto* xOrigin = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OW;
@@ -3092,7 +3094,7 @@ void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
     tblAdvance += OW * OH;
     auto* sequenceOW = static_cast<int*>(&auxTable[tblAdvance]);
 
-    cpuParallel->parallel_for2d(B, C, [&](size_t n, size_t c) {
+    cpu_parallel->parallel_for2d(B, C, [&](size_t n, size_t c) {
         const uint8_t* in_ptr_nc = in_ptr_ + (IW * IH * C * n + IW * IH * c) * srcDataSize;
         uint8_t* out_ptr_nc = out_ptr_ + (OW * OH * C * n + OW * OH * c) * dstDataSize;
 
@@ -3715,7 +3717,8 @@ void Interpolate::InterpolateRefExecutor::NNRef(const uint8_t* in_ptr_,
                                                 int IW,
                                                 int OD,
                                                 int OH,
-                                                int OW) {
+                                                int OW,
+                                                const CpuParallelPtr& cpu_parallel) {
     auto* index_d = static_cast<int*>(auxTable.data());
     auto* index_h = static_cast<int*>(&auxTable[OD]);
     auto* index_w = static_cast<int*>(&auxTable[OD + OH]);
@@ -3723,7 +3726,7 @@ void Interpolate::InterpolateRefExecutor::NNRef(const uint8_t* in_ptr_,
     const auto* in_ptr_f32 = reinterpret_cast<const float*>(in_ptr_);
     auto* out_ptr_f32 = reinterpret_cast<float*>(out_ptr_);
 
-    cpuParallel->parallel_for3d(B, C, OD, [&](size_t b, size_t c, size_t od) {
+    cpu_parallel->parallel_for3d(B, C, OD, [&](size_t b, size_t c, size_t od) {
         const float* in_ptr = in_ptr_f32 + (IW * IH * ID * C * b + IW * IH * ID * c + IW * IH * index_d[od]);
         float* out_ptr = out_ptr_f32 + (OW * OH * OD * C * b + OW * OH * OD * c + OW * OH * od);
         for (int oh = 0; oh < OH; oh++) {
@@ -3745,7 +3748,8 @@ void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
                                                         int IW,
                                                         int OD,
                                                         int OH,
-                                                        int OW) {
+                                                        int OW,
+                                                        const CpuParallelPtr& cpu_parallel) {
     std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, nullptr);
     std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, nullptr);
     // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3,
@@ -3787,7 +3791,7 @@ void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
 
     switch (spatialDimSize) {
     case 1:
-        cpuParallel->parallel_for4d(B, C, OD, OH, [&](size_t b, size_t c, size_t d, size_t h) {
+        cpu_parallel->parallel_for4d(B, C, OD, OH, [&](size_t b, size_t c, size_t d, size_t h) {
             float* out_ptr_nc = out_ptr_f32 + (OD * OH * OW * C * b + OD * OH * OW * c + OH * OW * d + OW * h);
             const float* in_ptr_nc = in_ptr_f32 + (ID * IH * IW * C * b + ID * IH * IW * c + IH * IW * d + IW * h);
             for (int i = 0; i < OW; i++) {
@@ -3799,7 +3803,7 @@ void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
         });
         break;
     case 2:
-        cpuParallel->parallel_for3d(B, C, OD, [&](size_t b, size_t c, size_t d) {
+        cpu_parallel->parallel_for3d(B, C, OD, [&](size_t b, size_t c, size_t d) {
             float* out_ptr_nc = out_ptr_f32 + (OD * OH * OW * C * b + OD * OH * OW * c + OH * OW * d);
             const float* in_ptr_nc = in_ptr_f32 + (ID * IH * IW * C * b + ID * IH * IW * c + IH * IW * d);
             for (int i = 0; i < OH * OW; i++) {
@@ -3814,7 +3818,7 @@ void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
         });
         break;
     case 3:
-        cpuParallel->parallel_for2d(B, C, [&](size_t b, size_t c) {
+        cpu_parallel->parallel_for2d(B, C, [&](size_t b, size_t c) {
             float* out_ptr_nc = out_ptr_f32 + (OD * OH * OW * C * b + OD * OH * OW * c);
             const float* in_ptr_nc = in_ptr_f32 + (ID * IH * IW * C * b + ID * IH * IW * c);
             for (int i = 0; i < OD * OH * OW; i++) {
@@ -3857,7 +3861,8 @@ void Interpolate::InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
                                                    int IH,
                                                    int IW,
                                                    int OH,
-                                                   int OW) {
+                                                   int OW,
+                                                   const CpuParallelPtr& cpu_parallel) {
     const int idxNum = 1;
     auto* xOrigin = static_cast<int*>(auxTable.data());
     auto* xFactor = reinterpret_cast<float*>(&auxTable[OW]);
@@ -3867,7 +3872,7 @@ void Interpolate::InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
     const auto* in_ptr_f32 = reinterpret_cast<const float*>(in_ptr_);
     auto* out_ptr_f32 = reinterpret_cast<float*>(out_ptr_);
 
-    cpuParallel->parallel_for4d(B, C, OH, OW, [&](size_t n, size_t c, size_t oy, size_t ox) {
+    cpu_parallel->parallel_for4d(B, C, OH, OW, [&](size_t n, size_t c, size_t oy, size_t ox) {
         const float* in_ptr_nc = in_ptr_f32 + (IW * IH * C * n + IW * IH * c);
         float* out_ptr_nc = out_ptr_f32 + (OW * OH * C * n + OW * OH * c);
 
@@ -3961,7 +3966,8 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_
                                                               int OH,
                                                               int OW,
                                                               int kernel_width,
-                                                              bool antialias) {
+                                                              bool antialias,
+                                                              const CpuParallelPtr& cpu_parallel) {
     if (IW == OW && IH == OH && ID == OD) {
         size_t spatialDimSize = IW * IH * ID;
         // TODO: enable when fusing into interp with linear mode will support
@@ -3969,7 +3975,7 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_
             size_t size = B * C * spatialDimSize * srcDataSize;
             cpu_memcpy(out_ptr_, in_ptr_, size);
         } else {
-            cpuParallel->parallel_for2d(B, C, [&](size_t b, size_t c) {
+            cpu_parallel->parallel_for2d(B, C, [&](size_t b, size_t c) {
                 const uint8_t* in_ptr_nc = in_ptr_ + (spatialDimSize * C * b + spatialDimSize * c) * srcDataSize;
                 uint8_t* out_ptr_nc = out_ptr_ + (spatialDimSize * C * b + spatialDimSize * c) * dstDataSize;
                 for (size_t i = 0; i < spatialDimSize; i++) {
@@ -4006,7 +4012,7 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_
     auto* idxOH = (&idxTable[sizeOD]);
     auto* idxOW = (&idxTable[sizeOD + sizeOH]);
 
-    cpuParallel->parallel_for2d(B, C, [&](size_t b, size_t c) {
+    cpu_parallel->parallel_for2d(B, C, [&](size_t b, size_t c) {
         const uint8_t* in_ptr_nc = in_ptr_ + (IW * IH * ID * C * b + IW * IH * ID * c) * srcDataSize;
         uint8_t* out_ptr_nc = out_ptr_ + (OW * OH * OD * C * b + OW * OH * OD * c) * dstDataSize;
         for (int oz = 0; oz < OD; oz++) {
@@ -4320,8 +4326,7 @@ void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(Interpolate
 Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
                                                               VectorDims srcDims,
                                                               VectorDims dstDims,
-                                                              const std::vector<float>& dataScales,
-                                                              const std::shared_ptr<CpuParallel>& parallel)
+                                                              const std::vector<float>& dataScales)
     : mode(interpAttrs.mode),
       coordTransMode(interpAttrs.coordTransMode),
       configured_for_layout(interpAttrs.layout),
@@ -4332,8 +4337,7 @@ Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateA
       srcDataSize(interpAttrs.inPrc.size()),
       dstDataSize(interpAttrs.outPrc.size()),
       dataRank(srcDimPad5d.size()),
-      spatialDimSize(getSpatialDimsNum(dataScales)),
-      cpuParallel(parallel) {
+      spatialDimSize(getSpatialDimsNum(dataScales)) {
     switch (mode) {
     case InterpolateMode::nearest: {
         buildTblNN(srcDimPad5d, dstDim5d, dataScales, interpAttrs.layout, interpAttrs.nearestMode);
@@ -4371,9 +4375,8 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
                                                             const VectorDims& srcDims,
                                                             const VectorDims& dstDims,
                                                             const std::vector<float>& dataScales,
-                                                            [[maybe_unused]] const dnnl::primitive_attr& attr,
-                                                            const std::shared_ptr<CpuParallel>& cpuParallel)
-    : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, dataScales, cpuParallel) {
+                                                            [[maybe_unused]] const dnnl::primitive_attr& attr)
+    : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, dataScales) {
     auto jcp = jit_interpolate_config_params();
     jcp.mode = mode;
     jcp.src_prc = interpAttrs.inPrc;
@@ -4419,7 +4422,10 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
     }
 }
 
-void Interpolate::InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) {
+void Interpolate::InterpolateJitExecutor::exec(const uint8_t* in_ptr_,
+                                               uint8_t* out_ptr_,
+                                               const void* post_ops_data_,
+                                               const CpuParallelPtr& cpu_parallel) {
     size_t N = srcDimPad5d[0];
     size_t C = srcDimPad5d[1];
     size_t ID = srcDimPad5d[2];
@@ -4433,25 +4439,25 @@ void Interpolate::InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* 
     switch (mode) {
     case InterpolateMode::nearest: {
         if (configured_for_layout == InterpolateLayoutType::planar) {
-            NNPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
+            NNPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW, cpu_parallel);
         } else {
-            NNCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
+            NNCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW, cpu_parallel);
         }
         break;
     }
     case InterpolateMode::linear_onnx: {
         if (configured_for_layout == InterpolateLayoutType::planar) {
-            linearOnnxPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
+            linearOnnxPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW, cpu_parallel);
         } else {
-            linearOnnxCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
+            linearOnnxCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW, cpu_parallel);
         }
         break;
     }
     case InterpolateMode::cubic: {
         if (configured_for_layout == InterpolateLayoutType::planar) {
-            cubicPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
+            cubicPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW, cpu_parallel);
         } else {
-            cubicCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
+            cubicCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW, cpu_parallel);
         }
         break;
     }
@@ -4472,7 +4478,8 @@ void Interpolate::InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* 
 
 void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
                                                uint8_t* out_ptr_,
-                                               [[maybe_unused]] const void* post_ops_data_) {
+                                               [[maybe_unused]] const void* post_ops_data_,
+                                               const CpuParallelPtr& cpu_parallel) {
     size_t N = srcDimPad5d[0];
     size_t C = srcDimPad5d[1];
     size_t ID = srcDimPad5d[2];
@@ -4484,15 +4491,15 @@ void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
 
     switch (mode) {
     case InterpolateMode::nearest: {
-        NNRef(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW);
+        NNRef(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW, cpu_parallel);
         break;
     }
     case InterpolateMode::linear_onnx: {
-        linearOnnxRef(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW);
+        linearOnnxRef(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW, cpu_parallel);
         break;
     }
     case InterpolateMode::cubic: {
-        cubicRef(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
+        cubicRef(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW, cpu_parallel);
         break;
     }
     case InterpolateMode::linear: {
@@ -4516,7 +4523,8 @@ void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
                             OH,
                             OW,
                             kernel_width,
-                            isDownsample && antialias);
+                            isDownsample && antialias,
+                            cpu_parallel);
         break;
     }
     case InterpolateMode::bilinear_pillow:

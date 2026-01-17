@@ -125,7 +125,7 @@ void Roll::prepareParams() {
     const VectorDims& axesDims = axesMemPtr->getStaticDims();
     const VectorDims& dstDims = dstMemPtr->getStaticDims();
 
-    execPtr = std::make_shared<RollExecutor>(dataDims, shiftDims, axesDims, dstDims, context->getCpuParallel());
+    execPtr = std::make_shared<RollExecutor>(dataDims, shiftDims, axesDims, dstDims);
 }
 
 void Roll::executeDynamicImpl(const dnnl::stream& strm) {
@@ -142,21 +142,24 @@ void Roll::execute([[maybe_unused]] const dnnl::stream& strm) {
         execPtr->exec<element_type_traits<ov::element::i8>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
                                                                         getSrcMemoryAtPort(SHIFT_INDEX),
                                                                         getSrcMemoryAtPort(AXES_INDEX),
-                                                                        getDstMemoryAtPort(0));
+                                                                        getDstMemoryAtPort(0),
+                                                                        context->getCpuParallel());
         break;
     }
     case sizeof(element_type_traits<ov::element::i16>::value_type): {
         execPtr->exec<element_type_traits<ov::element::i16>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
                                                                          getSrcMemoryAtPort(SHIFT_INDEX),
                                                                          getSrcMemoryAtPort(AXES_INDEX),
-                                                                         getDstMemoryAtPort(0));
+                                                                         getDstMemoryAtPort(0),
+                                                                         context->getCpuParallel());
         break;
     }
     case sizeof(element_type_traits<ov::element::i32>::value_type): {
         execPtr->exec<element_type_traits<ov::element::i32>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
                                                                          getSrcMemoryAtPort(SHIFT_INDEX),
                                                                          getSrcMemoryAtPort(AXES_INDEX),
-                                                                         getDstMemoryAtPort(0));
+                                                                         getDstMemoryAtPort(0),
+                                                                         context->getCpuParallel());
         break;
     }
     default:
@@ -167,13 +170,11 @@ void Roll::execute([[maybe_unused]] const dnnl::stream& strm) {
 Roll::RollExecutor::RollExecutor(const VectorDims& dataDims,
                                  const VectorDims& shiftDims,
                                  const VectorDims& axesDims,
-                                 const VectorDims& dstDims,
-                                 const std::shared_ptr<CpuParallel>& cpuParallel)
+                                 const VectorDims& dstDims)
     : numOfDims{dataDims.size()},
       blockSize{dataDims.back()},
       numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1UL, std::multiplies<>()) / blockSize},
-      axesLength{axesDims[0]},
-      cpuParallel(cpuParallel) {
+      axesLength{axesDims[0]} {
     for (size_t i = 0; i < dataDims.size(); ++i) {
         OPENVINO_ASSERT(dataDims[i] == dstDims[i], "Input/output tensors dimensions mismatch");
     }
@@ -185,7 +186,8 @@ template <typename T>
 void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
                               const MemoryPtr& shiftMemPtr,
                               const MemoryPtr& axesMemPtr,
-                              const MemoryPtr& dstMemPtr) {
+                              const MemoryPtr& dstMemPtr,
+                              const CpuParallelPtr& cpuParallel) {
     const auto* data = dataMemPtr->getDataAs<const T>();
     const auto* shift = shiftMemPtr->getDataAs<const int32_t>();
     const auto* axes = axesMemPtr->getDataAs<const int32_t>();

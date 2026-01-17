@@ -41,7 +41,6 @@ public:
         size_t dataSize = 1LU;
         size_t nSpatialDims = 0LU;
         VectorDims srcBlockedDims;
-        std::shared_ptr<CpuParallel> cpuParallel;
         [[nodiscard]] size_t hash() const;
         bool operator==(const DepthToSpaceAttrs& rhs) const;
     };
@@ -53,12 +52,11 @@ private:
     DepthToSpaceAttrs attrs;
     struct DepthToSpaceExecutor {
         explicit DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs);
-        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, int MB);
+        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, int MB, const CpuParallelPtr& cpuParallel);
         ~DepthToSpaceExecutor() = default;
 
     private:
         std::unique_ptr<PermuteKernel> permuteKernel;
-        std::shared_ptr<CpuParallel> cpuParallel;
     };
     using executorPtr = std::shared_ptr<DepthToSpaceExecutor>;
     executorPtr execPtr = nullptr;

@@ -94,10 +94,8 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
     RMSNormExecutor(ov::element::Type precision,
                     size_t data_size,
                     size_t scale_size,
-                    float eps,
-                    const std::shared_ptr<CpuParallel>& parallel)
-        : m_precision(precision),
-          cpu_parallel(parallel) {
+                    float eps)
+        : m_precision(precision) {
         kernel::jit_rms_compile_params jcp;
         jcp.src_prc = precision;
         jcp.dst_prc = precision;
@@ -106,7 +104,9 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
         jcp.eps = eps;
         m_kernel = createJitKernel(jcp);
     }
-    void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
+    void execute(const std::vector<MemoryPtr>& inputs,
+                 const MemoryPtr output,
+                 const CpuParallelPtr& cpu_parallel) override {
         auto* src = inputs[0]->getDataAs<uint8_t>();
         auto* dst = output->getDataAs<uint8_t>();
         auto* scale = inputs[1]->getDataAs<float>();
@@ -125,7 +125,6 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
 private:
     ov::element::Type m_precision;
     std::shared_ptr<kernel::JitKernelBase> m_kernel;
-    std::shared_ptr<CpuParallel> cpu_parallel;
 };
 #endif  // OPENVINO_ARCH_X86_64
 
@@ -173,7 +172,7 @@ void RMSNorm::createPrimitive() {
 
     auto builder = [&]([[maybe_unused]] const RMSNormKey& key) -> std::shared_ptr<Executor> {
 #ifdef OPENVINO_ARCH_X86_64
-        return std::make_shared<RMSNormExecutor>(precision, data_size, scale_size, m_eps, context->getCpuParallel());
+        return std::make_shared<RMSNormExecutor>(precision, data_size, scale_size, m_eps);
 #else
         return nullptr;
 #endif
@@ -193,7 +192,7 @@ void RMSNorm::execute([[maybe_unused]] const dnnl::stream& strm) {
         inputs[i] = getSrcMemoryAtPort(i);
     }
 
-    m_executor->execute(inputs, getDstMemoryAtPort(0));
+    m_executor->execute(inputs, getDstMemoryAtPort(0), context->getCpuParallel());
 }
 
 bool RMSNorm::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {

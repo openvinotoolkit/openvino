@@ -317,7 +317,7 @@ void EltwiseStatefulExecutor::execute(const MemoryArgs& memory) {
         args_ptrs.dst_offsets = m_execParams.outOffsets.data();
     }
 
-    m_executor->exec(args_ptrs, outDims);
+    m_executor->exec(args_ptrs, outDims, m_context->getCpuParallel());
 }
 
 impl_desc_type EltwiseStatefulExecutor::implType() const {

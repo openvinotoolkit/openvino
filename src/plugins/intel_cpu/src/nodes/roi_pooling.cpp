@@ -364,7 +364,6 @@ private:
 namespace {
 struct RoiPoolingKey {
     jit_roi_pooling_params refParams;
-    std::shared_ptr<CpuParallel> cpuParallel;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const RoiPoolingKey& rhs) const;
@@ -525,7 +524,7 @@ void ROIPooling::execute([[maybe_unused]] const dnnl::stream& strm) {
         const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
         const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
         const auto& dstMemory = getChildEdgeAt(0)->getMemory();
-        execPtr->exec(srcMemory0, srcMemory1, dstMemory);
+        execPtr->exec(srcMemory0, srcMemory1, dstMemory, context->getCpuParallel());
     } else {
         CPU_NODE_THROW("Primitive wasn't created");
     }
@@ -555,9 +554,9 @@ void ROIPooling::prepareParams() {
     refParams.oh = outDims[2];
     refParams.ow = outDims[3];
 
-    RoiPoolingKey key = {refParams, context->getCpuParallel()};
+    RoiPoolingKey key = {refParams};
     auto builder = [](const RoiPoolingKey& key) {
-        return ROIPoolingExecutor::createROIPoolingNewExecutor(key.refParams, key.cpuParallel);
+        return ROIPoolingExecutor::createROIPoolingNewExecutor(key.refParams);
     };
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
@@ -567,9 +566,7 @@ void ROIPooling::prepareParams() {
 template <typename T>
 class ROIPooling::ROIPoolingJitExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
-    explicit ROIPoolingJitExecutor(const std::shared_ptr<CpuParallel>& parallel,
-                                   [[maybe_unused]] const jit_roi_pooling_params& jpp)
-        : cpuParallel(parallel) {
+    explicit ROIPoolingJitExecutor([[maybe_unused]] const jit_roi_pooling_params& jpp) {
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
             roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>>(jpp);
@@ -587,7 +584,10 @@ public:
 #endif
     }
 
-    void exec(const IMemory& srcData, const IMemory& srcRoi, const IMemory& dst) override {
+    void exec(const IMemory& srcData,
+              const IMemory& srcRoi,
+              const IMemory& dst,
+              const CpuParallelPtr& cpuParallel) override {
         OPENVINO_ASSERT(roi_pooling_kernel, "Could not execute. Kernel for RoiPooling node was not compiled.");
         auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
         auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
@@ -595,7 +595,7 @@ public:
         const auto* src_ptr = srcData.getDataAs<const T>();
         const auto* roi_ptr = srcRoi.getDataAs<const T>();
         auto* dst_ptr = dst.getDataAs<T>();
-        executeOptimizedGeneric(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
+        executeOptimizedGeneric(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step, cpuParallel);
     }
 
 private:
@@ -604,7 +604,8 @@ private:
                                  T* dst,
                                  const VectorDims& src_strides,
                                  const VectorDims& dst_strides,
-                                 const size_t src_roi_step) {
+                                 const size_t src_roi_step,
+                                 const CpuParallelPtr& cpuParallel) {
         const auto& jpp = roi_pooling_kernel->jpp_;
         int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
         int MB = jpp.mb;
@@ -724,17 +725,19 @@ private:
 template <typename T>
 class ROIPooling::ROIPoolingRefExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
-    explicit ROIPoolingRefExecutor(const std::shared_ptr<CpuParallel>& parallel, const jit_roi_pooling_params& _jpp)
-        : jpp(_jpp),
-          cpuParallel(parallel) {}
-    void exec(const IMemory& srcData, const IMemory& srcRoi, const IMemory& dst) override {
+    explicit ROIPoolingRefExecutor(const jit_roi_pooling_params& _jpp)
+        : jpp(_jpp) {}
+    void exec(const IMemory& srcData,
+              const IMemory& srcRoi,
+              const IMemory& dst,
+              const CpuParallelPtr& cpuParallel) override {
         auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
         auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
         auto dst_strides = dst.getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto* src_ptr = srcData.getDataAs<const T>();
         const auto* roi_ptr = srcRoi.getDataAs<const T>();
         auto* dst_ptr = dst.getDataAs<T>();
-        executeReference(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
+        executeReference(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step, cpuParallel);
     }
 
     void executeReference(const T* src_data,
@@ -742,7 +745,8 @@ public:
                           T* dst,
                           const VectorDims& src_strides,
                           const VectorDims& dst_strides,
-                          const size_t src_roi_step) {
+                          const size_t src_roi_step,
+                          const CpuParallelPtr& cpuParallel) {
         int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
         int MB = jpp.mb;
 
@@ -899,13 +903,11 @@ public:
 
 private:
     jit_roi_pooling_params jpp;
-    std::shared_ptr<CpuParallel> cpuParallel;
 };
 
 std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::createROIPoolingNewExecutor(
-    const jit_roi_pooling_params& jpp,
-    const std::shared_ptr<CpuParallel>& cpu_parallel) {
-    ROIPoolingContext ctx = {nullptr, jpp, cpu_parallel};
+    const jit_roi_pooling_params& jpp) {
+    ROIPoolingContext ctx = {nullptr, jpp};
 
     OV_SWITCH(intel_cpu,
               ROIPoolingExecutorCreation,
@@ -1000,15 +1002,14 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
 
 template <typename T>
 std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::makeExecutor(
-    const jit_roi_pooling_params& jpp,
-    const std::shared_ptr<CpuParallel>& cpu_parallel) {
+    const jit_roi_pooling_params& jpp) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::sse41)) {
-        return std::make_shared<ROIPoolingJitExecutor<T>>(cpu_parallel, jpp);
+        return std::make_shared<ROIPoolingJitExecutor<T>>(jpp);
     }
 #endif
 
-    return std::make_shared<ROIPoolingRefExecutor<T>>(cpu_parallel, jpp);
+    return std::make_shared<ROIPoolingRefExecutor<T>>(jpp);
 }
 
 bool ROIPooling::created() const {

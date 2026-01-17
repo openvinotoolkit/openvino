@@ -75,24 +75,23 @@ bool EltwiseRefKey::operator==(const EltwiseRefKey& rhs) const {
     return result;
 }
 
-static EltwiseExecutorPtr createRefExecutorByPrecision(const EltwiseRefKey& key,
-                                                       const std::shared_ptr<CpuParallel>& cpu_parallel) {
+static EltwiseExecutorPtr createRefExecutorByPrecision(const EltwiseRefKey& key) {
     switch (key.outPrc) {
     case ov::element::i8:
-        return std::make_shared<BitwiseRefExecutor<int8_t>>(key, cpu_parallel);
+        return std::make_shared<BitwiseRefExecutor<int8_t>>(key);
     case ov::element::u8:
-        return std::make_shared<BitwiseRefExecutor<uint8_t>>(key, cpu_parallel);
+        return std::make_shared<BitwiseRefExecutor<uint8_t>>(key);
     case ov::element::i16:
-        return std::make_shared<BitwiseRefExecutor<int16_t>>(key, cpu_parallel);
+        return std::make_shared<BitwiseRefExecutor<int16_t>>(key);
     case ov::element::u16:
-        return std::make_shared<BitwiseRefExecutor<uint16_t>>(key, cpu_parallel);
+        return std::make_shared<BitwiseRefExecutor<uint16_t>>(key);
     case ov::element::i32:
-        return std::make_shared<BitwiseRefExecutor<int32_t>>(key, cpu_parallel);
+        return std::make_shared<BitwiseRefExecutor<int32_t>>(key);
     case ov::element::f16:
-        return std::make_shared<EltwiseRefExecutor<dnnl::impl::float16_t>>(key, cpu_parallel);
+        return std::make_shared<EltwiseRefExecutor<dnnl::impl::float16_t>>(key);
     default:
         // Use float reference executor for any other precision
-        return std::make_shared<EltwiseRefExecutor<float>>(key, cpu_parallel);
+        return std::make_shared<EltwiseRefExecutor<float>>(key);
     }
 }
 
@@ -104,7 +103,7 @@ EltwiseExecutorPtr createEltwiseRefExecutor(const std::vector<VectorDims>& inDim
     EltwiseRefKey key = {inDims, outBlkDims, outPrc, shapeAgnosticData.eltwise_data};
 
     auto builder = [&](const EltwiseRefKey& key) {
-        return createRefExecutorByPrecision(key, context->getCpuParallel());
+        return createRefExecutorByPrecision(key);
     };
 
     auto runtimeCache = context->getRuntimeCache();
@@ -135,7 +134,9 @@ size_t EltwiseRefBaseExecutor<T>::getBatchDimIdx() const {
 }
 
 template <typename T>
-void EltwiseRefBaseExecutor<T>::exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) {}
+void EltwiseRefBaseExecutor<T>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+                                     const VectorDims& dims_out,
+                                     const CpuParallelPtr& cpu_parallel) {}
 
 template <typename T>
 void EltwiseRefBaseExecutor<T>::init_ptr(const jit_eltwise_call_args_ptrs& args_ptrs,
@@ -227,18 +228,18 @@ void EltwiseRefBaseExecutor<T>::offset_in_calc(VectorDims& offset,
 
 // EltwiseRefExecutor implementation
 template <typename T, typename Enable>
-EltwiseRefExecutor<T, Enable>::EltwiseRefExecutor(const EltwiseRefKey& key,
-                                                  const std::shared_ptr<CpuParallel>& cpu_parallel)
-    : EltwiseRefBaseExecutor<T>(key),
-      cpuParallel(cpu_parallel) {}
+EltwiseRefExecutor<T, Enable>::EltwiseRefExecutor(const EltwiseRefKey& key)
+    : EltwiseRefBaseExecutor<T>(key) {}
 
 template <typename T, typename Enable>
-void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) {
+void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+                                         const VectorDims& dims_out,
+                                         const CpuParallelPtr& cpu_parallel) {
     // Handle special cases first
     if (this->m_opData.algo == Algorithm::EltwiseLog) {
         const T* src_ptr_f = reinterpret_cast<const T*>(args_ptrs.src_ptr[0]);
         T* dst_ptr_f = reinterpret_cast<T*>(args_ptrs.dst_ptr);
-        cpuParallel->parallel_for(this->m_fullWorkAmount, [&](size_t i) {
+        cpu_parallel->parallel_for(this->m_fullWorkAmount, [&](size_t i) {
             dst_ptr_f[i] = logf(src_ptr_f[i]);
         });
         return;
@@ -248,12 +249,12 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
         const T* src_ptr_f = reinterpret_cast<const T*>(args_ptrs.src_ptr[0]);
         T* dst_ptr_f = reinterpret_cast<T*>(args_ptrs.dst_ptr);
         if (this->m_opData.alpha == 2) {
-            cpuParallel->parallel_for(this->m_fullWorkAmount, [&](size_t i) {
+            cpu_parallel->parallel_for(this->m_fullWorkAmount, [&](size_t i) {
                 dst_ptr_f[i] = (this->m_opData.beta * src_ptr_f[i] + this->m_opData.gamma) *
                                (this->m_opData.beta * src_ptr_f[i] + this->m_opData.gamma);
             });
         } else {
-            cpuParallel->parallel_for(this->m_fullWorkAmount, [&](size_t i) {
+            cpu_parallel->parallel_for(this->m_fullWorkAmount, [&](size_t i) {
                 dst_ptr_f[i] = powf(this->m_opData.beta * src_ptr_f[i] + this->m_opData.gamma, this->m_opData.alpha);
             });
         }
@@ -413,13 +414,13 @@ bool EltwiseRefExecutor<T, Enable>::supports([[maybe_unused]] const EltwiseConfi
 
 // BitwiseRefExecutor implementation
 template <typename T, typename Enable>
-BitwiseRefExecutor<T, Enable>::BitwiseRefExecutor(const EltwiseRefKey& key,
-                                                  const std::shared_ptr<CpuParallel>& cpu_parallel)
-    : EltwiseRefBaseExecutor<T>(key),
-      cpuParallel(cpu_parallel) {}
+BitwiseRefExecutor<T, Enable>::BitwiseRefExecutor(const EltwiseRefKey& key)
+    : EltwiseRefBaseExecutor<T>(key) {}
 
 template <typename T, typename Enable>
-void BitwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) {
+void BitwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+                                         const VectorDims& dims_out,
+                                         const CpuParallelPtr& cpu_parallel) {
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0;
         size_t end = 0;

@@ -206,7 +206,8 @@ void istft_impl(const float* in_data,
     const int64_t copy_end = final_signal_length < data_end ? final_signal_length : data_end;
 
     std::vector<float> window_sum(batch_size * signal_length);
-    auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(frame_size)}, {frame_size_dim}, {0});
+    auto twiddles =
+        rdft_executor->generateTwiddles({static_cast<int>(frame_size)}, {frame_size_dim}, {0}, cpu_parallel);
 
     cpu_parallel->parallel_for(batch_size, [&](size_t batch) {
         for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
@@ -226,7 +227,8 @@ void istft_impl(const float* in_data,
                                    {frame_size_dim},
                                    {frame_size_dim},
                                    {1},
-                                   {1});
+                                   {1},
+                                   cpu_parallel);
 
             // Overlap Add
             float* mid_result_sum = mid_result.data() + out_frame_start;
@@ -277,9 +279,8 @@ bool ISTFT::needShapeInfer() const {
 void ISTFT::createPrimitive() {
     RDFTKey key{};
     key.isInverse = true;
-    key.cpuParallel = context->getCpuParallel();
     auto buildExecutor = [&](const RDFTKey& key) -> std::shared_ptr<RDFTExecutor> {
-        return RDFTExecutor::build(key.isInverse, key.cpuParallel, getSelectedPrimitiveDescriptor());
+        return RDFTExecutor::build(key.isInverse, getSelectedPrimitiveDescriptor());
     };
 
     auto cache = context->getParamsCache();
