@@ -1628,7 +1628,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::npuw::util::prepare_whisper_kvcache_model(kvcache_model);         // Whisper decoder_with_past model
     }
 
-    if (m_is_embedding) {
+    if (m_is_embedding && !m_use_chunk_prefill) {
         m_kvcache_desc = KVCacheDesc{max_prompt_len,
                                      max_prompt_len + min_response_len,
                                      0u,
