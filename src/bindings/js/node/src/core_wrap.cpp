@@ -3,6 +3,8 @@
 
 #include "node/include/core_wrap.hpp"
 
+#include <type_traits>
+
 #include "node/include/addon.hpp"
 #include "node/include/async_reader.hpp"
 #include "node/include/compiled_model.hpp"
@@ -10,8 +12,10 @@
 #include "node/include/helper.hpp"
 #include "node/include/model_wrap.hpp"
 #include "node/include/read_model_args.hpp"
+#include "node/include/tensor.hpp"
 #include "node/include/type_validation.hpp"
 #include "openvino/core/model_util.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 
 void validate_set_property_args(const Napi::CallbackInfo& info) {
@@ -353,14 +357,37 @@ void ImportModelFinalizer(Napi::Env env, void* finalizeData, ImportModelContext*
 
 void importModelThread(ImportModelContext* context, std::mutex& mutex) {
     // Imports model without blocking the main thread.
-    {
+    try {
         const std::lock_guard<std::mutex> lock(mutex);
-        context->_compiled_model = context->_core.import_model(context->_stream, context->_device, context->_config);
+
+        context->_compiled_model = std::visit(
+            [&](auto& src) -> ov::CompiledModel {
+                using T = std::decay_t<decltype(src)>;
+
+                if constexpr (std::is_same_v<T, std::monostate>) {
+                    throw std::runtime_error("ImportModelContext source not initialized");
+                } else if constexpr (std::is_same_v<T, ImportModelContext::BufferSource>) {
+                    std::istream stream(src.shared_buf.get());
+                    return context->_core.import_model(stream, context->_device, context->_config);
+                } else if constexpr (std::is_same_v<T, ImportModelContext::TensorSource>) {
+                    return context->_core.import_model(src.tensor, context->_device, context->_config);
+                }
+            },
+            context->source);
+
+    } catch (const std::exception& e) {
+        context->_error_msg = e.what();
+    } catch (...) {
+        context->_error_msg = "Unknown error in importModel worker thread";
     }
 
     // Callback to return to JS the results of core.import_model()
     auto callback = [](Napi::Env env, Napi::Function, ImportModelContext* context) {
-        context->deferred.Resolve(cpp_to_js(env, context->_compiled_model));
+        if (!context->_error_msg.empty()) {
+            context->deferred.Reject(Napi::Error::New(env, context->_error_msg).Value());
+        } else {
+            context->deferred.Resolve(cpp_to_js(env, context->_compiled_model));
+        }
     };
 
     // Addon's main thread will safely invoke the JS callback function on the behalf of the additional thread.
