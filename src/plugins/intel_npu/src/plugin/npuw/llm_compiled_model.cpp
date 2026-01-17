@@ -1768,6 +1768,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
     merge_config_with(prefill_config, prefill_config_addition_value);
+    if (lm_head_model) {
+        prefill_config.erase("NPUW_SLICE_OUT");
+    }
     merge_config_with(generate_config, generate_config_addition_value);
 
     // Convert LLM-specific attention hints to NPUW_ATTN
