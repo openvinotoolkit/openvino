@@ -319,14 +319,14 @@ describe("ov basic tests.", () => {
     it("Test importModelSync(stream, device) throws", () => {
       assert.throws(
         () => core.importModelSync(model, "CPU"),
-        /The first argument must be of type Buffer./,
+        /'importModelSync' method called with incorrect parameters\./,
       );
     });
 
     it("Test importModelSync(stream, device) throws", () => {
       assert.throws(
         () => core.importModelSync(userStream, tensor),
-        /The second argument must be of type String./,
+        /'importModelSync' method called with incorrect parameters\./,
       );
     });
     it("Test importModelSync(stream, device, config: tensor) throws", () => {
@@ -340,7 +340,7 @@ describe("ov basic tests.", () => {
       const testString = "test";
       assert.throws(
         () => core.importModelSync(userStream, "CPU", testString),
-        /Passed Napi::Value must be an object./,
+        /'importModelSync' method called with incorrect parameters\./,
       );
     });
 
