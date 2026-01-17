@@ -36,6 +36,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -299,13 +300,12 @@ bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         break;
     case Algorithm::EltwiseSubtract: {
         // For u8, Subtract must wrap (e.g. 3 - 4 = 255), not saturate to 0.
-        // Only use wrap-around for pure u8->u8 subtract (issue #33164).
+        // Only use wrap-around for pure u8->u8 subtract.
         // QDQ patterns with u8 input but f32/i32 output must saturate.
-        // See https://github.com/openvinotoolkit/openvino/issues/33164
-
-        const bool is_u8_u8_to_u8 = (srcDescs[0]->getPrecision() == ov::element::u8) &&
-                                    (srcDescs[1]->getPrecision() == ov::element::u8) &&
-                                    (dstDescs[0]->getPrecision() == ov::element::u8);
+        const bool is_u8_u8_to_u8 = ov::intel_cpu::all_of(ov::element::u8,
+                                                          srcDescs[0]->getPrecision(),
+                                                          srcDescs[1]->getPrecision(),
+                                                          dstDescs[0]->getPrecision());
 
         const auto convert_policy = is_u8_u8_to_u8 ? ConvertPolicy::WRAP : ConvertPolicy::SATURATE;
 
