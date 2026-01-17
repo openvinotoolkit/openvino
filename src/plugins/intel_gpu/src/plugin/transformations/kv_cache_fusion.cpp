@@ -129,7 +129,7 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
                 if (begin_mask != end_mask || begin_mask.empty()) {
                     return false;
                 }
-                if (std::count(begin_mask.begin(), begin_mask.end(), 1) != (begin_mask.size() - 1) || begin_mask.back() != 0) {
+                if (static_cast<size_t>(std::count(begin_mask.begin(), begin_mask.end(), 1)) != (begin_mask.size() - 1) || begin_mask.back() != 0) {
                     return false;
                 }
                 // slice start and stride should be all 1

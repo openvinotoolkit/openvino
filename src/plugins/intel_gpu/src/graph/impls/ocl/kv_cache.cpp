@@ -61,9 +61,9 @@ struct stages_helper {
     std::vector<kv_stage> stages;
 
     void verify() const {
-        if (get_index(kv_stage::scatter_update).has_value()) {
-            const auto is_indirect = get_index(kv_stage::beam_table).has_value();
-            const auto is_compress = get_index(kv_stage::dq).has_value();
+        if (try_get_index(kv_stage::scatter_update).has_value()) {
+            const auto is_indirect = try_get_index(kv_stage::beam_table).has_value();
+            const auto is_compress = try_get_index(kv_stage::dq).has_value();
             OPENVINO_ASSERT(!is_indirect && !is_compress);
         }
     }
@@ -86,12 +86,19 @@ struct stages_helper {
         }
     }
 
-    std::optional<size_t> get_index(kv_stage stage) const noexcept {
+    std::optional<size_t> try_get_index(kv_stage stage) const noexcept {
         if (const auto it = std::find(stages.begin(), stages.end(), stage); it != stages.end()) {
             return static_cast<size_t>(std::distance(stages.begin(), it));
         } 
         return {};
     }
+
+    size_t get_index(kv_stage stage) const noexcept {
+        const auto idx = try_get_index(stage);
+        OPENVINO_ASSERT(idx.has_value(), "expect stage ", static_cast<uint8_t>(stage), " exist");
+        return *idx;
+    }
+
 };
 
 struct kv_cache_impl : multi_stage_primitive<kv_cache> {
@@ -133,10 +140,6 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     cldnn::memory::ptr beam_table_prev = nullptr;
     cldnn::memory::ptr beam_table_new = nullptr;
 
-    // Cache blob format:
-    //     [ kernel_selector::kernel_data ]
-    //     [ kernel_ids ]
-    //     [ stages ]
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
         stages.save(ob);
@@ -148,30 +151,29 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         OPENVINO_ASSERT(_kernels_data.size() == stages.stages.size());
         stages.verify();
         if (is_dynamic()) {
-            if (const auto scatter_update_stage = stages.get_index(kv_stage::scatter_update)) {
+            if (const auto scatter_update_stage = stages.try_get_index(kv_stage::scatter_update)) {
                 auto& scatter_kernel_selector = scatter_kernel_selector_t::Instance();
                 auto scatter_kernel_impl = scatter_kernel_selector.GetImplementation(_kernels_data[*scatter_update_stage].kernelName);
                 scatter_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[*scatter_update_stage]);
             }
-            const auto concat_stage = stages.get_index(kv_stage::scatter_update);
-            OPENVINO_ASSERT(concat_stage.has_value());
+            const auto concat_stage = stages.get_index(kv_stage::concat);
             auto& concat_kernel_selector = kernel_selector_t::Instance();
-            auto concat_kernel_impl = concat_kernel_selector.GetImplementation(_kernels_data[*concat_stage].kernelName);
-            concat_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[*concat_stage]);
+            auto concat_kernel_impl = concat_kernel_selector.GetImplementation(_kernels_data[concat_stage].kernelName);
+            concat_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[concat_stage]);
             
-            if (const auto beam_table_stage = stages.get_index(kv_stage::beam_table)) {
+            if (const auto beam_table_stage = stages.try_get_index(kv_stage::beam_table)) {
                 auto& bt_kernel_selector = bt_kernel_selector_t::Instance();
                 auto bt_kernel_impl = bt_kernel_selector.GetImplementation(_kernels_data[*beam_table_stage].kernelName);
                 bt_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[*beam_table_stage]);
             }
 
-            if (const auto dq_stage = stages.get_index(kv_stage::dq)) {
+            if (const auto dq_stage = stages.try_get_index(kv_stage::dq)) {
                 auto& dq_kernel_selector = dq_kernel_selector_t::Instance();
                 auto dq_kernel_impl = dq_kernel_selector.GetImplementation(_kernels_data[*dq_stage].kernelName);
                 dq_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[*dq_stage]);
             }
 
-            if (const auto scale_concat_stage = stages.get_index(kv_stage::scale_concat)) {
+            if (const auto scale_concat_stage = stages.try_get_index(kv_stage::scale_concat)) {
                 auto& scale_zp_concat_kernel_selector = kernel_selector_t::Instance();
                 auto scale_zp_concat_kernel_impl = scale_zp_concat_kernel_selector.GetImplementation(_kernels_data[*scale_concat_stage].kernelName);
                 scale_zp_concat_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[*scale_concat_stage]);
@@ -274,19 +276,17 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         std::vector<event::ptr> res_events;
         const auto& impl_param = *instance.get_impl_params();
 
-        if (const auto scatter_update_stage = stages.get_index(kv_stage::scatter_update)) {
+        if (const auto scatter_update_stage = stages.try_get_index(kv_stage::scatter_update)) {
             execute_stage(events, instance, res_events, *scatter_update_stage);
         }
         const auto concat_stage = stages.get_index(kv_stage::concat);
-        OPENVINO_ASSERT(concat_stage.has_value());
-        execute_stage(events, instance, res_events, *concat_stage);
+        execute_stage(events, instance, res_events, concat_stage);
 
         const auto& kv_in_shape = impl_param.input_layouts[0].get_partial_shape();
         const auto& kv_out_shape = impl_param.output_layouts[0].get_partial_shape();
         if (desc->indirect && ((kv_out_shape[desc->gather_axis].get_length() > 1) ||
                                (kv_in_shape[desc->concat_axis].get_length() == 0))) {
             const auto beam_table_stage = stages.get_index(kv_stage::beam_table);
-            OPENVINO_ASSERT(beam_table_stage.has_value());
 
             const auto bt_alloc_type = engine.get_preferred_memory_allocation_type(false);
             auto beam_table_state =
@@ -313,31 +313,28 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             beam_table_state->set_memory(beam_table_new, instance.get_impl_params()->output_layouts[1]);
 
             auto bt_kernel_params = get_bt_update_kernel_params(impl_param, beam_table_state->is_set());
-            (_kernels_data[*beam_table_stage].update_dispatch_data_func)(bt_kernel_params, _kernels_data[*beam_table_stage]);
+            (_kernels_data[beam_table_stage].update_dispatch_data_func)(bt_kernel_params, _kernels_data[beam_table_stage]);
 
-            execute_stage(events, instance, res_events, *beam_table_stage);
+            execute_stage(events, instance, res_events, beam_table_stage);
             beam_table_state->set();
         }
 
         if (desc->compressed) {
             const auto scale_concat_stage = stages.get_index(kv_stage::scale_concat);
-            OPENVINO_ASSERT(scale_concat_stage.has_value());
             // Copy scales to the new buffer if needed
-            execute_stage(events, instance, res_events, *scale_concat_stage);
+            execute_stage(events, instance, res_events, scale_concat_stage);
 
             if (desc->get_compression_zp_inputs_num() > 0) {
                 const auto zp_concat_stage = stages.get_index(kv_stage::zp_concat);
-                OPENVINO_ASSERT(zp_concat_stage.has_value());
                 // Copy zero points to the new buffer if needed
-                execute_stage(events, instance, res_events, *zp_concat_stage);
+                execute_stage(events, instance, res_events, zp_concat_stage);
             }
 
             const auto dq_stage = stages.get_index(kv_stage::dq);
-            OPENVINO_ASSERT(dq_stage.has_value());
             // Perform dynamic quantization of new token data and append result to the KV-cache
             auto dq_params = get_dq_update_kernel_params(impl_param, impl_param.is_dynamic());
-            (_kernels_data[*dq_stage].update_dispatch_data_func)(dq_params, _kernels_data[*dq_stage]);
-            execute_stage(events, instance, res_events, *dq_stage);
+            (_kernels_data[dq_stage].update_dispatch_data_func)(dq_params, _kernels_data[dq_stage]);
+            execute_stage(events, instance, res_events, dq_stage);
 
             auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
             OPENVINO_ASSERT(compressed_cache_variable != nullptr, "compressed_cache_variable should not be null.");
@@ -632,7 +629,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        if (const auto scatter_update_stage = stages.get_index(kv_stage::scatter_update)) {
+        if (const auto scatter_update_stage = stages.try_get_index(kv_stage::scatter_update)) {
             auto scatter_kernel_params = get_scatter_kernel_params(impl_param, true);
             (_kernels_data[*scatter_update_stage].update_dispatch_data_func)(scatter_kernel_params, _kernels_data[*scatter_update_stage]);
             // Skip execution if indices tensor is empty
@@ -641,40 +638,37 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
         // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
         const auto concat_stage = stages.get_index(kv_stage::concat);
-        OPENVINO_ASSERT(concat_stage.has_value());
-        if (_kernels_data[*concat_stage].params == nullptr) {
-            _kernels_data[*concat_stage].params = std::make_shared<kernel_params_t>(get_concat_kernel_params(impl_param, true));
+        if (_kernels_data[concat_stage].params == nullptr) {
+            _kernels_data[concat_stage].params = std::make_shared<kernel_params_t>(get_concat_kernel_params(impl_param, true));
         }
-        auto& params = static_cast<kernel_params_t&>(*_kernels_data[*concat_stage].params);
+        auto& params = static_cast<kernel_params_t&>(*_kernels_data[concat_stage].params);
         const auto inputs_count = 2;
         for (size_t i = 0; i < inputs_count; ++i) {
             params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i]);
         }
         params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0]);
 
-        (_kernels_data[*concat_stage].update_dispatch_data_func)(params, _kernels_data[*concat_stage]);
-        _kernels_data[*concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(0).count() == 0;
+        (_kernels_data[concat_stage].update_dispatch_data_func)(params, _kernels_data[concat_stage]);
+        _kernels_data[concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(0).count() == 0;
 
         if (impl_param.typed_desc<kv_cache>()->compressed) {
             // In case of KV-cache with compression enabled, skip second concat's kernel as new token data append will
             // be handled by dynamic quantization kernel
             // However, allow execution of the first token for the case if KV-cache can't be optimized (if optimization is disabled, or
             // variables memory was reallocated and we have to copy past KV-cache to new memory)
-            _kernels_data[*concat_stage].kernels[1].skip_execution = true;
+            _kernels_data[concat_stage].kernels[1].skip_execution = true;
 
             const auto scale_concat_stage = stages.get_index(kv_stage::scale_concat);
-            OPENVINO_ASSERT(scale_concat_stage.has_value());
             // Update dynamic quantization parameters
             auto comp_scale_kernel_params = get_compression_scale_update_kernel_params(impl_param, true, impl_param.is_dynamic());
-            (_kernels_data[*scale_concat_stage].update_dispatch_data_func)(comp_scale_kernel_params, _kernels_data[*scale_concat_stage]);
-            _kernels_data[*scale_concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(3).count() == 0;
+            (_kernels_data[scale_concat_stage].update_dispatch_data_func)(comp_scale_kernel_params, _kernels_data[scale_concat_stage]);
+            _kernels_data[scale_concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(3).count() == 0;
 
             if (impl_param.typed_desc<kv_cache>()->get_compression_zp_inputs_num() > 0) {
                 const auto zp_concat_stage = stages.get_index(kv_stage::zp_concat);
-                OPENVINO_ASSERT(zp_concat_stage.has_value());
                 auto comp_scale_kernel_params = get_compression_scale_update_kernel_params(impl_param, false, impl_param.is_dynamic());
-                (_kernels_data[*zp_concat_stage].update_dispatch_data_func)(comp_scale_kernel_params, _kernels_data[*zp_concat_stage]);
-                _kernels_data[*zp_concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(4).count() == 0;
+                (_kernels_data[zp_concat_stage].update_dispatch_data_func)(comp_scale_kernel_params, _kernels_data[zp_concat_stage]);
+                _kernels_data[zp_concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(4).count() == 0;
             }
         }
     }
