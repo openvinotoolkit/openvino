@@ -4,6 +4,7 @@
 
 set(TARGET_NAME openvino_protobuf_shutdown)
 
+# Use OBJECT instead of STATIC to ensure DLLMain is invoked when the shared library is unloaded
 add_library(${TARGET_NAME} OBJECT shutdown_protobuf.cpp)
 
 add_library(openvino::protobuf_shutdown ALIAS ${TARGET_NAME})
