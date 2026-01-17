@@ -416,8 +416,14 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
             context_data->_device = info[1].ToString();
             context_data->_config = info.Length() == 3 ? to_anyMap(env, info[2]) : ov::AnyMap{};
 
-            context_data->tsfn = Napi::ThreadSafeFunction::New(
-                env, Napi::Function(), "TSFN", 0, 1, context_data.get(), ImportModelFinalizer, (void*)nullptr);
+            context_data->tsfn = Napi::ThreadSafeFunction::New(env,
+                                                               Napi::Function(),
+                                                               "TSFN",
+                                                               0,
+                                                               1,
+                                                               context_data.get(),
+                                                               ImportModelFinalizer,
+                                                               (void*)nullptr);
 
             context_data->nativeThread = std::thread(importModelThread, context_data.get(), std::ref(_mutex));
             auto* raw = context_data.release();
@@ -440,8 +446,14 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
             context_data->_device = info[1].ToString();
             context_data->_config = info.Length() == 3 ? to_anyMap(env, info[2]) : ov::AnyMap{};
 
-            context_data->tsfn = Napi::ThreadSafeFunction::New(
-                env, Napi::Function(), "TSFN", 0, 1, context_data.get(), ImportModelFinalizer, (void*)nullptr);
+            context_data->tsfn = Napi::ThreadSafeFunction::New(env,
+                                                               Napi::Function(),
+                                                               "TSFN",
+                                                               0,
+                                                               1,
+                                                               context_data.get(),
+                                                               ImportModelFinalizer,
+                                                               (void*)nullptr);
 
             context_data->nativeThread = std::thread(importModelThread, context_data.get(), std::ref(_mutex));
             auto* raw = context_data.release();

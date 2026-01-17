@@ -156,8 +156,7 @@ struct ImportModelContext {
     using Source = std::variant<std::monostate, BufferSource, TensorSource>;
     Source source{std::monostate{}};
 
-    ImportModelContext(Napi::Env env, ov::Core& core)
-        : deferred(Napi::Promise::Deferred::New(env)), _core{core} {}
+    ImportModelContext(Napi::Env env, ov::Core& core) : deferred(Napi::Promise::Deferred::New(env)), _core{core} {}
 
     std::thread nativeThread;
     Napi::Promise::Deferred deferred;
