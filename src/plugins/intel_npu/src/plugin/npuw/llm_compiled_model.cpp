@@ -119,11 +119,20 @@ public:
             auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
             auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_result);
 
-            // Some LLMs add intermediate hidden state outputs that can interfere with LM head detection.
-            // Skip Result nodes that were manually added (marked with "manually_added_output" in RT_INFO).
-            // For example, Eagle-3 target/draft models add "last_hidden_state" output which should be skipped.
-            const auto& rt_info = matched_result->get_rt_info();
-            if (rt_info.count("manually_added_output")) {
+            // Skip Result nodes that are not logits.
+            // Note: We can check that Result's output name is "logits" and it will be a
+            //       sufficiently reliable check for finding exatly logits output, because:
+            //       1. LLMInferRequest always rely on "logits" name to get logits from
+            ///         prefill/kvcache models.
+            //       2. - Following Exporter configs: OnnxConfig, OnnxConfigWithPast,
+            //            TextDecoderOnnxConfig and TextDecoderWithPositionIdsOnnxConfig
+            //            from optimum-onnx name LLM output with "logits".
+            //          - Most of optimum-intel OpenVINO Exporter configs are derived
+            //            from the configs above.
+            //          - optimum-intel `export()` function set names for output tensors
+            //            from Exporter config: https://github.com/huggingface/optimum-intel/blob/main/optimum/exporters/openvino/convert.py#L442-L445
+            if (matched_result->output(0).get_names().count(
+                    ov::npuw::LLMCompiledModel::layer_names::logits) == 0) {
                 return false;
             }
 
@@ -136,14 +145,14 @@ public:
             //        ICompiledModel::ICompiledModel().
             //        As a WA, setting the same name to output from MatMul
             //        avoids the issue.
-            matmul_first_source.set_names({ov::npuw::LLMCompiledModel::output_embeds});
-            matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::output_embeds});
+            matmul_first_source.set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
+            matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
             matched_result->validate_and_infer_types();
 
             // Create an additional model after cut point:
             auto new_param = std::make_shared<ov::op::v0::Parameter>(matmul_first_source.get_element_type(),
                                                                      matmul_first_source.get_partial_shape());
-            new_param->output(0).add_names({ov::npuw::LLMCompiledModel::output_embeds});
+            new_param->output(0).add_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
             matched_matmul->input(0).replace_source_output(new_param);
             auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
             lm_head_model =
@@ -169,6 +178,145 @@ std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) 
     return lm_head_model;
 }
 
+<<<<<<< HEAD
+=======
+void reshape_to_static(std::shared_ptr<ov::Model> model,
+                       const uint32_t input_size,
+                       const uint32_t kvcache_size,
+                       const KVAxesPosition& kv_axes_position,
+                       const uint32_t lora_rank,
+                       const uint32_t lhs_seq_size = 0) {
+    std::map<std::string, ov::PartialShape> new_shapes;
+    for (const auto& input : model->inputs()) {
+        const auto& input_name = input.get_any_name();
+        ov::PartialShape new_shape;
+        if (input_name.find("input_ids") != std::string::npos) {
+            new_shape = ov::PartialShape({1, input_size});
+        } else if (input_name.find("token_type_ids") != std::string::npos) {
+            new_shape = ov::PartialShape({1, input_size});
+        } else if (input_name.find("inputs_embeds") != std::string::npos) {
+            // NB: VLMs case, model accepts inputs_embeds[BATCH, SEQ_LEN, EMB_SIZE]
+            NPUW_ASSERT(input.get_partial_shape().size() == 3u);
+            NPUW_ASSERT(input.get_partial_shape()[2].is_static());
+            new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
+        } else if (input_name.find("attention_mask") != std::string::npos) {
+            new_shape = ov::PartialShape({1, kvcache_size});
+            if (lhs_seq_size && kvcache_size > 4)
+                // NB: for whisper kvcache model attn mask should be size + 1
+                new_shape = ov::PartialShape({1, kvcache_size + 1});
+        } else if (input_name.find("position_ids") != std::string::npos) {
+            const auto partial_shape_size = input.get_partial_shape().size();
+            // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni uses 3D shapes
+            // The first dimension (3) represents the three components of position encoding: time, height, and width
+            // enabling alignment across multimodal inputs like text, audio, and video
+            NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
+            new_shape =
+                partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
+        } else if (input_name.find("cache_position") != std::string::npos) {
+            // NB: Whisper case
+            new_shape = ov::PartialShape({1});
+        } else if (input_name.find("encoder_hidden_states") != std::string::npos) {
+            // NB: Whisper case
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            new_shape[0] = 1;  // batch_dim
+        } else if (ov::npuw::matchEagle3HiddenStatesString(input_name)) {
+            new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, input_size);
+        } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
+            new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
+        } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
+            new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
+        } else if (ov::npuw::util::matchLoRAMatMulBString(input_name)) {
+            new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
+        } else {
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            new_shape[kv_axes_position.batch] = 1;
+            if (lhs_seq_size) {  // Whisper model
+                new_shape[kv_axes_position.seq_len] = (input_name.find(".decoder") != std::string::npos)
+                                                          ? kvcache_size - input_size  // kv_size for decoder
+                                                          : lhs_seq_size;  // sequence size for encoder hidden states
+            } else {                                                       // LLM/VLM
+                new_shape[kv_axes_position.seq_len] = kvcache_size - input_size;
+            }
+        }
+        new_shapes.emplace(input_name, new_shape);
+    }
+    model->reshape(new_shapes);
+}
+
+void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model,
+                                   const uint32_t& batch_dim,
+                                   std::size_t max_generation_token_len) {
+    // We have only one input with dynamic shapes: output embeds.
+    // Output embeds should have "max_generation_token_len" for dimension representing
+    // number of embeddings to send to the matmul. Batch size should be equal to "1"
+    // for NPU.
+    const auto& input = lm_head_model->input(0);
+    const auto& partial_shape = input.get_partial_shape();
+    NPUW_ASSERT(partial_shape.size() == 3);
+
+    ov::PartialShape new_shape = partial_shape;
+    new_shape[batch_dim] = 1;
+    // Left dynamic axis will be for number of embeddings
+    for (auto i = 0; i < new_shape.rank().get_length(); i++) {
+        if (new_shape[i].is_dynamic()) {
+            new_shape[i] = max_generation_token_len;
+            // Sanity check that only one left dimension is dynamic, as
+            // another one should contain embedding space rank
+            break;
+        }
+    }
+
+    lm_head_model->reshape(new_shape);
+}
+
+void slice_out_embeds(std::shared_ptr<ov::Model> model,
+                      const uint32_t& batch_dim,
+                      std::size_t max_generation_token_len) {
+    std::shared_ptr<ov::Node> embed_result;
+    for (auto&& output : model->outputs()) {
+        if (output.get_any_name() == ov::npuw::LLMCompiledModel::layer_names::output_embeds) {
+            embed_result = output.get_node_shared_ptr();
+        }
+    }
+
+    if (embed_result) {
+        auto shape = embed_result->input(0).get_shape();
+        // If shape.size() is 3, then last axis should contain the rank of embedding dimension.
+        // But 1st and 2nd axes can mean different things.
+        // 1st axis can represent the batch size, while 2nd - the number of embeddings,
+        // or vice-versa (in chatglm)
+        if (shape.size() == 3) {
+            OPENVINO_ASSERT(batch_dim <= 1, "Unexpected value of batch_dim: ", batch_dim, ", expected 0 or 1!");
+            uint32_t num_embeds_dim = 1 - batch_dim;
+            OPENVINO_ASSERT(shape[num_embeds_dim] >= max_generation_token_len,
+                            "Number of output embeddings should be greater or equal to the slicing range!");
+            if (shape[num_embeds_dim] != max_generation_token_len) {
+                std::vector<int32_t> start_pos{
+                    static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - max_generation_token_len)),
+                    static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - max_generation_token_len)),
+                    0};
+                std::vector<int32_t> stop_pos{static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)) + 1,
+                                              static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)) + 1,
+                                              static_cast<int32_t>(shape[2])};
+                auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, start_pos);
+                auto stop = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, stop_pos);
+                auto step = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                   ov::Shape{3},
+                                                                   std::vector<int32_t>{1, 1, 1});
+
+                auto slice = std::make_shared<ov::op::v8::Slice>(embed_result->input_value(0), start, stop, step);
+
+                embed_result->input(0).replace_source_output(slice);
+                embed_result->validate_and_infer_types();
+                model->validate_nodes_and_infer_types();
+            }
+        }
+    }
+}
+
+>>>>>>> a45ae792e1 (Improved CutLMHead to not interfere with other outputs)
 bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
     std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "group_size"};
     if (!model->has_rt_info(rt_info_path)) {
