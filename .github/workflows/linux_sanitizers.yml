@@ -503,7 +503,7 @@ jobs:
     name: C++ func tests
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
-    timeout-minutes: 580
+    timeout-minutes: 380
     runs-on: aks-linux-16-cores-64gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
@@ -575,6 +575,7 @@ jobs:
         env:
           GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '*smoke*' }}
           GTEST_TOTAL_SHARDS: 5
+          # 5 shards is a minimum amount to keep job duration < 6 hours
           GTEST_SHARD_INDEX: ${{ matrix.SHARD }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
