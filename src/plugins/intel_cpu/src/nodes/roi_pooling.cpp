@@ -566,7 +566,7 @@ void ROIPooling::prepareParams() {
 template <typename T>
 class ROIPooling::ROIPoolingJitExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
-    explicit ROIPoolingJitExecutor([[maybe_unused]] const jit_roi_pooling_params& jpp) {
+    explicit ROIPoolingJitExecutor(const jit_roi_pooling_params& jpp) {
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
             roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>>(jpp);
