@@ -46,7 +46,7 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
     auto update_kv = wrap_type<ov::op::v3::ScatterElementsUpdate>({gather_input, dst_idx, gather_update, wrap_type<ov::op::v0::Constant>()});
     auto start = wrap_type<ov::op::v0::Constant>();
     auto past_seq_len = any_input();
-    auto stride = any_input();
+    auto stride = wrap_type<ov::op::v0::Constant>();
     auto step = wrap_type<ov::op::v0::Constant>();
     auto slice_axes = wrap_type<ov::op::v0::Constant>();
     auto trim_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{gather_input, gather_past, gather_convert, update_kv});
@@ -100,40 +100,75 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         const bool has_strided_slice = pattern_map.count(trim_past2) > 0;
         const bool has_trim = has_slice || has_strided_slice;
 
-        std::shared_ptr<ov::Node> past_seq_len_node;
-        if (has_trim) {
-            past_seq_len_node = pattern_map.at(past_seq_len).get_node_shared_ptr();
-        }
-        // StridedSlice uses multi-dim for end tensor, extract only the slice dim
-        if (has_strided_slice) {
-            const auto strided_slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(concat_node->input_value(0).get_node_shared_ptr());
-            const auto begin_mask = strided_slice->get_begin_mask();
-            const auto end_mask = strided_slice->get_end_mask();
-            // begin/end mask should be the same and only last element is 0 (being sliced), and sliced axis == concat_axis
-            if (begin_mask != end_mask || begin_mask.empty()) {
-                return false;
-            }
-            std::optional<uint64_t> target_concat_axis;
-            if (concat_axis >= 0) {
-                target_concat_axis = static_cast<uint64_t>(concat_axis);
+        const auto adjust_axis_to_positive = [&new_read_value_node](auto axis) ->std::optional<uint64_t> {
+            if (axis >= 0) {
+                return static_cast<uint64_t>(axis);
             } else {
                 const auto input_rank = new_read_value_node->get_output_partial_shape(0).rank();
                 if (input_rank.is_static()) {
-                    const auto adjusted_axis = input_rank.get_interval().get_min_val() + concat_axis;
+                    const auto adjusted_axis = input_rank.get_interval().get_min_val() + axis;
                     if (adjusted_axis >= 0) {
-                        target_concat_axis = static_cast<uint64_t>(adjusted_axis);
+                        return static_cast<uint64_t>(adjusted_axis);
                     }
                 }
             }
-            if (!target_concat_axis.has_value() || 
-                begin_mask.size() != *target_concat_axis + 1 || 
-                begin_mask.back() != 0 ||
-                std::accumulate(begin_mask.begin(), begin_mask.end(), static_cast<int64_t>(0)) != *target_concat_axis) {
-                return false;
+            return std::nullopt;
+        };
+        std::optional<uint64_t> target_concat_axis = adjust_axis_to_positive(concat_axis);
+        OPENVINO_ASSERT(target_concat_axis.has_value(), "concat_axis should be valid, get: ", concat_axis);
+
+        std::shared_ptr<ov::Node> past_seq_len_node;
+        if (has_trim) {
+            past_seq_len_node = pattern_map.at(past_seq_len).get_node_shared_ptr();
+            // StridedSlice uses multi-dim for end tensor, extract only the slice dim
+            if (has_strided_slice) {
+                const auto strided_slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(concat_node->input_value(0).get_node_shared_ptr());
+                const auto begin_mask = strided_slice->get_begin_mask();
+                const auto end_mask = strided_slice->get_end_mask();
+                // begin/end mask should be the same and only last element is 0 (being sliced)
+                if (begin_mask != end_mask || begin_mask.empty()) {
+                    return false;
+                }
+                if (std::count(begin_mask.begin(), begin_mask.end(), 1) != (begin_mask.size() - 1) || begin_mask.back() != 0) {
+                    return false;
+                }
+                // slice start and stride should be all 1
+                const auto slice_start = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(start).get_node_shared_ptr());
+                if (const auto start_data = slice_start->cast_vector<int64_t>(); std::any_of(start_data.begin(), start_data.end(), [](const auto val) {
+                        return val != 1;
+                    })) {
+                    return false;
+                }
+                const auto slice_stride = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(stride).get_node_shared_ptr());
+                if (const auto stride_data = slice_stride->cast_vector<int64_t>(); std::any_of(stride_data.begin(), stride_data.end(), [](const auto val) {
+                        return val != 1;
+                    })) {
+                    return false;
+                }
+                // sliced axis should be the same with concat_axis
+                if (begin_mask.size() != *target_concat_axis + 1) {
+                    return false;
+                }
+                const auto slice_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, {concat_axis});
+                const auto gather_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+                past_seq_len_node = std::make_shared<ov::op::v8::Gather>(past_seq_len_node, slice_axis, gather_axis);
+            } else {
+                // slice start should be 0 and step should be 1
+                const auto slice_start = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(start).get_node_shared_ptr());
+                if (const auto start_data = slice_start->cast_vector<int64_t>(); start_data.size() != 1 || start_data[0] != 0) {
+                    return false;
+                }
+                const auto slice_step = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(step).get_node_shared_ptr());
+                if (const auto step_data = slice_step->cast_vector<int64_t>(); step_data.size() != 1 || step_data[0] != 1) {
+                    return false;
+                }
+                // slice axis should be the same as concat_axis
+                const auto slice_axis = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(slice_axes).get_node_shared_ptr());
+                if (const auto axis_data = slice_axis->cast_vector<int64_t>();
+                    axis_data.size() != 1 || adjust_axis_to_positive(axis_data[0]) != *target_concat_axis) {
+                    return false;
+                }
             }
-            const auto slice_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, {concat_axis});
-            const auto gather_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-            past_seq_len_node = std::make_shared<ov::op::v8::Gather>(past_seq_len_node, slice_axis, gather_axis);
         }
 
         const auto input0 = has_beam_idx ? pattern_map.at(gather_past).get_node_shared_ptr() : new_read_value_node;

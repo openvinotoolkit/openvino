@@ -42,8 +42,9 @@ void CreateKVCacheOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::
 }
 
 void CreateKVCacheCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::KVCacheCompressed>& op) {
-    OPENVINO_ASSERT(!op->get_trim() && !op->get_update_kv());  // compressed kv does not support trim
-    validate_inputs_count(op, {4, 5});
+    OPENVINO_ASSERT(!op->get_update_kv());  // compressed kv does not support update_kv
+    OPENVINO_ASSERT(op->get_indirect());  // compressed kv must be indirect
+    validate_inputs_count(op, {4, 5, 6});
     auto inputs = p.GetInputInfo(op);
     int64_t rank = op->get_input_partial_shape(0).size();
     auto prim = cldnn::kv_cache(layer_type_name_ID(op),
@@ -52,7 +53,7 @@ void CreateKVCacheCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
                                 ov::util::normalize(op->get_concat_axis(), rank),
                                 ov::util::normalize(op->get_gather_axis(), rank),
                                 op->get_indirect(),
-                                false,
+                                op->get_trim(),
                                 false);
 
     prim.compressed = true;

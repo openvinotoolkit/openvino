@@ -92,6 +92,7 @@ protected:
     KVCache(const OutputVector& inputs,
             const std::shared_ptr<ov::op::util::Variable>& past_values,
             bool indirect,
+            bool trim,
             int64_t concat_axis,
             int64_t gather_axis,
             const ov::element::Type output_type = ov::element::dynamic);
