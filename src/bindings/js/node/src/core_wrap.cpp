@@ -316,33 +316,36 @@ Napi::Value CoreWrap::get_versions(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
-    try {
-        if (!info[0].IsBuffer()) {
-            OPENVINO_THROW("The first argument must be of type Buffer.");
-        }
-        if (!info[1].IsString()) {
-            OPENVINO_THROW("The second argument must be of type String.");
-        }
-        const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
-        const auto model_stream = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
-        std::stringstream _stream;
-        _stream << model_stream;
+    std::vector<std::string> allowed_signatures;
 
-        ov::CompiledModel compiled;
-        switch (info.Length()) {
-        case 2: {
-            compiled = _core.import_model(_stream, std::string(info[1].ToString()));
-            break;
+    try {
+        // Tensor input
+        if (ov::js::validate<TensorWrap, Napi::String>(info, allowed_signatures) ||
+            ov::js::validate<TensorWrap, Napi::String, Napi::Object>(info, allowed_signatures)) {
+            const ov::Tensor tensor = cast_to_tensor(info, 0);
+            const std::string device = info[1].ToString();
+            const ov::AnyMap config = info.Length() == 3 ? to_anyMap(info.Env(), info[2]) : ov::AnyMap{};
+
+            return CompiledModelWrap::wrap(info.Env(), _core.import_model(tensor, device, config));
+
+            // Buffer input (zero-copy with SharedStreamBuffer)
+        } else if (ov::js::validate<Napi::Buffer<uint8_t>, Napi::String>(info, allowed_signatures) ||
+                   ov::js::validate<Napi::Buffer<uint8_t>, Napi::String, Napi::Object>(info, allowed_signatures)) {
+            const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
+
+            // Use SharedStreamBuffer to avoid extra copies of data
+            ov::SharedStreamBuffer shared_buffer(reinterpret_cast<const char*>(model_data.Data()),
+                                                 static_cast<size_t>(model_data.Length()));
+            std::istream stream(&shared_buffer);
+
+            const std::string device = info[1].ToString();
+            const ov::AnyMap config = info.Length() == 3 ? to_anyMap(info.Env(), info[2]) : ov::AnyMap{};
+
+            return CompiledModelWrap::wrap(info.Env(), _core.import_model(stream, device, config));
+
+        } else {
+            OPENVINO_THROW("'importModelSync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
-        case 3: {
-            compiled = _core.import_model(_stream, std::string(info[1].ToString()), to_anyMap(info.Env(), info[2]));
-            break;
-        }
-        default: {
-            OPENVINO_THROW("Invalid number of arguments -> " + std::to_string(info.Length()));
-        }
-        }
-        return CompiledModelWrap::wrap(info.Env(), compiled);
 
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
