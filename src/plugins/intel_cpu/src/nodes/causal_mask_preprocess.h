@@ -38,6 +38,7 @@ private:
     struct Executor {
         virtual void execute(const dnnl::stream& strm,
                              intel_cpu::Node* pnode,
+                             const CpuParallelPtr& cpu_parallel,
                              const intel_cpu::CausalMaskPreprocessNode::Config& config) = 0;
         virtual ~Executor() = default;
     };

@@ -59,9 +59,9 @@ The functionality is equivalent to following python code:
 */
 template <typename T>
 struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPreprocess::Executor {
-    ExecutorCausalMaskPreprocess(const CpuParallelPtr& parallel) : cpuParallel(parallel) {}
     void execute([[maybe_unused]] const dnnl::stream& strm,
                  intel_cpu::Node* pnode,
+                 const CpuParallelPtr& cpu_parallel,
                  [[maybe_unused]] const intel_cpu::CausalMaskPreprocessNode::Config& config) override {
         ov::intel_cpu::PlainTensor t_attention_mask(pnode->getSrcMemoryAtPort(0));
         ov::intel_cpu::PlainTensor t_batch_size(pnode->getSrcMemoryAtPort(1));
@@ -92,7 +92,7 @@ struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPre
         auto* prow = t_cache_positions.ptr<int32_t>(0);
         T min_dtype = std::numeric_limits<T>::lowest();
 
-        cpuParallel->parallel_for2d(batch_size, qLen, [&](size_t n, size_t i) {
+        cpu_parallel->parallel_for2d(batch_size, qLen, [&](size_t n, size_t i) {
             auto* pamask = t_attention_mask.ptr<int32_t>(n, 0);
             auto* pdst = t_dst.ptr<T>(n, 0, i);
             auto row = static_cast<size_t>(prow[i]);
@@ -111,9 +111,6 @@ struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPre
         });
         DEBUG_LOG("CausalMaskPreprocess::execute  dst=", t_dst);
     }
-
-private:
-    std::shared_ptr<CpuParallel> cpuParallel;
 };
 
 CausalMaskPreprocess::CausalMaskPreprocess(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
@@ -142,7 +139,6 @@ bool CausalMaskPreprocess::isSupportedOperation(const std::shared_ptr<const ov::
 }
 
 void CausalMaskPreprocess::initSupportedPrimitiveDescriptors() {
-    auto cpuParallel = context->getCpuParallel();
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
     }
@@ -153,10 +149,10 @@ void CausalMaskPreprocess::initSupportedPrimitiveDescriptors() {
     // precision preferences
     if (m_config.type == "CausalMaskPreprocess") {
         if (oprecs[0] == ov::element::bf16) {
-            m_executor = std::make_shared<ExecutorCausalMaskPreprocess<ov::bfloat16>>(cpuParallel);
+            m_executor = std::make_shared<ExecutorCausalMaskPreprocess<ov::bfloat16>>();
         } else {
             // fallback to default precision
-            m_executor = std::make_shared<ExecutorCausalMaskPreprocess<float>>(cpuParallel);
+            m_executor = std::make_shared<ExecutorCausalMaskPreprocess<float>>();
             oprecs[0] = ov::element::f32;
         }
         // all input precisions must be int32
@@ -181,7 +177,7 @@ void CausalMaskPreprocess::initSupportedPrimitiveDescriptors() {
 }
 
 void CausalMaskPreprocess::execute(const dnnl::stream& strm) {
-    m_executor->execute(strm, this, m_config);
+    m_executor->execute(strm, this, context->getCpuParallel(), m_config);
 }
 
 }  // namespace ov::intel_cpu::node

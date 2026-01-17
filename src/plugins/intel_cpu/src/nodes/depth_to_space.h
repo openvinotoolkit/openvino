@@ -11,6 +11,7 @@
 
 #include "common/permute_kernel.h"
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"

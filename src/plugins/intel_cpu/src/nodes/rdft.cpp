@@ -1013,7 +1013,7 @@ private:
         return twiddles;
     }
 
-    void dftRealToComplex(const float* inputPtr,
+    void static dftRealToComplex(const float* inputPtr,
                           const float* twiddlesPtr,
                           float* outputPtr,
                           size_t inputSize,

@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"

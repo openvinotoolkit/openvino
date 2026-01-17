@@ -418,7 +418,7 @@ BitwiseRefExecutor<T, Enable>::BitwiseRefExecutor(const EltwiseRefKey& key) : El
 template <typename T, typename Enable>
 void BitwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
                                          const VectorDims& dims_out,
-                                         const CpuParallelPtr& cpu_parallel) {
+                                         [[maybe_unused]] const CpuParallelPtr& cpu_parallel) {
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0;
         size_t end = 0;
