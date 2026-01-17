@@ -354,6 +354,13 @@ def constant(
                 if _dtype != _value.dtype:
                     display_shared_memory_warning(f"Converting value of {_value.dtype} to {_dtype}")
                     _value, _shared_memory = _value.astype(_dtype), False
+    
+    # Block unsupported string tensor constants
+    if isinstance(_value, np.ndarray) and _value.dtype.kind in ("U", "S", "O"):
+        raise TypeError(
+            "String tensor constants are not supported in OpenVINO Python API"
+        )
+    
     # Create Constant itself:
     return Constant(_value, shared_memory=_shared_memory)
 
