@@ -122,6 +122,10 @@ bool GatherTo2DGather::run_on_model(const std::shared_ptr<ov::Model>& model) {
         }
         auto range_m =
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, static_cast<size_t>(M)}, range_values);
+        // Mark this constant to be preserved in function body during partitioning.
+        // This range constant is identical across all repeated MoE layers and should not be parameterized
+        // to avoid unnecessary overhead. The partitioning pass will check this marker to keep it in-place.
+        range_m->get_rt_info()["npuw_moe_gather_indices"] = true;
 
         // Tile range to [I, M]
         std::vector<int64_t> tile_repeats_data = {I, 1};
