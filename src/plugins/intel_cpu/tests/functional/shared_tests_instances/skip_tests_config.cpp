@@ -264,7 +264,7 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 163351
         R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
         // Sporadic failings with ASAN enabled
-        R"(.*CoreThreadingTests.*)",
+        R"(.*CoreThreadingTest.*)",
         R"(.*smoke_BehaviorTest.*)",
         // This transformation is disabled on CPU
         R"(.*smoke_LPT.*MultiplyToGroupConvolutionTransformation.*)",
