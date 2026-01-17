@@ -626,9 +626,12 @@ void Partitioner::identifySubgraphs() {
                     // Exception: param is registered via slice or convert
                     const auto& links_from = result_cache.at(src_node);
                     NPUW_ASSERT(links_from.size() > 0);
+                    // Note: It may happen that one output layer has more than one
+                    // Result nodes, that are the same!
+                    // Please see the `results_cache` filling below.
                     if (links_from.size() > 1) {
                         LOG_INFO("Parameter " << this_param->get_friendly_name()
-                                              << " has more than one possible Result nodes to connect!"
+                                              << " has more than one possible similar Result nodes to connect!"
                                               << " Will pick the first one: " << (*links_from.begin()).second);
                     }
                     const auto link_to = LinkPtrTo{this_group_idx, this_param};
@@ -656,9 +659,6 @@ void Partitioner::identifySubgraphs() {
             // set as part of kvcache conversion routune.
             LOG_BLOCK();
             std::set<std::string> output_layers_cache(group.output_layers.begin(), group.output_layers.end());
-            for (auto&& ol_name : group.output_layers) {
-                LOG_VERB("Initially registered output layer: " << ol_name);
-            }
 
             // Have to switch clang-format here to make cpplint happy
             // clang-format off
@@ -709,9 +709,14 @@ void Partitioner::identifySubgraphs() {
                 //    v
                 //    op102
                 bool has_external_readers = false;
-                // NB: It turns out sometime we may end up with multiple
-                // readers from the output node and more than 1 of them
-                // will be the Result node!
+                // NB: It turns out that sometime we may end up with multiple
+                // Result nodes from one output layer, but they should be equal.
+                // Ex.: OmniThinker multi-outputs case with cut LM head.
+                //      Output embeddings (not logits) became a Result from the
+                //      prefill/kvcache model when LM head is cut.
+                //      However, last operation before LM head has had already
+                //      a connected Result node corresponding to the second
+                //      output of the original model.
                 std::vector<NodeSPtr> maybe_results;
                 auto readers = output_desc.get_target_inputs();
                 // This is possible then some of layer's outputs are not used in the model.
@@ -732,13 +737,20 @@ void Partitioner::identifySubgraphs() {
                     }
                 }
                 if (!maybe_results.empty()) {
-                    for (auto&& mr: maybe_results) {
-                        LOG_VERB(mr);
-                    }
                     // This layer's output was connected to Result already.
                     // It happens when this layer is the original model's output
                     // Keep it to make the ugly top-level I/O matching procedure work.
                     // FIXME: This needs to be refactored
+
+                    // Sanity check that if layer output connects with multiple Result nodes,
+                    // then all Result nodes share the same shape.
+                    if (maybe_results.size() > 1) {
+                        const auto shape = (*maybe_results.begin())->get_shape();
+                        for (int i = 1; i < maybe_results.size(); ++i) {
+                            OPENVINO_ASSERT(shape == maybe_results[i]->get_shape(),
+                                            "Multiple results from one output layer should be similar!");
+                        } 
+                    } 
                     for (auto&& mr : maybe_results) {
                         group.sg._results.push_back(ov::as_type_ptr<ov::op::v0::Result>(mr));
                         result_cache[output_desc].push_back(
@@ -772,6 +784,7 @@ void Partitioner::identifySubgraphs() {
                         }
                         auto new_result = std::make_shared<ov::op::v0::Result>(result_src);
                         result_cache[output_desc].push_back(LinkPtrFrom{this_group_idx, new_result});
+
                         ov::copy_runtime_info(output_desc.get_node_shared_ptr(), new_result);
                         group.sg._results.push_back(std::move(new_result));
                     }
@@ -2446,29 +2459,19 @@ void Partitioner::finalizeLinks() {
         // result order.. but how? But how... see above, the complexity
         // is there.
 
-        LOG_VERB("before get_idx_param");
         std::size_t subgraph_idx_to;
         PPtr subgraph_param_to;
         std::tie(subgraph_idx_to, subgraph_param_to) = ptr_link.first;
-        LOG_VERB("subgraph_idx_to: " << subgraph_idx_to);
-        LOG_VERB("subgraph_param_to: " << subgraph_param_to);
         auto param_idx = get_idx_param(subgraph_idx_to, subgraph_param_to);
-        LOG_VERB("after get_idx_param");
 
-        LOG_VERB("before get_idx_result");
         std::size_t subgraph_idx_from;
         RPtr subgraph_result_from;
         std::tie(subgraph_idx_from, subgraph_result_from) = ptr_link.second;
-        LOG_VERB("subgraph_idx_from: " << subgraph_idx_from);
-        LOG_VERB("subgraph_result_from: " << subgraph_result_from);
         auto result_idx = get_idx_result(subgraph_idx_from, subgraph_result_from);
-        LOG_VERB("after get_idx_result");
 
-        LOG_VERB("before subgraph_links");
         subgraph_links[ov::npuw::LinkTo{subgraph_idx_to, param_idx}] =
             ov::npuw::LinkFrom{subgraph_idx_from, result_idx};
-        LOG_VERB("after subgraph_links");
-    
+
         LOG_BLOCK();
         LOG_DEBUG("Record link [" << subgraph_idx_to << "]:" << param_idx << "  <---  [" << subgraph_idx_from << "]/"
                                   << result_idx);
@@ -2560,11 +2563,8 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveRepeatedConstants(func_group);
                 p.saveTailDictConstants(func_group);
                 p.matchParameters(func_group);
-                std::cout << "here" << std::endl;
                 p.matchResults(func_group);
-                std::cout << "here 2" << std::endl;
                 p.matchRepeatedSubgraphs(func_group);
-
                 p.spatial(func_group);
                 p.attention(func_group);
                 p.optimize(func_group);
