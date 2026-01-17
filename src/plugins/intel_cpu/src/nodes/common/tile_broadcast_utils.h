@@ -21,9 +21,7 @@ protected:
     std::vector<NodeDesc> getSupportedConfigs(const Node* node, size_t outSize);
     bool prepareOptimizedParams(const Node* node, VectorDims& srcBlockedDims, VectorDims& dstBlockedDims);
 
-    void optimizedExecute(const MemoryPtr& srcMemory,
-                          const MemoryPtr& dstMemory,
-                          const CpuParallelPtr& cpuParallel);
+    void optimizedExecute(const MemoryPtr& srcMemory, const MemoryPtr& dstMemory, const CpuParallelPtr& cpuParallel);
 
     VectorDims repeats;
     bool optimizedCase = false;

@@ -725,8 +725,7 @@ private:
 template <typename T>
 class ROIPooling::ROIPoolingRefExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
-    explicit ROIPoolingRefExecutor(const jit_roi_pooling_params& _jpp)
-        : jpp(_jpp) {}
+    explicit ROIPoolingRefExecutor(const jit_roi_pooling_params& _jpp) : jpp(_jpp) {}
     void exec(const IMemory& srcData,
               const IMemory& srcRoi,
               const IMemory& dst,

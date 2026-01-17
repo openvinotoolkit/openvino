@@ -126,10 +126,7 @@ void GatherTree::prepareParams() {
     const VectorDims& maxSeqLenDims = maxSeqLenMemPtr->getStaticDims();
     const VectorDims& dstDims = dstMemPtr->getStaticDims();
 
-    execPtr = std::make_shared<GatherTreeExecutor>(stepIdxDims,
-                                                   parentIdxDims,
-                                                   maxSeqLenDims,
-                                                   dstDims);
+    execPtr = std::make_shared<GatherTreeExecutor>(stepIdxDims, parentIdxDims, maxSeqLenDims, dstDims);
 }
 
 void GatherTree::executeDynamicImpl(const dnnl::stream& strm) {

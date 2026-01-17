@@ -2552,10 +2552,8 @@ void Interpolate::prepareParams() {
                                                                 key.dataScales,
                                                                 key.attr);
         } else {
-            executor = std::make_shared<InterpolateRefExecutor>(key.nodeAttrs,
-                                                                key.srcDims,
-                                                                key.dstDims,
-                                                                key.dataScales);
+            executor =
+                std::make_shared<InterpolateRefExecutor>(key.nodeAttrs, key.srcDims, key.dstDims, key.dataScales);
         }
         return executor;
     };

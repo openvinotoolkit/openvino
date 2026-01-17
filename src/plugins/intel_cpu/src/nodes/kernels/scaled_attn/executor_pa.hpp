@@ -12,11 +12,10 @@
 
 namespace ov::Extensions::Cpu::XARCH {
 
-std::shared_ptr<PagedAttentionExecutor> make_pa_executor(
-    ov::element::Type data_type,
-    ov::element::Type key_cache_type,
-    ov::element::Type value_cache_type,
-    const PagedAttnQuantParams& params,
-    const CpuParallelPtr& cpu_parallel);
+std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type,
+                                                         ov::element::Type key_cache_type,
+                                                         ov::element::Type value_cache_type,
+                                                         const PagedAttnQuantParams& params,
+                                                         const CpuParallelPtr& cpu_parallel);
 
 }  // namespace ov::Extensions::Cpu::XARCH

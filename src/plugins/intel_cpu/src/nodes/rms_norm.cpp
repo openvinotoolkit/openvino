@@ -91,10 +91,7 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker,
 }
 
 struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
-    RMSNormExecutor(ov::element::Type precision,
-                    size_t data_size,
-                    size_t scale_size,
-                    float eps)
+    RMSNormExecutor(ov::element::Type precision, size_t data_size, size_t scale_size, float eps)
         : m_precision(precision) {
         kernel::jit_rms_compile_params jcp;
         jcp.src_prc = precision;

@@ -1116,7 +1116,10 @@ public:
         }
     }
 
-    void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, const CpuParallelPtr& cpu_parallel, const void** post_ops_data) override {
+    void exec(const uint8_t* src_ptr,
+              uint8_t* dst_ptr,
+              const CpuParallelPtr& cpu_parallel,
+              const void** post_ops_data) override {
         if (jcp.is_nchw) {
             normalize_nchw(reinterpret_cast<const in_data_t*>(src_ptr),
                            reinterpret_cast<out_data_t*>(dst_ptr),
@@ -1640,9 +1643,7 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
 #endif
     }
     if (attrs.layout == LayoutType::ncsp) {
-        return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs,
-                                                                                     kernel_attrs,
-                                                                                     dims);
+        return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
     }
     OPENVINO_THROW("'NormalizeL2' cannot create Executor");
 }

@@ -134,10 +134,9 @@ private:
                           const void** post_ops_data) = 0;
         virtual ~NormalizeL2Executor() = default;
 
-        static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(
-            const NormalizeL2Attrs& attrs,
-            const dnnl::primitive_attr& kernel_attr,
-            const VectorDims& dims);
+        static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(const NormalizeL2Attrs& attrs,
+                                                                           const dnnl::primitive_attr& kernel_attr,
+                                                                           const VectorDims& dims);
 
     protected:
         [[nodiscard]] static float epsApply(const float& modulo, const NormEpsMode mode, const float eps) {
@@ -163,9 +162,7 @@ private:
             using dst_t = typename std::tuple_element<1, T>::type;
 
             void operator()(NormalizeContext& ctx) {
-                ctx.executor = NormalizeL2Executor::makeExecutor<src_t, dst_t>(ctx.attrs,
-                                                                               ctx.kernel_attrs,
-                                                                               ctx.dims);
+                ctx.executor = NormalizeL2Executor::makeExecutor<src_t, dst_t>(ctx.attrs, ctx.kernel_attrs, ctx.dims);
             }
         };
     };

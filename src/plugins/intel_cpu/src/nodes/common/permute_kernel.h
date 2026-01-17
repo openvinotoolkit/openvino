@@ -70,10 +70,7 @@ public:
     }
 
 private:
-    void optimizedExecute(const uint8_t* src_data,
-                          const uint8_t* dst_data,
-                          int mb,
-                          const CpuParallelPtr& cpu_parallel);
+    void optimizedExecute(const uint8_t* src_data, const uint8_t* dst_data, int mb, const CpuParallelPtr& cpu_parallel);
 
     jit_permute_config_params jcp = {};
     std::shared_ptr<jit_uni_permute_kernel> permute_kernel;

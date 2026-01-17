@@ -726,7 +726,8 @@ public:
         const T* v = y + 5 * width * height / 4;
         T* dst = static_cast<T*>(output(0));
 
-        convert<T>(y, u, v, dst, batch_size, height, width, height * width * 3 / 2, height * width * 3 / 2, cpu_parallel);
+        convert<
+            T>(y, u, v, dst, batch_size, height, width, height * width * 3 / 2, height * width * 3 / 2, cpu_parallel);
     }
 };
 
@@ -1108,10 +1109,8 @@ void ColorConvert::createPrimitive() {
         const auto precision = cfg.inConfs[0].getMemDesc()->getPrecision();
         const bool isSinglePlane = cfg.inConfs.size() == 1;
 
-        _impl = std::unique_ptr<Converter>(_supportedImpls.at(desc->getImplementationType())
-                                               .at(algorithm)
-                                               .at(precision)
-                                               .at(isSinglePlane)(this));
+        _impl = std::unique_ptr<Converter>(
+            _supportedImpls.at(desc->getImplementationType()).at(algorithm).at(precision).at(isSinglePlane)(this));
     }
 }
 

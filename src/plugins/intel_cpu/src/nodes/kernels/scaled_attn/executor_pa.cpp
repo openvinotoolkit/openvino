@@ -2337,12 +2337,11 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 };
 #endif
 
-std::shared_ptr<PagedAttentionExecutor> make_pa_executor(
-    ov::element::Type data_type,
-    ov::element::Type key_cache_type,
-    ov::element::Type value_cache_type,
-    const PagedAttnQuantParams& params,
-    const CpuParallelPtr& cpu_parallel) {
+std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type,
+                                                         ov::element::Type key_cache_type,
+                                                         ov::element::Type value_cache_type,
+                                                         const PagedAttnQuantParams& params,
+                                                         const CpuParallelPtr& cpu_parallel) {
     std::shared_ptr<PagedAttentionExecutor> executor;
     if (params.is_sage_attn) {
         bool s8s8_available = (ov::with_cpu_x86_avx512_core_amx_int8() ||

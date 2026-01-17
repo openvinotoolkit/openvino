@@ -450,8 +450,7 @@ void ExtractImagePatches::prepareParams() {
     const auto& in_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const auto& out_dims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const auto prcSize = getOriginalInputPrecisionAtPort(0).size();
-    ExtractImagePatchesKey key =
-        {in_dims, out_dims, _ksizes, _strides, _rates, _auto_pad, prcSize};
+    ExtractImagePatchesKey key = {in_dims, out_dims, _ksizes, _strides, _rates, _auto_pad, prcSize};
     const auto isJit = mayiuse(x64::sse41);
     auto buildExecutor = [&isJit](const ExtractImagePatchesKey& key) -> executorPtr {
         if (isJit) {
@@ -505,12 +504,11 @@ void ExtractImagePatches::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(
-    void* src,
-    void* dst,
-    const VectorDims& istrides,
-    const VectorDims& ostrides,
-    const CpuParallelPtr& cpu_parallel) const {
+void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(void* src,
+                                                                           void* dst,
+                                                                           const VectorDims& istrides,
+                                                                           const VectorDims& ostrides,
+                                                                           const CpuParallelPtr& cpu_parallel) const {
     const auto* src_data = reinterpret_cast<const char*>(src);
     auto* dst_data = reinterpret_cast<char*>(dst);
 

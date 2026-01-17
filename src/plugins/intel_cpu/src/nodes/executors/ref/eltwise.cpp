@@ -228,8 +228,7 @@ void EltwiseRefBaseExecutor<T>::offset_in_calc(VectorDims& offset,
 
 // EltwiseRefExecutor implementation
 template <typename T, typename Enable>
-EltwiseRefExecutor<T, Enable>::EltwiseRefExecutor(const EltwiseRefKey& key)
-    : EltwiseRefBaseExecutor<T>(key) {}
+EltwiseRefExecutor<T, Enable>::EltwiseRefExecutor(const EltwiseRefKey& key) : EltwiseRefBaseExecutor<T>(key) {}
 
 template <typename T, typename Enable>
 void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
@@ -414,8 +413,7 @@ bool EltwiseRefExecutor<T, Enable>::supports([[maybe_unused]] const EltwiseConfi
 
 // BitwiseRefExecutor implementation
 template <typename T, typename Enable>
-BitwiseRefExecutor<T, Enable>::BitwiseRefExecutor(const EltwiseRefKey& key)
-    : EltwiseRefBaseExecutor<T>(key) {}
+BitwiseRefExecutor<T, Enable>::BitwiseRefExecutor(const EltwiseRefKey& key) : EltwiseRefBaseExecutor<T>(key) {}
 
 template <typename T, typename Enable>
 void BitwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
