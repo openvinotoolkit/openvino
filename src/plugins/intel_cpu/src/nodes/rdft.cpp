@@ -1014,12 +1014,12 @@ private:
     }
 
     void static dftRealToComplex(const float* inputPtr,
-                          const float* twiddlesPtr,
-                          float* outputPtr,
-                          size_t inputSize,
-                          size_t outputSize,
-                          bool parallelize,
-                          const CpuParallelPtr& cpuParallel) {
+                                 const float* twiddlesPtr,
+                                 float* outputPtr,
+                                 size_t inputSize,
+                                 size_t outputSize,
+                                 bool parallelize,
+                                 const CpuParallelPtr& cpuParallel) {
         auto dftIteration = [&](size_t k) {
             float real = 0;
             float imag = 0;

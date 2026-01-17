@@ -97,7 +97,7 @@ public:
 
     void exec(const jit_eltwise_call_args_ptrs& args_ptrs,
               const VectorDims& dims_out,
-              const CpuParallelPtr& cpu_parallel) override;
+              [[maybe_unused]] const CpuParallelPtr& cpu_parallel) override;
 
     static bool isSupportedConfiguration(const EltwiseConfig& config);
 };
