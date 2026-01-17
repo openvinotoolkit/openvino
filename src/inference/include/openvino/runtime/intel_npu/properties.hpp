@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -147,6 +147,14 @@ static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"}
  * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows to disable pruning of memory during idle time.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> disable_idle_memory_prunning{"NPU_DISABLE_IDLE_MEMORY_PRUNING"};
 
 }  // namespace intel_npu
 }  // namespace ov

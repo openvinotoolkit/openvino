@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 // Configuration: Enable loop-based Q@K computation to avoid materialized K/V broadcast
@@ -1043,7 +1043,7 @@ void PositionIDs::prepare(int64_t past_len) {
 
     // Same logic as regular attention PositionIDs
     auto* pos_data_ptr = in_tensor->data<int64_t>();
-    for (auto idx = in_dims.back() - 1; idx >= 0; idx--) {
+    for (int64_t idx = static_cast<int64_t>(in_dims.back()) - 1; idx >= 0; idx--) {
         if (pos_data_ptr[idx] > 0) {
             // Initialize fields
             _current_length = pos_data_ptr[idx];

@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const { addon: ov } = require("../..");
@@ -396,6 +396,58 @@ describe("ov basic tests.", () => {
         () => core.importModel(userStream, "CPU", testString).then(),
         /'importModel' method called with incorrect parameters./,
       );
+    });
+
+    it("Test importModelSync from Tensor", () => {
+      const uint8Array = new Uint8Array(userStream);
+      const tensorFromBuffer = new ov.Tensor(ov.element.u8, [userStream.length], uint8Array);
+
+      const newCompiled = core.importModelSync(tensorFromBuffer, "CPU");
+      assert.ok(newCompiled instanceof ov.CompiledModel);
+
+      const newInferRequest = newCompiled.createInferRequest();
+      const res2 = newInferRequest.infer([tensor]);
+
+      assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
+    });
+
+    it("Test importModelSync from Tensor with config", () => {
+      const uint8Array = new Uint8Array(userStream);
+      const tensorFromBuffer = new ov.Tensor(ov.element.u8, [userStream.length], uint8Array);
+
+      const newCompiled = core.importModelSync(tensorFromBuffer, "CPU", {
+        NUM_STREAMS: 1,
+      });
+      assert.ok(newCompiled instanceof ov.CompiledModel);
+
+      const newInferRequest = newCompiled.createInferRequest();
+      const res2 = newInferRequest.infer([tensor]);
+
+      assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
+    });
+
+    it("Test importModel from Tensor returns Promise", async () => {
+      const uint8Array = new Uint8Array(userStream);
+      const tensorFromBuffer = new ov.Tensor(ov.element.u8, [userStream.length], uint8Array);
+
+      const promise = core.importModel(tensorFromBuffer, "CPU");
+      assert.ok(promise instanceof Promise);
+      const cm = await promise;
+      assert.ok(cm instanceof ov.CompiledModel);
+    });
+
+    it("Test importModel from Tensor with config", async () => {
+      const uint8Array = new Uint8Array(userStream);
+      const tensorFromBuffer = new ov.Tensor(ov.element.u8, [userStream.length], uint8Array);
+
+      const newCompiled = await core.importModel(tensorFromBuffer, "CPU", {
+        NUM_STREAMS: 1,
+      });
+
+      const newInferRequest = newCompiled.createInferRequest();
+      const res2 = newInferRequest.infer([tensor]);
+
+      assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
     });
   });
 });

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)
@@ -60,8 +60,6 @@ from openvino._ov_api import InferRequest
 from openvino._ov_api import AsyncInferQueue
 
 # Import all public modules
-from openvino.package_utils import LazyLoader
-runtime = LazyLoader("openvino.runtime")
 from openvino import frontend as frontend
 from openvino import helpers as helpers
 from openvino import experimental as experimental

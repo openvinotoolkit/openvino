@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -357,11 +357,11 @@ private:
             vec[i] = t.sizes()[i];
         }
         std::reverse(vec.begin() + 2, vec.end());
-    
+
         return ov::Shape(vec.begin(), vec.end());
     }
-    
-    
+
+
     static std::vector<T> generateReferenceOutput(const format fmt,
                                                   const ScatterElementsUpdateParams<T, T_IND>& p,
                                                   const ScatterElementsUpdateOp::Reduction mode,
@@ -369,7 +369,7 @@ private:
         std::vector<T> out(p.data_tensor.count());
         const auto data_shape = tensorToShape(p.data_tensor, fmt);
         const auto indices_shape = tensorToShape(p.indices_tensor, fmt);
-                                                
+
         ov::reference::scatter_elem_update<T, T_IND>(p.data.data(),
                                                      p.indices.data(),
                                                      p.updates.data(),
@@ -568,7 +568,7 @@ const std::vector<ov::op::v12::ScatterElementsUpdate::Reduction> reduce_modes{
     ov::op::v12::ScatterElementsUpdate::Reduction::SUM,
     ov::op::v12::ScatterElementsUpdate::Reduction::PROD,
     ov::op::v12::ScatterElementsUpdate::Reduction::MIN,
-    // MAX mode omitted intentionally - see dedicated MAX tests below 
+    // MAX mode omitted intentionally - see dedicated MAX tests below
     ov::op::v12::ScatterElementsUpdate::Reduction::MEAN
 };
 
@@ -704,7 +704,7 @@ TEST(scatter_elements_update_gpu_fp32, smoke_multiple_indices_mean_big_1d_dynami
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{num, 1, 1, 1 } }); // input
     auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{num, 1, 1, 1 } });  // indices
     auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{num, 1, 1, 1 } });  // updates
-    
+
     std::vector<float> data(num, 0);
     std::vector<int32_t> indices(num, 0);
     std::vector<float> updates(num, 0);
