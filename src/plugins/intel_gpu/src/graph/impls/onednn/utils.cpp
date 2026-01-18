@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,8 +36,13 @@ std::string memory_desc_to_string(const dnnl::memory::desc& desc) {
         ss << (i ? "x" : "") << desc.get_dims()[i];
     }
     ss << ":strides=";
-    for (int i = 0; i < desc.get_ndims(); i++) {
-        ss << (i ? "x" : "") << desc.get_strides()[i];
+    const auto strides = desc.get_strides();
+    if (strides.empty()) {
+        ss << "empty";
+    } else {
+        for (size_t i = 0; i < strides.size(); i++) {
+            ss << (i ? "x" : "") << strides[i];
+        }
     }
 
     return ss.str();
@@ -258,19 +263,6 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
         throw std::invalid_argument("[clDNN] Unsupported onednn layout");
 
     return ret->first;
-}
-
-void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
-    auto pshape = l.get_partial_shape();
-    ov::Shape new_shape{1, 1};
-    for (size_t i = 0; i < pshape.size(); ++i) {
-        if (i < 2) {
-            new_shape[0] *= pshape[i].get_length();
-        } else {
-            new_shape[1] *= pshape[i].get_length();
-        }
-    }
-    l.set_partial_shape(new_shape);
 }
 
 int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {

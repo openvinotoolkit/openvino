@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -14,7 +14,7 @@ data_type = 'float32'
 
 def paddle_roll(name: str, x, shifts, axis=None, shifts_is_var=False):
     paddle.enable_static()
-    
+
     shifts = np.array([shifts], dtype='int64') if shifts_is_var else shifts
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
@@ -27,7 +27,7 @@ def paddle_roll(name: str, x, shifts, axis=None, shifts_is_var=False):
         exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.
         exe.run(paddle.static.default_startup_program())
-        
+
         feed_list = {'x': x, 'shifts': shifts} if shifts_is_var else {'x': x}
         outs = exe.run(
             feed=feed_list,
