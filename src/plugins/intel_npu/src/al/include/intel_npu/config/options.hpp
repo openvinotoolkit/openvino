@@ -249,7 +249,7 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
 #endif
 
     static bool isPublic() {
-        return false;
+        return true;
     }
 
     static uint32_t compilerSupportVersion() {
@@ -855,7 +855,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static bool isPublic() {
-        return false;
+        return true;
     }
 };
 
