@@ -2012,11 +2012,12 @@ void TopK::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    std::vector<std::pair<LayoutType, LayoutType>> dataFomats{{LayoutType::ncsp, LayoutType::ncsp},
+    std::vector<std::pair<LayoutType, LayoutType>> dataFomats {
+        {LayoutType::ncsp, LayoutType::ncsp},
 #if defined(OPENVINO_ARCH_X86_64)
-                                                              {LayoutType::nspc, LayoutType::nspc},
-                                                              {LayoutType::nCsp16c, LayoutType::nCsp16c},
-                                                              {LayoutType::nCsp8c, LayoutType::nCsp8c}
+            {LayoutType::nspc, LayoutType::nspc}, {LayoutType::nCsp16c, LayoutType::nCsp16c}, {
+            LayoutType::nCsp8c, LayoutType::nCsp8c
+        }
 #endif
     };
 
@@ -2511,7 +2512,7 @@ void TopK::topk_ref_process(const float* src_data,
         }
         for (int i2 = 0; i2 < top_k - 1; i2++) {
             for (int i3 = top_k - 1; i3 > i2; i3--) {
-                if (compare(max_values[i3], max_values[i3 - 1])) {
+                if (std::isnan(max_values[i3 - 1]) || compare(max_values[i3], max_values[i3 - 1])) {
                     swap_func(i3, i3 - 1);
                 }
             }
@@ -2520,7 +2521,7 @@ void TopK::topk_ref_process(const float* src_data,
             max_values[top_k] = src_data[s_index];
             max_indexes[top_k] = i2;
             for (int i3 = top_k; i3 > 0; i3--) {
-                if (compare(max_values[i3], max_values[i3 - 1])) {
+                if (std::isnan(max_values[i3 - 1]) || compare(max_values[i3], max_values[i3 - 1])) {
                     swap_func(i3, i3 - 1);
                 } else {
                     break;
