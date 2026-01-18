@@ -292,3 +292,30 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseSqueezeEliminationDynamicR
         model_ref = std::make_shared<Model>(OutputVector{add}, ParameterVector{left_input, right_input});
     }
 }
+
+TEST_F(TransformationTestsF, ConcatReduceMinFusionIncompatibleShapes) {
+    // Test case for bug #33231 - incompatible shapes should not be transformed
+    {
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(element::u8, Shape{2});
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(element::u8, Shape{24});
+        
+        auto concat = std::make_shared<ov::op::v0::Concat>(NodeVector{input_a, input_b}, 0);
+        auto reduce_axes = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto reduce_min = std::make_shared<ov::op::v1::ReduceMin>(concat, reduce_axes, false);
+        
+        model = std::make_shared<Model>(OutputVector{reduce_min}, ParameterVector{input_a, input_b});
+        manager.register_pass<ov::pass::ConcatReduceFusion>();
+    }
+    {
+        // Expected: transformation should NOT happen due to incompatible shapes
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(element::u8, Shape{2});
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(element::u8, Shape{24});
+        
+        auto concat = std::make_shared<ov::op::v0::Concat>(NodeVector{input_a, input_b}, 0);
+        auto reduce_axes = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto reduce_min = std::make_shared<ov::op::v1::ReduceMin>(concat, reduce_axes, false);
+        
+        model_ref = std::make_shared<Model>(OutputVector{reduce_min}, ParameterVector{input_a, input_b});
+    }
+}
+
