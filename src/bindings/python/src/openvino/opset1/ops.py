@@ -1834,6 +1834,19 @@ def pad(
     :param arg_pad_value: value used for padding if pad_mode is "constant"
     :return: Pad operation node.
     """
+    if arg_pad_value is not None:
+        arg_node = as_node(arg)
+        pad_val_node = as_node(arg_pad_value)
+        
+        arg_type = arg_node.get_element_type()
+        pad_type = pad_val_node.get_element_type()
+        
+        if arg_type != pad_type:
+            raise TypeError(
+                f"Data type mismatch: 'arg' has type {arg_type}, "
+                f"but 'arg_pad_value' has type {pad_type}."
+            )
+            
     input_nodes = as_nodes(arg, pads_begin, pads_end, name=name)
     if arg_pad_value:
         input_nodes.append(as_node(arg_pad_value, name=name))
