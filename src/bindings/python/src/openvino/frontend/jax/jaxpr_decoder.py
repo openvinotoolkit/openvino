@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -31,7 +31,7 @@ class JaxprPythonDecoder(Decoder):
     '''
     The jaxpr decoder uses Jaxpr to get graph information from a jax module.
     It takes use of the following parts.
-    
+
     - `ClosedJaxpr`: the jaxpr object that contains the jaxpr and literals.
         - `Jaxpr`: the jaxpr object that contains the invars, outvars, and eqns.
             - `JaxEqns`: A list of jaxpr equations, which contains the information of the operation.
@@ -52,7 +52,7 @@ class JaxprPythonDecoder(Decoder):
 
     def __init__(self, jaxpr, name=None, literals=None):
         '''
-        Inputs: 
+        Inputs:
             - jaxpr: for users, `ClosedJaxpr` is expected here. See https://github.com/google/jax/blob/jaxlib-v0.4.29/jax/_src/core.py#L197
             - name: the name for the model.
             - literals: the literals (constants) that are used in the model.
@@ -127,9 +127,9 @@ class JaxprPythonDecoder(Decoder):
     def get_param_names(self):
         '''
         In JAX, the named parameters may exist in `params` attribute of `JaxEqn`.
-        For example, the `jax.lax.cat` operation has a named parameter `dim`, 
+        For example, the `jax.lax.cat` operation has a named parameter `dim`,
         which is used to indicate the dimension to concatenate the tensors.
-        
+
         Here we return the names of all the named params that appear in the model for the current `JaxEqn`.
         '''
         return list(self.params.keys())
@@ -226,7 +226,7 @@ class _JaxprPythonConstantDecoder(Decoder):
     def __init__(self, name=None, constant=None, output_id=None):
         '''
         A decoder specially for constants and named parameters.
-        
+
         Inputs:
             - name: the name for the model.
             - literals: the literals (constants) that are used in the model.
@@ -262,9 +262,9 @@ class _JaxprPythonConstantDecoder(Decoder):
     def get_param_names(self):
         '''
         In JAX, the named parameters may exist in `params` attribute of `JaxEqn`.
-        For example, the `jax.lax.cat` operation has a named parameter `dim`, 
+        For example, the `jax.lax.cat` operation has a named parameter `dim`,
         which is used to indicate the dimension to concatenate the tensors.
-        
+
         However, `_JaxprPythonConstantDecoder` is already a named param or a constant.
         So it will never have a named param.
         '''

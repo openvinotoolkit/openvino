@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
@@ -43,7 +44,7 @@ public:
  * @param path Path to a file which memory will be mmaped.
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path);
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path);
 
 /**
  * @brief Returns mapped memory for a file from provided file handle (cross-platform).
@@ -54,18 +55,4 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path);
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle);
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-/**
- * @brief Returns mapped memory for a file from provided path.
- * Instead of reading files, we can map the memory via MapViewOfFile for Windows
- * in order to avoid time-consuming reading and reduce memory consumption.
- *
- * @param path Path to a file which memory will be mmaped.
- * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
- */
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path);
-
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 }  // namespace ov

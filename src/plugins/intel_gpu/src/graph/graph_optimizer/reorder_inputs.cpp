@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -512,6 +512,8 @@ void insert_reorders(program& p, const std::map<program_node*, format::type>& fm
 }  // namespace
 
 void reorder_inputs::run(program& p, reorder_factory& rf) {
+    p.mark_if_gemm_data_flow();
+
     auto& lo = p.get_layout_optimizer();
 
     auto fmt_map = get_preferred_formats(p, lo);

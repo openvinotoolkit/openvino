@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -494,6 +494,11 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             intel_npu.qdq_optimization_aggressive,
             "NPU_QDQ_OPTIMIZATION_AGGRESSIVE",
+            ((True, True),),
+        ),
+        (
+            intel_npu.disable_idle_memory_prunning,
+            "NPU_DISABLE_IDLE_MEMORY_PRUNING",
             ((True, True),),
         ),
         (props.enable_weightless, "ENABLE_WEIGHTLESS", ((True, True), (False, False))),
