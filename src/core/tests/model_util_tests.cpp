@@ -4,12 +4,18 @@
 
 #include <gmock/gmock.h>
 
+#include <chrono>
 #include <optional>
+#include <thread>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/model_util.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov::test {
 
@@ -214,6 +220,45 @@ TEST_F(ModelUtilTest, auto_set_missing_output_tensors_names) {
     ASSERT_EQ(model->outputs().size(), expected_names.size());
     const auto mismatch_error = compare_tensor_names(model->outputs(), expected_names);
     EXPECT_FALSE(mismatch_error) << *mismatch_error;
+}
+
+TEST(graph_util, release_model_constants_weights_drops_buffers) {
+    // std::this_thread::sleep_for(std::chrono::seconds(10));
+
+    constexpr size_t kElements = (1024ULL * 1024 * 1024) / sizeof(float);  // 1 GiB blob
+    {
+        auto weights = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{kElements}, 1.0f);
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+        auto add = std::make_shared<ov::op::v1::Add>(param, weights);
+        auto result = std::make_shared<ov::op::v0::Result>(add);
+
+        auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+
+        // std::this_thread::sleep_for(std::chrono::seconds(10));
+        ov::release_model_constants_weights(model);
+        // std::this_thread::sleep_for(std::chrono::seconds(10));
+        EXPECT_EQ("released", weights->get_rt_info().at("weights::state").as<std::string>());
+    }
+    // std::this_thread::sleep_for(std::chrono::seconds(10));
+}
+
+TEST(graph_util, release_model_constants_weights_keeps_buffers) {
+    // std::this_thread::sleep_for(std::chrono::seconds(10));
+
+    constexpr size_t kElements = (1024ULL * 1024 * 1024) / sizeof(float);  // 1 GiB blob
+
+    {
+        auto weights = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{kElements}, 1.0f);
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+        auto add = std::make_shared<ov::op::v1::Add>(param, weights);
+        auto result = std::make_shared<ov::op::v0::Result>(add);
+
+        auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+
+        // std::this_thread::sleep_for(std::chrono::seconds(10));
+        EXPECT_THROW(weights->get_rt_info().at("weights::state").as<std::string>(), std::out_of_range);
+    }
+    // std::this_thread::sleep_for(std::chrono::seconds(10));
 }
 
 }  // namespace ov::test

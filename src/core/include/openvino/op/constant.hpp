@@ -285,6 +285,11 @@ public:
     /// @return Constant's strides in bytes.
     const Strides& get_strides() const;
 
+    void release_data() {
+        m_data.reset();
+        get_rt_info()["weights::state"] = std::string("released");
+    }
+
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
 
