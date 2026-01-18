@@ -340,7 +340,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     qkv_current_split_node->set_output_size(2);
     auto kv_current = qkv_current_split_node->output(1);
     std::shared_ptr<ov::Node> kv_past_par, kv_current2, kv_concat, kv_current_reshaped;
-    std::tie(kv_past_par, kv_current2, kv_current_reshaped, kv_concat) = kv_read_and_concat(kv_current);
+    std::tie(kv_past_par, kv_current2, kv_current_reshaped, kv_concat) = kv_read_and_concat(std::move(kv_current));
     auto kv_concat_split = wrap_type<v1::VariadicSplit>({kv_concat, any_input(), any_input()});
     kv_concat_split->set_output_size(2);
 
@@ -440,12 +440,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
                                           &adaptive_rkv_diversity_results](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& real_q = pattern_map.at(q);
+        const auto& real_q = pattern_map.at(std::move(q));
 
         auto sdpa_node = pattern_map
-                             .at(pattern_map.count(sdpa_with_4_inputs)   ? sdpa_with_4_inputs
-                                 : pattern_map.count(sdpa_with_5_inputs) ? sdpa_with_5_inputs
-                                                                         : sdpa_with_6_inputs)
+                             .at(pattern_map.count(std::move(sdpa_with_4_inputs))   ? sdpa_with_4_inputs
+                                 : pattern_map.count(std::move(sdpa_with_5_inputs)) ? sdpa_with_5_inputs
+                                                                         : std::move(sdpa_with_6_inputs))
                              .get_node();
 
         auto k_head_size_dim = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];  // E from SDPA spec.
@@ -456,10 +456,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         auto k_head_size = k_head_size_dim.get_length();
         auto v_head_size = v_head_size_dim.get_length();
 
-        auto num_k_heads_dim = extract_num_kv_heads(k_heads_unsqueeze,
+        auto num_k_heads_dim = extract_num_kv_heads(std::move(k_heads_unsqueeze),
                                                     sdpa_node->get_input_tensor(1).get_partial_shape()[-3],
                                                     pattern_map);
-        auto num_v_heads_dim = extract_num_kv_heads(v_heads_unsqueeze,
+        auto num_v_heads_dim = extract_num_kv_heads(std::move(v_heads_unsqueeze),
                                                     sdpa_node->get_input_tensor(2).get_partial_shape()[-3],
                                                     pattern_map);
         OPENVINO_ASSERT((num_k_heads_dim.is_static() && num_v_heads_dim.is_static()),
@@ -483,7 +483,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             std::make_shared<v1::Reshape>(q_transpose, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
         ov::Output<ov::Node> k_target_layout, v_target_layout;
-        if (pattern_map.count(qkv_current_split_node)) {
+        if (pattern_map.count(std::move(qkv_current_split_node))) {
             // Fast track for merged K/V caches, based on the currently observed models topologies we don't need to
             // change layout and there is no point in the graph where it is in 4D. So `else` branch below is not
             // applicable for this case. + std::to_string(layer_index - 1)
@@ -491,11 +491,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             // TODO: Consider handling Q part as well as KV here, requires more changes in the code and sets
             // VariadicSplit before Concat as essential part of the pattern
             auto kv_split_part = qkv_split->output(1);
-            auto real_kv_concat_split = pattern_map.at(kv_concat_split).get_node_shared_ptr();
+            auto real_kv_concat_split = pattern_map.at(std::move(kv_concat_split)).get_node_shared_ptr();
             // Reaply VariadicSplit from the model after the Concat with KV merged tensor to current KV merged tensor
             // before the Concat
             auto kv_current_split = real_kv_concat_split->clone_with_new_inputs(
-                {kv_split_part, real_kv_concat_split->input_value(1), real_kv_concat_split->input_value(2)});
+                {std::move(kv_split_part), real_kv_concat_split->input_value(1), real_kv_concat_split->input_value(2)});
             // Under assumption that K and V parts go in order: K part first, and then V part. Theoretically they can be
             // swapped.
             // TODO: Need more code to track the swapped variant.
@@ -517,11 +517,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                 }
             };
 
-            auto real_k = take_4d(k_current, k_current_reshaped, k_current2);
-            auto real_v = take_4d(v_current, v_current_reshaped, v_current2);
+            auto real_k = take_4d(std::move(k_current), std::move(k_current_reshaped), std::move(k_current2));
+            auto real_v = take_4d(std::move(v_current), std::move(v_current_reshaped), std::move(v_current2));
 
             std::shared_ptr<Node> k_transpose_order = kv_transpose_order;
-            if (pattern_map.find(k_order) !=
+            if (pattern_map.find(std::move(k_order)) !=
                 pattern_map
                     .end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
                 k_transpose_order = std::make_shared<v8::Gather>(pattern_map.at(k_order),
@@ -530,7 +530,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             }
             k_target_layout = std::make_shared<v1::Transpose>(real_k, k_transpose_order);
             std::shared_ptr<Node> v_transpose_order = kv_transpose_order;
-            if (pattern_map.find(v_order) !=
+            if (pattern_map.find(std::move(v_order)) !=
                 pattern_map
                     .end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
                 v_transpose_order = std::make_shared<v8::Gather>(pattern_map.at(v_order),
@@ -546,7 +546,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             std::make_shared<v1::Reshape>(v_target_layout, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
         std::shared_ptr<ov::Node> scale;
-        if (pattern_map.count(scale_input)) {
+        if (pattern_map.count(std::move(scale_input))) {
             scale = pattern_map.at(scale_input).get_node_shared_ptr();
             if (pattern_map.at(scale_input).get_partial_shape().rank() != 0) {
                 scale = std::make_shared<v15::Squeeze>(scale);
@@ -573,11 +573,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         std::shared_ptr<Node> alibi_slopes;
-        if (pattern_map.find(general_alibi) != pattern_map.end()) {
+        if (pattern_map.find(std::move(general_alibi)) != pattern_map.end()) {
             alibi_slopes = handle_general_alibi(pattern_map.at(general_alibi).get_node_shared_ptr());
-        } else if (pattern_map.find(jais_13b_alibi) != pattern_map.end()) {
+        } else if (pattern_map.find(std::move(jais_13b_alibi)) != pattern_map.end()) {
             alibi_slopes = handle_jais_13b_alibi(pattern_map.at(jais_13b_alibi).get_node_shared_ptr());
-        } else if (pattern_map.find(baichuan2_13b_alibi) != pattern_map.end()) {
+        } else if (pattern_map.find(std::move(baichuan2_13b_alibi)) != pattern_map.end()) {
             alibi_slopes = handle_baichuan2_13b_alibi(pattern_map.at(baichuan2_13b_alibi).get_node_shared_ptr());
         } else {
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
@@ -587,13 +587,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         pa_arguments.insert(pa_arguments.end(), model_wide_params.begin(), model_wide_params.end());
 
         std::shared_ptr<Node> sliding_window;
-        if (pattern_map.count(phi3_offset)) {
+        if (pattern_map.count(std::move(phi3_offset))) {
             auto offset = pattern_map.at(phi3_offset).get_node_shared_ptr();
             if (offset->get_element_type() != element::i32) {
                 offset = std::make_shared<v0::Convert>(offset, element::i32);
             }
             sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(element::i32, Shape{}, {2}), offset);
-        } else if (pattern_map.count(gpt_oss_offset)) {
+        } else if (pattern_map.count(std::move(gpt_oss_offset))) {
             auto offset = pattern_map.at(gpt_oss_offset).get_node_shared_ptr();
             if (pattern_map.at(gpt_oss_offset).get_partial_shape().rank() != 0) {
                 offset = std::make_shared<v15::Squeeze>(offset);
@@ -606,9 +606,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
         }
 
-        std::initializer_list<std::shared_ptr<Node>> additional_params = {scale,
-                                                                          sliding_window,
-                                                                          alibi_slopes,
+        std::initializer_list<std::shared_ptr<Node>> additional_params = {std::move(scale),
+                                                                          std::move(sliding_window),
+                                                                          std::move(alibi_slopes),
                                                                           max_context_len.get_node_shared_ptr()};
         pa_arguments.insert(pa_arguments.end(), additional_params.begin(), additional_params.end());
 
@@ -616,7 +616,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
                                          "block_indices." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 7, block_indices);
-            block_indices_inputs_for_each_layer.push_back(block_indices);
+            block_indices_inputs_for_each_layer.push_back(std::move(block_indices));
         }
 
         if (allow_score_aggregation) {
@@ -644,8 +644,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             pa_arguments.insert(pa_arguments.begin() + 15, rotation_deltas);
             pa_arguments.insert(pa_arguments.begin() + 16, optional_model_wide_params.at("model_rotation_trig_lut"));
 
-            rotated_block_indices_inputs_for_each_layer.push_back(rotated_block_indices);
-            rotation_deltas_inputs_for_each_layer.push_back(rotation_deltas);
+            rotated_block_indices_inputs_for_each_layer.push_back(std::move(rotated_block_indices));
+            rotation_deltas_inputs_for_each_layer.push_back(std::move(rotation_deltas));
         } else {
             auto rotated_block_indices = v0::Constant::create(element::i32, Shape{0}, {});
             auto rotation_deltas = v0::Constant::create(element::i32, Shape{0}, {});
@@ -668,7 +668,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             pa_arguments.insert(pa_arguments.begin() + 17, xattention_threshold);
             pa_arguments.insert(pa_arguments.begin() + 18, optional_model_wide_params.at("xattention_block_size"));
             pa_arguments.insert(pa_arguments.begin() + 19, optional_model_wide_params.at("xattention_stride"));
-            xattention_threshold_inputs_for_each_layer.push_back(xattention_threshold);
+            xattention_threshold_inputs_for_each_layer.push_back(std::move(xattention_threshold));
         } else {
             auto xattention_threshold = v0::Constant::create(element::f32, Shape{0}, {});
             pa_arguments.insert(pa_arguments.begin() + 17, xattention_threshold);
@@ -678,7 +678,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         // For now we haven't seen sinks in any other model than gpt-oss, so taking -3 is generally safe
         // as there's going to be num_q_heads at -3.
-        if (pattern_map.count(sinks)) {
+        if (pattern_map.count(std::move(sinks))) {
             const auto& sinks_val = pattern_map.at(sinks);
             if (sinks_val.get_partial_shape()[-3] == real_q.get_partial_shape()[-3]) {
                 pa_arguments.insert(pa_arguments.begin() + 20, sinks_val.get_node_shared_ptr());
@@ -711,14 +711,14 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                         "adaptive_rkv_diversity_block_set_indices." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 23, adaptive_rkv_diversity_block_set_indices);
             adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer.push_back(
-                adaptive_rkv_diversity_block_set_indices);
+                std::move(adaptive_rkv_diversity_block_set_indices));
 
             auto adaptive_rkv_diversity_block_set_indices_begins =
                 setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
                         "adaptive_rkv_diversity_block_set_indices_begins." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 24, adaptive_rkv_diversity_block_set_indices_begins);
             adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer.push_back(
-                adaptive_rkv_diversity_block_set_indices_begins);
+                std::move(adaptive_rkv_diversity_block_set_indices_begins));
 
         } else {
             pa_arguments.insert(pa_arguments.begin() + 21, v0::Constant::create(element::i32, Shape{}, {0}));
@@ -753,14 +753,14 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         if (use_score_outputs) {
             auto score_result = std::make_shared<v0::Result>(paged_attention->output(1));
             score_result->get_output_tensor(0).set_names({"scores." + std::to_string(layer_index - 1)});
-            score_results.push_back(score_result);
+            score_results.push_back(std::move(score_result));
         }
 
         if (allow_adaptive_rkv) {
             auto similarity_result = std::make_shared<v0::Result>(paged_attention->output(2));
             similarity_result->get_output_tensor(0).set_names(
                 {"adaptive_rkv_diversity." + std::to_string(layer_index - 1)});
-            adaptive_rkv_diversity_results.push_back(similarity_result);
+            adaptive_rkv_diversity_results.push_back(std::move(similarity_result));
         }
 
         // TODO: Complete this part to work with stateless models as well as will stateful
@@ -771,20 +771,20 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         //  add_kv_parameter(mapping[k_gather])
         //  add_kv_parameter(mapping[v_gather])
 
-        if (pattern_map.find(v_past_par) != pattern_map.end()) {
+        if (pattern_map.find(std::move(v_past_par)) != pattern_map.end()) {
             auto param = ov::as_type_ptr<v0::Parameter>(pattern_map.at(v_past_par).get_node_shared_ptr());
             if (param) {
                 return false;
             }
-            parameters_to_remove.push_back(param);
+            parameters_to_remove.push_back(std::move(param));
         }
 
-        if (pattern_map.find(k_past_par) != pattern_map.end()) {
+        if (pattern_map.find(std::move(k_past_par)) != pattern_map.end()) {
             auto param = ov::as_type_ptr<v0::Parameter>(pattern_map.at(k_past_par).get_node_shared_ptr());
             if (param) {
                 return false;
             }
-            parameters_to_remove.push_back(param);
+            parameters_to_remove.push_back(std::move(param));
         }
 
         pa_transpose->set_friendly_name(sdpa_node->get_friendly_name());
