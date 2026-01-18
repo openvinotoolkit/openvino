@@ -136,6 +136,7 @@ OP_CONVERTER(translate_random_uniform_op);
 OP_CONVERTER(translate_random_uniform_int_op);
 OP_CONVERTER(translate_real_imag_op);
 OP_CONVERTER(translate_relu_6_op);
+OP_CONVERTER(translate_relu_0_to_1_op);
 OP_CONVERTER(translate_reciprocal_op);
 OP_CONVERTER(translate_reshape_op);
 OP_CONVERTER(translate_resource_gather_op);
