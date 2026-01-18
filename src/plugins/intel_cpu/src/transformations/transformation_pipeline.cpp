@@ -133,12 +133,10 @@
 #include "utils/ngraph_transformation.hpp"
 
 // LPT transformations
-#include "low_precision/add.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
@@ -170,6 +168,11 @@
 
 #if defined(OPENVINO_ARCH_X86)
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
+#endif
+
+#if !defined(OPENVINO_ARCH_RISCV64)
+#    include "low_precision/add.hpp"
+#    include "low_precision/rt_info/bias_attribute.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -269,6 +272,7 @@
 #    include "low_precision/reduce_sum.hpp"
 #    include "openvino/opsets/opset1_decl.hpp"
 #    include "snippets/utils/tokenization_utils.hpp"
+#    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
@@ -964,7 +968,25 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                              supportedPrecisions,
                              quantizationRestrictions,
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
-    CPU_SET_CALLBACK_COMMON(
+
+    CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            // Run the transformation for convolution bias only on ARM
+            // Convolution bias is handled in ConvertConvolutionBias transformation
+            auto node_input = (node->get_input_size() > 0) ? node->get_input_node_shared_ptr(0) : nullptr;
+            auto node_input_input =
+                (node_input && node_input->get_input_size() > 0) ? node_input->get_input_node_shared_ptr(0) : nullptr;
+            if (!node_input || !node_input_input) {
+                return ov::marked_as_bias(node);
+            }
+
+            return ov::marked_as_bias(node) && (!ov::is_type<ov::op::v1::Multiply>(node_input) ||
+                                                !ov::is_type<ov::op::v1::Convolution>(node_input_input));
+        },
+        AddTransformation);
+    CPU_SET_CALLBACK_X64(
         lptManager,
         [](const_node_ptr& node) -> bool {
             return ov::marked_as_bias(node);
@@ -1002,7 +1024,12 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         [&](const_node_ptr& node) -> bool {
             auto eltwise = node->get_input_node_shared_ptr(0);
             if (ov::is_type<ov::op::v1::Multiply>(eltwise) && FakeQuantizeTransformation::checkElementwise(eltwise)) {
-                return ov::is_type<ov::op::v1::Convolution>(eltwise->get_input_node_shared_ptr(0));
+                const auto eltwiseInput = eltwise->get_input_node_shared_ptr(0);
+                const bool noConvBias = ov::is_type<ov::op::v1::Convolution>(eltwiseInput);
+                const bool withConvBias =
+                    ov::is_type<ov::op::v1::Add>(eltwiseInput) &&
+                    ov::is_type<ov::op::v1::Convolution>(eltwiseInput->get_input_node_shared_ptr(0));
+                return noConvBias || withConvBias;
             }
             return false;
         },
@@ -1647,9 +1674,13 @@ void Transformations::PostSnippets() {
             if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
                 ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
                 auto parent = node->get_input_node_shared_ptr(0);
-                if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty() &&
-                    ov::is_type<const ov::op::v1::Convolution>(parent->get_input_node_shared_ptr(0))) {
-                    return true;
+                if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty()) {
+                    auto multiply_input = parent->get_input_node_shared_ptr(0);
+                    if (ov::is_type<const ov::op::v1::Convolution>(multiply_input) ||
+                        (ov::is_type<const ov::op::v1::Add>(multiply_input) &&
+                         ov::is_type<const ov::op::v1::Convolution>(multiply_input->get_input_node_shared_ptr(0)))) {
+                        return true;
+                    }
                 }
             }
             return false;
