@@ -8,9 +8,21 @@
 
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/plugin_itt.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/variable_state.hpp"
+
+// Only enable tracking of the pipeline stages when base or full profiling is enabled
+#if defined(ENABLE_PROFILING_ITT_FULL) || defined(ENABLE_PROFILING_ITT_BASE)
+#define INITIALIZE_ID_COUNTER m_infer_id = 0
+#define UPDATE_ID_COUNTER m_infer_id = g_uid++
+#define USE_ID_COUNTER m_infer_id
+#else
+#define INITIALIZE_ID_COUNTER
+#define UPDATE_ID_COUNTER
+#define USE_ID_COUNTER
+#endif
 
 namespace {
 
@@ -30,6 +42,11 @@ struct ImmediateStreamsExecutor : public ov::threading::ITaskExecutor {
 
 }  // namespace
 
+#if defined(ENABLE_PROFILING_ITT_FULL) || defined(ENABLE_PROFILING_ITT_BASE)
+/// @brief Thread-safe counter for unique inference request IDs.
+std::atomic<uint64_t> g_uid = {1};
+#endif
+
 ov::IAsyncInferRequest::~IAsyncInferRequest() {
     stop_and_wait();
 }
@@ -40,6 +57,7 @@ ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>&
     : m_sync_request(request),
       m_request_executor(task_executor),
       m_callback_executor(callback_executor) {
+    INITIALIZE_ID_COUNTER;
     if (m_request_executor && m_sync_request)
         m_pipeline = {{m_request_executor, [this] {
                            m_sync_request->infer();
@@ -119,6 +137,7 @@ void ov::IAsyncInferRequest::start_async_thread_unsafe() {
 void ov::IAsyncInferRequest::run_first_stage(const Pipeline::iterator itBeginStage,
                                              const Pipeline::iterator itEndStage,
                                              const std::shared_ptr<ov::threading::ITaskExecutor> callbackExecutor) {
+    UPDATE_ID_COUNTER;
     auto& firstStageExecutor = std::get<Stage_e::EXECUTOR>(*itBeginStage);
     OPENVINO_ASSERT(nullptr != firstStageExecutor);
     firstStageExecutor->run(make_next_stage_task(itBeginStage, itEndStage, std::move(callbackExecutor)));
@@ -130,6 +149,13 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
     const std::shared_ptr<ov::threading::ITaskExecutor> callbackExecutor) {
     return std::bind(
         [this, itStage, itEndStage](std::shared_ptr<ov::threading::ITaskExecutor>& callbackExecutor) mutable {
+#if defined(ENABLE_PROFILING_ITT_FULL) || defined(ENABLE_PROFILING_ITT_BASE)
+            // Propagate the inference ID through all subsequent stages for this instance of the pipeline
+            OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Inference,
+                                      "Inference::pipeline",
+                                      "InferenceID",
+                                      m_infer_id);  // DO NOT MODIFY!
+#endif
             std::exception_ptr currentException = nullptr;
             auto& thisStage = *itStage;
             auto itNextStage = itStage + 1;
