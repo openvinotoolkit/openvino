@@ -325,12 +325,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_default) {
     auto test_case = ov::test::TestCase(model, s_device);
 
     // Input: [1, 4, 4]
-    std::vector<float> input_data = {
-        1.0f, 2.0f, 3.0f, 4.0f,
-        5.0f, 6.0f, 7.0f, 8.0f,
-        9.0f, 10.0f, 11.0f, 12.0f,
-        13.0f, 14.0f, 15.0f, 16.0f
-    };
+    std::vector<float> input_data =
+        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f};
     test_case.add_input<float>(ov::Shape{1, 4, 4}, input_data);
 
     // image_shape: [3, 3]
@@ -339,11 +335,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_default) {
     test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
 
     // Expected Output: [1, 1, 3, 3]
-    std::vector<float> expected_output = {
-        1.0f,  7.0f,  6.0f,
-        12.0f, 34.0f, 22.0f,
-        11.0f, 27.0f, 16.0f
-    };
+    std::vector<float> expected_output = {1.0f, 7.0f, 6.0f, 12.0f, 34.0f, 22.0f, 11.0f, 27.0f, 16.0f};
     test_case.add_expected_output<float>(ov::Shape{1, 1, 3, 3}, expected_output);
     test_case.run();
 }
@@ -362,13 +354,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_dilations) {
     test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
 
     // Expected Output: [1, 1, 5, 5]
-    std::vector<float> expected_output = {
-        1.0f, 1.0f, 2.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 2.0f, 1.0f, 1.0f,
-        2.0f, 2.0f, 4.0f, 2.0f, 2.0f,
-        1.0f, 1.0f, 2.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 2.0f, 1.0f, 1.0f
-    };
+    std::vector<float> expected_output = {1.0f, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2.0f, 1.0f, 1.0f, 2.0f, 2.0f, 4.0f,
+                                          2.0f, 2.0f, 1.0f, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2.0f, 1.0f, 1.0f};
     test_case.add_expected_output<float>(ov::Shape{1, 1, 5, 5}, expected_output);
     test_case.run();
 }
@@ -387,10 +374,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_pads) {
     test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
 
     // Expected Output: [1, 1, 2, 2]
-    std::vector<float> expected_output = {
-        4.0f, 4.0f,
-        4.0f, 4.0f
-    };
+    std::vector<float> expected_output = {4.0f, 4.0f, 4.0f, 4.0f};
     test_case.add_expected_output<float>(ov::Shape{1, 1, 2, 2}, expected_output);
     test_case.run();
 }
@@ -428,11 +412,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_batch) {
     test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
 
     // Expected Output: [2, 1, 3, 3]
-    std::vector<float> single_batch_output = {
-        1.0f, 2.0f, 1.0f,
-        2.0f, 4.0f, 2.0f,
-        1.0f, 2.0f, 1.0f
-    };
+    std::vector<float> single_batch_output = {1.0f, 2.0f, 1.0f, 2.0f, 4.0f, 2.0f, 1.0f, 2.0f, 1.0f};
     std::vector<float> expected_output;
     expected_output.insert(expected_output.end(), single_batch_output.begin(), single_batch_output.end());
     expected_output.insert(expected_output.end(), single_batch_output.begin(), single_batch_output.end());
@@ -455,13 +435,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_channel) {
     test_case.add_input<int64_t>(ov::Shape{2}, {2, 2});
 
     // Expected Output: [1, 3, 3, 3]
-    std::vector<float> single_channel_output = {
-        1.0f, 2.0f, 1.0f,
-        2.0f, 4.0f, 2.0f,
-        1.0f, 2.0f, 1.0f
-    };
+    std::vector<float> single_channel_output = {1.0f, 2.0f, 1.0f, 2.0f, 4.0f, 2.0f, 1.0f, 2.0f, 1.0f};
     std::vector<float> expected_output;
-    for(int i=0; i<3; ++i) {
+    for (int i = 0; i < 3; ++i) {
         expected_output.insert(expected_output.end(), single_channel_output.begin(), single_channel_output.end());
     }
 
