@@ -149,10 +149,10 @@ KERNEL (reorder_data)(
         CALC_TYPE res = TO_CALC_TYPE(_convert_as_bfloat16_float(input[input_idx]));
     #elif defined INT4_INPUT
         const uint uint4_idx = input_idx >> 1;
-        OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(convert_as_int4_float(input[uint4_idx], input_idx));
+        float res = convert_as_int4_float(input[uint4_idx], input_idx);
     #elif defined UINT4_INPUT
         const uint uint4_idx = input_idx >> 1;
-        OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(convert_as_uint4_float(input[uint4_idx], input_idx));
+        float res = convert_as_uint4_float(input[uint4_idx], input_idx);
     #else
         CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
     #endif
@@ -231,6 +231,31 @@ KERNEL (reorder_data)(
         res = __TO_OUTPUT_REORDER_TYPE(res);
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
+    #elif defined(INT4_OUTPUT) || defined(UINT4_OUTPUT)
+        int val_i;
+        #if INPUT0_IS_FP
+            val_i = convert_int_sat(res);
+        #else
+            val_i = (int)res;
+        #endif
+
+        #if !CONVERT_TRUNCATE
+             #if defined(INT4_OUTPUT)
+                val_i = clamp(val_i, -8, 7);
+             #else
+                val_i = clamp(val_i, 0, 15);
+             #endif
+        #endif
+
+        uint val_u32 = (uint)(val_i & 0x0F);
+
+        volatile __global uint* output_u32 = (volatile __global uint*)output;
+        uint main_idx = output_idx / 8;
+        uint sub_idx  = output_idx % 8;
+        uint shift    = sub_idx * 4;
+
+        atomic_and(&output_u32[main_idx], ~(0x0F << shift));
+        atomic_or(&output_u32[main_idx], (val_u32 << shift));
     #else
         output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, __TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
     #endif
