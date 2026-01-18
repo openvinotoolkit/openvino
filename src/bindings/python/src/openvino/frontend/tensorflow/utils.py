@@ -11,6 +11,7 @@ import sys
 from openvino import PartialShape, Dimension, Type
 from packaging.version import parse, Version
 from typing import Union
+import importlib
 
 
 # TODO: reuse this method in ovc and remove duplication
@@ -88,9 +89,9 @@ def get_environment_setup(framework):
     env_setup['python_version'] = python_version
     try:
         if framework == 'tf':
-            exec("import tensorflow")
-            env_setup['tensorflow'] = get_imported_module_version(sys.modules["tensorflow"])
-            exec("del tensorflow")
+            tensorflow_mod = importlib.import_module('tensorflow')
+            env_setup['tensorflow'] = get_imported_module_version(tensorflow_mod)
+            del tensorflow_mod
     except (AttributeError, ImportError):
         pass
     env_setup['sys_platform'] = sys.platform
