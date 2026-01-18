@@ -13,6 +13,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -65,6 +66,7 @@ using MoEMatMulsFusionParams = std::tuple<MoEType,  // moe_type
                                           bool,     // skip_unsqueeze
                                           bool,     // matmul_transpose_b
                                           bool,     // additional_node_consumers
+                                          bool,     // multiply_on_gate
                                           bool>;    // transformation_should_be_applied
 
 inline std::shared_ptr<ov::Node> build_matmul_weights(const ov::Shape& weights_shape,
@@ -86,7 +88,8 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
                                                        bool use_broadcast_v3,
                                                        bool skip_unsqueeze,
                                                        bool matmul_transpose_b,
-                                                       bool additional_node_consumers) {
+                                                       bool additional_node_consumers,
+                                                       bool multiply_on_gate) {
     // Fixed values that don't affect pass behavior
     const auto expert_alpha = 1.625f;
     const auto expert_beta = 7.0f;
@@ -164,8 +167,13 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
                                               ov::op::v0::Constant::create(data_precision, ov::Shape{1}, {10.0f}));
     auto swish_beta = ov::op::v0::Constant::create(data_precision, ov::Shape{}, std::vector<float>{expert_alpha});
     auto swish = std::make_shared<ov::op::v4::Swish>(minimum1, swish_beta);
-
-    auto multiply2 = std::make_shared<ov::op::v1::Multiply>(add1, swish);
+    std::shared_ptr<ov::Node> mul2_input = swish;
+    if (multiply_on_gate) {
+        auto mul1_const = ov::op::v0::Constant::create(data_precision, ov::Shape{number_of_experts, 1, intermediate_size}, {10.0f});
+        auto mul1 = std::make_shared<ov::op::v1::Multiply>(swish, mul1_const);
+        mul2_input = mul1;
+    }
+    auto multiply2 = std::make_shared<ov::op::v1::Multiply>(add1, mul2_input);
 
     auto down_proj_weights = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},
                                                   weights_precision,
@@ -295,7 +303,8 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
 inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
                                                           bool use_broadcast_v3,
                                                           bool skip_unsqueeze,
-                                                          bool matmul_transpose_b) {
+                                                          bool matmul_transpose_b,
+                                                          bool multiply_on_gate) {
     // Fixed values that don't affect pass behavior
     const auto expert_alpha = 1.625f;
     const auto expert_beta = 7.0f;
@@ -390,7 +399,23 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
     auto swish_beta = ov::op::v0::Constant::create(data_precision, ov::Shape{}, std::vector<float>{expert_alpha});
     auto swish = std::make_shared<ov::op::v4::Swish>(minimum1, swish_beta);
 
-    auto multiply2 = std::make_shared<ov::op::v1::Multiply>(add1, swish);
+    std::shared_ptr<ov::Node> mul2_input = swish;
+    if (multiply_on_gate) {
+        auto mul1_const = ov::op::v0::Constant::create(data_precision, ov::Shape{number_of_experts, 1, intermediate_size}, {10.0f});
+        auto target_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{number_of_experts, intermediate_size});
+        auto reshape_const = std::make_shared<ov::op::v1::Reshape>(mul1_const, target_shape, false);
+        auto batch_gather =
+                std::make_shared<ov::op::v8::Gather>(reshape_const,
+                                                     router_topk_indices,
+                                                     ov::op::v0::Constant::create(ov::element::i32, {1}, {0}));
+        auto transpose =
+                std::make_shared<ov::op::v1::Transpose>(batch_gather,
+                                                        ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 0, 2}));
+        auto multiply1 = std::make_shared<ov::op::v1::Multiply>(swish, transpose);
+        mul2_input = multiply1;
+    }
+
+    auto multiply2 = std::make_shared<ov::op::v1::Multiply>(add1, mul2_input);
 
     auto down_proj_weights = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},
                                                   weights_precision,
@@ -444,7 +469,9 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
                                                        bool use_broadcast_v3,
                                                        bool skip_unsqueeze,
                                                        bool matmul_transpose_b,
-                                                       bool additional_node_consumers) {
+                                                       bool additional_node_consumers,
+                                                       bool multiply_on_gate) {
+    OPENVINO_ASSERT(!multiply_on_gate, "MoE3GeMM doesn't support multiply on gate via batchGatherMatmul");
     // Fixed values that don't affect pass behavior
     const ov::PartialShape input_shape = {-1, -1, 256};
     const size_t topk = 4;
@@ -631,7 +658,9 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
 inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
                                                           bool use_broadcast_v3,
                                                           bool skip_unsqueeze,
-                                                          bool matmul_transpose_b) {
+                                                          bool matmul_transpose_b,
+                                                          bool multiply_on_gate) {
+    OPENVINO_ASSERT(!multiply_on_gate, "MoE3GeMM doesn't support multiply on gate via batchGatherMatmul");
     // Fixed values that don't affect pass behavior
     const ov::PartialShape input_shape = {-1, -1, 256};
     const size_t topk = 4;
@@ -758,12 +787,14 @@ public:
                      skip_unsqueeze,
                      matmul_transpose_b,
                      additional_node_consumers,
+                     multiply_on_gate,
                      should_be_applied] = obj.param;
         std::ostringstream result;
         result << "MoEType_" << moe_type << "_ScatterV" << (use_scatter_v12 ? "12" : "3") << "_BroadcastV"
                << (use_broadcast_v3 ? "3" : "1") << "_SkipUnsqueeze_" << (skip_unsqueeze ? "true" : "false")
                << "_MatMulTransposeB_" << (matmul_transpose_b ? "true" : "false") << "_AdditionalConsumers_"
-               << (additional_node_consumers ? "true" : "false") << "_shouldBeApplied_"
+               << (additional_node_consumers ? "true" : "false") << "_multiplyOnGate_"
+               << (multiply_on_gate ? "true" : "false") << "_shouldBeApplied_"
                << (should_be_applied ? "true" : "false");
         return result.str();
     }
@@ -777,6 +808,7 @@ protected:
                      skip_unsqueeze,
                      matmul_transpose_b,
                      additional_node_consumers,
+                     multiply_on_gate,
                      should_be_applied] = this->GetParam();
 
         switch (moe_type) {
@@ -785,14 +817,16 @@ protected:
                                          use_broadcast_v3,
                                          skip_unsqueeze,
                                          matmul_transpose_b,
-                                         additional_node_consumers);
+                                         additional_node_consumers,
+                                         multiply_on_gate);
             break;
         case MoEType::MoE3GeMM:
             model = initMoE3GeMMSubgraph(use_scatter_v12,
                                          use_broadcast_v3,
                                          skip_unsqueeze,
                                          matmul_transpose_b,
-                                         additional_node_consumers);
+                                         additional_node_consumers,
+                                         multiply_on_gate);
             break;
         default:
             OPENVINO_THROW("Unexpected MoEType value");
@@ -804,11 +838,11 @@ protected:
             switch (moe_type) {
             case MoEType::MoE2GeMM:
                 model_ref =
-                    initMoE2GeMMSubgraphRef(use_scatter_v12, use_broadcast_v3, skip_unsqueeze, matmul_transpose_b);
+                    initMoE2GeMMSubgraphRef(use_scatter_v12, use_broadcast_v3, skip_unsqueeze, matmul_transpose_b, multiply_on_gate);
                 break;
             case MoEType::MoE3GeMM:
                 model_ref =
-                    initMoE3GeMMSubgraphRef(use_scatter_v12, use_broadcast_v3, skip_unsqueeze, matmul_transpose_b);
+                    initMoE3GeMMSubgraphRef(use_scatter_v12, use_broadcast_v3, skip_unsqueeze, matmul_transpose_b, multiply_on_gate);
                 break;
             default:
                 OPENVINO_THROW("Unexpected MoEType value");
@@ -823,37 +857,87 @@ const std::vector<MoEType> moe_types = {MoEType::MoE2GeMM, MoEType::MoE3GeMM};
 const std::vector<bool> scatter_versions = {false, true};    // false = v3, true = v12
 const std::vector<bool> broadcast_versions = {false, true};  // false = v1, true = v3
 const std::vector<bool> skip_unsqueeze_versions = {false, true};
+const std::vector<bool> mul_on_gate = {false, true};
 
-INSTANTIATE_TEST_SUITE_P(MoEMatMulsFusionTest_positive_cases,
+using MoEMatMulsFusionParams = std::tuple<MoEType,  // moe_type
+                                          bool,     // use_scatter_v12
+                                          bool,     // use_broadcast_v3
+                                          bool,     // skip_unsqueeze
+                                          bool,     // matmul_transpose_b
+                                          bool,     // additional_node_consumers
+                                          bool,     // multiply_on_gate
+                                          bool>;    // transformation_should_be_applied
+
+// MoE2GeMM
+INSTANTIATE_TEST_SUITE_P(MoEMatMuls2GeMMFusionTest_positive_cases,
                          MoEMatMulsFusionTest,
-                         ::testing::Combine(::testing::ValuesIn(moe_types),
+                         ::testing::Combine(::testing::Values(MoEType::MoE2GeMM),
                                             ::testing::ValuesIn(scatter_versions),
                                             ::testing::ValuesIn(broadcast_versions),
                                             ::testing::ValuesIn(skip_unsqueeze_versions),
                                             ::testing::Values(true),
                                             ::testing::Values(false),
+                                            ::testing::ValuesIn(mul_on_gate),
                                             ::testing::Values(true)),
                          MoEMatMulsFusionTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(MoEMatMulsFusionTest_negative_cases_no_transpose,
+INSTANTIATE_TEST_SUITE_P(MoEMatMuls2GeMMFusionTest_negative_cases_no_transpose,
                          MoEMatMulsFusionTest,
-                         ::testing::Combine(::testing::ValuesIn(moe_types),
+                         ::testing::Combine(::testing::Values(MoEType::MoE2GeMM),
                                             ::testing::ValuesIn(scatter_versions),
                                             ::testing::ValuesIn(broadcast_versions),
                                             ::testing::ValuesIn(skip_unsqueeze_versions),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(mul_on_gate),
+                                            ::testing::Values(false)),
+                         MoEMatMulsFusionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(MoEMatMuls2GeMMFusionTest_negative_cases_additional_consumers,
+                         MoEMatMulsFusionTest,
+                         ::testing::Combine(::testing::Values(MoEType::MoE2GeMM),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::ValuesIn(mul_on_gate),
+                                            ::testing::Values(false)),
+                         MoEMatMulsFusionTest::getTestCaseName);
+// MoE3GeMM
+INSTANTIATE_TEST_SUITE_P(MoEMatMuls3GeMMFusionTest_positive_cases,
+                         MoEMatMulsFusionTest,
+                         ::testing::Combine(::testing::Values(MoEType::MoE3GeMM),
+                                            ::testing::ValuesIn(scatter_versions),
+                                            ::testing::ValuesIn(broadcast_versions),
+                                            ::testing::ValuesIn(skip_unsqueeze_versions),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true)),
+                         MoEMatMulsFusionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(MoEMatMuls3GeMMFusionTest_negative_cases_no_transpose,
+                         MoEMatMulsFusionTest,
+                         ::testing::Combine(::testing::Values(MoEType::MoE3GeMM),
+                                            ::testing::ValuesIn(scatter_versions),
+                                            ::testing::ValuesIn(broadcast_versions),
+                                            ::testing::ValuesIn(skip_unsqueeze_versions),
+                                            ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(false)),
                          MoEMatMulsFusionTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(MoEMatMulsFusionTest_negative_cases_additional_consumers,
+INSTANTIATE_TEST_SUITE_P(MoEMatMuls3GeMMFusionTest_negative_cases_additional_consumers,
                          MoEMatMulsFusionTest,
-                         ::testing::Combine(::testing::ValuesIn(moe_types),
+                         ::testing::Combine(::testing::Values(MoEType::MoE3GeMM),
                                             ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(true),
                                             ::testing::Values(true),
+                                            ::testing::Values(false),
                                             ::testing::Values(false)),
                          MoEMatMulsFusionTest::getTestCaseName);
 }  // namespace
