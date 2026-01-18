@@ -834,6 +834,13 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     if (m_eagle3_ext.is_eagle3_model()) {
         m_eagle3_ext.update_last_hidden_state(m_prefill_request, m_prefill_out_ports);
+    } else {
+        for (auto&& [name, port]: m_prefill_out_ports) {
+            if (name == layer_names::logits) {
+                continue;
+            }
+            m_other_outputs[name] = m_prefill_request->get_tensor(port);
+        }
     }
 
     m_generate_initialized = false;
@@ -959,6 +966,13 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     if (m_eagle3_ext.is_eagle3_model()) {
         m_eagle3_ext.update_last_hidden_state(m_kvcache_request, m_kvcache_out_ports);
+    } else {
+        for (auto&& [name, port]: m_kvcache_out_ports) {
+            if (name == layer_names::logits) {
+                continue;
+            }
+            m_other_outputs[name] = m_kvcache_request->get_tensor(port);
+        }
     }
 
     LOG_DEBUG("Done");
@@ -1052,6 +1066,12 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
                 OPENVINO_THROW("Last hidden state tensor is not available. Please run inference first.");
             }
             return last_hidden_state;
+        }
+    } else {
+        for (auto&& [name, tensor]: m_other_outputs) {
+            if (port_names.count(name) > 0) {
+                return tensor;
+            }
         }
     }
 
