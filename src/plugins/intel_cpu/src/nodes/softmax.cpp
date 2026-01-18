@@ -101,6 +101,8 @@ void SoftMax::getSupportedDescriptors() {
     }
 
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
+    bool tryFP16 = (precision == ov::element::f16);
+
     if (none_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         precision = ov::element::f32;
     }
@@ -123,6 +125,25 @@ void SoftMax::getSupportedDescriptors() {
         }
 
         createDescriptor({in_candidate}, {});
+    }
+
+    if (descs.empty() && tryFP16) {
+        auto fallbackType = DnnlExtensionUtils::ElementTypeToDataType(ov::element::f32);
+
+        if (inShape.getRank() == 3) {
+            auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inShape, fallbackType, memory::format_tag::abc);
+            createDescriptor({in_candidate}, {});
+        }
+
+        for (auto format : getAvailableFormatsForDims(inShape)) {
+            auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inShape, fallbackType, format);
+
+            if (in_candidate->blocksExtended()) {
+                continue;
+            }
+
+            createDescriptor({in_candidate}, {});
+        }
     }
 }
 
