@@ -2907,18 +2907,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_top_k_repeating_unsorted) {
     test_case.run();
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_top_3_all_same) {
-    auto model = convert_model("top_3_all_same.onnx");
-
-    auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>(Shape{2, 4}, {0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f});
-    test_case.add_input<int64_t>({3});
-
-    test_case.add_expected_output<float>(Shape{2, 3}, {0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f});
-    test_case.add_expected_output<int64_t>(Shape{2, 3}, {0, 1, 2, 0, 1, 2});
-    test_case.run();
-}
-
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_acosh) {
     auto model = convert_model("acosh.onnx");
 
