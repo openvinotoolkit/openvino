@@ -376,6 +376,10 @@ set(PCH_EXCLUDE_FILES
     src/emitters/snippets/x64/jit_perf_count_rdtsc_emitters.cpp
     src/emitters/snippets/x64/jit_segfault_detector_emitter.cpp
     src/emitters/snippets/x64/verbose.cpp
+    src/emitters/snippets/aarch64/jit_debug_emitter.cpp
+    src/emitters/snippets/aarch64/jit_debug_emitter.cpp
+    src/emitters/snippets/aarch64/jit_segfault_detector_emitter.cpp
+    src/emitters/snippets/aarch64/verbose.cpp
     src/transformations/snippets/x64/op/perf_count_rdtsc.cpp)
 
 ov_build_target_faster(${TARGET_NAME} PCH PCH_EXCLUDE ${PCH_EXCLUDE_FILES})
