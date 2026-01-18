@@ -103,7 +103,8 @@ int32_t kv_cache_inst::get_prealloc_iter_num() {
     //   iteration.
     // - Therfore, to avoid this situation where the allocation and copying occurs simutaneously for all the kv_cache_insts,
     //   we assigned different prealloc-size for each kv cache so that we could prevent a memory peak
-    return 128 + kv_cache_id % 64;
+    auto prealloc_size = this->get_config().get_kv_cache_preallocation_size();
+    return prealloc_size + kv_cache_id % 64;
 }
 
 void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
