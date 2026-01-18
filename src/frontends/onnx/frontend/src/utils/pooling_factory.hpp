@@ -40,6 +40,14 @@ public:
     ov::OutputVector make_avg_pool() const;
 
     ///
+    /// \brief      Creates average pooling ONNX operation for Opsets 7, 10, 11, and 19.
+    ///             Explicitly handles count_include_pad (Opset 7), ceil_mode (Opset 10),
+    ///             and dilations (Opset 11).
+    /// \return     Vector of output nodes.
+    ///
+    ov::OutputVector make_avg_pool_opset7() const;
+
+    ///
     /// \brief      Creates max pooling ONNX operation.
     /// \return     Vector of output nodes.
     ///
