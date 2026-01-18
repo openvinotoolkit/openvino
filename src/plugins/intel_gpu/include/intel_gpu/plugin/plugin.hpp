@@ -10,6 +10,7 @@
 #include <map>
 #include <string>
 #include <memory>
+#include <variant>
 
 namespace ov::intel_gpu {
 
@@ -25,6 +26,9 @@ private:
 
     std::map<std::string, std::shared_ptr<RemoteContextImpl>> get_default_contexts() const;
 
+    std::shared_ptr<ov::ICompiledModel> import_model(std::variant<std::istream*, const ov::Tensor*> model,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const;
     std::shared_ptr<ov::Model> clone_and_transform_model(const std::shared_ptr<const ov::Model>& network,
                                                          const ExecutionConfig& config,
                                                          const std::shared_ptr<RemoteContextImpl>& context) const;
