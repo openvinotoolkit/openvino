@@ -59,7 +59,7 @@ ov::OutputVector col2im(const ov::frontend::onnx::Node& node) {
             ->outputs()};
 }
 
-ONNX_OP("Col2Im", OPSET_SINCE(18), ai_onnx::opset_18::col2im);
+ONNX_OP("Col2Im", OPSET_SINCE(1), ai_onnx::opset_18::col2im);
 }  // namespace opset_18
 }  // namespace ai_onnx
 }  // namespace onnx
