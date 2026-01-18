@@ -224,8 +224,9 @@ GPTOSSRouter::GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         }
 
         std::string topk_name = matched_topk->get_friendly_name();
-        bool is_router =
-            (topk_name.find(ROUTER_TAG) != std::string::npos || topk_name.find(EXPERT_TAG) != std::string::npos);
+        // Check if node name contains MoE router/expert patterns
+        bool is_router = (topk_name.find(MLP_ROUTER_NAME) != std::string::npos ||
+                          topk_name.find(MLP_EXPERT_NAME) != std::string::npos);
         if (!is_router) {
             return false;
         }

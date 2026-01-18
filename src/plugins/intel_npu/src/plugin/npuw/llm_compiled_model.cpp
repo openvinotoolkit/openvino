@@ -25,6 +25,7 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 #include "serialization.hpp"
@@ -1202,6 +1203,59 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     }
     return result;
 }
+
+// Detect if the model is a Mixture-of-Experts (MoE) architecture
+// by checking if any node name matches MoE patterns: layers.*.mlp.router or layers.*.mlp.experts
+bool is_moe_model(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& op : model->get_ops()) {
+        const std::string& node_name = op->get_friendly_name();
+        // Check for MoE-specific patterns:
+        // - layers.*.mlp.router (router network for expert selection)
+        // - layers.*.mlp.experts (expert networks)
+        // Note: "expert" also matches "experts" (plural)
+        if (node_name.find(ov::npuw::patterns::moe::MLP_ROUTER_NAME) != std::string::npos ||
+            node_name.find(ov::npuw::patterns::moe::MLP_EXPERT_NAME) != std::string::npos) {
+            LOG_INFO("Detected MoE model: found node with MoE pattern - " << node_name);
+            return true;
+        }
+    }
+    LOG_DEBUG("Non-MoE model detected: no .mlp.router or .mlp.expert nodes found");
+    return false;
+}
+
+// Apply MoE-specific optimizations to stage configuration based on hint
+void apply_moe_optimizations(ov::AnyMap& stage_config,
+                             ::intel_npu::npuw::llm::MoEHint moe_hint,
+                             const std::string& stage_name) {
+    // MoE expert and router pattern isolation options
+    const ov::AnyMap expert_opts = {
+        {"NPUW_ONLINE_PIPELINE", "REP"},
+        {"NPUW_ONLINE_ISOLATE", "MOE"},
+        {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
+        {"NPUW_UNFOLD_IREQS", "NO"},
+    };
+
+    if (moe_hint == ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED) {
+        LOG_INFO("MoE architecture optimization for " << stage_name
+                                                      << " stage: HOST_ROUTED (host-side expert routing)");
+        merge_config_with(stage_config, expert_opts);
+    } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
+        NPUW_ASSERT(false && "MoE DEVICE_ROUTED is not yet implemented! "
+                             "DEVICE_ROUTED will use in-graph gather-based expert selection to avoid "
+                             "graph splitting and reduce host-device communication overhead. "
+                             "This feature is planned for future releases.");
+    } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DENSE) {
+        LOG_INFO("MoE architecture optimization for " << stage_name << " stage: DENSE (all experts active)");
+        // DENSE mode requires CPU-only device due to extremely long NPU compilation time and high resource consumption
+        auto npuw_devices =
+            stage_config.count("NPUW_DEVICES") ? stage_config.at("NPUW_DEVICES").as<std::string>() : "NPU";
+        NPUW_ASSERT(npuw_devices == "CPU" &&
+                    "MoE DENSE mode requires CPU-only device (NPUW_DEVICES must be 'CPU'). "
+                    "DENSE activates all experts simultaneously, causing extremely long NPU compilation time. "
+                    "Please set NPUW_DEVICES to 'CPU'.");
+    }
+}
+
 }  // namespace
 
 void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model) {
@@ -1669,53 +1723,16 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         merge_config_with(generate_config, dyn_attn_opts);
     }
 
-    // Check if MoE (Mixture of Experts) architecture optimization should be enabled for prefill
-    // GPT-OSS Expert and Router pattern isolation options
-    const ov::AnyMap expert_opts = {
-        {"NPUW_ONLINE_PIPELINE", "REP"},
-        {"NPUW_ONLINE_ISOLATE", "MOE"},
-        {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
-        {"NPUW_UNFOLD_IREQS", "NO"},
-    };
-    // Check MoE hint for prefill stage
-    const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
-    if (prefill_moe_hint == ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED) {
-        LOG_INFO("MoE architecture optimization for PREFILL stage: HOST_ROUTED (host-side expert routing)");
-        merge_config_with(prefill_config, expert_opts);
-    } else if (prefill_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
-        NPUW_ASSERT(false && "MoE DEVICE_ROUTED for PREFILL is not yet implemented! "
-                             "DEVICE_ROUTED contains NPU-unfriendly operations (NonZero, ScatterElementsUpdate) "
-                             "which are not suitable for prefill stage.");
-    } else if (prefill_moe_hint == ::intel_npu::npuw::llm::MoEHint::DENSE) {
-        LOG_INFO("MoE architecture optimization for PREFILL stage: DENSE (all experts active)");
-        // DENSE mode requires CPU-only device due to extremely long NPU compilation time and high resource consumption
-        auto npuw_devices =
-            prefill_config.count("NPUW_DEVICES") ? prefill_config.at("NPUW_DEVICES").as<std::string>() : "NPU";
-        NPUW_ASSERT(npuw_devices == "CPU" &&
-                    "MoE DENSE mode requires CPU-only device (NPUW_DEVICES must be 'CPU'). "
-                    "DENSE activates all experts simultaneously, causing Extremely long NPU compilation time"
-                    "Please set NPUW_DEVICES to 'CPU'.");
-    }
+    // Auto-detect MoE model by scanning for router/expert nodes
+    const bool is_moe = is_moe_model(kvcache_model);
+    if (is_moe) {
+        // Apply MoE optimizations for prefill stage
+        const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
+        apply_moe_optimizations(prefill_config, prefill_moe_hint, "PREFILL");
 
-    // Check MoE hint for generate stage
-    const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
-    if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED) {
-        LOG_INFO("MoE architecture optimization for GENERATE stage: HOST_ROUTED (host-side expert routing)");
-        merge_config_with(generate_config, expert_opts);
-    } else if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
-        NPUW_ASSERT(false && "MoE DEVICE_ROUTED for GENERATE is not yet implemented! "
-                             "DEVICE_ROUTED will use in-graph gather-based expert selection to avoid "
-                             "graph splitting and reduce host-device communication overhead. "
-                             "This feature is planned for future releases.");
-    } else if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DENSE) {
-        LOG_INFO("MoE architecture optimization for GENERATE stage: DENSE (all experts active)");
-        // DENSE mode requires CPU-only device due to extremely long NPU compilation time and high resource consumption
-        auto npuw_devices =
-            generate_config.count("NPUW_DEVICES") ? generate_config.at("NPUW_DEVICES").as<std::string>() : "NPU";
-        NPUW_ASSERT(npuw_devices == "CPU" &&
-                    "MoE DENSE mode requires CPU-only device (NPUW_DEVICES must be 'CPU'). "
-                    "DENSE activates all experts simultaneously, causing Extremely long NPU compilation time"
-                    "Please set NPUW_DEVICES to 'CPU'.");
+        // Apply MoE optimizations for generate stage
+        const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
+        apply_moe_optimizations(generate_config, generate_moe_hint, "GENERATE");
     }
 
     // Note: with dynamic attention in EITHER STAGE, we have to

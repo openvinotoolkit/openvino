@@ -22,6 +22,10 @@ namespace moe {
 constexpr const char* ROUTER_TAG = "router";
 constexpr const char* EXPERT_TAG = "expert";
 
+// MoE layer name patterns for model detection
+constexpr const char* MLP_ROUTER_NAME = ".mlp.router";
+constexpr const char* MLP_EXPERT_NAME = ".mlp.expert";
+
 class GPTOSSExpert : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::GPTOSSExpert");
