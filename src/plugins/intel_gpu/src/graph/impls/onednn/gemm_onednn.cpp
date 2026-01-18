@@ -49,6 +49,19 @@ protected:
         return args;
     }
 
+    void set_arguments_impl(gemm_inst& instance) override {
+        if (instance.can_be_optimized())
+            return;
+
+        if (instance.get_input_layout(0).count() == 0 ||
+            instance.get_input_layout(1).count() == 0) {
+            return;
+        }
+
+        uint32_t net_id = instance.get_network().get_id();
+        _args[net_id] = get_arguments(instance);
+    }
+
     static dnnl::memory::format_tag transpose_format(dnnl::memory::format_tag fmt) {
         switch (fmt) {
             case dnnl::memory::format_tag::ab: return dnnl::memory::format_tag::ba;
@@ -86,6 +99,19 @@ protected:
         }
         in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts, impl_params.get_program().is_new_shape_infer());
         out_l = gemm_inst::transform_output_layout(prim, in_layouts, out_l);
+
+        int64_t in0_batch = in_layouts[0].batch();
+        int64_t in1_batch = in_layouts[1].batch();
+
+        // Broadcast batches to avoid onednn checks failure
+        if (in0_batch != in1_batch && one_of(1, {in0_batch, in1_batch})) {
+            auto& modified_layout = in0_batch == 1 ? in_layouts[0] : in_layouts[1];
+            int64_t target_batch = std::max(in0_batch, in1_batch);
+
+            auto new_pshape = modified_layout.get_partial_shape();
+            new_pshape[0] = ov::Dimension(target_batch);
+            modified_layout.set_partial_shape(new_pshape);
+        }
 
         const auto& in0_l = in_layouts[0];
         const auto& in1_l = in_layouts[1];
@@ -432,6 +458,12 @@ public:
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
+
+        if (impl_params.get_input_layout(0).count() == 0 ||
+            impl_params.get_input_layout(1).count() == 0) {
+            return std::make_unique<gemm_onednn>(engine);
+        }
+
         auto prim_desc = get_gemm_primitive_descriptor(impl_params, *attr);
 
         return std::make_unique<gemm_onednn>(engine, config, attr, *prim_desc);
