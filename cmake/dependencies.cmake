@@ -110,12 +110,19 @@ function(ov_download_tbb)
                 SHA256 "60d130cc34c3ad9643ed652e1ad03231d28e431917492e5baee07476f9de16b6"
                 USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)
+        set(_tbb_root "${TEMP}/${PLATFORM_SUBDIR}/tbb")
+        file(MAKE_DIRECTORY "${_tbb_root}")
+
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
-                TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
+                ARCHIVE_ANDROID "oneapi-tbb-2022.3.0-android-x86_64-hwloc-release.tgz"
+                TARGET_PATH "${_tbb_root}"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce"
+                SHA256 "0a49ee521a0bb47b32bccaf995837b53b183d1f1ba45b5ce35da972869afe22b"
                 USE_NEW_LOCATION TRUE)
+
+        set(TBBROOT "${_tbb_root}" CACHE PATH "Path to TBB root folder" FORCE)
+        set(TBB_DIR "${_tbb_root}/cmake/TBB" CACHE PATH "Path to TBB cmake folder" FORCE)
+        set(TBB "${_tbb_root}" CACHE PATH "" FORCE)
     elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
