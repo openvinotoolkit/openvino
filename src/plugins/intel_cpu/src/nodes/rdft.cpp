@@ -962,7 +962,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
              size_t outputSize,
              enum dft_type type,
              bool parallelize,
-             const CpuParallelPtr& cpuParallel) override {
+             [[maybe_unused]] const CpuParallelPtr& cpuParallel) override {
         jit_dft_kernel* kernel = type == complex_to_complex ? dftKernel.get() : rdftKernel.get();
         if (parallelize) {
             const int cachelineSize = 64;
