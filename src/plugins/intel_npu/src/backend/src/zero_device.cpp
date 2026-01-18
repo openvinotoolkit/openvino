@@ -13,35 +13,35 @@ using namespace intel_npu;
 
 ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs)
     : _initStructs(initStructs),
-      log("ZeroDevice", Logger::global().level()) {
-    log.debug("ZeroDevice::ZeroDevice init");
-    device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+      _log("ZeroDevice", Logger::global().level()) {
+    _log.debug("ZeroDevice::ZeroDevice init");
+    _device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
 
     // Get LUID info, if supported
     if (_initStructs->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME), ZE_MAKE_VERSION(1, 0))) {
-        device_luid.stype = ZE_STRUCTURE_TYPE_DEVICE_LUID_EXT_PROPERTIES;
-        device_properties.pNext = &device_luid;
+        _device_luid.stype = ZE_STRUCTURE_TYPE_DEVICE_LUID_EXT_PROPERTIES;
+        _device_properties.pNext = &_device_luid;
     }
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
-                                zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
+                                zeDeviceGetProperties(_initStructs->getDevice(), &_device_properties));
 
     // Query PCI information
     // Older drivers do not have this implementend. Linux driver returns NOT_IMPLEMENTED, while windows driver returns
     // zero values. If this is detected, we populate only device with ID from device_properties for backwards
     // compatibility. For any other error, we just fall-back to device ID to assure backwards compatibilty with even
     // older drivers
-    pci_properties.stype = ZE_STRUCTURE_TYPE_PCI_EXT_PROPERTIES;
-    ze_result_t retpci = zeDevicePciGetPropertiesExt(_initStructs->getDevice(), &pci_properties);
+    _pci_properties.stype = ZE_STRUCTURE_TYPE_PCI_EXT_PROPERTIES;
+    ze_result_t retpci = zeDevicePciGetPropertiesExt(_initStructs->getDevice(), &_pci_properties);
     if (ZE_RESULT_SUCCESS == retpci) {
         // windows driver specific backwards compatibility
-        if (pci_properties.address.device == 0) {
-            log.warning("PCI information not available in driver. Falling back to deviceId");
-            pci_properties.address.device = device_properties.deviceId;
+        if (_pci_properties.address.device == 0) {
+            _log.warning("PCI information not available in driver. Falling back to deviceId");
+            _pci_properties.address.device = _device_properties.deviceId;
         }
     } else {
         // general backwards compatibility
-        log.warning("PCI information not available in driver. Falling back to deviceId");
-        pci_properties.address.device = device_properties.deviceId;
+        _log.warning("PCI information not available in driver. Falling back to deviceId");
+        _pci_properties.address.device = _device_properties.deviceId;
     }
 
     /// Calculate and store device GOPS with formula: frequency * number of tiles * ops per tile
@@ -53,12 +53,12 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     gops_support_drv_version = 1715354569;  /// Linux driver version which supports Gops calculations
 #endif                                // _WIN32 || __CYGWIN__
     if (_initStructs->getDriverVersion() >= gops_support_drv_version) {
-        float gops = (device_properties.coreClockRate / powf(1000, 3)) * device_properties.numSlices *
-                     device_properties.physicalEUSimdWidth;
-        device_gops[ov::element::f32] = 0;
-        device_gops[ov::element::u8] = gops;
-        device_gops[ov::element::i8] = gops;
-        device_gops[ov::element::f16] = 0.5f * gops;
+        float gops = (_device_properties.coreClockRate / powf(1000, 3)) * _device_properties.numSlices *
+                     _device_properties.physicalEUSimdWidth;
+        _device_gops[ov::element::f32] = 0;
+        _device_gops[ov::element::u8] = gops;
+        _device_gops[ov::element::i8] = gops;
+        _device_gops[ov::element::f16] = 0.5f * gops;
     }
 }
 
@@ -69,7 +69,7 @@ std::string ZeroDevice::getName() const {
 #define NPU_4000_DEVICE_ID   0x643E
 
     std::string name;
-    switch (device_properties.deviceId) {
+    switch (_device_properties.deviceId) {
     case NPU_3720_P_DEVICE_ID:
     case NPU_3720_S_DEVICE_ID:
         name = ov::intel_npu::Platform::NPU3720;
@@ -85,15 +85,15 @@ std::string ZeroDevice::getName() const {
 }
 
 std::string ZeroDevice::getFullDeviceName() const {
-    return device_properties.name;
+    return _device_properties.name;
 }
 
 IDevice::Uuid ZeroDevice::getUuid() const {
     Uuid uuid{};
-    static_assert(sizeof(device_properties.uuid.id) == uuid.uuid.size(),
+    static_assert(sizeof(_device_properties.uuid.id) == uuid.uuid.size(),
                   "ze_device_uuid_t::id size doesn't match intel_npu::Uuid::uuid size");
 
-    std::copy(std::begin(device_properties.uuid.id), std::end(device_properties.uuid.id), std::begin(uuid.uuid));
+    std::copy(std::begin(_device_properties.uuid.id), std::end(_device_properties.uuid.id), std::begin(uuid.uuid));
 
     return uuid;
 }
@@ -103,17 +103,17 @@ ov::device::LUID ZeroDevice::getLUID() const {
     // incompatibility check
     static_assert(ZE_MAX_DEVICE_LUID_SIZE_EXT == ov::device::LUID::MAX_LUID_SIZE, "LUID size mismatch");
     for (int i = 0; i < ZE_MAX_DEVICE_LUID_SIZE_EXT; i++) {
-        luidstruct.luid[i] = device_luid.luid.id[i];
+        luidstruct.luid[i] = _device_luid.luid.id[i];
     }
     return luidstruct;
 }
 
 uint32_t ZeroDevice::getSubDevId() const {
-    return device_properties.subdeviceId;
+    return _device_properties.subdeviceId;
 }
 
 uint32_t ZeroDevice::getMaxNumSlices() const {
-    return device_properties.numSlices;
+    return _device_properties.numSlices;
 }
 
 uint64_t ZeroDevice::getAllocMemSize() const {
@@ -155,14 +155,14 @@ uint64_t ZeroDevice::getTotalMemSize() const {
 }
 
 ov::device::PCIInfo ZeroDevice::getPciInfo() const {
-    return ov::device::PCIInfo{pci_properties.address.domain,
-                               pci_properties.address.bus,
-                               pci_properties.address.device,
-                               pci_properties.address.function};
+    return ov::device::PCIInfo{_pci_properties.address.domain,
+                               _pci_properties.address.bus,
+                               _pci_properties.address.device,
+                               _pci_properties.address.function};
 }
 
 std::map<ov::element::Type, float> ZeroDevice::getGops() const {
-    return device_gops;
+    return _device_gops;
 }
 
 ov::device::Type ZeroDevice::getDeviceType() const {
@@ -173,4 +173,10 @@ std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
     const std::shared_ptr<const ICompiledModel>& compiledModel,
     const Config& config) {
     return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
+}
+
+void ZeroDevice::updateInfo(const ov::AnyMap& properties) {
+    if (properties.count(ov::log::level.name()) != 0) {
+        _log.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
+    }
 }

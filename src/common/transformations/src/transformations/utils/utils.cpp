@@ -39,6 +39,15 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::wrap_type;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v6 = ov::op::v6;
+namespace v8 = ov::op::v8;
+namespace op_util = ov::op::util;
 namespace ov {
 namespace op {
 namespace util {
@@ -147,18 +156,16 @@ bool has_f16_constants(const std::shared_ptr<const ov::Model>& function) {
 }
 
 bool is_large_language_model(const ov::Model& model, std::function<bool(std::shared_ptr<ov::Node>)> func) {
-    using namespace ov::pass::pattern;
-
-    const auto past = wrap_type<ov::op::v6::ReadValue>();
-    const auto convert_past = ov::pass::pattern::optional<ov::op::v0::Convert>(past);
-    const auto beam_idx = wrap_type<ov::op::v0::Parameter>();
-    const auto gather_past = wrap_type<ov::op::v8::Gather>({convert_past, beam_idx, wrap_type<ov::op::v0::Constant>()});
-    const auto gather_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(gather_past);
+    const auto past = wrap_type<v6::ReadValue>();
+    const auto convert_past = ov::pass::pattern::optional<v0::Convert>(past);
+    const auto beam_idx = wrap_type<v0::Parameter>();
+    const auto gather_past = wrap_type<v8::Gather>({convert_past, beam_idx, wrap_type<v0::Constant>()});
+    const auto gather_convert = ov::pass::pattern::optional<v0::Convert>(gather_past);
     const auto concat_past_input =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{convert_past, gather_convert});
-    const auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
-    const auto convert_present = ov::pass::pattern::optional<ov::op::v0::Convert>(concat);
-    const auto present = wrap_type<ov::op::v6::Assign>({convert_present});
+    const auto concat = wrap_type<v0::Concat>({concat_past_input, any_input()});
+    const auto convert_present = ov::pass::pattern::optional<v0::Convert>(concat);
+    const auto present = wrap_type<v6::Assign>({convert_present});
     const auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
 
     for (const auto& op : model.get_ops()) {
@@ -207,11 +214,11 @@ bool check_for_broadcast(const ov::PartialShape& ref_shape, const ov::PartialSha
 
 std::shared_ptr<ov::Node> activation(const std::string& activation_name, const ov::Output<ov::Node>& apply_to) {
     if (activation_name == "relu") {
-        return std::make_shared<ov::op::v0::Relu>(apply_to);
+        return std::make_shared<v0::Relu>(apply_to);
     } else if (activation_name == "sigmoid") {
-        return std::make_shared<ov::op::v0::Sigmoid>(apply_to);
+        return std::make_shared<v0::Sigmoid>(apply_to);
     } else if (activation_name == "tanh") {
-        return std::make_shared<ov::op::v0::Tanh>(apply_to);
+        return std::make_shared<v0::Tanh>(apply_to);
     } else {
         OPENVINO_THROW("Unsupported activation function");
     }
@@ -225,18 +232,18 @@ bool is_seq_len_provided(const std::shared_ptr<Node>& X, const std::shared_ptr<N
         // supported seq_len_input:
         // X -> ShapeOf -> Gather (max_seq_dim)  -> Optional (Broadcast)
         std::shared_ptr<Node> input = seq_len_input;
-        auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(input);
+        auto broadcast = ov::as_type_ptr<v3::Broadcast>(input);
         if (broadcast) {
             input = seq_len_input->input_value(0).get_node_shared_ptr();
         }
 
-        auto gather = ov::as_type_ptr<ov::op::util::GatherBase>(input);
+        auto gather = ov::as_type_ptr<op_util::GatherBase>(input);
         bool valid_gather = false;
         if (gather) {
             auto indices = gather->input_value(1).get_node_shared_ptr();
             auto axis = gather->input_value(2).get_node_shared_ptr();
-            auto indices_const = ov::as_type_ptr<ov::op::v0::Constant>(indices);
-            auto axis_const = ov::as_type_ptr<ov::op::v0::Constant>(axis);
+            auto indices_const = ov::as_type_ptr<v0::Constant>(indices);
+            auto axis_const = ov::as_type_ptr<v0::Constant>(axis);
             if (indices_const && axis_const) {
                 auto ind_values = indices_const->cast_vector<int64_t>();
                 auto axis_values = axis_const->cast_vector<int64_t>();
@@ -250,7 +257,7 @@ bool is_seq_len_provided(const std::shared_ptr<Node>& X, const std::shared_ptr<N
             return true;
         }
 
-        auto shape_of = ov::as_type_ptr<ov::op::util::ShapeOfBase>(gather->input_value(0).get_node_shared_ptr());
+        auto shape_of = ov::as_type_ptr<op_util::ShapeOfBase>(gather->input_value(0).get_node_shared_ptr());
         if (!shape_of) {
             return true;
         }
@@ -333,22 +340,21 @@ bool shapes_equal_except_dynamic_expected_batch(const ov::PartialShape& expected
 
 void visit_shape_path(Node* node, std::unordered_set<ov::Node*>& visited, std::function<void(ov::Node*)> func) {
     auto is_shapeof = [](ov::Node* node) {
-        return ov::is_type<ov::op::v0::ShapeOf>(node) || ov::is_type<ov::op::v3::ShapeOf>(node);
+        return ov::is_type<v0::ShapeOf>(node) || ov::is_type<v3::ShapeOf>(node);
     };
     visit_path(node, visited, func, is_shapeof);
 }
 
 void visit_constant_path(ov::Node* node, std::unordered_set<ov::Node*>& visited, std::function<void(ov::Node*)> func) {
     auto check_parameter = [](ov::Node* node) {
-        OPENVINO_ASSERT(!ov::is_type<ov::op::v0::Parameter>(node),
-                        "visit_constant_path is called for non-constant path.");
+        OPENVINO_ASSERT(!ov::is_type<v0::Parameter>(node), "visit_constant_path is called for non-constant path.");
         return false;
     };
     visit_path(node, visited, func, check_parameter);
 }
 
 bool is_dequantization_subgraph(const Output<Node>& node) {
-    if (!is_type<ov::op::v1::Multiply>(node.get_node())) {
+    if (!is_type<v1::Multiply>(node.get_node())) {
         return false;
     }
 
@@ -356,9 +362,9 @@ bool is_dequantization_subgraph(const Output<Node>& node) {
     Node* sub = nullptr;
     Node* convert = nullptr;
 
-    if (is_type<ov::op::v1::Subtract>(mul_inputs[0].get_node())) {
+    if (is_type<v1::Subtract>(mul_inputs[0].get_node())) {
         sub = mul_inputs[0].get_node();
-    } else if (is_type<ov::op::v0::Convert>(mul_inputs[0].get_node())) {
+    } else if (is_type<v0::Convert>(mul_inputs[0].get_node())) {
         convert = mul_inputs[0].get_node();
     } else {
         return false;
@@ -366,7 +372,7 @@ bool is_dequantization_subgraph(const Output<Node>& node) {
 
     if (sub) {
         auto sub_inputs = sub->input_values();
-        if (is_type<ov::op::v0::Convert>(sub_inputs[0].get_node())) {
+        if (is_type<v0::Convert>(sub_inputs[0].get_node())) {
             convert = sub_inputs[0].get_node();
         }
     }
@@ -383,8 +389,8 @@ bool is_dequantization_subgraph(const Output<Node>& node) {
 bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
                                 const Output<Node>& constant,
                                 const Output<Node>& non_constant_input) {
-    if (!is_type<ov::op::v1::Add>(eltwise) && !is_type<ov::op::v1::Subtract>(eltwise) &&
-        !is_type<ov::op::v1::Multiply>(eltwise) && !is_type<ov::op::v1::Divide>(eltwise)) {
+    if (!is_type<v1::Add>(eltwise) && !is_type<v1::Subtract>(eltwise) && !is_type<v1::Multiply>(eltwise) &&
+        !is_type<v1::Divide>(eltwise)) {
         return false;
     }
 
@@ -393,7 +399,7 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     }
 
     // check if constant has a single value with either 0 (for Add, Subtract) or 1 (for Multiply, Divide)
-    auto constant_ptr = ov::as_type_ptr<ov::op::v0::Constant>(constant.get_node_shared_ptr());
+    auto constant_ptr = ov::as_type_ptr<v0::Constant>(constant.get_node_shared_ptr());
     if (!constant_ptr) {
         return false;
     }
@@ -440,7 +446,7 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
         return false;
     }
     float expected_const = 0;
-    if (is_type<ov::op::v1::Multiply>(eltwise) || is_type<ov::op::v1::Divide>(eltwise)) {
+    if (is_type<v1::Multiply>(eltwise) || is_type<v1::Divide>(eltwise)) {
         expected_const = 1;
     }
     if (actual_const != expected_const) {
@@ -546,12 +552,12 @@ std::shared_ptr<ov::Node> NewGenStridedSlice(const std::shared_ptr<ov::Node>& da
     begin_mask[axis] = 0;
     end_mask[axis] = 0;
 
-    return ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>({data, start, stop, step},
-                                                                  {{"begin_mask", begin_mask},
-                                                                   {"end_mask", end_mask},
-                                                                   {"new_axis_mask", new_axis_mask},
-                                                                   {"shrink_axis_mask", shrink_axis_mask},
-                                                                   {"ellipsis_mask", ellipsis_mask}});
+    return wrap_type<v1::StridedSlice>({data, start, stop, step},
+                                       {{"begin_mask", begin_mask},
+                                        {"end_mask", end_mask},
+                                        {"new_axis_mask", new_axis_mask},
+                                        {"shrink_axis_mask", shrink_axis_mask},
+                                        {"ellipsis_mask", ellipsis_mask}});
 }
 
 std::shared_ptr<ov::Node> NewGenSlice(const std::shared_ptr<ov::Node>& data,
@@ -565,8 +571,7 @@ std::shared_ptr<ov::Node> NewGenSlice(const std::shared_ptr<ov::Node>& data,
     auto slice_step = ParseSymbolVariant({step});
     auto slice_axis = ParseSymbolVariant({static_cast<int64_t>(axis)});
 
-    auto opt1 =
-        ov::pass::pattern::wrap_type<ov::op::v8::Slice>({data, slice_start, slice_stop, slice_step, slice_axis});
+    auto opt1 = wrap_type<v8::Slice>({data, slice_start, slice_stop, slice_step, slice_axis});
 
     std::vector<symbol_variant> vbegin(axis + 1, 0);
     std::vector<symbol_variant> vend(axis + 1, 0);
@@ -589,12 +594,12 @@ std::shared_ptr<ov::Node> NewGenSlice(const std::shared_ptr<ov::Node>& data,
     begin_mask[axis] = 0;
     end_mask[axis] = 0;
 
-    auto opt2 = pattern::wrap_type<ov::op::v1::StridedSlice>({data, begin, end, stride},
-                                                             {{"begin_mask", begin_mask},
-                                                              {"end_mask", end_mask},
-                                                              {"new_axis_mask", new_axis_mask},
-                                                              {"shrink_axis_mask", shrink_axis_mask},
-                                                              {"ellipsis_mask", ellipsis_mask}});
+    auto opt2 = wrap_type<v1::StridedSlice>({data, begin, end, stride},
+                                            {{"begin_mask", begin_mask},
+                                             {"end_mask", end_mask},
+                                             {"new_axis_mask", new_axis_mask},
+                                             {"shrink_axis_mask", shrink_axis_mask},
+                                             {"ellipsis_mask", ellipsis_mask}});
 
     return opt1 | opt2;
 }
@@ -607,13 +612,11 @@ std::tuple<std::shared_ptr<ov::Node>,
            std::shared_ptr<ov::Node>>
 match_multi_query_bcst(const std::shared_ptr<ov::Node>& kv) {
     using namespace ov::pass;
-    using namespace ov::pass::pattern;
-
-    auto reshape_kv = wrap_type<ov::op::v1::Reshape>({kv, any_input()});
-    auto unsqueeze_kv = wrap_type<ov::op::v0::Unsqueeze>({kv, any_input()});
+    auto reshape_kv = wrap_type<v1::Reshape>({kv, any_input()});
+    auto unsqueeze_kv = wrap_type<v0::Unsqueeze>({kv, any_input()});
 
     auto check_one = [](const Output<Node>& output) -> bool {
-        auto node = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+        auto node = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
         if (!node) {
             return false;
         }
@@ -622,15 +625,14 @@ match_multi_query_bcst(const std::shared_ptr<ov::Node>& kv) {
             return i == 1.0F;
         });
     };
-    auto constant_bcst = wrap_type<ov::op::v0::Constant>(check_one);
+    auto constant_bcst = wrap_type<v0::Constant>(check_one);
 
-    auto computed_bcst =
-        wrap_type<ov::op::v1::Broadcast>({constant_bcst, any_input(), any_input()}, {{"mode", "numpy"}});
+    auto computed_bcst = wrap_type<v1::Broadcast>({constant_bcst, any_input(), any_input()}, {{"mode", "numpy"}});
 
-    auto multiply_kv = wrap_type<ov::op::v1::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
-    auto computed_bcst3 = wrap_type<ov::op::v3::Broadcast>({unsqueeze_kv, any_input()}, {{"mode", "bidirectional"}});
+    auto multiply_kv = wrap_type<v1::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
+    auto computed_bcst3 = wrap_type<v3::Broadcast>({unsqueeze_kv, any_input()}, {{"mode", "bidirectional"}});
 
-    auto result = wrap_type<ov::op::v1::Reshape>({multiply_kv | computed_bcst3, any_input()});
+    auto result = wrap_type<v1::Reshape>({multiply_kv | computed_bcst3, any_input()});
     return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv, computed_bcst3);
 }
 

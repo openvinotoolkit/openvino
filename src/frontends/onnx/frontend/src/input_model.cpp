@@ -696,14 +696,14 @@ void InputModel::InputModelONNXImpl::load_model() {
             if (tensor_place->get_data() != nullptr)
                 continue;
 
-            tensor_place = register_tensor_place(tensor_place);
-            if (!tensor_place)
+            auto tensor_place_registered = register_tensor_place(tensor_place);
+            if (!tensor_place_registered)
                 continue;
 
-            if (tensor_place->is_input())
-                m_inputs.push_back(tensor_place);
-            if (tensor_place->is_output())
-                m_outputs.push_back(tensor_place);
+            if (tensor_place_registered->is_input())
+                m_inputs.push_back(tensor_place_registered);
+            if (tensor_place_registered->is_output())
+                m_outputs.push_back(tensor_place_registered);
         } else {
             auto op_place = std::make_shared<OpPlace>(m_input_model, decoder);
             m_op_places.push_back(op_place);

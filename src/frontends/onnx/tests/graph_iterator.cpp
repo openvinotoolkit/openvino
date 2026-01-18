@@ -19,6 +19,7 @@
 
 #include "../frontend/src/core/graph_iterator_proto.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/test_case.hpp"
 #include "load_from.hpp"
 #include "onnx_utils.hpp"
 #include "utils.hpp"
@@ -181,4 +182,58 @@ TEST_P(FrontEndLoadFromTest, tensor_place_uses_model_dir_for_external_data) {
     ASSERT_EQ(iter->last_returned_dir, expected_model_dir)
         << "get_model_dir() returned unexpected path: " << iter->last_returned_dir
         << " (expected: " << expected_model_dir << ")";
+}
+
+TEST(FrontEndGraphIteratorTest, loads_uint16_raw_initializer_via_iterator) {
+    const std::string model_name = "uint16_raw_initializer.onnx";
+    const auto model_path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name});
+
+    const std::vector<uint16_t> expected_data = {100, 200, 300, 400};
+
+    auto iterator = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(
+        ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::Internal_MMAP);
+    iterator->initialize(model_path);
+    iterator->reset();
+
+    auto graph_iterator = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iterator);
+    auto frontend = ov::frontend::FrontEndManager().load_by_framework("onnx");
+    ASSERT_NE(frontend, nullptr);
+    ASSERT_TRUE(frontend->supported(graph_iterator));
+
+    auto input_model = frontend->load(graph_iterator);
+    ASSERT_NE(input_model, nullptr);
+    auto model = frontend->convert(input_model);
+    ASSERT_NE(model, nullptr);
+
+    ov::test::TestCase test_case(model);
+    test_case.add_expected_output<uint16_t>(ov::Shape{2, 2}, expected_data);
+    test_case.run();
+}
+
+TEST(FrontEndGraphIteratorTest, loads_bfloat16_raw_initializer_via_iterator) {
+    const std::string model_name = "bfloat16_raw_initializer.onnx";
+    const auto model_path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name});
+
+    const std::vector<ov::bfloat16> expected_data = {1.0f, 2.0f, 3.0f, 4.0f};
+
+    auto iterator = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(
+        ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::Internal_MMAP);
+    iterator->initialize(model_path);
+    iterator->reset();
+
+    auto graph_iterator = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iterator);
+    auto frontend = ov::frontend::FrontEndManager().load_by_framework("onnx");
+    ASSERT_NE(frontend, nullptr);
+    ASSERT_TRUE(frontend->supported(graph_iterator));
+
+    auto input_model = frontend->load(graph_iterator);
+    ASSERT_NE(input_model, nullptr);
+    auto model = frontend->convert(input_model);
+    ASSERT_NE(model, nullptr);
+
+    ov::test::TestCase test_case(model);
+    test_case.add_expected_output<ov::bfloat16>(ov::Shape{2, 2}, expected_data);
+    test_case.run();
 }
