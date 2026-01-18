@@ -5,31 +5,29 @@
 #pragma once
 
 #include "openvino/pass/graph_rewrite.hpp"
+#include "increase_position.hpp"
 
 namespace ov::intel_gpu {
 
-class IncreasePositionIdsPrecisionForRoPE : public ov::pass::MatcherPass {
+class IncreasePositionIdsPrecisionForRoPE : public IncreasePrecision {
 public:
     OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionBase");
     IncreasePositionIdsPrecisionForRoPE();
-protected:
-    bool insert_converts_before_if_needed(const std::shared_ptr<ov::Node>& node, const ov::element::Type desired_et, size_t& input_idx);
-    void insert_converts_after_if_needed(const std::shared_ptr<ov::Node>& node, const ov::element::Type original_et, size_t& output_idx);
 };
 
-class IncreasePositionIdsPrecisionForQwen25VL : public IncreasePositionIdsPrecisionForRoPE {
+class IncreasePositionIdsPrecisionForQwen25VL : public IncreasePrecision {
 public:
     OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForQwen25VL");
     IncreasePositionIdsPrecisionForQwen25VL();
 };
 
-class IncreasePositionIdsPrecisionForLtxVideo : public IncreasePositionIdsPrecisionForRoPE {
+class IncreasePositionIdsPrecisionForLtxVideo : public IncreasePrecision {
 public:
     OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForLtxVideo");
     IncreasePositionIdsPrecisionForLtxVideo();
 };
 
-class IncreasePositionIdsPrecisionForGPTOSS : public IncreasePositionIdsPrecisionForRoPE {
+class IncreasePositionIdsPrecisionForGPTOSS : public IncreasePrecision {
 public:
     OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForGPTOSS");
     IncreasePositionIdsPrecisionForGPTOSS();
