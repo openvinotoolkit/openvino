@@ -89,9 +89,19 @@ public:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
 };
 
+
 class PagedAttentionGeneratorKVCacheUpdate : public PagedAttentionGeneratorBase {
 public:
     PagedAttentionGeneratorKVCacheUpdate() : PagedAttentionGeneratorBase("pa_kv_cache_update_ref") {}
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+};
+
+// Per-channel quantization kernel generator
+class PagedAttentionGeneratorKVCacheUpdatePerChannel : public PagedAttentionGeneratorBase {
+public:
+    PagedAttentionGeneratorKVCacheUpdatePerChannel() : PagedAttentionGeneratorBase("pa_kv_cache_update_per_channel") {}
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
