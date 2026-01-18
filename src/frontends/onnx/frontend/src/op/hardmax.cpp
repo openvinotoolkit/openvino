@@ -46,7 +46,7 @@ ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
                                                   ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
                                                   indices_axis,
                                                   ov::op::v11::TopK::Mode::MAX,
-                                                  ov::op::v11::TopK::SortType::NONE);
+                                                  ov::op::v11::TopK::SortType::SORT_INDICES);
 
     const auto on_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
     const auto off_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
@@ -81,7 +81,7 @@ ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
                                                   ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
                                                   axis,
                                                   ov::op::v11::TopK::Mode::MAX,
-                                                  ov::op::v11::TopK::SortType::NONE);
+                                                  ov::op::v11::TopK::SortType::SORT_INDICES);
 
     const auto on_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
     const auto off_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
