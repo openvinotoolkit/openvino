@@ -14,6 +14,7 @@
 #include "dev/core_impl.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov::test {
@@ -493,4 +494,33 @@ TEST_F(ApplyAutoBatchThreading, ApplyAutoBatch) {
         core.apply_auto_batching(model, device, config);
     });
 }
+
+TEST(PropertiesValidation, HintNumRequestsRejectsNegativeSigned) {
+    EXPECT_THROW((void)ov::hint::num_requests(-1), ov::Exception);
+}
+
+TEST(PropertiesValidation, HintNumRequestsAcceptsUnsigned) {
+    auto kv = ov::hint::num_requests(uint32_t{4});
+    EXPECT_EQ(kv.first, ov::hint::num_requests.name());
+    EXPECT_EQ(kv.second.as<uint32_t>(), 4u);
+}
+
+TEST(PropertiesValidation, CoreSetPropertyRejectsNegativeNumRequests) {
+    ov::Core core;
+    std::string device = "CPU";
+
+    try {
+        (void)core.get_property(device, ov::available_devices);
+    } catch (...) {
+        device = "GPU";
+        try {
+            (void)core.get_property(device, ov::available_devices);
+        } catch (...) {
+            GTEST_SKIP() << "No suitable device (CPU/GPU) available in this test environment";
+        }
+    }
+
+    EXPECT_THROW(core.set_property(device, ov::hint::num_requests(-1)), ov::Exception);
+}
+
 }  // namespace ov::test
