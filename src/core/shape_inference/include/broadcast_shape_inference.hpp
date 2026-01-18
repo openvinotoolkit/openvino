@@ -76,17 +76,21 @@ void validate_target_shape_numpy(const ov::Node* op, const T& arg_shape, const T
                           arg_rank_length);
     const size_t start_axis = target_rank_length - arg_rank_length;
     for (auto i = start_axis; i < target_rank_length; ++i) {
-        NODE_VALIDATION_CHECK(op,
-                              arg_shape[i - start_axis].is_dynamic() || target_input_shape[i].is_dynamic() ||
-                                  arg_shape[i - start_axis].compatible(1) ||
-                                  arg_shape[i - start_axis].compatible(target_input_shape[i]),
-                              "Input shape dimension equal ",
-                              arg_shape[i - start_axis],
-                              " cannot be broadcasted (numpy mode) to ",
-                              target_input_shape[i],
-                              ". Allowed input dimension value would be 1",
-                              target_input_shape[i] != 1 ? " or " : "",
-                              target_input_shape[i] != 1 ? std::to_string(target_input_shape[i].get_length()) : "");
+        if (!(arg_shape[i - start_axis].is_dynamic() || target_input_shape[i].is_dynamic() ||
+              arg_shape[i - start_axis].compatible(1) ||
+              arg_shape[i - start_axis].compatible(target_input_shape[i]))) {
+            
+            std::stringstream error_msg;
+            error_msg << "NumPy broadcasting error: Input dimension " << arg_shape[i - start_axis] 
+                      << " at axis " << (i - start_axis) << " cannot be broadcast to target dimension " 
+                      << target_input_shape[i] << " at axis " << i << ".\n"
+                      << "NumPy broadcasting rules require dimensions to be either equal or one of them must be 1.\n"
+                      << "Current shapes: input=" << arg_shape << ", target=" << target_input_shape << "\n"
+                      << "Incompatible at axis " << (i - start_axis) << ": " << arg_shape[i - start_axis] 
+                      << " ≠ " << target_input_shape[i] << " and neither is 1.";
+            
+            NODE_VALIDATION_CHECK(op, false, error_msg.str());
+        }
     }
 }
 
