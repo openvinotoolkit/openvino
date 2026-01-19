@@ -12,7 +12,7 @@
 #include "../attention.hpp"
 #include "../host_flash_attention.hpp"
 #include "../lazy_tensor.hpp"
-#include "../moe_experts.hpp"
+#include "../moe_transformations/moe_transformation.hpp"
 #include "../pyramid_attention.hpp"
 #include "../spatial.hpp"
 #include "intel_npu/config/config.hpp"

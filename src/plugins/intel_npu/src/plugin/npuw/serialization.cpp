@@ -10,7 +10,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
 #include "logging.hpp"
-#include "moe_experts.hpp"
+#include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"

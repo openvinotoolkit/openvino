@@ -1,8 +1,9 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "moe_experts.hpp"
+#include "moe_transformation.hpp"
 
+#include "moe_unroll_patterns.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
@@ -15,7 +16,6 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "passes/moe_unroll_patterns.hpp"
 
 namespace ov {
 namespace npuw {
@@ -1020,14 +1020,5 @@ void MoEDownstream::set_compiled_model(ov::SoPtr<ov::ICompiledModel>&& compiled_
 }
 
 }  // namespace compiled
-
-namespace runtime {
-namespace moe_experts {
-
-// TODO: Implement runtime execution logic
-
-}  // namespace moe_experts
-}  // namespace runtime
-
 }  // namespace npuw
 }  // namespace ov
