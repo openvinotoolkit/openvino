@@ -14,6 +14,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
 
+namespace op_util = ov::op::util;
 namespace ov::pass {
 
 using NodeNamesMap = std::unordered_map<std::string, std::list<Node*>>;
@@ -96,7 +97,7 @@ void resolve_tensor_names(const ov::Model& model, TensorNamesMap& names_map) {
     }
 
     for (auto&& node : model.get_ordered_ops()) {
-        if (auto msn = ov::as_type<ov::op::util::MultiSubGraphOp>(node.get())) {
+        if (auto msn = ov::as_type<op_util::MultiSubGraphOp>(node.get())) {
             for (const auto& body : msn->get_functions()) {
                 resolve_tensor_names(*body, names_map);
             }
@@ -111,7 +112,7 @@ void collect_name_collisions_map(const std::shared_ptr<ov::Model>& model, NodeNa
         // Collect a names collision map for all nodes in the graph
         const auto& friendly_name = node->get_friendly_name();
         name_collisions_map[friendly_name].emplace_back(node.get());
-        if (auto msn = ov::as_type<ov::op::util::MultiSubGraphOp>(node.get())) {
+        if (auto msn = ov::as_type<op_util::MultiSubGraphOp>(node.get())) {
             for (const auto& body : msn->get_functions()) {
                 collect_name_collisions_map(body, name_collisions_map);
             }

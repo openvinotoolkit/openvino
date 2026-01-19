@@ -18,6 +18,7 @@
 
 using namespace ov;
 
+namespace v1 = ov::op::v1;
 std::string ov::getPrimitivesPriority(const std::shared_ptr<ov::Node>& node) {
     if (node) {
         const auto& rtInfo = node->get_rt_info();
@@ -33,9 +34,9 @@ std::string ov::getPrimitivesPriority(const std::shared_ptr<ov::Node>& node) {
 
 Any PrimitivesPriority::merge(const ov::NodeVector& nodes) const {
     auto canBeMerged = [](const std::shared_ptr<Node>& node) -> bool {
-        if (ov::as_type_ptr<ov::op::v1::Convolution>(node) || ov::as_type_ptr<ov::op::v1::GroupConvolution>(node) ||
-            ov::as_type_ptr<ov::op::v1::GroupConvolutionBackpropData>(node) ||
-            ov::as_type_ptr<ov::op::v1::ConvolutionBackpropData>(node) || ov::as_type_ptr<ov::op::v0::MatMul>(node)) {
+        if (ov::as_type_ptr<v1::Convolution>(node) || ov::as_type_ptr<v1::GroupConvolution>(node) ||
+            ov::as_type_ptr<v1::GroupConvolutionBackpropData>(node) ||
+            ov::as_type_ptr<v1::ConvolutionBackpropData>(node) || ov::as_type_ptr<ov::op::v0::MatMul>(node)) {
             return true;
         }
         return false;

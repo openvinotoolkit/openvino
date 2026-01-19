@@ -99,7 +99,8 @@ public:
     void TearDown() override {
         for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
             std::wstring postfix = ov::test::utils::test_unicode_postfix_vector[testIndex];
-            std::wstring unicode_path = ov::test::utils::stringToWString(ov::util::get_ov_lib_path() + "/") + postfix;
+            std::wstring unicode_path =
+                ov::test::utils::stringToWString(ov::util::path_to_string(ov::util::get_ov_lib_path()) + "/") + postfix;
 #ifndef _WIN32
             removeDirFilesRecursive(ov::util::wstring_to_string(unicode_path));
 #else
@@ -492,6 +493,58 @@ TEST_P(OVClassBasicTestPNPU, smoke_registerPluginsLibrariesUnicodePath) {
     }
 }
 #endif
+
+static void checkLibrariesInProcessMemoryMap(bool checkExist) {
+#ifdef __linux__
+    std::unordered_map<const char*, bool> librariesFound = {
+        /*
+        TODO: uncomment when unloading driver and loader is fixed
+        {"libnpu_driver_compiler.so", false},
+        {"libze_intel_npu.so", false},
+        {"libze_loader.so", false},
+        */
+        {"libopenvino_intel_npu_plugin.so", false},
+    };
+    std::ifstream file("/proc/self/maps");
+    std::string line;
+    while (!file.eof()) {
+        std::getline(file, line);
+        for (auto [library, _] : librariesFound) {
+            if (strstr(line.c_str(), library)) {
+                librariesFound[library] = true;
+                break;
+            }
+        }
+    }
+    for (auto [library, found] : librariesFound) {
+        if (checkExist) {
+            EXPECT_TRUE(found) << "NPU related library (" << library << ") is not loaded";
+        } else {
+            EXPECT_FALSE(found) << "NPU related library (" << library << ") is still loaded";
+        }
+    }
+#endif
+}
+
+TEST(OVClassBaseTestNPU, UnloadPlugin) {
+    auto core = ov::test::utils::PluginCache::get().core();
+    {
+        auto model = ov::test::utils::make_conv_pool_relu();
+        auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_NPU);
+        auto req = compiled_model.create_infer_request();
+        req.infer();
+    }
+
+    checkLibrariesInProcessMemoryMap(true);
+    core->unload_plugin(ov::test::utils::DEVICE_NPU);
+    checkLibrariesInProcessMemoryMap(false);
+
+    // check if Core can load the plugin again and run the inference
+    auto model = ov::test::utils::make_conv_pool_relu();
+    auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_NPU);
+    auto req = compiled_model.create_infer_request();
+    req.infer();
+}
 
 }  // namespace behavior
 }  // namespace test
