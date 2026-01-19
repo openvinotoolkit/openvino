@@ -339,8 +339,8 @@ MergeUnrolledRoPE::MergeUnrolledRoPE() {
         nodes.input = pattern::wrap_type<v1::Reshape>({input, pattern::any_input()});
         nodes.split = pattern::wrap_type<v1::VariadicSplit>({nodes.input, pattern::any_input(), pattern::any_input()});
         nodes.split->set_output_size(2);
-        nodes.angle_r = pattern::wrap_type<v0::Negative>({nodes.split->output(1)});
-        nodes.concat = pattern::wrap_type<v0::Concat>({nodes.angle_r, nodes.split->output(0)});
+        nodes.angle_r = pattern::wrap_type<v0::Negative>({nodes.split});
+        nodes.concat = pattern::wrap_type<v0::Concat>({nodes.angle_r, nodes.split});
         nodes.mul_r = pattern::wrap_type<v1::Multiply>({nodes.concat, pattern::any_input()});
         nodes.mul_l = pattern::wrap_type<v1::Multiply>({nodes.input, pattern::any_input()});
         nodes.add = pattern::wrap_type<v1::Add>({nodes.mul_l, nodes.mul_r});
