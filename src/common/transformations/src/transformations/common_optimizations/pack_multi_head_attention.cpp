@@ -33,7 +33,7 @@ using namespace ov::pass;
 
 namespace {
 
-static constexpr int64_t RANK = 4;  // Assuming 4D tensors [batch, heads, seq_len, dim]
+static constexpr int64_t RANK = 4;  // Assuming 4D tensors [batch, num_heads, seq_len, hidden_dim]
 static constexpr int64_t HEAD_AXIS = 1;
 
 bool compare_nodes(const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node>& b) {
