@@ -1669,7 +1669,7 @@ public:
             expert_mask_gpu& expert_mask_mem = scratch.expert_masks[expert_no];
             copy_expert_mask_to_gpu(stream, expert_mask, expert_no, expert_mask_mem);
 
-            auto n_token = static_cast<size_t>(expert_mask.batch[expert_no].size());
+            auto n_token = expert_mask.batch[expert_no].size();
 
             // Be careful about possible overflow
             if (n_token > std::numeric_limits<size_t>::max() / max_topk)
