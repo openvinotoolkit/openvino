@@ -129,7 +129,8 @@ endif()
 ov_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
 
 if(RISCV64_XUANTIE)
-    set(ENABLE_SHL_FOR_CPU_DEFAULT ON)
+    # SHL is not buildable on Xuantie toolchain v3.0.1
+    set(ENABLE_SHL_FOR_CPU_DEFAULT OFF)
 else()
     set(ENABLE_SHL_FOR_CPU_DEFAULT OFF)
 endif()

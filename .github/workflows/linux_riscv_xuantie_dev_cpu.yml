@@ -18,6 +18,8 @@ on:
       - ready_for_review
     paths:
       - '.github/workflows/linux_riscv_xuantie_dev_cpu.yml'
+      - '.github/dockerfiles/ov_build/ubuntu_22_04_riscv_xuantie/Dockerfile'
+      - '.github/dockerfiles/ov_test/ubuntu_22_04_riscv_xuantie/Dockerfile'
       - 'src/plugins/intel_cpu/src/emitters/plugin/aarch64/**'
       - 'src/plugins/intel_cpu/src/emitters/plugin/riscv64/**'
       - 'src/plugins/intel_cpu/src/emitters/plugin/x64/**'

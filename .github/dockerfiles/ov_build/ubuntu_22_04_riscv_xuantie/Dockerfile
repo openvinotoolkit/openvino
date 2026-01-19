@@ -101,7 +101,7 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 ENV PATH="$SCCACHE_HOME:$PATH"
 
 # build xuintie toolchain
-ARG XUANTIE_VERSION="V2.8.1"
+ARG XUANTIE_VERSION="V3.0.1"
 ARG XUANTIE_REPO="https://github.com/XUANTIE-RV/xuantie-gnu-toolchain"
 ARG XUINTIE_PATH="/opt/riscv"
 ARG XUINTIE_TMP_PATH="/tmp/xuantie"
