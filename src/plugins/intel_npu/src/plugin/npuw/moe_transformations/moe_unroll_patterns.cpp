@@ -822,11 +822,11 @@ PushMultiplyBeforeConcat::PushMultiplyBeforeConcat() {
 // =============================================================================
 // Transforms MatMul with Concat/Sliceable input and parameter-based weights to N expert branches
 // Pattern 1 (Concat path):
-//          Concat([a,b,c,d]) ────────┐
+//          Concat([a,b,c,d]) ────────────────────────────────┐
 //          scale_param + weights_param → multiply → convert ─┤→ MatMul
 //
 // Pattern 2 (Slicing path):
-//          AnyInput[N,...] ────────┐  (sliced into N branches)
+//          AnyInput[N,...] ──────────────────────────────────┐  (sliced into N branches)
 //          scale_param + weights_param → multiply → convert ─┤→ MatMul
 //
 // Input requirements:

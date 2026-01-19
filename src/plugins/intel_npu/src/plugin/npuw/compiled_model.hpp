@@ -12,7 +12,7 @@
 #include "host_flash_attention.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
-#include "moe_experts.hpp"
+#include "moe_transformations/moe_transformation.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/shared_buffer.hpp"

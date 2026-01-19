@@ -7,7 +7,7 @@
 #include <optional>
 #include <vector>
 
-#include "logging.hpp"
+#include "../logging.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
