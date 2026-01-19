@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/convert_weight_compressed_conv1x1_to_matmul.hpp"
 
-using namespace ov;
+namespace ov::test {
 using namespace testing;
 
 namespace {
@@ -247,3 +247,4 @@ TEST(TransformationTests, ConvertWeightCompressedConv1x1ToMatmulActNotTranExcept
     }
     ASSERT_FALSE(converted);
 }
+}  // namespace ov::test
