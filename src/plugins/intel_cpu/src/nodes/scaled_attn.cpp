@@ -899,13 +899,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 qkTensor.allocator()->free();
             };
 
-            if constexpr (std::is_same_v<T, ov::float16>) {
-                const bool force_f32_path = std::getenv("OV_CPU_SDPA_F16_FORCE_F32") != nullptr;
-                if (force_f32_path || alibi_mask) {
-                    run_f32_path();
-                    return;
-                }
-            }
 #    endif
 
             arm_compute::Tensor qkTensor;
@@ -946,12 +939,40 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 qk_row_f32.resize(kv_len);
             }
 #    endif
-            for (size_t m = m_start; m < m_end; m++) {
-                // apply attention mask & sofmax
-                auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
 #    if defined(OPENVINO_ARCH_ARM64)
-                if constexpr (std::is_same_v<T, ov::float16>) {
+            if constexpr (std::is_same_v<T, ov::float16>) {
+                float* alibi_ptr_f32 = nullptr;
+                size_t alibi_stride_f32 = 0;
+                const auto alibi_prec = alibi_mask ? alibi_mask.get_precision() : ov::element::f32;
+                const bool alibi_needs_convert = alibi_mask && (alibi_prec != ov::element::f32);
+                std::vector<float> alibi_row;
+                if (alibi_mask && !alibi_needs_convert) {
+                    alibi_ptr_f32 = &alibi_mask.at<float>({b, h, 0, 0}, true);
+                    if (alibi_mask.size(2) > 1) {
+                        alibi_stride_f32 = alibi_mask.stride(2);
+                    }
+                } else if (alibi_needs_convert) {
+                    alibi_row.resize(kv_len);
+                }
+                for (size_t m = m_start; m < m_end; m++) {
+                    // apply attention mask & sofmax
+                    auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                    uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
+                    float* alibi_row_ptr = nullptr;
+                    if (alibi_ptr_f32) {
+                        alibi_row_ptr = alibi_ptr_f32 + m * alibi_stride_f32;
+                    } else if (alibi_needs_convert) {
+                        const size_t b_idx = alibi_mask.size(0) > 1 ? b : 0;
+                        const size_t h_idx = alibi_mask.size(1) > 1 ? h : 0;
+                        const size_t m_idx = alibi_mask.size(2) > 1 ? m : 0;
+                        const void* alibi_src = alibi_mask.ptr_v(b_idx, h_idx, m_idx, 0);
+                        cpu_convert(alibi_src, alibi_row.data(), alibi_prec, ov::element::f32, kv_len);
+                        alibi_row_ptr = alibi_row.data();
+                    }
+                    float* sink = nullptr;
+                    if (sink_input) {
+                        sink = &sink_input.at<float>({b, h, m, 0}, true);
+                    }
                     T* qk_row = qk + (m - m_start) * qk_row_stride;
                     for (size_t n = 0; n < kv_len; n++) {
                         qk_row_f32[n] = static_cast<float>(qk_row[n]);
@@ -959,7 +980,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                     attn_softmax(reinterpret_cast<void*>(qk_row_f32.data()),
                                  qk_row_f32.data(),
                                  d_scale,
-                                 nullptr,
+                                 reinterpret_cast<void*>(alibi_row_ptr),
                                  attn_mask_row,
                                  cmask_ptr + m * cmask_stride,
                                  select_nfltmax_at_0,
@@ -968,11 +989,20 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                                  ov::element::f32,
                                  attn_mask_precision,
                                  ov::element::f32,
-                                 nullptr);
+                                 sink);
                     for (size_t n = 0; n < kv_len; n++) {
                         qk_row[n] = static_cast<T>(qk_row_f32[n]);
                     }
-                } else {
+                }
+            } else {
+                for (size_t m = m_start; m < m_end; m++) {
+                    // apply attention mask & sofmax
+                    auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                    uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
+                    float* sink = nullptr;
+                    if (sink_input) {
+                        sink = &sink_input.at<float>({b, h, m, 0}, true);
+                    }
                     attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * qk_row_stride),
                                  qk + (m - m_start) * qk_row_stride,
                                  d_scale,
@@ -985,9 +1015,18 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                                  precision,
                                  attn_mask_precision,
                                  precision,
-                                 nullptr);
+                                 sink);
                 }
+            }
 #    else
+            for (size_t m = m_start; m < m_end; m++) {
+                // apply attention mask & sofmax
+                auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
+                float* sink = nullptr;
+                if (sink_input) {
+                    sink = &sink_input.at<float>({b, h, m, 0}, true);
+                }
                 attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * kv_len),
                              qk + (m - m_start) * kv_len,
                              d_scale,
@@ -1000,9 +1039,9 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                              precision,
                              attn_mask_precision,
                              precision,
-                             nullptr);
-#    endif
+                             sink);
             }
+#    endif
             arm_compute::TensorInfo outInfo;
             arm_compute::Tensor outTensor;
 
