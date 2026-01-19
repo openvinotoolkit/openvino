@@ -105,26 +105,27 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
     const uint output_data_offset = output_base_offset + in_data_set_idx;
     ACTIVATION_TYPE scale_f = TO_ACTIVATION_TYPE(scale[f]);
     ACTIVATION_TYPE bias_f = TO_ACTIVATION_TYPE(bias[f]);
-    ACTIVATION_TYPE input_data[32];
+    #define CHUNK_SIZE 16
+    ACTIVATION_TYPE input_data[CHUNK_SIZE];
 
-    for (uint j = 0; j < (items_num + 31) / 32; ++j) {
-        for (uint i = 0; (i < 32) && (i + j * 32 < items_num); ++i) {
-            input_data[i] = TO_ACTIVATION_TYPE(input[input_data_offset + (i + j * 32) * workers_per_dataset * FSV]);
+    for (uint j = 0; j < (items_num + CHUNK_SIZE - 1) / CHUNK_SIZE; ++j) {
+        for (uint i = 0; (i < CHUNK_SIZE) && (i + j * CHUNK_SIZE < items_num); ++i) {
+            input_data[i] = TO_ACTIVATION_TYPE(input[input_data_offset + (i + j * CHUNK_SIZE) * workers_per_dataset * FSV]);
             input_data[i] = (input_data[i] - mean) * variance;
         }
 
-        for (uint i = 0; (i < 32) && (i + j * 32 < items_num); ++i) {
+        for (uint i = 0; (i < CHUNK_SIZE) && (i + j * CHUNK_SIZE < items_num); ++i) {
             ACTIVATION_TYPE normalized = input_data[i] * scale_f + bias_f;
             if (f < OUTPUT_FEATURE_NUM) {
                 #if HAS_FUSED_OPS
                     FUSED_OPS;
-                    output[output_data_offset + (i  + j * 32) * workers_per_dataset * FSV] = FUSED_OPS_RESULT;
+                    output[output_data_offset + (i  + j * CHUNK_SIZE) * workers_per_dataset * FSV] = FUSED_OPS_RESULT;
                 #else
-                    output[output_data_offset + (i  + j * 32) * workers_per_dataset * FSV] = TO_OUTPUT_TYPE(normalized);
+                    output[output_data_offset + (i  + j * CHUNK_SIZE) * workers_per_dataset * FSV] = TO_OUTPUT_TYPE(normalized);
                 #endif
             } else {
                 #ifdef OUTPUT_LAYOUT_B_FS_YX_FSV16
-                    output[output_data_offset + (i  + j * 32) * workers_per_dataset * FSV] = OUTPUT_VAL_ZERO;
+                    output[output_data_offset + (i  + j * CHUNK_SIZE) * workers_per_dataset * FSV] = OUTPUT_VAL_ZERO;
                 #endif
             }
         }
