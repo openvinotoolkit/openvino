@@ -86,6 +86,13 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = GroupNormalizationGeneratorBase::get_jit_constants(params);
         jit.make("GROUP_NORM_KERNEL_FEATURE_MEAN_SQR_MEAN", 1);
+
+        if (params.has_fused_primitives()) {
+            const auto& out_l = params.get_output_layout(0);
+            FusedOpsConfiguration conf = {"", std::vector<std::string>{"(b)", "(f)", "(y)", "(x)"}, "normalized", out_l.data_type};
+            jit.add(make_fused_ops_jit_constants(params, {conf}));
+        }
+
         return jit;
     }
 
@@ -97,8 +104,10 @@ protected:
         }
 
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        args.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        args.push_back({ArgumentDescriptor::Types::INPUT, 2});
+        add_fused_ops_arguments(args, params);
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         return args;
     }
@@ -273,8 +282,8 @@ public:
     GroupNormalizationFsv16OptImpl() : PrimitiveImplOCL(GroupNormalizationFsv16Opt::get_type_info_static()) {}
     GroupNormalizationFsv16OptImpl(const program_node& node, const RuntimeParams& params) : GroupNormalizationFsv16OptImpl() {
         add_stage(calc_sqr_mean, params);
-        add_stage(calc_mean_variance, params);
-        add_stage(final_normalize, params);
+        //add_stage(calc_mean_variance, params);
+        //add_stage(final_normalize, params);
     }
 
     std::unique_ptr<primitive_impl> clone() const override {
