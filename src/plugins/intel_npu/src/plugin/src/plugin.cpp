@@ -333,31 +333,32 @@ void Plugin::init_options() {
         _backend->registerOptions(*_options);
     }
 
-    // Try to set PLUGIN as default compiler type if:
-    // 1. Compiler library is present
-    // 2. The current platform is supported by the compiler (plugin)
-    try {
-        CompilerAdapterFactory compilerAdapterFactory;
-        // This is expected to throw in case the compiler library is not available
-        auto compiler = compilerAdapterFactory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
-        // Compiler library is present, need to check if the current platform is supported
-        if (_backend) {
-            auto deviceName = _backend->getDevice()->getName();
-            if(deviceName == ov::intel_npu::Platform::NPU4000 || deviceName == ov::intel_npu::Platform::NPU5010){
+    // Compiler library is present, need to check if the current platform is supported
+    if (_backend) {
+        // Try to set PLUGIN as default compiler type if:
+        // 1. Compiler library is present
+        // 2. The current platform is supported by the compiler (plugin)
+        auto platformName = _backend->getDevice()->getName();
+        if (platformName == ov::intel_npu::Platform::NPU4000 || platformName == ov::intel_npu::Platform::NPU5010) {
+            try {
+                CompilerAdapterFactory compilerAdapterFactory;
+                // This is expected to throw in case the compiler library is not available
+                (void)compilerAdapterFactory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
+
                 _globalConfig.enable("NPU_COMPILER_TYPE", true);
                 _globalConfig.update({{ov::intel_npu::compiler_type.name(), "PLUGIN"}});
                 _logger.info("Use PLUGIN as default compiler");
-            } else {
-                _logger.warning("Failed to set PLUGIN as default compiler for this platform");
+            } catch (...) {
+                _logger.warning("Failed to set PLUGIN as default compiler type. Compiler library is not available");
             }
         } else {
-            // No device is available, only PLUGIN compiler type can be used for offline compilation
-            _globalConfig.enable("NPU_COMPILER_TYPE", true);
-            _globalConfig.update({{ov::intel_npu::compiler_type.name(), "PLUGIN"}});
-            _logger.info("Use PLUGIN as default compiler. Offline compilation");
+            _logger.info("Use DRIVER as default compiler type for the %s platform", platformName.c_str());
         }
-    } catch (...) {
-        _logger.warning("Failed to set PLUGIN as default compiler type. Compiler library is not available");
+    } else {
+        // No device is available, only PLUGIN compiler type can be used for offline compilation
+        _globalConfig.enable("NPU_COMPILER_TYPE", true);
+        _globalConfig.update({{ov::intel_npu::compiler_type.name(), "PLUGIN"}});
+        _logger.info("Use PLUGIN as default compiler. Offline compilation");
     }
 
     // parse again env_variables to update registered configs which have env vars set
