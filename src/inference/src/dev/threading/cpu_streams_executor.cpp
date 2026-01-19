@@ -24,6 +24,16 @@
 
 namespace ov {
 namespace threading {
+namespace {
+class ThreadLocalCleaner {
+public:
+    virtual void cleanup() = 0;
+    virtual ~ThreadLocalCleaner() = default;
+};
+std::mutex g_cleaner_mutex;
+std::set<ThreadLocalCleaner*> g_cleaners;
+}  // namespace
+
 struct CPUStreamsExecutor::Impl {
     struct Stream {
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
@@ -277,12 +287,35 @@ struct CPUStreamsExecutor::Impl {
               _impl(impl) {}
         std::shared_ptr<Stream> local() {
             // maybe there are two CPUStreamsExecutors in the same thread.
-            static thread_local std::map<void*, std::shared_ptr<CustomThreadLocal::ThreadTracker>> t_stream_count_map;
+            struct ThreadLocalMap : public ThreadLocalCleaner {
+                std::map<void*, std::shared_ptr<CustomThreadLocal::ThreadTracker>>* _map = nullptr;
+                ThreadLocalMap() {
+                    _map = new std::map<void*, std::shared_ptr<CustomThreadLocal::ThreadTracker>>();
+                    std::lock_guard<std::mutex> lock(g_cleaner_mutex);
+                    g_cleaners.insert(this);
+                }
+                ~ThreadLocalMap() {
+                    {
+                        std::lock_guard<std::mutex> lock(g_cleaner_mutex);
+                        g_cleaners.erase(this);
+                    }
+                    delete _map;
+                }
+                void cleanup() override {
+                    delete _map;
+                    _map = nullptr;
+                }
+            };
+            static thread_local ThreadLocalMap t_stream_count_map_holder;
+            auto t_stream_count_map = t_stream_count_map_holder._map;
+            if (!t_stream_count_map) {
+                return nullptr;
+            }
             // fix the memory leak issue that CPUStreamsExecutor is already released,
             // but still exists CustomThreadLocal::ThreadTracker in t_stream_count_map
-            for (auto it = t_stream_count_map.begin(); it != t_stream_count_map.end();) {
+            for (auto it = t_stream_count_map->begin(); it != t_stream_count_map->end();) {
                 if (this != it->first && it->second->count() == 1) {
-                    t_stream_count_map.erase(it++);
+                    t_stream_count_map->erase(it++);
                 } else {
                     it++;
                 }
@@ -297,9 +330,9 @@ struct CPUStreamsExecutor::Impl {
                 if (item.first->get_id() == id) {
                     // check if the ThreadTracker of this stream is already in t_stream_count_map
                     // if not, then create ThreadTracker for it
-                    auto iter = t_stream_count_map.find((void*)this);
-                    if (iter == t_stream_count_map.end()) {
-                        t_stream_count_map[(void*)this] = item.first->fetch();
+                    auto iter = t_stream_count_map->find((void*)this);
+                    if (iter == t_stream_count_map->end()) {
+                        (*t_stream_count_map)[(void*)this] = item.first->fetch();
                     }
                     return item.second;
                 }
@@ -319,7 +352,7 @@ struct CPUStreamsExecutor::Impl {
                 stream = std::make_shared<Impl::Stream>(_impl);
             }
             auto tracker_ptr = std::make_shared<CustomThreadLocal::ThreadTracker>(id);
-            t_stream_count_map[(void*)this] = tracker_ptr;
+            (*t_stream_count_map)[(void*)this] = tracker_ptr;
             auto new_tracker_ptr = tracker_ptr->fetch();
             _stream_map[new_tracker_ptr] = stream;
             return stream;
@@ -549,6 +582,13 @@ void CPUStreamsExecutor::run(Task task) {
         _impl->Defer(std::move(task));
     } else {
         _impl->Enqueue(std::move(task));
+    }
+}
+
+void release_cpu_streams_executor_thread_local() {
+    std::lock_guard<std::mutex> lock(g_cleaner_mutex);
+    for (auto* cleaner : g_cleaners) {
+        cleaner->cleanup();
     }
 }
 
