@@ -52,7 +52,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -94,14 +94,14 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@cherry_pick_retries
         timeout-minutes: 15
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@cherry_pick_retries
         timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/openvino_contrib'
@@ -232,21 +232,21 @@ jobs:
           version: "3.12"
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
-      
+
       - name: Setup Python 3.13
         uses: ./openvino/.github/actions/setup_python
         with:
           version: "3.13"
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
-      
+
       - name: Setup Python 3.14
         uses: ./openvino/.github/actions/setup_python
         with:
           version: "3.14"
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
-      
+
       - name: Setup Python 3.14t
         uses: ./openvino/.github/actions/setup_python
         with:
@@ -362,7 +362,7 @@ jobs:
           name: openvino_node_npm_package
           path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.tar.gz
           if-no-files-found: 'error'
-      
+
       - name: Upload product manifest
         if: ${{ always() }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -504,7 +504,7 @@ jobs:
 
     steps:
       - name: Checkout OpenVINO actions
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: |
