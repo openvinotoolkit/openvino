@@ -1447,7 +1447,7 @@ public:
         //      1: gate  [token_len * expert_topK, hidden_size]
         // output
         //      0: gate_up  [token_len * expert_topK, hidden_size]
-        {
+        if(ENABLE_MOE_3GEMM_MICRO_FUSE_SILU_MUL == 0) {
             auto token_size = token_num * max_topk;
 #    if DEBUG_MOE_LOG
             GPU_DEBUG_TRACE_DETAIL << "\nstep 4: prefill_swiglu token_size=" << token_size << ", hidden_size=" << _intermediate_size << std::endl;

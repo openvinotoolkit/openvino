@@ -22,6 +22,9 @@ DECLARE_2D_TILE(bias_tile_type, BIAS_DT, SUBGROUP_SIZE, ugemm_moe_sg_tile_m, 1, 
 DECLARE_2D_TILE(ugemm_moe_c_type_half, half, SUBGROUP_SIZE, ugemm_moe_c_type_block0, ugemm_moe_c_type_block1, ugemm_moe_c_type_nblock0, ugemm_moe_c_type_nblock1)
 DECLARE_2D_TILE_COPY_REBLOCK(ugemm_moe_c_type, SUBGROUP_SIZE, ugemm_moe_c_type_block0, ugemm_moe_c_type_block1, ugemm_moe_c_type_nblock0, ugemm_moe_c_type_nblock1,
                              ugemm_moe_c_type_half, SUBGROUP_SIZE, ugemm_moe_c_type_block0, ugemm_moe_c_type_block1, ugemm_moe_c_type_nblock0, ugemm_moe_c_type_nblock1)
+DECLARE_2D_TILE(ugemm_moe_c_type_float, float, SUBGROUP_SIZE, ugemm_moe_c_type_block0, ugemm_moe_c_type_block1, ugemm_moe_c_type_nblock0, ugemm_moe_c_type_nblock1)
+DECLARE_2D_TILE_COPY_REBLOCK(ugemm_moe_c_type, SUBGROUP_SIZE, ugemm_moe_c_type_block0, ugemm_moe_c_type_block1, ugemm_moe_c_type_nblock0, ugemm_moe_c_type_nblock1,
+                             ugemm_moe_c_type_float, SUBGROUP_SIZE, ugemm_moe_c_type_block0, ugemm_moe_c_type_block1, ugemm_moe_c_type_nblock0, ugemm_moe_c_type_nblock1)
 
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
@@ -32,6 +35,9 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
         const global INPUT1_TYPE *weight_ptr,
 #endif
         global OUTPUT_TYPE *out_ptr,
+#ifdef MOE_ENABLE_SILU_MUL
+        const global OUTPUT_TYPE *post_op_input,
+#endif
         const global INPUT2_TYPE *experts_ids,
         const global INPUT3_TYPE * input_offset_per_expert,
         const global INPUT4_TYPE *n_array,
@@ -60,6 +66,9 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     }
     #endif
     out_ptr += input_offset * OUTPUT_STRIDE;
+#ifdef MOE_ENABLE_SILU_MUL
+    post_op_input += input_offset * OUTPUT_STRIDE;
+#endif
     weight_ptr += experts_ids[batch] * EXPERT_STRIDE;
 
     int ld_input = k;
@@ -108,7 +117,12 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 );
     ugemm_moe_c_type_half c_tile_half;
+#ifdef MOE_ENABLE_SILU_MUL
+    ugemm_moe_c_type_float c_tile_float;
+    tile_copy_reblock(c_tile, &c_tile_float);
+#else
     tile_copy_reblock(c_tile, &c_tile_half);
+#endif
 
 #ifdef BIAS_DT
     bias_ptr += (experts_ids[batch] * BIAS_STRIDE);
@@ -122,11 +136,43 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
         if (sg_j0 + j < cur_n_tokens) {
             for (int i0 = 0; i0 < br * nbr; i0 += sg) {
                 int i = i0 + sglid;
-                if (sg_i0 + i < m)
+                if (sg_i0 + i < m) {
+#ifdef MOE_ENABLE_SILU_MUL
+                    c_tile_float.x[i0 / br + nbr * (j / bc)][(i0 % br)/sg + (j % bc) * (br / sg)] += (float)bias_ptr[sg_i0 + i];
+#else
                     c_tile_half.x[i0 / br + nbr * (j / bc)][(i0 % br)/sg + (j % bc) * (br / sg)] += bias_ptr[sg_i0 + i];
+#endif
+                }
             }
         }
     }
 #endif
+
+#ifdef MOE_ENABLE_SILU_MUL
+    {
+        int sglid = get_sub_group_local_id();
+        const int br = ugemm_moe_c_type_block0;
+        const int nbr = ugemm_moe_c_type_nblock0;
+        const int bc = ugemm_moe_c_type_block1;
+        const int nbc = ugemm_moe_c_type_nblock1;
+        int sg = SUBGROUP_SIZE;
+        for (int j = 0; j < bc * nbc; j++) {
+            if (sg_j0 + j < cur_n_tokens) {
+                for (int i0 = 0; i0 < br * nbr; i0 += sg) {
+                    int i = i0 + sglid;
+                    if (sg_i0 + i < m) {
+                        float post_val = post_op_input[(sg_j0 + j) * m + (sg_i0 + i)];
+                        int reg_idx_i = (i0 / br) + nbr * (j / bc);
+                        int reg_idx_j = (i0 % br)/sg + (j % bc) * (br / sg);
+                        float val = c_tile_float.x[reg_idx_i][reg_idx_j];
+                        float res = post_val * (val / (1.0f + native_exp(-val)));
+                        c_tile_half.x[reg_idx_i][reg_idx_j] = res;
+                    }
+                }
+            }
+        }
+    }
+#endif
+
     tile_store(c_tile_half, out_ptr, m, cur_n_tokens, sg_i0, sg_j0);
 }
