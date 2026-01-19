@@ -10,8 +10,8 @@
 #pragma once
 
 #include <filesystem>
-#include <type_traits>
 #include <functional>
+#include <type_traits>
 
 #include "openvino/core/coordinate.hpp"
 #include "openvino/core/partial_shape.hpp"

@@ -29,8 +29,8 @@ ov::util::TensorImplGenerator& custom_tensor_generator() {
 }
 
 std::shared_ptr<ITensor> make_tensor_with_custom_generator(const element::Type& element_type,
-                                                    const Shape& shape,
-                                                    const Allocator& allocator) {
+                                                           const Shape& shape,
+                                                           const Allocator& allocator) {
     auto& custom_generator = custom_tensor_generator();
     if (custom_generator && allocator == Allocator{}) {
         return custom_generator(element_type, shape);
