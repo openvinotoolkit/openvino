@@ -440,11 +440,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
                                           &adaptive_rkv_diversity_results](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& real_q = pattern_map.at(std::move(q));
+        const auto& real_q = pattern_map.at(q);
 
         auto sdpa_node = pattern_map
-                             .at(pattern_map.count(std::move(sdpa_with_4_inputs))   ? sdpa_with_4_inputs
-                                 : pattern_map.count(std::move(sdpa_with_5_inputs)) ? sdpa_with_5_inputs
+                             .at(pattern_map.count(sdpa_with_4_inputs)   ? std::move(sdpa_with_4_inputs)
+                                 : pattern_map.count(sdpa_with_5_inputs) ? std::move(sdpa_with_5_inputs)
                                                                          : std::move(sdpa_with_6_inputs))
                              .get_node();
 
@@ -483,7 +483,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             std::make_shared<v1::Reshape>(q_transpose, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
         ov::Output<ov::Node> k_target_layout, v_target_layout;
-        if (pattern_map.count(std::move(qkv_current_split_node))) {
+        if (pattern_map.count(qkv_current_split_node)) {
             // Fast track for merged K/V caches, based on the currently observed models topologies we don't need to
             // change layout and there is no point in the graph where it is in 4D. So `else` branch below is not
             // applicable for this case. + std::to_string(layer_index - 1)
@@ -491,7 +491,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             // TODO: Consider handling Q part as well as KV here, requires more changes in the code and sets
             // VariadicSplit before Concat as essential part of the pattern
             auto kv_split_part = qkv_split->output(1);
-            auto real_kv_concat_split = pattern_map.at(std::move(kv_concat_split)).get_node_shared_ptr();
+            auto real_kv_concat_split = pattern_map.at(kv_concat_split).get_node_shared_ptr();
             // Reaply VariadicSplit from the model after the Concat with KV merged tensor to current KV merged tensor
             // before the Concat
             auto kv_current_split = real_kv_concat_split->clone_with_new_inputs(
@@ -546,7 +546,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             std::make_shared<v1::Reshape>(v_target_layout, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
         std::shared_ptr<ov::Node> scale;
-        if (pattern_map.count(std::move(scale_input))) {
+        if (pattern_map.count(scale_input)) {
             scale = pattern_map.at(scale_input).get_node_shared_ptr();
             if (pattern_map.at(scale_input).get_partial_shape().rank() != 0) {
                 scale = std::make_shared<v15::Squeeze>(scale);
@@ -587,13 +587,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         pa_arguments.insert(pa_arguments.end(), model_wide_params.begin(), model_wide_params.end());
 
         std::shared_ptr<Node> sliding_window;
-        if (pattern_map.count(std::move(phi3_offset))) {
+        if (pattern_map.count(phi3_offset)) {
             auto offset = pattern_map.at(phi3_offset).get_node_shared_ptr();
             if (offset->get_element_type() != element::i32) {
                 offset = std::make_shared<v0::Convert>(offset, element::i32);
             }
             sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(element::i32, Shape{}, {2}), offset);
-        } else if (pattern_map.count(std::move(gpt_oss_offset))) {
+        } else if (pattern_map.count(gpt_oss_offset)) {
             auto offset = pattern_map.at(gpt_oss_offset).get_node_shared_ptr();
             if (pattern_map.at(gpt_oss_offset).get_partial_shape().rank() != 0) {
                 offset = std::make_shared<v15::Squeeze>(offset);
@@ -678,7 +678,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         // For now we haven't seen sinks in any other model than gpt-oss, so taking -3 is generally safe
         // as there's going to be num_q_heads at -3.
-        if (pattern_map.count(std::move(sinks))) {
+        if (pattern_map.count(sinks)) {
             const auto& sinks_val = pattern_map.at(sinks);
             if (sinks_val.get_partial_shape()[-3] == real_q.get_partial_shape()[-3]) {
                 pa_arguments.insert(pa_arguments.begin() + 20, sinks_val.get_node_shared_ptr());
@@ -771,7 +771,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         //  add_kv_parameter(mapping[k_gather])
         //  add_kv_parameter(mapping[v_gather])
 
-        if (pattern_map.find(std::move(v_past_par)) != pattern_map.end()) {
+        if (pattern_map.find(v_past_par) != pattern_map.end()) {
             auto param = ov::as_type_ptr<v0::Parameter>(pattern_map.at(v_past_par).get_node_shared_ptr());
             if (param) {
                 return false;
