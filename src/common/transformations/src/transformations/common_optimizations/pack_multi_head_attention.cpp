@@ -213,20 +213,22 @@ MergeUnrolledSDPA::MergeUnrolledSDPA() {
         auto lhs = skip_if_type<v1::ReduceSum>(add_node->input_value(0).get_node_shared_ptr());
         auto rhs = skip_if_type<v1::ReduceSum>(add_node->input_value(1).get_node_shared_ptr());
 
-        auto mm1 = as_type_ptr<v0::MatMul>(lhs);
-        auto mm2 = as_type_ptr<v0::MatMul>(rhs);
-        if (!are_identical_nodes(mm1, mm2))
+        auto sdpa_proj1 = as_type_ptr<v0::MatMul>(lhs);
+        auto sdpa_proj2 = as_type_ptr<v0::MatMul>(rhs);
+        if (!are_identical_nodes(sdpa_proj1, sdpa_proj2))
             return false;
 
         // Get SDPA MatMul nodes (QKV)
-        auto sdpa_mm1 = as_type_ptr<v0::MatMul>(skip_if_type<v1::Reshape>(mm1->input_value(0).get_node_shared_ptr()));
-        auto sdpa_mm2 = as_type_ptr<v0::MatMul>(skip_if_type<v1::Reshape>(mm2->input_value(0).get_node_shared_ptr()));
-        if (!are_identical_nodes(sdpa_mm1, sdpa_mm2))
+        auto qk_v1 =
+            as_type_ptr<v0::MatMul>(skip_if_type<v1::Reshape>(sdpa_proj1->input_value(0).get_node_shared_ptr()));
+        auto qk_v2 =
+            as_type_ptr<v0::MatMul>(skip_if_type<v1::Reshape>(sdpa_proj2->input_value(0).get_node_shared_ptr()));
+        if (!are_identical_nodes(qk_v1, qk_v2))
             return false;
 
         // Extract Softmax nodes
-        auto soft1 = as_type_ptr<v8::Softmax>(sdpa_mm1->input_value(0).get_node_shared_ptr());
-        auto soft2 = as_type_ptr<v8::Softmax>(sdpa_mm2->input_value(0).get_node_shared_ptr());
+        auto soft1 = as_type_ptr<v8::Softmax>(qk_v1->input_value(0).get_node_shared_ptr());
+        auto soft2 = as_type_ptr<v8::Softmax>(qk_v2->input_value(0).get_node_shared_ptr());
         if (!are_identical_nodes(soft1, soft2))
             return false;
 
@@ -264,8 +266,8 @@ MergeUnrolledSDPA::MergeUnrolledSDPA() {
         // Extract Q, K, V, sdpa_proj, mask from both SDPAs
         OutputVector q_inputs = {qk1->input_value(0), qk2->input_value(0)};
         OutputVector k_inputs = {qk1->input_value(1), qk2->input_value(1)};
-        OutputVector v_inputs = {sdpa_mm1->input_value(1), sdpa_mm2->input_value(1)};
-        OutputVector sdpa_proj_inputs = {mm1->input_value(1), mm2->input_value(1)};
+        OutputVector v_inputs = {qk_v1->input_value(1), qk_v2->input_value(1)};
+        OutputVector sdpa_proj_inputs = {sdpa_proj1->input_value(1), sdpa_proj2->input_value(1)};
         OutputVector mask_inputs = {mask1->input_value(1), mask2->input_value(1)};
 
         // Concatenate along head axis
@@ -297,11 +299,11 @@ MergeUnrolledSDPA::MergeUnrolledSDPA() {
         auto softmax_fused = soft1->copy_with_new_inputs({bias_fused});
         copy_runtime_info({soft1, soft2}, softmax_fused);
 
-        auto qkv_fused = sdpa_mm1->copy_with_new_inputs({softmax_fused, V});
-        copy_runtime_info({sdpa_mm1, sdpa_mm2}, qkv_fused);
+        auto qkv_fused = qk_v1->copy_with_new_inputs({softmax_fused, V});
+        copy_runtime_info({qk_v1, qk_v2}, qkv_fused);
 
-        auto proj = mm1->copy_with_new_inputs({qkv_fused, sdpa_proj});
-        copy_runtime_info({mm1, mm2}, proj);
+        auto proj = sdpa_proj1->copy_with_new_inputs({qkv_fused, sdpa_proj});
+        copy_runtime_info({sdpa_proj1, sdpa_proj2}, proj);
 
         auto reduce_axis = v0::Constant::create(element::i64, Shape{1}, {1});
         auto reduce = std::make_shared<v1::ReduceSum>(proj, reduce_axis, false);
@@ -516,6 +518,9 @@ MergeLinearProjections::MergeLinearProjections() {
         if (convert_lhs && convert_rhs) {
             auto convert_const_fused =
                 concat_any(OutputVector{convert_lhs->input_value(0), convert_rhs->input_value(0)}, HEAD_AXIS, RANK);
+            if (!convert_const_fused) {
+                return false;
+            }
             input_fused = convert_lhs->copy_with_new_inputs({convert_const_fused});
             copy_runtime_info({convert_lhs, convert_rhs}, input_fused);
         }
@@ -525,6 +530,9 @@ MergeLinearProjections::MergeLinearProjections() {
         if (subtract_lhs && subtract_rhs) {
             auto subtract_const_fused =
                 concat_any(OutputVector{subtract_lhs->input_value(0), subtract_rhs->input_value(0)}, HEAD_AXIS, RANK);
+            if (!subtract_const_fused) {
+                return false;
+            }
             input_fused = subtract_lhs->copy_with_new_inputs({subtract_const_fused, subtract_lhs->input_value(1)});
             copy_runtime_info({subtract_lhs, subtract_rhs}, input_fused);
         }
@@ -535,6 +543,9 @@ MergeLinearProjections::MergeLinearProjections() {
             if (!input_fused) {
                 OutputVector multiply_inputs = {scale_lhs->input_value(0), scale_rhs->input_value(0)};
                 input_fused = concat_any(multiply_inputs, HEAD_AXIS, RANK);
+                if (!input_fused) {
+                    return false;
+                }
             }
             input_fused = scale_lhs->copy_with_new_inputs({input_fused, scale_lhs->input_value(1)});
             copy_runtime_info({scale_lhs, scale_rhs}, input_fused);
@@ -542,12 +553,18 @@ MergeLinearProjections::MergeLinearProjections() {
 
         if (!input_fused) {
             input_fused = concat_any(OutputVector{mm_lhs->input_value(1), mm_rhs->input_value(1)}, HEAD_AXIS, RANK);
+            if (!input_fused) {
+                return false;
+            }
         }
 
         auto mm_fused = mm_lhs->copy_with_new_inputs({align_rank(mm_lhs->input_value(0), RANK), input_fused});
         copy_runtime_info({mm_lhs, mm_rhs}, mm_fused);
 
         auto bias_fused = concat_any(OutputVector{add_lhs->input_value(1), add_rhs->input_value(1)}, HEAD_AXIS, RANK);
+        if (!bias_fused) {
+            return false;
+        }
         auto add_fused = add_lhs->copy_with_new_inputs({mm_fused, bias_fused});
         copy_runtime_info({add_lhs, add_rhs}, add_fused);
 
@@ -632,11 +649,12 @@ MergeDQ::MergeDQ() {
         auto sub_fused = sub_lhs->copy_with_new_inputs({convert_0_fused, convert_1_fused});
         copy_runtime_info({sub_lhs, sub_rhs}, sub_fused);
 
-        OutputVector mul_inputs_fused = {
-            sub_fused,
-            concat_any(OutputVector{mul_lhs->input_value(1), mul_rhs->input_value(1)}, HEAD_AXIS, RANK)};
+        auto scale_fused = concat_any(OutputVector{mul_lhs->input_value(1), mul_rhs->input_value(1)}, HEAD_AXIS, RANK);
+        if (!scale_fused) {
+            return false;
+        }
 
-        auto mul_fused = mul_lhs->copy_with_new_inputs(mul_inputs_fused);
+        auto mul_fused = mul_lhs->copy_with_new_inputs(OutputVector{sub_fused, scale_fused});
         copy_runtime_info({mul_lhs, mul_rhs}, mul_fused);
 
         replace_node(concat_node, mul_fused);
