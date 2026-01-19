@@ -62,6 +62,63 @@ public:
     }
 };
 
+class CustomAdd2OutputsOp : public ov::op::Op {
+public:
+    OPENVINO_OP("CustomAdd2OutputsOp", "gpu_opset");
+
+    CustomAdd2OutputsOp() = default;
+
+    CustomAdd2OutputsOp(const ov::OutputVector& inputs) : Op(inputs) {
+        constructor_validate_and_infer_types();
+    }
+
+    void validate_and_infer_types() override {
+        set_output_size(2);
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        set_output_type(1, get_input_element_type(0), get_input_partial_shape(0));
+    }
+
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        return true;
+    }
+
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
+        OPENVINO_ASSERT(new_args.size() == 3, "Incorrect number of new arguments");
+        return std::make_shared<CustomAdd2OutputsOp>(new_args);
+    }
+
+    bool has_evaluate() const override {
+        return true;
+    }
+
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
+        const float* pBias0 = inputs[1].data<float>();
+        const float* pBias1 = inputs[2].data<float>();
+
+        const auto& in = inputs[0];
+        auto& out0 = outputs[0];
+        auto& out1 = outputs[1];
+
+        out0.set_shape(in.get_shape());
+        out1.set_shape(in.get_shape());
+
+        auto total = in.get_size();
+        if (in.get_element_type() == ov::element::f32) {
+            auto* ptr_in = in.data<float>();
+            auto* ptr_out1 = out0.data<float>();
+            auto* ptr_out2 = out1.data<float>();
+            for (size_t i = 0; i < total; i++) {
+                ptr_out1[i] = ptr_in[i] + pBias0[0];
+                ptr_out2[i] = ptr_in[i] + pBias1[0];
+            }
+        }
+
+        return true;
+    }
+};
+
+const float CONST_BIAS[2] = {0.1f, 0.2f};
+
 using CustomOpDynamicTestParams = std::tuple<std::vector<ov::Shape>,            // input shape
                                              std::vector<std::vector<float>>>;  // input data
 class CustomOpDynamic : public ov::test::TestsCommon, public testing::WithParamInterface<CustomOpDynamicTestParams> {
@@ -71,6 +128,7 @@ class CustomOpDynamic : public ov::test::TestsCommon, public testing::WithParamI
 
     void TearDown() override {
         ov::test::utils::removeFile(config_cl);
+        ov::test::utils::removeFile(config_cl_2);
         ov::test::utils::removeFile(config_xml);
     }
 
@@ -97,46 +155,58 @@ public:
 
         ov::Core core;
         float alpha = 1.0, beta = 0.1;
-        auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape{-1, dim1, -1});
+        const size_t output_num = 2; // dynamic model has 2 outputs.
+        auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape{-1, dim1, -1}, "dynamic");
 
         ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_xml}};
         auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
 
-        auto runtime_graph = compiled_model.get_runtime_model();
-        auto ops = runtime_graph->get_ordered_ops();
-
-        bool found_custom_op = false;
-        for (auto op : ops) {
-            if (op->get_rt_info()[ov::exec_model_info::LAYER_TYPE].as<std::string>() == "CustomGPUPrimitive") {
-                found_custom_op = true;
-                break;
-            }
-        }
-        ASSERT_TRUE(found_custom_op);
+        check_custom_op_num(compiled_model, output_num);
 
         auto ireq = compiled_model.create_infer_request();
         for (size_t i = 0; i < input_datas.size(); i++) {
             auto input = ov::Tensor({ov::element::f32}, input_shapes[i], input_datas[i].data());
             ireq.set_input_tensor(0, input);
             ireq.infer();
-            auto output = ireq.get_output_tensor(0);
+            check_output(ireq, input, alpha, beta, output_num);
+        }
+    }
+
+    void check_custom_op_num(ov::CompiledModel& compiled_model, int expected_output_num) {
+        auto runtime_graph = compiled_model.get_runtime_model();
+        auto ops = runtime_graph->get_ordered_ops();
+
+        int found_custom_op_num = 0;
+        for (auto op : ops) {
+            if (op->get_rt_info()[ov::exec_model_info::LAYER_TYPE].as<std::string>() == "CustomGPUPrimitive") {
+                found_custom_op_num++;
+            }
+        }
+        ASSERT_EQ(found_custom_op_num, expected_output_num);
+    }
+
+    void check_output(ov::InferRequest ireq, ov::Tensor& input, float alpha, float beta, size_t output_num) {
+        for (size_t j = 0; j < output_num; j++) {
+            auto output = ireq.get_output_tensor(j);
             std::vector<float> actual(output.data<float>(), output.data<float>() + output.get_size());
 
             ASSERT_EQ(output.get_element_type(), element::f32);
 
             float* inp_data = input.data<float>();
             for (size_t i = 0; i < output.get_size(); i++) {
-                ASSERT_FLOAT_EQ(actual[i], inp_data[i] * alpha + beta);
+                ASSERT_FLOAT_EQ(actual[i], inp_data[i] * alpha + beta + (output_num == 1u ? 0 : CONST_BIAS[j]));
             }
         }
     }
 
 protected:
     std::string config_cl;
+    std::string config_cl_2;
     std::string config_xml;
 
     void generate_config_files() {
         config_cl = ov::test::utils::generateTestFilePrefix() + "_custom_op_dynamic.cl";
+        config_cl_2 = ov::test::utils::generateTestFilePrefix() + "_custom_op_dynamic_2.cl";
         config_xml = ov::test::utils::generateTestFilePrefix() + "_custom_op_dynamic.xml";
 
         std::string content_cl = R"(
@@ -156,6 +226,21 @@ protected:
             outp[dst_index] = inp0[src_index] * alpha + beta;
         })";
 
+        std::string content_cl_2 = R"(
+        __kernel void custom_add_with_2_outputs_kernel(
+            __global const INPUT0_TYPE* inp0,
+            __global const INPUT1_TYPE* inp1,
+            __global const INPUT2_TYPE* inp2,
+            __global OUTPUT0_TYPE* outp0,
+            __global OUTPUT1_TYPE* outp1) {
+            int b = get_global_id(0);
+            int f = get_global_id(1);
+            int y = get_global_id(2);
+            const unsigned id = b*INPUT0_DIMS[1]*INPUT0_DIMS[2]*INPUT0_DIMS[3] + f*INPUT0_DIMS[2]*INPUT0_DIMS[3] + y*INPUT0_DIMS[3];
+            outp0[id] = inp0[id] + inp1[0];
+            outp1[id] = inp0[id] + inp2[0];
+        })";
+
         std::string content_xml = R"(
             <CustomLayer name="CustomAddOp" type="SimpleGPU" version="1">
                 <Kernel entry="custom_add_kernel">
@@ -171,15 +256,49 @@ protected:
                 <WorkSizes global="B,F,Y"/>
             </CustomLayer>)";
 
+        std::string content_xml_2 = R"(
+            <CustomLayer name="CustomAdd2OutputsOp" type="SimpleGPU" version="1">
+            <Kernel entry="custom_add_with_2_outputs_kernel">
+                <Source filename=")" + config_cl_2 + R"("/>
+            </Kernel>
+            <Buffers>
+                <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+                <Tensor arg-index="1" type="input" port-index="1" format="BFYX"/>
+                <Tensor arg-index="2" type="input" port-index="2" format="BFYX"/>
+                <Tensor arg-index="3" type="output" port-index="0" format="BFYX"/>
+                <Tensor arg-index="4" type="output" port-index="1" format="BFYX"/>
+            </Buffers>
+            <CompilerOptions options="-cl-mad-enable"/>
+            <WorkSizes global="B,F,Y"/>
+            </CustomLayer>
+        )";
+
         ov::test::utils::createFile(config_cl, content_cl);
-        ov::test::utils::createFile(config_xml, content_xml);
+        ov::test::utils::createFile(config_cl_2, content_cl_2);
+        ov::test::utils::createFile(config_xml, content_xml + content_xml_2);
     }
 
-    std::shared_ptr<ov::Model> generate_model_with_custom_add_op(float alpha, float beta, ov::PartialShape inp_shape) {
+    std::shared_ptr<ov::Model> generate_model_with_custom_add_op(float alpha, float beta, ov::PartialShape inp_shape, const std::string& model_name_suffix ) {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inp_shape);
-        auto op = std::make_shared<CustomAddOp>(input, alpha, beta);
-        auto result = std::make_shared<ov::op::v0::Result>(op);
-        return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "model_with_custom_op_dynamic");
+        auto op_custom_1 = std::make_shared<CustomAddOp>(input, alpha, beta);
+
+        if (model_name_suffix == "static") {
+            auto result = std::make_shared<ov::op::v0::Result>(op_custom_1->output(0));
+            return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "model_with_custom_op_" + model_name_suffix);
+        }
+
+        auto const1 = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<size_t>{1});
+        const1->set_friendly_name("Const_1");
+        const1->fill_data(ov::element::f32, CONST_BIAS[0]);
+        auto const2 = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<size_t>{1});
+        const2->set_friendly_name("Const_2");
+        const2->fill_data(ov::element::f32, CONST_BIAS[1]);
+
+        auto op_custom_2 = std::make_shared<CustomAdd2OutputsOp>(ov::OutputVector{op_custom_1->output(0), const1->output(0), const2->output(0)});
+
+        auto result_1 = std::make_shared<ov::op::v0::Result>(op_custom_2->output(0));
+        auto result_2 = std::make_shared<ov::op::v0::Result>(op_custom_2->output(1));
+        return std::make_shared<ov::Model>(ov::ResultVector{result_1, result_2}, ov::ParameterVector{input}, "model_with_custom_op_" + model_name_suffix);
     }
 };
 
@@ -194,36 +313,20 @@ public:
 
         ov::Core core;
         float alpha = 1.0, beta = 0.1;
-        auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape(input_shapes[0]));
+        const size_t output_num = 1; // static model has 1 outputs.
+        auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape(input_shapes[0]), "static");
 
         ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_xml}};
         auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
 
-        auto runtime_graph = compiled_model.get_runtime_model();
-        auto ops = runtime_graph->get_ordered_ops();
-
-        bool found_custom_op = false;
-        for (auto op : ops) {
-            if (op->get_rt_info()[ov::exec_model_info::LAYER_TYPE].as<std::string>() == "CustomGPUPrimitive") {
-                found_custom_op = true;
-                break;
-            }
-        }
-        ASSERT_TRUE(found_custom_op);
+        check_custom_op_num(compiled_model, output_num);
 
         auto ireq = compiled_model.create_infer_request();
         auto input = ov::Tensor({ov::element::f32}, input_shapes[0], input_datas[0].data());
         ireq.set_input_tensor(0, input);
         ireq.infer();
-        auto output = ireq.get_output_tensor(0);
-        std::vector<float> actual(output.data<float>(), output.data<float>() + output.get_size());
 
-        ASSERT_EQ(output.get_element_type(), element::f32);
-
-        float* inp_data = input.data<float>();
-        for (size_t i = 0; i < output.get_size(); i++) {
-            ASSERT_FLOAT_EQ(actual[i], inp_data[i] * alpha + beta);
-        }
+        check_output(ireq, input, alpha, beta, output_num);
     }
 };
 
