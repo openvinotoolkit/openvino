@@ -148,9 +148,9 @@ RoPEFusionFlux::RoPEFusionFlux(bool num_heads_transposed) {
         config.output_trans0213 = false;
 
         OutputVector new_args;
-        new_args.push_back(std::move(pattern_map.at(x)));
-        new_args.push_back(std::move(pattern_map.at(t_cos)));
-        new_args.push_back(std::move(pattern_map.at(t_sin)));
+        new_args.push_back(pattern_map.at(x));
+        new_args.push_back(pattern_map.at(t_cos));
+        new_args.push_back(pattern_map.at(t_sin));
 
         auto old_node = std::move(root);
         auto new_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
@@ -1163,7 +1163,7 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
         pattern::wrap_type<v1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});
     auto concat_result = pattern::wrap_type<opset1::Concat>({sub_Subtract, add_Add}, {{"axis", -1}});
 
-    auto result = concat_result;
+    auto result = std::move(concat_result);
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -1184,18 +1184,16 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
 
         new_args.push_back(x_val);
         new_args.push_back(v_cos);
-
-        new_args.push_back(pattern_map.at(std::move(t_sin)));
+        new_args.push_back(pattern_map.at(t_sin));
         auto new_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
-
         new_node->set_friendly_name(root->get_friendly_name());
-        ov::copy_runtime_info({pattern_map.at(std::move(neg)).get_node_shared_ptr(),
-                               pattern_map.at(std::move(sub_Subtract)).get_node_shared_ptr(),
-                               pattern_map.at(std::move(first_half_mul_cos)).get_node_shared_ptr(),
-                               pattern_map.at(std::move(first_half_mul_sin)).get_node_shared_ptr(),
-                               pattern_map.at(std::move(second_half_mul_cos)).get_node_shared_ptr(),
-                               pattern_map.at(std::move(second_half_mul_sin)).get_node_shared_ptr(),
-                               pattern_map.at(std::move(add_Add)).get_node_shared_ptr(),
+        ov::copy_runtime_info({pattern_map.at(neg).get_node_shared_ptr(),
+                               pattern_map.at(sub_Subtract).get_node_shared_ptr(),
+                               pattern_map.at(first_half_mul_cos).get_node_shared_ptr(),
+                               pattern_map.at(first_half_mul_sin).get_node_shared_ptr(),
+                               pattern_map.at(second_half_mul_cos).get_node_shared_ptr(),
+                               pattern_map.at(second_half_mul_sin).get_node_shared_ptr(),
+                               pattern_map.at(add_Add).get_node_shared_ptr(),
                                pattern_map.at(result).get_node_shared_ptr()},
                               new_node);
         ov::replace_node(root, new_node);
