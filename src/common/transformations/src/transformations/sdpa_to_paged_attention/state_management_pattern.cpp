@@ -521,7 +521,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             auto real_v = take_4d(std::move(v_current), std::move(v_current_reshaped), std::move(v_current2));
 
             std::shared_ptr<Node> k_transpose_order = kv_transpose_order;
-            if (pattern_map.find(std::move(k_order)) !=
+            if (pattern_map.find(k_order) !=
                 pattern_map
                     .end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
                 k_transpose_order = std::make_shared<v8::Gather>(pattern_map.at(k_order),
@@ -530,7 +530,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             }
             k_target_layout = std::make_shared<v1::Transpose>(real_k, k_transpose_order);
             std::shared_ptr<Node> v_transpose_order = kv_transpose_order;
-            if (pattern_map.find(std::move(v_order)) !=
+            if (pattern_map.find(v_order) !=
                 pattern_map
                     .end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
                 v_transpose_order = std::make_shared<v8::Gather>(pattern_map.at(v_order),
@@ -573,11 +573,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         std::shared_ptr<Node> alibi_slopes;
-        if (pattern_map.find(std::move(general_alibi)) != pattern_map.end()) {
+        if (pattern_map.find(general_alibi) != pattern_map.end()) {
             alibi_slopes = handle_general_alibi(pattern_map.at(general_alibi).get_node_shared_ptr());
-        } else if (pattern_map.find(std::move(jais_13b_alibi)) != pattern_map.end()) {
+        } else if (pattern_map.find(jais_13b_alibi) != pattern_map.end()) {
             alibi_slopes = handle_jais_13b_alibi(pattern_map.at(jais_13b_alibi).get_node_shared_ptr());
-        } else if (pattern_map.find(std::move(baichuan2_13b_alibi)) != pattern_map.end()) {
+        } else if (pattern_map.find(baichuan2_13b_alibi) != pattern_map.end()) {
             alibi_slopes = handle_baichuan2_13b_alibi(pattern_map.at(baichuan2_13b_alibi).get_node_shared_ptr());
         } else {
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
@@ -616,7 +616,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
                                          "block_indices." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 7, block_indices);
-            block_indices_inputs_for_each_layer.push_back(std::move(block_indices));
+            block_indices_inputs_for_each_layer.push_back(block_indices);
         }
 
         if (allow_score_aggregation) {
@@ -644,8 +644,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             pa_arguments.insert(pa_arguments.begin() + 15, rotation_deltas);
             pa_arguments.insert(pa_arguments.begin() + 16, optional_model_wide_params.at("model_rotation_trig_lut"));
 
-            rotated_block_indices_inputs_for_each_layer.push_back(std::move(rotated_block_indices));
-            rotation_deltas_inputs_for_each_layer.push_back(std::move(rotation_deltas));
+            rotated_block_indices_inputs_for_each_layer.push_back(rotated_block_indices);
+            rotation_deltas_inputs_for_each_layer.push_back(rotation_deltas);
         } else {
             auto rotated_block_indices = v0::Constant::create(element::i32, Shape{0}, {});
             auto rotation_deltas = v0::Constant::create(element::i32, Shape{0}, {});
@@ -668,7 +668,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             pa_arguments.insert(pa_arguments.begin() + 17, xattention_threshold);
             pa_arguments.insert(pa_arguments.begin() + 18, optional_model_wide_params.at("xattention_block_size"));
             pa_arguments.insert(pa_arguments.begin() + 19, optional_model_wide_params.at("xattention_stride"));
-            xattention_threshold_inputs_for_each_layer.push_back(std::move(xattention_threshold));
+            xattention_threshold_inputs_for_each_layer.push_back(xattention_threshold);
         } else {
             auto xattention_threshold = v0::Constant::create(element::f32, Shape{0}, {});
             pa_arguments.insert(pa_arguments.begin() + 17, xattention_threshold);
@@ -711,14 +711,14 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                         "adaptive_rkv_diversity_block_set_indices." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 23, adaptive_rkv_diversity_block_set_indices);
             adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer.push_back(
-                std::move(adaptive_rkv_diversity_block_set_indices));
+                adaptive_rkv_diversity_block_set_indices);
 
             auto adaptive_rkv_diversity_block_set_indices_begins =
                 setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
                         "adaptive_rkv_diversity_block_set_indices_begins." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 24, adaptive_rkv_diversity_block_set_indices_begins);
             adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer.push_back(
-                std::move(adaptive_rkv_diversity_block_set_indices_begins));
+                adaptive_rkv_diversity_block_set_indices_begins);
 
         } else {
             pa_arguments.insert(pa_arguments.begin() + 21, v0::Constant::create(element::i32, Shape{}, {0}));
@@ -753,14 +753,14 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         if (use_score_outputs) {
             auto score_result = std::make_shared<v0::Result>(paged_attention->output(1));
             score_result->get_output_tensor(0).set_names({"scores." + std::to_string(layer_index - 1)});
-            score_results.push_back(std::move(score_result));
+            score_results.push_back(score_result);
         }
 
         if (allow_adaptive_rkv) {
             auto similarity_result = std::make_shared<v0::Result>(paged_attention->output(2));
             similarity_result->get_output_tensor(0).set_names(
                 {"adaptive_rkv_diversity." + std::to_string(layer_index - 1)});
-            adaptive_rkv_diversity_results.push_back(std::move(similarity_result));
+            adaptive_rkv_diversity_results.push_back(similarity_result);
         }
 
         // TODO: Complete this part to work with stateless models as well as will stateful
@@ -776,15 +776,15 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             if (param) {
                 return false;
             }
-            parameters_to_remove.push_back(std::move(param));
+            parameters_to_remove.push_back(param);
         }
 
-        if (pattern_map.find(std::move(k_past_par)) != pattern_map.end()) {
+        if (pattern_map.find(k_past_par) != pattern_map.end()) {
             auto param = ov::as_type_ptr<v0::Parameter>(pattern_map.at(k_past_par).get_node_shared_ptr());
             if (param) {
                 return false;
             }
-            parameters_to_remove.push_back(std::move(param));
+            parameters_to_remove.push_back(param);
         }
 
         pa_transpose->set_friendly_name(sdpa_node->get_friendly_name());
