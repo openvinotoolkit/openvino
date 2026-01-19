@@ -495,17 +495,18 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                     cmask_stride = causal_mask.stride(2);
                 }
             }
+            auto row_ptr = [](auto* base, size_t stride, size_t m) { return base ? base + m * stride : nullptr; };
+            auto sink_ptr = [&](size_t m) {
+                return sink_input ? &sink_input.at<float>({b, h, m, 0}, true) : nullptr;
+            };
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
                 auto* score = weight_score.ptr<float>(ithr, 0, m - m_start);
-                float* sink = nullptr;
-                if (sink_input) {
-                    sink = &sink_input.at<float>({b, h, m, 0}, true);
-                }
-                uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
-                uint8_t* cmask_row = cmask_ptr ? cmask_ptr + m * cmask_stride : nullptr;
-                auto* alibi_row = alibi_ptr ? alibi_ptr + m * alibi_stride : nullptr;
+                auto* sink = sink_ptr(m);
+                auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
+                auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
+                auto* alibi_row = row_ptr(alibi_ptr, alibi_stride, m);
 
                 attn_softmax(reinterpret_cast<void*>(score),
                              reinterpret_cast<T*>(score),
@@ -801,11 +802,15 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 } else if (alibi_needs_convert) {
                     alibi_row.resize(kv_len);
                 }
+                auto row_ptr = [](auto* base, size_t stride, size_t m) { return base ? base + m * stride : nullptr; };
+                auto sink_ptr = [&](size_t m) {
+                    return sink_input ? &sink_input.at<float>({b, h, m, 0}, true) : nullptr;
+                };
 
                 for (size_t m = m_start; m < m_end; m++) {
                     auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                    uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
-                    uint8_t* cmask_row = cmask_ptr ? cmask_ptr + m * cmask_stride : nullptr;
+                    auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
+                    auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
                     float* alibi_row_ptr = nullptr;
                     if (alibi_ptr_f32) {
                         alibi_row_ptr = alibi_ptr_f32 + m * alibi_stride_f32;
@@ -817,10 +822,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                         cpu_convert(alibi_src, alibi_row.data(), alibi_prec, ov::element::f32, kv_len);
                         alibi_row_ptr = alibi_row.data();
                     }
-                    float* sink = nullptr;
-                    if (sink_input) {
-                        sink = &sink_input.at<float>({b, h, m, 0}, true);
-                    }
+                    auto* sink = sink_ptr(m);
                     auto* qk_row = qk_ptr + (m - m_start) * qk_ptr_stride;
                     attn_softmax(reinterpret_cast<void*>(qk_row),
                                  qk_row,
@@ -946,6 +948,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 qk_row_f32.resize(kv_len);
             }
 #    endif
+            auto row_ptr = [](auto* base, size_t stride, size_t m) { return base ? base + m * stride : nullptr; };
+            auto sink_ptr = [&](size_t m) {
+                return sink_input ? &sink_input.at<float>({b, h, m, 0}, true) : nullptr;
+            };
 #    if defined(OPENVINO_ARCH_ARM64)
             if constexpr (std::is_same_v<T, ov::float16>) {
                 float* alibi_ptr_f32 = nullptr;
@@ -964,8 +970,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 for (size_t m = m_start; m < m_end; m++) {
                     // apply attention mask & sofmax
                     auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                    uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
-                    uint8_t* cmask_row = cmask_ptr ? cmask_ptr + m * cmask_stride : nullptr;
+                    auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
+                    auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
                     float* alibi_row_ptr = nullptr;
                     if (alibi_ptr_f32) {
                         alibi_row_ptr = alibi_ptr_f32 + m * alibi_stride_f32;
@@ -977,10 +983,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                         cpu_convert(alibi_src, alibi_row.data(), alibi_prec, ov::element::f32, kv_len);
                         alibi_row_ptr = alibi_row.data();
                     }
-                    float* sink = nullptr;
-                    if (sink_input) {
-                        sink = &sink_input.at<float>({b, h, m, 0}, true);
-                    }
+                    auto* sink = sink_ptr(m);
                     T* qk_row = qk + (m - m_start) * qk_row_stride;
                     for (size_t n = 0; n < kv_len; n++) {
                         qk_row_f32[n] = static_cast<float>(qk_row[n]);
@@ -1006,13 +1009,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 for (size_t m = m_start; m < m_end; m++) {
                     // apply attention mask & sofmax
                     auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                    uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
-                    uint8_t* cmask_row = cmask_ptr ? cmask_ptr + m * cmask_stride : nullptr;
-                    auto* alibi_row = alibi_ptr ? alibi_ptr + m * alibi_stride : nullptr;
-                    float* sink = nullptr;
-                    if (sink_input) {
-                        sink = &sink_input.at<float>({b, h, m, 0}, true);
-                    }
+                    auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
+                    auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
+                    auto* alibi_row = row_ptr(alibi_ptr, alibi_stride, m);
+                    auto* sink = sink_ptr(m);
                     attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * qk_row_stride),
                                  qk + (m - m_start) * qk_row_stride,
                                  d_scale,
@@ -1032,13 +1032,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
-                uint8_t* cmask_row = cmask_ptr ? cmask_ptr + m * cmask_stride : nullptr;
-                auto* alibi_row = alibi_ptr ? alibi_ptr + m * alibi_stride : nullptr;
-                float* sink = nullptr;
-                if (sink_input) {
-                    sink = &sink_input.at<float>({b, h, m, 0}, true);
-                }
+                auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
+                auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
+                auto* alibi_row = row_ptr(alibi_ptr, alibi_stride, m);
+                auto* sink = sink_ptr(m);
                 attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * kv_len),
                              qk + (m - m_start) * kv_len,
                              d_scale,
@@ -1223,16 +1220,17 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
                            1);
             }
 
+            auto row_ptr = [](auto* base, size_t stride, size_t m) { return base ? base + m * stride : nullptr; };
+            auto sink_ptr = [&](size_t m) {
+                return sink_input ? &sink_input.at<float>({b, h, m, 0}, true) : nullptr;
+            };
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                float* sink = nullptr;
-                if (sink_input) {
-                    sink = &sink_input.at<float>({b, h, m, 0}, true);
-                }
-                uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
-                uint8_t* cmask_row = cmask_ptr ? cmask_ptr + m * cmask_stride : nullptr;
-                auto* alibi_row = alibi_ptr ? alibi_ptr + m * alibi_stride : nullptr;
+                auto* sink = sink_ptr(m);
+                auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
+                auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
+                auto* alibi_row = row_ptr(alibi_ptr, alibi_stride, m);
                 attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * qk_m_stride),
                              qk + (m - m_start) * qk_m_stride,
                              d_scale,
@@ -1651,6 +1649,12 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                         } else if (alibi_needs_convert) {
                             alibi_row.resize(kv_len);
                         }
+                        auto row_ptr = [](auto* base, size_t stride, size_t m) {
+                            return base ? base + m * stride : nullptr;
+                        };
+                        auto sink_ptr = [&](size_t m) {
+                            return sink_input ? &sink_input.at<float>({b, h, m, 0}, true) : nullptr;
+                        };
 
                         for (size_t m = 0; m < q_len; m++) {
                             std::vector<float> q_row(head_size);
@@ -1671,7 +1675,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                             }
 
                             auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                            uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
+                            auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
+                            auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
                             float* alibi_row_ptr = nullptr;
                             if (alibi_ptr_f32) {
                                 alibi_row_ptr = alibi_ptr_f32 + m * alibi_stride_f32;
@@ -1683,16 +1688,13 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                                 cpu_convert(alibi_src, alibi_row.data(), alibi_prec, ov::element::f32, kv_len);
                                 alibi_row_ptr = alibi_row.data();
                             }
-                            float* sink = nullptr;
-                            if (sink_input) {
-                                sink = &sink_input.at<float>({b, h, m, 0}, true);
-                            }
+                            auto* sink = sink_ptr(m);
                             ov::Extensions::Cpu::XARCH::attn_softmax(scores.data(),
                                                                      scores.data(),
                                                                      d_scale,
                                                                      reinterpret_cast<void*>(alibi_row_ptr),
                                                                      attn_mask_row,
-                                                                     cmask_ptr ? cmask_ptr + m * cmask_stride : nullptr,
+                                                                     cmask_row,
                                                                      select_nfltmax_at_0,
                                                                      ncausal,
                                                                      kv_len,
