@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "openvino/pass/matcher_pass.hpp"
-#include "openvino/pass/pattern/multi_matcher.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov::pass {
@@ -146,6 +145,15 @@ public:
     OPENVINO_MODEL_PASS_RTTI("PackMultiHeadAttention");
     PackMultiHeadAttention() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+};
+
+class PackMultiHeadAttentionRTInfo : public ov::RuntimeAttribute {
+public:
+    OPENVINO_RTTI("PackMultiHeadAttentionRTInfo", "0", ov::RuntimeAttribute);
+    PackMultiHeadAttentionRTInfo() = default;
+    bool is_copyable() const override {
+        return false;
+    }
 };
 
 }  // namespace ov::pass

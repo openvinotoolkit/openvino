@@ -46,6 +46,14 @@ bool compare_nodes(const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov:
     return true;
 }
 
+std::shared_ptr<ov::Node> get_packed_mha_concat(const std::shared_ptr<ov::Node>& root) {
+    auto concat = ov::as_type_ptr<v0::Concat>(root);
+    if (!concat || !concat->get_rt_info().count(PackMultiHeadAttentionRTInfo::get_type_info_static())) {
+        return nullptr;
+    }
+    return concat;
+};
+
 /**
  * @brief Aligns the rank of a node by adding leading dimensions if necessary.
  *
@@ -104,14 +112,13 @@ std::shared_ptr<ov::Node> concat_any(const ov::OutputVector& inputs, int64_t axi
         }
     }
 
-    ov::OutputVector normalized;
+    ov::OutputVector aligned_inputs;
     for (const auto& in : inputs) {
-        normalized.push_back(align_rank(in, max_rank));
+        aligned_inputs.push_back(align_rank(in, max_rank));
     }
 
-    auto concat = ov::op::util::make_try_fold<v0::Concat>(normalized, axis);
-    concat->get_rt_info()["packed_GQA"] = true;
-
+    auto concat = ov::op::util::make_try_fold<v0::Concat>(aligned_inputs, axis);
+    concat->get_rt_info().emplace(PackMultiHeadAttentionRTInfo::get_type_info_static(), PackMultiHeadAttentionRTInfo{});
     return concat;
 }
 
@@ -129,7 +136,7 @@ std::shared_ptr<ov::Node> concat_any(const ov::OutputVector& inputs, int64_t axi
  * Useful for traversing node graphs while skipping specific operation types.
  */
 template <typename T>
-std::shared_ptr<ov::Node> skip_node(const std::shared_ptr<ov::Node>& node) {
+std::shared_ptr<ov::Node> skip_if_type(const std::shared_ptr<ov::Node>& node) {
     if (auto typed_node = ov::as_type_ptr<T>(node)) {
         return typed_node->input_value(0).get_node_shared_ptr();
     }
@@ -137,7 +144,7 @@ std::shared_ptr<ov::Node> skip_node(const std::shared_ptr<ov::Node>& node) {
 };
 
 // Helper function to extract scale node (supports both Divide and Multiply)
-static std::shared_ptr<ov::Node> get_scale(const std::shared_ptr<ov::Node>& input_node) {
+static std::shared_ptr<ov::Node> extract_scale_node(const std::shared_ptr<ov::Node>& input_node) {
     if (auto div = ov::as_type_ptr<v1::Divide>(input_node)) {
         return div;
     }
@@ -199,8 +206,8 @@ MergeUnrolledSDPA::MergeUnrolledSDPA() {
             return false;
 
         // Extract MatMul nodes
-        auto lhs = skip_node<v1::ReduceSum>(add_node->input_value(0).get_node_shared_ptr());
-        auto rhs = skip_node<v1::ReduceSum>(add_node->input_value(1).get_node_shared_ptr());
+        auto lhs = skip_if_type<v1::ReduceSum>(add_node->input_value(0).get_node_shared_ptr());
+        auto rhs = skip_if_type<v1::ReduceSum>(add_node->input_value(1).get_node_shared_ptr());
 
         auto mm1 = as_type_ptr<v0::MatMul>(lhs);
         auto mm2 = as_type_ptr<v0::MatMul>(rhs);
@@ -208,8 +215,8 @@ MergeUnrolledSDPA::MergeUnrolledSDPA() {
             return false;
 
         // Get SDPA MatMul nodes (QKV)
-        auto sdpa_mm1 = as_type_ptr<v0::MatMul>(skip_node<v1::Reshape>(mm1->input_value(0).get_node_shared_ptr()));
-        auto sdpa_mm2 = as_type_ptr<v0::MatMul>(skip_node<v1::Reshape>(mm2->input_value(0).get_node_shared_ptr()));
+        auto sdpa_mm1 = as_type_ptr<v0::MatMul>(skip_if_type<v1::Reshape>(mm1->input_value(0).get_node_shared_ptr()));
+        auto sdpa_mm2 = as_type_ptr<v0::MatMul>(skip_if_type<v1::Reshape>(mm2->input_value(0).get_node_shared_ptr()));
         if (!compare_nodes(sdpa_mm1, sdpa_mm2))
             return false;
 
@@ -226,8 +233,8 @@ MergeUnrolledSDPA::MergeUnrolledSDPA() {
             return false;
 
         // Extract optional scale nodes (Divide or Multiply)
-        auto sf1 = get_scale(bias1->input_value(0).get_node_shared_ptr());
-        auto sf2 = get_scale(bias2->input_value(0).get_node_shared_ptr());
+        auto sf1 = extract_scale_node(bias1->input_value(0).get_node_shared_ptr());
+        auto sf2 = extract_scale_node(bias2->input_value(0).get_node_shared_ptr());
 
         // Verify scales match if present
         if (sf1 && sf2) {
@@ -343,8 +350,8 @@ MergeUnrolledRoPE::MergeUnrolledRoPE() {
     register_matcher(m, [=](pattern::Matcher& matcher) {
         auto pm = matcher.get_pattern_value_map();
 
-        auto concat_node = std::dynamic_pointer_cast<v0::Concat>(matcher.get_match_root());
-        if (!concat_node || !concat_node->get_rt_info().count("packed_GQA"))
+        auto concat_node = get_packed_mha_concat(matcher.get_match_root());
+        if (!concat_node)
             return false;
 
         // Optional reshapes
@@ -480,9 +487,10 @@ MergeLinearProjections::MergeLinearProjections() {
     register_matcher(m, [=](pattern::Matcher& matcher) {
         auto pm = matcher.get_pattern_value_map();
 
-        auto concat_node = std::dynamic_pointer_cast<v0::Concat>(matcher.get_match_root());
-        if (!concat_node || !concat_node->get_rt_info().count("packed_GQA"))
+        auto concat_node = get_packed_mha_concat(matcher.get_match_root());
+        if (!concat_node) {
             return false;
+        }
 
         auto mm_lhs = as_type_ptr<v0::MatMul>(pm[mm_bias_lhs.matmul].get_node_shared_ptr());
         auto mm_rhs = as_type_ptr<v0::MatMul>(pm[mm_bias_rhs.matmul].get_node_shared_ptr());
@@ -575,9 +583,10 @@ MergeDQ::MergeDQ() {
     register_matcher(m, [=](pattern::Matcher& matcher) {
         auto pm = matcher.get_pattern_value_map();
 
-        auto concat_node = std::dynamic_pointer_cast<v0::Concat>(matcher.get_match_root());
-        if (!concat_node || !concat_node->get_rt_info().count("packed_GQA"))
+        auto concat_node = get_packed_mha_concat(matcher.get_match_root());
+        if (!concat_node) {
             return false;
+        }
 
         auto mul_lhs = as_type_ptr<v1::Multiply>(pm[dq_lhs.multiply].get_node_shared_ptr());
         auto mul_rhs = as_type_ptr<v1::Multiply>(pm[dq_rhs.multiply].get_node_shared_ptr());
@@ -635,7 +644,7 @@ MergeKVCaches::MergeKVCaches() {
 
     // Helper to create cache pattern
     auto create_cache_pattern = [&]() {
-        auto cache_input = pattern::any_input();
+        auto cache_input = pattern::wrap_type<v0::Parameter>({});
         auto input = pattern::any_input();
         auto concat = pattern::wrap_type<v0::Concat>({cache_input, input});
         return concat;
@@ -644,20 +653,16 @@ MergeKVCaches::MergeKVCaches() {
     auto cache_lhs = create_cache_pattern();
     auto cache_rhs = create_cache_pattern();
 
-    auto slice_lhs = pattern::wrap_type<v1::StridedSlice>(
-        {cache_lhs, pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto slice_rhs = pattern::wrap_type<v1::StridedSlice>(
-        {cache_rhs, pattern::any_input(), pattern::any_input(), pattern::any_input()});
-
     auto concat = pattern::wrap_type<v0::Concat>({cache_lhs, cache_rhs});
 
     auto m = std::make_shared<pattern::Matcher>(concat, "MergeKVCaches");
     register_matcher(m, [=](pattern::Matcher& matcher) {
         auto pm = matcher.get_pattern_value_map();
 
-        auto concat_node = std::dynamic_pointer_cast<v0::Concat>(matcher.get_match_root());
-        if (!concat_node || !concat_node->get_rt_info().count("packed_GQA"))
+        auto concat_node = get_packed_mha_concat(matcher.get_match_root());
+        if (!concat_node) {
             return false;
+        }
 
         auto concat_cache_lhs = ov::as_type_ptr<v0::Concat>(pm[cache_lhs].get_node_shared_ptr());
         auto concat_cache_rhs = ov::as_type_ptr<v0::Concat>(pm[cache_rhs].get_node_shared_ptr());
