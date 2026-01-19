@@ -400,12 +400,12 @@ TEST_F(TransformationTestsF, ReduceMergeDifferentShapesAndTypes) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
-TEST_F(TransformationTestsF, ReduceMergeNegativeAxis) {
+TEST_F(TransformationTestsF, ReduceMergeNegativeAxisKeepDimsFalse) {
     {
         auto data = std::make_shared<op::v0::Parameter>(element::i64, Shape{1, 2, 3, 4});
         auto reduce1_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
         auto reduce1 = std::make_shared<opset9::ReduceMean>(data, reduce1_axes, false);
-        auto reduce2_axis = op::v0::Constant::create(element::i32, Shape{1}, {-1});
+        auto reduce2_axis = op::v0::Constant::create(element::i64, Shape{1}, {-1});
         auto reduce2 = std::make_shared<opset9::ReduceMean>(reduce1, reduce2_axis, false);
         model = std::make_shared<Model>(OutputVector{reduce2}, ParameterVector{data});
         manager.register_pass<ov::pass::ReduceMerge>();
@@ -414,6 +414,26 @@ TEST_F(TransformationTestsF, ReduceMergeNegativeAxis) {
         auto data = std::make_shared<op::v0::Parameter>(element::i64, Shape{1, 2, 3, 4});
         auto axes = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
         auto reduce = std::make_shared<opset9::ReduceMean>(data, axes, false);
+        model_ref = std::make_shared<Model>(OutputVector{reduce}, ParameterVector{data});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, ReduceMergeNegativeAxisKeepDimsTrue) {
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::i64, Shape{1, 2, 3, 4});
+        auto reduce1_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce1 = std::make_shared<opset9::ReduceMean>(data, reduce1_axes, true);
+        auto reduce2_axis = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce2 = std::make_shared<opset9::ReduceMean>(reduce1, reduce2_axis, true);
+        model = std::make_shared<Model>(OutputVector{reduce2}, ParameterVector{data});
+        manager.register_pass<ov::pass::ReduceMerge>();
+    }
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::i64, Shape{1, 2, 3, 4});
+        auto axes = op::v0::Constant::create(element::i64, Shape{1}, {3});
+        auto reduce = std::make_shared<opset9::ReduceMean>(data, axes, true);
         model_ref = std::make_shared<Model>(OutputVector{reduce}, ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
