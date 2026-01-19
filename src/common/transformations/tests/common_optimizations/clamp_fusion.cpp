@@ -24,6 +24,7 @@
 using namespace testing;
 using namespace ov;
 
+namespace v0 = ov::op::v0;
 TEST_F(TransformationTestsF, ClampFusion) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
@@ -37,7 +38,7 @@ TEST_F(TransformationTestsF, ClampFusion) {
     }
 
     {
-        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
         model_ref = std::make_shared<Model>(OutputVector{clamp}, ParameterVector{data});
     }
@@ -56,7 +57,7 @@ TEST_F(TransformationTestsF, ClampFusionScalars) {
     }
 
     {
-        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
         model_ref = std::make_shared<Model>(OutputVector{clamp}, ParameterVector{data});
     }
@@ -98,7 +99,7 @@ TEST_F(TransformationTestsF, ClampFusionMinMax) {
     }
 
     {
-        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
         model_ref = std::make_shared<Model>(OutputVector{clamp}, ParameterVector{data});
     }
@@ -117,7 +118,7 @@ TEST_F(TransformationTestsF, ClampFusionMinMaxScalars) {
     }
 
     {
-        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
         model_ref = std::make_shared<Model>(OutputVector{clamp}, ParameterVector{data});
     }

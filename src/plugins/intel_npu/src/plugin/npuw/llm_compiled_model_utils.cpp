@@ -5,6 +5,7 @@
 #include "llm_compiled_model_utils.hpp"
 
 #include <regex>
+#include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
 
 #include "logging.hpp"
 #include "openvino/op/ops.hpp"
@@ -508,7 +509,25 @@ bool ov::npuw::util::has_input(const std::shared_ptr<ov::Model>& model, const st
 
 bool ov::npuw::util::optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ScaledDotProductAttentionDecomposition>(isPrefill);
+
+    // Check if any SDPA has sink input
+    bool has_sdpa_with_sink = false;
+    for (const auto& op : model->get_ops()) {
+        if (auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op)) {
+            if (sdpa->get_input_size() == 6) {
+                has_sdpa_with_sink = true;
+                break;
+            }
+        }
+    }
+
+    if (has_sdpa_with_sink) {
+        // TODO:  evaluate performance by older npu-drivers
+        rewr.add_matcher<ov::pass::ScaledDotProductAttentionDecomposition>();
+    } else {
+        rewr.add_matcher<ScaledDotProductAttentionDecomposition>(isPrefill);
+    }
+
     TransposeValueTensors::Context ctx;
     rewr.add_matcher<TransposeValueTensors_llama2>(std::ref(ctx));
     rewr.add_matcher<TransposeValueTensors_llama3>(std::ref(ctx));

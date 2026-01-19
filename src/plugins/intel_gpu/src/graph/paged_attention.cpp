@@ -128,15 +128,18 @@ std::string paged_attention_inst::to_string(const paged_attention_node& node) {
     paged_attention_info.add("v_head_size", desc->v_head_size);
     paged_attention_info.add("heads_num", desc->heads_num);
     paged_attention_info.add("kv_heads_num", desc->kv_heads_num);
-    paged_attention_info.add("scale", desc->scale_val.value_or(1.0f));
     paged_attention_info.add("has_alibi", desc->has_alibi);
-    paged_attention_info.add("has_score_aggregation", desc->has_score_aggregation);
     paged_attention_info.add("has_rotated_blocks", desc->has_rotated_blocks);
+    paged_attention_info.add("sliding_window", desc->sliding_window);
+    paged_attention_info.add("score_output", desc->has_scores_output());
+    paged_attention_info.add("has_score_aggregation", desc->has_score_aggregation);
+    paged_attention_info.add("has_xattention", desc->has_xattention);
+    paged_attention_info.add("has_sink_input", desc->has_sink_input);
+    paged_attention_info.add("has_adaptive_rkv", desc->has_adaptive_rkv);
+    paged_attention_info.add("scale", desc->scale_val.value_or(1.0f));
+    paged_attention_info.add("is_key_by_channel", desc->is_key_by_channel);
     paged_attention_info.add("key_cache_dt", node.get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::KEY_CACHE).data_type);
     paged_attention_info.add("value_cache_dt", node.get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::VALUE_CACHE).data_type);
-    paged_attention_info.add("score_output", desc->has_scores_output());
-    paged_attention_info.add("is_key_by_channel", desc->is_key_by_channel);
-    paged_attention_info.add("score_aggregation", desc->has_score_aggregation);
     node_info->add("paged_attention primitive info", paged_attention_info);
     node_info->dump(primitive_description);
 
@@ -154,15 +157,15 @@ paged_attention_inst::typed_primitive_inst(network& network, const paged_attenti
     const auto pa_block_size = desc->block_size;
 
     if (desc->has_alibi) {
-        const auto alibi_input_idx = 11;
+        const auto alibi_input_idx = PagedAttentionInputIdx::ALIBI;
         const auto alibi_layout = node.get_input_layout(alibi_input_idx);
-        OPENVINO_ASSERT(heads_num == alibi_layout.count());
+        OPENVINO_ASSERT(heads_num == alibi_layout.count(), "[GPU] ALiBi layout count must match heads_num");
     }
 
-    OPENVINO_ASSERT(heads_num % kv_heads_num == 0);
+    OPENVINO_ASSERT(heads_num % kv_heads_num == 0, "[GPU] heads_num must be divisible by kv_heads_num");
     if (!desc->has_xattention) {
-        OPENVINO_ASSERT(k_head_size % pa_block_size == 0);
-        OPENVINO_ASSERT(v_head_size % pa_block_size == 0);
+        OPENVINO_ASSERT(k_head_size % pa_block_size == 0, "[GPU] k_head_size must be divisible by block_size");
+        OPENVINO_ASSERT(v_head_size % pa_block_size == 0, "[GPU] v_head_size must be divisible by block_size");
     }
 }
 }  // namespace cldnn

@@ -9,6 +9,7 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/weights_path.hpp"
+#include "openvino/util/file_util.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -521,6 +522,7 @@ void program::init_graph() {
         if (!node->is_type<data>())
             node->get_output_layouts();
     }
+
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
 }
@@ -663,29 +665,36 @@ void program::mark_if_data_flow(program_node& node) {
             }
         }
     }
+}
 
-    // Rank promotion for data_flow in static shape models:
-    // - In static-shape models, patterns like Constant -> Convert -> Gemm can
-    //   leave the Convert node non-data_flow even when its output rank (e.g. bfyx)
-    //   is lower than the rank required by the Gemm inputs/outputs (e.g. bfzyx).
-    // - In such cases input_reorder may skip inserting a reorder after Convert,
-    //   which later leads to input dimension mismatch in gemm::calc_output_layout.
-    // - To avoid this, if any Gemm user has an output rank greater than the current
-    //   node rank, we promote this node to data_flow so that required reorders are
-    //   inserted on the legacy path.
-    if (!is_new_shape_infer() && !node.data_flow) {
-        const size_t current_rank = node.get_output_layout().get_rank();
-        for (auto* user : node.get_users()) {
-            if (!user->is_type<gemm>())
-                continue;
-            int port = user->get_port_from_deps(node.id());
-            if (port < 0 || port >= 2)
-                continue;
+// Rank promotion for data_flow in static shape models:
+// - In static-shape models, patterns like Constant -> Convert -> Gemm can
+//   leave the Convert node non-data_flow even when its output rank (e.g. bfyx)
+//   is lower than the rank required by the Gemm inputs/outputs (e.g. bfzyx).
+// - In such cases input_reorder may skip inserting a reorder after Convert,
+//   which later leads to input dimension mismatch in gemm::calc_output_layout.
+// - To avoid this, if any Gemm user has an output rank greater than the current
+//   node rank, we promote this node to data_flow so that required reorders are
+//   inserted on the legacy path.
+void program::mark_if_gemm_data_flow() {
+    if (is_new_shape_infer())
+        return;
 
-            size_t user_rank = user->get_output_layout().get_rank();
-            if (user_rank > current_rank) {
-                node.data_flow = true;
-                break;
+    for (const auto& node : get_processing_order()) {
+        if (!node->data_flow) {
+            const size_t current_rank = node->get_output_layout().get_rank();
+            for (auto* user : node->get_users()) {
+                if (!user->is_type<gemm>())
+                    continue;
+                int port = user->get_port_from_deps(node->id());
+                if (port < 0 || port >= 2)
+                    continue;
+
+                size_t user_rank = user->get_output_layout().get_rank();
+                if (user_rank > current_rank) {
+                    node->data_flow = true;
+                    break;
+                }
             }
         }
     }
@@ -1961,7 +1970,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
             }
         } else if (!weights_path.empty()) {
             ov::util::validate_weights_path(weights_path);
-            weights_memory = std::make_shared<WeightsMemory>(ov::load_mmap_object(weights_path));
+            weights_memory = std::make_shared<WeightsMemory>(ov::load_mmap_object(ov::util::make_path(weights_path)));
         } else {
             OPENVINO_THROW("Weights path or model is required for cache mode OPTIMIZE_SIZE");
         }

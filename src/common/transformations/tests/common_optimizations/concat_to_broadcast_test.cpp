@@ -15,6 +15,7 @@
 
 using namespace testing;
 
+namespace v0 = ov::op::v0;
 enum class ExpectedType {
     Broadcast,
     Tile,
@@ -48,11 +49,11 @@ INSTANTIATE_TEST_SUITE_P(
            ConcatToBroadcastParams({-1, -1, -1, -1}, 2604, 0, ExpectedType::Concat)));
 
 TEST_P(ConcatToBroadcastTest, TestTransfromationExecuted) {
-    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, data_shape);
+    auto param = std::make_shared<v0::Parameter>(ov::element::i32, data_shape);
     std::vector<ov::Output<ov::Node>> concat_inputs(concat_num_inputs, param->output(0));
 
-    auto concat = std::make_shared<ov::op::v0::Concat>(concat_inputs, concat_axis);
-    auto result = std::make_shared<ov::op::v0::Result>(concat->output(0));
+    auto concat = std::make_shared<v0::Concat>(concat_inputs, concat_axis);
+    auto result = std::make_shared<v0::Result>(concat->output(0));
 
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 
@@ -70,9 +71,9 @@ TEST_P(ConcatToBroadcastTest, TestTransfromationExecuted) {
         std::cout << op << std::endl;
         if (ov::as_type_ptr<ov::op::v3::Broadcast>(op)) {
             ++broadcast_count;
-        } else if (ov::as_type_ptr<ov::op::v0::Tile>(op)) {
+        } else if (ov::as_type_ptr<v0::Tile>(op)) {
             ++tile_count;
-        } else if (ov::as_type_ptr<ov::op::v0::Concat>(op)) {
+        } else if (ov::as_type_ptr<v0::Concat>(op)) {
             ++concat_count;
         }
     }
