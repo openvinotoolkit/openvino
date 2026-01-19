@@ -317,7 +317,7 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
         }
         if (is_read_only) {
             // Mark array as read-only
-            py::detail::array_proxy(result.ptr())->flags &= ~py::detail::npy_api::NPY_ARRAY_WRITEABLE_;
+            result.attr("flags").attr("writeable") = false;
         }
         return result;
     }
