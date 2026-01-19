@@ -287,10 +287,10 @@ struct CPUStreamsExecutor::Impl {
               _impl(impl) {}
         std::shared_ptr<Stream> local() {
             // maybe there are two CPUStreamsExecutors in the same thread.
+            using ThreadTrackerMap = std::map<void*, std::shared_ptr<CustomThreadLocal::ThreadTracker>>;
             struct ThreadLocalMap : public ThreadLocalCleaner {
-                std::map<void*, std::shared_ptr<CustomThreadLocal::ThreadTracker>>* _map = nullptr;
-                ThreadLocalMap() {
-                    _map = new std::map<void*, std::shared_ptr<CustomThreadLocal::ThreadTracker>>();
+                std::shared_ptr<ThreadTrackerMap> _map;
+                ThreadLocalMap() : _map(std::make_shared<ThreadTrackerMap>()) {
                     std::lock_guard<std::mutex> lock(g_cleaner_mutex);
                     g_cleaners.insert(this);
                 }
@@ -299,11 +299,10 @@ struct CPUStreamsExecutor::Impl {
                         std::lock_guard<std::mutex> lock(g_cleaner_mutex);
                         g_cleaners.erase(this);
                     }
-                    delete _map;
+                    _map.reset();
                 }
                 void cleanup() override {
-                    delete _map;
-                    _map = nullptr;
+                    _map.reset();
                 }
             };
             static thread_local ThreadLocalMap t_stream_count_map_holder;
