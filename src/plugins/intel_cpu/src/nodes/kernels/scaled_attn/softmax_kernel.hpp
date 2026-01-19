@@ -1391,7 +1391,7 @@ inline void attn_softmax_kernel<float>(float* a,
         max = max > (*sink) ? max : (*sink);
     }
 #if defined(OPENVINO_ARCH_ARM64)
-    if (std::isinf(max)) {
+    if (std::isinf(max) && max > 0.0F) {
         detail::handle_inf_logits(a, a_dst, dst_precision, len, total_size, sink);
         return;
     }
@@ -1539,7 +1539,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
     ov::float16 sum = 0.0F;
 #    if defined(OPENVINO_ARCH_ARM64)
     const float max_f = static_cast<float>(max);
-    if (std::isinf(max_f)) {
+    if (std::isinf(max_f) && max_f > 0.0F) {
         detail::handle_inf_logits(a, a_dst, dst_precision, len, total_size, sink);
         return;
     }
