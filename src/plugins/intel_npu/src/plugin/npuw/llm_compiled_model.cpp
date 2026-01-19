@@ -15,6 +15,7 @@
 #include "openvino/op/util/node_util.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -592,11 +593,12 @@ public:
     }
 };
 
-class Phi3SlidingMask2 : public ov::pass::MatcherPass {
+class Phi3SlidingMask2Matcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::Phi3SlidingMask2");
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::Phi3SlidingMask2Matcher");
 
-    Phi3SlidingMask2(const std::shared_ptr<ov::Model>& model) {
+    Phi3SlidingMask2Matcher(const std::shared_ptr<ov::Node>& attention_mask_node_ptr,
+                            const std::shared_ptr<ov::Node>& position_ids_node_ptr) {
         // Search for the Phi3 sliding mask pattern to extend it to work with right-padded
         // past tokens and left-padded present tokens. Logic to replace pattern is the same
         // as in Phi3SlidingMask rewriter, but adjusted to another set of operations for
@@ -670,27 +672,19 @@ public:
                             "Sliding window size constant must be of size 1, but got " +
                                 std::to_string(matched_neg_window_size->get_output_size()));
 
-            std::shared_ptr<ov::Node> matched_position_ids = nullptr;
-            std::shared_ptr<ov::Node> matched_attention_mask = nullptr;
-            for (const auto& i : model->inputs()) {
-                if (i.get_any_name() == "position_ids") {
-                    matched_position_ids = i.get_node_shared_ptr();
-                }
-                if (i.get_any_name() == "attention_mask") {
-                    matched_attention_mask = i.get_node_shared_ptr();
-                }
-            }
-            OPENVINO_ASSERT(matched_position_ids, "position_ids input is not found!");
-            OPENVINO_ASSERT(matched_attention_mask, "attention_mask input is not found!");
+            std::shared_ptr<ov::Node> passed_attention_mask = attention_mask_node_ptr;
+            std::shared_ptr<ov::Node> passed_position_ids = position_ids_node_ptr;
+            OPENVINO_ASSERT(passed_attention_mask, "Passed attention_mask node is nullptr!");
+            OPENVINO_ASSERT(passed_position_ids, "Passed position_ids node is nullptr!");
 
             auto const_zero = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 0);
             auto const_one = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 1);
             auto const_three = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 3);
 
             // 1.(K range > (Q_pos range - sliding window).T) & (K range <= Q range.T)
-            std::shared_ptr<ov::Node> query_range_as_pos_ids = matched_position_ids;
+            std::shared_ptr<ov::Node> query_range_as_pos_ids = passed_position_ids;
             if (matched_neg_window_size->output(0).get_element_type() == ov::element::f32) {
-                query_range_as_pos_ids = std::make_shared<ov::op::v0::Convert>(matched_position_ids, ov::element::f32);
+                query_range_as_pos_ids = std::make_shared<ov::op::v0::Convert>(passed_position_ids, ov::element::f32);
             }
             auto query_range_as_pos_ids_unsqueezed =
                 std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids, const_zero);
@@ -729,7 +723,7 @@ public:
                 std::make_shared<ov::op::v1::Reshape>(matched_full_ctx_len, shape_rank_one_const, false);
             auto const_one_rank_one = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 1);
             auto attention_mask_bool =
-                std::make_shared<ov::op::v0::Convert>(matched_attention_mask, ov::element::boolean);
+                std::make_shared<ov::op::v0::Convert>(passed_attention_mask, ov::element::boolean);
             auto present_atten_mask_bool = std::make_shared<ov::op::v8::Slice>(attention_mask_bool,
                                                                                past_len_reshaped,
                                                                                full_ctx_len_reshaped,
@@ -748,8 +742,33 @@ public:
 
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(sliding_and_causal_mask, "Phi3SlidingMask2"),
+        register_matcher(std::make_shared<opp::Matcher>(sliding_and_causal_mask, "Phi3SlidingMask2Matcher"),
                          std::move(callback));
+    }
+};
+
+class Phi3SlidingMask2 : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::LLMCompiledModel::Phi3SlidingMask2");
+    Phi3SlidingMask2() = default;
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        std::shared_ptr<ov::Node> attention_mask_node_ptr = nullptr;
+        std::shared_ptr<ov::Node> position_ids_node_ptr = nullptr;
+        for (const auto& i : model->inputs()) {
+            if (i.get_any_name() == "attention_mask") {
+                attention_mask_node_ptr = i.get_node_shared_ptr();
+            }
+            if (i.get_any_name() == "position_ids") {
+                position_ids_node_ptr = i.get_node_shared_ptr();
+            }
+        }
+        OPENVINO_ASSERT(attention_mask_node_ptr, "attention_mask input is not found!");
+        OPENVINO_ASSERT(position_ids_node_ptr, "position_ids input is not found!");
+
+        ov::pass::Manager manager;
+        manager.set_per_pass_validation(false);
+        manager.register_pass<Phi3SlidingMask2Matcher>(attention_mask_node_ptr, position_ids_node_ptr);
+        return manager.run_passes(model);
     }
 };
 
@@ -830,10 +849,13 @@ void patch_phi3_sliding_mask(const std::shared_ptr<ov::Model>& model) {
     //        Qwen2.5 VL/Omni uses 3D position_ids, which can't be directly used
     //        in creation of sliding window mask.
     if (!ov::npuw::util::has_input(model, "token_type_ids") && !ov::npuw::util::has_input(model, "inputs_embeds")) {
-        ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<Phi3SlidingMask2>(model);
-        rewr.add_matcher<Phi3SlidingMask>();
-        rewr.run_on_model(model);
+        ov::pass::Manager manager;
+        manager.register_pass<Phi3SlidingMask2>();
+        if (!manager.run_passes(model)) {
+            ov::pass::GraphRewrite rewr;
+            rewr.add_matcher<Phi3SlidingMask>();
+            rewr.run_on_model(model);
+        }
         model->validate_nodes_and_infer_types();
     }
 }
