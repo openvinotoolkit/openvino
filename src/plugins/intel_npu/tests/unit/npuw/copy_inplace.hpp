@@ -17,17 +17,13 @@
 #include <tuple>
 #include <vector>
 
-#include "infer_request_utils.hpp"  // copy_tensor_inplace_by_dim
+#include "infer_request_utils.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "test_utils.hpp"
 
 namespace {
 
-// NOTE: do NOT redefine ASSERT_NO_THROW_* macros here.
-// They already exist in test_utils.hpp and warnings are treated as errors.
-
-// (type, shape, kv_dim)
 using CopyInplaceTestsParams = std::tuple<ov::element::Type_t, ShapesInitializer, std::size_t>;
 
 namespace copy_inplace_details {
@@ -71,9 +67,7 @@ inline void write_elem_bytes(uint8_t* base,
     std::memcpy(base + off, elem, elem_bytes);
 }
 
-// Enumerate ND index in lexicographic order.
 inline bool next_index(ov::Shape& idx, const ov::Shape& shape) {
-    // shape is assumed non-empty and all dims > 0 in this test suite
     for (int d = static_cast<int>(shape.size()) - 1; d >= 0; --d) {
         const size_t ud = static_cast<size_t>(d);
         if (++idx[ud] < shape[ud]) {
@@ -89,7 +83,7 @@ inline bool next_index(ov::Shape& idx, const ov::Shape& shape) {
 class CopyInplaceTestsBase {
 protected:
     ov::element::Type type;
-    ov::Tensor baseTensor;  // shared buffer owner (u8)
+    ov::Tensor baseTensor;
     ov::Tensor srcView;
     ov::Tensor dstView;
     ov::Shape shape;

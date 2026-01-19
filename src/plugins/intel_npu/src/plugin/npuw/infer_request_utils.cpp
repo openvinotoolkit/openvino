@@ -151,6 +151,7 @@ void ov::npuw::util::copy_inplace_generic_rows(const ov::SoPtr<ov::ITensor> src_
                                                ov::SoPtr<ov::ITensor> dst_tensor) {
     OPENVINO_ASSERT(src_tensor);
     OPENVINO_ASSERT(dst_tensor);
+    OPENVINO_ASSERT(src_tensor->get_element_type() == dst_tensor->get_element_type());
 
     void* base_data = src_tensor->data();
     void* dst_data = dst_tensor->data();
@@ -198,39 +199,60 @@ void ov::npuw::util::copy_inplace_generic_rows(const ov::SoPtr<ov::ITensor> src_
     };
 
     // ---------------------------------------------------------------------
-    // Last dimension not packed in either src or dst.
+    // Fallback: last dimension not packed in either src or dst.
     // We cannot memmove row_bytes as a contiguous block. Do element-wise memmove.
-    // Keep reverse lexicographic order to be overlap-safe for in-place move.
     // ---------------------------------------------------------------------
     if (src_strides0[rank0 - 1] != elem_size || dst_strides0[rank0 - 1] != elem_size) {
-        ov::Shape idx(shape0.size(), 0);
+        ov::Shape idx(rank0, 0);
         for (size_t d = 0; d < rank0; ++d) {
             idx[d] = shape0[d] - 1;
         }
 
-        auto dec_idx = [&]() -> bool {
+        size_t src_off = compute_offset(idx, src_strides0);
+        size_t dst_off = compute_offset(idx, dst_strides0);
+
+        auto step_prev = [&](size_t& off, const ov::Strides& strides_bytes, size_t dim) {
+            off -= strides_bytes[dim];
+        };
+
+        auto wrap_dim = [&](size_t& off, const ov::Shape& shape, const ov::Strides& strides_bytes, size_t dim) {
+            off += (shape[dim] - 1) * strides_bytes[dim];
+        };
+
+        auto dec_idx_and_offsets = [&]() -> bool {
             for (int d = static_cast<int>(rank0) - 1; d >= 0; --d) {
                 const size_t ud = static_cast<size_t>(d);
                 if (idx[ud] > 0) {
                     --idx[ud];
+                    step_prev(src_off, src_strides0, ud);
+                    step_prev(dst_off, dst_strides0, ud);
                     return true;
                 }
                 idx[ud] = shape0[ud] - 1;
+                wrap_dim(src_off, shape0, src_strides0, ud);
+                wrap_dim(dst_off, shape0, dst_strides0, ud);
             }
             return false;
         };
 
         while (true) {
-            const size_t src_off = compute_offset(idx, src_strides0);
-            const size_t dst_off = compute_offset(idx, dst_strides0);
-
             uint8_t* src_ptr = base + src_off;
             uint8_t* dst_ptr = base + dst_off;
             if (src_ptr != dst_ptr) {
-                std::memmove(dst_ptr, src_ptr, elem_size);
+                // If no overlap, memcpy is enough (faster). Otherwise use memmove.
+                const uint8_t* s0 = src_ptr;
+                const uint8_t* s1 = src_ptr + elem_size;
+                uint8_t* d0 = dst_ptr;
+                uint8_t* d1 = dst_ptr + elem_size;
+                const bool overlap = !(d1 <= s0 || s1 <= d0);
+                if (!overlap) {
+                    std::memcpy(dst_ptr, src_ptr, elem_size);
+                } else {
+                    std::memmove(dst_ptr, src_ptr, elem_size);
+                }
             }
 
-            if (!dec_idx()) {
+            if (!dec_idx_and_offsets()) {
                 break;
             }
         }
@@ -279,7 +301,6 @@ void ov::npuw::util::copy_inplace_generic_rows(const ov::SoPtr<ov::ITensor> src_
     }
     shape.push_back(folded_last);
 
-    // For the folded last dim, the step is element-size (bytes per element).
     src_strides.push_back(elem_size);
     dst_strides.push_back(elem_size);
 
@@ -292,22 +313,12 @@ void ov::npuw::util::copy_inplace_generic_rows(const ov::SoPtr<ov::ITensor> src_
         return;
     }
 
-    ov::Shape outer(rank - 1, 0);
-    for (size_t d = 0; d + 1 < rank; ++d) {
+    const size_t outer_rank = rank - 1;
+
+    ov::Shape outer(outer_rank, 0);
+    for (size_t d = 0; d < outer_rank; ++d) {
         outer[d] = shape[d] - 1;
     }
-
-    auto dec_outer = [&]() -> bool {
-        for (int d = static_cast<int>(rank) - 2; d >= 0; --d) {
-            const size_t ud = static_cast<size_t>(d);
-            if (outer[ud] > 0) {
-                --outer[ud];
-                return true;
-            }
-            outer[ud] = shape[ud] - 1;
-        }
-        return false;
-    };
 
     auto compute_outer_offset = [&](const ov::Shape& o, const ov::Strides& strides_bytes) -> size_t {
         size_t off = 0;
@@ -317,17 +328,42 @@ void ov::npuw::util::copy_inplace_generic_rows(const ov::SoPtr<ov::ITensor> src_
         return off;
     };
 
-    while (true) {
-        const size_t src_off = compute_outer_offset(outer, src_strides);
-        const size_t dst_off = compute_outer_offset(outer, dst_strides);
+    size_t src_off = compute_outer_offset(outer, src_strides);
+    size_t dst_off = compute_outer_offset(outer, dst_strides);
 
+    auto step_prev_outer = [&](size_t& off, const ov::Strides& strides_bytes, size_t dim) {
+        off -= strides_bytes[dim];
+    };
+
+    auto wrap_outer_dim =
+        [&](size_t& off, const ov::Shape& shape_folded, const ov::Strides& strides_bytes, size_t dim) {
+            off += (shape_folded[dim] - 1) * strides_bytes[dim];
+        };
+
+    auto dec_outer_and_offsets = [&]() -> bool {
+        for (int d = static_cast<int>(outer_rank) - 1; d >= 0; --d) {
+            const size_t ud = static_cast<size_t>(d);
+            if (outer[ud] > 0) {
+                --outer[ud];
+                step_prev_outer(src_off, src_strides, ud);
+                step_prev_outer(dst_off, dst_strides, ud);
+                return true;
+            }
+            outer[ud] = shape[ud] - 1;
+            wrap_outer_dim(src_off, shape, src_strides, ud);
+            wrap_outer_dim(dst_off, shape, dst_strides, ud);
+        }
+        return false;
+    };
+
+    while (true) {
         uint8_t* src_ptr = base + src_off;
         uint8_t* dst_ptr = base + dst_off;
         if (src_ptr != dst_ptr) {
             std::memmove(dst_ptr, src_ptr, row_bytes);
         }
 
-        if (!dec_outer()) {
+        if (!dec_outer_and_offsets()) {
             break;
         }
     }

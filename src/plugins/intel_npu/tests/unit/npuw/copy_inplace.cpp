@@ -16,33 +16,17 @@ static ov::Strides make_padded_strides_keep_tail_default(const ov::Shape& shape,
     if (rank == 0) {
         return s;
     }
-
-    // Keep last 2 dims default contiguous explicitly.
-    s[rank - 1] = et.size();
-    if (rank >= 2) {
-        s[rank - 2] = shape[rank - 1] * et.size();
-    }
-
-    if (rank <= 2) {
-        return s;
-    }
-
-    const size_t last2_begin = rank - 2;
-
-    // If kv_dim is in the last 2 dims, "keep tail default" means we should not pad there.
-    if (kv_dim >= last2_begin) {
-        // Recompute outer strides consistently (no padding)
-        for (size_t d = last2_begin; d-- > 0;) {
-            s[d] = s[d + 1] * shape[d + 1];
+    if (rank == 1) {
+        if (kv_dim == 0) {
+            s[0] += pad_elems * et.size();
         }
         return s;
     }
 
-    // Recompute strides from inner to outer; at kv_dim insert a gap measured in *inner blocks*.
-    for (size_t d = last2_begin; d-- > 0;) {
+    s[rank - 1] = et.size();
+    for (size_t d = rank - 1; d-- > 0;) {
         s[d] = s[d + 1] * shape[d + 1];
         if (d == kv_dim) {
-            // pad_elems is number of extra "inner blocks" after each index-step in kv_dim
             s[d] += pad_elems * s[d + 1];
         }
     }
@@ -83,7 +67,6 @@ void CopyInplaceTestsBase::make_input() {
         base_bytes_initial[i] = static_cast<uint8_t>(dist(rng));
     }
 
-    // External-memory tensor (safe for unit test lifetime).
     baseTensor = ov::Tensor(ov::element::u8, ov::Shape{byte_size}, base_bytes_initial.data());
 }
 
@@ -134,15 +117,12 @@ void CopyInplaceTestsBase::SetUp(const CopyInplaceTestsParams& getParam) {
     shapeInit(dims);
     shape = ov::Shape{dims.begin(), dims.end()};
 
-    // Precompute strides first (no base pointer needed)
     src_strides = copy_inplace_details::default_byte_strides(shape, type);
     const size_t pad_elems = 13;
     dst_strides = make_padded_strides_keep_tail_default(shape, type, kv_dim, pad_elems);
 
-    // Now allocate/fill buffer
     make_input();
 
-    // Create views (needs baseTensor pointer)
     void* base_ptr = baseTensor.data();
     ASSERT_NE(base_ptr, nullptr);
     srcView = ov::Tensor(type, shape, base_ptr, src_strides);
@@ -167,7 +147,6 @@ TEST_P(CopyInplaceTests, copy_tensor_inplace_by_dim_correctness) {
         ASSERT_NE(base_ptr, nullptr);
         out_bytes.assign(base_ptr, base_ptr + out_bytes.size());
 
-        // test_utils.hpp defines details::ArraysMatch for vector<int8_t>
         ASSERT_TRUE(details::ArraysMatch(to_i8(out_bytes), to_i8(ref_bytes)));
     });
 }
@@ -177,7 +156,7 @@ const auto TestCases = ::testing::Combine(
     ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::f16, ov::element::Type_t::f32}),
     details::ShapesIn({
         Tensors{ input = {1, 2, 3, 4};
-}  // namespace
+}
 , Tensors {
     input = {1, 8, 16, 32};
 }
