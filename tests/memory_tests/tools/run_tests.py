@@ -47,6 +47,9 @@ class MemSample:
     vmrss: int
     vmhwm: int
     threads: int
+    gpu_free: int
+    gpu_used: int
+    gpu_total: int
 
     as_dict = asdict
 

@@ -10,7 +10,7 @@ endif()
 
 function(add_test)
     set(target "test_${ARGV0}")
-    add_executable(${target} "src/${target}.cpp")
+    add_executable(${target} "src/${target}.cpp" "src/system_memory_sampling.cpp" "src/gpu_memory_sampling.cpp")
     target_link_libraries(${target} openvino::runtime)
     target_compile_definitions(${target} PUBLIC TEST_NAME=${ARGV0})
     install(TARGETS ${target} DESTINATION tests/memory_tests COMPONENT tests EXCLUDE_FROM_ALL)
