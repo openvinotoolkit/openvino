@@ -63,46 +63,45 @@ void regclass_graph_op_Constant(py::module m) {
                                                                                                py::buffer_protocol());
     constant.doc() = "openvino.op.Constant wraps ov::op::v0::Constant";
     // Numpy-based constructor
-    constant.def(
-        py::init([](py::array& array, bool shared_memory) -> std::shared_ptr<ov::op::v0::Constant> {
-            if (array.dtype().kind() == 'U' || array.dtype().kind() == 'S' || array.dtype().kind() == 'O' ||
-                array.dtype().kind() == 'a') {
-                if (shared_memory) {
-                    PyErr_WarnEx(
-                        PyExc_RuntimeWarning,
-                        "Creating a String Constant with shared memory is not supported. Data will be copied.",
-                        1);
-                }
-                ov::Shape shape(array.shape(), array.shape() + array.ndim());
+    constant.def(py::init([](py::array& array, bool shared_memory) -> std::shared_ptr<ov::op::v0::Constant> {
+                     if (array.dtype().kind() == 'U' || array.dtype().kind() == 'S' || array.dtype().kind() == 'O' ||
+                         array.dtype().kind() == 'a') {
+                         if (shared_memory) {
+                             PyErr_WarnEx(
+                                 PyExc_RuntimeWarning,
+                                 "Creating a String Constant with shared memory is not supported. Data will be copied.",
+                                 1);
+                         }
+                         ov::Shape shape(array.shape(), array.shape() + array.ndim());
 
-                ov::Tensor tensor(ov::element::string, shape);
-                if (array.size() == 0) {
-                    // return empty string tensor
-                    return std::make_shared<ov::op::v0::Constant>(tensor);
-                }
-                // convert NumPy array to flattened list of strings
-                std::string* tensor_data = tensor.data<std::string>();
-                auto flat_array = array.reshape({-1});
+                         ov::Tensor tensor(ov::element::string, shape);
+                         if (array.size() == 0) {
+                             // return empty string tensor
+                             return std::make_shared<ov::op::v0::Constant>(tensor);
+                         }
+                         // convert NumPy array to flattened list of strings
+                         std::string* tensor_data = tensor.data<std::string>();
+                         auto flat_array = array.reshape({-1});
 
-                // copy data
-                for (py::ssize_t i = 0; i < flat_array.size(); ++i) {
-                    py::object item = flat_array.attr("item")(i);
+                         // copy data
+                         for (py::ssize_t i = 0; i < flat_array.size(); ++i) {
+                             py::object item = flat_array.attr("item")(i);
 
-                    if (item.is_none()) {
-                        tensor_data[i] = "";
-                        continue;
-                    }
-                    tensor_data[i] = py::str(item).cast<std::string>();
-                }
+                             if (item.is_none()) {
+                                 tensor_data[i] = "";
+                                 continue;
+                             }
+                             tensor_data[i] = py::str(item).cast<std::string>();
+                         }
 
-                // return the Constant Op wrapping this tensor
-                return std::make_shared<ov::op::v0::Constant>(tensor);
-            }
-            return std::make_shared<ov::op::v0::Constant>(
-                Common::object_from_data<ov::op::v0::Constant>(array, shared_memory));
-        }),
-        py::arg("array"),
-        py::arg("shared_memory") = false);
+                         // return the Constant Op wrapping this tensor
+                         return std::make_shared<ov::op::v0::Constant>(tensor);
+                     }
+                     return std::make_shared<ov::op::v0::Constant>(
+                         Common::object_from_data<ov::op::v0::Constant>(array, shared_memory));
+                 }),
+                 py::arg("array"),
+                 py::arg("shared_memory") = false);
     // Tensor-based constructors
     constant.def(py::init([](ov::Tensor& tensor, bool shared_memory) {
                      return Common::object_from_data<ov::op::v0::Constant>(tensor, shared_memory);
