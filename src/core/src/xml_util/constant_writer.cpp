@@ -16,8 +16,7 @@ uint64_t OstreamHashWrapperBin::get_result() const {
 }
 
 std::streamsize OstreamHashWrapperBin::xsputn(const char* s, std::streamsize n) {
-    OPENVINO_ASSERT(n == sizeof(uint64_t));
-    m_res = u64_hash_combine(m_res, *reinterpret_cast<const uint64_t*>(s));
+    m_res = u64_hash_combine(m_res, n);
     return n;
 }
 
