@@ -21,14 +21,19 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v13 = ov::op::v13;
 ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
     MATCHER_SCOPE(FakeConvertDecomposition);
-    auto fake_convert_m = ov::pass::pattern::wrap_type<ov::op::v13::FakeConvert>();
+    auto fake_convert_m = ov::pass::pattern::wrap_type<v13::FakeConvert>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         const auto fake_convert =
-            ov::as_type_ptr<ov::op::v13::FakeConvert>(pattern_to_output.at(fake_convert_m).get_node_shared_ptr());
+            ov::as_type_ptr<v13::FakeConvert>(pattern_to_output.at(fake_convert_m).get_node_shared_ptr());
 
         if (fake_convert == nullptr || transformation_callback(fake_convert)) {
             return false;
@@ -41,14 +46,14 @@ ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
         ov::pass::NodeRegistry decomp_ops;
         if (input_type != input_scale.get_element_type()) {
             input_type = input_scale.get_element_type();
-            data = decomp_ops.make<ov::op::v0::Convert>(data, input_type);
+            data = decomp_ops.make<v0::Convert>(data, input_type);
         }
 
-        std::shared_ptr<Node> result = decomp_ops.make<ov::op::v1::Multiply>(data, input_scale);
+        std::shared_ptr<Node> result = decomp_ops.make<v1::Multiply>(data, input_scale);
         bool with_shift = fake_convert->get_input_size() == 3;
         if (with_shift) {
             const auto& shift_const = fake_convert->input_value(2);
-            auto input_shift = decomp_ops.make<ov::op::v1::Subtract>(result, shift_const);
+            auto input_shift = decomp_ops.make<v1::Subtract>(result, shift_const);
             if (ov::op::util::can_eliminate_eltwise_node(input_shift, shift_const, result)) {
                 with_shift = false;
             } else {
@@ -70,29 +75,29 @@ ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
             }
         }();
 
-        result = decomp_ops.make<ov::op::v0::Clamp>(result, lower_bound, upper_bound);
-        result = decomp_ops.make<ov::op::v0::Convert>(result, fake_convert->get_destination_element_type());
-        result = decomp_ops.make<ov::op::v0::Convert>(result, input_type);
+        result = decomp_ops.make<v0::Clamp>(result, lower_bound, upper_bound);
+        result = decomp_ops.make<v0::Convert>(result, fake_convert->get_destination_element_type());
+        result = decomp_ops.make<v0::Convert>(result, input_type);
         // Note: upconvert part is composed as Subtract->Multiply sequence
         // in order to match LPT dequantization operations representation
         if (with_shift) {
-            const auto negative = decomp_ops.make<ov::op::v0::Negative>(fake_convert->input_value(2));
+            const auto negative = decomp_ops.make<v0::Negative>(fake_convert->input_value(2));
             if (const auto constant = ov::util::get_constant_from_source(negative)) {
-                result = decomp_ops.make<ov::op::v1::Subtract>(result, constant);
+                result = decomp_ops.make<v1::Subtract>(result, constant);
             } else {
-                result = decomp_ops.make<ov::op::v1::Subtract>(result, negative);
+                result = decomp_ops.make<v1::Subtract>(result, negative);
             }
         }
-        const auto power_const = decomp_ops.make<ov::op::v0::Constant>(input_type, Shape{}, -1.f);
-        const auto power = decomp_ops.make<ov::op::v1::Power>(input_scale, power_const);
+        const auto power_const = decomp_ops.make<v0::Constant>(input_type, Shape{}, -1.f);
+        const auto power = decomp_ops.make<v1::Power>(input_scale, power_const);
         if (const auto constant = ov::util::get_constant_from_source(power)) {
-            result = decomp_ops.make<ov::op::v1::Multiply>(result, constant);
+            result = decomp_ops.make<v1::Multiply>(result, constant);
         } else {
-            result = decomp_ops.make<ov::op::v1::Multiply>(result, power);
+            result = decomp_ops.make<v1::Multiply>(result, power);
         }
 
         if (result->get_output_element_type(0) != fake_convert->get_output_element_type(0)) {
-            result = decomp_ops.make<ov::op::v0::Convert>(result, fake_convert->get_output_element_type(0));
+            result = decomp_ops.make<v0::Convert>(result, fake_convert->get_output_element_type(0));
         }
 
         result->set_friendly_name(fake_convert->get_friendly_name());
@@ -101,6 +106,6 @@ ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(fake_convert_m, matcher_name);
+    auto m = std::make_shared<Matcher>(fake_convert_m, matcher_name);
     register_matcher(m, callback);
 }

@@ -16,9 +16,11 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-using namespace ov::op;
 using namespace std;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace op_util = ov::op::util;
 TEST_F(TransformationTestsF, DeReshapeFC) {
     auto shape = PartialShape{-1, -1, 40};
     set_shape_symbols(shape);  // we label shape with consecutive labels: A, B, C
@@ -30,7 +32,7 @@ TEST_F(TransformationTestsF, DeReshapeFC) {
 
         auto matmul = make_shared<v0::MatMul>(in_reshape, second_input);
 
-        auto batch_dims = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {0, 1});
+        auto batch_dims = op_util::node_to_get_shape_value_of_indices_from_shape_source(data, {0, 1});
         auto pattern =
             make_shared<v0::Concat>(OutputVector{batch_dims, v0::Constant::create(element::i64, {1}, {80})}, 0);
         auto out_reshape = make_shared<v1::Reshape>(matmul, pattern, false);
@@ -58,7 +60,7 @@ TEST_F(TransformationTestsF, DeReshapeFCWithConvert) {
 
         auto matmul = make_shared<v0::MatMul>(convert, second_input);
 
-        auto batch_dims = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {0, 1});
+        auto batch_dims = op_util::node_to_get_shape_value_of_indices_from_shape_source(data, {0, 1});
         auto pattern =
             make_shared<v0::Concat>(OutputVector{batch_dims, v0::Constant::create(element::i64, {1}, {80})}, 0);
         auto out_reshape = make_shared<v1::Reshape>(matmul, pattern, false);

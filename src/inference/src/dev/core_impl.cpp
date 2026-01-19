@@ -275,9 +275,9 @@ std::filesystem::path get_cache_model_path(const ov::AnyMap& config) {
     return it == config.end() ? std::filesystem::path{} : it->second.as<std::filesystem::path>();
 }
 
-std::vector<ov::Extension::Ptr> try_get_extensions(const std::filesystem::path& path) {
+std::vector<ov::Extension::Ptr> try_get_extensions(std::shared_ptr<void>& so) {
     try {
-        return ov::detail::load_extensions(path);
+        return ov::detail::load_extensions(so);
     } catch (const std::runtime_error&) {
         return {};
     }
@@ -589,7 +589,7 @@ void ov::CoreImpl::register_compile_time_plugins() {
             register_plugin_in_registry_unsafe(device_name, desc);
         }
 #else
-        const auto& plugin_path = ov::util::get_compiled_plugin_path(ov::util::make_path(plugin.second.m_plugin_path));
+        const auto& plugin_path = ov::util::get_compiled_plugin_path(plugin.second.m_plugin_path);
         if (m_plugin_registry.find(device_name) == m_plugin_registry.end() && ov::util::file_exists(plugin_path)) {
             ov::AnyMap config = any_copy(plugin.second.m_default_config);
             PluginDescriptor desc{plugin_path, config};
@@ -802,7 +802,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
                 // the same extension can be registered multiple times - ignore it!
             }
         } else {
-            ext = try_get_extensions(desc.m_lib_location);
+            ext = try_get_extensions(so);
         }
         std::move(ext.begin(), ext.end(), std::back_inserter(m_plugin_registry.at(device_name).m_extensions));
 
