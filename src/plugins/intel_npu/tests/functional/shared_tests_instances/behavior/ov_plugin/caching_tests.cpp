@@ -120,4 +120,25 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CachingSupportCase_NPU,
                                             ::testing::ValuesIn(NPUCompiledKernelsCacheTest)),
                          ov::test::utils::appendPlatformTypeTestName<CompiledKernelsCacheTest>);
 
+
+const std::vector<ov::AnyMap> cachePropertiesCompatibilityConfigs = {
+    {{ov::cache_mode.name(), ov::Any(ov::CacheMode::OPTIMIZE_SIZE)}},
+    {{ov::hint::execution_mode.name(), ov::Any(ov::hint::ExecutionMode::PERFORMANCE)}},
+    {{ov::intel_npu::compilation_mode.name(), ov::Any("ReferenceSW")}},
+    {{ov::intel_npu::compilation_mode_params.name(), ov::Any("dummy-op-replacement=true")}},
+    {{ov::intel_npu::compiler_type.name(), ov::Any(ov::intel_npu::CompilerType::PLUGIN)}},
+    {{ov::intel_npu::dma_engines.name(), ov::Any(1)}},
+    {{ov::enable_profiling.name(), ov::Any(true)}},
+    {{ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)}}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CachingSupportCase_NPU_Check_Config,
+                         CompileModelCacheTestBase,
+                         ::testing::Combine(::testing::ValuesIn(smoke_functions()),
+                                            ::testing::ValuesIn(smoke_precisionsNPU),
+                                            ::testing::ValuesIn(batchSizesNPU),
+                                            ::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(cachePropertiesCompatibilityConfigs)),
+                         ov::test::utils::appendPlatformTypeTestName<CompileModelCacheTestBase>);
+
 }  // namespace
