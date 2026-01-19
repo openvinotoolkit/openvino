@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporationov::npuw::
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
 
     pugi::xml_node node = doc.append_child("ensemble");
     node.append_attribute("gflops") = std::to_string(ens.gflops).data();
+    node.append_attribute("irregular_results") = std::to_string(ens.irregular_results).data();
 
     pugi::xml_node part = node.append_child("partitioning");
     pugi::xml_node rep;
@@ -47,8 +48,8 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
         if (!group.avoid_list.empty()) {
             gr.append_attribute("avoid") = group.avoid_list.data();
         }
-        if (!group.tag.empty()) {
-            gr.append_attribute("tag") = group.tag.data();
+        if (!group.gettag().empty()) {
+            gr.append_attribute("tag") = group.gettag().data();
         }
 
         // Note: Ensemble also add "id" attribute but it's not used by the plugin
@@ -83,6 +84,7 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
 
     doc.save_file(to.data());
 }
+
 }  // namespace detail
 
 // Interface to get online partitioning from the model
@@ -308,6 +310,7 @@ public:
 
         ov::npuw::Ensemble ens;
         ens.gflops = 1.;  // FIXME: calculate proper flops
+        ens.irregular_results = !m_snapshot->isRegularResultCase();
 
         auto graph = m_snapshot->getGraph();
         // Iterate in topological order

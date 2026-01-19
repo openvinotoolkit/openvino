@@ -787,18 +787,7 @@ Example:
         <message>Only "developer built" compilers support weights separation</message>
         <filters>
             <filter>.*WeightsSeparationTests.*</filter>
-            <filter>.*WeightsSeparationNotSupportedTests.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- C#165445 -->
-    <skip_config>
-        <message>OVBlobCompatibilityNPU tests designed for NPU3720</message>
-        <enable_rules>
-            <device>!3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*OVBlobCompatibilityNPU.*</filter>
+            <filter>.*WeightsSeparationIterativeTests.*</filter>
         </filters>
     </skip_config>
 
@@ -841,6 +830,13 @@ Example:
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_INFO.*</filter>
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_DEBUG.*</filter>
             <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_TRACE.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Strides are not supported with the current driver</message>
+        <filters>
+            <filter>.*RoiTensorsTestsRun.*</filter>
         </filters>
     </skip_config>
 

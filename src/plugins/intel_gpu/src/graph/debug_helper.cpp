@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -472,7 +472,7 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
                     auto filename = get_file_path_for_binary_dump(input_layout, name, config.get_dump_tensors_path());
 
                     mem_lock<char, mem_lock_type::read> lock(input_mem, m_stream);
-                    ov::util::save_binary(filename, lock.data(), input_mem->size());
+                    ov::util::save_binary(ov::util::make_path(filename), lock.data(), input_mem->size());
                     GPU_DEBUG_COUT << " Dump layer src : " << layer_name << " to " << filename << std::endl;
                     debug_str_for_bin_load += (filename + ",");
                 } else {
@@ -533,7 +533,7 @@ NodeDebugHelper::~NodeDebugHelper() {
                     auto filename = get_file_path_for_binary_dump(output_layout, name, config.get_dump_tensors_path());
 
                     mem_lock<char, mem_lock_type::read> lock(output_mem, m_stream);
-                    ov::util::save_binary(filename, lock.data(), output_mem->size());
+                    ov::util::save_binary(ov::util::make_path(filename), lock.data(), output_mem->size());
                     GPU_DEBUG_COUT  << " Dump layer dst : " << layer_name << " to " << filename << std::endl;
                     debug_str_for_bin_load += (filename + ",");
                 } else {
@@ -563,7 +563,7 @@ NodeDebugHelper::~NodeDebugHelper() {
                     auto filename = get_file_path_for_binary_dump(output_layout, name, config.get_dump_tensors_path());
 
                     mem_lock<char, mem_lock_type::read> lock(output_mem, m_stream);
-                    ov::util::save_binary(filename, lock.data(), output_mem->size());
+                    ov::util::save_binary(ov::util::make_path(filename), lock.data(), output_mem->size());
                     GPU_DEBUG_COUT << " Dump layer dst : " << layer_name << " to " << filename << std::endl;
                     debug_str_for_bin_load += (filename + ",");
                 } else {
@@ -590,7 +590,7 @@ NodeDebugHelper::~NodeDebugHelper() {
                         auto filename = get_file_path_for_binary_dump(output_layout, name, config.get_dump_tensors_path());
 
                         mem_lock<char, mem_lock_type::read> lock(output_mem, m_stream);
-                        ov::util::save_binary(filename, lock.data(), output_mem->size());
+                        ov::util::save_binary(ov::util::make_path(filename), lock.data(), output_mem->size());
                         GPU_DEBUG_COUT << " Dump layer dst : " << layer_name << " to " << filename << std::endl;
                         debug_str_for_bin_load += (filename + ",");
                     } else {

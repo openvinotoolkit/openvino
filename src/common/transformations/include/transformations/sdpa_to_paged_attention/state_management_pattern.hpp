@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,9 +30,13 @@ public:
                            bool allow_cache_rotation,
                            bool allow_score_aggregation,
                            bool allow_xattention,
+                           bool allow_adaptive_rkv,
                            bool allow_qq_bias,
                            ParameterVector& rotated_block_indices_inputs_for_each_layer,
                            ParameterVector& rotation_deltas_inputs_for_each_layer,
                            ParameterVector& xattention_threshold_inputs_for_each_layer,
+                           ParameterVector& adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
+                           ParameterVector& adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
+                           ResultVector& adaptive_rkv_diversity_results,
                            const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params);
 };

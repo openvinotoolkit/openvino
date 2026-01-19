@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -629,7 +629,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_139937,
-        "OnnxBackendNodeModelTest.test_dequantizelinear_blocked_cpu",
         "OnnxBackendNodeModelTest.test_qlinearmatmul_2D_int8_float16_cpu",
     ),
     (

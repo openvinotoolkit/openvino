@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "../utils/kernel_generator.hpp"
 #include "paged_attention_inst.h"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"

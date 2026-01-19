@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -148,14 +148,16 @@ void regmodule_offline_transformations(py::module m) {
            bool use_score_outputs,
            bool allow_score_aggregation,
            bool allow_cache_rotation,
-           bool allow_xattention) {
+           bool allow_xattention,
+           bool allow_adaptive_rkv) {
             const auto model = Common::utils::convert_to_model(ie_api_model);
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::SDPAToPagedAttention>(use_block_indices_inputs,
                                                                   use_score_outputs,
                                                                   allow_score_aggregation,
                                                                   allow_cache_rotation,
-                                                                  allow_xattention);
+                                                                  allow_xattention,
+                                                                  allow_adaptive_rkv);
             manager.run_passes(model);
         },
         py::arg("model"),
@@ -163,7 +165,8 @@ void regmodule_offline_transformations(py::module m) {
         py::arg("use_score_outputs") = false,
         py::arg("allow_score_aggregation") = false,
         py::arg("allow_cache_rotation") = false,
-        py::arg("allow_xattention") = false);
+        py::arg("allow_xattention") = false,
+        py::arg("allow_adaptive_rkv") = false);
 
     m_offline_transformations.def(
         "stateful_to_stateless_transformation",
