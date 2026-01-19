@@ -1331,6 +1331,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         PlainTensor v_input;     // f32[B, H|1, L1, S] / [B, H|1, L0+L1, S]
         PlainTensor beam_table;  // i32[B, max_kvLen]
         PlainTensor attn_mask;
+        PlainTensor alibi_mask;
         PlainTensor output_emb(output);
         PlainTensor sink_input;
         float scale_input = 0.0F;
@@ -1378,6 +1379,9 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             if (input_num > 4) {
                 scale_input = *inputs[4]->getDataAs<float>();
             }
+        }
+        if (input_num > 6) {
+            alibi_mask.reset(inputs[6]);
         }
 
         // q: [B, H, L1, S]
@@ -1452,7 +1456,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                    q_input,
                    k_input,
                    v_input,
-                   {},
+                   alibi_mask,
                    use_attn_mask ? attn_mask : PlainTensor(),
                    output_emb,
                    has_out_transpose,
@@ -1468,7 +1472,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             kernel_single_token(q_input,
                                 present_key,
                                 present_value,
-                                {},
+                                alibi_mask,
                                 use_attn_mask ? attn_mask : PlainTensor(),
                                 output_emb,
                                 beam_table,
@@ -1536,6 +1540,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                 }
 
                 const auto attn_mask_prec = use_attn_mask ? attn_mask.get_precision() : ov::element::f32;
+                const auto alibi_prec = alibi_mask ? alibi_mask.get_precision() : ov::element::f32;
+                const bool alibi_needs_convert = alibi_mask && (alibi_prec != ov::element::f32);
 
                 for (size_t b = 0; b < Bn; b++) {
                     for (size_t h = 0; h < Hn; h++) {
@@ -1580,6 +1586,17 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                                 cmask_stride = causal_mask.stride(2);
                             }
                         }
+                        float* alibi_ptr_f32 = nullptr;
+                        size_t alibi_stride_f32 = 0;
+                        std::vector<float> alibi_row;
+                        if (alibi_mask && !alibi_needs_convert) {
+                            alibi_ptr_f32 = &alibi_mask.at<float>({b, h, 0, 0}, true);
+                            if (alibi_mask.size(2) > 1) {
+                                alibi_stride_f32 = alibi_mask.stride(2);
+                            }
+                        } else if (alibi_needs_convert) {
+                            alibi_row.resize(kv_len);
+                        }
 
                         for (size_t m = 0; m < q_len; m++) {
                             std::vector<float> q_row(head_size);
@@ -1601,10 +1618,25 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
 
                             auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
                             uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
+                            float* alibi_row_ptr = nullptr;
+                            if (alibi_ptr_f32) {
+                                alibi_row_ptr = alibi_ptr_f32 + m * alibi_stride_f32;
+                            } else if (alibi_needs_convert) {
+                                const size_t b_idx = alibi_mask.size(0) > 1 ? b : 0;
+                                const size_t h_idx = alibi_mask.size(1) > 1 ? h : 0;
+                                const size_t m_idx = alibi_mask.size(2) > 1 ? m : 0;
+                                const void* alibi_src = alibi_mask.ptr_v(b_idx, h_idx, m_idx, 0);
+                                cpu_convert(alibi_src, alibi_row.data(), alibi_prec, ov::element::f32, kv_len);
+                                alibi_row_ptr = alibi_row.data();
+                            }
+                            float* sink = nullptr;
+                            if (sink_input) {
+                                sink = &sink_input.at<float>({b, h, m, 0}, true);
+                            }
                             ov::Extensions::Cpu::XARCH::attn_softmax(scores.data(),
                                                                      scores.data(),
                                                                      d_scale,
-                                                                     nullptr,
+                                                                     reinterpret_cast<void*>(alibi_row_ptr),
                                                                      attn_mask_row,
                                                                      cmask_ptr ? cmask_ptr + m * cmask_stride : nullptr,
                                                                      select_nfltmax_at_0,
@@ -1613,7 +1645,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                                                                      ov::element::f32,
                                                                      attn_mask_prec,
                                                                      ov::element::f32,
-                                                                     nullptr);
+                                                                     sink);
 
                             for (size_t s = 0; s < head_size_v; s++) {
                                 float sum = 0.0F;
@@ -1710,6 +1742,13 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     if (orginSDPInputNumber > 5) {
         config.inConfs[nextPortIdx].setMemDesc(
             creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getInputShapeAtPort(nextPortIdx)));
+        nextPortIdx++;
+    }
+    // alibi
+    if (orginSDPInputNumber > 6) {
+        config.inConfs[nextPortIdx].setMemDesc(
+            creatorsMap.at(LayoutType::ncsp)
+                ->createSharedDesc(getOriginalInputPrecisionAtPort(nextPortIdx), getInputShapeAtPort(nextPortIdx)));
         nextPortIdx++;
     }
 
