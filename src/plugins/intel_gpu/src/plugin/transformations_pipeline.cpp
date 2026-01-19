@@ -40,6 +40,8 @@
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/gather.hpp"
@@ -297,6 +299,24 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     return are_converts_from_decompression(consumers);
 }
 }  // namespace
+
+// gemm or other decomposed layers from sdpa could exceed max size of memory allocation.
+static bool expected_sdpa_opt_usage_with_decomposable_size(size_t max_size,
+                                                        const ov::PartialShape& q,
+                                                        const ov::PartialShape& k,
+                                                        const ov::PartialShape& v,
+                                                        const ov::PartialShape& sdpa_out) {
+    if (q.is_dynamic() || k.is_dynamic() || sdpa_out.is_dynamic())
+        return false;
+
+    size_t required = shape_size(q.get_shape()) + shape_size(k.get_shape()) + shape_size(v.get_shape()) + shape_size(sdpa_out.get_shape());
+    if (q.size() == 3 && k.size() == 3 && v.size() == 3 && sdpa_out.size() == 3) {
+        if (required < max_size)
+            return true;
+    }
+
+    return false;
+}
 
 namespace cldnn {
 extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
@@ -702,6 +722,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (query_ps[query_ps.size() - 1].is_dynamic() || key_ps[key_ps.size() - 1].is_dynamic() || value_ps[value_ps.size() - 1].is_dynamic()) {
                 return false;
             }
+
+            // performance issue is expected if sdap_opt kernel would be selected for systolic-array architectures
+            const auto sdpa_output = sdpa->get_output_partial_shape(0);
+            const auto max_size = m_context->get_engine().get_max_memory_size();
+            if (device_info.supports_immad && expected_sdpa_opt_usage_with_decomposable_size(max_size, query_ps, key_ps, value_ps, sdpa_output)) {
+                 return false;
+             }
 
             const auto head_size = query_ps[query_ps.size() - 1].get_length();
             if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
