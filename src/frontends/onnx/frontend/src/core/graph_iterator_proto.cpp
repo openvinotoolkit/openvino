@@ -20,6 +20,7 @@
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
+#include "transform.hpp"
 
 namespace {
 // THis is copied from utils/common.hpp
@@ -65,6 +66,40 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::string;
     }
     throw std::runtime_error("Unsupported type");
+}
+
+const ::ONNX_NAMESPACE::TypeProto_Tensor* get_tensor_type(const ::ONNX_NAMESPACE::TypeProto& type_proto) {
+    if (type_proto.has_tensor_type()) {
+        return &type_proto.tensor_type();
+    }
+    if (type_proto.has_optional_type() && type_proto.optional_type().has_elem_type()) {
+        return get_tensor_type(type_proto.optional_type().elem_type());
+    }
+    if (type_proto.has_sequence_type() && type_proto.sequence_type().has_elem_type()) {
+        return get_tensor_type(type_proto.sequence_type().elem_type());
+    }
+    return nullptr;
+}
+
+void fixup_legacy_nodes(::ONNX_NAMESPACE::ModelProto& model_proto) {
+    auto* graph_proto = model_proto.mutable_graph();
+    if (!graph_proto) {
+        return;
+    }
+    constexpr const char legacy_domain[] = "org.openvinotoolkit";
+
+    for (auto& node : *graph_proto->mutable_node()) {
+        const auto needs_fix = std::find(ov::frontend::onnx::transform::legacy_ops_to_fixup.begin(),
+                                         ov::frontend::onnx::transform::legacy_ops_to_fixup.end(),
+                                         node.op_type()) != ov::frontend::onnx::transform::legacy_ops_to_fixup.end();
+        if (!needs_fix) {
+            continue;
+        }
+
+        if (!node.has_domain() || node.domain().empty() || node.domain() == "ai.onnx") {
+            node.set_domain(legacy_domain);
+        }
+    }
 }
 }  // namespace
 
@@ -191,13 +226,16 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
     }
     if (value_info != nullptr) {
         tensor_meta_info.m_tensor_name = value_info->has_name() ? &value_info->name() : &empty_name;
-        if (value_info->has_type() && !value_info->type().has_tensor_type()) {
+        const auto* value_type = value_info->has_type() ? get_tensor_type(value_info->type()) : nullptr;
+        const auto value_case =
+            value_info->has_type() ? value_info->type().value_case() : ::ONNX_NAMESPACE::TypeProto::VALUE_NOT_SET;
+        if (value_info->has_type() && value_type == nullptr &&
+            value_case != ::ONNX_NAMESPACE::TypeProto::VALUE_NOT_SET) {
             throw std::runtime_error("Unsupported value_info type: " + (*tensor_meta_info.m_tensor_name));
         }
-        const auto& value_type = value_info->type().tensor_type();
-        if (value_type.has_shape()) {
+        if (value_type != nullptr && value_type->has_shape()) {
             std::vector<int64_t> dims{};
-            for (const auto& dim : value_type.shape().dim()) {
+            for (const auto& dim : value_type->shape().dim()) {
                 if (dim.has_dim_value()) {
                     dims.push_back(dim.dim_value());
                 } else {
@@ -208,8 +246,8 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
         } else {
             tensor_meta_info.m_partial_shape = ov::PartialShape::dynamic();
         }
-        if (value_type.has_elem_type()) {
-            tensor_meta_info.m_element_type = get_ov_element_type(value_type.elem_type());
+        if (value_type != nullptr && value_type->has_elem_type()) {
+            tensor_meta_info.m_element_type = get_ov_element_type(value_type->elem_type());
         } else {
             tensor_meta_info.m_element_type = ov::element::dynamic;
         }
@@ -314,16 +352,17 @@ GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphPr
 }
 
 void GraphIteratorProto::initialize(const std::filesystem::path& path) {
-    const auto path_str = ov::util::path_to_string(path);
     m_model_dir = ov::util::get_directory(path);
+    const auto path_string = ov::util::path_to_string(path);
     try {
         std::ifstream model_file(path, std::ios::binary | std::ios::in);
-        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path_str, "\"");
+        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path_string, "\"");
 
         m_model = std::make_shared<ModelProto>();
         FRONT_END_GENERAL_CHECK(m_model->ParseFromIstream(&model_file), "Model can't be parsed");
         model_file.close();
         if (m_model->has_graph()) {
+            fixup_legacy_nodes(*m_model);
             m_graph = &m_model->graph();
         } else {
             m_graph = nullptr;
@@ -338,7 +377,6 @@ void GraphIteratorProto::initialize(const std::filesystem::path& path) {
         throw;
     }
 }
-
 std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::string& name,
                                                                    GraphIteratorProto** owner) {
     if (m_tensors.count(name) == 0) {
