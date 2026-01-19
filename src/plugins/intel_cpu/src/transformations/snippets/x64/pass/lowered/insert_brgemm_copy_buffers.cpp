@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
             }
             return linear_ir.insert_expr(
                 buffer_expr,
-                LoopManager::get_common_outer_loops(copy_b_expr, copy_b_consumers.begin()->get_expr()),
+                LoopManager::get_common_outer_loops({copy_b_expr, copy_b_consumers.begin()->get_expr()}),
                 true,
                 insertion_pos,
                 {copy_b_consumers});

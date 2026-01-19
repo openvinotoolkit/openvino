@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -19,7 +19,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 add_library(openvino::xml_util ALIAS ${TARGET_NAME})
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME openvino_xml_util)
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME xml_util)
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${TARGET_INCLUDE_DIR}>
@@ -27,6 +27,8 @@ target_include_directories(${TARGET_NAME} PUBLIC
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
+# LTO
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)

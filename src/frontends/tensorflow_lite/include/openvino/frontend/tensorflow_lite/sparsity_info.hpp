@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,8 +122,8 @@ private:
     std::vector<SparsityDataDesc> m_data_desc;  // Tensor data descriptors
     std::vector<uint8_t> m_data;                // Dense data
     ov::element::Type m_target_type;            // Target type
-    const uint8_t* m_values;                    // Sparse values
-    bool m_disabled;
+    const uint8_t* m_values = nullptr;          // Sparse values
+    bool m_disabled = false;
 
     // Unpack sparse tensor and return pointer on unpacked data
     void* densify();

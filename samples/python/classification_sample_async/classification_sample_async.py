@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -93,7 +93,7 @@ def main() -> int:
     # - precision of tensor is supposed to be 'f32'
     ppp.output().tensor().set_element_type(ov.Type.f32)
 
-    # 4) Apply preprocessing modifing the original 'model'
+    # 4) Apply preprocessing modifying the original 'model'
     model = ppp.build()
 
     # --------------------------- Step 4. Set up input --------------------------------------------------------------------

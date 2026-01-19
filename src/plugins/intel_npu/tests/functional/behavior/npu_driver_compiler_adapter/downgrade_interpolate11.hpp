@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ protected:
     std::shared_ptr<ov::Model> ov_model;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;

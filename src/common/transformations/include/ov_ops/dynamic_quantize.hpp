@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,8 @@ public:
         element::Type quantization_dt = element::dynamic;
         element::Type scale_dt = element::dynamic;
         element::Type zp_dt = element::dynamic;
+        element::Type precomputed_reduction_dt = element::dynamic;
+        bool precomputed_reduction = false;  // whether to generate precomputed reduction
 
         std::vector<uint64_t> group_sizes = {};
         std::vector<uint64_t> scales_zp_output_order = {};

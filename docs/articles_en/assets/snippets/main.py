@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -27,7 +27,7 @@ def import_python_modules(directory, subdirectory=""):
             except AttributeError as e:
                 pass
 
-            print(f"Snippet {item} succesfully executed.")
+            print(f"Snippet {item} successfully executed.")
 
 
         if os.path.isdir(os.path.join(directory, item)):

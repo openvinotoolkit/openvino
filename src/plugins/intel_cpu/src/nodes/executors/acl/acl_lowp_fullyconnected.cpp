@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,8 +41,10 @@ static bool checkPostOps(const PostOps& postOps) {
         return false;
     }
 
-    const auto& activation = std::any_cast<const ActivationPostOp&>(postOps[0]);
-    return checkActivationLayerInfo(convertToEltwiseAlgorithm(activation.type()));
+    if (const auto& activation = std::any_cast<const ActivationPostOp>(postOps.data())) {
+        return checkActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()));
+    }
+    return false;
 }
 
 static void initFCAttrs(const FCAttrs& attrs,

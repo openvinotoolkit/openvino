@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy, copy
@@ -35,7 +35,10 @@ from tests.utils.helpers import generate_image, generate_relu_compiled_model
         (ov.Type.u64, np.uint64),
         (ov.Type.boolean, bool),
         (ov.Type.u1, np.uint8),
+        (ov.Type.u2, np.uint8),
+        (ov.Type.u3, np.uint8),
         (ov.Type.u4, np.uint8),
+        (ov.Type.u6, np.uint8),
         (ov.Type.i4, np.int8),
     ],
 )
@@ -167,10 +170,12 @@ def test_init_with_node_output_port():
         param2 = ops.parameter(ov.Shape([1, 3, 32, 32]), dtype=np.float64)
         param3 = ops.parameter(ov.PartialShape.dynamic(), dtype=np.float64)
         ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float64)
-        assert sys.getrefcount(ones_arr) == 2
+        # Account for changes to refcount in Python 3.14+
+        expected_refcount_offset = 1 if sys.version_info >= (3, 14) else 0
+        assert sys.getrefcount(ones_arr) == 2 - expected_refcount_offset
         tensor1 = ov.Tensor(param1.output(0))
         tensor2 = ov.Tensor(param2.output(0), ones_arr)
-        assert sys.getrefcount(ones_arr) == 3
+        assert sys.getrefcount(ones_arr) == 3 - expected_refcount_offset
         tensor3 = ov.Tensor(param3.output(0))
         tensor4 = ov.Tensor(param3.output(0), ones_arr)
         assert tensor1.shape == param1.shape
@@ -195,11 +200,13 @@ def test_init_with_node_constoutput_port(device):
         compiled_model = generate_relu_compiled_model(device)
         output = compiled_model.output(0)
         ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
-        assert sys.getrefcount(ones_arr) == 2
+        # Account for changes to refcount in Python 3.14+
+        expected_refcount_offset = 1 if sys.version_info >= (3, 14) else 0
+        assert sys.getrefcount(ones_arr) == 2 - expected_refcount_offset
 
         tensor1 = ov.Tensor(output)
         tensor2 = ov.Tensor(output, ones_arr)
-        assert sys.getrefcount(ones_arr) == 3
+        assert sys.getrefcount(ones_arr) == 3 - expected_refcount_offset
 
         output_node = output.get_node()
         assert tensor1.shape == output_node.shape
@@ -368,7 +375,10 @@ def test_can_set_shape_other_dims():
     "ov_type",
     [
         (ov.Type.u1),
+        (ov.Type.u2),
+        (ov.Type.u3),
         (ov.Type.u4),
+        (ov.Type.u6),
         (ov.Type.i4),
     ],
 )
@@ -383,7 +393,10 @@ def test_cannot_create_roi_from_packed_tensor(ov_type):
     "ov_type",
     [
         (ov.Type.u1),
+        (ov.Type.u2),
+        (ov.Type.u3),
         (ov.Type.u4),
+        (ov.Type.u6),
         (ov.Type.i4),
     ],
 )
@@ -408,6 +421,7 @@ def test_cannot_get_strides_for_packed_tensor(ov_type):
     "ov_type",
     [
         (ov.Type.u1),
+        (ov.Type.u2),
         (ov.Type.u4),
         (ov.Type.i4),
     ],
@@ -434,7 +448,10 @@ def test_init_with_packed_buffer(dtype, ov_type):
     ("low", "high", "ov_type", "dtype"),
     [
         (0, 2, ov.Type.u1, np.uint8),
+        (0, 4, ov.Type.u2, np.uint8),
+        (0, 8, ov.Type.u3, np.uint8),
         (0, 16, ov.Type.u4, np.uint8),
+        (0, 64, ov.Type.u6, np.uint8),
         (-8, 7, ov.Type.i4, np.int8),
         (0, 16, ov.Type.nf4, np.uint8),
     ],
@@ -607,11 +624,13 @@ def test_init_from_list(init_value):
 def test_tensor_keeps_memory():
     def get_tensor():
         arr = np.ones((8, 16, 300), dtype=np.float32)
-        assert sys.getrefcount(arr) == 2
+        # Account for changes to refcount in Python 3.14+
+        expected_refcount_offset = 1 if sys.version_info >= (3, 14) else 0
+        assert sys.getrefcount(arr) == 2 - expected_refcount_offset
 
         shared_tensor = ov.Tensor(arr, shared_memory=True)
         arr[0][0][0:2] = 0
-        assert sys.getrefcount(arr) == 3
+        assert sys.getrefcount(arr) == 3 - expected_refcount_offset
 
         del arr
         return shared_tensor
@@ -660,3 +679,92 @@ def test_tensor_from_pillow(numpy_dtype, shape):
     assert isinstance(tensor.data, np.ndarray)
     assert tensor.data.dtype == numpy_dtype
     assert tensor.data.shape == shape
+
+
+def test_pack_unpack_u3_numerical():
+    """Test u3 packing/unpacking with known numerical values."""
+    # 8 values packed into 3 bytes
+    # Decimal values: [0, 1, 2, 3, 4, 5, 6, 7]
+    # In binary: [000, 001, 010, 011, 100, 101, 110, 111]
+    data = np.array([0, 1, 2, 3, 4, 5, 6, 7], dtype=np.uint8)
+
+    packed = pack_data(data, ov.Type.u3)
+
+    # Expected packing:
+    # Byte 0: bits[1:0] of values 0-3 = [00, 01, 10, 11] = 0x1B
+    # Byte 1: bits[1:0] of values 4-7 = [00, 01, 10, 11] = 0x1B
+    # Byte 2: bits[2] of all 8 values = [0,0,0,0,1,1,1,1] = 0x0F
+    expected = np.array([0x1B, 0x1B, 0x0F], dtype=np.uint8)
+
+    assert len(packed) == 3
+    assert np.array_equal(packed, expected), f"Expected {expected.tolist()}, got {packed.tolist()}"
+
+    unpacked = unpack_data(packed, ov.Type.u3, [8])
+    assert np.array_equal(unpacked, data), f"Expected {data.tolist()}, got {unpacked.tolist()}"
+
+
+def test_pack_unpack_u3_edge_cases():
+    data = np.array([0, 0, 0, 0, 0, 0, 0, 0], dtype=np.uint8)
+    packed = pack_data(data, ov.Type.u3)
+    expected = np.array([0x00, 0x00, 0x00], dtype=np.uint8)
+    assert np.array_equal(packed, expected)
+    unpacked = unpack_data(packed, ov.Type.u3, [8])
+    assert np.array_equal(unpacked, data)
+
+    data = np.array([7, 7, 7, 7, 7, 7, 7, 7], dtype=np.uint8)
+    packed = pack_data(data, ov.Type.u3)
+    # All bits[1:0] = 11, all bits[2] = 1
+    expected = np.array([0xFF, 0xFF, 0xFF], dtype=np.uint8)
+    assert np.array_equal(packed, expected)
+    unpacked = unpack_data(packed, ov.Type.u3, [8])
+    assert np.array_equal(unpacked, data)
+
+
+def test_pack_unpack_u6_numerical():
+    # 4 values packed into 3 bytes
+    # Decimal values: [0, 15, 48, 63]
+    # In binary: [000000, 001111, 110000, 111111]
+    data = np.array([0, 15, 48, 63], dtype=np.uint8)
+    packed = pack_data(data, ov.Type.u6)
+
+    # Expected packing:
+    # Byte 0: bits[3:0] of values 0-1 = [0000, 1111] = 0x0F
+    # Byte 1: bits[3:0] of values 2-3 = [0000, 1111] = 0x0F
+    # Byte 2: bits[5:4] of all 4 values = [00, 00, 11, 11] = 0x0F
+    expected = np.array([0x0F, 0x0F, 0x0F], dtype=np.uint8)
+
+    assert len(packed) == 3
+    assert np.array_equal(packed, expected), f"Expected {expected.tolist()}, got {packed.tolist()}"
+
+    unpacked = unpack_data(packed, ov.Type.u6, [4])
+    assert np.array_equal(unpacked, data), f"Expected {data.tolist()}, got {unpacked.tolist()}"
+
+
+def test_pack_unpack_u6_edge_cases():
+    data = np.array([0, 0, 0, 0], dtype=np.uint8)
+    packed = pack_data(data, ov.Type.u6)
+    expected = np.array([0x00, 0x00, 0x00], dtype=np.uint8)
+    assert np.array_equal(packed, expected)
+    unpacked = unpack_data(packed, ov.Type.u6, [4])
+    assert np.array_equal(unpacked, data)
+
+    data = np.array([63, 63, 63, 63], dtype=np.uint8)
+    packed = pack_data(data, ov.Type.u6)
+    expected = np.array([0xFF, 0xFF, 0xFF], dtype=np.uint8)
+    assert np.array_equal(packed, expected)
+    unpacked = unpack_data(packed, ov.Type.u6, [4])
+    assert np.array_equal(unpacked, data)
+
+
+def test_pack_unpack_u3_multidimensional():
+    data = np.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]], dtype=np.uint8)
+    packed = pack_data(data, ov.Type.u3)
+    unpacked = unpack_data(packed, ov.Type.u3, data.shape)
+    assert np.array_equal(unpacked, data)
+
+
+def test_pack_unpack_u6_multidimensional():
+    data = np.array([[10, 20], [30, 40]], dtype=np.uint8)
+    packed = pack_data(data, ov.Type.u6)
+    unpacked = unpack_data(packed, ov.Type.u6, data.shape)
+    assert np.array_equal(unpacked, data)

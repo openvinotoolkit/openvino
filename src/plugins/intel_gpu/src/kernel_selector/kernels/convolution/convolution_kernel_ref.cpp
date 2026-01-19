@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@ ParamsKey ConvolutionKernel_Ref::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputWeightsType(WeightsType::INT8);
+    k.EnableInputWeightsType(WeightsType::UINT8);
 
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();
@@ -134,7 +135,7 @@ bool ConvolutionKernel_Ref::Validate(const Params& params) const {
     bool is_quantization = (input_type == Datatype::INT8 || input_type == Datatype::UINT8) &&
                            (output_type == Datatype::INT8 || output_type == Datatype::UINT8 ||
                             output_type == Datatype::F32 || output_type == Datatype::F16) &&
-                           (weights_type == WeightsType::INT8);
+                           (weights_type == WeightsType::INT8 || weights_type == WeightsType::UINT8);
 
     bool has_fused_op = (input_type == Datatype::F32 || input_type == Datatype::F16) &&
                         !conv_params.fused_ops.empty() &&

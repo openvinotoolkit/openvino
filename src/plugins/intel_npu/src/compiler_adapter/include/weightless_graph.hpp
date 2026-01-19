@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,9 +107,6 @@ private:
     std::optional<std::vector<ov::Tensor>> _initBlobs;
     std::vector<NetworkMetadata> _initsMetadata;
     std::shared_ptr<const ov::Model> _model;
-
-    std::vector<std::vector<ArgumentDescriptor>> _initsInputDescriptors;
-    std::vector<std::vector<ArgumentDescriptor>> _initsOutputDescriptors;
 
     std::vector<uint32_t> _initsCommandQueueOrdinals;
     std::vector<std::unique_ptr<CommandList>> _initsCommandLists;

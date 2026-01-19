@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -290,7 +290,7 @@ size_t get_batch_size(const benchmark_app::InputsInfo& inputs_info) {
             if (batch_size == 0)
                 batch_size = info.second.batch();
             else if (batch_size != info.second.batch())
-                throw std::logic_error("Can't deterimine batch size: batch is "
+                throw std::logic_error("Can't determine batch size: batch is "
                                        "different for different inputs!");
         }
     }

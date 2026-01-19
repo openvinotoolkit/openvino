@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ std::string generate_test_xml_file() {
 
     // Write to the file
     plugin_xml_file << "<!--\n";
-    plugin_xml_file << "Copyright (C) 2023 Intel Corporation\n";
+    plugin_xml_file << "Copyright (C) 2018-2026 Intel Corporation\n";
     plugin_xml_file << "SPDX-License-Identifier: Apache-2.0\n";
     plugin_xml_file << "-->\n";
     plugin_xml_file << "\n";
@@ -37,12 +37,11 @@ std::string generate_test_xml_file() {
     plugin_xml_file << "    <plugins>\n";
     plugin_xml_file << "        <plugin location=\"";
     plugin_xml_file << ov::test::utils::getExecutableDirectory();
-    plugin_xml_file << ov::util::FileTraits<char>::file_separator;
-    plugin_xml_file << ov::util::FileTraits<char>::library_prefix();
+    plugin_xml_file << ov::test::utils::FileTraits<char>::file_separator;
+    plugin_xml_file << ov::test::utils::FileTraits<char>::library_prefix();
     plugin_xml_file << "mock_engine";
     plugin_xml_file << OV_BUILD_POSTFIX;
-    plugin_xml_file << ov::util::FileTraits<char>::dot_symbol;
-    plugin_xml_file << ov::util::FileTraits<char>::library_ext();
+    plugin_xml_file << ov::util::library_extension().string();
     plugin_xml_file << "\" name=\"CUSTOM\">\n";
     plugin_xml_file << "        </plugin>\n";
     plugin_xml_file << "    </plugins>\n";

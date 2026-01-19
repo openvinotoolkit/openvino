@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -416,6 +416,12 @@ bool Deconvolution::canFuse(const NodePtr& node) const {
     if (canBeExecutedInInt8()) {
         return canFuseSimpleOperation(node);
     }
+
+    // WA for CVS-176001: disable Prelu post-ops fusion to avoid falling back to reference implementation.
+    if (node->getAlgorithm() == Algorithm::EltwisePrelu) {
+        return false;
+    }
+
     // Upstream ONEDNN conv_backward_data primitive can't support any post-ops, fork onednn added depthwise support in
     // conv_backward_data JIT implementation. ONEDNN deconv primitive can support most of post-ops, but the post-ops
     // implementation details are different. So current deconv implementation list in onednn has 2 kinds of implements:
@@ -1011,6 +1017,7 @@ void Deconvolution::prepareParams() {
     if (!dnnlCompatibleWeights) {
         createDnnlCompatibleWeights();
     }
+    CPU_NODE_ASSERT(dnnlCompatibleWeights, "has not created dnnlCompatibleWeights.");
     DnnlMemoryDescPtr wghDesc = dnnlCompatibleWeights->getDescWithType<DnnlMemoryDesc>();
 
     if (withBiases) {

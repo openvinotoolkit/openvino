@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,7 +56,7 @@ bool ACLConvertExecutor::init(const ConvertParams& convertParams,
             return false;
         }
     } else {
-        Status s = NECast::validate(&srcTensorInfo, &dstTensorInfo, ConvertPolicy::SATURATE);
+        Status s = NECast::validate(&srcTensorInfo, &dstTensorInfo, ConvertPolicy::WRAP);
         if (!s) {
             DEBUG_LOG("NECast validation failed: ", s.error_description());
             return false;
@@ -74,7 +74,7 @@ bool ACLConvertExecutor::init(const ConvertParams& convertParams,
     } else {
         acl_cast = std::make_unique<NECast>();
         configureThreadSafe([&] {
-            acl_cast->configure(&srcTensor, &dstTensor, ConvertPolicy::SATURATE);
+            acl_cast->configure(&srcTensor, &dstTensor, ConvertPolicy::WRAP);
         });
     }
     return true;

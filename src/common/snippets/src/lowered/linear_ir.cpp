@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,6 +57,10 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
                    const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
                    Config config)
     : LinearIR(std::move(config), factory) {
+    const auto total_nodes = model->get_ops().size();
+    const auto inputs_count = model->get_parameters().size();
+    const auto outputs_count = model->get_results().size();
+    OPENVINO_ASSERT(total_nodes > inputs_count + outputs_count, "LinearIR is empty (only Parameters/Results)");
     auto last_param = m_expressions.end();
     for (const auto& n : get_ordered_ops(model)) {
         auto insertion_pos = m_expressions.end();
@@ -438,7 +442,7 @@ LinearIR::exprIt LinearIR::replace_with_node(const std::vector<ExpressionPtr>& o
     for (size_t i = 0; i < new_node->get_output_size(); ++i) {
         snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
             new_node->output(i),
-            last_old_expr->get_output_port_descriptor(0)->clone());
+            last_old_expr->get_output_port_descriptor(i)->clone());
     }
 
     const auto new_expr = create_expression(new_node, new_inputs, loop_ids, false);

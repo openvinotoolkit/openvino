@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -101,22 +101,6 @@ uint32_t rearrange_awq_bits(uint32_t num) {
     return result;
 }
 
-uint16_t rearrange_bitnet_bits(uint16_t num) {
-    uint16_t result = 0;
-    const uint16_t mask = 0x0003;
-
-    result |= (num & (mask << 0)) << 0;
-    result |= (num & (mask << 8)) >> 6;
-    result |= (num & (mask << 4)) << 0;
-    result |= (num & (mask << 10)) >> 4;
-    result |= (num & (mask << 6)) << 2;
-    result |= (num & (mask << 12)) >> 2;
-    result |= (num & (mask << 8)) << 4;
-    result |= (num & (mask << 14)) << 0;
-
-    return result;
-}
-
 Output<Node> rearrange_constant(const Output<Node>& c, uint32_t groups) {
     auto constant = ov::as_type_ptr<v0::Constant>(c.get_node_shared_ptr());
     FRONT_END_OP_CONVERSION_CHECK(constant, "weight must be Constant.");
@@ -170,23 +154,51 @@ OutputVector translate_linear_awq(const NodeContext& context) {
 
 OutputVector translate_linear_bitnet(const NodeContext& context) {
     num_inputs_check(context, 3, 4);
-    auto x = context.get_input(0);
-    auto weight = context.get_input(1);
-    auto scales = context.get_input(2);
+    const auto x = context.get_input(0);
+    const auto weight = context.get_input(1);
+    const auto scales = context.get_input(2);
 
-    auto constant = ov::as_type_ptr<v0::Constant>(weight.get_node_shared_ptr());
+    const auto constant = ov::as_type_ptr<v0::Constant>(weight.get_node_shared_ptr());
     FRONT_END_OP_CONVERSION_CHECK(constant, "weight must be Constant.");
-    auto src = reinterpret_cast<const uint16_t*>(constant->get_data_ptr());
-    auto initial_shape = constant->get_shape();
+    const auto src = reinterpret_cast<const uint8_t*>(constant->get_data_ptr());
+    const auto initial_shape = constant->get_shape();
     FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2, "Only 2D constants are supported.");
-    auto new_shape = Shape{initial_shape[0] * 4, initial_shape[1]};
-    auto new_weight = std::make_shared<v0::Constant>(element::u2, new_shape);
-    auto dst = const_cast<uint16_t*>(reinterpret_cast<const uint16_t*>(new_weight->get_data_ptr()));
-    for (size_t i = 0; i < shape_size(initial_shape) / 2; i++) {
-        dst[i] = rearrange_bitnet_bits(src[i]);
+    const uint8_t values_per_pack = 4;  // Number of 2-bit values packed into a byte
+    const size_t rows = initial_shape[0];
+    const size_t cols = initial_shape[1];
+    FRONT_END_OP_CONVERSION_CHECK(cols % values_per_pack == 0,
+                                  "The second dimension of weight must be divisible by 4.");
+    const auto new_shape = Shape{rows * values_per_pack, cols};
+    auto new_weight = std::make_shared<v0::Constant>(element::u2, new_shape, 0);
+    auto dst = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_weight->get_data_ptr()));
+    const size_t row_len = cols / values_per_pack;
+    // This lambda extracts 2 bits from each of 4 consecutive bytes at a given bit position,
+    // then packs them into a single byte, placing each 2-bit value in its respective position (6, 4, 2, 0).
+    const auto reorder_bitnet_2bit_values =
+        [](const uint8_t* const src, const size_t src_idx, const size_t pos) -> uint8_t {
+        const uint8_t values_per_byte = 4;
+        const uint8_t value_mask = 0x3;
+        const uint8_t value_size = 2;  // Size of each value is 2 bits
+        uint8_t value{};               // Should be zeroed
+
+        for (size_t value_idx = 0; value_idx != values_per_byte; ++value_idx) {
+            value |= ((src[src_idx + value_idx] >> pos) & value_mask) << value_idx * value_size;
+        }
+        return value;
+    };
+    // In each 8bit value we have 4 2-bit values, first value contains first element, second value first element of a
+    // next row. We need to repack them in contiguous way.
+    for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < row_len; ++j) {
+            const size_t src_idx = values_per_pack * j + i * cols;
+            dst[j + (i + 0 * rows) * row_len] = reorder_bitnet_2bit_values(src, src_idx, 0);
+            dst[j + (i + 1 * rows) * row_len] = reorder_bitnet_2bit_values(src, src_idx, 2);
+            dst[j + (i + 2 * rows) * row_len] = reorder_bitnet_2bit_values(src, src_idx, 4);
+            dst[j + (i + 3 * rows) * row_len] = reorder_bitnet_2bit_values(src, src_idx, 6);
+        }
     }
     new_weight->set_friendly_name(constant->get_friendly_name());
-    auto zero_point = context.mark_node(std::make_shared<v0::Constant>(element::u2, Shape{}, 1));
+    const auto zero_point = context.mark_node(std::make_shared<v0::Constant>(element::u2, Shape{}, 1));
     auto mm_weight = low_precision_subgraph(context, x, new_weight, zero_point, scales, {});
 
     auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, mm_weight, false, true));

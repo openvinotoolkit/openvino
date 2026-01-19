@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -114,6 +114,13 @@ def test_properties_rw_base():
                 (log.Level.INFO, "Level.INFO", 2),
                 (log.Level.DEBUG, "Level.DEBUG", 3),
                 (log.Level.TRACE, "Level.TRACE", 4),
+            ),
+        ),
+        (
+            intel_cpu.TbbPartitioner,
+            (
+                (intel_cpu.TbbPartitioner.STATIC, "TbbPartitioner.STATIC", 1),
+                (intel_cpu.TbbPartitioner.AUTO, "TbbPartitioner.AUTO", 2),
             ),
         ),
         (
@@ -314,9 +321,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             hints.model_distribution_policy,
             "MODEL_DISTRIBUTION_POLICY",
-            (
-                ({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),
-            ),
+            (({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),),
         ),
         (
             hints.enable_hyper_threading,
@@ -365,6 +370,14 @@ def test_properties_ro(ov_property_ro, expected_value):
             (
                 (0.1, np.float32(0.1)),
                 (2.0, 2.0),
+            ),
+        ),
+        (
+            intel_cpu.tbb_partitioner,
+            "TBB_PARTITIONER",
+            (
+                (intel_cpu.TbbPartitioner.STATIC, intel_cpu.TbbPartitioner.STATIC),
+                (intel_cpu.TbbPartitioner.AUTO, intel_cpu.TbbPartitioner.AUTO),
             ),
         ),
         (
@@ -483,6 +496,12 @@ def test_properties_ro(ov_property_ro, expected_value):
             "NPU_QDQ_OPTIMIZATION_AGGRESSIVE",
             ((True, True),),
         ),
+        (
+            intel_npu.disable_idle_memory_prunning,
+            "NPU_DISABLE_IDLE_MEMORY_PRUNING",
+            ((True, True),),
+        ),
+        (props.enable_weightless, "ENABLE_WEIGHTLESS", ((True, True), (False, False))),
     ],
 )
 def test_properties_rw(ov_property_rw, expected_value, test_values):
@@ -603,7 +622,10 @@ def test_single_property_setting(device):
     assert isinstance(core.get_property(device, streams.num()), int)
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
+@pytest.mark.skipif(
+    os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test"
+)
 @pytest.mark.parametrize(
     "properties_to_set",
     [

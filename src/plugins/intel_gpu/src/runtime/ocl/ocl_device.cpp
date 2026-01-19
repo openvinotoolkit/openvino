@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -259,11 +259,14 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     // These flags are supported from OPENCL_300: CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT, CL_DEVICE_OPENCL_C_FEATURES
     // OpenCL C3.0: work_group_<ops> are optional. It should be checked 'work group collective functions' are supported in OpenCL C 3.0.
     info.supports_work_group_collective_functions = device.getInfo<CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT>();
+    info.supports_non_uniform_work_group = device.getInfo<CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT>();
 #elif CL_HPP_TARGET_OPENCL_VERSION >= 200
-    // OpenCL C2.0: work_group_<ops> are mandetory.
+    // OpenCL C2.0: work_group_<ops> are mandatory.
     info.supports_work_group_collective_functions = true;
+    info.supports_non_uniform_work_group = true;
 #else
     info.supports_work_group_collective_functions = false;
+    info.supports_non_uniform_work_group = false;
 #endif
 
     if (info.supports_intel_required_subgroup_size) {
@@ -344,16 +347,18 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     using namespace dnnl::impl::gpu::intel::jit;
-    ngen::Product product = ngen::OpenCLCodeGenerator<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get());
-    info.arch = convert_ngen_arch(ngen::getCore(product.family));
+    if (context.get() != nullptr) {
+        ngen::Product product = ngen::OpenCLCodeGenerator<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get());
+        info.arch = convert_ngen_arch(ngen::getCore(product.family));
 
-    // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
-    // This is required to guarantee some level of forward compatibility for the new HW generations
-    // as OneDNN code generators are not generic and typically requires some updates for the new architectures
-    // Ideally, we shouldn't do that as OCL impls sometimes also check this flag, but in order to avoid that
-    // we need to ensure that graph transformations are not relying on this flag as indicator that onednn will be used
-    if (product.family == ngen::ProductFamily::Unknown) {
-        info.supports_immad = false;
+        // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
+        // This is required to guarantee some level of forward compatibility for the new HW generations
+        // as OneDNN code generators are not generic and typically requires some updates for the new architectures
+        // Ideally, we shouldn't do that as OCL impls sometimes also check this flag, but in order to avoid that
+        // we need to ensure that graph transformations are not relying on this flag as indicator that onednn will be used
+        if (product.family == ngen::ProductFamily::Unknown) {
+            info.supports_immad = false;
+        }
     }
 #else  // ENABLE_ONEDNN_FOR_GPU
     info.arch = gpu_arch::unknown;
@@ -389,29 +394,29 @@ memory_capabilities init_memory_caps(const cl::Device& device, const device_info
 
 }  // namespace
 
-void ocl_device::initialize_device(const cl::Device dev, const cl::Context& ctx) {
-    _context = ctx;
-    _device = dev;
+void ocl_device::initialize_context(const cl::Context& ctx) {
+    _context = ctx.get() != nullptr ? ctx : cl::Context(_device);
     _usm_helper = std::make_unique<cl::UsmHelper>(_context, _device, use_unified_shared_memory());
     _is_initialized = true;
 }
 
-ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform, bool initialize)
-: _platform(platform)
+ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform, bool initialize_ctx)
+: _device(dev)
+, _platform(platform)
 , _info(init_device_info(dev, ctx))
 , _mem_caps(init_memory_caps(dev, _info)) {
-    if (initialize) {
-        initialize_device(dev, ctx);
+    if (initialize_ctx) {
+        initialize_context(ctx);
     }
 }
 
-ocl_device::ocl_device(const ocl_device::ptr other, bool initialize)
-: _platform(other->_platform)
+ocl_device::ocl_device(const ocl_device::ptr other, bool initialize_ctx)
+: _device(other->_device)
+, _platform(other->_platform)
 , _info(other->_info)
 , _mem_caps(other->_mem_caps) {
-    if (initialize) {
-        OPENVINO_ASSERT(other->is_initialized(), "[GPU] Can't initialize device because the source device is uninitialized");
-        initialize_device(other->_device, other->_context);
+    if (initialize_ctx) {
+        initialize_context(other->_context);
     }
 }
 
@@ -468,14 +473,18 @@ void ocl_device::initialize() {
         return;
 
     ocl::ocl_device_detector detector;
-    auto device_map = detector.get_available_devices(nullptr, nullptr, 0, -1, true);
+    auto device_map = detector.get_available_devices(nullptr, nullptr, 0, -1, false);
 
     bool found = false;
     for (auto& device : device_map) {
         if (this->is_same(device.second)) {
             OPENVINO_ASSERT(!found, "[GPU] Multiple matching devices found for ", this->get_info().dev_name, ". Only one matching device is expected");
             if (auto casted = downcast<ocl_device>(device.second.get())) {
-                initialize_device(casted->get_device(), casted->get_context());
+                auto& casted_device = casted->get_device();
+                if (casted->get_context().get() == nullptr) {
+                    casted->set_context(cl::Context(casted_device));
+                }
+                initialize_context(casted->get_context());
                 found = true;
             }
         }

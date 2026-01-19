@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,7 +11,6 @@ ov_add_target(
         ADDITIONAL_SOURCE_DIRS
                 ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper_new/include/cache/meta/
                 ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ADD_CPPLINT
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"

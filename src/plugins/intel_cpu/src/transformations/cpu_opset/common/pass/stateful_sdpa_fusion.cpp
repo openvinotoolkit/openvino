@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto cur_q = any_input();
     auto cur_k = any_input();
     auto cur_v = any_input();
+    auto atten_sink = any_input();
 
     auto past_k = wrap_type<ov::op::v6::ReadValue>();
     auto past_v = wrap_type<ov::op::v6::ReadValue>();
@@ -88,6 +89,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto sdp1 = wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input()});
     auto sdp2 =
         wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input(), any_input()});
+    // gpt-oss
+    auto sdp3 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
+        {cur_q, present_k, present_v, any_input(), any_input(), atten_sink});
 
     // non-canonical q/k/v shape definitions, for example: [L, B, H, S]/[B, L, H, S]
     auto order_k = wrap_type<ov::op::v0::Constant>();
@@ -102,13 +106,22 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         wrap_type<ov::op::v13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v, any_input()});
     auto sdp_trans2 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
         {transpose_q, transpose_k, transpose_v, any_input(), any_input()});
+    // gpt-oss
+    auto sdp_trans3 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
+        {transpose_q, transpose_k, transpose_v, any_input(), any_input(), atten_sink});
 
-    auto sdp = sdp0 | sdp1 | sdp2 | sdp_trans0 | sdp_trans1 | sdp_trans2;
+    auto sdp = sdp0 | sdp1 | sdp2 | sdp3 | sdp_trans0 | sdp_trans1 | sdp_trans2 | sdp_trans3;
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
+// only support sink input on x86 platform currently.
+#ifndef OPENVINO_ARCH_X86_64
+        if (pattern_map.count(atten_sink)) {
+            return false;
+        }
+#endif
         // Check concat axes equality first
         const auto concat_k_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
         const auto concat_v_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());

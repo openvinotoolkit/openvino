@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -104,6 +104,7 @@ macro(ov_cpack_settings)
         2025.1.0
         2025.2.0
         2025.3.0
+        2025.4.0
         )
 
     ov_check_conflicts_versions(conflicting_versions)
@@ -208,7 +209,7 @@ macro(ov_cpack_settings)
         set(npu_copyright "generic")
 
         # NPU plugin also builds level-zero as thirdparty
-        # let's add it to the list of dependency search directories to avoid missing dependncy on libze_loader.so.1
+        # let's add it to the list of dependency search directories to avoid missing dependency on libze_loader.so.1
         if(OV_GENERATOR_MULTI_CONFIG)
             # $<CONFIG> generator expression does not work in this place, have to add all possible configs
             foreach(config IN LISTS CMAKE_CONFIGURATION_TYPES)
@@ -441,7 +442,7 @@ macro(ov_cpack_settings)
     # Install latest symlink packages
     #
 
-    # NOTE: we expicitly don't add runtime latest packages
+    # NOTE: we explicitly don't add runtime latest packages
     # since a user needs to depend on specific VERSIONED runtime package
     # with fixed SONAMEs, while latest package can be updated multiple times
     # ov_debian_add_latest_component(libraries)

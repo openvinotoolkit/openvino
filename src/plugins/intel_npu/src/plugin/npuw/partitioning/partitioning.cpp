@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -21,7 +22,6 @@
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
 #include "patterns/opt.hpp"
-#include "patterns/pre_compute.hpp"
 #include "traits.hpp"
 
 namespace ov {
@@ -150,7 +150,7 @@ ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model>& model, const st
         this_group.gflops = get_float_attr(group, "gflops");
         this_group.repeated_id = get_str_attr(group, "repeated", "");
         this_group.avoid_list = get_str_attr(group, "avoid", "");
-        this_group.tag = get_str_attr(group, "tag", "");
+        this_group.settag(get_str_attr(group, "tag", ""));
         FOREACH_CHILD(input, group, "input") {
             this_group.input_layers.push_back(get_str_attr(input, "name"));
         }
@@ -182,7 +182,10 @@ ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model>& model, const st
 
     LOG_INFO("Found " << repeated.size() << " different repeated block(s)");
 
-    return ov::npuw::Ensemble{get_float_attr(root, "gflops"), std::move(partitions), std::move(repeated)};
+    return ov::npuw::Ensemble{get_float_attr(root, "gflops"),
+                              get_bool_attr(root, "irregular_results", false),
+                              std::move(partitions),
+                              std::move(repeated)};
 }
 
 class Partitioner {
@@ -326,12 +329,12 @@ public:
     void saveScaleFactors(const std::string& func_name);
     void saveRepeatedConstants(const std::string& func_name);
     void saveTailDictConstants(const std::string& func_name);
-    void saveRoPEConstants(const std::string& func_name);
     void matchParameters(const std::string& func_name);
     void matchResults(const std::string& func_name);
     void createFunction(const std::string& func_name);
     void matchRepeatedSubgraphs(const std::string& func_name);
     void spatial(const std::string& func_name);
+    void attention(const std::string& func_name);
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
@@ -376,7 +379,7 @@ void Partitioner::identifySubgraphs() {
     LOG_INFO("Identifying subgraphs for model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
 
-    const bool connect_in_f16 = cfg.get<::intel_npu::NPUW_F16IC>();
+    const bool connect_in_f16 = cfg.get<::intel_npu::NPUW_F16IC>() && !ens.irregular_results;
 
     using namespace ov::npuw;
     std::vector<ov::npuw::Group>& partitions = ens.groups;
@@ -420,7 +423,7 @@ void Partitioner::identifySubgraphs() {
         P.total_ops += group.sg._ops;
 
         group.sg._avoid_list = group.avoid_list;
-        group.sg._tag = group.tag;
+        group.sg.settag(group.gettag());
         // Note inputs and outputs are included in the above set, so if
         // we are here, those nodes should be present in the model.
 
@@ -1472,39 +1475,6 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
     LOG_VERB("Done");
 }
 
-void Partitioner::saveRoPEConstants(const std::string& func_name) {
-    // RoPE patterns introduce new Constants to the model when applied. When we import the model
-    // as weightless blob, new Constants have no reference to the original weights.
-    // After they get folded into Parameters and handled as LazyTensors, deserialization will fail
-    // during read_weight() function. Thus, we need to keep newly introduced constants as Constants.
-    auto& func_group = all_functions.at(func_name);
-    auto& subgr_group = func_group.refs;
-
-    if (subgr_group.size() > 1) {
-        // RoPE should only be applied to the head
-        return;
-    }
-
-    LOG_VERB("Trying to preserve some (head) constants for " << func_name << " in model " << model->get_friendly_name()
-                                                             << "...");
-    LOG_BLOCK();
-
-    auto& model_group = func_group.mdls;
-
-    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
-    std::vector<CPtr> to_keep;
-
-    ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::pre_compute::PreserveConstsRope>(std::ref(to_keep));
-    rewr.run_on_model(model_group.front());
-
-    for (auto&& const_to_keep : to_keep) {
-        LOG_DEBUG("[KEEP] " << const_to_keep);
-        func_group.consts_to_keep.insert(const_to_keep);
-    }
-    LOG_VERB("Done");
-}
-
 void Partitioner::matchParameters(const std::string& func_name) {
     LOG_VERB("Matching parameters for function " << func_name << " in model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
@@ -1653,7 +1623,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     ov::npuw::Function function;
     function._model = func_ggg.mdls.front();
     function._param_offset = body_sg._parameters.size();
-    function._tag = body_sg._tag;
+    function.settag(body_sg.gettag());
     std::size_t new_param_idx = function._param_offset;
 
     for (auto&& node_ptr : function._model->get_ordered_ops()) {
@@ -1719,7 +1689,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
 }
 
 void Partitioner::identifySpatialRange(ov::npuw::Function& f) {
-    NPUW_ASSERT(f._tag == "compute");
+    NPUW_ASSERT(f.gettag() == "compute");
 
     // NB: The current logic must be changed. Here we assume we only
     // apply this change to "compute" subgraphs which we identify
@@ -1877,7 +1847,7 @@ void Partitioner::spatial(const std::string& func_name) {
     // Identify the spatial dimension for this function
     // Works only for Compute case.
     // FIXME: Replace this string identification with smt better
-    if (!cfg.get<::intel_npu::NPUW_SPATIAL>() || f._tag != "compute") {
+    if (!cfg.get<::intel_npu::NPUW_SPATIAL>() || f.gettag() != "compute") {
         LOG_VERB("No spatial optimizations will be done to  " << func_name << " in model " << model->get_friendly_name()
                                                               << "...");
         return;
@@ -1913,6 +1883,63 @@ void Partitioner::spatial(const std::string& func_name) {
     f._model->reshape(new_shapes);
 
     LOG_VERB("Done");
+}
+
+void Partitioner::attention(const std::string& func_name) {
+    ov::npuw::Function& f = P.functions.at(func_name);
+
+    // Support only attention at the time
+    if (f.gettag() != "attn") {
+        LOG_VERB("No dynamic handling be done to  " << func_name << " in model " << model->get_friendly_name()
+                                                    << "...");
+        return;
+    }
+
+    // Get attention mode from NPUW_ATTN config (string type)
+    const auto attn_mode = cfg.get<::intel_npu::NPUW_ATTN>();
+
+    // Check if attention optimization is disabled
+    if (attn_mode == "STATIC") {
+        LOG_VERB("Attention optimization disabled (STATIC mode) for " << func_name << " in model "
+                                                                      << model->get_friendly_name());
+        return;
+    }
+
+    LOG_VERB("Turn " << func_name << " into Attention block (mode: " << attn_mode << ") in model "
+                     << model->get_friendly_name() << "...");
+    LOG_BLOCK();
+
+    // Try DYNAMIC attention
+    if (attn_mode == "DYNAMIC") {
+        f._attention = ov::npuw::function::Attention::from(f._model);
+        if (f._attention) {
+            LOG_VERB("Done - DYNAMIC attention");
+            return;
+        }
+        LOG_WARN("No dynamic ranges found in the ATTN block");
+    }
+
+    // Try PYRAMID attention
+    if (attn_mode == "PYRAMID") {
+        LOG_DEBUG("Attempting PyramidAttention based on config");
+        f._pyramid_attention = ov::npuw::function::PyramidAttention::from(f._model);
+        if (f._pyramid_attention) {
+            LOG_VERB("Done - PYRAMID attention");
+            return;
+        }
+        LOG_WARN("No pyramid attention found in the ATTN block");
+    }
+
+    // Try HFA (Host Flash Attention)
+    if (attn_mode == "HFA") {
+        LOG_DEBUG("Attempting HostFlashAttention based on config");
+        f._host_flash_attention = ov::npuw::function::HostFlashAttention::from(f._model);
+        if (f._host_flash_attention) {
+            LOG_VERB("Done - HFA (Host Flash Attention)");
+            return;
+        }
+        LOG_WARN("No host flash attention found in the ATTN block");
+    }
 }
 
 void Partitioner::optimize(const std::string& func_name) {
@@ -2506,11 +2533,11 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.sanityCheck(func_group);
                 p.saveRepeatedConstants(func_group);
                 p.saveTailDictConstants(func_group);
-                p.saveRoPEConstants(func_group);
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
                 p.spatial(func_group);
+                p.attention(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }

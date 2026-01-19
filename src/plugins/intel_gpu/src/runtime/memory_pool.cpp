@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -161,7 +161,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
     const auto layout_bytes_count = layout.bytes_count();
     auto it = _non_padded_pool.lower_bound(layout_bytes_count);
     while (it != _non_padded_pool.end()) {
-        if ((!is_dynamic || (layout_bytes_count > it->second._memory->get_layout().bytes_count() * 0.5)) &&
+        if ((!is_dynamic || (layout_bytes_count > it->second._memory->get_layout().bytes_count() * _mem_pool_util_threshold)) &&
             (it->second._network_id == network_id &&
             it->second._type == type &&
             it->second._memory->get_layout().format != format::fs_b_yx_fsv32 &&
@@ -375,7 +375,13 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
 }
 
 memory_pool::memory_pool(engine& engine, const ExecutionConfig& config) : _engine(&engine), _config(config) {
-    (void)(_config); // Silence unused warning
+    _mem_pool_util_threshold = _config.get_mem_pool_util_threshold();
+    if (_mem_pool_util_threshold < 0.f || _mem_pool_util_threshold > 1.f) {
+        _mem_pool_util_threshold = std::clamp(_mem_pool_util_threshold, 0.f, 1.f);
+        GPU_DEBUG_INFO << "[WARNING] mem_pool_util_threshold should be in range [0.f, 1.f]. Reset to "
+            << _mem_pool_util_threshold << std::endl;
+    }
+    GPU_DEBUG_TRACE_DETAIL << "mem_pool_util_threshold set to " << _mem_pool_util_threshold << std::endl;
 }
 
 #ifdef GPU_DEBUG_CONFIG

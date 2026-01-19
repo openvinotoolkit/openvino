@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,13 +59,13 @@ public:
     void fuseInto(const NodePtr& parentNode) override;
     ov::element::Type getRuntimePrecision() const override;
 
-    float getAlpha() const {
+    double getAlpha() const {
         return m_attrs.data.alpha;
     }
-    float getBeta() const {
+    double getBeta() const {
         return m_attrs.data.beta;
     }
-    float getGamma() const {
+    double getGamma() const {
         return m_attrs.data.gamma;
     }
     const std::vector<float>& getScales() const {

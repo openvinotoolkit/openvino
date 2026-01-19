@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,19 +49,12 @@ struct Require {
 // clang-format off
 static const TypeMapping dnnlMatMulTypeMapping {
     // {src, wei, bia, dst}                                   pt<src, wei, bias, dst>
-    {{_bf16, _bf16 | _f32, _any, _bf16 | _f32},               {bypass(), bypass(), use<3>(), bypass()}},
+    {{_bf16, _bf16, _any, _bf16 | _f32},                      {bypass(), bypass(), use<3>(), bypass()}},
     {{_f16, _f16, _any, _f16 | _f32},                         {bypass(), bypass(), use<3>(), bypass()}},
-    // integer precision outputs are not supported for float precision inputs
-    {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8},            {bypass(), bypass(), use<0>(), use<0>()}},
-    // compresses float weights which do not match input data precision
-    {{_f32, _half_float, _any, _any},                  {bypass(), bypass(), use<0>(), use<0>()}},
-    {{_bf16, _f16, _any, _any},                        {bypass(), bypass(), use<0>(), use<0>()}},
-    {{_f16, _bf16, _any, _any},                        {bypass(), bypass(), use<0>(), use<0>()}},
+    {{_f32, _f32, _any, _f32},                                {bypass(), bypass(), use<3>(), bypass()}},
     // quantization configuration
     {{_u8 | _i8, _i8, _u8|_i8|_i32|_bf16|_f16|_f32|_dynamic, _u8|_i8|_i32|_bf16|_f16|_f32}, {bypass(), bypass(), bypass(),  bypass()}},
     {{_u8 | _i8, _i8, _any, _any},                            {bypass(), bypass(), just<f32>(), just<f32>()}},
-    // compresses int weights
-    {{_f32 | _bf16 | _f16, _u8 | _i8, _any, _any},            {bypass(), bypass(), use<0>(), use<0>()}},
     // @todo should we fallback to FPXX instead of _f32?
     {{_any, _any, _any, _any},                                {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
 };
@@ -108,14 +101,14 @@ const std::vector<ExecutorImplementation<MatMulAttrs>>& getImplementations() {
                 const auto& srcShape1 = srcDesc1->getShape().getStaticDims();
                 const auto srcRank0 = srcShape0.size();
                 const auto srcRank1 = srcShape1.size();
-                
+
                 for (size_t i = 0; i < srcRank0 - 2; i++) {
                     if (srcShape0[i] != srcShape1[i]) {
                         return false;
                     }
                 }
 
-                return (srcShape0[srcRank0 - 1] <= 2) && (srcShape0[srcRank0 - 2] <= 2) && 
+                return (srcShape0[srcRank0 - 1] <= 2) && (srcShape0[srcRank0 - 2] <= 2) &&
                        (srcShape1[srcRank1 - 1] <= 2) && (srcShape1[srcRank1 - 2] <= 2);
             },
             CreateDefault<MatMulSmallExecutor, MatMulAttrs>{}

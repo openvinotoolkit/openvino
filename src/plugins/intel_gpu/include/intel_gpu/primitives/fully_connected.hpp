@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,6 +111,7 @@ struct fully_connected : public primitive_base<fully_connected> {
     /// @param compression_zero_point Primitive id containing zero points for weights decompression.
     /// @param activation_scale Primitive id containing scale factor for activation.
     /// @param activation_zero_point Primitive id containing zero point for activation.
+    /// @param activation_precomputed_reduction Primitive id containing precomputed reduction for activation.
     fully_connected(const primitive_id& id,
                     const input_info& input,
                     const primitive_id& weights,
@@ -119,6 +120,7 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& decompression_zero_point,
                     const input_info& activation_scale,
                     const input_info& activation_zero_point,
+                    const input_info& activation_precomputed_reduction,
                     const data_types data_type,
                     const size_t input_size = 2,
                     const size_t weights_rank = 2)
@@ -132,12 +134,15 @@ struct fully_connected : public primitive_base<fully_connected> {
           dynamic_quantized_activation_zp(false),
           activation_scale(activation_scale),
           activation_zero_point(activation_zero_point),
+          activation_precomputed_reduction(activation_precomputed_reduction),
           input_size(input_size),
           weights_rank(weights_rank) {
         if (activation_scale.is_valid())
             dynamic_quantized_activation = true;
         if (activation_zero_point.is_valid())
             dynamic_quantized_activation_zp = true;
+        if (activation_precomputed_reduction.is_valid())
+            dynamic_quantized_precomputed_reduction = true;
 
         OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
     }
@@ -152,8 +157,10 @@ struct fully_connected : public primitive_base<fully_connected> {
     input_info decompression_zero_point = {};
     bool dynamic_quantized_activation = false;
     bool dynamic_quantized_activation_zp = false;
+    bool dynamic_quantized_precomputed_reduction = false;
     input_info activation_scale = {"", 0};
     input_info activation_zero_point = {"", 0};
+    input_info activation_precomputed_reduction = {"", 0};
     std::optional<float> decompression_zero_point_scalar = std::optional<float>();
 
     /// @brief Primitive dimension size.
@@ -171,6 +178,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         seed = hash_combine(seed, !decompression_zero_point.is_valid());
         seed = hash_combine(seed, activation_scale.is_valid());
         seed = hash_combine(seed, activation_zero_point.is_valid());
+        seed = hash_combine(seed, activation_precomputed_reduction.is_valid());
         seed = hash_combine(seed, decompression_zero_point_scalar.has_value());
         seed = hash_combine(seed, decompression_zero_point_scalar.value_or(0.0f));
         return seed;
@@ -190,6 +198,7 @@ struct fully_connected : public primitive_base<fully_connected> {
                decompression_zero_point.is_valid() == rhs_casted.decompression_zero_point.is_valid() &&
                activation_scale.is_valid() == rhs_casted.activation_scale.is_valid() &&
                activation_zero_point.is_valid() == rhs_casted.activation_zero_point.is_valid() &&
+               activation_precomputed_reduction.is_valid() == rhs_casted.activation_precomputed_reduction.is_valid() &&
                decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
     }
 
@@ -202,6 +211,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ob << decompression_zero_point;
         ob << activation_scale;
         ob << activation_zero_point;
+        ob << activation_precomputed_reduction;
         ob << input_size;
         ob << weights_rank;
         ob << dynamic_quantized_activation;
@@ -225,6 +235,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ib >> decompression_zero_point;
         ib >> activation_scale;
         ib >> activation_zero_point;
+        ib >> activation_precomputed_reduction;
         ib >> input_size;
         ib >> weights_rank;
         ib >> dynamic_quantized_activation;
@@ -263,6 +274,9 @@ protected:
 
         if (activation_zero_point.is_valid())
             ret[idx++] = &activation_zero_point;
+
+        if (activation_precomputed_reduction.is_valid())
+            ret[idx++] = &activation_precomputed_reduction;
 
         return ret;
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ OV_CC_DOMAINS(ov_pass);
 #    define REGISTER_DISABLED_PASS(obj, region, ...) obj.register_pass<region, false>(__VA_ARGS__);
 
 #    define OV_PASS_CALLBACK(matcher)                                   \
-        openvino::itt::handle_t m_callback_handle;                      \
+        [[maybe_unused]] openvino::itt::handle_t m_callback_handle;     \
         m_callback_handle = openvino::itt::handle(matcher->get_name()); \
         OV_ITT_SCOPED_TASK(SIMPLE_ov_pass, m_callback_handle)
 #elif defined(SELECTIVE_BUILD)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ std::shared_ptr<ov::Model> get_ov_model_from_blob(const ov::template_plugin::Plu
                                                   const ov::AnyMap& properties) {
     if (auto blob_it = properties.find(ov::hint::compiled_blob.name()); blob_it != properties.end()) {
         if (auto blob = blob_it->second.as<ov::Tensor>(); blob) {
-            ov::SharedStreamBuffer shared_buffer(reinterpret_cast<char*>(blob.data()), blob.get_byte_size());
+            ov::SharedStreamBuffer shared_buffer(blob.data(), blob.get_byte_size());
             std::istream blob_stream(&shared_buffer);
             blob_stream.seekg(offset, std::ios::beg);
             const auto model = get_model_str(blob_stream);
@@ -268,7 +268,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
 
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(const ov::Tensor& model,
                                                                               const ov::AnyMap& properties) const {
-    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    ov::SharedStreamBuffer buffer{model.data(), model.get_byte_size()};
     std::istream stream{&buffer};
     return import_model(stream, properties);
 }
@@ -277,7 +277,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     const ov::Tensor& model,
     const ov::SoPtr<ov::IRemoteContext>& context,
     const ov::AnyMap& properties) const {
-    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    ov::SharedStreamBuffer buffer{model.data(), model.get_byte_size()};
     std::istream stream{&buffer};
     return import_model(stream, properties);
 }
@@ -392,7 +392,9 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::inference_num_threads.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::threads_per_stream.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO}};
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::cache_header_alignment.name(), ov::PropertyMutability::RO},
+        };
     } else if (ov::available_devices == name) {
         // TODO: fill list of available devices
         return decltype(ov::available_devices)::value_type{{""}};

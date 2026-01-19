@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,15 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace op_util = ov::op::util;
+
+namespace ov::pass {
 
 // ConvertQuantizeDequantize converts Quantize/Dequantize pair to a single FakeQuantize.
 // Since Quantize is decomposed to FakeQuantize and Dequantize is decomposed to Subtract->Multiply,
@@ -62,25 +69,34 @@
 //                                        v
 //
 
-ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
+ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVector& supported_low_precisions,
+                                                     const ov::element::TypeVector& supported_original_precisions,
+                                                     const bool ignore_consumers_count_check) {
     MATCHER_SCOPE(ConvertQuantizeDequantize);
-    auto data_pattern = pass::pattern::any_input();
-    auto input_low_pattern = pass::pattern::any_input();
-    auto input_high_pattern = pass::pattern::any_input();
-    auto output_low_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto output_high_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>(
+    auto data_pattern = pattern::any_input(pattern::type_matches_any(supported_original_precisions));
+    auto input_low_pattern = pattern::any_input();
+    auto input_high_pattern = pattern::any_input();
+    auto output_low_pattern = pattern::wrap_type<v0::Constant>();
+    auto output_high_pattern = pattern::wrap_type<v0::Constant>();
+    auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>(
         {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
-    auto convert1_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>(
-        {fq_pattern},
-        pattern::type_matches_any({element::i8, element::u8, element::i16, element::u16}));
-    auto convert2_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({convert1_pattern}, pattern::type_matches(element::f32));
-    auto zero_point_pattern = pass::pattern::any_input();
-    auto sub_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert2_pattern, zero_point_pattern},
-                                                                          pattern::consumers_count(1));
-    auto scale_pattern = pass::pattern::any_input();
-    auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({sub_pattern, scale_pattern});
+    ov::pass::pattern::op::Predicate convert1_predicate =
+        ignore_consumers_count_check
+            ? pattern::type_matches_any(supported_low_precisions)
+            : pattern::type_matches_any(supported_low_precisions) && pattern::consumers_count(1);
+    auto convert1_pattern = pattern::wrap_type<v0::Convert>({fq_pattern}, convert1_predicate);
+    ov::pass::pattern::op::Predicate convert2_predicate =
+        ignore_consumers_count_check
+            ? pattern::type_matches_any(supported_original_precisions)
+            : pattern::type_matches_any(supported_original_precisions) && pattern::consumers_count(1);
+    auto convert2_pattern = pattern::wrap_type<v0::Convert>({convert1_pattern}, convert2_predicate);
+
+    auto zero_point_pattern = pattern::any_input();
+    ov::pass::pattern::op::Predicate sub_predicate =
+        ignore_consumers_count_check ? ov::pass::pattern::op::Predicate() : pattern::consumers_count(1);
+    auto sub_pattern = pattern::optional<v1::Subtract>({convert2_pattern, zero_point_pattern}, sub_predicate);
+    auto scale_pattern = pattern::any_input();
+    auto mul_pattern = pattern::wrap_type<v1::Multiply>({sub_pattern, scale_pattern});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
@@ -89,73 +105,67 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
             return false;
         }
 
-        auto data = pattern_map[data_pattern];
-        auto input_low = pattern_map[input_low_pattern];
-        auto input_high = pattern_map[input_high_pattern];
-        auto output_low = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[output_low_pattern].get_node_shared_ptr());
+        auto data = pattern_map.at(data_pattern);
+        auto input_low = pattern_map.at(input_low_pattern);
+        auto input_high = pattern_map.at(input_high_pattern);
+        auto output_low = ov::as_type_ptr<v0::Constant>(pattern_map.at(output_low_pattern).get_node_shared_ptr());
         if (!output_low)
             return false;
-        auto output_high =
-            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[output_high_pattern].get_node_shared_ptr());
+        auto output_high = ov::as_type_ptr<v0::Constant>(pattern_map.at(output_high_pattern).get_node_shared_ptr());
         if (!output_high)
             return false;
-        auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
+        auto fq = ov::as_type_ptr<v0::FakeQuantize>(pattern_map.at(fq_pattern).get_node_shared_ptr());
         if (!fq)
             return false;
-        auto zero_point = pattern_map[zero_point_pattern];
-        auto scale = pattern_map[scale_pattern];
-        auto convert1 = pattern_map[convert1_pattern];
-        auto convert2 = pattern_map[convert2_pattern];
-        auto mul = pattern_map[mul_pattern].get_node_shared_ptr();
+        auto scale = pattern_map.at(scale_pattern);
+        auto convert1 = pattern_map.at(convert1_pattern);
+        auto convert2 = pattern_map.at(convert2_pattern);
+        auto mul = pattern_map.at(mul_pattern).get_node_shared_ptr();
 
-        // convert1 and convert2 should have only one input
-        if (convert1.get_target_inputs().size() != 1)
-            return false;
-        if (convert2.get_target_inputs().size() != 1)
+        static const std::unordered_set<size_t> supported_levels{256, 65536};
+        const auto levels = fq->get_levels();
+        if (!supported_levels.count(levels))
             return false;
 
-        // we support:
-        // i8 or u8: 'levels' attribute must be 256
-        // i16 or u16: 'levels' attribute must be 65536
-        size_t levels = fq->get_levels();
-        if (levels != 256 && levels != 65536)
-            return false;
-
-        // check if (out_low_val, out_high_val) is (-128, 127) or (0, 255) or (-32768, 32767) or (0, 65535)
         float out_low_val;
-        if (!op::util::get_single_value(output_low, out_low_val))
+        if (!op_util::get_single_value(output_low, out_low_val))
             return false;
         float out_high_val;
-        if (!op::util::get_single_value(output_high, out_high_val))
+        if (!op_util::get_single_value(output_high, out_high_val))
             return false;
+
+#define PRECISION_LIMITS_FOR(type)                                                                           \
+    {                                                                                                        \
+        ov::element::type,                                                                                   \
+            std::make_pair(                                                                                  \
+                static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::min()), \
+                static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::max())) \
+    }
+
+        static const std::unordered_map<ov::element::Type_t, std::pair<float, float>> supported_intervals{
+            PRECISION_LIMITS_FOR(i8),
+            PRECISION_LIMITS_FOR(u8),
+            PRECISION_LIMITS_FOR(i16),
+            PRECISION_LIMITS_FOR(u16)};
+#undef PRECISION_LIMITS_FOR
+
         const auto& type = convert1.get_element_type();
-        switch (type) {
-        case element::Type_t::i8:
-            if (out_low_val != -128 || out_high_val != 127)
-                return false;
-            break;
-        case element::Type_t::u8:
-            if (out_low_val != 0 || out_high_val != 255)
-                return false;
-            break;
-        case element::Type_t::i16:
-            if (out_low_val != -32768 || out_high_val != 32767)
-                return false;
-            break;
-        case element::Type_t::u16:
-            if (out_low_val != 0 || out_high_val != 65535)
-                return false;
-            break;
-        default:
+        // check if (out_low_val, out_high_val) pair is mapped on the expected precision ranges
+        auto interval_it = supported_intervals.find(type);
+        if (interval_it == supported_intervals.end() ||
+            interval_it->second != std::make_pair(out_low_val, out_high_val)) {
             return false;
         }
 
-        std::shared_ptr<Node> new_out_low =
-            std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::Subtract>(output_low, zero_point),
-                                                   scale);
-        std::shared_ptr<Node> new_out_high =
-            std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::Subtract>(output_high, zero_point),
-                                                   scale);
+        const bool has_zero_point = pattern_map.count(zero_point_pattern);
+        std::shared_ptr<Node> new_out_low = output_low, new_out_high = output_high;
+        if (has_zero_point) {
+            const auto& zero_point = pattern_map.at(zero_point_pattern);
+            new_out_low = std::make_shared<v1::Subtract>(new_out_low, zero_point);
+            new_out_high = std::make_shared<v1::Subtract>(new_out_high, zero_point);
+        }
+        new_out_low = std::make_shared<v1::Multiply>(new_out_low, scale);
+        new_out_high = std::make_shared<v1::Multiply>(new_out_high, scale);
 
         // check if new_out_low/high shapes are broadcastable to FQ's input
         auto data_shape = data.get_partial_shape();
@@ -176,7 +186,7 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
             new_out_high = const_out_high;
 
         auto new_fq =
-            std::make_shared<ov::op::v0::FakeQuantize>(data, input_low, input_high, new_out_low, new_out_high, levels);
+            std::make_shared<v0::FakeQuantize>(data, input_low, input_high, new_out_low, new_out_high, levels);
         new_fq->set_friendly_name(mul->get_friendly_name());
 
         copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()}, new_fq);
@@ -185,6 +195,8 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(mul_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

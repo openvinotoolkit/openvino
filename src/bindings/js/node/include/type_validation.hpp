@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -8,6 +8,7 @@
 #include "node/include/compiled_model.hpp"
 #include "node/include/model_wrap.hpp"
 #include "node/include/node_output.hpp"
+#include "node/include/node_wrap.hpp"
 #include "node/include/partial_shape_wrap.hpp"
 #include "node/include/tensor.hpp"
 #include "openvino/openvino.hpp"
@@ -56,6 +57,9 @@ template <>
 const char* get_attr_type<CompiledModelWrap>();
 
 template <>
+const char* get_attr_type<NodeWrap>();
+
+template <>
 const char* get_attr_type<TensorWrap>();
 
 template <>
@@ -89,6 +93,9 @@ bool validate_value<Napi::Buffer<uint8_t>>(const Napi::Env& env, const Napi::Val
 
 template <>
 bool validate_value<int>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
+bool validate_value<NodeWrap>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
 bool validate_value<ModelWrap>(const Napi::Env& env, const Napi::Value& value);

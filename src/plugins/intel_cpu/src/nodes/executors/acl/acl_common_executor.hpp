@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,11 +12,13 @@ namespace ov::intel_cpu {
 
 enum ACLArgs : uint8_t {
     ACL_SRC_0,
+    ACL_SRC_0_ZERO_POINTS,
     ACL_SRC_1,
     ACL_SRC_2,
     ACL_BIAS,
     ACL_WEI,
     ACL_DST,
+    ACL_DST_ZERO_POINTS,
     ACL_DST_DEQ_SCALE,
     COUNT_OF_ARGS
 };

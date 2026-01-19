@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,17 +28,17 @@ struct VariableStorage {
 // Stores information about variables index
 class VariablesIndex {
     // Contains file size for internal checks
-    size_t m_variables_index_size;
-    // Contains maximum amount of shards, used for creating corrext extension
-    int32_t m_total_shards;
-    // Contains BundleEntryProto variables list, readed from .index file
+    size_t m_variables_index_size = 0;
+    // Contains maximum amount of shards, used for creating correct extension
+    int32_t m_total_shards = 0;
+    // Contains BundleEntryProto variables list, read from .index file
     std::map<std::string, std::vector<char>> m_variables_index;
     // List of opened data files for using with BundleEntryProto
     std::map<int32_t, VariableStorage> m_data_files;
     // List of mapped variables which could be read using TrackableObjectGraph
     std::map<std::string, std::string> m_variables_map;
     // Flag shows which file storage is using
-    bool m_mmap_enabled;
+    bool m_mmap_enabled = false;
 
 public:
     VariablesIndex(bool mmap_enabled = false) : m_mmap_enabled(mmap_enabled) {}
@@ -151,7 +151,7 @@ private:
     /// \brief Reads block structure of .index file
     /// \param[in,out] fs Filestream of .index file, position in file will be updated
     /// \param[in] index Variables index block which stores information about block
-    /// \param[out] data Block data will be readed
+    /// \param[out] data Block data will be read
     /// \param[out] offset Offset of block start
     /// \param[out] offset_end Offset of block end
     void read_variables_index_block(std::ifstream& fs,
@@ -164,7 +164,7 @@ private:
     /// \param[in] ptr_end End of memory which shouldn't be passed in case of broken structure
     /// \param[out] key Key name
     /// \param[out] value Stored value for key (isn't a pure string, data block)
-    /// \param[out] val_lenght Length of readed value
+    /// \param[out] val_length Length of read value
     void read_variables_index_pair(char*& ptr,
                                    const char* ptr_end,
                                    std::string& key,
@@ -176,7 +176,7 @@ private:
     void read_variables_index(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex);
     /// \brief Reads bundle header if it is available. Checks version and saves info about amount of shards
     void read_bundle_header();
-    /// \brief Reads key=value map from storef _CHECKPOINTABLE_OBJECT_GRAPH variable
+    /// \brief Reads key=value map from stored _CHECKPOINTABLE_OBJECT_GRAPH variable
     void read_checkpointable_object_graph();
 };
 

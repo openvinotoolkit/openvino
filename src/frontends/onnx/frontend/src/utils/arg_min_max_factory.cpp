@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,15 +28,15 @@ ArgMinMaxFactory::ArgMinMaxFactory(const Node& node)
       m_axis{node.get_attribute_value<std::int64_t>("axis", 0)},
       m_select_last_index{node.get_attribute_value<std::int64_t>("select_last_index", 0)} {}
 
-std::shared_ptr<ov::Node> ArgMinMaxFactory::make_arg_max() const {
+ov::Output<ov::Node> ArgMinMaxFactory::make_arg_max() const {
     return make_topk_subgraph(v11::TopK::Mode::MAX);
 }
 
-std::shared_ptr<ov::Node> ArgMinMaxFactory::make_arg_min() const {
+ov::Output<ov::Node> ArgMinMaxFactory::make_arg_min() const {
     return make_topk_subgraph(v11::TopK::Mode::MIN);
 }
 
-std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode mode) const {
+ov::Output<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode mode) const {
     const auto k_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
 
     if (m_select_last_index == 1) {
@@ -70,7 +70,13 @@ std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode m
         const auto axis_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {normalized_axis});
         const auto reverse = std::make_shared<v1::Reverse>(m_input_node, axis_node, v1::Reverse::Mode::INDEX);
 
-        const auto topk = std::make_shared<v11::TopK>(reverse, k_node, normalized_axis, mode, v1::TopK::SortType::NONE);
+        const auto topk = std::make_shared<v11::TopK>(reverse,
+                                                      k_node,
+                                                      normalized_axis,
+                                                      mode,
+                                                      v1::TopK::SortType::SORT_VALUES,
+                                                      element::i64,
+                                                      true);
 
         const auto data_shape = std::make_shared<v0::ShapeOf>(m_input_node);
         const auto dims_on_axis =
@@ -78,32 +84,36 @@ std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode m
                                          axis_node,
                                          v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
 
-        const auto res_index =
-            std::make_shared<v1::Subtract>(dims_on_axis,
-                                           std::make_shared<v0::Convert>(topk->output(1), ov::element::i64));
+        const auto res_index = std::make_shared<v1::Subtract>(dims_on_axis, topk->output(1));
         const auto result =
             std::make_shared<v1::Subtract>(res_index, v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
 
         if (m_keep_dims == 0) {
             const auto axis_to_remove = v0::Constant::create(ov::element::u64, ov::Shape{}, {topk->get_axis()});
 
-            return std::make_shared<v0::Squeeze>(result, axis_to_remove);
+            return {std::make_shared<v0::Squeeze>(result, axis_to_remove)};
         }
 
-        return result;
+        return {result};
     }
 
-    const auto topk = std::make_shared<v11::TopK>(m_input_node, k_node, m_axis, mode, v11::TopK::SortType::NONE);
+    const auto topk = std::make_shared<v11::TopK>(m_input_node,
+                                                  k_node,
+                                                  m_axis,
+                                                  mode,
+                                                  v11::TopK::SortType::SORT_VALUES,
+                                                  element::i64,
+                                                  true);
 
-    const auto result = std::make_shared<v0::Convert>(topk->output(1), ov::element::i64);
+    ov::Output<ov::Node> result = topk->output(1);
 
     if (m_keep_dims == 0) {
         const auto axis_to_remove = v0::Constant::create(ov::element::u64, ov::Shape{}, {topk->get_axis()});
 
-        return std::make_shared<v0::Squeeze>(result, axis_to_remove);
+        return {std::make_shared<v0::Squeeze>(result, axis_to_remove)};
     }
 
-    return result;
+    return {result};
 }
 }  // namespace utils
 }  // namespace onnx

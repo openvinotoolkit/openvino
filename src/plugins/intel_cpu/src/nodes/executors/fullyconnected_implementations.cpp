@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,10 +95,10 @@ static const TypeMapping dnnlFCTypeMapping {
     {{_u8 | _i8, _i8, _f16, _u8 | _i8 | _i32 | _bf16 | _f32}, {bypass(), bypass(), just<f32>(), bypass()}},
     {{_u8 | _i8, _i8, _any, _any}, {bypass(), bypass(), just<f32>(), just<f32>()}},
     // compresses int weights (@todo more strict requrements for output precision?)
-    {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1, _any, _any},       {bypass(), bypass(), use<0>(), use<0>()},
+    {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1 | _u2, _any, _any},       {bypass(), bypass(), use<0>(), use<0>()},
      Require<dnnl::impl::cpu::x64::avx512_core_bf16>()}, // Ticket 122347
     {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1, _any, _any},       {just<f32>(), bypass(), just<f32>(), just<f32>()}},
-    {{_f32,  _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1, _any, _any},       {bypass(), bypass(), use<0>(), use<0>()}},
+    {{_f32,  _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1 | _u2, _any, _any},       {bypass(), bypass(), use<0>(), use<0>()}},
     // @todo should we fallback to FPXX instead of _f32?
     {{_any, _any, _any, _any},                                {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
@@ -171,6 +171,19 @@ static const TypeMapping dnnlMatMulTypeMapping {
     return config.attrs.postOps.empty();
 }
 
+[[maybe_unused]] static inline bool dnnlMatMulSupportedPrecision(const FCConfig& config) {
+    // support regular float type matmul
+    if (any_of(srcType(config), f32, f16, bf16) && any_of(weiType(config), f32, f16, bf16)) {
+        return true;
+    }
+    // i32 can be up converted to f32
+    if (any_of(srcType(config), i32) && any_of(weiType(config), i32)) {
+        return true;
+    }
+    // support integer type quantization matmul
+    return any_of(srcType(config), u8, i8) && any_of(weiType(config), u8, i8);
+}
+
 struct CreateOptimalConfigDefault {
     std::optional<ConvConfig> operator()(const ConvConfig& config) const {
         return createOptimalConfigCommon(config, dnnlMatMulTypeMapping, dnnlFCLayoutConfig, fcMappingNotation);
@@ -195,7 +208,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(MlasGemmExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
-
+                VERIFY(weiRank(config) <= 3U, UNSUPPORTED_WEI_RANK);
+                VERIFY(weiRank(config) != 3U || weiDims(config)[0] <= 1, UNSUPPORTED_WEI_RANK);
                 return true;
             },
             HasNoOptimalConfig<FCAttrs>{},
@@ -278,8 +292,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
 
                         const bool fcSemantic = true;
+                        const bool hasBias = !memory.at(ARG_BIAS)->getDesc().empty();
                         ConvAttrs convAttrs{{1}, {0}, {0}, {0},
-                                            AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
+                                            AutoPaddingType::None, hasBias, attrs.weightsNonTransposed,
                                             false, false, fcSemantic, false, ZeroPointsType::None, {}, attrs.postOps};
 
                         auto primitive =
@@ -365,10 +380,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(all_of(f32, srcType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
-                VERIFY(any_of(weiType(config), f32, i8), UNSUPPORTED_WEI_PRECISIONS);
-                if (config.attrs.withBias) {
-                    VERIFY(biaType(config) == f32, UNSUPPORTED_SRC_PRECISIONS);
-                }
+                VERIFY(any_of(weiType(config), f32, i8, i4), UNSUPPORTED_WEI_PRECISIONS);
+                VERIFY(implication(hasBias(config), biaType(config) == f32), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
                 VERIFY(MatMulKleidiAIExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
 
@@ -402,13 +415,16 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             OperationType::MatMul,
             // supports
             []([[maybe_unused]] const FCConfig& config) -> bool {
-                // enable only with debug caps and env variable defined for now
                 CPU_DEBUG_CAP_ENABLE(
                     if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC")) {
                         VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                         return true;
                     })
-                return false;
+                VERIFY(dnnlMatMulSupportedPrecision(config), UNSUPPORTED_SRC_WEI_PRECISIONS);
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                VERIFY(weiRank(config) == 3U, UNSUPPORTED_WEI_RANK);
+                VERIFY(weiDims(config)[0] > 1, UNSUPPORTED_WEI_RANK);
+                return true;
             },
             // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
@@ -422,12 +438,20 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) -> ExecutorPtr {
-                MatMulAttrs matMulAttrs{false,
-                                        false};
-                matMulAttrs.postOps = attrs.postOps;
-                matMulAttrs.transposeB = attrs.weightsNonTransposed;
-                matMulAttrs.constantWeights = true;
-                
+                const bool hasBias = !memory.at(ARG_BIAS)->getDesc().empty();
+                MatMulAttrs matMulAttrs {
+                    false,
+                    true,
+                    hasBias,
+                    attrs.weightsNonTransposed,
+                    false,
+                    true,
+                    true,
+                    0,
+                    {},
+                    attrs.postOps
+                };
+
                 return std::make_shared<
                     DnnlExecutor<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData,
                                  DefaultInstantiator<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData>>>(

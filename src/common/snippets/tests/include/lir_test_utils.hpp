@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,6 +68,8 @@ void init_expr_descriptors(const ov::snippets::lowered::ExpressionPtr& expr,
                            const std::vector<ov::snippets::VectorDims>& subtensors = {},
                            const std::vector<ov::snippets::VectorDims>& layouts = {});
 
+using IOLoopPortDescs = std::pair<std::vector<ov::snippets::lowered::UnifiedLoopInfo::LoopPortDesc>,
+                                  std::vector<ov::snippets::lowered::UnifiedLoopInfo::LoopPortDesc>>;
 /**
  * @brief Creates an InnerSplittedUnifiedLoopInfo which represents an inner loop that appears
  * after SplitLoops optimizations.
@@ -77,6 +79,8 @@ void init_expr_descriptors(const ov::snippets::lowered::ExpressionPtr& expr,
  * @param entries Vector of LoopPort objects representing loop entry points (input ports)
  * @param exits Vector of LoopPort objects representing loop exit points (output ports)
  * @param outer_split_loop_info Pointer to the outer split loop info that will contain this inner loop
+ * @param io_descs Optional parameter containing input and output port descriptors
+ * @param register_specific_iter_handlers Optional indicating if the TransformInnerSplitLoop handler should be registered
  * @return Shared pointer to the created InnerSplittedUnifiedLoopInfo
  */
 ov::snippets::lowered::InnerSplittedUnifiedLoopInfoPtr make_inner_split_loop_info(
@@ -84,7 +88,9 @@ ov::snippets::lowered::InnerSplittedUnifiedLoopInfoPtr make_inner_split_loop_inf
     size_t increment,
     const std::vector<ov::snippets::lowered::LoopPort>& entries,
     const std::vector<ov::snippets::lowered::LoopPort>& exits,
-    const ov::snippets::lowered::UnifiedLoopInfoPtr& outer_split_loop_info);
+    const ov::snippets::lowered::UnifiedLoopInfoPtr& outer_split_loop_info,
+    const std::optional<IOLoopPortDescs>& io_descs = std::nullopt,
+    bool register_specific_iter_handlers = true);
 
 }  // namespace snippets
 }  // namespace test

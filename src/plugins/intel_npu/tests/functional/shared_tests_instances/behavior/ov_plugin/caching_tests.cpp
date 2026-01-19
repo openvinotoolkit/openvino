@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_BehaviorTests_CachingSupportCase_NPU,
                                             ::testing::Values(ov::AnyMap{})),
                          ov::test::utils::appendPlatformTypeTestName<CompileModelCacheTestBase>);
 
-static std::string getTestCaseName(testing::TestParamInfo<compileModelLoadFromFileParams> obj) {
+static std::string getTestCaseName(const testing::TestParamInfo<compileModelLoadFromFileParams>& obj) {
     std::string testCaseName = CompileModelLoadFromFileTestBase::getTestCaseName(obj);
     std::replace(testCaseName.begin(), testCaseName.end(), ':', '.');
     return testCaseName +

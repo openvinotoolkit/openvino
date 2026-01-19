@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "openvino/core/any.hpp"
@@ -16,7 +15,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
-#include "overload/overload_test_utils_npu.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 #ifdef _WIN32
 #    ifdef ENABLE_DX12
@@ -59,7 +58,6 @@ protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> ov_model;
-    ov::CompiledModel compiled_model;
 
     Microsoft::WRL::ComPtr<IDXCoreAdapter> adapter;
     Microsoft::WRL::ComPtr<ID3D12Device9> device;
@@ -70,7 +68,7 @@ protected:
     HANDLE shared_mem = nullptr;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
@@ -261,6 +259,7 @@ public:
 TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
@@ -286,6 +285,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
 TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
@@ -333,6 +333,7 @@ TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     float* data;
 

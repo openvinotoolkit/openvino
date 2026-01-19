@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # This is a LeakSanitizer (LSan) suppression file which provides a default
@@ -39,7 +39,7 @@ leak:/bin/bash
 # leak reported by E2E tests
 leak:libfontconfig.so
 
-# leak reported from python wrappers of 3rd parties 
+# leak reported from python wrappers of 3rd parties
 leak:_pywrap_tensorflow_internal.so
 leak:site-packages/google/protobuf
 

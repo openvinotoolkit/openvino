@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -148,9 +148,6 @@ Tensor::Tensor(const element::Type& element_type,
                const PartialShape& pshape,
                const std::unordered_set<std::string>& names)
     : m_impl(std::make_shared<BasicTensor>(element_type, pshape, names)) {}
-
-Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, ov::Node* node, size_t)
-    : m_impl(std::make_shared<BasicTensor>(element_type, pshape, std::unordered_set<std::string>{})) {}
 
 void Tensor::invalidate_values() {
     if (ov::skip_invalidation(*this))

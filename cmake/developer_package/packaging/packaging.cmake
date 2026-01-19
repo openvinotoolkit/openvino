@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -137,7 +137,11 @@ endfunction()
 function(ov_get_pyversion pyversion)
     find_package(Python3 QUIET COMPONENTS Interpreter Develoment.Module)
     if(Python3_Interpreter_FOUND)
-        set(${pyversion} "python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}" PARENT_SCOPE)
+        set(_pyversion "python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
+        if(Python3_SOABI AND (Python3_SOABI MATCHES "cpython-[0-9]+t-" OR Python3_SOABI MATCHES "cp[0-9]+t-"))
+            set(_pyversion "${_pyversion}t")
+        endif()
+        set(${pyversion} "${_pyversion}" PARENT_SCOPE)
     else()
         set(${pyversion} "NOT-FOUND" PARENT_SCOPE)
     endif()
@@ -217,7 +221,7 @@ function(ov_check_conflicts_versions var_name)
 
     # perform check
     if(NOT ov_prev_version IN_LIST ${var_name})
-        message(FATAL_ERROR "List ${var_name} (${${var_name}}) does not contain verison ${ov_prev_version}")
+        message(FATAL_ERROR "List ${var_name} (${${var_name}}) does not contain version ${ov_prev_version}")
     endif()
 endfunction()
 

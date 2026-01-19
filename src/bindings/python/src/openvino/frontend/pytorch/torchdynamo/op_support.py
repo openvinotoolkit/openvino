@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # mypy: ignore-errors
@@ -60,6 +60,7 @@ class OperatorSupport(OpSupport):
             "torch.ops.aten.addcmul.default": None,
             "torch.ops.aten.addmm.default": None,
             "torch.ops.aten.alias.default": None,
+            "torch.ops.aten.alias_copy.default": None,
             "torch.ops.aten.all.default": None,
             "torch.ops.aten.amax.default": None,
             "torch.ops.aten.amin.default": None,

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -107,7 +108,10 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
                   attrs.modelType};
 
     auto builder = [&context](const Key& dnnlKey) {
-        return std::make_shared<DnnlFCPrimitive>(dnnlKey, context->getEngine(), context->getImplPriorities());
+        return std::make_shared<DnnlFCPrimitive>(dnnlKey,
+                                                 context->getEngine(),
+                                                 context->getThreadPool(),
+                                                 context->getImplPriorities());
     };
 
     auto runtimeCache = context->getRuntimeCache();
@@ -138,7 +142,7 @@ bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputT
                                                   const ov::element::Type weightsType,
                                                   const ov::intel_cpu::Config::ModelType modelType) {
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-        if (any_of(inputType, f32, bf16) && any_of(weightsType, u8, i8, nf4, u4, i4, f4e2m1)) {
+        if (any_of(inputType, f32, bf16) && any_of(weightsType, u8, i8, nf4, u4, i4, f4e2m1, u2)) {
             return true;
         }
 
@@ -176,11 +180,15 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     // For dynamic quantization, VNNI accumulation requires weight to be unsigned.
     // To support dynamic quantization with weights symmetrically quantized as i8/i4
     // w/o zero-point, we will transform weight to u8/u4 weight with zp 128/8.
-    if (none_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4) &&
+    if (none_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4, ov::element::u2) &&
         !((any_of(weightsDesc->getPrecision(), ov::element::i8, ov::element::i4) && !zpPtr))) {
         return false;
     }
-    if (zpPtr && none_of(zpPtr->getDesc().getPrecision(), ov::element::u8, ov::element::u4, ov::element::dynamic)) {
+    if (zpPtr && none_of(zpPtr->getDesc().getPrecision(),
+                         ov::element::u8,
+                         ov::element::u4,
+                         ov::element::u2,
+                         ov::element::dynamic)) {
         return false;
     }
 
@@ -255,6 +263,9 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
 
     if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
         auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
+        if (weiDesc->getPrecision() == ov::element::u2) {
+            dstPrc = ov::element::u2;
+        }
         dnnlpoc.appendDecompressionZeroPointsLegacy(it->second, !attrs.weightsNonTransposed, dstPrc);
     }
 
@@ -472,8 +483,9 @@ static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc)
 
 DnnlFCPrimitive::DnnlFCPrimitive(const Key& key,
                                  const dnnl::engine& engine,
+                                 const std::shared_ptr<ThreadPool>& threadPool,
                                  const std::vector<impl_desc_type>& implPriorities)
-    : m_stream(dnnl::stream(engine)),
+    : m_stream(make_stream(engine, threadPool)),
       m_primDesc(createPrimitiveDesc(
           key.src->getDnnlDesc(),
           key.wei->getDnnlDesc(),

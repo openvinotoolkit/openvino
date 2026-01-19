@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,14 +50,6 @@ void Graph::update_network_name(std::string_view name) {
     _metadata.name = name;
 }
 
-const std::vector<ArgumentDescriptor>& Graph::get_input_descriptors() const {
-    return _inputDescriptors;
-}
-
-const std::vector<ArgumentDescriptor>& Graph::get_output_descriptors() const {
-    return _outputDescriptors;
-}
-
 const std::shared_ptr<CommandQueue>& Graph::get_command_queue() const {
     return _commandQueue;
 }
@@ -99,8 +91,9 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
         OPENVINO_THROW("Model was imported and released after initialization. Model export is not allowed anymore.");
     }
 
-    if (_blob ==
-        std::nullopt) {  // when compiling the model using Compiler in Driver, the blob is handled by the driver
+    if (_blob == std::nullopt) {
+        OPENVINO_ASSERT(_zeGraphExt != nullptr, "Zero compiler adapter wasn't initialized");
+        // when compiling the model using Compiler in Driver, the blob is handled by the driver
         _zeGraphExt->getGraphBinary(_graphDesc, blobVec, blobPtr, blobSize);
     } else {  // in all other cases, the blob is handled by the plugin
         blobPtr = static_cast<const uint8_t*>(_blob->data());
@@ -157,45 +150,27 @@ std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector
     return _compiler->process_profiling_output(profData, blob, config);
 }
 
-void Graph::set_argument_value(uint32_t argi, const void* argv) const {
+void Graph::set_argument_value(uint32_t id, const void* data) const {
     if (_zeGraphExt == nullptr) {
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
     }
-    _zeGraphExt->setGraphArgumentValue(_graphDesc, argi, argv);
+    _zeGraphExt->setGraphArgumentValue(_graphDesc, id, data);
+}
+
+void Graph::set_argument_value_with_strides(uint32_t id, const void* data, const std::vector<size_t>& strides) const {
+    if (_zeGraphExt == nullptr) {
+        OPENVINO_THROW("Zero compiler adapter wasn't initialized");
+    }
+    _zeGraphExt->setGraphArgumentValueWithStrides(_graphDesc, id, data, strides);
 }
 
 void Graph::initialize(const Config& config) {
     _logger.debug("Graph initialize start");
 
-    if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr) {
+    if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
+        // To ensure that no issues are thrown during subsequent calls.
         return;
     }
-
-    _logger.debug("performing pfnGetProperties");
-    ze_graph_properties_t props{};
-    props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties(_graphDesc._handle, &props);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _zeroInitStruct->getGraphDdiTable());
-
-    _logger.debug("performing pfnGetArgumentProperties3");
-    for (uint32_t index = 0; index < props.numGraphArgs; ++index) {
-        ze_graph_argument_properties_3_t arg3{};
-        arg3.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(_graphDesc._handle, index, &arg3);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
-
-        if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
-            _inputDescriptors.push_back(ArgumentDescriptor{arg3, index});
-            _logger.debug("got pfnGetArgumentProperties3 for input: %s", _inputDescriptors.back().to_string().c_str());
-        } else {
-            _outputDescriptors.push_back(ArgumentDescriptor{arg3, index});
-            _logger.debug("got pfnGetArgumentProperties3 for output: %s",
-                          _outputDescriptors.back().to_string().c_str());
-        }
-    }
-
-    _inputDescriptors.shrink_to_fit();
-    _outputDescriptors.shrink_to_fit();
 
     _commandQueueGroupOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
                                                                         ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
@@ -232,7 +207,9 @@ void Graph::initialize(const Config& config) {
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
 
-    _batchSize = determine_batch_size();
+    if (!_batchSize.has_value()) {
+        _batchSize = determine_batch_size();
+    }
 
     if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
@@ -240,16 +217,19 @@ void Graph::initialize(const Config& config) {
 
         _lastSubmittedEvent.resize(numberOfCommandLists);
     }
+    // To ensure that the initialization of the graph does not exit prematurely due to nullptrs
+    _init_completed = true;
 }
 
 bool Graph::release_blob(const Config& config) {
-    if (_graphDesc._memoryPersistent || _blobIsPersistent || _blob == std::nullopt ||
-        _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8) || config.get<PERF_COUNT>()) {
+    if ((_zeGraphExt != nullptr && _zeGraphExt->isBlobDataImported(_graphDesc)) || _blobIsPersistent ||
+        _blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8) ||
+        config.get<PERF_COUNT>()) {
         return false;
     }
 
     ze_graph_properties_2_t properties = {};
-    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_2;
     _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_graphDesc._handle, &properties);
 
     if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {

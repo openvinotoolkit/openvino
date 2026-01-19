@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os.path
@@ -25,7 +25,9 @@ from setuptools.errors import SetupError
 WHEEL_PACKAGE_DIR = "openvino"
 WHEEL_LIBS_INSTALL_DIR = f"{WHEEL_PACKAGE_DIR}/libs"
 WHEEL_LIBS_PACKAGE = "openvino.libs"
-PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
+
+suffix = 't' if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled() else ''
+PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}{suffix}"
 
 LIBS_DIR = "bin" if platform.system() == "Windows" else "lib"
 
@@ -293,7 +295,7 @@ class CustomBuild(build):
             binary_dir = comp_data.get("binary_dir", OPENVINO_BINARY_DIR)
             install_dir = comp_data.get("install_dir")
             prefix = comp_data.get("prefix")
-            
+
             # perform installation steps if we are not given a full path
             if not os.path.isabs(install_dir):
                 # install_dir is just a sub-dir after install prefix, let's make a full path
@@ -587,12 +589,12 @@ class CopyExt(build_ext):
 
 
 class CustomInstall(install):
-    """Custom install command."""      
+    """Custom install command."""
     def run(self):
         """Enable build_clib during the installation."""
         self.run_command("build")
         super().run()
-        
+
 
 class CustomBdistWheel(bdist_wheel):
     """Custom bdist_wheel command."""
@@ -603,16 +605,16 @@ class CustomBdistWheel(bdist_wheel):
     def finalize_options(self):
         """Set final values for all the options that this command supports."""
         super().finalize_options()
-        
+
         platform_tag = os.getenv("PLATFORM_TAG")
         if platform_tag:
             self.plat_name = platform_tag
             self.plat_name_supplied = True
-            
+
         build_number = os.getenv("WHEEL_BUILD")
         if build_number:
             self.build_number = build_number
-    
+
     def run(self):
         super().run()
 

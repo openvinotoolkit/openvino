@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,10 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc& parentDesc, const MemoryDesc& childDesc);
 
-    static void reorderData(const IMemory& input, const IMemory& output, const MultiCachePtr& cache = nullptr);
+    static void reorderData(const IMemory& input,
+                            const IMemory& output,
+                            const MultiCachePtr& cache = nullptr,
+                            const std::shared_ptr<ThreadPool>& threadPool = nullptr);
 
 private:
     dnnl::reorder::primitive prim;

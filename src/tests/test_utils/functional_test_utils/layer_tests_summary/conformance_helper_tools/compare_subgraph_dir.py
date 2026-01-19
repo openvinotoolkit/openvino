@@ -1,17 +1,17 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from argparse import ArgumentParser
 from utils.file_utils import prepare_filelist
 from utils.constants import XML_EXTENSION, META_EXTENSION
-from openvino.runtime import Core
+from openvino import Core
 import defusedxml.ElementTree as ET
 
 def parse_arguments():
     parser = ArgumentParser()
 
     origin_help = "Path to output subgraphs dir"
-    ref_help = "Path to refence subgraphs dir"
+    ref_help = "Path to reference subgraphs dir"
 
     parser.add_argument("-o", "--origin", help=origin_help, required=True)
     parser.add_argument("-r", "--reference", help=ref_help, required=True)

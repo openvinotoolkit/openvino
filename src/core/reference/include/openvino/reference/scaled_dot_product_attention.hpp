@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,7 +100,7 @@ void scaled_dot_product_attention(const T* query,
     }
 
     const float default_scale_val = 1.0f / static_cast<float>(std::sqrt(query_shape[query_shape.size() - 1]));
-    const T scale_val = scale ? *scale : static_cast<T>(default_scale_val);
+    const T scale_val[1] = {scale ? *scale : static_cast<T>(default_scale_val)};
 
     auto qk_shape = query_shape;
     qk_shape[qk_shape.size() - 1] = key_shape[key_shape.size() - 2];
@@ -109,7 +109,7 @@ void scaled_dot_product_attention(const T* query,
     ov::reference::matmul<T>(query, key, qk_data.data(), query_shape, key_shape, qk_shape, false, true);
 
     ov::reference::multiply<T>(qk_data.data(),
-                               &scale_val,
+                               scale_val,
                                qk_data.data(),
                                qk_shape,
                                Shape{1},

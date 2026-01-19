@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -456,6 +456,7 @@ void remove_redundant_reorders::run(program& p) {
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
             bool allowed_dt_conversion_fuse =
                 (input.is_type<one_hot>() || input.is_type<permute>() || input.is_type<mvn>() ||
+                 input.is_type<fully_connected>() ||
                  input.is_type<concatenation>() || input.is_type<depth_to_space>() || input.is_type<region_yolo>() ||
                  input.is_type<detection_output>() || input.is_type<gather>() || input.is_type<broadcast>() ||
                  input.is_type<select>() || input.is_type<eltwise>() || input.is_type<rms>()) && !input.is_constant();
@@ -475,10 +476,12 @@ void remove_redundant_reorders::run(program& p) {
             if (input.type()->has_impl_for(input)) {
                 // Add fused_primitive_desc of reorder to the previous node which propagates original output layout
                 // during shape inference
-                if (input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<gather>() ||
+                const bool is_onednn_fc = (input.get_preferred_impl_type() == impl_types::onednn) && input.is_type<fully_connected>();
+                if ((input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<gather>() ||
                     input.is_type<broadcast>() || input.is_type<select>() || input.is_type<eltwise>() ||
-                    input.is_type<rms>() || (input.is_dynamic() &&
-                    (input.is_type<group_normalization>() || input.is_type<permute>()))) {
+                    input.is_type<rms>() ||
+                    (input.is_dynamic() && (input.is_type<group_normalization>() || input.is_type<permute>()))) ||
+                    is_onednn_fc) {
                     fused_primitive_desc local_desc(node.get_primitive());
                     local_desc.f_param = node.get_fuse_params();
                     local_desc.total_num_deps = node.get_dependencies().size();

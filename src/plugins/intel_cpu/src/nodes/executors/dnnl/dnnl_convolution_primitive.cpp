@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
@@ -403,7 +404,6 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                                   paddingR,
                                                   attr,
                                                   engine);
-            return std::move(prim_desc);
         }
 
         for (auto preferredImplType : implPriorities) {
@@ -760,12 +760,14 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
     OPENVINO_ASSERT(!cacheWeightsWithUndefData,
                     "dnnl convolution weights caching for dynamic shapes is not implemented");
 
+    const bool hasBias = !memory.at(ARG_BIAS)->getDesc().empty();
+
     ConvAttrs attrs{{1},
                     {0},
                     {0},
                     {0},
                     AutoPaddingType::None,
-                    fcAttrs.withBias,
+                    hasBias,
                     fcAttrs.weightsNonTransposed,
                     false,
                     false,
@@ -865,6 +867,7 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     auto builder = [&context, defaultImplType](const Key& dnnlKey) {
         return std::make_shared<DnnlConvolutionPrimitive>(dnnlKey,
                                                           context->getEngine(),
+                                                          context->getThreadPool(),
                                                           context->getImplPriorities(),
                                                           defaultImplType);
     };
@@ -881,7 +884,6 @@ DnnlMemoryDescPtr DnnlConvolutionPrimitive::makeTransposedWeightDescriptor(const
                                                                            const DnnlMemoryDescPtr& dstDesc,
                                                                            const ConvAttrs& attrs) {
     FCAttrs fcAttrs{};
-    fcAttrs.withBias = attrs.withBias;
     fcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
 
     return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, fcAttrs);
@@ -1014,9 +1016,10 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
 
 DnnlConvolutionPrimitive::DnnlConvolutionPrimitive(const Key& key,
                                                    const dnnl::engine& engine,
+                                                   const std::shared_ptr<ThreadPool>& threadPool,
                                                    const std::vector<impl_desc_type>& implPriorities,
                                                    const impl_desc_type defaultImplType)
-    : m_stream(dnnl::stream(engine)),
+    : m_stream(make_stream(engine, threadPool)),
       m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
                                      key.wei->getDnnlDesc(),
                                      key.bias->getDnnlDesc(),

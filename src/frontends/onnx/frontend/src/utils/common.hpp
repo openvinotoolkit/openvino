@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,11 @@ void default_op_checks(const Node& node, size_t min_inputs_size);
 /// \param[in]  min_inputs_size  Minimal amount of inputs expected
 /// \param[in]  max_inputs_size  Maximum amount of inputs expected
 void default_op_checks(const Node& node, size_t min_inputs_size, size_t max_inputs_size);
+
+/// \brief Function does a returns if input exists and is not null
+/// \param[in]  node   Node to check
+/// \param[in]  index  Input index to check
+bool is_input_valid(const Node& node, size_t index);
 
 /// \brief      Return a monotonic sequence.
 ///

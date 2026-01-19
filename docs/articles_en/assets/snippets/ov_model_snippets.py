@@ -1,13 +1,13 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 #! [import]
 import openvino as ov
 #! [import]
-import openvino.runtime.opset12 as ops
+import openvino.opset12 as ops
 #! [import]
-import openvino.runtime.passes as passes
+import openvino.passes as passes
 
 
 # ! [ov:create_simple_model]
@@ -68,7 +68,7 @@ def serialize_example(m : ov.Model):
 # ! [ov:visualize]
 def visualize_example(m : ov.Model):
     # Need import:
-    # * import openvino.runtime.passes as passes
+    # * import openvino.passes as passes
     pass_manager = passes.Manager()
     pass_manager.register_pass(passes.VisualizeTree(file_name='image.svg'))
     pass_manager.run_passes(m)

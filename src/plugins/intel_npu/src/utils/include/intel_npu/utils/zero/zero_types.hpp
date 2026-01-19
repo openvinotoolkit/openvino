@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,19 +6,12 @@
 
 #include <ze_api.h>
 #include <ze_command_queue_npu_ext.h>
+#include <ze_context_npu_ext.h>
+#include <ze_driver_npu_ext.h>
 #include <ze_graph_ext.h>
 #include <ze_graph_profiling_ext.h>
 
 #include <string_view>
-
-/**
- * @brief Last version of the Command Queue functions used within plugin
- */
-using ze_command_queue_npu_dditable_ext_last_t = ze_command_queue_npu_dditable_ext_t;
-/**
- * @brief Last version of the Graph Profiling functions used within plugin
- */
-using ze_graph_profiling_dditable_ext_last_t = ze_graph_profiling_dditable_ext_t;
 
 /**
  * @brief Table of Graph Extension functions pointers and function wrappers
@@ -188,6 +181,45 @@ public:
         throwWhenUnsupported("pfnCompilerIsOptionSupported", ZE_GRAPH_EXT_VERSION_1_11);
         return _impl->pfnCompilerIsOptionSupported(hDevice, type, pOption, pValue);
     }
+
+    // version 1.12
+    ze_result_t ZE_APICALL pfnCreate3(ze_context_handle_t hContext,
+                                      ze_device_handle_t hDevice,
+                                      const ze_graph_desc_2_t* desc,
+                                      ze_graph_handle_t* phGraph,
+                                      ze_graph_build_log_handle_t* phGraphBuildLog) {
+        throwWhenUnsupported("pfnCreate3", ZE_GRAPH_EXT_VERSION_1_12);
+        return _impl->pfnCreate3(hContext, hDevice, desc, phGraph, phGraphBuildLog);
+    }
+
+    ze_result_t ZE_APICALL pfnGetProperties3(ze_graph_handle_t hGraph, ze_graph_properties_3_t* pGraphProperties) {
+        throwWhenUnsupported("pfnGetProperties3", ZE_GRAPH_EXT_VERSION_1_12);
+        return _impl->pfnGetProperties3(hGraph, pGraphProperties);
+    }
+
+    ze_result_t ZE_APICALL pfnBuildLogGetString2(ze_graph_build_log_handle_t hGraphBuildLog,
+                                                 uint32_t* pSize,
+                                                 char* pBuildLog) {
+        throwWhenUnsupported("pfnBuildLogGetString2", ZE_GRAPH_EXT_VERSION_1_12);
+        return _impl->pfnBuildLogGetString2(hGraphBuildLog, pSize, pBuildLog);
+    }
+
+    ze_result_t ZE_APICALL pfnBuildLogDestroy(ze_graph_build_log_handle_t hGraphBuildLog) {
+        throwWhenUnsupported("pfnBuildLogDestroy", ZE_GRAPH_EXT_VERSION_1_12);
+        return _impl->pfnBuildLogDestroy(hGraphBuildLog);
+    }
+
+    // version 1.15
+    ze_result_t ZE_APICALL pfnSetArgumentValue2(ze_graph_handle_t hGraph, uint32_t argIndex, const void* pArgValue) {
+        throwWhenUnsupported("pfnSetArgumentValue2", ZE_GRAPH_EXT_VERSION_1_15);
+        return _impl->pfnSetArgumentValue2(hGraph, argIndex, pArgValue);
+    }
+
+    // version 1.16
+    ze_result_t ZE_APICALL pfnEvict(ze_graph_handle_t hGraph) {
+        throwWhenUnsupported("pfnEvict", ZE_GRAPH_EXT_VERSION_1_16);
+        return _impl->pfnEvict(hGraph);
+    }
 };
 
 /**
@@ -197,7 +229,7 @@ public:
  */
 struct ze_command_queue_npu_dditable_ext_decorator final {
 private:
-    ze_command_queue_npu_dditable_ext_last_t* const _impl;
+    ze_command_queue_npu_dditable_ext_t* const _impl;
     const uint32_t _commandQueueExtVersion;
 
     ze_command_queue_npu_dditable_ext_decorator(const ze_command_queue_npu_dditable_ext_decorator&) = delete;
@@ -219,7 +251,7 @@ private:
     }
 
 public:
-    ze_command_queue_npu_dditable_ext_decorator(ze_command_queue_npu_dditable_ext_last_t* impl,
+    ze_command_queue_npu_dditable_ext_decorator(ze_command_queue_npu_dditable_ext_t* impl,
                                                 uint32_t commandQueueExtVersion)
         : _impl(impl),
           _commandQueueExtVersion(commandQueueExtVersion) {}
@@ -241,18 +273,18 @@ public:
  * @brief Graph profiling function pointers
  * @details Use original Graph profiling functions pointers from driver for function from within lower driver versions.
  */
-struct ze_graph_profiling_ddi_table_ext_decorator final {
+struct ze_graph_profiling_dditable_ext_decorator final {
 private:
-    ze_graph_profiling_dditable_ext_last_t* const _impl;
+    ze_graph_profiling_dditable_ext_t* const _impl;
 
-    ze_graph_profiling_ddi_table_ext_decorator(const ze_graph_profiling_ddi_table_ext_decorator&) = delete;
-    ze_graph_profiling_ddi_table_ext_decorator(ze_graph_profiling_ddi_table_ext_decorator&&) = delete;
+    ze_graph_profiling_dditable_ext_decorator(const ze_graph_profiling_dditable_ext_decorator&) = delete;
+    ze_graph_profiling_dditable_ext_decorator(ze_graph_profiling_dditable_ext_decorator&&) = delete;
 
-    ze_graph_profiling_ddi_table_ext_decorator& operator=(const ze_graph_profiling_ddi_table_ext_decorator&) = delete;
-    ze_graph_profiling_ddi_table_ext_decorator& operator=(ze_graph_profiling_ddi_table_ext_decorator&&) = delete;
+    ze_graph_profiling_dditable_ext_decorator& operator=(const ze_graph_profiling_dditable_ext_decorator&) = delete;
+    ze_graph_profiling_dditable_ext_decorator& operator=(ze_graph_profiling_dditable_ext_decorator&&) = delete;
 
 public:
-    ze_graph_profiling_ddi_table_ext_decorator(ze_graph_profiling_dditable_ext_last_t* impl)
+    ze_graph_profiling_dditable_ext_decorator(ze_graph_profiling_dditable_ext_t* impl)
         : _impl(impl),
           // version 1.0
           pfnProfilingPoolCreate(_impl->pfnProfilingPoolCreate),
@@ -262,7 +294,7 @@ public:
           pfnProfilingQueryGetData(_impl->pfnProfilingQueryGetData),
           pfnDeviceGetProfilingDataProperties(_impl->pfnDeviceGetProfilingDataProperties),
           pfnProfilingLogGetString(_impl->pfnProfilingLogGetString) {}
-    ~ze_graph_profiling_ddi_table_ext_decorator() = default;
+    ~ze_graph_profiling_dditable_ext_decorator() = default;
 
     // version 1.0
     ze_pfnGraphProfilingPoolCreate_ext_t pfnProfilingPoolCreate;
@@ -274,6 +306,103 @@ public:
     ze_pfnGraphProfilingLogGetString_ext_t pfnProfilingLogGetString;
 };
 
+/**
+ * @brief Driver function pointers
+ * @details Uses original driver function pointers for functions from lower driver versions.
+ */
+struct ze_driver_npu_dditable_ext_decorator final {
+private:
+    ze_driver_npu_dditable_ext_t* const _impl;
+    const uint32_t _driverExtVersion;
+
+    ze_driver_npu_dditable_ext_decorator(const ze_driver_npu_dditable_ext_decorator&) = delete;
+    ze_driver_npu_dditable_ext_decorator(ze_driver_npu_dditable_ext_decorator&&) = delete;
+
+    ze_driver_npu_dditable_ext_decorator& operator=(const ze_driver_npu_dditable_ext_decorator&) = delete;
+    ze_driver_npu_dditable_ext_decorator& operator=(ze_driver_npu_dditable_ext_decorator&&) = delete;
+
+    void throwWhenUnsupported(std::string_view func, uint32_t since) {
+        if (_driverExtVersion < since) {
+            OPENVINO_THROW("Driver extension function ",
+                           func,
+                           " is only available with version ",
+                           ZE_MAJOR_VERSION(since),
+                           ".",
+                           ZE_MINOR_VERSION(since),
+                           " or later");
+        }
+    }
+
+public:
+    ze_driver_npu_dditable_ext_decorator(ze_driver_npu_dditable_ext_t* impl, uint32_t driverExtVersion)
+        : _impl(impl),
+          _driverExtVersion(driverExtVersion) {}
+    ~ze_driver_npu_dditable_ext_decorator() = default;
+
+    inline uint32_t version() const {
+        return _driverExtVersion;
+    }
+
+    // version 1.0
+    ze_result_t ZE_APICALL pfnGetExtension(ze_driver_handle_t hDriver, ze_driver_extension_npu_ext_t* pExtension) {
+        throwWhenUnsupported("pfnGetExtension", ZE_DRIVER_NPU_EXT_VERSION_1_0);
+        return _impl->pfnGetExtension(hDriver, pExtension);
+    }
+};
+
+/**
+ * @brief Context function wrappers
+ * @details Use function wrappers for function from within higher driver versions in order to throw when loaded driver
+ * is older than required
+ */
+struct ze_context_npu_dditable_ext_decorator final {
+private:
+    ze_context_npu_dditable_ext_t* const _impl;
+    const uint32_t _contextExtVersion;
+
+    ze_context_npu_dditable_ext_decorator(const ze_context_npu_dditable_ext_decorator&) = delete;
+    ze_context_npu_dditable_ext_decorator(ze_context_npu_dditable_ext_decorator&&) = delete;
+
+    ze_context_npu_dditable_ext_decorator& operator=(const ze_context_npu_dditable_ext_decorator&) = delete;
+    ze_context_npu_dditable_ext_decorator& operator=(ze_context_npu_dditable_ext_decorator&&) = delete;
+
+    void throwWhenUnsupported(std::string_view func, uint32_t since) {
+        if (_contextExtVersion < since) {
+            OPENVINO_THROW("Driver Context extension function ",
+                           func,
+                           " is only available with version ",
+                           ZE_MAJOR_VERSION(since),
+                           ".",
+                           ZE_MINOR_VERSION(since),
+                           " or later");
+        }
+    }
+
+public:
+    ze_context_npu_dditable_ext_decorator(ze_context_npu_dditable_ext_t* impl, uint32_t contextExtVersion)
+        : _impl(impl),
+          _contextExtVersion(contextExtVersion) {}
+    ~ze_context_npu_dditable_ext_decorator() = default;
+
+    inline uint32_t version() const {
+        return _contextExtVersion;
+    }
+
+    // version 1.0
+    ze_result_t ZE_APICALL pfnSetProperties(ze_context_handle_t hContext,
+                                            ze_context_properties_npu_ext_t* contextProperties) {
+        throwWhenUnsupported("pfnSetProperties", ZE_CONTEXT_NPU_EXT_VERSION_1_0);
+        return _impl->pfnSetProperties(hContext, contextProperties);
+    }
+
+    ze_result_t ZE_APICALL pfnReleaseMemory(ze_context_handle_t hContext) {
+        throwWhenUnsupported("pfnReleaseMemory", ZE_CONTEXT_NPU_EXT_VERSION_1_0);
+        return _impl->pfnReleaseMemory(hContext);
+    }
+};
+
 using ze_graph_dditable_ext_curr_t = ze_graph_dditable_ext_decorator;
 using ze_command_queue_npu_dditable_ext_curr_t = ze_command_queue_npu_dditable_ext_decorator;
-using ze_graph_profiling_dditable_ext_curr_t = ze_graph_profiling_ddi_table_ext_decorator;
+using ze_graph_profiling_dditable_ext_curr_t = ze_graph_profiling_dditable_ext_decorator;
+using ze_driver_npu_dditable_ext_curr_t = ze_driver_npu_dditable_ext_decorator;
+using ze_context_npu_dditable_ext_curr_t = ze_context_npu_dditable_ext_decorator;

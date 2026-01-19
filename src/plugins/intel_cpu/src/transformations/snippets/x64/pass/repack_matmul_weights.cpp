@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,7 +104,8 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
                                                                        eng,
                                                                        m_context->getParamsCache(),
                                                                        m_context->getWeightsCache(),
-                                                                       nullptr);
+                                                                       nullptr,
+                                                                       m_context->getCpuParallel()->get_thread_pool());
         weights_idxs.insert(i);
     }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,7 @@ TFL_OP_CONVERTER(concatenation);
 TFL_OP_CONVERTER(conv2d);
 TFL_OP_CONVERTER(depthwise_conv2d);
 TFL_OP_CONVERTER(dequantize);
+TFL_OP_CONVERTER(embedding_lookup);
 TFL_OP_CONVERTER(fully_connected);
 TFL_OP_CONVERTER(gather);
 TFL_OP_CONVERTER(l2_normalization);

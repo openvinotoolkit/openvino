@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const { addon: ov } = require("../..");
@@ -277,6 +277,28 @@ describe("ov.Model tests", () => {
       for (const modelInput of model.inputs) {
         assert.deepStrictEqual(modelInput.getPartialShape().toString(), pShape14.toString());
       }
+    });
+  });
+
+  describe("Model.getOps()", () => {
+    it("should return objects of type Node", () => {
+      const modelOps = model.getOps();
+      assert.ok(modelOps[0] instanceof ov.Node);
+    });
+
+    it("should return node names expected in the calling model", () => {
+      const model = core.readModelSync(addModel.xml);
+      const expectedOps = ["Parameter", "Result", "Add"];
+      const modelOperators = model.getOps().map((op) => op.getName().split("_")[0]);
+
+      assert.ok(expectedOps.every((op) => modelOperators.includes(op)));
+    });
+
+    it("should not accept any arguments", () => {
+      assert.throws(
+        () => model.getOps("Unexpected argument").then(),
+        /'getOps' method called with incorrect parameters./,
+      );
     });
   });
 });

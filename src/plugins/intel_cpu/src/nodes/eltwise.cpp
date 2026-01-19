@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -317,10 +317,10 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         {ov::op::v0::Clamp::get_type_info_static(),
          [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              auto clampOp = getNgraphOpAs<ov::op::v0::Clamp>(op);
-             auto alpha_ = static_cast<float>(clampOp->get_min());
-             auto beta_ = static_cast<float>(clampOp->get_max());
+             auto alpha_ = clampOp->get_min();
+             auto beta_ = clampOp->get_max();
              if (clampOp->get_input_element_type(0).is_integral_number()) {
-                 // according to spec, when Clamp has integer element type, min and max mist be converted to
+                 // according to spec, when Clamp has integer element type, min and max must be converted to
                  // integer
                  alpha_ = std::ceil(alpha_);
                  beta_ = std::floor(beta_);
@@ -546,23 +546,25 @@ bool Eltwise::isWithBroadcast() {
 }
 
 void Eltwise::init() {
-    // Bf16 saturation handling for gamma parameter when input precision is bf16 to make sure it stays within the valid
-    // range for bfloat16.
+    // Bf16 saturation handling for PowerStatic parameters
+    // to make sure they stay within the valid range for bfloat16.
     if (m_attrs.data.algo == Algorithm::EltwisePowerStatic && getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
-        const float lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
-        const float max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
-        auto& gamma = m_attrs.data.gamma;
+        const float bf16_lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        const float bf16_max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
 
-        if (gamma < lowest) {
-            gamma = lowest;
-        }
+        // Helper lambda to clamp parameter values within bf16 range
+        auto clampBf16Parameter = [&](auto& param) {
+            if (std::isfinite(param)) {
+                param = std::clamp(static_cast<float>(param), bf16_lowest, bf16_max);
+            }
+        };
 
-        if (gamma > max) {
-            gamma = max;
-        }
+        // Clamp all PowerStatic parameters
+        clampBf16Parameter(m_attrs.data.alpha);
+        clampBf16Parameter(m_attrs.data.beta);
+        clampBf16Parameter(m_attrs.data.gamma);
     }
 }
-
 void Eltwise::getSupportedDescriptors() {
     CPU_NODE_ASSERT(!getParentEdges().empty(), "Incorrect number of input edges");
     CPU_NODE_ASSERT(!getChildEdges().empty(), "Incorrect number of output edges");
@@ -716,7 +718,9 @@ bool Eltwise::canFuse(const NodePtr& node) const {
                     Algorithm::EltwiseMulAdd,
                     Algorithm::EltwiseSubtract,
                     Algorithm::EltwiseDivide,
-                    Algorithm::EltwiseSquaredDifference)) {
+                    Algorithm::EltwiseSquaredDifference,
+                    Algorithm::EltwiseClamp,
+                    Algorithm::EltwiseAbs)) {
             return false;
         }
 
@@ -940,7 +944,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
         case dnnl::algorithm::eltwise_hsigmoid:
         case dnnl::algorithm::eltwise_round_half_to_even:
         case dnnl::algorithm::eltwise_round_half_away_from_zero:
-            ops.append_eltwise(getOneDnnAlgorithm(), getAlpha(), getBeta());
+            ops.append_eltwise(getOneDnnAlgorithm(), static_cast<float>(getAlpha()), static_cast<float>(getBeta()));
             break;
         default:
             CPU_NODE_THROW("Appending Eltwise node with name '", getName(), "' as post operation is not supported");
@@ -951,10 +955,12 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
     // per-tensor EltwisePowerStatic can be implemented with more well-supported eltwise postOps
     if (getAlgorithm() == Algorithm::EltwisePowerStatic) {
         // d = s*beta + gamma
-        ops.append_eltwise(dnnl::algorithm::eltwise_linear, getBeta(), getGamma());
+        ops.append_eltwise(dnnl::algorithm::eltwise_linear,
+                           static_cast<float>(getBeta()),
+                           static_cast<float>(getGamma()));
         if (getAlpha() != 1.0F) {
             // d = 1 * s^alpha
-            ops.append_eltwise(dnnl::algorithm::eltwise_pow, 1.0F, getAlpha());
+            ops.append_eltwise(dnnl::algorithm::eltwise_pow, 1.0F, static_cast<float>(getAlpha()));
         }
         return;
     }
@@ -1064,11 +1070,11 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
         case dnnl::algorithm::eltwise_hsigmoid:
         case dnnl::algorithm::eltwise_round_half_to_even:
         case dnnl::algorithm::eltwise_round_half_away_from_zero:
-            dnnlpoc.appendEltwise(getOneDnnAlgorithm(), getAlpha(), getBeta());
+            dnnlpoc.appendEltwise(getOneDnnAlgorithm(), static_cast<float>(getAlpha()), static_cast<float>(getBeta()));
             break;
         case dnnl::algorithm::eltwise_linear:
             // call dnnlpoc's specialized API to generate optimized postOps sequence
-            dnnlpoc.appendLinear({getAlpha()}, {getBeta()}, isLastPostOp);
+            dnnlpoc.appendLinear({static_cast<float>(getAlpha())}, {static_cast<float>(getBeta())}, isLastPostOp);
             break;
         default:
             CPU_NODE_THROW("as post operation is not supported");

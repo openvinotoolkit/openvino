@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporationov::npuw::
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,16 +32,6 @@ std::string ov::npuw::online::util::getMetaDesc(const std::shared_ptr<ov::Node>&
 
     // FIXME: should be { self type. self inputs. self outputs. self attrs. self data }
     //        can't extract data here?
-    return ss.str();
-}
-
-std::string ov::npuw::online::util::repeated_id(const std::shared_ptr<Repeated>& ptr) {
-    if (!ptr) {
-        OPENVINO_THROW("Online partitioning tried to convert nullptr Repeated to id!");
-    }
-    const void* address = static_cast<const void*>(ptr.get());
-    std::stringstream ss;
-    ss << address;
     return ss.str();
 }
 
@@ -227,7 +217,7 @@ std::vector<std::string> ov::npuw::online::util::getNoFolds(const std::string& n
     }
 
     std::vector<std::string> nofolds;
-    std::string s = std::move(nofolds_unparsed);
+    std::string s(nofolds_unparsed);
 
     size_t pos = 0;
     size_t start = 0;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::value_cache_precision, "value_cache_precision");
     wrap_property_RW(m_properties, ov::key_cache_group_size, "key_cache_group_size");
     wrap_property_RW(m_properties, ov::value_cache_group_size, "value_cache_group_size");
+    wrap_property_RW(m_properties, ov::enable_weightless, "enable_weightless");
 
     wrap_property_RO(m_properties, ov::supported_properties, "supported_properties");
     wrap_property_RO(m_properties, ov::available_devices, "available_devices");
@@ -107,11 +108,16 @@ void regmodule_properties(py::module m) {
     py::module m_intel_cpu =
         m_properties.def_submodule("intel_cpu", "openvino.properties.intel_cpu submodule that simulates ov::intel_cpu");
 
+    py::enum_<ov::intel_cpu::TbbPartitioner>(m_intel_cpu, "TbbPartitioner", py::arithmetic())
+        .value("STATIC", ov::intel_cpu::TbbPartitioner::STATIC)
+        .value("AUTO", ov::intel_cpu::TbbPartitioner::AUTO);
+
     // Submodule intel_cpu property
     wrap_property_RW(m_intel_cpu, ov::intel_cpu::denormals_optimization, "denormals_optimization");
     wrap_property_RW(m_intel_cpu,
                      ov::intel_cpu::sparse_weights_decompression_rate,
                      "sparse_weights_decompression_rate");
+    wrap_property_RW(m_intel_cpu, ov::intel_cpu::tbb_partitioner, "tbb_partitioner");
 
     // Submodule intel_gpu
     py::module m_intel_gpu =
@@ -345,4 +351,5 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_npu, ov::intel_npu::qdq_optimization, "qdq_optimization");
     wrap_property_RW(m_intel_npu, ov::intel_npu::qdq_optimization_aggressive, "qdq_optimization_aggressive");
     wrap_property_RW(m_intel_npu, ov::intel_npu::run_inferences_sequentially, "run_inferences_sequentially");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::disable_idle_memory_prunning, "disable_idle_memory_prunning");
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "prepare_buffer_fusing.h"
@@ -216,15 +216,6 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             if (!pred.first->can_be_optimized())
                 is_onednn_impl = true;
         }
-        // If sibling is using onednn impl and batch > 1, the onednn impl cannot process the implicit concat'ed buffer.
-        // Onednn impls can process implicit concat'ed buffer only through buffer pointer manipulation.
-        if ((!concat_node.is_dynamic() || is_runtime) && (concat_params.get_output_layout().batch() > 1)) {
-            for (auto& sib : pred.first->get_users()) {
-                if (sib->get_preferred_impl_type() == impl_types::onednn) {
-                    return false;
-                }
-            }
-        }
         const auto& input_padd = pred.first->get_output_layout().data_padding;
 
         // Check that there isn't already some padding between inputs in concat axis.
@@ -329,7 +320,10 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
 
      // apply concatenation in place optimization
     for (auto& pred_layout : preds_layouts) {
-        auto input_length = pred_layout.get_dims()[concat_axis];
+        const auto& pshape = pred_layout.get_partial_shape();
+        OPENVINO_ASSERT(pshape[concat_axis].is_static(), "[GPU] Dynamic dimension is not allowed for the concat axis when updating padding");
+        auto input_length = pshape[concat_axis].get_length();
+
         // shrink upper pad so it points at the end of the input's buffer
         //
         //   |--- lower padd ---|                    |---------- upper padd -----------|
@@ -766,10 +760,10 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
 
                 user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, reshape_dyn_pad_mask);
             } else {
-                auto reshape_ps = user_info.second.get_partial_shape();
+                const auto reshape_ps = user_info.second.get_partial_shape();
                 auto output_pattern = reshape_desc->output_pattern;
 
-                auto reshape_axis = crop_axis;
+                int64_t reshape_axis = static_cast<int64_t>(crop_axis);
                 for (size_t i = 0; i < output_pattern.size(); i++) {
                     if (output_pattern[i] <= static_cast<int64_t>(reshape_axis)) {
                         reshape_axis += reshape_mode == reshape::reshape_mode::unsqueeze ? 1 : -1;
@@ -780,6 +774,8 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                 std::vector<ov::Dimension::value_type> reshape_lower_sizes(output_rank, 0);
                 std::vector<ov::Dimension::value_type> reshape_upper_sizes(output_rank, 0);
                 padding::DynamicDimsMask reshape_dyn_pad_mask;
+
+                OPENVINO_ASSERT(reshape_axis >= 0 && static_cast<size_t>(reshape_axis) < output_rank, "[GPU] Calculated reshape_axis is out of range.");
 
                 reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
                 reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];

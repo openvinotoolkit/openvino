@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -244,6 +244,14 @@ void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
         throw std::runtime_error("Attempt to free unallocated memory");
     }
     _memory_usage_data[idx] -= bytes;
+}
+
+void engine::set_enable_large_allocations(bool enable_large_allocations) {
+    this->enable_large_allocations = enable_large_allocations;
+}
+
+bool engine::get_enable_large_allocations() const {
+    return enable_large_allocations;
 }
 
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {

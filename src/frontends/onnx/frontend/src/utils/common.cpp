@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <onnx/onnx_pb.h>  // onnx types
 
+#include "core/null_node.hpp"
 #include "core/tensor.hpp"
 #include "onnx_framework_node.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -100,6 +101,14 @@ void default_op_checks(const Node& node, size_t min_inputs_size, size_t max_inpu
                                   inputs.size());
 }
 
+bool is_input_valid(const Node& node, size_t index) {
+    const auto& inputs = node.get_ov_inputs();
+    if (index >= inputs.size())
+        return false;
+    const auto node_ptr = inputs[index].get_node_shared_ptr();
+    return node_ptr != nullptr && !ov::as_type_ptr<NullNode>(node_ptr);
+}
+
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,
                                                               int64_t start_value,
                                                               int64_t step) {
@@ -162,7 +171,8 @@ ov::OutputVector handle_opset6_binary_op(const ov::frontend::onnx::Node& node) {
                 auto new_shape = std::make_shared<v0::Concat>(ov::OutputVector{rhs_shape, ones}, 0);
                 rhs_node = std::make_shared<v1::Reshape>(rhs_node, new_shape, false);
             }
-        } else {
+        } else if (!std::is_base_of<op::util::BinaryElementwiseArithmetic, T>::value) {
+            // Broadcasting is done automatically in BinaryElementwiseArithmetic ops
             rhs_node = std::make_shared<v3::Broadcast>(rhs_node, std::make_shared<v0::ShapeOf>(lhs_node));
         }
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include <chrono>
 
-float ov::npuw::perf::ms_to_run(std::function<void()>&& body) {
+float ov::npuw::perf::ms_to_run(const std::function<void()>& body) {
     namespace khr = std::chrono;
     const auto s = khr::steady_clock::now();
     body();

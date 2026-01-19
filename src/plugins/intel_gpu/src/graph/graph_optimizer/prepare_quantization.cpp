@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -372,6 +372,10 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
         for (size_t i = 1; i < eltwise_node.get_dependencies().size(); i++) {
             auto mem0 = get_scale_shift_mem(eltwise_dep, i);
             auto mem1 = get_scale_shift_mem(eltwise_node, i);
+            if (mem0->get_layout().bytes_count() != mem1->get_layout().bytes_count()) {
+                same_params = false;
+                break;
+            }
 
             mem_lock<uint8_t, mem_lock_type::read> mem0_lock{mem0, stream};
             mem_lock<uint8_t, mem_lock_type::read> mem1_lock{mem1, stream};
@@ -384,7 +388,6 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
                     break;
                 }
             }
-
             // Avoid mem0 and mem1's memory are inplace, but they have different layout.
             if (!mem0->get_layout().get_partial_shape().compatible(mem1->get_layout().get_partial_shape())) {
                 same_params = false;
@@ -524,10 +527,10 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     if (!fc_prim->compressed_weights)
         return;
 
-    auto reorder_bfyx_to_fbyx = [&](size_t dep_id) {
+    auto reorder_bfyx = [&](size_t dep_id, cldnn::format format) {
         auto& dep = fc_node.get_dependency(dep_id);
         auto target_layout = dep.get_output_layout();
-        target_layout.format = format::fbyx;
+        target_layout.format = format;
         auto reorder_prim = std::make_shared<reorder>(dep.id() + "_reorder_" + fc_node.id(), dep.id(), target_layout);
         p.add_intermediate(reorder_prim, fc_node, dep_id, true);
         fc_node.get_dependency(dep_id).recalc_output_layout(false);
@@ -560,15 +563,19 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
         weight_rank = std::max(static_cast<size_t>(2), weight_rank);
     }
 
+    cldnn::format format = format::fbyx;
+    if (weight_rank == 3)
+      format = format::byfx;
+
     auto decompression_scale_idx = !fc_node.bias_term() ? 2 : 3;
     if (need_reorder(decompression_scale_idx, weight_rank)) {
-        reorder_bfyx_to_fbyx(decompression_scale_idx);
+        reorder_bfyx(decompression_scale_idx, format);
     }
 
     if (fc_prim->decompression_zero_point.is_valid()) {
         auto decompression_zp_idx = decompression_scale_idx + 1;
         if (need_reorder(decompression_zp_idx, weight_rank)) {
-            reorder_bfyx_to_fbyx(decompression_zp_idx);
+            reorder_bfyx(decompression_zp_idx, format);
         }
     }
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,11 @@ ov::element::Type memoryDescType(const Config& config) {
 }
 
 template <typename Config>
+bool hasBias(const Config& config) {
+    return !config.descs.at(ARG_BIAS)->empty();
+}
+
+template <typename Config>
 ov::element::Type srcType(const Config& config) {
     return memoryDescType<Config, ARG_SRC>(config);
 }
@@ -54,7 +59,7 @@ ov::element::Type dstType(const Config& config) {
 }
 
 template <typename Config, int idx>
-ov::element::Type dims(const Config& config) {
+const VectorDims& dims(const Config& config) {
     return config.descs.at(idx)->getShape().getDims();
 }
 

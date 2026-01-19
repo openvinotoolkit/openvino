@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/region_yolo.hpp"
@@ -392,10 +391,11 @@ inline float RegionYolo::logistic_scalar(float src) {
 }
 
 inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_t* dst_data) {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto dst_data_size = output_prec.size();
     if (logistic_kernel) {
         int blocks_num = div_up(count, block_size);
-        parallel_for(blocks_num, [&](int ib) {
+        cpu_parallel->parallel_for(blocks_num, [&](int ib) {
             int idx = ib * block_size;
             int work_amount = std::min(count - idx, block_size);
 

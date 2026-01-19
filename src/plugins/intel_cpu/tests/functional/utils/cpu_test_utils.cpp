@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -253,7 +253,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
 
 bool CPUTestsBase::primTypeCheck(std::string primType) const {
 #ifndef NDEBUG
-    std::cout << "selectedType: " << selectedType << "primType: " << primType << std::endl;
+    std::cout << "selectedType: " << selectedType << ", primType: " << primType << std::endl;
 #endif
     if (selectedType.find("FP") != std::string::npos)
         return selectedType.find(CPUTestsBase::any_type) != std::string::npos ||

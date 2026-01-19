@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution1D, ConvolutionLayerTest,
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvolutionLayerTest::getTestCaseName);
 
+const auto conv1DParams_mux = ::testing::Combine(
+        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{4}, {128}})),
+        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{2}, {16}})),
+        ::testing::Values(std::vector<ptrdiff_t>({0})),
+        ::testing::Values(std::vector<ptrdiff_t>({0})),
+        ::testing::Values(std::vector<size_t>({1})),
+        ::testing::ValuesIn(std::vector<size_t>({16, 128})),
+        ::testing::Values(ov::op::PadType::EXPLICIT)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution1D_B32, ConvolutionLayerTest,
+                         ::testing::Combine(
+                                 conv1DParams_mux,
+                                 ::testing::ValuesIn({ov::element::f32}),
+                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>(
+                                        {{{32, 1, 4102}}, {{32, 16, 4102}}}))),
+                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         ConvolutionLayerTest::getTestCaseName);
 /* ============= 2D Convolution ============= */
 const std::vector<std::vector<size_t >> kernels = {{3, 3},
                                                    {3, 5}};
@@ -81,6 +99,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid, ConvolutionLayerTest,
                                  conv2DParams_AutoPadValid,
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(ov::test::static_shapes_to_test_representation({{1, 3, 30, 30}})),
+                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         ConvolutionLayerTest::getTestCaseName);
+
+const auto conv2DParams_emb = ::testing::Combine(
+        ::testing::Values(std::vector<size_t>({3, 3})),
+        ::testing::Values(std::vector<size_t>({1, 1})),
+        ::testing::Values(std::vector<ptrdiff_t>({1, 1})),
+        ::testing::Values(std::vector<ptrdiff_t>({1, 1})),
+        ::testing::Values(std::vector<size_t>({1, 1})),
+        ::testing::Values(64),
+        ::testing::Values(ov::op::PadType::EXPLICIT)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_B32, ConvolutionLayerTest,
+                         ::testing::Combine(
+                                 conv2DParams_emb,
+                                 ::testing::ValuesIn({ov::element::f32}),
+                                 ::testing::Values(ov::test::static_shapes_to_test_representation({{32, 64, 128, 199}})),
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvolutionLayerTest::getTestCaseName);
 /* ============= 3D Convolution ============= */

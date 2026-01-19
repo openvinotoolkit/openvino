@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "core/operator_set.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "translate_session.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -15,7 +16,9 @@ namespace frontend {
 namespace onnx {
 namespace ai_onnx {
 namespace opset_1 {
-ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
+
+namespace detail {
+ov::OutputVector if_legacy(const ov::frontend::onnx::Node& node) {
     const auto& ng_inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(ng_inputs.size() == 1, "If operator takes only one input");
 
@@ -65,6 +68,79 @@ ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
     if_node->validate_and_infer_types();
 
     return if_node->outputs();
+}
+
+ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
+    const auto& ng_inputs = node.get_ov_inputs();
+    FRONT_END_GENERAL_CHECK(ng_inputs.size() == 1, "If operator takes only one input");
+
+    auto if_node = std::make_shared<v8::If>(ng_inputs[0]);
+
+    auto then_branch = node.get_attribute_value<std::shared_ptr<ov::Model>>("then_branch", nullptr);
+    FRONT_END_GENERAL_CHECK(then_branch != nullptr, "Missing 'then_branch' attribute");
+    auto else_branch = node.get_attribute_value<std::shared_ptr<ov::Model>>("else_branch", nullptr);
+    FRONT_END_GENERAL_CHECK(else_branch != nullptr, "Missing 'else_branch' attribute");
+
+    if_node->set_then_body(then_branch);
+    if_node->set_else_body(else_branch);
+
+    auto translate_session = node.get_translate_session();
+
+    const auto& then_params = then_branch->get_parameters();
+    const auto& else_params = else_branch->get_parameters();
+
+    for (auto& input : then_params) {
+        const auto& names = input->output(0).get_names();
+        ov::Output<ov::Node> known_input;
+        for (const auto& name : names) {
+            known_input = translate_session->lookup_tensor(name);
+            if (known_input.get_node() != nullptr) {
+                break;
+            }
+        }
+        if (known_input.get_node() != nullptr) {
+            if_node->set_input(known_input, input, nullptr);
+        } else {
+            FRONT_END_THROW("Non-existent connection in then-branch to " + input->get_friendly_name());
+        }
+    }
+
+    for (auto& input : else_params) {
+        const auto& names = input->output(0).get_names();
+        ov::Output<ov::Node> known_input;
+        for (const auto& name : names) {
+            known_input = translate_session->lookup_tensor(name);
+            if (known_input.get_node() != nullptr) {
+                break;
+            }
+        }
+        if (known_input.get_node() != nullptr) {
+            if_node->set_input(known_input, nullptr, input);
+        } else {
+            FRONT_END_THROW("Non-existent connection in else-branch to " + input->get_friendly_name());
+        }
+    }
+
+    auto then_results = then_branch->get_results();
+    auto else_results = else_branch->get_results();
+    FRONT_END_GENERAL_CHECK(then_results.size() == else_results.size(),
+                            "'then' and 'else' branches have to have the same number of outputs");
+    int output_size = static_cast<int>(then_results.size());
+    for (int ind = 0; ind < output_size; ++ind) {
+        if_node->set_output(then_results[ind], else_results[ind]);
+    }
+
+    if_node->validate_and_infer_types();
+    return if_node->outputs();
+}
+}  // namespace detail
+
+ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
+    if (!node.has_decoder()) {
+        return detail::if_legacy(node);
+    } else {
+        return detail::if_op(node);
+    }
 }
 ONNX_OP("If", OPSET_SINCE(1), ai_onnx::opset_1::if_op);
 }  // namespace opset_1

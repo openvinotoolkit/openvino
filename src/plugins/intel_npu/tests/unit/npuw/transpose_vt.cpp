@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <gtest/gtest.h>
@@ -182,7 +182,7 @@ public:
         }
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<OptimizeVTTestParamsTuple> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<OptimizeVTTestParamsTuple>& obj) {
         auto test = OptimizeVTTestParams{obj.param};
 
         std::ostringstream result;

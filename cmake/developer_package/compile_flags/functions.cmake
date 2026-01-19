@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,7 +10,7 @@ include(CheckCXXSourceCompiles)
 # ov_disable_deprecated_warnings()
 #
 # Disables deprecated warnings generation in current scope (directory, function)
-# Defines ov_c_cxx_deprecated varaible which contains C / C++ compiler flags
+# Defines ov_c_cxx_deprecated variable which contains C / C++ compiler flags
 #
 macro(ov_disable_deprecated_warnings)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -37,7 +37,7 @@ endmacro()
 # ov_deprecated_no_errors()
 #
 # Don't threat deprecated warnings as errors in current scope (directory, function)
-# Defines ov_c_cxx_deprecated_no_errors varaible which contains C / C++ compiler flags
+# Defines ov_c_cxx_deprecated_no_errors variable which contains C / C++ compiler flags
 #
 macro(ov_deprecated_no_errors)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -236,7 +236,6 @@ macro(ov_arm_neon_optimization_flags flags)
         endif()
     else()
         if(AARCH64)
-            set(${flags} -O2)
             if(NOT CMAKE_CL_64)
                 list(APPEND ${flags} -ftree-vectorize)
             endif()
@@ -263,7 +262,7 @@ macro(ov_arm_neon_fp16_optimization_flags flags)
             message(WARNING "ARM64 fp16 is not supported by Android armv7")
         endif()
     elseif(AARCH64)
-        set(${flags} -O2 -march=armv8.2-a+fp16)
+        set(${flags} -march=armv8.2-a+fp16)
         if(NOT CMAKE_CL_64)
             list(APPEND ${flags} -ftree-vectorize)
         endif()
@@ -301,8 +300,6 @@ macro(ov_arm_sve_optimization_flags flags)
         endif()
     else()
         if(AARCH64)
-            set(${flags} -O2)
-
             # Add flag for SVE if supported
             if(CXX_SVE_FOUND)
                 list(APPEND ${flags} -march=armv8-a+sve+fp16)

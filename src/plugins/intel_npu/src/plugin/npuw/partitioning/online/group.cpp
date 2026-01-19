@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporationov::npuw::
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,7 +110,7 @@ ov::npuw::Group Group::toGroup() const {
     g.gflops = 0.0001f;  // FIXME: calculate proper flops
 
     if (m_repeated && !isNoFold()) {
-        g.repeated_id = ov::npuw::online::util::repeated_id(m_repeated);
+        g.repeated_id = m_repeated->id();
     }
 
     if (!m_avoided_devices.empty()) {
@@ -121,7 +121,7 @@ ov::npuw::Group Group::toGroup() const {
         }
     }
 
-    g.tag = m_isol_tag;
+    g.settag(m_isol_tag);
 
     return g;
 }
@@ -133,6 +133,10 @@ std::shared_ptr<ov::Node> Group::getInitialNode() const {
     }
 
     return *(m_content.begin());
+}
+
+const std::unordered_set<std::shared_ptr<ov::Node>>& Group::getOutputs() const {
+    return m_output_layers;
 }
 
 void Group::addInput(const std::shared_ptr<ov::Node>& node) {
@@ -247,6 +251,19 @@ void Group::fuse(const Group::GPtr& gptr_prod) {
 
 // This group absorbs the consumer
 void Group::fuseWith(const Group::GPtr& gptr_cons) {
+    if (ov::npuw::debug_groups()) {
+        LOG_DEBUG("Fusing...");
+        LOG_BLOCK();
+        {
+            LOG_DEBUG("Merger: " << this->specialTags());
+            dump();
+        }
+        {
+            LOG_DEBUG("Mergee: " << gptr_cons->specialTags());
+            gptr_cons->dump();
+        }
+    }
+
     auto locked_snapshot = m_snapshot.lock();
     auto node_to_gr = locked_snapshot->getNodeToGroupMap();
     for (const auto& layer : gptr_cons->m_content) {
@@ -474,4 +491,11 @@ void Group::dontIsolate() {
 
 const std::string& Group::isolatedTag() const {
     return m_isol_tag;
+}
+
+void Group::dump() const {
+    LOG_BLOCK();
+    for (auto&& layer : m_content) {
+        LOG_DEBUG(layer);
+    }
 }

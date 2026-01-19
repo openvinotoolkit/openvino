@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,6 +35,14 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v4 = ov::op::v4;
+namespace v8 = ov::op::v8;
+namespace v13 = ov::op::v13;
 namespace {
 
 bool can_move_scale_after_matmul(const ov::Output<ov::Node>& query,
@@ -54,8 +62,8 @@ bool can_move_scale_after_matmul(const ov::Output<ov::Node>& query,
 
     // using the original implementation to calculate the shapes.
     // we need to move the scale after MatMul only if the tensor after MatMul is smaller.
-    auto q_scaled = std::make_shared<ov::op::v1::Multiply>(query, scale);
-    auto scaled_attn = std::make_shared<ov::op::v0::MatMul>(q_scaled, kT);
+    auto q_scaled = std::make_shared<v1::Multiply>(query, scale);
+    auto scaled_attn = std::make_shared<v0::MatMul>(q_scaled, kT);
     const auto& scaled_attn_pshape = scaled_attn->output(0).get_partial_shape();
     if (scaled_attn_pshape.is_static()) {
         return ov::shape_size(query_pshape.to_shape()) > ov::shape_size(scaled_attn_pshape.to_shape());
@@ -67,12 +75,12 @@ bool can_move_scale_after_matmul(const ov::Output<ov::Node>& query,
 
 ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecomposition() {
     MATCHER_SCOPE(ScaledDotProductAttentionDecomposition);
-    auto pattern_node = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
+    auto pattern_node = ov::pass::pattern::wrap_type<v13::ScaledDotProductAttention>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto node = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(
-            pattern_to_output.at(pattern_node).get_node_shared_ptr());
+        auto node =
+            ov::as_type_ptr<v13::ScaledDotProductAttention>(pattern_to_output.at(pattern_node).get_node_shared_ptr());
 
         if (node == nullptr || transformation_callback(node)) {
             return false;
@@ -83,13 +91,12 @@ ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecom
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_node, matcher_name);
+    auto m = std::make_shared<Matcher>(pattern_node, matcher_name);
     register_matcher(m, callback);
 }
 
 std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::decompose(
-    std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node) {
-    using namespace ov::op;
+    std::shared_ptr<v13::ScaledDotProductAttention> node) {
     auto query = node->input_value(0);
     auto key = node->input_value(1);
     auto value = node->input_value(2);
@@ -124,7 +131,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         scale = register_new_node<v1::ConvertLike>(scale, query);
         auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
         scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
-    } else if (node->get_input_size() < 7) {
+    } else {
         scale = node->input_value(4);
         if (node->get_input_size() == 6) {
             sink = node->input_value(5);
@@ -204,8 +211,8 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         auto scaled_attn_sink = register_new_node<v0::Concat>(OutputVector{scaled_atten, sink_broadcast}, -1);
         scaled_atten = register_new_node<v8::Softmax>(scaled_attn_sink, -1);
 
-        auto seq_len = register_new_node<v8::Gather>(q_shape, minus_two, zero_i);
-        scaled_atten = register_new_node<v8::Slice>(scaled_atten, zero_i, seq_len, one_i, minus_one);
+        auto prev_seq_len = register_new_node<v8::Gather>(k_shape, minus_two, zero_i);
+        scaled_atten = register_new_node<v8::Slice>(scaled_atten, zero_i, prev_seq_len, one_i, minus_one);
     } else {
         scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
     }

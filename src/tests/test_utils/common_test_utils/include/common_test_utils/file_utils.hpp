@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,12 +6,15 @@
 
 #include <sys/stat.h>
 
+#include <filesystem>
 #include <fstream>
 #include <regex>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/w_dirent.h"
 #include "openvino/runtime/internal_properties.hpp"
@@ -26,9 +29,69 @@
 #    include <unistd.h>
 #endif  // _WIN32
 
-namespace ov {
-namespace test {
-namespace utils {
+namespace ov::test::utils {
+
+/// OS specific file traits
+template <class C>
+struct FileTraits;
+
+template <>
+struct FileTraits<char> {
+    static constexpr const auto file_separator =
+#ifdef _WIN32
+        '\\';
+#else
+        '/';
+#endif
+    static constexpr const auto dot_symbol = '.';
+    static std::string library_ext() {
+#ifdef _WIN32
+        return {"dll"};
+#else
+        return {"so"};
+#endif
+    }
+    static std::string library_prefix() {
+#ifdef _WIN32
+#    if defined(__MINGW32__) || defined(__MINGW64__)
+        return {"lib"};
+#    else
+        return {""};
+#    endif
+#else
+        return {"lib"};
+#endif
+    }
+};
+
+template <>
+struct FileTraits<wchar_t> {
+    static constexpr const auto file_separator =
+#ifdef _WIN32
+        L'\\';
+#else
+        L'/';
+#endif
+    static constexpr const auto dot_symbol = L'.';
+    static std::wstring library_ext() {
+#ifdef _WIN32
+        return {L"dll"};
+#else
+        return {L"so"};
+#endif
+    }
+    static std::wstring library_prefix() {
+#ifdef _WIN32
+#    if defined(__MINGW32__) || defined(__MINGW64__)
+        return {L"lib"};
+#    else
+        return {L""};
+#    endif
+#else
+        return {L"lib"};
+#endif
+    }
+};
 
 template <class T>
 inline std::string to_string_c_locale(T value) {
@@ -38,10 +101,9 @@ inline std::string to_string_c_locale(T value) {
     return val_stream.str();
 }
 
-inline std::string makePath(const std::string& folder, const std::string& file) {
-    if (folder.empty())
-        return file;
-    return folder + FileSeparator + file;
+template <class C, std::enable_if_t<(std::is_same_v<C, char> || std::is_same_v<C, wchar_t>)>* = nullptr>
+inline std::basic_string<C> makePath(const std::basic_string<C>& folder, const std::basic_string<C>& file) {
+    return folder.empty() ? file : folder + FileTraits<C>::file_separator + file;
 }
 
 inline long long fileSize(const char* fileName) {
@@ -75,11 +137,11 @@ inline void removeFile(const std::string& path) {
 
 inline void removeIRFiles(const std::string& xmlFilePath, const std::string& binFileName) {
     if (fileExists(xmlFilePath)) {
-        std::remove(xmlFilePath.c_str());
+        std::filesystem::remove(ov::util::make_path(xmlFilePath));
     }
 
     if (fileExists(binFileName)) {
-        std::remove(binFileName.c_str());
+        std::filesystem::remove(ov::util::make_path(binFileName));
     }
 }
 
@@ -87,6 +149,7 @@ inline void removeIRFiles(const std::string& xmlFilePath, const std::string& bin
 // Return value:
 // < 0 - error
 // >= 0 - count of removed files
+template <bool Force = !opt::FORCE>
 inline int removeFilesWithExt(std::string path, std::string ext) {
     struct dirent* ent;
     DIR* dir = opendir(path.c_str());
@@ -97,6 +160,11 @@ inline int removeFilesWithExt(std::string path, std::string ext) {
             struct stat stat_path;
             stat(file.c_str(), &stat_path);
             if (!S_ISDIR(stat_path.st_mode) && endsWith(file, "." + ext)) {
+                if constexpr (Force) {
+                    std::filesystem::permissions(file,
+                                                 std::filesystem::perms::owner_write,
+                                                 std::filesystem::perm_options::add);
+                }
                 auto err = std::remove(file.c_str());
                 if (err != 0) {
                     closedir(dir);
@@ -173,9 +241,9 @@ std::string getCurrentWorkingDir();
 std::string getRelativePath(const std::string& from, const std::string& to);
 
 namespace {
-inline std::string get_mock_engine_path() {
+inline std::filesystem::path get_mock_engine_path() {
     std::string mockEngineName("mock_engine");
-    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+    return ov::util::make_plugin_library_name(ov::util::make_path(ov::test::utils::getExecutableDirectory()),
                                               mockEngineName + OV_BUILD_POSTFIX);
 }
 
@@ -204,7 +272,6 @@ class MockPlugin : public ov::IPlugin {
             if (it.first == ov::num_streams.name())
                 num_streams = it.second.as<ov::streams::Num>();
         }
-        OPENVINO_NOT_IMPLEMENTED;
     }
 
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
@@ -259,6 +326,8 @@ private:
     int32_t num_streams{0};
 };
 
-}  // namespace utils
-}  // namespace test
-}  // namespace ov
+using StringPathVariant = std::variant<std::string, std::u16string, std::u32string, std::wstring>;
+
+std::filesystem::path to_fs_path(const StringPathVariant& param);
+
+}  // namespace ov::test::utils

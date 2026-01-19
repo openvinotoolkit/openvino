@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,16 @@ public:
     }
 };
 
+bool has_input(const std::shared_ptr<ov::Model>& model, const std::string& name);
+
 // SDPA-unroll and transpose transformations
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill);
+
+std::shared_ptr<ov::Model> prepare_whisper_prefill_model(std::shared_ptr<ov::Model>& model,
+                                                         const uint32_t& max_prompt_size,
+                                                         const uint32_t& lhs_seq_size);
+
+std::shared_ptr<ov::Model> prepare_whisper_kvcache_model(std::shared_ptr<ov::Model>& model);
 
 // clang-format off
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -118,6 +118,12 @@ Napi::Array cpp_to_js<ov::Dimension, Napi::Array>(const Napi::CallbackInfo& info
  * @return Javascript Model as Napi::Object. (Not ModelWrap object)
  */
 Napi::Object cpp_to_js(const Napi::Env& env, std::shared_ptr<ov::Model> model);
+
+/**
+ * @brief Creates JavaScript Node and wraps ov::Node inside of it.
+ * @return Javascript Node as Napi::Object. (Not NodeWrap object)
+ */
+Napi::Object cpp_to_js(const Napi::Env& env, std::shared_ptr<ov::Node> node);
 
 template <>
 Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, const bool value);

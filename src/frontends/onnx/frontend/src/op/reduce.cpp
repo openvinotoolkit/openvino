@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
@@ -137,7 +138,7 @@ std::shared_ptr<ov::Node> make_ov_reduction_op(const Node& node,
     if (reduction_axes != nullptr) {
         return std::make_shared<OpType>(ov_input, reduction_axes, static_cast<bool>(keepdims));
     } else {
-        return ai_onnx::opset_1::identity(node).at(0).get_node_shared_ptr();
+        return std::make_shared<v16::Identity>(ov_input);
     }
 }
 

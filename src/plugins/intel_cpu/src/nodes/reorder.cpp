@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,8 +38,8 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
@@ -353,6 +353,7 @@ bool Reorder::created() const {
 }
 
 void Reorder::optimizedNcsp2Nspc() {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto parentEdge = getParentEdgeAt(0);
     auto childEdge = getChildEdgeAt(0);
 
@@ -374,7 +375,7 @@ void Reorder::optimizedNcsp2Nspc() {
     const size_t stride1 = DIM2 * DIM3 * DIM4;
     const size_t stride2 = DIM2 * DIM3;
 
-    parallel_for3d(DIM0, DIM1, stride2, [&](size_t dim0, size_t dim1, size_t j) {
+    cpu_parallel->parallel_for3d(DIM0, DIM1, stride2, [&](size_t dim0, size_t dim1, size_t j) {
         size_t src_off = dim0 * src_batch_stride + j * DIM4 + dim1 * stride1;
         size_t dst_off = dim0 * dst_batch_stride + j * DIM4 * dst_channel_stride + dim1;
 
@@ -387,6 +388,7 @@ void Reorder::optimizedNcsp2Nspc() {
 }
 
 void Reorder::optimizedNspc2Ncsp() {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto parentEdge = getParentEdgeAt(0);
     auto childEdge = getChildEdgeAt(0);
 
@@ -405,7 +407,7 @@ void Reorder::optimizedNspc2Ncsp() {
     const size_t block_size = DIM2 * DIM3 * DIM4;
     const size_t src_batch_stride = block_size * DIM1;
     const size_t dst_batch_stride = dstStrides[0];
-    parallel_for2d(DIM0, block_size, [&](size_t b, size_t j) {
+    cpu_parallel->parallel_for2d(DIM0, block_size, [&](size_t b, size_t j) {
         auto src_off = b * src_batch_stride + j * DIM1;
         auto dst_off = b * dst_batch_stride + j;
         for (size_t dim1 = 0; dim1 < DIM1; ++dim1) {
@@ -468,7 +470,10 @@ std::string Reorder::getReorderArgs(const MemoryDesc& parentDesc, const MemoryDe
     return inArgs + "_" + outArgs;
 }
 
-void Reorder::reorderData(const IMemory& input, const IMemory& output, const MultiCachePtr& cache) {
+void Reorder::reorderData(const IMemory& input,
+                          const IMemory& output,
+                          const MultiCachePtr& cache,
+                          const std::shared_ptr<ThreadPool>& threadPool) {
     OPENVINO_ASSERT(input.getDesc().isDefined() && output.getDesc().isDefined(),
                     "Can't reorder data with dynamic shapes");
 
@@ -541,7 +546,7 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, const Mul
                             output.getDesc().serializeFormat());
         }
         if (reorder) {
-            dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
+            dnnl::stream loc_stream = make_stream(engine, threadPool);
             reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
         } else {
             OPENVINO_THROW("Could not make onednn reorder.");

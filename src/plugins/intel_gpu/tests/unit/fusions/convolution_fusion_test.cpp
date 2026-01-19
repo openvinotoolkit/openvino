@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2637,6 +2637,44 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_elt
     convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 6 },
 }));
 
+class conv_int8_scale_activation_quantize_i8_skip_connection_fp32 : public ConvFusingTest {};
+TEST_P(conv_int8_scale_activation_quantize_i8_skip_connection_fp32, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_per_channel_layout(p))),
+        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/255.f/255)),
+        convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
+        eltwise("scale", { input_info("conv_prim"), input_info("scale_data") }, eltwise_mode::prod),
+        activation("activation_scale", input_info("scale"), activation_func::exp),
+        quantize("quantize", input_info("activation_scale"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        eltwise("sum", { input_info("quantize"), input_info("input") }, eltwise_mode::sum,  data_types::f32),
+        reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 2.f;
+    execute(p);
+}
+
+// Test only for cases where input shape is the same as output shape to allow skip connection
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_skip_connection_fp32, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_U8S8_4, 3, 2, 6 },
+    convolution_test_params{ CASE_CONV_U8S8_6, 3, 2, 6 },
+    convolution_test_params{ CASE_CONV_U8S8_14, 3, 2, 6 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 3, 2, 6 },
+    convolution_test_params{ CASE_CONV_S8S8_6, 3, 2, 6 },
+    convolution_test_params{ CASE_CONV_S8S8_15, 3, 2, 6 },
+
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 3, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 3, 2, 6 },
+}));
+
 class conv_int8_scale_activation_quantize_i8_activation : public ConvFusingTest {};
 TEST_P(conv_int8_scale_activation_quantize_i8_activation, basic) {
     auto p = GetParam();
@@ -4253,35 +4291,35 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_after_permute_optimizing, ::testing::
     convolution_test_params{ CASE_CONV_FP16_PERMUTE_1, 3, 2, 4 },
 }));
 
-#define CASE_CONV_INT8_PERMUTE_1 { 1, 4, 3, 5 }, { 1, 30, 2, 3 }, { 30, 5, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_INT8_PERMUTE_1 { 1, 4, 3, 3 }, { 1, 30, 2, 3 }, { 30, 3, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 
 class conv_after_permute_not_optimizing : public PermuteOptimizingTestOnednn {};
 TEST_P(conv_after_permute_not_optimizing, basic) {
-    if (!engine.get_device_info().supports_immad)
-        return;
-
-    GTEST_SKIP(); // Issue: 94154
-
     auto p = GetParam();
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_per_channel_layout(p))),
-        data("in_lo1", get_mem(get_single_element_layout(p), 0)),
-        data("in_hi1", get_mem(get_single_element_layout(p), 100)),
-        data("out_lo1", get_mem(get_single_element_layout(p), 0)),
-        data("out_hi1", get_mem(get_single_element_layout(p), 100)),
-        permute("permute", input_info("input"), {0, 3, 1, 2}),
-        quantize("quantize1", input_info("permute"), input_info("in_lo1"), input_info("in_hi1"),
+        data("in_lo1", get_mem(get_single_element_layout(p), -200, 0)),
+        data("in_hi1", get_mem(get_single_element_layout(p), 1, 200)),
+        data("out_lo1", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi1", get_mem(get_single_element_layout(p), 128)),
+        data("in_lo2", get_mem(get_single_element_layout(p), -200, 0)),
+        data("in_hi2", get_mem(get_single_element_layout(p), 1, 200)),
+        data("out_lo2", get_mem(get_single_element_layout(p), 0)),
+        data("out_hi2", get_mem(get_single_element_layout(p), 255)),
+        quantize("quantize1", input_info("input"), input_info("in_lo1"), input_info("in_hi1"),
                  input_info("out_lo1"), input_info("out_hi1"), 256, data_types::i8),
-        convolution("conv_prim", input_info("quantize1"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
-        activation("activation", input_info("conv_prim"), activation_func::abs),
-        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+        permute("permute", input_info("quantize1"), {0, 3, 1, 2}),
+        convolution("conv_prim", input_info("permute"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
+        quantize("quantize2", input_info("conv_prim"), input_info("in_lo2"), input_info("in_hi2"),
+                 input_info("out_lo2"), input_info("out_hi2"), 256, data_types::u8),
+        reorder("reorder_bfyx", input_info("quantize2"), p.default_format, data_types::f32)
     );
 
     tolerance = default_tolerance(p.default_type);
-    execute(p, false);
+    execute(p, true);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_after_permute_not_optimizing, ::testing::ValuesIn(std::vector<convolution_test_params>{

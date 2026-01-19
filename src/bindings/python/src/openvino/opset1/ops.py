@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
@@ -333,7 +333,7 @@ def concat(nodes: list[NodeInput], axis: int, name: Optional[str] = None) -> Nod
 
 @nameable_op
 def constant(
-    value: NumericData,
+    value: Union[NumericData, np.number, bool, np.bool_, list],
     dtype: Union[NumericType, Type] = None,
     name: Optional[str] = None,
 ) -> Constant:

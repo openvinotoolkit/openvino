@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,9 +27,9 @@ enum class EltwiseBroadcastingPolicy : uint8_t {
 struct EltwiseData {
     Algorithm algo = Algorithm::Default;
     dnnl::algorithm onednnAlgorithm = dnnl::algorithm::undef;
-    float alpha = 0.0F;
-    float beta = 0.0F;
-    float gamma = 0.0F;
+    double alpha = 0.0;
+    double beta = 0.0;
+    double gamma = 0.0;
 
     bool operator==(const EltwiseData& rhs) const noexcept {
         return algo == rhs.algo && onednnAlgorithm == rhs.onednnAlgorithm && alpha == rhs.alpha && beta == rhs.beta &&

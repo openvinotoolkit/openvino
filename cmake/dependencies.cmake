@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -15,9 +15,10 @@ if(THREADING STREQUAL "OMP")
     find_package(OpenMP)
 
     if(NOT OpenMP_CXX_FOUND)
-        message(WARNING "Compiler does not support OpenMP standard. Falling back to SEQ threading")
-        set(THREADING "SEQ")
         set(ENABLE_INTEL_OPENMP OFF)
+        message(DEPRECATION "Support for automatically falling back to SEQ threading when OpenMP is unavailable is deprecated and will be removed in a future release. "
+            "CMake configuration now fails if the compiler does not support OpenMP. "
+            "Please explicitly set -DTHREADING=SEQ to continue without OpenMP.")
     endif()
 
     if(ENABLE_INTEL_OPENMP)
@@ -71,7 +72,7 @@ unset(_ov_download_tbb_done CACHE)
 # or ENABLE_SYSTEM_TBB is OFF
 #
 function(ov_download_tbb)
-    if(_ov_download_tbb_done OR NOT THREADING MATCHES "^(TBB|TBB_AUTO)$")
+    if(_ov_download_tbb_done OR NOT THREADING MATCHES "^(TBB|TBB_AUTO|TBB_ADAPTIVE)$")
         return()
     endif()
     set(_ov_download_tbb_done ON CACHE INTERNAL "Whether prebuilt TBB is already downloaded")
@@ -101,12 +102,12 @@ function(ov_download_tbb)
     endif()
 
     if(WIN32 AND X86_64)
-        # build oneTBB 2021.2.1 with Visual Studio 2019 (MSVC 14.21)
+        # build oneTBB with Visual Studio 2019 (MSVC 14.21)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "oneapi-tbb-2021.2.6-win.zip"
+                ARCHIVE_WIN "oneapi-tbb-2021.13.1-win.zip"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "3b0269ef46c9bcb06227bbe2929d3c091a2614aa9be050d38a787d03d5bdcddc"
+                SHA256 "60d130cc34c3ad9643ed652e1ad03231d28e431917492e5baee07476f9de16b6"
                 USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)
         RESOLVE_DEPENDENCY(TBB
@@ -116,7 +117,7 @@ function(ov_download_tbb)
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce"
                 USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
-        # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
+        # build oneTBB with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "oneapi-tbb-2021.13.1-lin-release.tgz"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
@@ -131,7 +132,7 @@ function(ov_download_tbb)
                 SHA256 "321261ff2eda6d4568a473cb883262bce77a93dac599f7bd65d2918bdee4d75b"
                 USE_NEW_LOCATION TRUE)
     elseif(APPLE AND X86_64)
-        # build oneTBB 2021.2.1 with OS version 11.4
+        # build oneTBB with OS version 11.4
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_MAC "oneapi-tbb-2021.13.0-mac-canary.tgz"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
@@ -139,7 +140,7 @@ function(ov_download_tbb)
                 SHA256 "f26a8ae579c4e843781b139c6b74325ae48b58cb2a7a31a0982acda5343f0dd8"
                 USE_NEW_LOCATION TRUE)
     elseif(WIN32 AND AARCH64)
-        # build oneTBB 2021.2.1 with Visual Studio 2022 (MSVC 14.35)
+        # build oneTBB with Visual Studio 2022 (MSVC 14.35)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_WIN "oneapi-tbb-2021.2.5-win-arm64-trim.zip"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
@@ -161,6 +162,13 @@ function(ov_download_tbb)
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "fb4be1dd03044a97475c45a0cf4576e502b4b64048e98e019520b0720fc255aa"
+                USE_NEW_LOCATION TRUE)
+    elseif(RISCV64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_LIN "oneapi-tbb-2022.3.0-lin-riscv-release.tgz"
+                TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "ead39877d182dc6ce6bcdc92fa000def79fa9fc19f78979e4faab5d6f560a434"
                 USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")

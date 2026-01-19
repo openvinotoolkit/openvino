@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -811,6 +811,9 @@ void TensorIterator::prepareLoopBodyCurrentIteration() {
 
 void TensorIterator::prepareContinueCond() {
     if (loopBodyConditionOutputIdx != -1 || !continue_cond_check) {
+        CPU_NODE_ASSERT(
+            loopBodyConditionOutputIdx >= 0 && loopBodyConditionOutputIdx < static_cast<int>(output_mem.size()),
+            "has invalid loopBodyConditionOutputIdx.");
         auto mem = output_mem[loopBodyConditionOutputIdx];
         continue_cond_check = std::make_shared<asBoolCheck>(mem);
     }

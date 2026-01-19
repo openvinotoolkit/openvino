@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,21 +33,27 @@ TensorExternalData::TensorExternalData(const TensorProto& tensor) {
     }
 #endif
 }
+TensorExternalData::TensorExternalData(const std::string& location, size_t offset, size_t size) {
+    m_data_location = location;
+    m_offset = offset;
+    m_data_length = size;
+}
 
 Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::string& model_dir,
                                                                      MappedMemoryHandles cache) const {
-    const auto full_path = ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}).string());
+    const auto full_path = model_dir.empty() ? ov::util::make_path(m_data_location)
+                                             : ov::util::make_path(ov::util::path_join({model_dir, m_data_location}));
     const int64_t file_size = ov::util::file_size(full_path);
     if (file_size <= 0 || m_offset + m_data_length > static_cast<uint64_t>(file_size)) {
         throw error::invalid_external_data{*this};
     }
-    auto cached_mapped_memory = cache->find(full_path);
+    auto cached_mapped_memory = cache->find(ov::util::path_to_string(full_path));
     std::shared_ptr<ov::MappedMemory> mapped_memory;
     if (cached_mapped_memory != cache->end()) {
         mapped_memory = cached_mapped_memory->second;
     } else {
         mapped_memory = ov::load_mmap_object(full_path);
-        (*cache)[full_path] = mapped_memory;
+        (*cache)[ov::util::path_to_string(full_path)] = mapped_memory;
     }
     if (m_data_length > mapped_memory->size() || mapped_memory->size() == 0) {
         throw error::invalid_external_data{*this};
@@ -59,14 +65,10 @@ Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::string& model_dir) const {
-    auto full_path = ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}).string());
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    ov::util::convert_path_win_style(full_path);
-    std::ifstream external_data_stream(ov::util::string_to_wstring(full_path).c_str(),
-                                       std::ios::binary | std::ios::in | std::ios::ate);
-#else
+    const auto full_path = model_dir.empty() ? ov::util::make_path(m_data_location)
+                                             : std::filesystem::absolute(std::filesystem::weakly_canonical(
+                                                   ov::util::path_join({model_dir, m_data_location})));
     std::ifstream external_data_stream(full_path, std::ios::binary | std::ios::in | std::ios::ate);
-#endif
 
     if (external_data_stream.fail()) {
         throw error::invalid_external_data{*this};
@@ -93,12 +95,20 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::stri
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_mem_data() const {
-    char* addr_ptr = reinterpret_cast<char*>(m_offset);
-    if (m_data_location != ORT_MEM_ADDR || !addr_ptr || m_data_length == 0) {
+    if (m_data_location != ORT_MEM_ADDR) {
         throw error::invalid_external_data{*this};
     }
+    // Empty node will create a constant with zero shape and zero size external data.
+    bool is_valid_buffer = m_offset && m_data_length;
+    bool is_empty_buffer = (m_data_length == 0);
+    if (!(is_valid_buffer || is_empty_buffer)) {
+        throw error::invalid_external_data{*this};
+    }
+    char* addr_ptr = reinterpret_cast<char*>(m_offset);
     auto aligned_memory = std::make_shared<ov::AlignedBuffer>(m_data_length);
-    std::memcpy(aligned_memory->get_ptr<char>(), addr_ptr, m_data_length);
+    if (m_data_length > 0) {
+        std::memcpy(aligned_memory->get_ptr<char>(), addr_ptr, m_data_length);
+    }
     return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(aligned_memory->get_ptr<char>(),
                                                                                   aligned_memory->size(),
                                                                                   aligned_memory);

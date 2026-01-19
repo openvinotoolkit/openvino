@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -126,9 +126,10 @@ protected:
         ASSERT_TRUE(inferRequestRef);
 
         generate_inputs(targetStaticShapes.front());
-        for (const auto& input : inputs) {
-            inferRequest.set_tensor(input.first, input.second);
-            inferRequestRef.set_tensor(input.first, input.second);
+        for (const auto& [port, tensor] : inputs) {
+            // Use read-only tensors as inputs, created from `const void*`
+            inferRequest.set_tensor(port, {tensor.get_element_type(), tensor.get_shape(), tensor.data()});
+            inferRequestRef.set_tensor(port, {tensor.get_element_type(), tensor.get_shape(), tensor.data()});
         }
 
         constexpr size_t lora_order = 25lu;
@@ -283,6 +284,7 @@ protected:
 };
 
 TEST_P(LoraPatternMatmulCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     targetStaticShapes = {{{{1, 20, K}}, {{N, K}}}};
     run_test();
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);
@@ -290,6 +292,7 @@ TEST_P(LoraPatternMatmulCPUTest, CompareWithRefs) {
 }
 
 TEST_P(LoraPatternConvolutionCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     targetStaticShapes = {{{1, num_channels, 10, 15}}};
     run_test();
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);

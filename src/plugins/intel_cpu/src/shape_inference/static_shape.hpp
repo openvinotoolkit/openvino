@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "cpu_types.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
@@ -246,6 +247,12 @@ public:
     }
 
     const value_type& operator[](size_t i) const {
+        OPENVINO_DEBUG_ASSERT(m_dims, "StaticShapeAdapter: m_dims is null in operator[]");
+        OPENVINO_DEBUG_ASSERT(m_dims->size() > i,
+                              "Index ",
+                              i,
+                              " is out of bounds for shape with size ",
+                              m_dims->size());
         return reinterpret_cast<const value_type&>((*m_dims)[i]);
     }
 

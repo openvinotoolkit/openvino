@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <limits>
 
 #include "base_reference_test.hpp"
-#include "openvino/runtime/allocator.hpp"
 
 using namespace ov;
 

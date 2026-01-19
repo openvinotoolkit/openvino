@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporationov::npuw::
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
 
     pugi::xml_node node = doc.append_child("ensemble");
     node.append_attribute("gflops") = std::to_string(ens.gflops).data();
+    node.append_attribute("irregular_results") = std::to_string(ens.irregular_results).data();
 
     pugi::xml_node part = node.append_child("partitioning");
     pugi::xml_node rep;
@@ -47,8 +48,8 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
         if (!group.avoid_list.empty()) {
             gr.append_attribute("avoid") = group.avoid_list.data();
         }
-        if (!group.tag.empty()) {
-            gr.append_attribute("tag") = group.tag.data();
+        if (!group.gettag().empty()) {
+            gr.append_attribute("tag") = group.gettag().data();
         }
 
         // Note: Ensemble also add "id" attribute but it's not used by the plugin
@@ -83,6 +84,7 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
 
     doc.save_file(to.data());
 }
+
 }  // namespace detail
 
 // Interface to get online partitioning from the model
@@ -94,7 +96,7 @@ class Compiler {
         REP,      // Repeated blocks pipeline - combination of repeatedBlocks and Remnants
         REG,      // Regularized repeated blocks pipeline - same as REP, but with some strong hints first
         COMPUTE,  // Separates non-foldable compute subgraphs from the model based on predefined rules + REP
-        SPATIAL   // Similar to COMPUTE but allows folding
+        SPATIAL   // Similar to COMPUTE but allows folding & dynamic chunk submission for FFN/QKV (LLM)
     };
 
     template <class C>
@@ -129,9 +131,13 @@ class Compiler {
         }
     }
 
-    std::vector<Isolate> getAllIsolates() {
-        auto isolates = ov::npuw::online::util::getIsolates(ov::npuw::online::util::ISOL_PRESETS.at("COMPUTE"));
-        for (const auto& isol : ov::npuw::online::util::getIsolates(ov::npuw::online::util::ISOL_PRESETS.at("FAKE"))) {
+    std::vector<Isolate> getComputeIsolates() {
+        // NB: Think twice before adding any new patterns here!
+        // In the most cases, you don't - this is a very specific
+        // type of patterns to isolate compute-intense parts ONLY!
+        namespace ou = ov::npuw::online::util;
+        auto isolates = ou::getIsolates(ou::ISOL_PRESETS.at("COMPUTE"));
+        for (const auto& isol : ou::getIsolates(ou::ISOL_PRESETS.at("FAKE"))) {
             isolates.push_back(isol);
         }
         return isolates;
@@ -206,6 +212,7 @@ class Compiler {
         m_snapshot->earlyRegroup();
         m_snapshot->repeatedBlocks([&]() {
             // This callback is called when repeatingBlocks algorithm thinks it is done
+            // NB: the "fake" tag is stripped elsewhere, that's how it works
             m_snapshot->stripTag("compute");
         });
         m_snapshot->repeat([&] {
@@ -257,17 +264,18 @@ public:
             // Only get isolates here.
             // NB: We ignore NO_FOLD everywhere except pipeline COMPUTE - this needs
             // to be aligned in the future
-            ctx.isolates = getAllIsolates();
+            ctx.isolates = getComputeIsolates();
             m_snapshot->setCtx(ctx);
             reg();
             break;
         case Pipeline::COMPUTE:
+            // FIXME: It is probably the time to retire this pipeline
             warn_unused<::intel_npu::NPUW_ONLINE_ISOLATE>();
             warn_unused<::intel_npu::NPUW_ONLINE_NO_FOLD>();
 
             // Manually set predefined isolates and nofolds then do rep() pipeline
             // FIXME: initialize via a dedicated function instead of parsing
-            ctx.isolates = getAllIsolates();
+            ctx.isolates = getComputeIsolates();
             ctx.nofolds = ov::npuw::online::util::getNoFolds("compute");
             m_snapshot->setCtx(ctx);
             rep();
@@ -278,7 +286,7 @@ public:
 
             // Manually set predefined isolates and nofolds then do rep() pipeline
             // FIXME: initialize via a dedicated function instead of parsing
-            ctx.isolates = getAllIsolates();
+            ctx.isolates = getComputeIsolates();
             m_snapshot->setCtx(ctx);
             rep();
             break;
@@ -302,6 +310,7 @@ public:
 
         ov::npuw::Ensemble ens;
         ens.gflops = 1.;  // FIXME: calculate proper flops
+        ens.irregular_results = !m_snapshot->isRegularResultCase();
 
         auto graph = m_snapshot->getGraph();
         // Iterate in topological order

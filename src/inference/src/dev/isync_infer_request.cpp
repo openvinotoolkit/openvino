@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -192,7 +192,7 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
         // Perform memory copy
         ov::parallel_for(item.second.size(), [&](size_t i) {
             const auto& tensor = item.second.at(i);
-            memcpy(ptr + i * tensor->get_byte_size(), static_cast<uint8_t*>(tensor->data()), tensor->get_byte_size());
+            memcpy(ptr + i * tensor->get_byte_size(), tensor->data(), tensor->get_byte_size());
         });
         prepared_tensors[item.first] = input_tensor;
     }

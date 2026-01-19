@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -108,7 +108,12 @@ private:
     std::size_t m_byte_size = 0;
     ov::Tensor m_read_from_bin;
     std::string m_weights_path;
+    ov::FileHandleProvider m_handle_provider = nullptr;
     mutable ov::npuw::s11n::WeightsPtr m_mmaped_weights = nullptr;
+    // FIXME: special case when a new Constant was added into the model,
+    // then made into LazyTensor during folding. We need to keep a copy of it,
+    // so during weightless deserialization we can access it.
+    mutable ov::Tensor m_copied_if_not_in_model;
 };
 
 class Concat {

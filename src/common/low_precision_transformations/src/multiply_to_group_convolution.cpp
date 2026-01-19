@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -165,7 +165,7 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const std::share
     }
 
     auto inPShape = operation->get_input_partial_shape(0);
-    if (inPShape.rank().is_dynamic() || inPShape[1].is_dynamic()) {
+    if (inPShape.rank().is_dynamic() || inPShape.size() < 2 || inPShape[1].is_dynamic()) {
         return false;
     }
 

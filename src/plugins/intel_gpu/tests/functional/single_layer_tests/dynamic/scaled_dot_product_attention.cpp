@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,12 +132,22 @@ void ScaledAttnLayerGPUTest::SetUp() {
             inputParams.push_back(scale_param);
             inputParams_transpose.push_back(scale_param);
         }
+    } else if (has_sink && !has_attn) {
+        // Add default mask when sink token exists and attention mask is not present
+        auto attn_const = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape{}, 0.0f);
+        attn_const->set_friendly_name("attention_mask");
+        inputParams_transpose.push_back(attn_const);
     }
     if (has_scale && is_scale_const) {
         auto scale_const = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape({1}), 0.35f);
         scale_const->set_friendly_name("scale");
         inputParams_transpose.push_back(scale_const);
-    }
+    } else if (has_sink && !has_scale) {
+        // Add default scale when sink token exists and scale is not present
+        auto scale_const = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape({1}), 0.35f);
+        scale_const->set_friendly_name("scale");
+        inputParams_transpose.push_back(scale_const);
+     }
 
     if (input_transpose.size() != 0) {
         auto rank = input_transpose[0].size();
@@ -193,7 +203,7 @@ void ScaledAttnLayerGPUTest::SetUp() {
     bool has_long_seq = it != inputShapes[1].second.end();
 
     if (inType == ov::element::f16) {
-        if (has_diff_head_size && !has_scale) {
+        if (has_sink || (has_diff_head_size && !has_scale)) {
             abs_threshold = 0.1;
             rel_threshold = 0.1;
         } else if (has_long_seq) {

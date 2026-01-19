@@ -1,4 +1,4 @@
-type SupportedTypedArray =
+export type SupportedTypedArray =
   | Int8Array
   | Uint8Array
   | Int16Array
@@ -10,7 +10,7 @@ type SupportedTypedArray =
   | BigInt64Array
   | BigUint64Array;
 
-type elementTypeString =
+export type elementTypeString =
   | "u8"
   | "u32"
   | "u16"
@@ -23,7 +23,7 @@ type elementTypeString =
   | "f32"
   | "string";
 
-type OVAny = string | number | boolean;
+export type OVAny = string | number | boolean;
 
 /**
  * Core represents an OpenVINO runtime Core entity.
@@ -33,7 +33,7 @@ type OVAny = string | number | boolean;
  * are created multiple times and not shared between several Core instances.
  * It is recommended to have a single Core instance per application.
  */
-interface Core {
+export interface Core {
   /**
    * It constructs a new Core object.
    */
@@ -124,6 +124,21 @@ interface Core {
     };
   };
   /**
+   * Asynchronously imports a previously exported compiled model from a Tensor.
+   * @param modelTensor The tensor containing the exported compiled model data.
+   * The tensor must be of type u8 with shape [byte_count].
+   * @param device The name of a device, for which you import a compiled model.
+   * Note, if the device name was not used to compile the original model,
+   * an exception is thrown.
+   * @param config An object with the key-value pairs
+   * (property name, property value): relevant only for this load operation.
+   */
+  importModel(
+    modelTensor: Tensor,
+    device: string,
+    config?: Record<string, OVAny>,
+  ): Promise<CompiledModel>;
+  /**
    * Asynchronously imports a previously exported compiled model.
    * @param modelStream The input stream that contains a model,
    * previously exported with the {@link CompiledModel.exportModelSync} method.
@@ -138,6 +153,15 @@ interface Core {
     device: string,
     config?: Record<string, OVAny>,
   ): Promise<CompiledModel>;
+  /**
+   * A synchronous version of {@link Core.importModel}.
+   * It imports a previously exported compiled model from a Tensor.
+   */
+  importModelSync(
+    modelTensor: Tensor,
+    device: string,
+    config?: Record<string, OVAny>,
+  ): CompiledModel;
   /**
    * A synchronous version of {@link Core.importModel}.
    * It imports a previously exported compiled model.
@@ -217,7 +241,7 @@ interface Core {
   ): { [key: string]: string };
 }
 
-interface Model {
+export interface Model {
   /**
    * It constructs a default Model object. Use {@link Core.readModel}
    * to read Model from supported file format.
@@ -238,6 +262,11 @@ interface Model {
    * @returns A string with the name of the model.
    */
   getName(): string;
+  /**
+   * It returns the operators(nodes) in the model.
+   * @returns An array of Node objects.
+   */
+  getOps(): Node[];
   /**
    * It returns the shape of the element at the specified index.
    * @param index The index of the element.
@@ -325,12 +354,24 @@ interface Model {
   outputs: Output[];
 }
 
+export interface Node {
+  /**
+   * It constructs a default Node object.
+   */
+  new (): Node;
+  /**
+   * It gets the unique name of the node.
+   * @returns A string with the name of the node.
+   */
+  getName(): string;
+}
+
 /**
  * CompiledModel represents a model that is compiled for a specific device
  * by applying multiple optimization transformations,
  * then mapping to compute kernels.
  */
-interface CompiledModel {
+export interface CompiledModel {
   /**
    * It constructs a default CompiledModel object. Use {@link Core.compileModel}
    * or {@link Core.importModel} to get model compiled for a specific device.
@@ -413,7 +454,7 @@ interface CompiledModel {
  * the user. Any action performed on the TypedArray will be reflected in this
  * tensor memory.
  */
-interface Tensor {
+export interface Tensor {
   /**
    * It constructs a tensor using the element type and shape. The new tensor
    * data will be allocated by default.
@@ -476,13 +517,19 @@ interface Tensor {
    * @param shape - Array of dimensions for the new shape
    */
   setShape(shape: number[]): void;
+  /**
+   * Copies data from this tensor to a destination tensor.
+   * The destination tensor must have the same shape and element type.
+   * @param tensor The destination tensor to which the data will be copied.
+   */
+  copyTo(tensor: Tensor): void;
 }
 
 /**
  * The {@link InferRequest} object is used to make predictions and can be run in
  * asynchronous or synchronous manners.
  */
-interface InferRequest {
+export interface InferRequest {
   /**
    * It constructs a default InferRequest object.
    * Use {@link CompiledModel.createInferRequest}
@@ -602,9 +649,9 @@ interface InferRequest {
   setTensor(name: string, tensor: Tensor): void;
 }
 
-type Dimension = number | [number, number];
+export type Dimension = number | [number, number];
 
-interface Output {
+export interface Output {
   new (): Output;
   anyName: string;
   shape: number[];
@@ -614,42 +661,42 @@ interface Output {
   getPartialShape(): PartialShape;
 }
 
-interface InputTensorInfo {
+export interface InputTensorInfo {
   setElementType(elementType: element | elementTypeString): InputTensorInfo;
   setLayout(layout: string): InputTensorInfo;
   setShape(shape: number[]): InputTensorInfo;
 }
 
-interface OutputTensorInfo {
+export interface OutputTensorInfo {
   setElementType(elementType: element | elementTypeString): InputTensorInfo;
   setLayout(layout: string): InputTensorInfo;
 }
-interface PreProcessSteps {
+export interface PreProcessSteps {
   resize(algorithm: resizeAlgorithm | string): PreProcessSteps;
 }
 
-interface InputModelInfo {
+export interface InputModelInfo {
   setLayout(layout: string): InputModelInfo;
 }
 
-interface InputInfo {
+export interface InputInfo {
   tensor(): InputTensorInfo;
   preprocess(): PreProcessSteps;
   model(): InputModelInfo;
 }
 
-interface OutputInfo {
+export interface OutputInfo {
   tensor(): OutputTensorInfo;
 }
 
-interface PrePostProcessor {
+export interface PrePostProcessor {
   new (model: Model): PrePostProcessor;
   build(): PrePostProcessor;
   input(idxOrTensorName?: number | string): InputInfo;
   output(idxOrTensorName?: number | string): OutputInfo;
 }
 
-interface PartialShape {
+export interface PartialShape {
   /**
    * It constructs a PartialShape by passed string.
    * Omit parameter to create empty shape.
@@ -670,13 +717,13 @@ interface PartialShape {
  * passed, it will be undefined.
  * @param error Optional error that occurred during inference, if any.
  */
-type AsyncInferQueueCallback = (
+export type AsyncInferQueueCallback = (
   error: null | Error,
   inferRequest: InferRequest,
   userData: object,
 ) => void;
 
-interface AsyncInferQueue {
+export interface AsyncInferQueue {
   /**
    * Creates AsyncInferQueue.
    * @param compiledModel The compiledModel that will be used
@@ -710,7 +757,7 @@ interface AsyncInferQueue {
   release(): void;
 }
 
-declare enum element {
+export declare enum element {
   u8,
   u32,
   u16,
@@ -724,7 +771,7 @@ declare enum element {
   string,
 }
 
-declare enum resizeAlgorithm {
+export declare enum resizeAlgorithm {
   RESIZE_NEAREST,
   RESIZE_CUBIC,
   RESIZE_LINEAR,

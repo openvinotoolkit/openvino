@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,12 @@
 
 namespace ov::util {
 
+uint64_t OstreamHashWrapperBin::get_result() const {
+    return m_res;
+}
+
 std::streamsize OstreamHashWrapperBin::xsputn(const char* s, std::streamsize n) {
-    m_res = u64_hash_combine(m_res, *reinterpret_cast<const uint64_t*>(s));
+    m_res = u64_hash_combine(m_res, n);
     return n;
 }
 

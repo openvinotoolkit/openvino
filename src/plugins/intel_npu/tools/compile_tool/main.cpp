@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,9 @@ static constexpr char targetDeviceMessage[] =
     "device.";
 
 static constexpr char output_message[] = "Optional. Path to the output file. Default value: \"<model_xml_file>.blob\".";
+
+static constexpr char raw_blob_message[] =
+    "Optional. Instructs NPU plugin to skip adding metadata to the blob obtained from compiler.";
 
 static constexpr char log_level_message[] = "Optional. Log level for OpenVINO library.";
 
@@ -85,6 +88,7 @@ DEFINE_bool(h, false, help_message);
 DEFINE_string(m, "", model_message);
 DEFINE_string(d, "", targetDeviceMessage);
 DEFINE_string(o, "", output_message);
+DEFINE_bool(raw_blob, false, raw_blob_message);
 DEFINE_string(log_level, "", log_level_message);
 DEFINE_string(c, "", config_message);
 DEFINE_bool(pc, false, perf_count_message);
@@ -320,6 +324,7 @@ static void showUsage() {
     std::cout << "    -m                           <value>     " << model_message << std::endl;
     std::cout << "    -d                           <value>     " << targetDeviceMessage << std::endl;
     std::cout << "    -o                           <value>     " << output_message << std::endl;
+    std::cout << "    -raw_blob                                " << raw_blob_message << std::endl;
     std::cout << "    -c                           <value>     " << config_message << std::endl;
     std::cout << "    -ip                          <value>     " << inputs_precision_message << std::endl;
     std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;
@@ -483,6 +488,18 @@ int main(int argc, char* argv[]) {
         auto configs = parseConfigFile();
         if (FLAGS_pc) {
             configs["PERF_COUNT"] = "YES";
+        }
+        if (FLAGS_raw_blob) {
+            if (FLAGS_d == "NPU") {
+                // set only if was not previously parsed from config
+                if (configs.find("NPU_EXPORT_RAW_BLOB") == configs.end()) {
+                    configs["NPU_EXPORT_RAW_BLOB"] = "YES";
+                } else {
+                    std::cout << "Ignoring -raw_blob flag already set via -load_config." << std::endl;
+                }
+            } else {
+                std::cout << "Ignoring -raw_blob flag used with other device than NPU." << std::endl;
+            }
         }
 
         std::cout << "Compiling model" << std::endl;

@@ -548,7 +548,7 @@ class Core:
     """
     openvino.Core class represents OpenVINO runtime Core entity. User applications can create several Core class instances, but in this case, the underlying plugins are created multiple times and not shared between several Core instances. The recommended way is to have a single Core instance per application.
     """
-    def __init__(self, xml_config_file: str = '') -> None:
+    def __init__(self, xml_config_file: typing.Any = '') -> None:
         ...
     def __repr__(self) -> str:
         ...
@@ -766,6 +766,24 @@ class Core:
                         :return: Plugin version information.
                         :rtype: dict[str, openvino.Version]
         """
+    @typing.overload
+    def import_model(self, tensor: Tensor, device_name: str, properties: collections.abc.Mapping[str, typing.Any]) -> CompiledModel:
+        """
+                    Imports a compiled model from a previously exported one.
+        
+                    GIL is released while running this function.
+        
+                    :param compiled_blob: ov::Tensor input blob containing a model previously exported using the ov::CompiledModel::export_model method.
+                    :type compiled_blob: openvino.Tensor
+                    :param device_name: Name of device to which compiled model is imported.
+                                        Note: if device_name is not used to compile the original model, an exception is thrown.
+                    :type device_name: str
+                    :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
+                    :type properties: dict[str, typing.Any], optional
+                    :return: A compiled model.
+                    :rtype: openvino.CompiledModel
+        """
+    @typing.overload
     def import_model(self, model_stream: typing.Any, device_name: str, properties: collections.abc.Mapping[str, typing.Any]) -> CompiledModel:
         """
                     Imports a compiled model from a previously exported one.
@@ -887,41 +905,27 @@ class Core:
                     :return: A model.
                     :rtype: openvino.Model
         """
-    @typing.overload
-    def register_plugin(self, plugin_name: str, device_name: str) -> None:
+    def register_plugin(self, plugin: typing.Any, device_name: str, config: collections.abc.Mapping[str, typing.Any] = {}) -> None:
         """
                         Register a new device and plugin which enable this device inside OpenVINO Runtime.
         
-                        :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
+                        :param plugin: A path (absolute or relative) or name of a plugin. Depending on platform,
                                             `plugin_name` is wrapped with shared library suffix and prefix to identify
                                             library full name E.g. on Linux platform plugin name specified as `plugin_name`
                                             will be wrapped as `libplugin_name.so`.
-                        :type plugin_name: str
-                        :param device_name: A device name to register plugin for.
-                        :type device_name: str
-        """
-    @typing.overload
-    def register_plugin(self, plugin_name: str, device_name: str, config: collections.abc.Mapping[str, typing.Any]) -> None:
-        """
-                        Register a new device and plugin which enable this device inside OpenVINO Runtime.
-        
-                        :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
-                                            `plugin_name` is wrapped with shared library suffix and prefix to identify
-                                            library full name E.g. on Linux platform plugin name specified as `plugin_name`
-                                            will be wrapped as `libplugin_name.so`.
-                        :type plugin_name: str
+                        :type plugin: Union[str, bytes, pathlib.Path]
                         :param device_name: A device name to register plugin for.
                         :type device_name: str
                         :param config: Plugin default configuration
                         :type config: dict[str, typing.Any], optional
         """
-    def register_plugins(self, xml_config_file: str) -> None:
+    def register_plugins(self, xml_config_file: typing.Any) -> None:
         """
                         Registers a device plugin to OpenVINO Runtime Core instance using XML configuration
                         file with plugins description.
         
                         :param xml_config_file: A path to .xml file with plugins to register.
-                        :type xml_config_file: str
+                        :type xml_config_file: Union[str, bytes, pathlib.Path]
         """
     @typing.overload
     def set_property(self, properties: collections.abc.Mapping[str, typing.Any]) -> None:
@@ -1169,7 +1173,7 @@ class Dimension:
         """
                         Return this dimension as integer.
                         This dimension must be static and non-negative.
-                        
+        
                         :return: Value of the dimension.
                         :rtype: int
         """
@@ -1929,7 +1933,7 @@ class InferRequest:
     def input_tensors(self) -> list:
         """
                     Gets all input tensors of this InferRequest.
-                                        
+        
                     :rtype: list[openvino.Tensor]
         """
     @property
@@ -1957,7 +1961,7 @@ class InferRequest:
     def output_tensors(self) -> list:
         """
                     Gets all output tensors of this InferRequest.
-                                        
+        
                     :rtype: list[openvino.Tensor]
         """
     @property
@@ -1967,7 +1971,7 @@ class InferRequest:
                     Not all plugins provide meaningful data!
         
                     GIL is released while running this function.
-                    
+        
                     :return: Inference time.
                     :rtype: list[openvino.ProfilingInfo]
         """
@@ -2705,7 +2709,7 @@ class Model:
     def get_parameters(self) -> list[op.Parameter]:
         """
                             Return the model parameters.
-                            
+        
                             :return: a list of model's parameters.
                             :rtype: list[op.Parameter]
         """
@@ -2844,7 +2848,7 @@ class Model:
     def get_variables(self) -> list[op.util.Variable]:
         """
                             Return a list of model's variables.
-                            
+        
                             :return: a list of model's variables.
                             :rtype: list[op.util.Variable]
         """
@@ -3209,7 +3213,7 @@ class Model:
     def parameters(self) -> list[op.Parameter]:
         """
                                                 Return the model parameters.
-                                                
+        
                                                 :return: a list of model's parameters.
                                                 :rtype: list[op.Parameter]
         """
@@ -3244,7 +3248,7 @@ class Model:
     def variables(self) -> list[op.util.Variable]:
         """
                                             Return a list of model's variables.
-                                            
+        
                                             :return: a list of model's variables.
                                             :rtype: list[op.util.Variable]
         """
@@ -3309,7 +3313,7 @@ class Node:
     def evaluate(self, output_values: TensorVector, input_values: TensorVector, evaluationContext: RTMap = ...) -> bool:
         """
                         Evaluate the node on inputs, putting results in outputs
-                        
+        
                         :param output_tensors: Tensors for the outputs to compute. One for each result.
                         :type output_tensors: openvino.TensorVector
                         :param input_tensors: Tensors for the inputs. One for each inputs.
@@ -3323,7 +3327,7 @@ class Node:
     def evaluate(self, output_values: list, input_values: list, evaluationContext: RTMap = ...) -> bool:
         """
                         Evaluate the node on inputs, putting results in outputs
-                        
+        
                         :param output_tensors: Tensors for the outputs to compute. One for each result.
                         :type output_tensors: openvino.TensorVector
                         :param input_tensors: Tensors for the inputs. One for each inputs.
@@ -3566,7 +3570,7 @@ class Node:
         """
                 Verifies that attributes and inputs are consistent and computes output shapes and element types.
                 Must be implemented by concrete child classes so that it can be run any number of times.
-                
+        
                 Throws if the node is invalid.
         """
     def visit_attributes(self, arg0: AttributeVisitor) -> bool:
@@ -3977,7 +3981,7 @@ class PartialShape:
                     Get the dimension at specified index of a partial shape.
         
                     :param index: The index of dimension.
-                    :type index: int 
+                    :type index: int
                     :return: Get the particular dimension of a partial shape.
                     :rtype: openvino.Dimension
         """
@@ -4852,7 +4856,7 @@ class Tensor:
         
                     Returns numpy array with corresponding shape and dtype.
         
-                    For tensors with OpenVINO specific element type, such as u1, u4 or i4
+                    For tensors with OpenVINO specific element type, such as u1, u2, u3, u4, u6 or i4
                     it returns linear array, with uint8 / int8 numpy dtype.
         
                     For tensors with string element type, returns a numpy array of bytes
@@ -5008,11 +5012,13 @@ class Type:
     string: typing.ClassVar[Type]  # value = <Type: 'string'>
     u1: typing.ClassVar[Type]  # value = <Type: 'uint1_t'>
     u16: typing.ClassVar[Type]  # value = <Type: 'uint16_t'>
+    u2: typing.ClassVar[Type]  # value = <Type: 'uint2_t'>
+    u3: typing.ClassVar[Type]  # value = <Type: 'uint3_t'>
     u32: typing.ClassVar[Type]  # value = <Type: 'uint32_t'>
     u4: typing.ClassVar[Type]  # value = <Type: 'uint4_t'>
+    u6: typing.ClassVar[Type]  # value = <Type: 'uint6_t'>
     u64: typing.ClassVar[Type]  # value = <Type: 'uint64_t'>
     u8: typing.ClassVar[Type]  # value = <Type: 'uint8_t'>
-    undefined: typing.ClassVar[Type]  # value = <Type: 'dynamic'>
     def __eq__(self, arg0: Type) -> bool:
         ...
     def __hash__(self) -> int:

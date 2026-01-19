@@ -48,6 +48,8 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
+      HF_HUB_VERBOSITY: debug
+      TRANSFORMERS_VERBOSITY: debug
     steps:
       # checkout action cleans up the workspace and have to be the first step
       - name: Fetch custom actions
@@ -58,13 +60,13 @@ jobs:
             .github/actions
           sparse-checkout-cone-mode: false
           submodules: 'false'
-      
+
       - name: Download OpenVINO artifacts (wheels)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
-      
+
       - name: Download OpenVINO artifacts (tests)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
@@ -74,11 +76,12 @@ jobs:
       - name: Setup Variables
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
+          echo "HUGGINGFACE_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
         run: brew install pigz
-          
+
       - name: Extract OpenVINO packages (Linux, macOS)
         if: runner.os != 'Windows'
         run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
@@ -118,7 +121,7 @@ jobs:
           PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-python-jax-layers

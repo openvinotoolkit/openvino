@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -51,7 +51,6 @@ xfail_issue_38706 = xfail_test(reason="RuntimeError: output_3.0 has zero dimensi
 xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Slice): y>': "
                                       "Axes input must be constant")
 skip_bitwise_ui64 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
-xfail_issue_99949 = xfail_test(reason="Bitwise operators are not supported")
 xfail_issue_99950 = xfail_test(reason="CenterCropPad func is not supported")
 xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported")
 xfail_issue_99954 = xfail_test(reason="Constant Pad - RuntimeError: Shape inference of Reference node with name y failed")
@@ -119,7 +118,6 @@ skip_issue_58676 = pytest.mark.skip(reason="AssertionError: Not equal to toleran
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
 
 xfail_issue_63033 = xfail_test(reason="BatchNormalization: Training mode is not supported")
-xfail_issue_63036 = xfail_test(reason="Changes in ConvTranspose padding")
 xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")

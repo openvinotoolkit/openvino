@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,6 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
     }
-
 
     ov::op::v3::Broadcast op;
     op.set_broadcast_spec(desc->broadcast_mode);

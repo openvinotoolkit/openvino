@@ -1,15 +1,18 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#ifndef _WIN32
+#ifdef _WIN32
+#    define stat _stat
+#else
 #    include <unistd.h>
 #endif
 
 #include "itt.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/compilation_context.hpp"
@@ -19,10 +22,6 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-#ifdef _WIN32
-#    define stat _stat
-#endif
-
 namespace ov {
 template <typename T>
 static uint64_t hash_combine(uint64_t seed, const T& a) {
@@ -30,36 +29,48 @@ static uint64_t hash_combine(uint64_t seed, const T& a) {
     return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
 
-std::string ModelCache::calculate_file_info(const std::string& filePath) {
-    uint64_t seed = 0;
-    auto absPath = filePath;
-    if (filePath.size() > 0) {
-        try {
-            absPath = ov::util::get_absolute_file_path(filePath);
-        } catch (std::runtime_error&) {
-            // can't get absolute path, will use filePath for hash
-        }
+namespace {
+std::filesystem::path abs_path_or_input(const std::filesystem::path& path) {
+    std::error_code ec;
+    if (path.empty() || path.is_absolute()) {
+        return path;
+    } else if (auto abs_path = std::filesystem::absolute(std::filesystem::weakly_canonical(path), ec); ec) {
+        return path;
+    } else {
+        return abs_path;
     }
+}
 
-    seed = hash_combine(seed, absPath);
+uint64_t hash_combine_options(uint64_t seed, const ov::AnyMap& compile_options) {
+    for (const auto& [name, option] : compile_options) {
+        seed = hash_combine(seed, name + option.as<std::string>());
+    }
+    return seed;
+}
+}  // namespace
 
-    std::string res;
-    struct stat result;
-    if (stat(absPath.c_str(), &result) == 0) {
+std::string ModelCache::calculate_file_info(const std::filesystem::path& file_path) {
+    const auto& abs_path = abs_path_or_input(file_path);
+    const auto& abs_path_str = util::path_to_string(abs_path);
+    // Convert to string as std::hash<std::filesystem::path> could be not supported
+    auto seed = hash_combine(0U, abs_path_str);
+
+    if (struct stat result; stat(abs_path_str.c_str(), &result) == 0) {
         seed = hash_combine(seed, result.st_mtime);
         seed = hash_combine(seed, result.st_size);
     }
+
     return std::to_string(seed);
 }
 
-std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions) {
+std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compile_options) {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
-    return compute_hash(model, {}, compileOptions);
+    return compute_hash(model, {}, compile_options);
 }
 
 std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& model,
                                      const std::filesystem::path& model_path,
-                                     const ov::AnyMap& compileOptions) {
+                                     const ov::AnyMap& compile_options) {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model and path");
 
     OPENVINO_ASSERT(model);
@@ -71,9 +82,7 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
     m.run_passes(std::const_pointer_cast<ov::Model>(model));
 
     // 2. Compute hash on serialized data and options
-    for (const auto& [name, option] : compileOptions) {
-        seed = hash_combine(seed, name + option.as<std::string>());
-    }
+    seed = hash_combine_options(seed, compile_options);
 
     // 3. Add runtime information which may not be serialized
     for (const auto& op : model->get_ordered_ops()) {
@@ -90,34 +99,29 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
 
     // 4. If model path is provided add file info to the hash
     if (!model_path.empty()) {
-        seed = hash_combine(seed, compute_hash(model_path.string(), compileOptions));
+        seed = hash_combine(seed, compute_hash(model_path, compile_options));
     }
 
     return std::to_string(seed);
 }
 
-std::string ModelCache::compute_hash(const std::string& modelName, const ov::AnyMap& compileOptions) {
+std::string ModelCache::compute_hash(const std::filesystem::path& model_path, const ov::AnyMap& compile_options) {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
-    uint64_t seed = 0;
-    try {
-        seed = hash_combine(seed, ov::util::get_absolute_file_path(modelName));
-    } catch (...) {
-        // can't get absolute path, use modelName for hash calculation
-        seed = hash_combine(seed, modelName);
-    }
-    for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
-    }
+
+    const auto& abs_path = abs_path_or_input(model_path);
+    // Convert to string as std::hash<std::filesystem::path> could be not supported
+    auto seed = hash_combine(0U, util::path_to_string(abs_path));
+    seed = hash_combine_options(seed, compile_options);
     return std::to_string(seed);
 }
 
-std::string ModelCache::compute_hash(const std::string& modelStr,
+std::string ModelCache::compute_hash(const std::string& model_str,
                                      const ov::Tensor& tensor,
-                                     const ov::AnyMap& compileOptions) {
+                                     const ov::AnyMap& compile_options) {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
     uint64_t seed = 0;
     // model string
-    seed = hash_combine(seed, modelStr);
+    seed = hash_combine(seed, model_str);
 
     // tensor data
     if (tensor) {
@@ -162,9 +166,7 @@ std::string ModelCache::compute_hash(const std::string& modelStr,
     }
 
     // compile options
-    for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
-    }
+    seed = hash_combine_options(seed, compile_options);
     return std::to_string(seed);
 }
 
@@ -174,14 +176,19 @@ CompiledBlobHeader::CompiledBlobHeader() {}
 
 CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion,
                                        const std::string& fileInfo,
-                                       const std::string& runtimeInfo)
+                                       const std::string& runtimeInfo,
+                                       const uint32_t headerSizeAlignment)
     : m_ieVersion(ieVersion),
       m_fileInfo(fileInfo),
-      m_runtimeInfo(runtimeInfo) {}
+      m_runtimeInfo(runtimeInfo),
+      m_headerSizeAlignment(headerSizeAlignment) {}
 
 std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     std::string xmlStr;
+
+    const auto start = stream.tellg();
     std::getline(stream, xmlStr);
+    const auto bytes_read = static_cast<size_t>(stream.tellg() - start);
 
     pugi::xml_document document;
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
@@ -191,6 +198,12 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     header.m_ieVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "ie_version");
     header.m_fileInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "file_info");
     header.m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
+    header.m_headerSizeAlignment = ov::util::pugixml::get_uint_attr(compiledBlobNode, "header_size_alignment");
+
+    if (const auto pad = util::align_padding_size(header.m_headerSizeAlignment, bytes_read); pad > 0) {
+        stream.seekg(static_cast<std::streamoff>(pad), std::ios::cur);
+        OPENVINO_ASSERT(stream.good(), "Failed to seek over padding in compiled blob header");
+    }
 
     return stream;
 }
@@ -201,10 +214,18 @@ std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header)
     compiledBlobNode.append_attribute("ie_version").set_value(header.m_ieVersion.c_str());
     compiledBlobNode.append_attribute("file_info").set_value(header.m_fileInfo.c_str());
     compiledBlobNode.append_attribute("runtime_info").set_value(header.m_runtimeInfo.c_str());
+    compiledBlobNode.append_attribute("header_size_alignment")
+        .set_value(std::to_string(header.m_headerSizeAlignment).c_str());
 
+    const auto start = stream.tellp();
     document.save(stream, nullptr, pugi::format_raw);
     document.reset();
     stream << std::endl;
+
+    // add padding
+    const auto bytes_written = static_cast<size_t>(stream.tellp() - start);
+    const auto pad = util::align_padding_size(header.get_header_size_alignment(), bytes_written);
+    std::fill_n(std::ostream_iterator<char>(stream), pad, 0);
 
     return stream;
 }
@@ -230,6 +251,7 @@ inline std::string getline_from_buffer(const char* buffer, size_t size, size_t& 
 }  // namespace
 
 void CompiledBlobHeader::read_from_buffer(const char* buffer, size_t buffer_size, size_t& pos) {
+    const auto start = pos;
     std::string xmlStr = ov::getline_from_buffer(buffer, buffer_size, pos);
 
     pugi::xml_document document;
@@ -240,5 +262,8 @@ void CompiledBlobHeader::read_from_buffer(const char* buffer, size_t buffer_size
     m_ieVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "ie_version");
     m_fileInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "file_info");
     m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
+    m_headerSizeAlignment = ov::util::pugixml::get_uint_attr(compiledBlobNode, "header_size_alignment");
+
+    pos += util::align_padding_size(m_headerSizeAlignment, pos - start);
 }
 }  // namespace ov

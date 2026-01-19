@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,8 @@ const auto& inputShapeSelect = SNIPPETS_TESTS_STATIC_SHAPES(
     {{2, 52, 6, 102}, {2, 52, 6, 102}, {1, 6, 52, 52}, {1, 6, 1, 1}, {1, 6, 1, 1}, {2, 52, 6, 102}}
 );
 
+static constexpr size_t expected_nodes_mha_select = 3;
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHA,
     MHASelect,
@@ -29,7 +31,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),  // Need to support True for graph builder in tests
                        ::testing::Values(MHA::default_thread_count),
-                       ::testing::Values(3),  // Transpose1 + Less + MHA
+                       ::testing::Values(expected_nodes_mha_select),
                        ::testing::Values(3),  // Transpose1 + Less + MHA
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),

@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <common_test_utils/subgraph_builders/conv_pool_relu.hpp>
 #include <filesystem>
 #include <openvino/runtime/core.hpp>
 #include <openvino/runtime/intel_npu/properties.hpp>
+#include <shared_test_classes/base/ov_behavior_test_utils.hpp>
 
 #include "common_test_utils/unicode_utils.hpp"
 #include "npu_test_env_cfg.hpp"
@@ -64,7 +66,7 @@ struct GenericTestCaseNameClass {
     static constexpr bool hasGetTestCaseName = false;
 
     template <typename T>
-    static std::string getTestCaseName(testing::TestParamInfo<typename T::ParamType>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<typename T::ParamType>& obj) {
         if constexpr (hasGetTestCaseName<T>) {
             return T::getTestCaseName(obj);
         } else {
@@ -83,6 +85,30 @@ constexpr bool
                                                      std::declval<testing::TestParamInfo<typename T::ParamType>>()))>> =
         true;
 
+namespace ov::test::behavior {
+inline std::shared_ptr<ov::Model> getDefaultNGraphFunctionForTheDeviceNPU(
+    std::vector<size_t> inputShape = {1, 2, 32, 32},
+    ov::element::Type_t ngPrc = ov::element::Type_t::f32) {
+    return ov::test::utils::make_conv_pool_relu(inputShape, ngPrc);
+}
+
+class OVInferRequestTestsNPU : public OVInferRequestTests {
+public:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+        std::tie(target_device, configuration) = this->GetParam();
+        APIBaseTest::SetUp();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDeviceNPU();
+        ov::AnyMap params;
+        for (auto&& v : configuration) {
+            params.emplace(v.first, v.second);
+        }
+        execNet = core->compile_model(function, target_device, params);
+    }
+};
+}  // namespace ov::test::behavior
+
 namespace ov {
 
 namespace test {
@@ -90,7 +116,7 @@ namespace test {
 namespace utils {
 
 template <typename T, bool COUNTER = false>
-std::string appendPlatformTypeTestName(testing::TestParamInfo<typename T::ParamType> obj) {
+std::string appendPlatformTypeTestName(const testing::TestParamInfo<typename T::ParamType>& obj) {
     std::string test_name = GenericTestCaseNameClass::getTestCaseName<T>(obj);
     if constexpr (COUNTER == true) {  // used only when test name duplication has justification
         static size_t testCounter = 0;
@@ -99,13 +125,22 @@ std::string appendPlatformTypeTestName(testing::TestParamInfo<typename T::ParamT
     return test_name + "_targetPlatform=" + getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
 }
 
-template <typename T>
-std::string appendDriverVersionTestName(testing::TestParamInfo<typename T::ParamType> obj) {
-    const auto& pluginCacheCore = ov::test::utils::PluginCache::get().core(ov::test::utils::DEVICE_NPU);
-    auto driverVersion =
-        pluginCacheCore->get_property(ov::test::utils::DEVICE_NPU, ov::intel_npu::driver_version.name());
-    return ov::test::utils::appendPlatformTypeTestName<T>(obj) + "_driverVersion=" + driverVersion.as<std::string>();
-}
+class DefaultAllocatorNotAligned final {
+public:
+    void* allocate(const size_t bytes, const size_t alignment = 4096) {
+        auto handle = (::operator new(bytes + _offset, std::align_val_t(alignment)));
+        return static_cast<uint8_t*>(handle) + _offset;
+    }
+    void deallocate(void* handle, const size_t bytes, size_t alignment = 4096) noexcept {
+        ::operator delete(static_cast<uint8_t*>(handle) - _offset, std::align_val_t(alignment));
+    }
+    bool is_equal(const DefaultAllocatorNotAligned& other) const {
+        return false;
+    }
+
+private:
+    size_t _offset = 16;
+};
 
 }  // namespace utils
 

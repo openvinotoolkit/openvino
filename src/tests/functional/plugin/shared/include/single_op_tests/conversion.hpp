@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,9 @@
 namespace ov {
 namespace test {
 TEST_P(ConversionLayerTest, Inference) {
+    run();
+};
+TEST_P(ConversionSpecifyInputLayerTest, Inference) {
     run();
 };
 }  // namespace test

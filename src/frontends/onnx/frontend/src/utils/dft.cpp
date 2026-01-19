@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "openvino/op/idft.hpp"
 #include "openvino/op/irdft.hpp"
 #include "openvino/op/rdft.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
@@ -55,27 +56,31 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
         conversion_to_complex_applied = try_convert_real_to_complex(processed_signal);
     }
 
-    bool dft_length_provided = !ov::op::util::is_null(length);
+    const bool dft_length_provided = !ov::op::util::is_null(length);
+    const auto& signal_size =
+        dft_length_provided
+            ? std::make_shared<v1::Reshape>(length, v0::Constant::create(ov::element::i32, {1}, {1}), false)->output(0)
+            : length;
 
     ov::Output<ov::Node> result;
     if (is_inversed) {
         if (is_onesided) {
-            result = dft_length_provided ? std::make_shared<v9::IRDFT>(processed_signal, axis_const, length)
+            result = dft_length_provided ? std::make_shared<v9::IRDFT>(processed_signal, axis_const, signal_size)
                                          : std::make_shared<v9::IRDFT>(processed_signal, axis_const);
             if (conversion_to_complex_applied) {  // align the output shape with a real numbers representation
-                const auto unsqueeze_axis = v0::Constant::create(ov::element::i64, {}, {-1});
+                const auto unsqueeze_axis = v0::Constant::create(ov::element::i32, {}, {-1});
                 result = std::make_shared<v0::Unsqueeze>(result, unsqueeze_axis);
             }
         } else {
-            result = dft_length_provided ? std::make_shared<v7::IDFT>(processed_signal, axis_const, length)
+            result = dft_length_provided ? std::make_shared<v7::IDFT>(processed_signal, axis_const, signal_size)
                                          : std::make_shared<v7::IDFT>(processed_signal, axis_const);
         }
     } else {
         if (is_onesided) {
-            result = dft_length_provided ? std::make_shared<v9::RDFT>(processed_signal, axis_const, length)
+            result = dft_length_provided ? std::make_shared<v9::RDFT>(processed_signal, axis_const, signal_size)
                                          : std::make_shared<v9::RDFT>(processed_signal, axis_const);
         } else {
-            result = dft_length_provided ? std::make_shared<v7::DFT>(processed_signal, axis_const, length)
+            result = dft_length_provided ? std::make_shared<v7::DFT>(processed_signal, axis_const, signal_size)
                                          : std::make_shared<v7::DFT>(processed_signal, axis_const);
         }
     }

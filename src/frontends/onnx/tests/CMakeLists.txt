@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -69,6 +69,7 @@ set(SRC
     conversion.cpp
     convert_tests.cpp
     convert_partially_tests.cpp
+    graph_iterator.cpp
     library_extension.cpp
     load_from.cpp
     onnx_editor.cpp
@@ -84,7 +85,10 @@ set(SRC
     model_support_tests.cpp
     onnx_ops_registration.cpp
     onnx_reader_external_data.cpp
-    skip_tests_config.cpp)
+    skip_tests_config.cpp
+    ../frontend/src/core/graph_iterator_proto.cpp
+    ../frontend/src/core/decoder_proto.cpp
+)
 
 foreach(src IN LISTS SRC MULTI_TEST_SRC)
     if(IS_ABSOLUTE "${src}")
@@ -124,7 +128,11 @@ set_property(TEST ov_onnx_frontend_tests PROPERTY LABELS OV UNIT ONNX_FE)
 
 add_dependencies(ov_onnx_frontend_tests openvino_template_extension)
 
-target_include_directories(ov_onnx_frontend_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+
+target_include_directories(ov_onnx_frontend_tests PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../frontend/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../onnx_common/include")
 
 target_compile_definitions(ov_onnx_frontend_tests
     PRIVATE
@@ -142,7 +150,8 @@ target_link_libraries(ov_onnx_frontend_tests PRIVATE
     gtest_main_manifest
     frontend_shared_test_classes
     openvino::frontend::onnx
-    func_test_utils)
+    func_test_utils
+)
 
 if(OV_COMPILER_IS_CLANG)
     target_compile_options(ov_onnx_frontend_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)

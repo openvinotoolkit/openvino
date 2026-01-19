@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,48 +110,6 @@ void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
     });
     if (size % 2 != 0) {
         to_ptr[size - 1] = ov::ConvertNF4::dequantize(lo4(from_ptr[size / 2 + 1]));
-    }
-}
-
-void unpack_f8f16(const ov::SoPtr<ov::ITensor>& from,
-                  const ov::SoPtr<ov::ITensor>& scale,
-                  const ov::SoPtr<ov::ITensor>& to,
-                  const ov::npuw::util::UnpackOptions& unpack_options) {
-    auto from_shape = from->get_shape();
-    auto scale_shape = scale->get_shape();
-
-    NPUW_ASSERT(from->is_continuous());
-    NPUW_ASSERT(to->is_continuous());
-    NPUW_ASSERT(scale->is_continuous());
-    NPUW_ASSERT(from->get_size() == to->get_size());
-    NPUW_ASSERT(from_shape[0] == scale_shape[0]);
-    NPUW_ASSERT(scale_shape[1] == 1);
-    NPUW_ASSERT(from->get_element_type() == ov::element::f8e4m3 || from->get_element_type() == ov::element::f8e5m2 ||
-                from->get_element_type() == ov::element::f8e8m0);
-    NPUW_ASSERT(scale->get_element_type() == ov::element::f32);
-    NPUW_ASSERT(to->get_element_type() == ov::element::f16);
-
-    const auto* scale_ptr = scale->data<float>();
-    auto* to_ptr = to->data<ov::float16>();
-
-    const auto size = from->get_size();
-
-    // FIXME: copypaste with a different type
-    if (from->get_element_type() == ov::element::f8e4m3) {
-        const auto* from_ptr = from->data<ov::float8_e4m3>();
-        ov::parallel_for(size, [&](size_t idx) {
-            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
-        });
-    } else if (from->get_element_type() == ov::element::f8e5m2) {
-        const auto* from_ptr = from->data<ov::float8_e5m2>();
-        ov::parallel_for(size, [&](size_t idx) {
-            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
-        });
-    } else {
-        const auto* from_ptr = from->data<ov::float8_e8m0>();
-        ov::parallel_for(size, [&](size_t idx) {
-            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
-        });
     }
 }
 
@@ -280,8 +238,7 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         unpack_nf4f16(from, scale, to, unpack_options);
     } else if (type_from == ov::element::f8e4m3 || type_from == ov::element::f8e5m2 ||
                type_from == ov::element::f8e8m0) {
-        // FIXME: Implement XARCH::unpack
-        unpack_f8f16(from, scale, to, unpack_options);
+        ov::npuw::util::XARCH::unpack_f8f16_scale(from, scale, to, unpack_options);
     } else if (type_from == ov::element::f16) {
         // FIXME: Implement XARCH::unpack
         unpack_f16f16(from, scale, to, unpack_options);
@@ -827,6 +784,45 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
     }
 }
 
+void ov::npuw::util::permute_i4d(const ov::SoPtr<ov::ITensor>& src,
+                                 ov::SoPtr<ov::ITensor>& dst,
+                                 const std::array<int, 4> order) {
+    const auto& src_shape = src->get_shape();
+    const auto& dst_shape = dst->get_shape();
+    NPUW_ASSERT(src_shape.size() == 4);
+    NPUW_ASSERT(dst_shape.size() == 4);
+
+    const auto& src_s = src->get_strides();
+    const auto& dst_s = dst->get_strides();
+    const auto elem_size = src->get_byte_size() / src->get_size();
+
+    const auto* src_p = static_cast<uint8_t*>(src->data());
+    auto* dst_p = static_cast<uint8_t*>(dst->data());
+
+    for (std::size_t i = 0; i < src_shape[0]; i++) {
+        for (std::size_t j = 0; j < src_shape[1]; j++) {
+            for (std::size_t k = 0; k < src_shape[2]; k++) {
+                for (std::size_t l = 0; l < src_shape[3]; l++) {
+                    const std::size_t v_src[4] = {i, j, k, l};  // source vector
+                    const auto src_o =
+                        v_src[0] * src_s[0] + v_src[1] * src_s[1] + v_src[2] * src_s[2] + v_src[3] * src_s[3];
+
+                    const std::size_t v_dst[4] = {
+                        // for order 0,1,3,2:
+                        v_src[order[0]],  // i -> i
+                        v_src[order[1]],  // j -> j
+                        v_src[order[2]],  // k -> l
+                        v_src[order[3]],  // l -> k
+                    };
+                    const auto dst_o =
+                        v_dst[0] * dst_s[0] + v_dst[1] * dst_s[1] + v_dst[2] * dst_s[2] + v_dst[3] * dst_s[3];
+                    std::copy_n(src_p + src_o, elem_size, dst_p + dst_o);
+                }  // l
+            }  // k
+        }  // j
+    }  // i
+}
+
 namespace {
 template <typename T>
 ov::npuw::util::range_1d validMaskRange(const T* data, std::size_t len) {
@@ -877,6 +873,20 @@ ov::npuw::util::TensorPtr ov::npuw::util::allocMem(const ov::element::Type type,
     return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
 }
 
+std::string ov::npuw::util::generate_random_string(std::size_t size) {
+    static constexpr auto chars = "0123456789"
+                                  "abcdefghijklmnopqrstuvwxyz"
+                                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution dist({}, std::strlen(chars) - 1);
+    std::string result(size, '\0');
+    std::generate_n(result.begin(), size, [&]() {
+        return chars[dist(gen)];
+    });
+    return result;
+}
+
 bool ov::npuw::util::matchStringWithLoRAPattern(const std::string& input, const std::string& pattern_suffix) {
     std::string pattern = "^lora_state.*" + pattern_suffix + "$";
     std::regex regex_pattern(pattern);
@@ -894,4 +904,20 @@ bool ov::npuw::util::matchLoRAMatMulBString(const std::string& input) {
 
 bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
     return ov::npuw::util::matchStringWithLoRAPattern(input, LoRANames::MatMul_alpha);
+}
+
+void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
+    auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
+    const size_t byte_size = tensor->get_byte_size();
+    std::memset(tensor_data, fill_val, byte_size);
+}
+
+bool ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
+    std::regex pattern(R"(past_key_values\.\d+\.key)");
+    return std::regex_match(str, pattern);
+}
+
+bool ov::npuw::util::isPastKeyValuesValue(const std::string& str) {
+    std::regex pattern(R"(past_key_values\.\d+\.value)");
+    return std::regex_match(str, pattern);
 }

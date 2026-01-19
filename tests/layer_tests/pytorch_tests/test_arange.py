@@ -1,12 +1,200 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import numpy as np
 
 from pytorch_layer_test_class import PytorchLayerTest, skip_check, skip_if_export
+import torch
 
 
 class TestArange(PytorchLayerTest):
+    def _prepare_input(self, start=None, end=None, step=None, ref_value=None, out=None):
+        args = tuple(a for a in [start, end, step,
+                     ref_value, out] if a is not None)
+        return args
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("end", [np.array(1), np.array(2), np.array(3.)])
+    def test_arange_end(self, ie_device, precision, ir_version, end):
+        class aten_arange_end(torch.nn.Module):
+            def forward(self, end):
+                return torch.arange(end)
+
+        self._test(aten_arange_end(), None, "aten::arange",
+                   ie_device, precision, ir_version, trace_model=True,
+                   kwargs_to_prepare_input={"end": end})
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("end", [np.array(1), np.array(2), np.array(3.)])
+    @pytest.mark.parametrize("dtype", [None, torch.float32, torch.float64,
+                                       torch.int8, torch.int32, torch.int64])
+    def test_arange_end_dtype(self, ie_device, precision, ir_version, end, dtype):
+        class aten_arange_end_dtype(torch.nn.Module):
+            def __init__(self, dtype):
+                super().__init__()
+                self.dtype = dtype
+
+            def forward(self, end):
+                return torch.arange(end, dtype=self.dtype)
+
+        self._test(aten_arange_end_dtype(dtype), None, "aten::arange",
+                   ie_device, precision, ir_version, trace_model=True,
+                   kwargs_to_prepare_input={"end": end})
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("end", [np.array(1), np.array(2), np.array(3.)])
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64,
+                                       torch.int8, torch.int32, torch.int64])
+    def test_arange_end_prim_dtype(self, ie_device, precision, ir_version, end, dtype):
+        class aten_arange_end_prim_dtype(torch.nn.Module):
+            def forward(self, end, ref):
+                return torch.arange(end, dtype=ref.dtype)
+
+        self._test(aten_arange_end_prim_dtype(), None, ["aten::arange", "prim::dtype"],
+                   ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"end": end,
+                                            "ref_value": torch.tensor(1, dtype=dtype).numpy()})
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("start,end", [(np.array(0), np.array(1)),
+                                           (np.array(-1), np.array(1)),
+                                           (np.array(0.4), np.array(2.4)),
+                                           (np.array(16777215), np.array(16777247))])
+    def test_arange_start_end(self, ie_device, precision, ir_version, start, end):
+        class aten_arange_start_end(torch.nn.Module):
+            def forward(self, start, end):
+                return torch.arange(start, end)
+
+        self._test(aten_arange_start_end(), None, "aten::arange",
+                   ie_device, precision, ir_version, trace_model=True,
+                   kwargs_to_prepare_input={"start": start, "end": end})
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("start,end", [(np.array(0), np.array(1)),
+                                           (np.array(-1), np.array(1)),
+                                           (np.array(0.4), np.array(2.4)),
+                                           (np.array(16777215), np.array(16777247))])
+    @pytest.mark.parametrize("dtype", [None, torch.float32, torch.float64,
+                                       torch.int8, torch.int32, torch.int64])
+    def test_arange_start_end_dtype(self, ie_device, precision, ir_version, start, end, dtype):
+        if dtype == torch.int8 and start > 127:
+            pytest.skip("int8 range is not supported in openvino")
+
+        class aten_arange_start_end_dtype(torch.nn.Module):
+            def __init__(self, dtype):
+                super().__init__()
+                self.dtype = dtype
+
+            def forward(self, start, end):
+                return torch.arange(start, end, dtype=self.dtype)
+
+        self._test(aten_arange_start_end_dtype(dtype), None, "aten::arange",
+                   ie_device, precision, ir_version, trace_model=True,
+                   kwargs_to_prepare_input={"start": start, "end": end})
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("start,end", [
+        (np.array(0), np.array(1)),
+        (np.array(-1), np.array(1)),
+        (np.array(0.4), np.array(2.4)),
+        pytest.param(np.array(16777215), np.array(16777247), marks=pytest.mark.xfail(reason="unsupported for dynamic case"))])
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64,
+                                       torch.int8, torch.int32, torch.int64])
+    def test_arange_start_end_prim_dtype(self, ie_device, precision, ir_version, start, end, dtype):
+        if dtype == torch.int8 and start > 127:
+            pytest.skip("int8 range is not supported in openvino")
+
+        class aten_arange_start_end_prim_dtype(torch.nn.Module):
+            def forward(self, start, end, ref):
+                return torch.arange(start, end, dtype=ref.dtype)
+
+        self._test(aten_arange_start_end_prim_dtype(), None, ["aten::arange", "prim::dtype"],
+                   ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"start": start, "end": end,
+                                            "ref_value": torch.tensor(1, dtype=dtype).numpy()})
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("start,end,step", [
+        (np.array(0), np.array(1), np.array(1)),
+        (np.array(-2), np.array(1), np.array(1.25)),
+        (np.array(1), np.array(-5), np.array(-1)),
+        (np.array(1), np.array(10), np.array(2)),
+        (np.array(-1), np.array(-5), np.array(-2)),
+        (np.array(16777215), np.array(16777247), np.array(1))])
+    def test_arange_start_end_step(self, ie_device, precision, ir_version, start, end, step):
+        class aten_arange_start_end_step(torch.nn.Module):
+            def forward(self, start, end, step):
+                return torch.arange(start, end, step)
+
+        self._test(aten_arange_start_end_step(), None, "aten::arange",
+                   ie_device, precision, ir_version, trace_model=True,
+                   kwargs_to_prepare_input={"start": start, "end": end, "step": step})
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("start,end,step", [
+        (np.array(0), np.array(1), np.array(1)),
+        (np.array(-2), np.array(1), np.array(1.25)),
+        (np.array(1), np.array(-5), np.array(-1)),
+        (np.array(1), np.array(10), np.array(2)),
+        (np.array(-1), np.array(-5), np.array(-2)),
+        (np.array(16777215), np.array(16777247), np.array(1))])
+    @pytest.mark.parametrize("dtype", [None, torch.float32, torch.float64,
+                                       torch.int8, torch.int32, torch.int64])
+    def test_arange_start_end_step_dtype(self, ie_device, precision, ir_version,
+                                         start, end, step, dtype):
+        if dtype == torch.int8 and start > 127:
+            pytest.skip("int8 range is not supported in openvino")
+
+        class aten_arange_start_end_step_dtype(torch.nn.Module):
+            def __init__(self, dtype):
+                super().__init__()
+                self.dtype = dtype
+
+            def forward(self, start, end, step):
+                return torch.arange(start, end, step, dtype=self.dtype)
+
+        self._test(aten_arange_start_end_step_dtype(dtype), None, "aten::arange",
+                   ie_device, precision, ir_version, trace_model=True,
+                   kwargs_to_prepare_input={"start": start, "end": end, "step": step})
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("start,end,step", [
+        (np.array(0), np.array(1), np.array(1)),
+        (np.array(-2), np.array(1), np.array(1.25)),
+        (np.array(1), np.array(-5), np.array(-1)),
+        (np.array(1), np.array(10), np.array(2)),
+        (np.array(-1), np.array(-5), np.array(-2)),
+        pytest.param(np.array(16777215), np.array(16777247), np.array(1), marks=pytest.mark.xfail(reason="unsupported for dynamic case"))])
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64,
+                                       torch.int8, torch.int32, torch.int64])
+    def test_arange_start_end_step_prim_dtype(self, ie_device, precision, ir_version,
+                                              start, end, step, dtype):
+        class aten_arange_start_end_step_prim_dtype(torch.nn.Module):
+            def __init__(self, dtype):
+                super().__init__()
+                self.dtype = dtype
+
+            def forward(self, start, end, step, ref):
+                ref = ref.to(self.dtype)
+                return torch.arange(start, end, step, dtype=ref.dtype)
+
+        self._test(aten_arange_start_end_step_prim_dtype(dtype), None, ["aten::arange", "prim::dtype"],
+                   ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"start": start, "end": end, "step": step,
+                                            "ref_value": torch.tensor(1, dtype=dtype).numpy()})
+
+
+class TestArangeLegacy(PytorchLayerTest):
     def _prepare_input(self, end, start=None, step=None, dtype="int64", ref_dtype=None):
         import numpy as np
         if start is None and step is None:
@@ -120,7 +308,7 @@ class TestArange(PytorchLayerTest):
     @pytest.mark.parametrize("use_out", [skip_check(True), False])
     def test_arange_end_only(self, dtype, end, use_out, ie_device, precision, ir_version):
         self._test(*self.create_model(dtype, 1, use_out), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"end": end})
+                   kwargs_to_prepare_input={"end": end}, trace_model=True)
 
     @pytest.mark.nightly
     @pytest.mark.parametrize("dtype", [None, "float32", "float64", "int32", "int64", "int8"])

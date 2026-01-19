@@ -1,4 +1,4 @@
-# Copyright (C) 2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -32,16 +32,13 @@ else()
     set(PREPROCESSOR_OPTIONS  -E -P)
 endif()
 
-add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/cm_kernels"
-    COMMAND "${CMAKE_COMMAND}" -E make_directory "${CODEGEN_CACHE_DIR}/cm_kernels/"
-)
-
 foreach(KERNEL IN LISTS KERNELS)
     get_filename_component(FILENAME ${KERNEL} NAME)
     add_custom_command(
         OUTPUT "${CODEGEN_CACHE_DIR}/cm_kernels/${FILENAME}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CODEGEN_CACHE_DIR}/cm_kernels/"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${KERNEL} "${CODEGEN_CACHE_DIR}/cm_kernels/${FILENAME}"
-        DEPENDS ${KERNEL} "${CODEGEN_CACHE_DIR}/cm_kernels"
+        DEPENDS ${KERNEL}
         COMMENT "Copying ${FILE} ${CODEGEN_CACHE_DIR}/cm_kernels"
     )
     list(APPEND COPIED_KERNELS "${CODEGEN_CACHE_DIR}/cm_kernels/${FILENAME}")

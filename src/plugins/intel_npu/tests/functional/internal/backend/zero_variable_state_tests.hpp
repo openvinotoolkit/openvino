@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,12 +54,11 @@ protected:
     ::intel_npu::Config npu_config = ::intel_npu::Config(options);
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
-        targetDevice = ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
 
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
@@ -88,6 +87,7 @@ public:
             utils::PluginCache::get().reset();
         }
 
+        init_struct = nullptr;
         APIBaseTest::TearDown();
     }
 };
@@ -99,8 +99,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndCheckAgainstZeroTensorState) {
     auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, true);
     auto zero_state =
         std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1, npu_config);
-    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                    zero_state->get_state()->data()));
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
+                                                                            zero_state->get_state()->data()));
 
     EXPECT_EQ(zero_state->get_state()->data(), zero_tensor->data());
     EXPECT_EQ(zero_state->get_state()->get_shape(), zero_tensor->get_shape());
@@ -124,13 +124,13 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithZeroTensor) {
     auto zero_tensor0 = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, true);
     auto zero_state =
         std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor0, 1, 1, npu_config);
-    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                    zero_state->get_state()->data()));
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
+                                                                            zero_state->get_state()->data()));
 
     auto zero_tensor1 = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, true);
     zero_state->set_state(zero_tensor1);
-    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                    zero_state->get_state()->data()));
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
+                                                                            zero_state->get_state()->data()));
 
     ASSERT_TRUE(zero_state->state_update_pending());
     ASSERT_TRUE(zero_state->zero_state_update_pending());
@@ -159,18 +159,16 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensor) {
     auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, true);
     auto zero_state =
         std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1, npu_config);
-    ASSERT_TRUE(
-        ::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
                                                                             zero_state->get_user_state()->data()));
 
     // shape size is unaligned to standard page size, expect to fail
     auto data = static_cast<float*>(::operator new(ov::shape_size(shape) * sizeof(ov::element::f32)));
     auto tensor = make_tensor(ov::element::f32, shape, data);
     zero_state->set_state(tensor);
-    ASSERT_FALSE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                     zero_state->get_state()->data()));
-    ASSERT_TRUE(
-        ::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
+    ASSERT_FALSE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
+                                                                             zero_state->get_state()->data()));
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
                                                                             zero_state->get_zero_state()->data()));
 
     ASSERT_TRUE(zero_state->state_update_pending());
@@ -192,6 +190,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensor) {
     EXPECT_EQ(zero_state->get_state()->get_element_type(), zero_state->get_zero_state()->get_element_type());
 
     OV_ASSERT_NO_THROW(zero_state->reset());
+
+    ::operator delete(data);
 }
 
 TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensorAfterGetState) {
@@ -201,17 +201,16 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensorAfte
     auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, true);
     auto zero_state =
         std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1, npu_config);
-    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                    zero_state->get_state()->data()));
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
+                                                                            zero_state->get_state()->data()));
 
     // shape size is unaligned to standard page size, expect to fail
     auto data = static_cast<float*>(::operator new(ov::shape_size(shape) * sizeof(ov::element::f32)));
     auto tensor = make_tensor(ov::element::f32, shape, data);
     zero_state->set_state(tensor);
-    ASSERT_FALSE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                     zero_state->get_state()->data()));
-    ASSERT_TRUE(
-        ::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
+    ASSERT_FALSE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
+                                                                             zero_state->get_state()->data()));
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
                                                                             zero_state->get_zero_state()->data()));
 
     ASSERT_TRUE(zero_state->state_update_pending());
@@ -233,6 +232,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensorAfte
     EXPECT_EQ(zero_state->get_state()->get_element_type(), zero_state->get_zero_state()->get_element_type());
 
     OV_ASSERT_NO_THROW(zero_state->reset());
+
+    ::operator delete(data);
 }
 
 TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithHostTensor) {
@@ -250,10 +251,9 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithHostTensor) {
     auto host_tensor =
         std::make_shared<::intel_npu::ZeroHostTensor>(zero_context, init_struct, ov::element::f32, shape);
     zero_state->set_state(host_tensor);
-    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                    zero_state->get_state()->data()));
-    ASSERT_TRUE(
-        ::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
+                                                                            zero_state->get_state()->data()));
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
                                                                             zero_state->get_zero_state()->data()));
 
     ASSERT_TRUE(zero_state->state_update_pending());
@@ -294,11 +294,9 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithRemoteTensor) {
     zero_state->set_state(remote_tensor);
     auto zero_remote_tensor = std::dynamic_pointer_cast<::intel_npu::ZeroRemoteTensor>(zero_state->get_state()._ptr);
 
-    ASSERT_TRUE(
-        ::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
                                                                             zero_remote_tensor->get_original_memory()));
-    ASSERT_TRUE(
-        ::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
                                                                             zero_state->get_zero_state()->data()));
 
     ASSERT_TRUE(zero_state->state_update_pending());

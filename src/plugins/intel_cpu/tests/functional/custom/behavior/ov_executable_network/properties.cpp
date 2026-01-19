@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,12 +48,13 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::log::level.name()),
         RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
+        RO_property(ov::intel_cpu::tbb_partitioner.name()),
         RO_property(ov::hint::dynamic_quantization_group_size.name()),
         RO_property(ov::hint::kv_cache_precision.name()),
         RO_property(ov::key_cache_precision.name()),
         RO_property(ov::value_cache_precision.name()),
         RO_property(ov::key_cache_group_size.name()),
-        RO_property(ov::value_cache_group_size.name()),
+        RO_property(ov::value_cache_group_size.name())
     };
 
     ov::Core ie;

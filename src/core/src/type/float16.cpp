@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,14 +107,6 @@ float16::float16(float value) {
         frac += reven_16;
     }
     m_value = ((iv & smask) | frac) >> 16;
-}
-
-std::string float16::to_string() const {
-    return std::to_string(static_cast<float>(*this));
-}
-
-size_t float16::size() const {
-    return sizeof(m_value);
 }
 
 float16::operator float() const {

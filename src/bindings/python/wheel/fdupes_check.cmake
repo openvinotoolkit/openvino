@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -7,13 +7,6 @@ foreach(var Python3_EXECUTABLE WORKING_DIRECTORY REPORT_FILE WHEEL_VERSION PACKA
         message(FATAL_ERROR "Variable ${var} is not defined")
     endif()
 endforeach()
-
-get_filename_component(wheel_name "${PACKAGE_FILE}" NAME)
-if(wheel_name MATCHES ".*cp313t.*")
-    message(STATUS "Skipping duplicate file check for Python 3.13t. Ticket: 171533")
-    file(WRITE "${REPORT_FILE}" "")
-    return()
-endif()
 
 # find programs
 

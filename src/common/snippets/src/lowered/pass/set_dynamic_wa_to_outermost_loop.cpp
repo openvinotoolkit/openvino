@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,7 +67,7 @@ bool SetDynamicWAToOuterMostLoop::run(LinearIR& linear_ir) {
     for (const auto& loop : affected_loops) {
         if (!utils::is_dynamic_value(loop->get_work_amount())) {
             loop->set_work_amount(utils::get_dynamic_value<size_t>());
-            ov::snippets::utils::update_data_pointer_shifts(loop);
+            ov::snippets::utils::update_data_pointer_shifts(loop_manager, loop);
             modified = true;
         }
     }

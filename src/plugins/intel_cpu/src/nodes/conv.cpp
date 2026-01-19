@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -426,6 +426,13 @@ std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecis
             OPENVINO_THROW("Unexpected sum fusing port: ", fusingPort);
         }
     };
+
+// ACL requires dst precision matches src precision for int8
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    if (canBeExecutedInInt8()) {
+        return {getOriginalInputPrecisionAtPort(0), ov::element::dynamic};
+    }
+#endif
 
     auto dstType = getOriginalOutputPrecisionAtPort(0);
 

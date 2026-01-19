@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -322,6 +322,7 @@ void DFT::dftNd(float* output,
                 bool inverse) const {
     const std::vector<size_t> iterationRange(outputShape.begin(), outputShape.end() - 1);
     const size_t lastDimIndex = iterationRange.size() - 1;
+    const auto& cpu_parallel = context->getCpuParallel();
     for (size_t currentAxis : axes) {
         const size_t outputComplexLen = outputShape[currentAxis];
         const size_t outputLen = outputComplexLen * 2;
@@ -330,7 +331,7 @@ void DFT::dftNd(float* output,
         if (IsPowerOfTwo(outputComplexLen)) {
             size_t parallelDimIndex = lastDimIndex == currentAxis ? lastDimIndex - 1 : lastDimIndex;
             do {
-                parallel_for(iterationRange[parallelDimIndex], [&](size_t dim) {
+                cpu_parallel->parallel_for(iterationRange[parallelDimIndex], [&](size_t dim) {
                     std::vector<float> gatheredData(outputLen * 2);
                     auto parallelIterationCounter = iterationCounter;
                     parallelIterationCounter[parallelDimIndex] = dim;
@@ -377,6 +378,7 @@ void DFT::fft(float* inBuffer,
     static int cacheSizeL3 = dnnl::utils::get_cache_size(3, false);
     static int elementsPerCacheLine = cacheSizeL3 / sizeof(float);
     size_t nComplex = dataLength / 2;
+    const auto& cpu_parallel = context->getCpuParallel();
 
     std::function<void(const size_t, const size_t, const size_t)> blockIteration;
     if (fftKernel != nullptr) {
@@ -428,7 +430,7 @@ void DFT::fft(float* inBuffer,
         blockSize = nextIterationBlockSize;
         nextIterationBlockSize /= 2;
         if (parallelize && blockSize >= 4 * static_cast<size_t>(elementsPerCacheLine)) {
-            parallel_for(numBlocks, [&](const size_t block) {
+            cpu_parallel->parallel_for(numBlocks, [&](const size_t block) {
                 blockIteration(block, 1, nextIterationBlockSize);
             });
         } else {
@@ -455,6 +457,7 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
         CPU_NODE_THROW("Twiddles for nComplex=", nComplex, " not found");
     }
     const auto& twiddles = twiddlesIter->second;
+    const auto& cpu_parallel = context->getCpuParallel();
 
     std::function<void(size_t)> blockIteration;
     if (dftKernel != nullptr) {
@@ -500,7 +503,7 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
         };
     }
 
-    parallel_for(nComplex, blockIteration);
+    cpu_parallel->parallel_for(nComplex, blockIteration);
     cpu_memcpy(data, outputBuffer.data(), dataLength * sizeof(float));
 }
 

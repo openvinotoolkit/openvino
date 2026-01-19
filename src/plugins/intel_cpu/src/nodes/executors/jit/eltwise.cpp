@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -460,6 +460,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
                 Algorithm::EltwiseEqual,
                 Algorithm::EltwiseLessEqual,
                 Algorithm::EltwiseGreaterEqual,
+                Algorithm::EltwiseSoftSign,
                 Algorithm::EltwiseIsFinite,
                 Algorithm::EltwiseIsInf,
                 Algorithm::EltwiseIsNaN,
@@ -481,6 +482,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
                 Algorithm::EltwiseRoundHalfToEven,
                 Algorithm::EltwiseSigmoid,
                 Algorithm::EltwiseSqrt,
+                Algorithm::EltwiseSquaredDifference,
                 Algorithm::EltwiseSubtract,
                 Algorithm::EltwiseTanh)) {
         return false;

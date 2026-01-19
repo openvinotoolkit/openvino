@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <cfloat>
@@ -1407,7 +1407,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                     ov::intel_cpu::PlainTensor& head_sum,
                                     size_t key_group_size,
                                     size_t value_group_size,
-                                    bool quant_key_by_channel) {
+                                    bool quant_key_by_channel,
+                                    const ov::intel_cpu::PlainTensor& sink_input) {
     ov::intel_cpu::PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;
     auto B = query.size(0);
@@ -1591,6 +1592,10 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
             attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, pq, 0}, true));
         }
         uint8_t* cmask_ptr = causal_mask ? &causal_mask.at<uint8_t>({b, h, pq, 0}, true) : nullptr;
+        float* sink = nullptr;
+        if (sink_input) {
+            sink = &sink_input.at<float>({b, h, pq, 0}, true);
+        }
         attn_softmax_kernel<T3>(buf_attn_w.ptr<T3>(b, h, pq),
                                 buf_attn_w.ptr<T3>(b, h, pq),
                                 d_scale,
@@ -1601,7 +1606,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                 ncausal,
                                 cur_kv_len,
                                 attn_mask_prec,
-                                precision);
+                                precision,
+                                sink);
     });
 
     // attn_w * V
@@ -1719,7 +1725,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       ov::intel_cpu::PlainTensor& head_sum,
                       size_t key_group_size,
                       size_t value_group_size,
-                      bool quant_key_by_channel) {
+                      bool quant_key_by_channel,
+                      const ov::intel_cpu::PlainTensor& sink_input) {
     if (query.get_precision() == ov::element::bf16) {
         if (present_key.get_precision() == ov::element::u8) {
             mha_single_token_kernel<ov::bfloat16, uint8_t, float>(query,
@@ -1739,7 +1746,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                   head_sum,
                                                                   key_group_size,
                                                                   value_group_size,
-                                                                  quant_key_by_channel);
+                                                                  quant_key_by_channel,
+                                                                  sink_input);
         } else {
             mha_single_token_kernel<ov::bfloat16, ov::bfloat16, float>(query,
                                                                        present_key,
@@ -1758,7 +1766,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                        head_sum,
                                                                        key_group_size,
                                                                        value_group_size,
-                                                                       quant_key_by_channel);
+                                                                       quant_key_by_channel,
+                                                                       sink_input);
         }
     } else if (query.get_precision() == ov::element::f16) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
@@ -1780,7 +1789,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                            head_sum,
                                                                            key_group_size,
                                                                            value_group_size,
-                                                                           quant_key_by_channel);
+                                                                           quant_key_by_channel,
+                                                                           sink_input);
         } else {
             OPENVINO_THROW("Unsupported precision: ", present_key.get_precision());
         }
@@ -1803,7 +1813,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                  head_sum,
                                                                  key_group_size,
                                                                  value_group_size,
-                                                                 quant_key_by_channel);
+                                                                 quant_key_by_channel,
+                                                                 sink_input);
         } else {
             mha_single_token_kernel<ov::float16, ov::float16, float>(query,
                                                                      present_key,
@@ -1822,7 +1833,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                      head_sum,
                                                                      key_group_size,
                                                                      value_group_size,
-                                                                     quant_key_by_channel);
+                                                                     quant_key_by_channel,
+                                                                     sink_input);
         }
 #endif
     } else if (query.get_precision() == ov::element::f32) {
@@ -1844,7 +1856,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                            head_sum,
                                                            key_group_size,
                                                            value_group_size,
-                                                           quant_key_by_channel);
+                                                           quant_key_by_channel,
+                                                           sink_input);
         } else if (present_key.get_precision() == ov::element::f16) {
             mha_single_token_kernel<float, ov::float16, float>(query,
                                                                present_key,
@@ -1863,7 +1876,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                head_sum,
                                                                key_group_size,
                                                                value_group_size,
-                                                               quant_key_by_channel);
+                                                               quant_key_by_channel,
+                                                               sink_input);
         } else {
             mha_single_token_kernel<float, float, float>(query,
                                                          present_key,
@@ -1882,7 +1896,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                          head_sum,
                                                          key_group_size,
                                                          value_group_size,
-                                                         quant_key_by_channel);
+                                                         quant_key_by_channel,
+                                                         sink_input);
         }
     } else {
         OPENVINO_THROW("Unsupported precision: ", query.get_precision());

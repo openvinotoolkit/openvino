@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,11 +132,21 @@ ov::OutputVector import_onnx_scan(const ov::frontend::onnx::Node& node,
                                   std::string&& in_directions_attr_name) {
     const auto& node_inputs = node.get_ov_inputs();
 
-    const auto& subgraphs = node.get_subgraphs();
-    auto body_graph = subgraphs.at("body");
-    auto body_outputs = body_graph->get_ov_outputs();
-    auto body_inputs = body_graph->get_ng_parameters();
+    ParameterVector body_inputs;
+    OutputVector body_outputs;
+    if (!node.has_decoder()) {
+        const auto& subgraphs = node.get_subgraphs();
+        auto body_graph = subgraphs.at("body");
+        body_outputs = body_graph->get_ov_outputs();
+        body_inputs = body_graph->get_ng_parameters();
 
+    } else {
+        auto body_graph = node.get_attribute_value<std::shared_ptr<ov::Model>>("body");
+        for (const auto& res : body_graph->get_results()) {
+            body_outputs.push_back(res->get_input_source_output(0));
+        }
+        body_inputs = body_graph->get_parameters();
+    }
     const int64_t num_scan_inputs = node.get_attribute_value<int64_t>("num_scan_inputs");
     const size_t num_initial_values = body_inputs.size() - num_scan_inputs;
     const size_t num_scan_outputs = body_outputs.size() - num_initial_values;

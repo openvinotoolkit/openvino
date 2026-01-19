@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,7 +17,7 @@ function(ov_check_pip_package)
         )
     set(oneValueRequiredArgs
         REQUIREMENT             # Requirement-specifier to check
-        RESULT_VAR              # Result varibale to set return code {ON | OFF}
+        RESULT_VAR              # Result variable to set return code {ON | OFF}
         )
     set(multiValueArgs)
 
@@ -75,7 +75,7 @@ function(ov_check_pip_packages)
         )
     set(oneValueRequiredArgs
         REQUIREMENTS_FILE       # File with requirement-specifiers to check
-        RESULT_VAR              # Result varibale to set return code {ON | OFF}
+        RESULT_VAR              # Result variable to set return code {ON | OFF}
         )
     set(multiValueArgs)
 

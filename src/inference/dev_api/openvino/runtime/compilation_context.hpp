@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,27 +18,32 @@ namespace ov {
 
 class OPENVINO_RUNTIME_API ModelCache {
 public:
-    static std::string calculate_file_info(const std::string& filePath);
+    static std::string calculate_file_info(const std::filesystem::path& file_path);
 
-    static std::string compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions);
+    static std::string compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compile_options);
 
-    static std::string compute_hash(const std::string& modelName, const ov::AnyMap& compileOptions);
-    static std::string compute_hash(const std::string& modeStr,
+    static std::string compute_hash(const std::filesystem::path& model_path, const ov::AnyMap& compile_options);
+
+    static std::string compute_hash(const std::string& mode_str,
                                     const ov::Tensor& data,
-                                    const ov::AnyMap& compileOptions);
+                                    const ov::AnyMap& compile_options);
     static std::string compute_hash(const std::shared_ptr<const ov::Model>& model,
                                     const std::filesystem::path& model_path,
-                                    const ov::AnyMap& compileOptions);
+                                    const ov::AnyMap& compile_options);
 };
 
 class CompiledBlobHeader final {
     std::string m_ieVersion;
     std::string m_fileInfo;
     std::string m_runtimeInfo;
+    uint32_t m_headerSizeAlignment{0};
 
 public:
     CompiledBlobHeader();
-    CompiledBlobHeader(const std::string& ieVersion, const std::string& fileInfo, const std::string& runtimeInfo);
+    CompiledBlobHeader(const std::string& ieVersion,
+                       const std::string& fileInfo,
+                       const std::string& runtimeInfo,
+                       const uint32_t headerSizeAlignment = 0);
 
     const std::string& get_openvino_version() const {
         return m_ieVersion;
@@ -50,6 +55,10 @@ public:
 
     const std::string& get_runtime_info() const {
         return m_runtimeInfo;
+    }
+
+    const uint32_t get_header_size_alignment() const {
+        return m_headerSizeAlignment;
     }
 
     friend std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header);

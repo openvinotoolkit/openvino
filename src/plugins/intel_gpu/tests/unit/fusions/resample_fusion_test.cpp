@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -347,4 +347,28 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise_fusing_through_not_allowe
     resample_test_params{ CASE_RESAMPLE_FP32_1, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT },
 
     resample_test_params{ CASE_RESAMPLE_FP16_1, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT },
+}));
+
+class resample_eltwise : public ResamplePrimitiveFusingTest {};
+TEST_P(resample_eltwise, opt_kernel) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
+        reorder("reorder_datat", input_info("scale_data"), p.default_format, p.data_type),
+        resample("resample_prim", input_info("input"), p.out_shape, p.in_shape.feature[0], p.type),
+        eltwise("eltwise",{ input_info("resample_prim"), input_info("reorder_datat") }, eltwise_mode::sum, p.data_type),
+        reorder("out", input_info("eltwise"), p.input_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+#define RESAMPLE_QUANTIZE_CNT 2, 3
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise, ::testing::ValuesIn(std::vector<resample_test_params>{
+    resample_test_params{ CASE_RESAMPLE_FP16_1, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_4, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_7, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_11, RESAMPLE_QUANTIZE_CNT },
 }));

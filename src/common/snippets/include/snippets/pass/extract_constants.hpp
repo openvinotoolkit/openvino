@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ namespace ov::snippets::pass {
 class ExtractConstants : public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("ExtractConstants", "0");
-    ExtractConstants() = default;
+    ExtractConstants() : SubgraphPass("ExtractConstants") {}
 
     bool run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) override;
 };

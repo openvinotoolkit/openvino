@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
@@ -7,6 +7,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
+from huggingface_hub import snapshot_download
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
 from models_hub_common.utils import retry
@@ -142,8 +143,9 @@ class TestLLMModel(TestTorchConvertModel):
     def load_model(self, name, type):
         model = None
         example = None
+        model_cached = snapshot_download(name)  # required to avoid HF rate limits
         try:
-            config = AutoConfig.from_pretrained(name, trust_remote_code=True)
+            config = AutoConfig.from_pretrained(model_cached, trust_remote_code=True)
         except Exception:
             config = {}
         model_kwargs = {"torchscript": True, "trust_remote_code": True}
@@ -159,9 +161,9 @@ class TestLLMModel(TestTorchConvertModel):
             model_kwargs["torch_dtype"] = torch.float16
         else:
             model_kwargs["torch_dtype"] = "auto"
-
-        t = AutoTokenizer.from_pretrained(name, trust_remote_code=True)
-        self.model = AutoModelForCausalLM.from_pretrained(name, **model_kwargs)
+        model_cached = snapshot_download(name)  # required to avoid HF rate limits
+        t = AutoTokenizer.from_pretrained(model_cached, trust_remote_code=True)
+        self.model = AutoModelForCausalLM.from_pretrained(model_cached, **model_kwargs)
         if is_quant:
             model = self.model
         else:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -125,6 +125,9 @@ public:
 
     /** @brief Reshapes model input.*/
     Napi::Value reshape(const Napi::CallbackInfo& info);
+
+    /** @brief Returns vector of ops(NodeWrap objects) as a Napi value for model */
+    Napi::Value get_ops(const Napi::CallbackInfo& info);
 
 private:
     ov::Output<ov::Node> input_from_handle(const Napi::Env& env, const Napi::Value& value);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,14 @@ std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, const
 }
 
 }  // namespace
+
+const format& layout::get_format() const {
+    return format;
+}
+
+const padding& layout::get_padding() const {
+    return data_padding;
+}
 
 size_t layout::get_rank() const {
     return format.dimension();

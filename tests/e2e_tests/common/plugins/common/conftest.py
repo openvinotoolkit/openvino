@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -501,8 +501,8 @@ def upload_db(data, url):
 
 
 def get_ie_version():
-    import openvino.runtime as rt
-    version = rt.get_version()
+    from openvino import get_version
+    version = get_version()
     return version if version else "Not_found"
 
 

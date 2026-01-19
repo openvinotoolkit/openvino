@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -175,6 +175,8 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
             kernel_string->options = exe_mode + " -cl-mad-enable";
             if (engine_info.bOptHintsSupport)
                 kernel_string->options += " -DOPT_HINTS_SUPPORTED=1";
+            if (engine_info.enable_large_allocations)
+                kernel_string->options += " -cl-intel-greater-than-4GB-buffer-required";
         }
 
         if (engine_info.supports_work_group_collective_functions)
@@ -213,7 +215,7 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                         int number_of_outputs,
                                         bool is_dynamic) const {
     if (!is_dynamic && !kernel.skip_execution)
-        KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info.maxWorkGroupSize);
+        KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info);
     kernel.code.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;

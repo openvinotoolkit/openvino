@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,30 +41,10 @@ bool common_node_for_all_outputs(const ov::OutputVector& outputs) {
     return ret;
 };
 
-OperatorsBridge register_extensions(OperatorsBridge& bridge,
-                                    const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
-    for (const auto& extension : conversions) {
-        if (const auto common_conv_ext = ov::as_type_ptr<ov::frontend::ConversionExtension>(extension)) {
-            bridge.overwrite_operator(
-                common_conv_ext->get_op_type(),
-                "",
-                [common_conv_ext](const ov::frontend::onnx::Node& node) -> ov::OutputVector {
-                    return common_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
-                });
-        } else if (const auto onnx_conv_ext = ov::as_type_ptr<ov::frontend::onnx::ConversionExtension>(extension)) {
-            bridge.overwrite_operator(onnx_conv_ext->get_op_type(),
-                                      onnx_conv_ext->get_domain(),
-                                      [onnx_conv_ext](const ov::frontend::onnx::Node& node) -> ov::OutputVector {
-                                          return onnx_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
-                                      });
-        }
-    }
-    return bridge;
-}
-
 OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     OperatorsBridge bridge;
-    return register_extensions(bridge, conversions);
+    bridge.register_extensions(conversions);
+    return bridge;
 }
 
 Model::ModelOpSet build_model_opset(const ModelProto& model_proto, const OperatorsBridge& ops_bridge) {

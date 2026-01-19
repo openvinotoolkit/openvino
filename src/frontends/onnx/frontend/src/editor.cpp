@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -237,7 +237,7 @@ void graph_topological_sort(GraphProto* graph) {
             bool can_add = true;
             for (const auto& in_name : node->input()) {
                 if (in_name.empty()) {
-                    return;
+                    continue;
                 }
                 const auto* in_node = get_node_by_out_name(in_name);
                 if (in_node == nullptr) {  // can be an initializer or an model's input

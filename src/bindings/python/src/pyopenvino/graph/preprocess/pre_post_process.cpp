@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -605,7 +605,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
     proc.def("build", [](ov::preprocess::PrePostProcessor& self) {
         std::shared_ptr<ov::Model> model;
         {
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             model = self.build();
         }
         py::type model_class = py::module_::import("openvino").attr("Model");

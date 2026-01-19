@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@ public:
                              const ov::Output<Node>& w_decompression_zero_point,
                              const ov::Output<Node>& a_decompression_scale,
                              const ov::Output<Node>& a_decompression_zero_point,
+                             const ov::Output<Node>& a_precomputed_reduction,
                              const ov::element::Type output_type = ov::element::dynamic);
 
     FullyConnectedCompressed(const ov::Output<Node>& A,

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # Arguments parsing
@@ -63,8 +63,8 @@ Write-Host "[setupvars] OpenVINO environment initialized"
 
 # Check if Python is installed
 $PYTHON_VERSION_MAJOR = 3
-$MIN_REQUIRED_PYTHON_VERSION_MINOR = 9
-$MAX_SUPPORTED_PYTHON_VERSION_MINOR = 13
+$MIN_REQUIRED_PYTHON_VERSION_MINOR = 10
+$MAX_SUPPORTED_PYTHON_VERSION_MINOR = 14
 
 try
 {
@@ -86,7 +86,11 @@ if (-not $python_version)
 }
 else
 {
-    [int]$installed_python_version_major, [int]$installed_python_version_minor = $python_version.Split('.')
+    $version_parts = $python_version.Split('.')
+    $installed_python_version_major = [int]$version_parts[0]
+    # Strip non-numeric suffix from minor version (e.g., 14t -> 14)
+    $minor_version_string = $version_parts[1] -replace '[^0-9].*$', ''
+    $installed_python_version_minor = [int]$minor_version_string
 }
 
 if (-not ($PYTHON_VERSION_MAJOR -eq $installed_python_version_major -and $installed_python_version_minor -ge $MIN_REQUIRED_PYTHON_VERSION_MINOR -and $installed_python_version_minor -le $MAX_SUPPORTED_PYTHON_VERSION_MINOR))

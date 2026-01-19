@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -466,6 +466,11 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     auto xattention_threshold_layout = layout{ov::PartialShape{1}, data_types::f32, format::bfyx};
     auto xattention_block_size_layout = layout{ov::PartialShape{}, data_types::i32, format::bfyx};
     auto xattention_stride_layout = layout{ov::PartialShape{}, data_types::i32, format::bfyx};;
+    auto sinks_layout = layout{ov::PartialShape{0, 0, 0, 0}, data_types::f32, format::bfyx};;
+    auto adaptive_rkv_start_size_layout = layout{ov::PartialShape{}, data_types::i32, format::bfyx};
+    auto adaptive_rkv_evictable_sizes_layout = layout{ov::PartialShape{1}, data_types::f32, format::bfyx};
+    auto adaptive_rkv_diversity_block_set_indices_layout = layout{ov::PartialShape{1}, data_types::f32, format::bfyx};
+    auto adaptive_rkv_diversity_block_set_indices_begins_layout = layout{ov::PartialShape{1}, data_types::f32, format::bfyx};
 
     std::vector<input_info> pa_inputs = {input_info("query"),
                                          input_info("key"),
@@ -487,6 +492,11 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
                                          input_info("xattention_threshold"),
                                          input_info("xattention_block_size"),
                                          input_info("xattention_stride"),
+                                         input_info("sinks"),
+                                         input_info("adaptive_rkv_start_size"),
+                                         input_info("adaptive_rkv_evictable_sizes"),
+                                         input_info("adaptive_rkv_diversity_block_set_indices"),
+                                         input_info("adaptive_rkv_diversity_block_set_indices_begins")
     };
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -521,6 +531,11 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     topology.add(input_layout("xattention_threshold", xattention_threshold_layout));
     topology.add(input_layout("xattention_block_size", xattention_block_size_layout));
     topology.add(input_layout("xattention_stride", xattention_stride_layout));
+    topology.add(input_layout("sinks", sinks_layout));
+    topology.add(input_layout("adaptive_rkv_start_size", adaptive_rkv_start_size_layout));
+    topology.add(input_layout("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_layout));
+    topology.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
+    topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(data("target_shape", target_shape));
     topology.add(data("subtract_one", subtract_one));

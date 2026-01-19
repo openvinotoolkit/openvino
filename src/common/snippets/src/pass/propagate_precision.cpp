@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,14 +142,15 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
                     if (can_be_removed(actual_before, actual_after, required_after)) {
                         // remove existing convert
                         existing_convert->output(0).replace(parent_output);
+                        ov::op::util::disconnect_output_from_consumers(existing_convert->output(0), parent_output);
                         continue;
                     }
 
                     if (can_be_fused(actual_after, required_after)) {
                         // fuse existing convert
-                        auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
-                            existing_convert->get_input_node_shared_ptr(0),
-                            required_after);
+                        auto convert =
+                            std::make_shared<ov::snippets::op::ConvertSaturation>(existing_convert->input_value(0),
+                                                                                  required_after);
                         copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
                         op->set_argument(op_input.get_index(), convert);
                         continue;
