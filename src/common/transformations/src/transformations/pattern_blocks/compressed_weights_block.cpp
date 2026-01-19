@@ -24,26 +24,29 @@
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov::pass::pattern;
+using ov::pass::pattern::wrap_type;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 ov::pass::pattern::op::CompressedWeightsBlock::CompressedWeightsBlock(
     const std::vector<ov::element::Type>& supported_weights_types,
     const std::set<size_t>& supported_weights_ranks)
     : Block({}, {}, "CompressedWeightsBlock") {
-    auto weights = wrap_type<ov::op::v0::Constant>(type_matches_any(supported_weights_types));
-    auto convert = wrap_type<ov::op::v0::Convert>({weights});
+    auto weights = wrap_type<v0::Constant>(ov::pass::pattern::type_matches_any(supported_weights_types));
+    auto convert = wrap_type<v0::Convert>({weights});
 
-    auto sub_const = wrap_type<ov::op::v0::Constant>();
-    auto sub_convert_const = wrap_type<ov::op::v0::Convert>({sub_const});
-    auto sub_with_convert = wrap_type<ov::op::v1::Subtract>({convert, sub_convert_const});
-    auto sub_no_convert = wrap_type<ov::op::v1::Subtract>({convert, sub_const});
+    auto sub_const = wrap_type<v0::Constant>();
+    auto sub_convert_const = wrap_type<v0::Convert>({sub_const});
+    auto sub_with_convert = wrap_type<v1::Subtract>({convert, sub_convert_const});
+    auto sub_no_convert = wrap_type<v1::Subtract>({convert, sub_const});
     auto subtract = sub_with_convert | sub_no_convert;
 
-    auto mul_const = wrap_type<ov::op::v0::Constant>();
-    auto mul_convert_const = wrap_type<ov::op::v0::Convert>({mul_const});
+    auto mul_const = wrap_type<v0::Constant>();
+    auto mul_convert_const = wrap_type<v0::Convert>({mul_const});
     auto mul_scale = mul_const | mul_convert_const;
 
-    auto mul_with_sub = wrap_type<ov::op::v1::Multiply>({subtract, mul_scale});
-    auto mul_no_sub = wrap_type<ov::op::v1::Multiply>({convert, mul_scale});
+    auto mul_with_sub = wrap_type<v1::Multiply>({subtract, mul_scale});
+    auto mul_no_sub = wrap_type<v1::Multiply>({convert, mul_scale});
     auto mul = mul_with_sub | mul_no_sub;
 
     auto reshape_predicate = [supported_weights_ranks](const ov::Output<ov::Node>& output) {
@@ -57,14 +60,14 @@ ov::pass::pattern::op::CompressedWeightsBlock::CompressedWeightsBlock(
                supported_weights_ranks_before_reshape.count(in_ps.size()) &&
                supported_weights_ranks.count(out_ps.size());
     };
-    auto reshape_const = wrap_type<ov::op::v0::Constant>();
-    auto reshape = wrap_type<ov::op::v1::Reshape>({mul, reshape_const}, reshape_predicate);
+    auto reshape_const = wrap_type<v0::Constant>();
+    auto reshape = wrap_type<v1::Reshape>({mul, reshape_const}, reshape_predicate);
 
     auto transpose_input = reshape | mul;
-    auto transpose_const = wrap_type<ov::op::v0::Constant>();
-    auto transpose = wrap_type<ov::op::v1::Transpose>({transpose_input, transpose_const});
+    auto transpose_const = wrap_type<v0::Constant>();
+    auto transpose = wrap_type<v1::Transpose>({transpose_input, transpose_const});
 
-    auto weights_input = optional<ov::op::v0::Convert>({reshape | transpose | mul});
+    auto weights_input = ov::pass::pattern::optional<v0::Convert>({reshape | transpose | mul});
 
     // Block initialization
     m_inputs = ov::OutputVector{weights};

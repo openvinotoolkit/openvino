@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <fstream>
@@ -420,7 +419,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_propos
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_group_norm) {
-    if (std::getenv("ONNX_ITERATOR")) {
+    if (is_graph_iterator_enabled()) {
         GTEST_SKIP() << "Experimental ops are not supported when using GraphIterator.";
     }
     auto model = convert_model("org.openvinotoolkit/experimental_detectron/group_norm.onnx");
@@ -539,9 +538,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_topk_rios) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
-    if (std::getenv("ONNX_ITERATOR")) {
-        GTEST_SKIP() << "Experimental ops are not supported when using GraphIterator.";
-    }
     auto model = convert_model("org.openvinotoolkit/deformable_conv_2d.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
@@ -572,7 +568,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d_with_mask) {
-    if (std::getenv("ONNX_ITERATOR")) {
+    if (is_graph_iterator_enabled()) {
         GTEST_SKIP() << "Experimental ops are not supported when using GraphIterator.";
     }
     auto model = convert_model("org.openvinotoolkit/deformable_conv_2d_with_mask.onnx");
