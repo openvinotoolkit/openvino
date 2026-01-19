@@ -48,7 +48,7 @@ struct Config {
         BY_TOKEN,
     };
 
-    enum class ModelType : uint8_t { CNN, LLM, Unknown };
+    enum class ModelType : uint8_t { CNN, LLM, DIFFUSION, Unknown };
 
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
