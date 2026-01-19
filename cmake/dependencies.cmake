@@ -150,10 +150,10 @@ function(ov_download_tbb)
     elseif(LINUX AND AARCH64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB with glibc 2.17
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.13.0-lin-arm64-release.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.13.1-lin-arm64-release.tgz"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "6e1106735714600474440c134df25b40a225d40b44c2102d7ff23e0482834faa"
+                SHA256 "21949fa571ca126aecc7efda254e33d9087db236ce13092519903d2d553f2235"
                 USE_NEW_LOCATION TRUE)
     elseif(APPLE AND AARCH64)
         # build oneTBB with export MACOSX_DEPLOYMENT_TARGET=11.0
