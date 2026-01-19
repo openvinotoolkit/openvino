@@ -20,21 +20,29 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::has_static_shape;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace op_util = ov::op::util;
 ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     MATCHER_SCOPE(MultiplyConvolutionFusion);
-    auto input_pattern = pattern::any_input(pattern::has_static_rank());
-    auto mul_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern},
-                                                                          pattern::consumers_count(1));
-    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
-    auto conv_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({mul_pattern, weights_pattern});
+    auto input_pattern = any_input(ov::pass::pattern::has_static_rank());
+    auto mul_const_pattern = wrap_type<v0::Constant>();
+    auto mul_pattern = wrap_type<v1::Multiply>({input_pattern, mul_const_pattern}, consumers_count(1));
+    auto weights_pattern = any_input(has_static_shape());
+    auto conv_pattern = wrap_type<v1::Convolution>({mul_pattern, weights_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
         // since that breaks low precision transformations
-        if (ov::op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+        if (op_util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
@@ -48,7 +56,7 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         // Check if constant in multiply broadcasts input's shape.
         // If this is the case, we cannot perform the transformation as
         // 'bare' input's shape will not be aligned with weights.
-        if (ov::op::util::check_for_broadcast(mul_const_shape, input_shape)) {
+        if (op_util::check_for_broadcast(mul_const_shape, input_shape)) {
             return false;
         }
 
@@ -56,12 +64,12 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         // Also if mul_const's rank matches weights rank and mul_const.shape[0] != 1
         // then we can't fuse the multiply, since first dimension in mul_const corresponds to
         // batch size, while first dimension in weights corresponds to output channel count
-        if (!ov::op::util::check_for_broadcast(weights_shape, mul_const_shape) ||
+        if (!op_util::check_for_broadcast(weights_shape, mul_const_shape) ||
             (weights_shape.size() == mul_const_shape.size() && mul_const_shape[0] != 1)) {
             return false;
         }
 
-        auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
+        auto weights_multiply = std::make_shared<v1::Multiply>(weights, mul_const);
         std::shared_ptr<Node> new_weights = ov::util::get_constant_from_source(weights_multiply);
         if (!new_weights)
             new_weights = weights_multiply;
@@ -76,25 +84,24 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(conv_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(conv_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
     MATCHER_SCOPE(MultiplyGroupConvolutionFusion);
-    auto input_pattern = pattern::any_input();
-    auto mul_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern},
-                                                                          pattern::consumers_count(1));
-    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
-    auto conv_pattern = ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolution>({mul_pattern, weights_pattern});
+    auto input_pattern = any_input();
+    auto mul_const_pattern = wrap_type<v0::Constant>();
+    auto mul_pattern = wrap_type<v1::Multiply>({input_pattern, mul_const_pattern}, consumers_count(1));
+    auto weights_pattern = any_input(has_static_shape());
+    auto conv_pattern = wrap_type<v1::GroupConvolution>({mul_pattern, weights_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
         // since that breaks low precision transformations
-        if (ov::op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+        if (op_util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
@@ -108,7 +115,7 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
         // Check if constant in multiply broadcasts input's shape.
         // If this is the case, we cannot perform the transformation as
         // 'bare' input's shape will not be aligned with weights.
-        if (ov::op::util::check_for_broadcast(mul_const_shape, input_shape)) {
+        if (op_util::check_for_broadcast(mul_const_shape, input_shape)) {
             return false;
         }
 
@@ -127,16 +134,16 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
             // Reshape mul_const from shape (1, C, H, W) to (G, 1, C / G, H, W) to match GroupConvolution weights format
             Shape new_shape{G, 1, C};
             std::copy(mul_const_shape.begin() + 2, mul_const_shape.end(), std::back_inserter(new_shape));
-            if (!ov::op::util::check_for_broadcast(weights_shape, new_shape)) {
+            if (!op_util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
-            mul_const = std::make_shared<ov::op::v1::Reshape>(
-                mul_const,
-                ov::op::v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
-                false);
+            mul_const =
+                std::make_shared<v1::Reshape>(mul_const,
+                                              v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                                              false);
         }
 
-        auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
+        auto weights_multiply = std::make_shared<v1::Multiply>(weights, mul_const);
         std::shared_ptr<Node> new_weights = ov::util::get_constant_from_source(weights_multiply);
         if (!new_weights)
             new_weights = weights_multiply;
@@ -151,26 +158,24 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(conv_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(conv_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropDataFusion() {
     MATCHER_SCOPE(MultiplyConvolutionBackpropDataFusion);
-    auto input_pattern = pattern::any_input();
-    auto mul_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern},
-                                                                          pattern::consumers_count(1));
-    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
-    auto conv_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({mul_pattern, weights_pattern});
+    auto input_pattern = any_input();
+    auto mul_const_pattern = wrap_type<v0::Constant>();
+    auto mul_pattern = wrap_type<v1::Multiply>({input_pattern, mul_const_pattern}, consumers_count(1));
+    auto weights_pattern = any_input(has_static_shape());
+    auto conv_pattern = wrap_type<v1::ConvolutionBackpropData>({mul_pattern, weights_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
         // since that breaks low precision transformations
-        if (ov::op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+        if (op_util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
@@ -183,7 +188,7 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
         // Check if constant in multiply broadcasts input's shape.
         // If this is the case, we cannot perform the transformation as
         // 'bare' input's shape will not be aligned with weights.
-        if (ov::op::util::check_for_broadcast(mul_const_shape, input_shape)) {
+        if (op_util::check_for_broadcast(mul_const_shape, input_shape)) {
             return false;
         }
 
@@ -204,16 +209,16 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
             // Reshape mul_const from shape (1, C, 1, 1) to (C, 1, 1, 1) to match ConvolutionBackpropData weights format
             Shape new_shape{mul_const_shape[1], 1};
             new_shape.insert(new_shape.end(), mul_const_shape.size() - 2, 1);
-            if (!ov::op::util::check_for_broadcast(weights_shape, new_shape)) {
+            if (!op_util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
-            mul_const = std::make_shared<ov::op::v1::Reshape>(
-                mul_const,
-                ov::op::v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
-                false);
+            mul_const =
+                std::make_shared<v1::Reshape>(mul_const,
+                                              v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                                              false);
         }
 
-        auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
+        auto weights_multiply = std::make_shared<v1::Multiply>(weights, mul_const);
         std::shared_ptr<Node> new_weights = ov::util::get_constant_from_source(weights_multiply);
         if (!new_weights)
             new_weights = weights_multiply;
@@ -228,26 +233,24 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(conv_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(conv_pattern, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBackpropDataFusion() {
     MATCHER_SCOPE(MultiplyGroupConvolutionBackpropDataFusion);
-    auto input_pattern = pattern::any_input();
-    auto mul_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern},
-                                                                          pattern::consumers_count(1));
-    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
-    auto conv_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolutionBackpropData>({mul_pattern, weights_pattern});
+    auto input_pattern = any_input();
+    auto mul_const_pattern = wrap_type<v0::Constant>();
+    auto mul_pattern = wrap_type<v1::Multiply>({input_pattern, mul_const_pattern}, consumers_count(1));
+    auto weights_pattern = any_input(has_static_shape());
+    auto conv_pattern = wrap_type<v1::GroupConvolutionBackpropData>({mul_pattern, weights_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
         // since that breaks low precision transformations
-        if (ov::op::util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+        if (op_util::is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
@@ -259,7 +262,7 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
         // Check if constant in multiply broadcasts input's shape.
         // If this is the case, we cannot perform the transformation as
         // 'bare' input's shape will not be aligned with weights.
-        if (ov::op::util::check_for_broadcast(mul_const_shape, input_shape)) {
+        if (op_util::check_for_broadcast(mul_const_shape, input_shape)) {
             return false;
         }
 
@@ -283,16 +286,16 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
             auto C = mul_const_shape[1] / G;
             Shape new_shape{G, C, 1};
             new_shape.insert(new_shape.end(), mul_const_shape.size() - 2, 1);
-            if (!ov::op::util::check_for_broadcast(weights_shape, new_shape)) {
+            if (!op_util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
-            mul_const = std::make_shared<ov::op::v1::Reshape>(
-                mul_const,
-                ov::op::v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
-                false);
+            mul_const =
+                std::make_shared<v1::Reshape>(mul_const,
+                                              v0::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                                              false);
         }
 
-        auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
+        auto weights_multiply = std::make_shared<v1::Multiply>(weights, mul_const);
         std::shared_ptr<Node> new_weights = ov::util::get_constant_from_source(weights_multiply);
         if (!new_weights)
             new_weights = weights_multiply;
@@ -307,6 +310,6 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(conv_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(conv_pattern, matcher_name);
     register_matcher(m, callback);
 }

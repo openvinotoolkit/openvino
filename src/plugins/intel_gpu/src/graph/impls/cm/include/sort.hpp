@@ -58,7 +58,7 @@ void show(const matrix<T, M, N> mat) {
 // https://gpuopen.com/download/Introduction_to_GPU_Radix_Sort.pdf
 template<typename TYPE>
 CM_INLINE void sort(uint slm, svmptr_t src, svmptr_t sorted_value, svmptr_t sorted_index, svmptr_t sort_tmp, uint n) {
-    const ushort THREADS = 32;
+    const ushort THREADS = NUM_THREADS;
     vector<unsigned, THREADS> seq_u32;
     vector<ushort, THREADS> seq;
     cmtl::cm_vector_assign(seq.select_all(), 0, 1);
