@@ -3,6 +3,10 @@
 
 #include "transformations/common_optimizations/pack_multi_head_attention.hpp"
 
+#include <algorithm>
+#include <numeric>
+#include <vector>
+
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/add.hpp"
@@ -36,7 +40,7 @@ namespace {
 static constexpr int64_t RANK = 4;  // Assuming 4D tensors [batch, num_heads, seq_len, hidden_dim]
 static constexpr int64_t HEAD_AXIS = 1;
 
-bool compare_nodes(const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node>& b) {
+bool are_identical_nodes(const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node>& b) {
     if (!a || !b)
         return false;
 
@@ -77,11 +81,10 @@ std::shared_ptr<ov::Node> align_rank(const ov::Output<ov::Node>& output, int64_t
     if (cur_rank >= target_rank)
         return output.get_node_shared_ptr();
 
-    std::vector<int64_t> axes;
-    axes.reserve(target_rank - cur_rank);
-    const int64_t insert_pos = std::max(cur_rank - 2, static_cast<int64_t>(0));
-    for (int64_t i = 0; i < target_rank - cur_rank; ++i)
-        axes.push_back(insert_pos + i);
+    const int64_t preserved_dims = 2;  // Preserve last two dimensions (seq_len and hidden_dim)
+    const int64_t insert_pos = std::max(cur_rank - preserved_dims, static_cast<int64_t>(0));
+    std::vector<int64_t> axes(target_rank - cur_rank);
+    std::iota(axes.begin(), axes.end(), insert_pos);
 
     auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
     auto unsqueezed = ov::op::util::make_try_fold<v0::Unsqueeze>(output.get_node_shared_ptr(), axes_const);
@@ -92,12 +95,13 @@ std::shared_ptr<ov::Node> align_rank(const ov::Output<ov::Node>& output, int64_t
 /**
  * @brief Concatenates a vector of input tensors along a specified axis, aligning their ranks.
  *
- * This function first determines the maximum static rank among the input tensors.
- * It then aligns all input tensors to have the same rank (max_rank + 1) before concatenation.
+ * This function first determines the maximum static rank among the input tensors (and the optional @p rank override).
+ * It then aligns all input tensors to have at least the same rank (max_rank) before concatenation.
  * The concatenation is performed using the specified axis.
  *
  * @param inputs A vector of ov::Output objects representing the tensors to concatenate.
- * @param axis The axis along which to concatenate the tensors. Default is 0.
+ * @param axis The axis along which to concatenate the tensors. Default is -1.
+ * @param rank Optional minimum rank to align all inputs to before concatenation.
  * @return A shared pointer to the resulting Concat node.
  */
 std::shared_ptr<ov::Node> concat_any(const ov::OutputVector& inputs, int64_t axis = -1, int64_t rank = 0) {
@@ -183,8 +187,8 @@ MergeUnrolledSDPA::MergeUnrolledSDPA() {
         auto k_scale = pattern::optional<v1::Multiply>({k_transpose, pattern::any_input()});
         auto qk = pattern::wrap_type<v0::MatMul>({q, k_scale});
         auto qk_scale = pattern::optional<v1::Divide, v1::Multiply>({qk, pattern::any_input()});
-        auto bias_add = pattern::wrap_type<v1::Add>({qk_scale, pattern::any_input()});
-        auto softmax = pattern::wrap_type<v8::Softmax>({bias_add});
+        auto mask = pattern::wrap_type<v1::Add>({qk_scale, pattern::any_input()});
+        auto softmax = pattern::wrap_type<v8::Softmax>({mask});
         auto qkv = pattern::wrap_type<v0::MatMul>({softmax, v});
         auto qkv_reshaped = pattern::optional<v1::Reshape>({qkv, pattern::any_input()});
         auto proj = pattern::any_input();
@@ -211,67 +215,69 @@ MergeUnrolledSDPA::MergeUnrolledSDPA() {
 
         auto mm1 = as_type_ptr<v0::MatMul>(lhs);
         auto mm2 = as_type_ptr<v0::MatMul>(rhs);
-        if (!compare_nodes(mm1, mm2))
+        if (!are_identical_nodes(mm1, mm2))
             return false;
 
         // Get SDPA MatMul nodes (QKV)
         auto sdpa_mm1 = as_type_ptr<v0::MatMul>(skip_if_type<v1::Reshape>(mm1->input_value(0).get_node_shared_ptr()));
         auto sdpa_mm2 = as_type_ptr<v0::MatMul>(skip_if_type<v1::Reshape>(mm2->input_value(0).get_node_shared_ptr()));
-        if (!compare_nodes(sdpa_mm1, sdpa_mm2))
+        if (!are_identical_nodes(sdpa_mm1, sdpa_mm2))
             return false;
 
         // Extract Softmax nodes
         auto soft1 = as_type_ptr<v8::Softmax>(sdpa_mm1->input_value(0).get_node_shared_ptr());
         auto soft2 = as_type_ptr<v8::Softmax>(sdpa_mm2->input_value(0).get_node_shared_ptr());
-        if (!compare_nodes(soft1, soft2))
+        if (!are_identical_nodes(soft1, soft2))
             return false;
 
         // Extract bias Add nodes
-        auto bias1 = as_type_ptr<v1::Add>(soft1->input_value(0).get_node_shared_ptr());
-        auto bias2 = as_type_ptr<v1::Add>(soft2->input_value(0).get_node_shared_ptr());
-        if (!compare_nodes(bias1, bias2))
+        auto mask1 = as_type_ptr<v1::Add>(soft1->input_value(0).get_node_shared_ptr());
+        auto mask2 = as_type_ptr<v1::Add>(soft2->input_value(0).get_node_shared_ptr());
+        if (!are_identical_nodes(mask1, mask2))
             return false;
 
         // Extract optional scale nodes (Divide or Multiply)
-        auto sf1 = extract_scale_node(bias1->input_value(0).get_node_shared_ptr());
-        auto sf2 = extract_scale_node(bias2->input_value(0).get_node_shared_ptr());
+        auto scale1 = extract_scale_node(mask1->input_value(0).get_node_shared_ptr());
+        auto scale2 = extract_scale_node(mask2->input_value(0).get_node_shared_ptr());
 
         // Verify scales match if present
-        if (sf1 && sf2) {
-            auto c1 = as_type_ptr<v0::Constant>(sf1->input_value(1).get_node_shared_ptr());
-            auto c2 = as_type_ptr<v0::Constant>(sf2->input_value(1).get_node_shared_ptr());
+        if (scale1 && scale2) {
+            auto c1 = as_type_ptr<v0::Constant>(scale1->input_value(1).get_node_shared_ptr());
+            auto c2 = as_type_ptr<v0::Constant>(scale2->input_value(1).get_node_shared_ptr());
             if (!c1 || !c2 || c1->cast_vector<float>() != c2->cast_vector<float>())
                 return false;
-        } else if (sf1 || sf2) {
+        } else if (scale1 || scale2) {
             // Only one scale present; cannot fuse
             return false;
         }
 
-        auto qk1_node = sf1 ? sf1->input_value(0).get_node_shared_ptr() : bias1->input_value(0).get_node_shared_ptr();
-        auto qk2_node = sf2 ? sf2->input_value(0).get_node_shared_ptr() : bias2->input_value(0).get_node_shared_ptr();
+        auto qk1_node =
+            scale1 ? scale1->input_value(0).get_node_shared_ptr() : mask1->input_value(0).get_node_shared_ptr();
+        auto qk2_node =
+            scale2 ? scale2->input_value(0).get_node_shared_ptr() : mask2->input_value(0).get_node_shared_ptr();
 
         auto qk1 = as_type_ptr<v0::MatMul>(qk1_node);
         auto qk2 = as_type_ptr<v0::MatMul>(qk2_node);
-        if (!compare_nodes(qk1, qk2))
+        if (!are_identical_nodes(qk1, qk2))
             return false;
 
-        // Extract Q, K, V, P, B from both SDPAs
+        // Extract Q, K, V, sdpa_proj, mask from both SDPAs
         OutputVector q_inputs = {qk1->input_value(0), qk2->input_value(0)};
         OutputVector k_inputs = {qk1->input_value(1), qk2->input_value(1)};
         OutputVector v_inputs = {sdpa_mm1->input_value(1), sdpa_mm2->input_value(1)};
-        OutputVector p_inputs = {mm1->input_value(1), mm2->input_value(1)};
-        OutputVector b_inputs = {bias1->input_value(1), bias2->input_value(1)};
+        OutputVector sdpa_proj_inputs = {mm1->input_value(1), mm2->input_value(1)};
+        OutputVector mask_inputs = {mask1->input_value(1), mask2->input_value(1)};
 
         // Concatenate along head axis
         std::shared_ptr<ov::Node> Q = concat_any(q_inputs, HEAD_AXIS, RANK);
         std::shared_ptr<ov::Node> K = concat_any(k_inputs, HEAD_AXIS, RANK);
         std::shared_ptr<ov::Node> V = concat_any(v_inputs, HEAD_AXIS, RANK);
-        std::shared_ptr<ov::Node> B =
-            (b_inputs[0] == b_inputs[1]) ? b_inputs[0].get_node_shared_ptr() : concat_any(b_inputs, HEAD_AXIS, RANK);
-        std::shared_ptr<ov::Node> P = concat_any(p_inputs, HEAD_AXIS, RANK);
+        std::shared_ptr<ov::Node> mask = (mask_inputs[0] == mask_inputs[1]) ? mask_inputs[0].get_node_shared_ptr()
+                                                                            : concat_any(mask_inputs, HEAD_AXIS, RANK);
+        std::shared_ptr<ov::Node> sdpa_proj = concat_any(sdpa_proj_inputs, HEAD_AXIS, RANK);
 
         // Check that concatenation succeeded; abort transformation on failure
-        if (!Q || !K || !V || !B || !P) {
+        if (!Q || !K || !V || !mask || !sdpa_proj) {
             return false;
         }
 
@@ -280,13 +286,13 @@ MergeUnrolledSDPA::MergeUnrolledSDPA() {
         copy_runtime_info({qk1, qk2}, qk_fused);
 
         std::shared_ptr<ov::Node> scores_scaled = qk_fused;
-        if (sf1 && sf2) {
-            scores_scaled = sf1->copy_with_new_inputs({qk_fused, sf1->input_value(1)});
-            copy_runtime_info({sf1, sf2}, scores_scaled);
+        if (scale1 && scale2) {
+            scores_scaled = scale1->copy_with_new_inputs({qk_fused, scale1->input_value(1)});
+            copy_runtime_info({scale1, scale2}, scores_scaled);
         }
 
-        auto bias_fused = bias1->copy_with_new_inputs({scores_scaled, B});
-        copy_runtime_info({bias1, bias2}, bias_fused);
+        auto bias_fused = mask1->copy_with_new_inputs({scores_scaled, mask});
+        copy_runtime_info({mask1, mask2}, bias_fused);
 
         auto softmax_fused = soft1->copy_with_new_inputs({bias_fused});
         copy_runtime_info({soft1, soft2}, softmax_fused);
@@ -294,7 +300,7 @@ MergeUnrolledSDPA::MergeUnrolledSDPA() {
         auto qkv_fused = sdpa_mm1->copy_with_new_inputs({softmax_fused, V});
         copy_runtime_info({sdpa_mm1, sdpa_mm2}, qkv_fused);
 
-        auto proj = mm1->copy_with_new_inputs({qkv_fused, P});
+        auto proj = mm1->copy_with_new_inputs({qkv_fused, sdpa_proj});
         copy_runtime_info({mm1, mm2}, proj);
 
         auto reduce_axis = v0::Constant::create(element::i64, Shape{1}, {1});
@@ -375,7 +381,7 @@ MergeUnrolledRoPE::MergeUnrolledRoPE() {
         // Extract optional angle nodes (Negative)
         auto angle_lhs = ov::as_type_ptr<v0::Negative>(concat_lhs->input_value(0).get_node_shared_ptr());
         auto angle_rhs = ov::as_type_ptr<v0::Negative>(concat_rhs->input_value(0).get_node_shared_ptr());
-        if (!compare_nodes(angle_lhs, angle_rhs))
+        if (!are_identical_nodes(angle_lhs, angle_rhs))
             return false;
 
         // extract Split nodes from both RoPE patterns
@@ -693,8 +699,7 @@ MergeKVCaches::MergeKVCaches() {
         // Ensure ranks and the head dimension are static before accessing lengths
         if (pshape_lhs.rank().is_dynamic() || pshape_rhs.rank().is_dynamic())
             return false;
-        if (HEAD_AXIS < 0 || HEAD_AXIS >= static_cast<int64_t>(pshape_lhs.size()) ||
-            HEAD_AXIS >= static_cast<int64_t>(pshape_rhs.size()))
+        if (HEAD_AXIS >= pshape_lhs.size() || HEAD_AXIS >= pshape_rhs.size())
             return false;
         if (pshape_lhs[HEAD_AXIS].is_dynamic() || pshape_rhs[HEAD_AXIS].is_dynamic())
             return false;
