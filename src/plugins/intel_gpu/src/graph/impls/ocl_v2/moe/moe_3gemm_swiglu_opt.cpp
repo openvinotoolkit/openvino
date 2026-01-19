@@ -1648,10 +1648,7 @@ public:
             OPENVINO_THROW("hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
         };
         auto lws_size = get_best_lws(_hidden_size);
-        auto max_topk = static_cast<int64_t>(config.top_k);
-
-        if (max_topk <= 0)
-            OPENVINO_THROW("Invalid negative or zero max_topk value, max_topk=", max_topk);
+        auto max_topk = static_cast<size_t>(config.top_k);
 
         // [batch, max_topk]
         auto topk_id_mem = scratch.topk_id;
@@ -1675,7 +1672,7 @@ public:
             auto n_token = static_cast<size_t>(expert_mask.batch[expert_no].size());
 
             // Be careful about possible overflow
-            if (static_cast<uint64_t>(n_token) > static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) / static_cast<uint64_t>(max_topk))
+            if (n_token > std::numeric_limits<size_t>::max() / max_topk)
                 OPENVINO_THROW("n_token * max_topk overflow detected, n_token=", n_token, " max_topk=", max_topk);
 
             int64_t routing_weights_size = static_cast<int64_t>(n_token * max_topk);
