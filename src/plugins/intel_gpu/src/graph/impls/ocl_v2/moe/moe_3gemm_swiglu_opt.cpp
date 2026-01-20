@@ -1549,7 +1549,7 @@ public:
 
     using lru_cache_hash = LruCache<std::pair<int, int>, std::shared_ptr<onednn_kernel>, PairHash>;
     lru_cache_hash _kernels = lru_cache_hash(1024);
-    onednn_kernel& get_kernel(size_t n_token, size_t expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
+    onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
         auto key = std::make_pair(n_token, expert_no);
         if (_kernels.has(key)) {
             return *_kernels.get(key);
@@ -1669,7 +1669,7 @@ public:
             expert_mask_gpu& expert_mask_mem = scratch.expert_masks[expert_no];
             copy_expert_mask_to_gpu(stream, expert_mask, expert_no, expert_mask_mem);
 
-            auto n_token = expert_mask.batch[expert_no].size();
+            auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
 
             // Be careful about possible overflow
             if (n_token > std::numeric_limits<size_t>::max() / max_topk)
