@@ -22,7 +22,6 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/opsets/opset9_decl.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/serialize.hpp"
 
 using namespace ov;
 
