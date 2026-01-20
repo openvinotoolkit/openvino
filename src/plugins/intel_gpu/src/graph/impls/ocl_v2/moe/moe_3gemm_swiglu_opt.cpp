@@ -1672,7 +1672,7 @@ public:
             auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
 
             // Be careful about possible overflow
-            if (n_token > std::numeric_limits<int>::max() / max_topk)
+            if (n_token > std::numeric_limits<int64_t>::max() / max_topk)
                 OPENVINO_THROW("n_token * max_topk overflow detected, n_token=", n_token, " max_topk=", max_topk);
 
             int64_t routing_weights_size = static_cast<int64_t>(n_token * max_topk);
