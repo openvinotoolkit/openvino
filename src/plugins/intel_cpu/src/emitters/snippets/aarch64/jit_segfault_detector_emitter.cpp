@@ -15,6 +15,7 @@
 #    include <memory>
 #    include <sstream>
 #    include <string>
+#    include <unordered_set>
 #    include <utility>
 #    include <vector>
 
@@ -85,22 +86,12 @@ void jit_uni_segfault_detector_emitter::save_target_emitter() const {
     if (g_custom_segfault_handler->local() == this) {
         return;
     }
-    const std::array<XReg, 21> regs = {XReg(0),  XReg(1),  XReg(2),  XReg(3),  XReg(4),  XReg(5),  XReg(6),
-                                       XReg(7),  XReg(8),  XReg(9),  XReg(10), XReg(11), XReg(12), XReg(13),
-                                       XReg(14), XReg(15), XReg(16), XReg(17), XReg(18), XReg(29), XReg(30)};
-    const auto stack_bytes =
-        ov::intel_cpu::rnd_up(static_cast<int32_t>(regs.size() * sizeof(uint64_t)), jit_emitter::sp_alignment);
-
-    h->sub(h->sp, h->sp, stack_bytes);
-    int32_t offset = 0;
-    size_t i = 0;
-    for (; i + 1 < regs.size(); i += 2) {
-        h->stp(regs[i], regs[i + 1], Xbyak_aarch64::ptr(h->sp, offset));
-        offset += static_cast<int32_t>(sizeof(uint64_t) * 2);
+    std::unordered_set<size_t> ignore_vec_regs;
+    ignore_vec_regs.reserve(get_max_vecs_count());
+    for (size_t i = 0; i < get_max_vecs_count(); ++i) {
+        ignore_vec_regs.insert(i);
     }
-    if (i < regs.size()) {
-        h->str(regs[i], Xbyak_aarch64::ptr(h->sp, offset));
-    }
+    store_context(ignore_vec_regs);
 
     const auto& set_local_handler_overload =
         static_cast<void (*)(jit_uni_segfault_detector_emitter*)>(set_local_handler);
@@ -108,17 +99,7 @@ void jit_uni_segfault_detector_emitter::save_target_emitter() const {
     h->mov(h->X_TMP_0, fn_ptr);
     h->mov(XReg(0), reinterpret_cast<uint64_t>(this));
     h->blr(h->X_TMP_0);
-
-    offset = 0;
-    i = 0;
-    for (; i + 1 < regs.size(); i += 2) {
-        h->ldp(regs[i], regs[i + 1], Xbyak_aarch64::ptr(h->sp, offset));
-        offset += static_cast<int32_t>(sizeof(uint64_t) * 2);
-    }
-    if (i < regs.size()) {
-        h->ldr(regs[i], Xbyak_aarch64::ptr(h->sp, offset));
-    }
-    h->add(h->sp, h->sp, stack_bytes);
+    restore_context(ignore_vec_regs);
 }
 
 void jit_uni_segfault_detector_emitter::set_local_handler(jit_uni_segfault_detector_emitter* emitter_address) {

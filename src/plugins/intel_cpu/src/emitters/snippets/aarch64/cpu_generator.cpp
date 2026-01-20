@@ -467,8 +467,8 @@ bool CPUGenerator::uses_precompiled_kernel([[maybe_unused]] const std::shared_pt
     bool need = false;
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
-    need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector);
-    need = need || std::dynamic_pointer_cast<ov::intel_cpu::aarch64::jit_perf_count_chrono_start_emitter>(e) ||
+    need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector) ||
+           std::dynamic_pointer_cast<ov::intel_cpu::aarch64::jit_perf_count_chrono_start_emitter>(e) ||
            std::dynamic_pointer_cast<ov::intel_cpu::aarch64::jit_perf_count_chrono_end_emitter>(e);
 #endif
     return need;
