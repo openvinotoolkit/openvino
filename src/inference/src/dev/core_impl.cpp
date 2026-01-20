@@ -235,7 +235,7 @@ ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
     ov::SoPtr<ov::ICompiledModel> compiled_model;
     if (auto blob_hint = config.find(ov::hint::compiled_blob.name()); blob_hint != config.end()) {
         try {
-            auto compiled_blob = blob_hint->second.as<ov::Tensor>();
+            const auto& compiled_blob = blob_hint->second.as<ov::Tensor>();
             compiled_model = context ? plugin.import_model(compiled_blob, context, config)
                                      : plugin.import_model(compiled_blob, config);
         } catch (...) {
@@ -1049,7 +1049,7 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
                 devices.push_back(device_name + '.' + deviceID);
             }
         } else if (!devicesIDs.empty()) {
-            devices.push_back(device_name);
+            devices.push_back(std::move(device_name));
         }
     }
 

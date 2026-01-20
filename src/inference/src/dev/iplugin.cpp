@@ -477,11 +477,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     }
     // Finally get intersection of all supported operation names
     // and operation names from original model
-    for (auto&& name : supported) {
-        if (original_ops.count(name)) {
-            res.insert(name);
-        }
-    }
+    res.merge(supported);
     // Remove parameters (or parameter/constant + convert) which has no supported consumers
     // and results (or result + convert) which has no supported source node
     for (auto& op : model->get_ordered_ops()) {
