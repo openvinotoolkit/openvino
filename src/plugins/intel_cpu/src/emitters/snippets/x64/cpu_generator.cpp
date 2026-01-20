@@ -385,6 +385,9 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 std::shared_ptr<snippets::TargetMachine> intel_cpu::CPUTargetMachine::clone() const {
     const auto cloned = std::make_shared<intel_cpu::CPUTargetMachine>(isa, compiled_kernel_cache);
     cloned->configurator = std::make_shared<ov::snippets::RuntimeConfigurator>(*configurator);
+#ifdef SNIPPETS_DEBUG_CAPS
+    cloned->debug_config = debug_config;
+#endif
     return cloned;
 }
 
