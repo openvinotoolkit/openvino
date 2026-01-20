@@ -45,16 +45,12 @@ std::shared_ptr<ov::Node> build_qkv_projection(const std::shared_ptr<ov::Node>& 
 }
 
 std::shared_ptr<ov::Node> build_sdpa_preprocessing(const std::shared_ptr<ov::Node>& proj_bias,
-                                                   size_t batch,
-                                                   size_t head_size,
-                                                   size_t seq_len) {
-    auto reshape = std::make_shared<Reshape>(
-        proj_bias,
-        Constant::create(
-            element::i64,
-            Shape{4},
-            {static_cast<int64_t>(batch), int64_t(-1), static_cast<int64_t>(seq_len), static_cast<int64_t>(head_size)}),
-        false);
+                                                   int64_t batch,
+                                                   int64_t head_size,
+                                                   int64_t seq_len) {
+    const int64_t num_heads = -1;
+    const auto reshape_const = Constant::create(element::i64, Shape{4}, {batch, num_heads, seq_len, head_size});
+    const auto reshape = std::make_shared<Reshape>(proj_bias, reshape_const, false);
     return reshape;
 }
 
