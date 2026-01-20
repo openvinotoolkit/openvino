@@ -154,7 +154,7 @@ bool BrgemmKernelExecutorHelper::is_out_buffer_inside_n_loop(const std::vector<L
             if (next_info->get_unified_loop_info() != unified_loop_info) {
                 return last_iter_info;
             }
-            last_iter_info = next_info;
+            last_iter_info = std::move(next_info);
             ++next_loop_id;
         }
         return last_iter_info;
