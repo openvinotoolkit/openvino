@@ -145,7 +145,6 @@ KERNEL(swiglu_ref) (
     // gws = {_intermediate_size, token_cnt,  1}
     // lws = {subgroup_size, 1, 1};
 
-    const uint offset = token_idx * INTERMEDIA_SIZE + n_offset;
 #if MOE_DTYPE_SIZE == 2
     const uint sg_id = get_sub_group_local_id();
     const uint offset = token_idx * INTERMEDIA_SIZE + n_offset - sg_id;

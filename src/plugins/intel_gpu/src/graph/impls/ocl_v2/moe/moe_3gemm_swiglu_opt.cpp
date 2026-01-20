@@ -1447,7 +1447,8 @@ public:
         //      1: gate  [token_len * expert_topK, hidden_size]
         // output
         //      0: gate_up  [token_len * expert_topK, hidden_size]
-        if(ENABLE_MOE_3GEMM_MICRO_FUSE_SILU_MUL == 0) {
+        const bool enable_silu_mul = ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL;
+        if (!enable_silu_mul) {
             auto token_size = token_num * max_topk;
 #    if DEBUG_MOE_LOG
             GPU_DEBUG_TRACE_DETAIL << "\nstep 4: prefill_swiglu token_size=" << token_size << ", hidden_size=" << _intermediate_size << std::endl;
@@ -1457,7 +1458,7 @@ public:
                                       *prefill_swiglu,
                                       {intermediates_memories[MOE_INTERNAL_BUFFER_UP_OUTPUT], intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
                                       {intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
-                                      {static_cast<size_t>(_intermediate_size), static_cast<size_t>(token_size),  1},
+                                      {static_cast<size_t>(_intermediate_size), static_cast<size_t>(token_size), 1},
                                       {subgroup_size, 1, 1});
         }
 

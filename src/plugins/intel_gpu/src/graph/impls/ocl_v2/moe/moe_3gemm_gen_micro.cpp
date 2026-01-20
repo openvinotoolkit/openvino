@@ -119,9 +119,9 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     if (slm_size > 0)
         jit.make("USE_SLM", 1);
 
-    bool enable_silu_mul = ENABLE_MOE_3GEMM_MICRO_FUSE_SILU_MUL;  // TODO: Enable this based on config (e.g. cfg.fuse_swiglu)
+    const bool enable_silu_mul = ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL;
     if (enable_silu_mul && m_type == MoE3GemmMicroKernelType::MLP_GATE)
-        jit.make("MOE_ENABLE_SILU_MUL", 1);
+        jit.make("POST_PROC_SILU_MUL", 1);
 
     return jit;
 }
@@ -370,7 +370,7 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::WEIGHT_0)});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_OUTPUT});  // gate output
         {
-            bool enable_silu_mul = ENABLE_MOE_3GEMM_MICRO_FUSE_SILU_MUL;  // TODO: Enable based on config
+            const bool enable_silu_mul = ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL;
             if (enable_silu_mul)
                 args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_UP_OUTPUT});
         }
