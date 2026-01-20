@@ -41,13 +41,7 @@ void reorder_transfer::run(program& p) {
             layout new_layout = node->get_output_layout();
             new_layout.data_type = dtype;
             node->set_output_layout(new_layout, false);
-            // Manually force primitive output data type to keep it consistent with layout
-            if (auto prim = node->get_primitive()) {
-                auto* mutable_prim = const_cast<cldnn::primitive*>(prim.get());
-                if (!mutable_prim->output_data_types.empty()) {
-                    mutable_prim->output_data_types[0] = optional_data_type{dtype};
-                }
-            }
+            node->set_output_data_type(dtype, 0);
         };
 
         auto* supposed_new_prev = reorder_node.get_users().front();
