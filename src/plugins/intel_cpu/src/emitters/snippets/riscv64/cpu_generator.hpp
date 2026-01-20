@@ -40,6 +40,9 @@ public:
     [[nodiscard]] std::vector<snippets::Reg> get_vec_reg_pool() const override;
 
     [[nodiscard]] ov::intel_cpu::riscv64::cpu_isa_t get_isa() const;
+#ifdef SNIPPETS_DEBUG_CAPS
+    SnippetsDebugCapsConfig debug_config;
+#endif
 
 #ifdef SNIPPETS_DEBUG_CAPS
     SnippetsDebugCapsConfig debug_config;
