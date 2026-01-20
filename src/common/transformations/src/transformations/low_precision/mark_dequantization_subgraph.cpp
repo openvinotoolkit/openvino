@@ -341,8 +341,8 @@ KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVect
     auto constant_pattern = pattern::wrap_type<v0::Constant>(pattern::type_matches_any(precisions));
     auto input_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fq_pattern, constant_pattern});
 
-    auto convert1_pattern = pattern::wrap_type<v0::Convert>({input_pattern});
-    auto convert2_pattern = pattern::optional<v0::Convert>(convert1_pattern);
+    auto convert1_pattern = pattern::wrap_type<v0::Convert>({input_pattern}, pattern::consumers_count(1));
+    auto convert2_pattern = pattern::optional<v0::Convert>({convert1_pattern}, pattern::consumers_count(1));
     auto final_convert = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{convert1_pattern, convert2_pattern});
 
     // zero points:
