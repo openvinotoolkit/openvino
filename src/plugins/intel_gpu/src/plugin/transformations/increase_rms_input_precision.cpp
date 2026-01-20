@@ -87,10 +87,10 @@ IncreasePrecisionForQwenVLMerger::IncreasePrecisionForQwenVLMerger() {
         is_changed = insert_converts_before_if_needed(add_1, desired_et, input_idx);
         if (!is_changed)
             return false;
-        is_changed = insert_converts_before_if_needed(add_2, desired_et, input_idx);
+        is_changed = insert_converts_before_if_needed(add_2, desired_et, input_idx, {1});
         if (!is_changed)
             return false;
-        is_changed = insert_converts_before_if_needed(rms, desired_et, input_idx);
+        is_changed = insert_converts_before_if_needed(rms, desired_et, input_idx, {0});
         if (!is_changed)
             return false;
 

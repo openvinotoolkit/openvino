@@ -41,7 +41,9 @@ namespace ov::intel_gpu {
 IncreasePrecision::IncreasePrecision() {}
 
 bool IncreasePrecision::insert_converts_before_if_needed(const std::shared_ptr<ov::Node>& node,
-                                                                const ov::element::Type desired_et, size_t& input_idx) {
+                                                                const ov::element::Type desired_et,
+                                                                size_t& input_idx,
+                                                                const std::vector<size_t>& skip_inputs) {
     bool is_changed = false;
     for (const auto& input : node->inputs()) {
         const auto& incoming_output = input.get_source_output();
@@ -50,6 +52,10 @@ bool IncreasePrecision::insert_converts_before_if_needed(const std::shared_ptr<o
 
         if (input_et == desired_et)
             continue;
+
+        if (std::find(skip_inputs.begin(), skip_inputs.end(), input.get_index()) != skip_inputs.end()) {
+            continue;
+        }
 
         auto in_convert = ov::as_type_ptr<ov::op::v0::Convert>(incoming_node);
 
