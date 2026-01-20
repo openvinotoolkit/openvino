@@ -487,6 +487,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
         {"aten::cross", op::translate_cross},
         {"aten::cumsum", op::translate_cumsum},
+        {"aten::Delete", op::skip_node},  // List/dict deletion, no-op in inference
         {"aten::detach", op::skip_node},
         {"aten::dequantize", op::skip_node},  // we convert model to fp32 using FQ, so dequantization is not needed
         {"aten::dim", op::translate_dim},
@@ -736,11 +737,13 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::std", op::translate_std},
         {"aten::std_mean", op::translate_std_mean},
         {"aten::stft", op::translate_stft},
+        {"aten::str", op::skip_node},  // String conversion, not needed for tensor operations
         {"aten::sub", op::translate_sub},
         {"aten::sub_", op::translate_sub_},
         {"aten::sum", op::translate_sum},
         {"aten::swapaxes", op::quantizable_op<op::translate_transpose>},
         {"aten::t", op::translate_t},
+        {"aten::take", op::translate_pythonop},  // Indexing with flattened indices
         {"aten::take_along_dim", op::translate_take_along_dim},
         {"aten::tan", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tan>, 1>},
         {"aten::tan_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tan>>},
