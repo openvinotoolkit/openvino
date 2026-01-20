@@ -300,7 +300,7 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
 }
 }  // namespace
 
-static bool expected_sdpa_opt_usage_with_decomposable_size(size_t max_size,
+static bool should_decompose_sdpa_for_memory_size(size_t max_size,
                                                     std::shared_ptr<const ov::op::v13::ScaledDotProductAttention> sdpa) {
     const auto& q = sdpa->get_input_partial_shape(0);
     const auto& k = sdpa->get_input_partial_shape(1);
@@ -315,8 +315,8 @@ static bool expected_sdpa_opt_usage_with_decomposable_size(size_t max_size,
 
         // Calculate mem size of gemm for Q*K
         // Gemm layer decomposed from sdpa could exceed max size of memory allocation.
-        size_t decom_gemm_size = q.get_shape().at(0) * q.get_shape().at(1) * k.get_shape().at(1) * dt_size;
-        if (decom_gemm_size > max_size * 0.5)
+        size_t sdpa_intermediate_buffer_size = q.get_shape().at(0) * q.get_shape().at(1) * k.get_shape().at(1) * dt_size;
+        if (sdpa_intermediate_buffer_size > max_size * 0.5)
             return false;
 
         return true;
@@ -730,9 +730,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
 
-            // performance issue is expected if sdap_opt kernel would be selected for systolic-array architectures
+            // sdpa_opt will be selected for 3d-tensor sdpa.
+            // sdpa_opt has performance issue on GPUs with XMX. If memory size allows, it is preferrable to decompose sdpa.
+            // If intermediate buffer is expected to be very large, we need to use sdpa_opt to be functional.
             const auto max_size = m_context->get_engine().get_max_memory_size();
-            if (device_info.supports_immad && expected_sdpa_opt_usage_with_decomposable_size(max_size, sdpa)) {
+            if (device_info.supports_immad && should_decompose_sdpa_for_memory_size(max_size, sdpa)) {
                 GPU_DEBUG_TRACE << " Expect sdpa_usage with systolic-arry architectures. mem size is decomposable. Q*K size : query " << query_ps
                                 << " key " << key_ps << " dt " << sdpa->get_element_type().size() << std::endl;
                  return false;
