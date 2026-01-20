@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -969,7 +969,12 @@ void network::allocate_primitive_instance(program_node const& node) {
                 }
             }
         }
-        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type(), prim.get(), transpose_required);
+        set_variables_state_info(state_prim->variable_id(),
+                                 node.get_output_layout(0),
+                                 state_prim->get_user_specified_type(),
+                                 prim.get(),
+                                 std::dynamic_pointer_cast<memory_state::releasable_variable>(inst),
+                                 transpose_required);
     }
 
     if (node.is_constant()) {
@@ -1054,11 +1059,15 @@ void network::set_variables_state_info(const std::string& variable_id,
                                        const layout& variable_layout,
                                        ov::element::Type user_specified_type,
                                        const primitive* p,
+                                       const std::shared_ptr<memory_state::releasable_variable>& releasable_var,
                                        bool transpose_required) {
-    _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type});
+    auto& info = _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type}).first->second;
 
-    _variables_state_info.at(variable_id).m_primitives.insert(p);
-    _variables_state_info.at(variable_id).transpose_required = transpose_required;
+    [[maybe_unused]] const auto [_, inserted] = info.m_primitives.insert(p);
+    if (inserted && releasable_var) {
+        info.m_release_variable_inst.emplace_back(releasable_var);
+    }
+    info.transpose_required = transpose_required;
 }
 
 void network::set_reuse_variable_mem(bool reuse) {
