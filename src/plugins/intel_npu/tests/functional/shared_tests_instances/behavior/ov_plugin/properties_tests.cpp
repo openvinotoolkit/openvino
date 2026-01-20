@@ -39,6 +39,9 @@ ov::log::Level getTestsLogLevelFromEnvironmentOr(ov::log::Level instead) {
 const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
     // OV
     {{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT}},
+    {{ov::intel_npu::platform.name(),
+      removeDeviceNameOnlyID(
+          ov::test::utils::getTestsDeviceNameFromEnvironmentOr(std::string(ov::intel_npu::Platform::AUTO_DETECT)))}},
     {{ov::hint::num_requests.name(), 2u}},
     {{ov::log::level.name(), ov::log::Level::ERR}},
     {{ov::device::id.name(), removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720"))}},
