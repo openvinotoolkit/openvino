@@ -103,7 +103,12 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
 }
 
 std::shared_ptr<snippets::TargetMachine> CPUTargetMachine::clone() const {
-    return std::make_shared<CPUTargetMachine>(isa, compiled_kernel_cache);
+    const auto cloned = std::make_shared<CPUTargetMachine>(isa, compiled_kernel_cache);
+    cloned->configurator = std::make_shared<ov::snippets::RuntimeConfigurator>(*configurator);
+#ifdef SNIPPETS_DEBUG_CAPS
+    cloned->debug_config = debug_config;
+#endif
+    return cloned;
 }
 
 bool CPUTargetMachine::is_supported() const {
@@ -191,8 +196,12 @@ ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(
 }
 
 bool CPUGenerator::uses_precompiled_kernel([[maybe_unused]] const std::shared_ptr<snippets::Emitter>& e) const {
-    // RISC-V platform doesn't currently use precompiled kernels
-    return false;
+    bool need = false;
+#ifdef SNIPPETS_DEBUG_CAPS
+    const auto cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
+    need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector);
+#endif
+    return need;
 }
 
 }  // namespace intel_cpu::riscv64
