@@ -22,6 +22,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/opsets/opset9_decl.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 
 using namespace ov;
 
@@ -241,7 +242,7 @@ TEST_F(TransformationTestsF, ReduceMergeKeepDimsFalse) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
-TEST_F(TransformationTestsF, ReduceMergeDynamicShapes) {
+TEST_F(TransformationTestsF, ReduceMergeDynamicShapesKeepDimsTrue) {
     {
         auto data =
             std::make_shared<op::v0::Parameter>(element::i64, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
@@ -259,6 +260,82 @@ TEST_F(TransformationTestsF, ReduceMergeDynamicShapes) {
         auto reduce = std::make_shared<opset9::ReduceL2>(data, axes, true);
         model_ref = std::make_shared<Model>(OutputVector{reduce}, ParameterVector{data});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, ReduceMergeDynamicShapesKeepDimsFalse) {
+    auto data_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()};
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::i64, data_shape);
+        auto axis1 = op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto reduce1 = std::make_shared<opset9::ReduceL2>(data, axis1, false);
+        auto axis2 = op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto reduce2 = std::make_shared<opset9::ReduceL2>(reduce1, axis2, false);
+        model = std::make_shared<Model>(OutputVector{reduce2}, ParameterVector{data});
+        manager.register_pass<ov::pass::ReduceMerge>();
+    }
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::i64, data_shape);
+        auto axes = op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
+        auto reduce = std::make_shared<opset9::ReduceL2>(data, axes, false);
+        model_ref = std::make_shared<Model>(OutputVector{reduce}, ParameterVector{data});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, ReduceMergeDynamicRankConcatKeepDimsTrue) {
+    auto data_shape = PartialShape::dynamic(ov::Rank::dynamic());
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::i64, data_shape);
+        auto axis1 = op::v0::Constant::create(element::i64, Shape{}, {-1});
+        auto reduce1 = std::make_shared<opset9::ReduceL2>(data, axis1, true);
+        auto axis2 = op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
+        auto reduce2 = std::make_shared<opset9::ReduceL2>(reduce1, axis2, true);
+        model = std::make_shared<Model>(OutputVector{reduce2}, ParameterVector{data});
+        manager.register_pass<ov::pass::ReduceMerge>();
+    }
+    { model_ref = model->clone(); }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, ReduceMergeDynamicRankKeepDimsTrue) {
+    auto data_shape = PartialShape::dynamic(ov::Rank::dynamic());
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::i64, data_shape);
+        auto reduce1_axis = op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto reduce1 = std::make_shared<opset9::ReduceL2>(data, reduce1_axis, true);
+        auto reduce2_axis = op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto reduce2 = std::make_shared<opset9::ReduceL2>(reduce1, reduce2_axis, true);
+        model = std::make_shared<Model>(OutputVector{reduce2}, ParameterVector{data});
+        manager.register_pass<ov::pass::ReduceMerge>();
+    }
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::i64, data_shape);
+        auto axis1 = op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto axis2 = op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto axes = std::make_shared<opset9::Concat>(OutputVector{axis1, axis2}, 0);
+        auto reduce = std::make_shared<opset9::ReduceL2>(data, axes, true);
+        model = std::make_shared<Model>(OutputVector{reduce}, ParameterVector{data});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, ReduceMergeDynamicRankKeepDimsFalse) {
+    auto data_shape = PartialShape::dynamic(ov::Rank::dynamic());
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::i64, data_shape);
+        auto reduce1_axis = op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto reduce1 = std::make_shared<opset9::ReduceL2>(data, reduce1_axis, false);
+        auto reduce2_axis = op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto reduce2 = std::make_shared<opset9::ReduceL2>(reduce1, reduce2_axis, false);
+        model = std::make_shared<Model>(OutputVector{reduce2}, ParameterVector{data});
+        manager.register_pass<ov::pass::ReduceMerge>();
+    }
+    { model_ref = model->clone(); }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -454,3 +531,82 @@ TEST_F(TransformationTestsF, ReduceMergeNotPassParamKeepDimsFalse) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
+
+struct ReduceMergeKeepDimsFalseDifferentAxesParams {
+    const Shape data_shape;
+    const std::vector<int64_t> reduce1_axes;
+    const std::vector<int64_t> reduce2_axes;
+    const std::vector<int64_t> expected_axes;
+    const std::string name;
+};
+
+class ReduceMergeKeepDimsFalseDifferentAxes
+    : public TransformationTestsF,
+      public ::testing::WithParamInterface<ReduceMergeKeepDimsFalseDifferentAxesParams> {};
+
+TEST_P(ReduceMergeKeepDimsFalseDifferentAxes, CompareFunctions) {
+    const auto& p = GetParam();
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, p.data_shape);
+
+        auto reduce1_axis = op::v0::Constant::create(element::i64, Shape{p.reduce1_axes.size()}, p.reduce1_axes);
+        auto reduce1 = std::make_shared<opset9::ReduceL2>(data, reduce1_axis, false);
+
+        auto reduce2_axis = op::v0::Constant::create(element::i64, Shape{p.reduce2_axes.size()}, p.reduce2_axes);
+        auto reduce2 = std::make_shared<opset9::ReduceL2>(reduce1, reduce2_axis, false);
+
+        model = std::make_shared<Model>(OutputVector{reduce2}, ParameterVector{data});
+        manager.register_pass<ov::pass::ReduceMerge>();
+    }
+
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, p.data_shape);
+        auto axes = op::v0::Constant::create(element::i64, Shape{p.expected_axes.size()}, p.expected_axes);
+        auto reduce = std::make_shared<opset9::ReduceL2>(data, axes, false);
+        model_ref = std::make_shared<Model>(OutputVector{reduce}, ParameterVector{data});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    TransformationTestsF,
+    ReduceMergeKeepDimsFalseDifferentAxes,
+    ::testing::Values(
+        ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{1, 2, 3, 4, 5}, {0, 1}, {0, 1}, {0, 1, 2, 3}, "equal_axes"},
+        ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{1, 2, 3, 4, 5}, {-1}, {0, 1}, {0, 1, 4}, "negative_axes1"},
+        ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{1, 2, 3, 4, 5}, {0, 1}, {-1}, {0, 1, 4}, "negative_axes2"},
+        ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{1, 2, 3, 4, 5, 6},
+                                                    {0, 1},
+                                                    {2, 3},
+                                                    {0, 1, 4, 5},
+                                                    "diff_axes_all_greater"},
+        ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{1, 2, 3, 4, 5, 6},
+                                                    {2, 3},
+                                                    {0, 1},
+                                                    {0, 1, 2, 3},
+                                                    "diff_axes_all_less"},
+        ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{1, 2, 3, 4, 5, 6},
+                                                    {1, 3},
+                                                    {0, 2},
+                                                    {0, 1, 3, 4},
+                                                    "diff_axes_interleaved"},
+        ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{1, 2, 3, 4, 5, 6},
+                                                    {1, 2},
+                                                    {0, 3},
+                                                    {0, 1, 2, 5},
+                                                    "diff_axes_all_less_and_greater"},
+        // 2D -> scalar (single-axis then remaining-axis)
+        ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{3, 4}, {1}, {0}, {0, 1}, "2D_to_scalar"},
+        // 3D: reduce last, then first of remaining axes
+        ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{2, 3, 4}, {2}, {0}, {0, 2}, "3D_last_then_first"},
+        // 4D: reduce middle, then reduce remaining tail
+        ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{2, 3, 4, 5}, {1}, {1, 2}, {1, 2, 3}, "4D_middle_then_tail"},
+        // Non-sorted reduce1 axes (tests normalization/ordering)
+        ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{2, 3, 4, 5}, {2, 0}, {1}, {0, 2, 3}, "unsorted_reduce1_axes"},
+        // Reduce many axes first, then reduce the last remaining axis
+        ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{1, 2, 3, 4}, {0, 1, 2}, {0}, {0, 1, 2, 3}, "reduce_all"}),
+    [](const ::testing::TestParamInfo<ReduceMergeKeepDimsFalseDifferentAxesParams>& info) {
+        return info.param.name;
+    });

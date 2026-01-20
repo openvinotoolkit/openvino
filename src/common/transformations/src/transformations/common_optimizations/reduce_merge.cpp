@@ -61,20 +61,15 @@ std::set<size_t> remap_axes(const ov::AxisSet& axes_bottom, const ov::AxisSet& a
 
         auto top_axes_iter = axes_top.begin();
         while (original_axis <= bottom_axis + axes_top.size()) {
-            bool removed = false;
             if (top_axes_iter != axes_top.end() && *top_axes_iter == original_axis) {
-                removed = true;
                 ++top_axes_iter;
-            }
-
-            if (!removed) {
+            } else {
                 if (remaining_dim == 0) {
                     remapped_axes.insert(original_axis);
                     break;
                 }
                 --remaining_dim;
             }
-
             ++original_axis;
         }
     }
@@ -103,7 +98,7 @@ ov::Output<ov::Node> make_1d(const ov::Output<ov::Node>& in) {
 
 template <typename T>
 std::shared_ptr<Node> create_pattern() {
-    auto input = pattern::any_input();
+    auto input = pattern::any_input(pattern::has_static_rank());
     auto first_axis = pattern::any_input();
     auto reduce = pattern::wrap_type<T>({input, first_axis});
     auto second_axis = pattern::any_input();
@@ -129,6 +124,7 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
     const ov::AxisSet axes_top = top_reduce->get_reduction_axes();
     const ov::AxisSet axes_bottom = bottom_reduce->get_reduction_axes();
     std::shared_ptr<Node> axes = nullptr;
+
     if (!axes_top.empty() && !axes_bottom.empty()) {
         // if both axes are constants, we can merge them into a single constant
         std::set<size_t> fused_axes{axes_top.begin(), axes_top.end()};
