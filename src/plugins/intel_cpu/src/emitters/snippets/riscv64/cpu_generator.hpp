@@ -27,10 +27,10 @@ namespace ov::intel_cpu::riscv64 {
 
 using CompiledSnippetCPU = ov::intel_cpu::CompiledSnippetCPUCommon<ov::intel_cpu::riscv64::jit_generator_t>;
 
-class CPUTargetMachine : public snippets::TargetMachine {
+class CPUTargetMachine : public ov::snippets::TargetMachine {
 public:
     explicit CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr cache);
-    [[nodiscard]] std::shared_ptr<snippets::TargetMachine> clone() const override;
+    [[nodiscard]] std::shared_ptr<ov::snippets::TargetMachine> clone() const override;
     [[nodiscard]] bool is_supported() const override;
     snippets::CompiledSnippetPtr get_snippet() override;
     [[nodiscard]] size_t get_lanes() const override;
@@ -40,10 +40,6 @@ public:
     [[nodiscard]] std::vector<snippets::Reg> get_vec_reg_pool() const override;
 
     [[nodiscard]] ov::intel_cpu::riscv64::cpu_isa_t get_isa() const;
-#ifdef SNIPPETS_DEBUG_CAPS
-    SnippetsDebugCapsConfig debug_config;
-#endif
-
 #ifdef SNIPPETS_DEBUG_CAPS
     SnippetsDebugCapsConfig debug_config;
 #endif
@@ -58,7 +54,7 @@ class CPUGenerator : public snippets::Generator {
 public:
     CPUGenerator(ov::intel_cpu::riscv64::cpu_isa_t isa, ov::intel_cpu::MultiCacheWeakPtr cache);
     CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target);
-    std::shared_ptr<Generator> clone() const override;
+    std::shared_ptr<ov::snippets::Generator> clone() const override;
 
 protected:
     bool uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& emitter) const override;

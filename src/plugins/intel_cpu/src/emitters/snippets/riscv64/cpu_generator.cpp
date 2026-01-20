@@ -156,7 +156,7 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[op::v1::Add::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::riscv64::jit_add_emitter);
 }
 
-std::shared_ptr<snippets::TargetMachine> CPUTargetMachine::clone() const {
+std::shared_ptr<ov::snippets::TargetMachine> CPUTargetMachine::clone() const {
     const auto cloned = std::make_shared<CPUTargetMachine>(isa, compiled_kernel_cache);
     cloned->configurator = std::make_shared<ov::snippets::RuntimeConfigurator>(*configurator);
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -237,7 +237,7 @@ CPUGenerator::CPUGenerator(ov::intel_cpu::riscv64::cpu_isa_t isa_, ov::intel_cpu
     : Generator(std::make_shared<CPUTargetMachine>(isa_, std::move(cache))) {}
 CPUGenerator::CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target) : Generator(target) {}
 
-std::shared_ptr<snippets::Generator> CPUGenerator::clone() const {
+std::shared_ptr<ov::snippets::Generator> CPUGenerator::clone() const {
     const auto& cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
     OPENVINO_ASSERT(cpu_target_machine,
                     "Failed to clone CPUGenerator: the instance contains incompatible TargetMachine type");
