@@ -20,7 +20,6 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("StateManagementPattern");
     StateManagementPattern(ParameterVector& kv_parameters,
                            ParameterVector& model_wide_params,
-                           ParameterVector& parameters_to_remove,
                            int& layer_index,
                            ov::Output<Node> max_context_len,
                            ParameterVector& block_indices_inputs_for_each_layer,
