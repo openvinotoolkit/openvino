@@ -31,18 +31,24 @@ namespace frontend {
 namespace onnx {
 class Model;
 
+constexpr char ONNX_OPSET_VERSION_ATTR[] = "ONNX_META_opset_version";
+
 class ONNXFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("ONNXFrameworkNode", "util", ov::op::util::FrameworkNode);
 
-    ONNXFrameworkNode(const ov::frontend::onnx::Node& node) : ONNXFrameworkNode(node, node.get_ov_inputs()) {}
+    ONNXFrameworkNode(const ov::frontend::onnx::Node& node, int64_t opset_version = -1)
+        : ONNXFrameworkNode(node, node.get_ov_inputs(), opset_version) {}
 
-    ONNXFrameworkNode(const ov::frontend::onnx::Node& node, const ov::OutputVector& inputs)
+    ONNXFrameworkNode(const ov::frontend::onnx::Node& node, const ov::OutputVector& inputs, int64_t opset_version = -1)
         : ov::op::util::FrameworkNode(inputs, node.get_outputs_size()),
           m_node(node) {
         ov::op::util::FrameworkNodeAttrs attrs;
         attrs.set_type_name(node.op_type());
         attrs.set_opset_name(node.domain());
+        if (opset_version > 0) {
+            attrs[ONNX_OPSET_VERSION_ATTR] = std::to_string(opset_version);
+        }
         set_attrs(attrs);
     }
 
@@ -75,8 +81,9 @@ public:
 
     ONNXSubgraphFrameworkNode(const ov::frontend::onnx::Node& node,
                               const std::vector<std::shared_ptr<ov::Model>>& models,
-                              const ov::OutputVector& inputs)
-        : ONNXFrameworkNode(node, inputs),
+                              const ov::OutputVector& inputs,
+                              int64_t opset_version = -1)
+        : ONNXFrameworkNode(node, inputs, opset_version),
           m_models(models) {}
 
     void infer_inputs_from_parent() {
@@ -106,12 +113,16 @@ public:
                          const size_t output_size,
                          const std::string& domain,
                          const std::string& op_type,
-                         const std::string& additional_error_message)
+                         const std::string& additional_error_message,
+                         int64_t opset_version = -1)
         : ov::op::util::FrameworkNode(inputs, output_size) {
         ov::op::util::FrameworkNodeAttrs attrs;
         attrs.set_opset_name(domain);
         attrs.set_type_name(op_type);
         attrs[failed_conversion_key] = additional_error_message;
+        if (opset_version > 0) {
+            attrs[ONNX_OPSET_VERSION_ATTR] = std::to_string(opset_version);
+        }
         set_attrs(attrs);
     }
 

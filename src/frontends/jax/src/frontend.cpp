@@ -4,11 +4,14 @@
 
 #include "openvino/frontend/jax/frontend.hpp"
 
+#include <optional>
+
 #include "input_model.hpp"
 #include "jax_framework_node.hpp"
 #include "op_table.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/jax/extension/conversion.hpp"
+#include "openvino/frontend/unconverted_ops_report.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/util/log.hpp"
 #include "translate_session.hpp"
@@ -18,65 +21,19 @@ namespace frontend {
 namespace jax {
 
 namespace {
-std::map<std::string, std::string> get_unconverted_types_from_model(const std::shared_ptr<Model>& model) {
-    std::map<std::string, std::string> unconverted_ops_types;
-    for (const auto& node : model->get_ordered_ops()) {
-        if (const auto& fw_node = ov::as_type_ptr<JaxFrameworkNode>(node)) {
-            const auto& attrs = fw_node->get_attrs();
-            FRONT_END_GENERAL_CHECK(attrs.find(JaxFrameworkNode::op_type_key) != attrs.end(),
-                                    "FrameworkNode attributes do not contain operation type.");
-            std::string exception_msg;
-            if (attrs.find(JaxFrameworkNode::failed_conversion_key) != attrs.end()) {
-                exception_msg = attrs.at(JaxFrameworkNode::failed_conversion_key);
-            }
-            if (!unconverted_ops_types.count(attrs.at(JaxFrameworkNode::op_type_key))) {
-                unconverted_ops_types[attrs.at(JaxFrameworkNode::op_type_key)] = exception_msg;
-            }
-        }
-        if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
-            for (size_t i = 0; i < fw_node->get_internal_subgraphs_size(); i++) {
-                const auto& internal_types = get_unconverted_types_from_model(fw_node->get_function(i));
-                unconverted_ops_types.insert(internal_types.begin(), internal_types.end());
-            }
-        }
-    }
-    return unconverted_ops_types;
-}
 
-std::string pack_detailed_failure_report(const std::map<std::string, std::string>& unconverted_ops,
-                                         const std::string& additional_error = "") {
-    std::stringstream error_msg;
-    std::stringstream unconverted_ops_msg;
-    std::stringstream failed_ops_msg;
-    std::stringstream failed_ops_short;
-    error_msg << "Model wasn't fully converted.";
-    unconverted_ops_msg << "-- No conversion rule found for operations: ";
-    failed_ops_msg << " Failed operations detailed log:";
-    failed_ops_short << "-- Conversion is failed for: ";
-    bool at_least_one = false;
-    bool at_least_one_except = false;
-    for (auto&& op : unconverted_ops) {
-        if (op.second.empty()) {
-            if (at_least_one)
-                unconverted_ops_msg << ", ";
-            unconverted_ops_msg << op.first;
-            at_least_one = true;
-        } else {
-            if (at_least_one_except)
-                failed_ops_short << ", ";
-            failed_ops_short << op.first;
-            failed_ops_msg << "\n-- " << op.first << " with a message:\n" << op.second;
-            at_least_one_except = true;
-        }
-    }
-    if (at_least_one_except)
-        error_msg << failed_ops_msg.str();
-    error_msg << "\nSummary:" << additional_error;
-    if (at_least_one)
-        error_msg << '\n' << unconverted_ops_msg.str();
-    if (at_least_one_except)
-        error_msg << '\n' << failed_ops_short.str();
-    return error_msg.str();
+const std::vector<ov::frontend::UnconvertedOpExtractor>& get_unconverted_extractors() {
+    static const std::vector<ov::frontend::UnconvertedOpExtractor> extractors{
+        ov::frontend::make_unconverted_op_extractor<JaxFrameworkNode>(
+            [](const std::shared_ptr<JaxFrameworkNode>& node) -> std::optional<ov::frontend::FrameworkNodeErrorInfo> {
+                const auto& attrs = node->get_attrs();
+                FRONT_END_GENERAL_CHECK(attrs.find(JaxFrameworkNode::op_type_key) != attrs.end(),
+                                        "FrameworkNode attributes do not contain operation type.");
+                return ov::frontend::build_framework_node_error_info(attrs,
+                                                                     JaxFrameworkNode::op_type_key,
+                                                                     JaxFrameworkNode::failed_conversion_key);
+            })};
+    return extractors;
 }
 }  // namespace
 
@@ -91,14 +48,17 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
         converted_model = translate_session.get_converted_model();
     }
 
-    const auto& unconverted_ops = get_unconverted_types_from_model(converted_model);
-    for (auto&& op : unconverted_ops) {
-        if (m_telemetry) {
-            m_telemetry->send_event("error_cause", "jax_" + op.first);
+    const auto unconverted_ops = ov::frontend::collect_unconverted_ops(converted_model, get_unconverted_extractors());
+    if (m_telemetry) {
+        for (const auto& entry : unconverted_ops) {
+            m_telemetry->send_event("error_cause", "jax_" + entry.first);
         }
     }
-    bool is_conversion_successful = unconverted_ops.size() == 0;
-    FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, pack_detailed_failure_report(unconverted_ops));
+    FRONT_END_OP_CONVERSION_CHECK(
+        unconverted_ops.empty(),
+        ov::frontend::format_unconverted_ops_report(unconverted_ops,
+                                                    std::string{},
+                                                    "[JAX Frontend] Model wasn't fully converted."));
     return converted_model;
 }
 

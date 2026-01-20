@@ -94,7 +94,7 @@ TEST(ONNX_Importer_Tests, ImportModelWithNotSupportedOp) {
         FAIL() << "Any expection was thrown despite the ONNX model is not supported";
     } catch (const Exception& error) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
-                            std::string("OpenVINO does not support the following ONNX operations: NotSupported"),
+                            std::string("No conversion rule found for operations: NotSupported-7"),
                             error.what());
     } catch (...) {
         FAIL() << "Expected 'Exception' exception was not thrown despite the ONNX model is not supported";

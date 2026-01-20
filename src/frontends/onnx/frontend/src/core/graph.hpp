@@ -71,7 +71,7 @@ protected:
     void set_friendly_names(const Node& onnx_node, const ov::OutputVector& ng_subgraph_outputs) const;
 
 protected:
-    ov::OutputVector make_framework_nodes(const ov::frontend::onnx::Node& onnx_node);
+    ov::OutputVector make_framework_nodes(const ov::frontend::onnx::Node& onnx_node, int64_t opset_version);
 
     void decode_to_framework_nodes();
     void convert_to_ov_nodes();

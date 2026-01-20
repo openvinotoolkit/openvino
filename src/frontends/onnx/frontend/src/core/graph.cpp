@@ -226,7 +226,7 @@ std::shared_ptr<ov::Model> Graph::convert() {
     return function;
 }
 
-ov::OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
+ov::OutputVector Graph::make_framework_nodes(const Node& onnx_node, int64_t opset_version) {
     std::shared_ptr<ov::frontend::onnx::ONNXFrameworkNode> framework_node;
     if (onnx_node.has_subgraphs()) {
         const auto& subgraphs = onnx_node.get_subgraphs();
@@ -244,9 +244,10 @@ ov::OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
                 }
             }
         }
-        framework_node = std::make_shared<ov::frontend::onnx::ONNXSubgraphFrameworkNode>(onnx_node, models, inputs);
+        framework_node =
+            std::make_shared<ov::frontend::onnx::ONNXSubgraphFrameworkNode>(onnx_node, models, inputs, opset_version);
     } else {
-        framework_node = std::make_shared<ov::frontend::onnx::ONNXFrameworkNode>(onnx_node);
+        framework_node = std::make_shared<ov::frontend::onnx::ONNXFrameworkNode>(onnx_node, opset_version);
     }
     return framework_node->outputs();
 }
@@ -265,7 +266,8 @@ void Graph::decode_to_framework_nodes() {
             op_statistics[op_name]++;
         }
         const Node node{node_proto, this};
-        ov::OutputVector ov_nodes{make_framework_nodes(node)};
+        const auto opset_version = m_model->get_opset_version(node_proto.domain());
+        ov::OutputVector ov_nodes{make_framework_nodes(node, opset_version < 0 ? 1 : opset_version)};
         set_friendly_names(node, ov_nodes);
         // Iterate over the number of outputs for given node in graph.
         // Some of them may be optional and trimmed. See:
@@ -345,10 +347,10 @@ ov::OutputVector Graph::make_ov_nodes(const Node& onnx_node) {
             error_message += "Unhandled exception type. \n";
         }
     }
+    const auto& onnx_domain = onnx_node.domain();
+    const auto opset_version = m_model->get_opset_version(onnx_domain);
     if (ov_subgraph_outputs.empty()) {  // translation not possible (not supported op or exception during processing)
         if (m_extensions.telemetry && !error_message.empty()) {
-            std::string onnx_domain = onnx_node.domain();
-            int64_t opset_version = m_model->get_opset_version(onnx_domain);
             error_message = onnx_prefix + "Conversion failed for " +
                             (onnx_domain != "" ? "***." + onnx_node.op_type() + "-X"
                                                : onnx_node.op_type() + "-" + std::to_string(opset_version)) +
@@ -359,7 +361,8 @@ ov::OutputVector Graph::make_ov_nodes(const Node& onnx_node) {
                                                                        onnx_node.get_outputs_size(),
                                                                        onnx_node.domain(),
                                                                        onnx_node.op_type(),
-                                                                       error_message);
+                                                                       error_message,
+                                                                       opset_version < 0 ? 1 : opset_version);
         ov_subgraph_outputs = not_supported_node->outputs();
     }
 
