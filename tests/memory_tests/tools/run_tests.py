@@ -92,7 +92,7 @@ MODELID_RE = re.compile(r"\/?([^\/]+)\/(\w+)\/?[^\/]*\/((OV_)?(FP|INT)\d+(\/INT\
 
 
 def modelid_assume_info(modelid):
-    match = MODELID_RE.match(modelid)
+    match = MODELID_RE.match(modelid.replace("\\", "/"))
     if not match:
         return None
     model, fw, prec, _n1, _n2, _n3, _n4, model2 = match.groups()
@@ -207,7 +207,7 @@ class TestSession:
                 return
             found_models.update(new_files)
             new_files = sorted(new_files)
-            yield from ((path.removeprefix(cache_dir), path) for path in new_files)
+            yield from ((path.removeprefix(cache_dir).replace("\\", "/"), path) for path in new_files)
 
     def generate_test_cases(self):
         for ir_cache_dir in self.ir_cache_dirs:
