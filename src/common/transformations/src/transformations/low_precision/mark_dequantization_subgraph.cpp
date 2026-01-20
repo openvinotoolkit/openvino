@@ -343,12 +343,13 @@ KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVect
 
     auto convert1_pattern = pattern::wrap_type<v0::Convert>({input_pattern});
     auto convert2_pattern = pattern::optional<v0::Convert>(convert1_pattern);
+    auto final_convert = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{convert1_pattern, convert2_pattern});
 
     // zero points:
     auto zp_pattern = pattern::wrap_type<v0::Constant>();
     auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
     auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, pattern::any_input()});
-    auto subtract_pattern = pattern::optional<v1::Subtract>({convert2_pattern, zp_reshape_pattern});
+    auto subtract_pattern = pattern::optional<v1::Subtract>({final_convert, zp_reshape_pattern});
 
     // scale:
     auto scale_pattern = pattern::wrap_type<v0::Constant>();
