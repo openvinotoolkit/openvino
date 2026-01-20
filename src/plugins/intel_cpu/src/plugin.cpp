@@ -316,7 +316,7 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
         if (!model->get_variables().empty()) {
             return Config::ModelType::LLM;
         }
-        return Config::ModelType::DIFFUSION;
+        return Config::ModelType::Unknown;
     }
     if (op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
         return Config::ModelType::LLM;
