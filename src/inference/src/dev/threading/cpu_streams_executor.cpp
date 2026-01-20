@@ -411,7 +411,7 @@ struct CPUStreamsExecutor::Impl {
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         auto& arena = stream._taskArena;
         if (nullptr != arena) {
-            arena->execute(std::move(task));
+            arena->execute(task);
         } else {
             task();
         }
