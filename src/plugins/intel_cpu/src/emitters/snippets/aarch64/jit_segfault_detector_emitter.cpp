@@ -6,7 +6,6 @@
 
 #    include "jit_segfault_detector_emitter.hpp"
 
-#    include <array>
 #    include <cpu/aarch64/cpu_isa_traits.hpp>
 #    include <cpu/aarch64/jit_generator.hpp>
 #    include <cstddef>
@@ -20,7 +19,6 @@
 #    include <vector>
 
 #    include "emitters/plugin/aarch64/jit_emitter.hpp"
-#    include "utils/general_utils.h"
 #    include "verbose.hpp"
 #    include "xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h"
 #    include "xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h"
