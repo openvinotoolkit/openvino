@@ -123,23 +123,19 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         if (fc_input_b->get_output_partial_shape(0).size() != fc_input_scale->get_shape().size()) {
             OPENVINO_ASSERT(!pattern_map.count(weights_const_m));
-            ov::Shape weight_shape_final(fc_input_scale->get_shape().size(), 1);
-            for (size_t i = weight_shape.size() - 1, idx = fc_input_scale->get_shape().size() - 1; ; --i) {
-                if (weight_shape[i] > 1) {
-                    weight_shape_final[idx--] = weight_shape[i];
-                }
-                if (i == 0) {
-                    break;
-                }
+            std::shared_ptr<ov::Node> reshape_node = nullptr;
+            if (pattern_map.count(weights_convert_reshape_m)) {
+                reshape_node = pattern_map.at(weights_convert_reshape_m).get_node_shared_ptr();
+            } else if (pattern_map.count(reshape_m)) {
+                reshape_node = pattern_map.at(reshape_m).get_node_shared_ptr();
             }
-            if (has_transpose) {
-                std::swap(weight_shape_final[0], weight_shape_final[1]);
+
+            if (reshape_node != nullptr) {
+                reshape_node->input(0).replace_source_output(fc_input_b);
+                reshape_node->validate_and_infer_types();
+                fc_input_b = reshape_node;
+                result_nodes.push_back(fc_input_b);
             }
-            std::shared_ptr<ov::Node> weight_shape_const =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{weight_shape_final.size()}, weight_shape_final);
-            fc_input_b = std::make_shared<ov::op::v1::Reshape>(fc_input_b, weight_shape_const, false);
-            result_nodes.push_back(weight_shape_const);
-            result_nodes.push_back(fc_input_b);
         }
 
         if (has_transpose) {
