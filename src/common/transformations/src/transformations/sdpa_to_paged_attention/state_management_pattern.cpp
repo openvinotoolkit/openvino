@@ -48,6 +48,7 @@ using ov::pass::pattern::op::Or;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
+namespace v6 = ov::op::v6;
 namespace v8 = ov::op::v8;
 namespace v13 = ov::op::v13;
 namespace v15 = ov::op::v15;
@@ -251,11 +252,11 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
     auto kv_past = wrap_type<v8::Gather>({kv_past_var, any_input(), any_input()});
     kv_past = optional<v1::Transpose>({kv_past, any_input()});  // Transpose is used when kv-cache is stored
                                                                 // in a not usual layout, example: bloom
-
     auto kv_current2 = any_input();
-    auto kv_current_opt_reshaped = optional<v1::Reshape>({kv_current2, any_input()});
-    auto kv_concat = wrap_type<v0::Concat>({kv_past, kv_current_opt_reshaped});
-    return node_tuple(kv_past_var, kv_current2, kv_current_opt_reshaped, kv_concat);
+    auto kv_current_reshaped = wrap_type<v1::Reshape>({kv_current2, any_input()});
+    auto kv_concat =
+        wrap_type<v0::Concat>({kv_past, std::make_shared<Or>(OutputVector{kv_current_reshaped, kv_current})});
+    return node_tuple(kv_past_var, kv_current2, kv_current_reshaped, kv_concat);
 }
 
 static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqueeze_pattern,
@@ -315,7 +316,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     ParameterVector& adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
     ParameterVector& adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
     ResultVector& adaptive_rkv_diversity_results,
-    const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params) {
+    const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params,
+    std::unordered_set<std::string>& var_ids_to_remove) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_current = any_input();
@@ -431,7 +433,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &xattention_threshold_inputs_for_each_layer,
                                           &adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
                                           &adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
-                                          &adaptive_rkv_diversity_results](Matcher& m) {
+                                          &adaptive_rkv_diversity_results,
+                                          &var_ids_to_remove](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
 
@@ -575,6 +578,22 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             alibi_slopes = handle_baichuan2_13b_alibi(pattern_map.at(baichuan2_13b_alibi).get_node_shared_ptr());
         } else {
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
+        }
+
+        if (pattern_map.count(k_past_var)) {
+            if (auto k_rv = ov::as_type_ptr<v6::ReadValue>(pattern_map.at(k_past_var).get_node_shared_ptr())) {
+                var_ids_to_remove.insert(k_rv->get_variable_id());
+            }
+        }
+        if (pattern_map.count(v_past_var)) {
+            if (auto v_rv = ov::as_type_ptr<v6::ReadValue>(pattern_map.at(v_past_var).get_node_shared_ptr())) {
+                var_ids_to_remove.insert(v_rv->get_variable_id());
+            }
+        }
+        if (pattern_map.count(kv_past_var)) {
+            if (auto kv_rv = ov::as_type_ptr<v6::ReadValue>(pattern_map.at(kv_past_var).get_node_shared_ptr())) {
+                var_ids_to_remove.insert(kv_rv->get_variable_id());
+            }
         }
 
         OutputVector pa_arguments = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
