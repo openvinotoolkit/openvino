@@ -125,9 +125,23 @@ ClampTransformationTestValues testValues = {
 
 The LPT test framework provides specialized builder classes to construct quantized models easily. These are located in the `ov::builder::subgraph` namespace.
 
+This section focuses on the two most commonly used builder structures:
+- **`DequantizationOperations`** - for describing Convert→Subtract→Multiply chains
+- **`FakeQuantizeOnData`** - for describing FakeQuantize operation parameters
+
+To understand where these test structures map to actual model operations, consider the following example model:
+
+![FakeQuantize and Convolution Model](../../../../docs/articles_en/assets/images/model_fq_and_convolution.common.svg)
+
+In this diagram:
+- **`FakeQuantizeOnData`** structure corresponds to the **FakeQuantize** operation on activations (input data)
+- **`DequantizationOperations`** structure corresponds to the **dequantization operations on weights** (Convert→Subtract→Multiply chain)
+
+The following sections provide detailed information on how these test structures are built and configured.
+
 ### DequantizationOperations
 
-The main class for describing dequantization operations (Convert→Subtract→Multiply chain):
+The main class for describing dequantization operations.
 
 **Definition**: `src/tests/ov_helpers/ov_lpt_models/include/ov_lpt_models/common/dequantization_operations.hpp`
 
@@ -236,7 +250,7 @@ DequantizationOperations advancedDequant(
 
 ### FakeQuantizeOnData
 
-Describes FakeQuantize operation parameters:
+The main class for describing FakeQuantize operation parameters and configuration.
 
 **Definition**: `src/tests/ov_helpers/ov_lpt_models/include/ov_lpt_models/common/fake_quantize_on_data.hpp`
 
