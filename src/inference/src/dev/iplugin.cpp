@@ -40,7 +40,11 @@ bool is_graph_input_node(const std::shared_ptr<ov::Node>& node) {
 
 }  // namespace
 
-ov::IPlugin::IPlugin() : m_executor_manager(ov::threading::executor_manager()) {}
+ov::IPlugin::IPlugin()
+    : m_plugin_name(),
+      m_core(),
+      m_executor_manager(ov::threading::executor_manager()),
+      m_version() {}
 
 void ov::IPlugin::set_version(const ov::Version& version) {
     m_version = version;
