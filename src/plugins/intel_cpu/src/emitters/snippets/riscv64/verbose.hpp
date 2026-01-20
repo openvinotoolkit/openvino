@@ -30,7 +30,6 @@ private:
 };
 
 std::string get_emitter_type_name(const jit_emitter* emitter);
-std::string init_info_jit_memory_emitter(const jit_memory_emitter* emitter);
 
 }  // namespace ov::intel_cpu::riscv64
 
