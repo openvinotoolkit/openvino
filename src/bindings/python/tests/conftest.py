@@ -11,7 +11,7 @@ import pytest
 # https://numpy.org/devdocs/reference/simd/build-options.html
 _npy_cpu_features_original = os.environ.get("NPY_DISABLE_CPU_FEATURES")
 if platform.machine() == "aarch64" and platform.system() == "Linux":
-    os.environ["NPY_DISABLE_CPU_FEATURES"] = "ASIMDDP"
+    os.environ["NPY_DISABLE_CPU_FEATURES"] = "ASIMDDP,ASIMDFHM"
 
 
 def pytest_sessionfinish(session, exitstatus):
