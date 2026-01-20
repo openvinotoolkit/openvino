@@ -105,7 +105,7 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
     const uint output_data_offset = output_base_offset + in_data_set_idx;
     ACTIVATION_TYPE scale_f = TO_ACTIVATION_TYPE(scale[f]);
     ACTIVATION_TYPE bias_f = TO_ACTIVATION_TYPE(bias[f]);
-    #define CHUNK_SIZE 16
+    #define CHUNK_SIZE 8
     ACTIVATION_TYPE input_data[CHUNK_SIZE];
 
     for (uint j = 0; j < (items_num + CHUNK_SIZE - 1) / CHUNK_SIZE; ++j) {
