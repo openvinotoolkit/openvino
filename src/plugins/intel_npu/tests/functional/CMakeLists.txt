@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2018-2026 Intel Corporation SPDX-License-Identifier: Apache-2.0
 #
 
 if(ENABLE_LTO)
@@ -51,6 +51,11 @@ ov_add_test_target(
   openvino::reference
   openvino::runtime
   openvino::npu_al)
+
+if(ENABLE_INTEL_CPU)
+    add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
+    target_compile_definitions(${TARGET_NAME} PRIVATE WITH_CPU_PLUGIN)
+endif()
 
 if(WIN32)
     if(ENABLE_DX12)
