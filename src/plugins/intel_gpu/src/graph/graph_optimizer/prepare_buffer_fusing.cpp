@@ -453,7 +453,9 @@ static bool can_read_value_be_optimize(const read_value_node& node) {
     if (unique_users.size() <= 1)
         return true;
 
-    // following pattern can be optimized 
+    // following pattern should be optimized, otherwise it could lead to corruptted data.
+    // readvalue's users eventually need to pass kvcache before assign, which makes kvcache node the dominator of assign node, 
+    // it could be safely treated as if readvalue is directly connecting to kvcache.
     // readvalue --> any
     //       |         |
     //       |         v
