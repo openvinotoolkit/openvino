@@ -503,10 +503,18 @@ bool PipelinedSimulation::process(cv::GStreamingCompiled& pipeline, DeviceType d
 
 }  // anonymous namespace
 
-static void changeDeviceParam(InferenceParamsMap& params, const std::string& device_name) {
+static void changeDeviceParam(InferenceParamsMap& params, const std::string& device_name, const std::string& npu_compiler_type) {
     for (auto& [tag, inference_params] : params) {
         if (auto* ov = std::get_if<OpenVINOParams>(&inference_params)) {
             ov->device = device_name;
+
+            if (device_name == "NPU") {
+                if (ov->config.find("NPU_COMPILER_TYPE") == ov->config.end()) {
+                    ov->config.emplace("NPU_COMPILER_TYPE", npu_compiler_type);
+                }
+            } else {
+                ov->config.erase("NPU_COMPILER_TYPE");
+            }
         } else if (auto* onnx = std::get_if<ONNXRTParams>(&inference_params)) {
             if (auto* ov_ep = std::get_if<ONNXRTParams::OpenVINO>(&onnx->ep)) {
                 ov_ep->params_map["device_type"] = device_name;
@@ -549,9 +557,9 @@ std::shared_ptr<PipelinedCompiled> AccuracySimulation::compilePipelined(DummySou
 }
 
 std::shared_ptr<PipelinedCompiled> AccuracySimulation::compilePipelined(const bool drop_frames) {
-    changeDeviceParam(m_cfg.params, m_opts.tgt_device);
+    changeDeviceParam(m_cfg.params, m_opts.tgt_device, m_opts.npu_compiler_type);
     auto tgt_compile_args = cv::compile_args(getNetworksPackage());
-    changeDeviceParam(m_cfg.params, m_opts.ref_device);
+    changeDeviceParam(m_cfg.params, m_opts.ref_device, m_opts.npu_compiler_type);
     auto ref_compile_args = cv::compile_args(getNetworksPackage());
 
     // NB: Create separate sources for REF and TGT to avoid shared state issues.
@@ -587,9 +595,9 @@ std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& ref
 }
 
 std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(const bool drop_frames) {
-    changeDeviceParam(m_cfg.params, m_opts.tgt_device);
+    changeDeviceParam(m_cfg.params, m_opts.tgt_device, m_opts.npu_compiler_type);
     auto tgt_compile_args = cv::compile_args(getNetworksPackage());
-    changeDeviceParam(m_cfg.params, m_opts.ref_device);
+    changeDeviceParam(m_cfg.params, m_opts.ref_device, m_opts.npu_compiler_type);
     auto ref_compile_args = cv::compile_args(getNetworksPackage());
 
     // NB: Create separate sources for REF and TGT to avoid shared state issues.
