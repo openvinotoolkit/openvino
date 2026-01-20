@@ -300,18 +300,25 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
 }
 }  // namespace
 
-// gemm or other decomposed layers from sdpa could exceed max size of memory allocation.
 static bool expected_sdpa_opt_usage_with_decomposable_size(size_t max_size,
-                                                        const ov::PartialShape& q,
-                                                        const ov::PartialShape& k,
-                                                        const ov::PartialShape& v,
-                                                        const ov::PartialShape& sdpa_out) {
-    if (q.is_dynamic() || k.is_dynamic() || sdpa_out.is_dynamic())
-        return false;
+                                                    std::shared_ptr<const ov::op::v13::ScaledDotProductAttention> sdpa) {
+    const auto& q = sdpa->get_input_partial_shape(0);
+    const auto& k = sdpa->get_input_partial_shape(1);
+    const auto& v = sdpa->get_input_partial_shape(2);
+    const auto& sdpa_out = sdpa->get_output_partial_shape(0);
+    const auto dt_size = sdpa->get_element_type().size();
 
-    size_t required = shape_size(q.get_shape()) + shape_size(k.get_shape()) + shape_size(v.get_shape()) + shape_size(sdpa_out.get_shape());
+    // Expected sdpa_opt usage : 3D SDPA
     if (q.size() == 3 && k.size() == 3 && v.size() == 3 && sdpa_out.size() == 3) {
-        if (required < max_size)
+        if (q.is_dynamic() || k.is_dynamic() || sdpa_out.is_dynamic())
+            return false;
+
+        // Calculate mem size of gemm for Q*K
+        // Gemm layer decomposed from sdpa could exceed max size of memory allocation.
+        size_t required = shape_size(q.get_shape()) * dt_size
+                            + shape_size(k.get_shape()) * dt_size
+                            + q.get_shape().at(0) * q.get_shape().at(1) * k.get_shape().at(1) * dt_size;
+        if (required < max_size * 0.5)
             return true;
     }
 
@@ -724,9 +731,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
 
             // performance issue is expected if sdap_opt kernel would be selected for systolic-array architectures
-            const auto sdpa_output = sdpa->get_output_partial_shape(0);
             const auto max_size = m_context->get_engine().get_max_memory_size();
-            if (device_info.supports_immad && expected_sdpa_opt_usage_with_decomposable_size(max_size, query_ps, key_ps, value_ps, sdpa_output)) {
+            if (device_info.supports_immad && expected_sdpa_opt_usage_with_decomposable_size(max_size, sdpa)) {
+                GPU_DEBUG_COUT << " Expect sdpa_usage with systolic-arry architectures. mem size is decomposable. query " << query_ps
+                                << " key " << key_ps << " dt " << sdpa->get_element_type().size() << std::endl;
                  return false;
              }
 
