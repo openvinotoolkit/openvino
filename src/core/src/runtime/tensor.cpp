@@ -209,19 +209,12 @@ Tensor read_tensor_data_mmap_impl(std::shared_ptr<ov::MappedMemory> mapped_memor
                                   const ov::element::Type& element_type,
                                   const ov::PartialShape& partial_shape,
                                   size_t offset_in_bytes) {
-    OPENVINO_ASSERT(mapped_memory != nullptr);
-    OPENVINO_ASSERT(offset_in_bytes <= mapped_memory->size(),
-                    "Offset ",
-                    offset_in_bytes,
-                    " exceeds file size ",
-                    mapped_memory->size());
-
+    auto static_shape = calc_static_shape_for_file(mapped_memory->size(), element_type, partial_shape, offset_in_bytes);
     auto shared_buffer =
         std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data() + offset_in_bytes,
                                                                               mapped_memory->size() - offset_in_bytes,
                                                                               mapped_memory);
 
-    auto static_shape = calc_static_shape_for_file(mapped_memory->size(), element_type, partial_shape, offset_in_bytes);
     return wrap_obj_to_viewtensor(shared_buffer, shared_buffer->get_ptr(), element_type, static_shape);
 }
 }  // namespace
