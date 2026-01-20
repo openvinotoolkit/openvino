@@ -3,7 +3,6 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/matmul.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
@@ -25,16 +24,12 @@ OutputVector translate_sparse_mm(const NodeContext& context) {
     auto sparse_input = context.get_input(0);
     auto dense_input = context.get_input(1);
     
-    // PyTorch sparse tensors in TorchScript are typically already converted to dense
-    // or represented in a way that makes them incompatible with direct conversion.
-    // For now, we'll use a framework node approach which delegates execution back to PyTorch.
-    // This is acceptable for a first implementation and follows the pattern used for
-    // other complex operations.
+    // TorchScript preserves sparse COO tensors for this operation.
+    // However, OpenVINO does not currently have a native decomposition for sparse matrix multiplication.
+    // We use PtFrameworkNode to delegate execution back to PyTorch runtime.
+    // This is an intentional design choice for operations without native OpenVINO equivalents.
     
-    // TODO: In the future, we could implement COO to dense conversion using OpenVINO ops
-    // if sparse tensor structure information is available through the decoder.
-    
-    // For now, create a framework node that will be executed by PyTorch runtime
+    // Create a framework node that will be executed by PyTorch runtime
     auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), 
                                                        OutputVector{sparse_input, dense_input}, 
                                                        1);
