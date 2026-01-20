@@ -16,12 +16,16 @@
 #include "ov_ops/nms_static_shape_ie.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v8 = ov::op::v8;
 ov::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool force_i32_output_type) {
     MATCHER_SCOPE(ConvertMatrixNmsToMatrixNmsIE);
-    auto nms = ov::pass::pattern::wrap_type<ov::op::v8::MatrixNms>();
+    auto nms = ov::pass::pattern::wrap_type<v8::MatrixNms>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        auto nms = ov::as_type_ptr<ov::op::v8::MatrixNms>(m.get_match_root());
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        auto nms = ov::as_type_ptr<v8::MatrixNms>(m.get_match_root());
         if (!nms || transformation_callback(nms)) {
             return false;
         }
@@ -36,9 +40,8 @@ ov::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool forc
         NodeVector new_ops;
         auto attrs = nms->get_attrs();
         attrs.output_type = force_i32_output_type ? element::i32 : attrs.output_type;
-        auto nms_new = std::make_shared<op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>>(new_args.at(0),
-                                                                                               new_args.at(1),
-                                                                                               attrs);
+        auto nms_new =
+            std::make_shared<op::internal::NmsStaticShapeIE<v8::MatrixNms>>(new_args.at(0), new_args.at(1), attrs);
         new_ops.emplace_back(nms_new);
 
         Output<Node> output_0 = nms_new->output(0);
@@ -46,12 +49,12 @@ ov::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool forc
         Output<Node> output_2 = nms_new->output(2);
 
         if (nms->output(1).get_element_type() != output_1.get_element_type()) {
-            output_1 = std::make_shared<ov::op::v0::Convert>(output_1, nms->output(1).get_element_type());
+            output_1 = std::make_shared<v0::Convert>(output_1, nms->output(1).get_element_type());
             new_ops.emplace_back(output_1.get_node_shared_ptr());
         }
 
         if (nms->output(2).get_element_type() != output_2.get_element_type()) {
-            output_2 = std::make_shared<ov::op::v0::Convert>(output_2, nms->output(2).get_element_type());
+            output_2 = std::make_shared<v0::Convert>(output_2, nms->output(2).get_element_type());
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 
@@ -61,6 +64,6 @@ ov::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool forc
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }

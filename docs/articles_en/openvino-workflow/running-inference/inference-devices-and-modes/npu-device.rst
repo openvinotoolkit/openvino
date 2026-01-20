@@ -152,6 +152,7 @@ offer a limited set of supported OpenVINO features.
          ov::intel_npu::bypass_umd_caching
          ov::intel_npu::defer_weights_load
          ov::intel_npu::run_inferences_sequentially
+         ov::intel_npu::disable_idle_memory_prunning
 
    .. tab-item:: Read-only properties
 
