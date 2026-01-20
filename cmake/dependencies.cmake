@@ -153,7 +153,7 @@ function(ov_download_tbb)
                 ARCHIVE_LIN "oneapi-tbb-2021.13.1-lin-arm64-release.tgz"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "21949fa571ca126aecc7efda254e33d9087db236ce13092519903d2d553f2235"
+                SHA256 "494c69164acaec93fb70c99b7e679e955db43b192d3a24ac6c964a5750cb7c8a"
                 USE_NEW_LOCATION TRUE)
     elseif(APPLE AND AARCH64)
         # build oneTBB with export MACOSX_DEPLOYMENT_TARGET=11.0
