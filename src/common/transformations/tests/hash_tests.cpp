@@ -43,4 +43,30 @@ TEST(HashTest, same_model_hashed_without_weights) {
 
     EXPECT_EQ(hash1, hash2);
 }
+
+TEST(HashTest, same_model_struct_different_weigth) {
+    uint64_t hash1 = 0, hash2 = 0;
+
+    {
+        int data_value = 121;
+        auto out = std::make_shared<Add>(std::make_shared<Parameter>(element::i32, Shape{1}),
+                                         std::make_shared<Constant>(element::i32, Shape{1}, &data_value));
+        auto model = std::make_shared<Model>(OutputVector{out}, "TestModel");
+
+        ov::pass::Hash hasher(hash1);
+        hasher.run_on_model(model);
+    }
+    {
+        int data_value = 13;
+        auto out = std::make_shared<Add>(std::make_shared<Parameter>(element::i32, Shape{1}),
+                                         std::make_shared<Constant>(element::i32, Shape{1}, &data_value));
+        auto model = std::make_shared<Model>(OutputVector{out}, "TestModel");
+
+        ov::pass::Hash hasher(hash2);
+        hasher.run_on_model(model);
+    }
+
+    EXPECT_NE(hash1, hash2);
+}
+
 }  // namespace ov::test
