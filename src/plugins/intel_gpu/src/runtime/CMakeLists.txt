@@ -71,6 +71,7 @@ ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE
+    OpenCL::OpenCL
     openvino::itt
     openvino::runtime::dev
   )

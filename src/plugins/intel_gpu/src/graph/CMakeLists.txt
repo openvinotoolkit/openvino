@@ -86,6 +86,8 @@ macro(ov_gpu_add_backend_target)
     endif()
     # Onednn headers use OCL/L0 headers
     ov_gpu_set_runtime_interface_for(openvino_intel_gpu_${IMPL_TYPE}_obj)
+    # Onednn needs OCL headers even when running L0
+    target_link_libraries(openvino_intel_gpu_${IMPL_TYPE}_obj PRIVATE OpenCL::OpenCL)
 endmacro()
 
 set(CODEGEN_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/common_utils/kernels_db_gen.py")
@@ -138,6 +140,8 @@ target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+# Onednn needs OCL headers even when running L0
+target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
