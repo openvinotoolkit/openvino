@@ -591,7 +591,7 @@ void CPUStreamsExecutor::run(Task task) {
     }
 }
 
-void release_cpu_streams_executor_thread_local() {
+void CPUStreamsExecutor::shutdown() {
     std::lock_guard<std::mutex> lock(g_cleaner_mutex);
     for (auto* cleaner : g_cleaners) {
         cleaner->cleanup();
