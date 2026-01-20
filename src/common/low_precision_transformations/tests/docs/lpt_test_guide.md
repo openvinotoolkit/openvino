@@ -41,13 +41,13 @@ The `TestTransformationParams` structure is the core configuration class that co
 
 ```cpp
 struct TestTransformationParams {
-    bool updatePrecisions;                          // Whether to update precision (from float precision to low precision) during transformation
-    std::vector<element::Type> precisionsOnActivations; // Allowed precisions for activations (e.g., u8, i8)
-    std::vector<element::Type> precisionsOnWeights;    // Allowed precisions for weights (e.g., i8)
-    bool supportAsymmetricQuantization;             // Support for asymmetric quantization
-    element::Type deqPrecision;                     // Dequantization precision (usually f32)
-    bool deconvolutionSpecificChannelsRatio;        // Specific for deconvolution operations
-    std::vector<element::Type> defaultPrecisions;   // Default supported precisions
+    bool updatePrecisions;                                  // Whether to update precision (from float precision to low precision) during transformation
+    std::vector<ov::element::Type> precisionsOnActivations; // Allowed precisions for activations (e.g., u8, i8)
+    std::vector<ov::element::Type> precisionsOnWeights;     // Allowed precisions for weights (e.g., i8)
+    bool supportAsymmetricQuantization;                     // Support for asymmetric quantization
+    ov::element::Type deqPrecision;                         // Dequantization precision (usually f32)
+    bool deconvolutionSpecificChannelsRatio;                // Specific for deconvolution operations
+    std::vector<ov::element::Type> defaultPrecisions;       // Default supported precisions
 };
 ```
 
@@ -84,7 +84,7 @@ class TransformationTestValues {
 public:
     class Actual {
         ov::element::Type precisionBeforeDequantization;  // Input tensor precision
-        ov::builder::subgraph::DequantizationOperations dequantization;  // dequantization operations (Convert→Subtract→Multiply chain) before a target operation
+        ov::builder::subgraph::DequantizationOperations dequantization;  // Dequantization operations (Convert→Subtract→Multiply chain) before a target operation
     };
 
     class Expected {
