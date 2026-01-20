@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/weights_path.hpp"
+#include "openvino/util/file_util.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -521,6 +522,7 @@ void program::init_graph() {
         if (!node->is_type<data>())
             node->get_output_layouts();
     }
+
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
 }
@@ -663,29 +665,36 @@ void program::mark_if_data_flow(program_node& node) {
             }
         }
     }
+}
 
-    // Rank promotion for data_flow in static shape models:
-    // - In static-shape models, patterns like Constant -> Convert -> Gemm can
-    //   leave the Convert node non-data_flow even when its output rank (e.g. bfyx)
-    //   is lower than the rank required by the Gemm inputs/outputs (e.g. bfzyx).
-    // - In such cases input_reorder may skip inserting a reorder after Convert,
-    //   which later leads to input dimension mismatch in gemm::calc_output_layout.
-    // - To avoid this, if any Gemm user has an output rank greater than the current
-    //   node rank, we promote this node to data_flow so that required reorders are
-    //   inserted on the legacy path.
-    if (!is_new_shape_infer() && !node.data_flow) {
-        const size_t current_rank = node.get_output_layout().get_rank();
-        for (auto* user : node.get_users()) {
-            if (!user->is_type<gemm>())
-                continue;
-            int port = user->get_port_from_deps(node.id());
-            if (port < 0 || port >= 2)
-                continue;
+// Rank promotion for data_flow in static shape models:
+// - In static-shape models, patterns like Constant -> Convert -> Gemm can
+//   leave the Convert node non-data_flow even when its output rank (e.g. bfyx)
+//   is lower than the rank required by the Gemm inputs/outputs (e.g. bfzyx).
+// - In such cases input_reorder may skip inserting a reorder after Convert,
+//   which later leads to input dimension mismatch in gemm::calc_output_layout.
+// - To avoid this, if any Gemm user has an output rank greater than the current
+//   node rank, we promote this node to data_flow so that required reorders are
+//   inserted on the legacy path.
+void program::mark_if_gemm_data_flow() {
+    if (is_new_shape_infer())
+        return;
 
-            size_t user_rank = user->get_output_layout().get_rank();
-            if (user_rank > current_rank) {
-                node.data_flow = true;
-                break;
+    for (const auto& node : get_processing_order()) {
+        if (!node->data_flow) {
+            const size_t current_rank = node->get_output_layout().get_rank();
+            for (auto* user : node->get_users()) {
+                if (!user->is_type<gemm>())
+                    continue;
+                int port = user->get_port_from_deps(node->id());
+                if (port < 0 || port >= 2)
+                    continue;
+
+                size_t user_rank = user->get_output_layout().get_rank();
+                if (user_rank > current_rank) {
+                    node->data_flow = true;
+                    break;
+                }
             }
         }
     }
@@ -696,6 +705,19 @@ void program::transfer_memory_to_device() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::transfer_memory_to_device");
     if (!get_engine().supports_allocation(allocation_type::usm_device))
         return;
+
+    auto allocate_and_transfer = [this](typed_program_node<data>& data_node,
+                                        const layout& target_layout,
+                                        const memory& mem,
+                                        allocation_type target_alloc_type) {
+        // Allocate and transfer memory
+        auto device_mem = mem.get_engine()->allocate_memory(target_layout, target_alloc_type, false);
+        device_mem->copy_from(get_stream(), mem);
+        data_node.attach_memory(device_mem);
+        const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
+        // TODO: Do we need finish call here? Maybe call it in network::execute() ?
+        get_stream().finish();
+    };
 
     for (auto& node : processing_order) {
         if (node->is_shape_infer_dep()) {
@@ -711,27 +733,32 @@ void program::transfer_memory_to_device() {
             if (mem_layout.count() == 0)
                 continue;
 
+            allocation_type target_alloc_type = alloc_type;
+            // usm_device memory does not provide performance benefits on the LNL platform
+            if ((alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) &&
+                !(get_engine().get_device_info().arch >= gpu_arch::xe2 &&
+                  get_engine().get_device_info().dev_type == device_type::integrated_gpu)) {
+                // Convert to usm_device for performance optimization
+                target_alloc_type = allocation_type::usm_device;
+            }
+
             if (!mem_layout.compatible(data_node_layout)) {
+                if (data_node_layout.data_type == mem_layout.data_type &&
+                    data_node_layout.format == mem_layout.format &&
+                    data_node_layout.get_shape() == mem_layout.get_shape()) {
+                    GPU_DEBUG_LOG << "[" << data_node.id() << ": padding fix]" << std::endl;
+                    allocate_and_transfer(data_node, data_node_layout, mem, target_alloc_type);
+                    GPU_DEBUG_LOG << "[" << data_node.id() << ": padding fix completed]" << std::endl;
+                    continue;
+                }
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);
             }
 
-            if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
-                // usm_device memory does not provide performance benefits on the integrated Xe2+ platforms
-                if (get_engine().get_device_info().arch >= gpu_arch::xe2 &&
-                    get_engine().get_device_info().dev_type == device_type::integrated_gpu) {
-                    return;
-                }
-
+            if (target_alloc_type != alloc_type) {
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
-                // Allocate and transfer memory
-                auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
-                device_mem->copy_from(get_stream(), mem);
-                data_node.attach_memory(device_mem);
+                allocate_and_transfer(data_node, data_node_layout, mem, target_alloc_type);
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
-                const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
-                // TODO: Do we need finish call here? Maybe call it in network::execute() ?
-                get_stream().finish();
             }
         }
     }
@@ -1943,7 +1970,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
             }
         } else if (!weights_path.empty()) {
             ov::util::validate_weights_path(weights_path);
-            weights_memory = std::make_shared<WeightsMemory>(ov::load_mmap_object(weights_path));
+            weights_memory = std::make_shared<WeightsMemory>(ov::load_mmap_object(ov::util::make_path(weights_path)));
         } else {
             OPENVINO_THROW("Weights path or model is required for cache mode OPTIMIZE_SIZE");
         }
