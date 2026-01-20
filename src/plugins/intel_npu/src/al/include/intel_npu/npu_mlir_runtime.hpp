@@ -180,7 +180,7 @@ NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL np
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Create MemRef handle
 NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeCreateMemRef(
-    int64_t dimsCount,                            ///< [in] value of tensor rank
+    int64_t dimsCount,                             ///< [in] value of tensor rank
     npu_mlir_runtime_mem_ref_handle_t* phMemRef);  ///< [out] handle of mlir runtime MemRef object
 
 ///////////////////////////////////////////////////////////////////////////////

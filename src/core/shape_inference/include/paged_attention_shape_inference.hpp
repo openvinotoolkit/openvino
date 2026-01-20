@@ -14,14 +14,15 @@ template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
                                  const std::vector<TShape>& input_shapes,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 21, "Expected either 21 inputs but got ", input_shapes.size());
-    auto output_shapes = std::vector<TRShape>(2);
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 25, "Expected exactly 25 inputs but got ", input_shapes.size());
+    auto output_shapes = std::vector<TRShape>(3);
 
     // Value head_size may be not same with key
     auto out_ps = input_shapes[0];
     const auto& key_ps = input_shapes[1];
     const auto& value_ps = input_shapes[2];
     const auto& past_lens_ps = input_shapes[5];
+    const auto& evictable_sizes_ps = input_shapes[22];
 
     // Compute for output shape
     if (out_ps.rank().is_static()) {
@@ -59,6 +60,36 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
     } else {
         scores_ps.push_back(Dimension::dynamic());
     }
+
+    auto& diversity_ps = output_shapes[2];
+    // COmpute for diversity shape
+    // Assumes 2D diversity [batch, group size]
+    auto batch_dim = Dimension::dynamic();
+    auto width_dim = Dimension::dynamic();
+
+    // Compute the batch from the length of the evictable_sizes vector
+    if (evictable_sizes_ps.rank().is_static() && evictable_sizes_ps.rank().get_length() == 1 &&
+        evictable_sizes_ps[0].is_static()) {
+        batch_dim = evictable_sizes_ps[0];
+    } else if (key_ps.rank().is_static() && key_ps.rank().get_length() >= 1 && key_ps[0].is_static()) {
+        // Fallback: batch from key tensor
+        batch_dim = key_ps[0];
+    }
+
+    // If evictable_sizes is constant, compute max for the padded width
+    if (evictable_sizes_ps.rank().is_static() && evictable_sizes_ps.rank().get_length() == 1) {
+        const auto& evictable_sizes = get_input_const_data_as<TRShape, int32_t>(op, 22, ta);
+        if (evictable_sizes.has_value() && !evictable_sizes.value().empty()) {
+            int32_t max_v = 0;
+            for (const auto v : evictable_sizes.value()) {
+                max_v = std::max(max_v, v);
+            }
+            width_dim = static_cast<int64_t>(max_v);
+        }
+    }
+
+    diversity_ps.push_back(batch_dim);
+    diversity_ps.push_back(width_dim);
 
     return output_shapes;
 }
