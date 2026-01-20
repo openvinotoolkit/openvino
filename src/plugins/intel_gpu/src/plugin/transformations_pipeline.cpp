@@ -315,9 +315,7 @@ static bool expected_sdpa_opt_usage_with_decomposable_size(size_t max_size,
 
         // Calculate mem size of gemm for Q*K
         // Gemm layer decomposed from sdpa could exceed max size of memory allocation.
-        size_t decom_gemm_size = shape_size(q.get_shape()) * dt_size
-                            + shape_size(k.get_shape()) * dt_size
-                            + q.get_shape().at(0) * q.get_shape().at(1) * k.get_shape().at(1) * dt_size;
+        size_t decom_gemm_size = q.get_shape().at(0) * q.get_shape().at(1) * k.get_shape().at(1) * dt_size;
         if (decom_gemm_size > max_size * 0.5)
             return false;
 
@@ -735,7 +733,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // performance issue is expected if sdap_opt kernel would be selected for systolic-array architectures
             const auto max_size = m_context->get_engine().get_max_memory_size();
             if (device_info.supports_immad && expected_sdpa_opt_usage_with_decomposable_size(max_size, sdpa)) {
-                GPU_DEBUG_TRACE << " Expect sdpa_usage with systolic-arry architectures. mem size is decomposable. query " << query_ps
+                GPU_DEBUG_TRACE << " Expect sdpa_usage with systolic-arry architectures. mem size is decomposable. Q*K size : query " << query_ps
                                 << " key " << key_ps << " dt " << sdpa->get_element_type().size() << std::endl;
                  return false;
              }
