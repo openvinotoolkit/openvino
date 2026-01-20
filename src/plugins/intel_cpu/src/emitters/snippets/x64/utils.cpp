@@ -87,12 +87,15 @@ jit_aux_gpr_holder::jit_aux_gpr_holder(dnnl::impl::cpu::x64::jit_generator_t* ho
     }
 }
 
-jit_aux_gpr_holder::~jit_aux_gpr_holder() {
-    if (m_is_preserved) {
-        m_h->pop(m_aux_gpr_idx);
-    } else {
-        m_pool_gpr_idxs.push_back(m_aux_gpr_idx.getIdx());
+jit_aux_gpr_holder::~jit_aux_gpr_holder() noexcept {
+    try {
+        if (m_is_preserved) {
+            m_h->pop(m_aux_gpr_idx);
+        } else {
+            m_pool_gpr_idxs.push_back(m_aux_gpr_idx.getIdx());
+        }
+    } catch () {
+        OPENVINO_ASSERT(false && "Xbyak error in jit_aux_gpr_holder dtor");
     }
-}
 
 }  // namespace ov::intel_cpu::utils
