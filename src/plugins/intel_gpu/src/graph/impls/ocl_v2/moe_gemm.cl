@@ -95,10 +95,18 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     if (wg_j0 >= cur_n_tokens)
         return;     /* early exit if outside batch */
+#ifdef IS_GENERATE
 #ifdef USE_SLM
     ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, sg_k, slm
 #else
     ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, sg_k, 0
+#endif
+#else
+#ifdef USE_SLM
+    ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, slm
+#else
+    ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, 0
+#endif
 #endif
 #ifdef WEIGHT_COMPRESSED_INT4
                                         , weight_scales
