@@ -294,6 +294,16 @@ struct CPUStreamsExecutor::Impl {
                     std::lock_guard<std::mutex> lock(g_cleaner_mutex);
                     g_cleaners.insert(this);
                 }
+                std::shared_ptr<ThreadTrackerMap> get() {
+                    if (!_map) {
+                        _map = std::make_shared<ThreadTrackerMap>();
+                        {
+                            std::lock_guard<std::mutex> lock(g_cleaner_mutex);
+                            g_cleaners.insert(this);
+                        }
+                    }
+                    return _map;
+                }
                 ~ThreadLocalMap() {
                     {
                         std::lock_guard<std::mutex> lock(g_cleaner_mutex);
@@ -306,10 +316,7 @@ struct CPUStreamsExecutor::Impl {
                 }
             };
             static thread_local ThreadLocalMap t_stream_count_map_holder;
-            auto t_stream_count_map = t_stream_count_map_holder._map;
-            if (!t_stream_count_map) {
-                return nullptr;
-            }
+            auto t_stream_count_map = t_stream_count_map_holder.get();
             // fix the memory leak issue that CPUStreamsExecutor is already released,
             // but still exists CustomThreadLocal::ThreadTracker in t_stream_count_map
             for (auto it = t_stream_count_map->begin(); it != t_stream_count_map->end();) {
