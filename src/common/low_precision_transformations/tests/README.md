@@ -300,3 +300,9 @@ These functions convert LPT test structures (like `DequantizationOperations`, `F
 ---
 
 *This completes the essential components needed to add test cases to the OpenVINO Low Precision Transformations framework. Use these patterns and helper functions to create comprehensive test coverage for your transformations.*
+
+## See also
+
+ * [OpenVINO™ Test Infrastructure](../../../tests/README.md)
+ * [OpenVINO™ Low Precision Transformations documentation](../../../../docs/articles_en/documentation/openvino-extensibility/openvino-plugin-library/advanced-guides/low-precision-transformations.rst)
+ * [OpenVINO™ README](../../../../README.md)
