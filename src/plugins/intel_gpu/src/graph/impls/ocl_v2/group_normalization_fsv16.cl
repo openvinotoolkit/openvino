@@ -10,12 +10,8 @@ REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(calc_mean_sqr_mean_per_feature)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
-    const __global INPUT1_TYPE* scale,
-    const __global INPUT2_TYPE* bias,
-#if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
-#endif
-    __global OUTPUT_TYPE* restrict output
+    __global ACCUMULATOR_TYPE* internal_mean,
+    __global ACCUMULATOR_TYPE* internal_variance
 ) {
     const uint data_set_idx = get_global_id(1);     // batch * feature split
     const uint in_data_set_idx = get_global_id(0);
@@ -29,7 +25,7 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
     const uint b = (data_set_idx * FSV) / INPUT0_ALIGNED_FEATURE_NUM;
     const uint f_base = (data_set_idx * FSV) % INPUT0_ALIGNED_FEATURE_NUM;
     const uint data_set_offset = INPUT0_GET_INDEX(b, f_base, -INPUT0_PAD_BEFORE_SIZE_Y, -INPUT0_PAD_BEFORE_SIZE_X);
-    const uint input_data_offset = data_set_offset + in_data_set_idx;
+    const uint my_data_offset = data_set_offset + in_data_set_idx;
 
     __local ACCUMULATOR_TYPE sum_per_feature[SLM_SIZE];
     __local ACCUMULATOR_TYPE sqr_sum_per_feature[SLM_SIZE];
@@ -38,13 +34,13 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
     ACCUMULATOR_TYPE sqr_sum = ACCUMULATOR_VAL_ZERO;
 
     for (uint i = 0; i < items_num; ++i) {
-        ACCUMULATOR_TYPE data = TO_ACCUMULATOR_TYPE(input[input_data_offset + i * workers_per_dataset * FSV]);
+        ACCUMULATOR_TYPE data = TO_ACCUMULATOR_TYPE(input[my_data_offset + i * workers_per_dataset * FSV]);
         sum += data;
         sqr_sum += data * data;
     }
 
     if (in_data_set_idx < leftovers) {
-        ACCUMULATOR_TYPE data = TO_ACCUMULATOR_TYPE(input[input_data_offset + items_num * workers_per_dataset * FSV + in_data_set_idx]);
+        ACCUMULATOR_TYPE data = TO_ACCUMULATOR_TYPE(input[my_data_offset + items_num * workers_per_dataset * FSV + in_data_set_idx]);
         sum += data;
         sqr_sum += data * data;
     }
@@ -62,89 +58,83 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
         }
         reduce_add_level *= 2;
     }
-    
-    // at this point, block 0 has fully reduced values. divide by xy size
-    ACCUMULATOR_TYPE mean = ACCUMULATOR_VAL_ZERO;
-    ACCUMULATOR_TYPE variance = ACCUMULATOR_VAL_ZERO;
+
     if (worker_block_idx == 0 && (f_base + in_data_set_idx) < INPUT0_FEATURE_NUM) {
-        mean = sum_per_feature[in_data_set_idx] / TO_ACCUMULATOR_TYPE(data_set_size);
-        variance = sqr_sum_per_feature[in_data_set_idx] / TO_ACCUMULATOR_TYPE(data_set_size);
+        ACCUMULATOR_TYPE mean = sum_per_feature[in_data_set_idx] / TO_ACCUMULATOR_TYPE(data_set_size);
+        ACCUMULATOR_TYPE variance = sqr_sum_per_feature[in_data_set_idx] / TO_ACCUMULATOR_TYPE(data_set_size);
+        uint bf = b * INPUT0_FEATURE_NUM + f_base + in_data_set_idx;
+        internal_mean[bf] = mean;
+        internal_variance[bf] = variance;
     }
-    barrier(0);
+}
+#elif GROUP_NORM_KERNEL_GROUP_MEAN_VARIANCE
+REQD_SUB_GROUP_SIZE(SIMD)
+KERNEL(calc_mean_variance_per_group)(
+    __global ACCUMULATOR_TYPE* internal_mean,
+    __global ACCUMULATOR_TYPE* internal_variance
+) {
+    const uint data_idx = get_global_id(0) + get_global_id(1) * GWS0;
+    const uint num_workers = LWS0;
+    const uint group_size = GWS0 / NUM_GROUPS;
+    const uint items_num = group_size / num_workers;
 
-    // the sums are only meaningful in block 0, but all will read from there
-    ACCUMULATOR_TYPE sum_mean = work_group_scan_inclusive_add(mean);
-    ACCUMULATOR_TYPE sum_variance = work_group_scan_inclusive_add(variance);
-    barrier(0);
-    mean = ACCUMULATOR_VAL_ZERO;
-    variance = ACCUMULATOR_VAL_ZERO;
-    const uint group_size = INPUT0_FEATURE_NUM / NUM_GROUPS;
-    const uint groups_in_fsv = FSV / group_size;
-    for (uint i = 0; i < groups_in_fsv; ++i) {
-        // take the sum from the end of a group in block 0
-        ACCUMULATOR_TYPE group_mean = work_group_broadcast(sum_mean, (i + 1) * group_size - 1);
-        ACCUMULATOR_TYPE group_variance = work_group_broadcast(sum_variance, (i + 1) * group_size - 1);
-        if ((in_data_set_idx % FSV) / group_size == i + 1) {
-            // if previous group, save
-            mean = group_mean;
-            variance = group_variance;
-        } else if ((in_data_set_idx % FSV) / group_size == i) {
-            // if my group, subtract sum up to prior group to get final value
-            mean = group_mean - mean;
-            variance = group_variance - variance;
-        }
-    }
-    // at this stage, every WI has a correct sum loaded from block 0
-    mean /= TO_ACCUMULATOR_TYPE(group_size);
-    variance /= TO_ACCUMULATOR_TYPE(group_size);
-    variance -= mean * mean;
-    variance = native_powr(variance + TO_ACCUMULATOR_TYPE(EPSILON), -0.5f);
-
-    const uint f = f_base + in_data_set_idx % FSV;
-    const uint output_base_offset = OUTPUT_GET_INDEX(b, f_base, -INPUT0_PAD_BEFORE_SIZE_Y, -INPUT0_PAD_BEFORE_SIZE_X);
-    const uint output_data_offset = output_base_offset + in_data_set_idx;
-    ACTIVATION_TYPE scale_f = TO_ACTIVATION_TYPE(scale[f]);
-    ACTIVATION_TYPE bias_f = TO_ACTIVATION_TYPE(bias[f]);
-    #define CHUNK_SIZE 8
-    ACTIVATION_TYPE input_data[CHUNK_SIZE];
-
-    for (uint j = 0; j < (items_num + CHUNK_SIZE - 1) / CHUNK_SIZE; ++j) {
-        for (uint i = 0; (i < CHUNK_SIZE) && (i + j * CHUNK_SIZE < items_num); ++i) {
-            input_data[i] = TO_ACTIVATION_TYPE(input[input_data_offset + (i + j * CHUNK_SIZE) * workers_per_dataset * FSV]);
-            input_data[i] = (input_data[i] - mean) * variance;
+    if ((data_idx % group_size) < num_workers) {
+        ACCUMULATOR_TYPE mean_sum = ACCUMULATOR_VAL_ZERO;
+        ACCUMULATOR_TYPE variance_sum = ACCUMULATOR_VAL_ZERO;
+        for (uint i = 0; i < items_num; ++i) {
+            mean_sum += internal_mean[data_idx + num_workers * i];
+            variance_sum += internal_variance[data_idx + num_workers * i];
         }
 
-        for (uint i = 0; (i < CHUNK_SIZE) && (i + j * CHUNK_SIZE < items_num); ++i) {
-            ACTIVATION_TYPE normalized = input_data[i] * scale_f + bias_f;
-            if (f < OUTPUT_FEATURE_NUM) {
-                #if HAS_FUSED_OPS
-                    FUSED_OPS;
-                    output[output_data_offset + (i  + j * CHUNK_SIZE) * workers_per_dataset * FSV] = FUSED_OPS_RESULT;
-                #else
-                    output[output_data_offset + (i  + j * CHUNK_SIZE) * workers_per_dataset * FSV] = TO_OUTPUT_TYPE(normalized);
-                #endif
-            } else {
-                #ifdef OUTPUT_LAYOUT_B_FS_YX_FSV16
-                    output[output_data_offset + (i  + j * CHUNK_SIZE) * workers_per_dataset * FSV] = OUTPUT_VAL_ZERO;
-                #endif
-            }
+        ACCUMULATOR_TYPE mean = work_group_reduce_add(mean_sum);
+        ACCUMULATOR_TYPE variance = work_group_reduce_add(variance_sum);
+        mean /= TO_ACCUMULATOR_TYPE(group_size);
+        variance /= TO_ACCUMULATOR_TYPE(group_size);
+        variance -=  mean * mean;
+        variance = native_powr(variance + TO_ACCUMULATOR_TYPE(EPSILON), -0.5f);
+        for (uint i = 0; i < items_num; ++i) {
+            internal_mean[data_idx + num_workers * i] = mean;
+            internal_variance[data_idx + num_workers * i] = variance;
         }
     }
+}
+#elif GROUP_NORM_KERNEL_FINAL
+REQD_SUB_GROUP_SIZE(SIMD)
+KERNEL(group_normalization_b_fs_yx_fsv16)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    const __global INPUT1_TYPE* scale,
+    const __global INPUT2_TYPE* bias,
+    __global OUTPUT_TYPE* restrict output,
+#if HAS_FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
+#endif
+    const __global ACCUMULATOR_TYPE* internal_mean,
+    const __global ACCUMULATOR_TYPE* internal_variance
+) {
+    const uint b = get_global_id(1) % OUTPUT_BATCH_NUM;
+    const uint f = get_global_id(1) / OUTPUT_BATCH_NUM * FSV + (get_sub_group_local_id() % FSV);
+    const uint yx = get_global_id(0) / FSV;
+    const uint y = yx / OUTPUT_SIZE_X;
+    const uint x = yx % OUTPUT_SIZE_X;
+    const uint input_index = INPUT0_GET_INDEX(b, f, y, x);
+    const uint output_index = OUTPUT_GET_INDEX(b, f, y, x);
 
-    if (in_data_set_idx < leftovers) {
-        ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[input_data_offset + items_num * workers_per_dataset * FSV]) - mean) * variance;
-        normalized = normalized * scale_f + bias_f;
-        if (f < OUTPUT_FEATURE_NUM) {
-            #if HAS_FUSED_OPS
-                FUSED_OPS;
-                output[output_data_offset + items_num * workers_per_dataset * FSV] = FUSED_OPS_RESULT;
-            #else
-                output[output_data_offset + items_num * workers_per_dataset * FSV] = TO_OUTPUT_TYPE(normalized);
-            #endif
-        }
+    if (f < OUTPUT_FEATURE_NUM) {
+        const uint bf = b * OUTPUT_FEATURE_NUM + f;
+        ACTIVATION_TYPE mean = TO_ACTIVATION_TYPE(internal_mean[bf]);
+        ACTIVATION_TYPE variance = TO_ACTIVATION_TYPE(internal_variance[bf]);
+        ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[input_index]) - mean) * variance;
+        normalized = normalized * TO_ACTIVATION_TYPE(scale[f]) + TO_ACTIVATION_TYPE(bias[f]);
+        #if HAS_FUSED_OPS
+            FUSED_OPS;
+            output[output_index] = FUSED_OPS_RESULT;
+        #else
+            output[output_index] = TO_OUTPUT_TYPE(normalized);
+        #endif
     } else {
         #ifdef OUTPUT_LAYOUT_B_FS_YX_FSV16
-            output[output_data_offset + items_num * workers_per_dataset * FSV] = OUTPUT_VAL_ZERO;
+            output[output_index] = OUTPUT_VAL_ZERO;
         #endif
     }
 }

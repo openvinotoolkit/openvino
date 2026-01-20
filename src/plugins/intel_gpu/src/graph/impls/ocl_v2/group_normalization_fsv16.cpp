@@ -86,13 +86,6 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = GroupNormalizationGeneratorBase::get_jit_constants(params);
         jit.make("GROUP_NORM_KERNEL_FEATURE_MEAN_SQR_MEAN", 1);
-
-        if (params.has_fused_primitives()) {
-            const auto& out_l = params.get_output_layout(0);
-            FusedOpsConfiguration conf = {"", std::vector<std::string>{"(b)", "(f)", "(y)", "(x)"}, "normalized", out_l.data_type};
-            jit.add(make_fused_ops_jit_constants(params, {conf}));
-        }
-
         return jit;
     }
 
@@ -104,10 +97,8 @@ protected:
         }
 
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        args.push_back({ArgumentDescriptor::Types::INPUT, 1});
-        args.push_back({ArgumentDescriptor::Types::INPUT, 2});
-        add_fused_ops_arguments(args, params);
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
 
         return args;
     }
@@ -142,8 +133,6 @@ protected:
             }
             wgs.local[0] *= fsv;
             wgs.global[0] = wgs.local[0];
-            //std::cout << "calc_sqr_mean sizes: [" << wgs.global[0] << "," << wgs.global[1] << "," << wgs.global[2] << "], [" << wgs.local[0] << ","
-            //          << wgs.local[1] << "," << wgs.local[2] << "]" << std::endl;
         }};
     }
 };
@@ -193,8 +182,6 @@ protected:
                 }
                 divisor += 1;
             }
-            //std::cout << "calc_mean_variance sizes: [" << wgs.global[0] << "," << wgs.global[1] << "," << wgs.global[2] << "], [" << wgs.local[0] << ","
-            //          << wgs.local[1] << "," << wgs.local[2] << "]" << std::endl;
         }};
     }
 };
@@ -239,22 +226,23 @@ protected:
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
+            const auto& ol = params.output_layouts[0];
+            auto desc = params.typed_desc<group_normalization>();
 
-            auto padded_dims = params.input_layouts[0].get_padded_dims();
-            auto x = padded_dims[3];
-            auto y = padded_dims[2];
-            auto f = padded_dims[1];
-            auto b = padded_dims[0];
+            auto x = extract_channel(ChannelName::X, ol);
+            auto y = extract_channel(ChannelName::Y, ol);
+            auto f = extract_channel(ChannelName::FEATURE, ol);
+            auto b = extract_channel(ChannelName::BATCH, ol);
+
+            auto max_wgs = params.get_program().get_engine().get_device_info().max_work_group_size;
 
             wgs.global[0] = x * y;
             wgs.global[1] = ceil_div(f, fsv) * b;
             wgs.global[2] = 1;
 
             wgs.local[0] = x * y;
-            wgs.local[1] = 1;
+            wgs.local[1] = ceil_div(f, fsv) * b;
             wgs.local[2] = 1;
-
-            auto max_wgs = params.get_device_info().max_work_group_size;
 
             size_t divisor = 2;
             while (wgs.local[0] > (max_wgs / fsv)) {
@@ -263,10 +251,17 @@ protected:
                 }
                 divisor += 1;
             }
+
             wgs.local[0] *= fsv;
-            wgs.global[0] = wgs.local[0];
-            //std::cout << "final sizes: [" << wgs.global[0] << "," << wgs.global[1] << "," << wgs.global[2] << "], [" << wgs.local[0] << ","
-            //          << wgs.local[1] << "," << wgs.local[2] << "]" << std::endl;
+            wgs.global[0] *= fsv;
+
+            divisor = 2;
+            while ((wgs.local[0] * wgs.local[1]) > max_wgs) {
+                if (wgs.global[1] % divisor == 0) {
+                    wgs.local[1] = wgs.global[1] / divisor;
+                }
+                divisor += 1;
+            }
         }};
     }
 };
@@ -282,8 +277,8 @@ public:
     GroupNormalizationFsv16OptImpl() : PrimitiveImplOCL(GroupNormalizationFsv16Opt::get_type_info_static()) {}
     GroupNormalizationFsv16OptImpl(const program_node& node, const RuntimeParams& params) : GroupNormalizationFsv16OptImpl() {
         add_stage(calc_sqr_mean, params);
-        //add_stage(calc_mean_variance, params);
-        //add_stage(final_normalize, params);
+        add_stage(calc_mean_variance, params);
+        add_stage(final_normalize, params);
     }
 
     std::unique_ptr<primitive_impl> clone() const override {
