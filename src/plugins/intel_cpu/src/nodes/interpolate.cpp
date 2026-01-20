@@ -2509,7 +2509,7 @@ void Interpolate::prepareParams() {
     }
 
     if (canUseAclExecutor) {
-        interpAttrs.dataScales = scales5D;
+        interpAttrs.dataScales = std::move(scales5D);
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -2529,7 +2529,7 @@ void Interpolate::prepareParams() {
     }
 
     InterpolateKey key = {interpAttrs, src5DDims, dst5DDims, scales5D, dnnl::primitive_attr()};
-    setPostOps(key.attr, dst5DDims);
+    setPostOps(key.attr, std::move(src5DDims));
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutorBase> {
         std::shared_ptr<InterpolateExecutorBase> executor;
