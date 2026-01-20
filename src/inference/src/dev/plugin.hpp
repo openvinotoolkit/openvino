@@ -28,6 +28,8 @@ class Plugin {
 public:
     Plugin() = default;
 
+    ~Plugin();
+
     Plugin(const std::shared_ptr<ov::IPlugin>& ptr, const std::shared_ptr<void>& so);
 
     void set_name(const std::string& deviceName);
