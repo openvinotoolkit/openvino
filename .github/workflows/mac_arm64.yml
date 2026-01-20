@@ -20,14 +20,14 @@ on:
    branches:
      - 'master'
      - 'releases/**'
-  # pull_request:
-  #  paths-ignore:
-  #    - '**/docs/**'
-  #    - 'docs/**'
-  #    - '**/**.md'
-  #    - '**.md'
-  #    - '**/layer_tests_summary/**'
-  #    - '**/conformance/**'
+  pull_request:
+   paths-ignore:
+     - '**/docs/**'
+     - 'docs/**'
+     - '**/**.md'
+     - '**.md'
+     - '**/layer_tests_summary/**'
+     - '**/conformance/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -259,10 +259,13 @@ jobs:
         run: |
           for py_version in "3.10" "3.11" "3.12" "3.13" "3.14" "3.14t"
           do
+            echo "Building Python API and wheels for Python ${py_version}"
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
             $python_exec_path -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
+            
+            echo "Using Python executable at: ${python_exec_path}"
 
-            if [[ $PY_VER == "3.14t" ]]; then
+            if [[ $py_version == "3.14t" ]]; then
               cmake -DPython3_EXECUTABLE=$python_exec_path -DENABLE_WHEEL=ON -DENABLE_GIL_PYTHON_API=OFF -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${{ github.workspace }}/py$py_version
             else
               cmake -DPython3_EXECUTABLE=$python_exec_path -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${{ github.workspace }}/py$py_version
