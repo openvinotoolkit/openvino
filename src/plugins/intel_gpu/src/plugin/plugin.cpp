@@ -200,17 +200,31 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     return cloned_model;
 }
 
-std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() const {
-    static std::map<std::string, std::shared_ptr<RemoteContextImpl>> m_default_contexts;
-    static std::once_flag m_default_contexts_once;
+// weak map to hold singleton default contexts
+// Weak singleton map is used to share contexts between multiple plugin(or Core) instances.
+// It is needed to ensure that context is released before plugin is unloaded.
+// As the actual ownership is in plugin class, the ownership is released when plugin is destructed.
+std::map<std::string, std::weak_ptr<RemoteContextImpl>> weak_singleton_default_contexts;
+std::mutex singleton_default_contexts_mutex;
 
+std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() const {
     std::call_once(m_default_contexts_once, [this]() {
-        // Create default context
+        std::lock_guard<std::mutex> lock(singleton_default_contexts_mutex);
         for (auto& device : m_device_map) {
             const auto device_name = get_device_name() + "." + device.first;
+
+            // If already initialized, use existing one
+            if (weak_singleton_default_contexts.find(device.first) != weak_singleton_default_contexts.end()) {
+                if (auto ctx = weak_singleton_default_contexts[device.first].lock()) {
+                    m_default_contexts[device.first] = ctx;
+                    continue;
+                }
+            }
+            // If context is not created yet or expired, create new one
             const auto initialize = false;
             auto ctx = std::make_shared<RemoteContextImpl>(device_name, std::vector<cldnn::device::ptr>{device.second}, initialize);
-            m_default_contexts.insert({device.first, ctx});
+            weak_singleton_default_contexts[device.first] = ctx;
+            m_default_contexts[device.first] = ctx;
         }
     });
     return m_default_contexts;
@@ -971,6 +985,10 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     GPU_DEBUG_INFO << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
 
     return batch;
+}
+void Plugin::cleanup() {
+    GPU_DEBUG_INFO << "[GPU] Plugin shutdown" << std::endl;
+    m_default_contexts.clear();
 }
 
 }  // namespace ov::intel_gpu

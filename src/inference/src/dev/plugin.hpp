@@ -28,8 +28,6 @@ class Plugin {
 public:
     Plugin() = default;
 
-    ~Plugin();
-
     Plugin(const std::shared_ptr<ov::IPlugin>& ptr, const std::shared_ptr<void>& so);
 
     void set_name(const std::string& deviceName);
@@ -81,6 +79,8 @@ public:
         return get_property(property.name(), arguments).template as<T>();
     }
     bool supports_model_caching(const AnyMap& arguments = {}) const;
+
+    void cleanup() { m_ptr->cleanup(); }
 };
 
 }  // namespace ov

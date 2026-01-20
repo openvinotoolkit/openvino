@@ -20,10 +20,6 @@
         OPENVINO_THROW("Unexpected exception");                                        \
     }
 
-ov::Plugin::~Plugin() {
-    m_ptr = {};
-}
-
 ov::Plugin::Plugin(const std::shared_ptr<ov::IPlugin>& ptr, const std::shared_ptr<void>& so) : m_ptr{ptr}, m_so{so} {
     OV_PLUGIN_CALL_STATEMENT();
 }

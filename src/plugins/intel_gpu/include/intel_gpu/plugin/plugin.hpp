@@ -20,6 +20,8 @@ private:
     std::map<std::string, ExecutionConfig> m_configs_map;
     ov::AnyMap m_compiled_model_runtime_properties;
 
+    mutable std::map<std::string, std::shared_ptr<RemoteContextImpl>> m_default_contexts;
+    mutable std::once_flag m_default_contexts_once;
     std::map<std::string, std::shared_ptr<RemoteContextImpl>> get_default_contexts() const;
 
     std::shared_ptr<ov::Model> clone_and_transform_model(const std::shared_ptr<const ov::Model>& network,
@@ -67,6 +69,7 @@ public:
                                     const ov::AnyMap& properties) const override;
     ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
     ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
+    void cleanup() override;
 };
 
 }  // namespace ov::intel_gpu

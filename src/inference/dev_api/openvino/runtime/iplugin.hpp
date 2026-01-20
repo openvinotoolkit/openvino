@@ -236,6 +236,11 @@ public:
 
     virtual ~IPlugin() = default;
 
+    /**
+     * @brief Explicit resource cleanup before plugin unload
+     */
+    virtual void cleanup() {};
+
 protected:
     IPlugin();
 
