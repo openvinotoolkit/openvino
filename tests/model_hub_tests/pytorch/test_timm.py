@@ -12,34 +12,69 @@ from torch_utils import TestTorchConvertModel
 
 
 def filter_timm(timm_list: list) -> list:
-    unique_models = dict()
-    filtered_list = []
-    ignore_list = ["base", "zepto", "atto", "femto", "xxtiny", "xxsmall", "xxs",
-                   "pico", "xtiny", "xmall", "xs", "nano", "tiny", "s", "mini",
-                   "small", "lite", "medium", "m", "big", "large", "l", "xlarge",
-                   "xl", "huge", "xxlarge", "gigantic", "giant", "enormous"]
-    ignore_set = set(ignore_list)
-    for name in sorted(timm_list):
-        if "x_" in name:
-            # x_small or xx_small should be merged to xsmall and xxsmall
-            name.replace("x_", "x")
-        # first: remove datasets
-        name_parts = name.split(".")
-        _name = "_".join(name.split(".")[:-1]) if len(name_parts) > 1 else name
-        # second: remove sizes
-        name_set = set([n for n in _name.split("_") if not n.isnumeric()])
-        size_set = name_set.intersection(ignore_set)
-        size_idx = 100
-        if len(size_set) > 0:
-            size_idx = ignore_list.index(list(sorted(size_set))[0])
-        name_set = name_set.difference(ignore_set)
-        name_join = "_".join(sorted(name_set))
-        if name_join not in unique_models:
-            unique_models[name_join] = (size_idx, name)
-            filtered_list.append(name)
-        elif unique_models[name_join][0] > size_idx:
-            unique_models[name_join] = (size_idx, name)
-    return sorted([v[1] for v in unique_models.values()])
+    unique_models = {}
+    size_tokens = [
+        "zepto", "atto", "femto", "pico", "nano", "micro", "xxtiny", "xxsmall",
+        "xxs", "xtiny", "xsmall", "xs", "tiny", "s", "mini", "small", "lite",
+        "medium", "m", "base", "big", "large", "l", "xlarge", "xl", "xxlarge",
+        "huge", "gigantic", "giant", "enormous",
+    ]
+    size_order = {token: idx for idx, token in enumerate(size_tokens)}
+    size_aliases = {
+        "mediumd": "medium",
+        "minimal": "mini",
+        "giantopt": "giant",
+        "xx": "xxs",
+    }
+
+    def parse_numeric_size(token: str) -> int | None:
+        suffix_map = {"k": 1_000, "m": 1_000_000, "b": 1_000_000_000}
+        if len(token) > 1 and token[:-1].isdigit() and token[-1] in suffix_map:
+            return int(token[:-1]) * suffix_map[token[-1]]
+        return None
+
+    def normalize_size_token(token: str) -> str | None:
+        token = size_aliases.get(token, token)
+        if token in size_order:
+            return token
+        trimmed_digits = token.rstrip("0123456789")
+        if trimmed_digits and trimmed_digits in size_order:
+            return trimmed_digits
+        return None
+
+    for original_name in sorted(timm_list):
+        normalized_name = original_name
+        if "xx_small" in normalized_name or "x_small" in normalized_name:
+            # x_small or xx_small should be merged to xsmall and xxsmall for canonical comparison only
+            normalized_name = normalized_name.replace("xx_small", "xxsmall").replace("x_small", "xsmall")
+        name_parts = normalized_name.split(".")
+        base_name = "_".join(name_parts[:-1]) if len(name_parts) > 1 else normalized_name
+        size_rank = (2, float("inf"))
+        size_token_count = 0
+        tokens = []
+        for token in base_name.split("_"):
+            if not token or token.isnumeric():
+                continue
+            lowered = token.lower()
+            numeric_size = parse_numeric_size(lowered)
+            if numeric_size is not None:
+                size_rank = min(size_rank, (0, float(numeric_size)))
+                size_token_count += 1
+                continue
+            normalized = normalize_size_token(lowered)
+            if normalized is not None:
+                idx = size_order[normalized]
+                size_rank = min(size_rank, (1, float(idx)))
+                size_token_count += 1
+                continue
+            tokens.append(lowered)
+
+        name_join = "_".join(sorted(tokens))
+        candidate = (size_rank, size_token_count, original_name)
+        current = unique_models.get(name_join)
+        if current is None or candidate < current:
+            unique_models[name_join] = candidate
+    return sorted(value[2] for value in unique_models.values())
 
 
 # To make tests reproducible we seed the random generator
