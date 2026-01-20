@@ -560,7 +560,10 @@ void Properties::registerPluginProperties() {
         REGISTER_CUSTOM_METRIC(ov::intel_npu::compiler_version, true, [&](const Config& config) {
             /// create dummy compiler
             CompilerAdapterFactory compilerAdapterFactory;
-            auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, config.get<COMPILER_TYPE>());
+            auto dummyCompiler = compilerAdapterFactory.getCompiler(
+                _backend,
+                CompilerTypeSettings(config.has<COMPILER_TYPE>(), config.get<COMPILER_TYPE>()),
+                _config);
             return dummyCompiler->get_version();
         });
         REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
@@ -605,6 +608,7 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::compilation_num_threads, COMPILATION_NUM_THREADS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compiler_type, COMPILER_TYPE);
 
     // Properties we shall only enable if they were set prior-to-compilation
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
@@ -616,7 +620,6 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::dma_engines, DMA_ENGINES);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::tiles, TILES);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compilation_mode, COMPILATION_MODE);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_type, COMPILER_TYPE);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::platform, PLATFORM);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::dynamic_shape_to_static, DYNAMIC_SHAPE_TO_STATIC);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::backend_compilation_params, BACKEND_COMPILATION_PARAMS);
@@ -713,7 +716,10 @@ void Properties::set_property(const ov::AnyMap& properties) {
                 try {
                     // Only accepting unknown config keys in plugin
                     CompilerAdapterFactory compilerAdapterFactory;
-                    compiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
+                    compiler = compilerAdapterFactory.getCompiler(
+                        _backend,
+                        CompilerTypeSettings(_config.has<COMPILER_TYPE>(), _config.get<COMPILER_TYPE>()),
+                        _config);
                 } catch (...) {
                     // just throw the exception below in case unknown property check is called
                 }

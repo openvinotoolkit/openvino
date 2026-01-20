@@ -140,15 +140,15 @@ void update_log_level(const ov::AnyMap& properties) {
     }
 }
 
-static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& base_conf, const ov::AnyMap& local_conf) {
+static CompilerTypeSettings resolveCompilerType(const FilteredConfig& base_conf, const ov::AnyMap& local_conf) {
     // first look if provided config changes compiler type
     auto it = local_conf.find(std::string(COMPILER_TYPE::key()));
     if (it != local_conf.end()) {
         // if compiler_type is provided by local config = use that
-        return COMPILER_TYPE::parse(it->second.as<std::string>());
+        return CompilerTypeSettings(true, COMPILER_TYPE::parse(it->second.as<std::string>()));
     }
     // if there is no compiler_type provided = use base_config value
-    return base_conf.get<COMPILER_TYPE>();
+    return CompilerTypeSettings(base_conf.has<COMPILER_TYPE>(), base_conf.get<COMPILER_TYPE>());
 }
 
 /**
@@ -333,34 +333,6 @@ void Plugin::init_options() {
         _backend->registerOptions(*_options);
     }
 
-    // Compiler library is present, need to check if the current platform is supported
-    if (_backend) {
-        // Try to set PLUGIN as default compiler type if:
-        // 1. Compiler library is present
-        // 2. The current platform is supported by the compiler (plugin)
-        auto platformName = _backend->getDevice()->getName();
-        if (platformName == ov::intel_npu::Platform::NPU4000 || platformName == ov::intel_npu::Platform::NPU5010) {
-            try {
-                CompilerAdapterFactory compilerAdapterFactory;
-                // This is expected to throw in case the compiler library is not available
-                (void)compilerAdapterFactory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
-
-                _globalConfig.enable("NPU_COMPILER_TYPE", true);
-                _globalConfig.update({{ov::intel_npu::compiler_type.name(), "PLUGIN"}});
-                _logger.info("Use PLUGIN as default compiler");
-            } catch (...) {
-                _logger.warning("Failed to set PLUGIN as default compiler type. Compiler library is not available");
-            }
-        } else {
-            _logger.info("Use DRIVER as default compiler type for the %s platform", platformName.c_str());
-        }
-    } else {
-        // No device is available, only PLUGIN compiler type can be used for offline compilation
-        _globalConfig.enable("NPU_COMPILER_TYPE", true);
-        _globalConfig.update({{ov::intel_npu::compiler_type.name(), "PLUGIN"}});
-        _logger.info("Use PLUGIN as default compiler. Offline compilation");
-    }
-
     // parse again env_variables to update registered configs which have env vars set
     _globalConfig.parseEnvVars();
 
@@ -432,6 +404,18 @@ void Plugin::init_options() {
 
     // Special cases
     _globalConfig.enable(ov::log::level.name(), true);  // needed also by runtime options
+
+    if (!_globalConfig.has(ov::intel_npu::compiler_type.name())) {
+        if (_backend) {
+            auto platformName = _backend->getDevice()->getName();
+            if (platformName != ov::intel_npu::Platform::NPU4000 && platformName != ov::intel_npu::Platform::NPU5010) {
+                std::ostringstream oss;
+                oss << ov::intel_npu::CompilerType::DRIVER;
+                _globalConfig.update({{ov::intel_npu::compiler_type.name(), oss.str()}});
+                _logger.info("Use %s as default compiler", oss.str().c_str());
+            }
+        }
+    }
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
@@ -444,7 +428,10 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
 
     try {
         CompilerAdapterFactory compilerAdapterFactory;
-        compiler = compilerAdapterFactory.getCompiler(_backend, cfg.get<COMPILER_TYPE>());
+        compiler =
+            compilerAdapterFactory.getCompiler(_backend,
+                                               CompilerTypeSettings(cfg.has<COMPILER_TYPE>(), cfg.get<COMPILER_TYPE>()),
+                                               cfg);
     } catch (...) {
         // assuming getCompiler failed, meaning we are offline
         _logger.warning("No available compiler. Enabling only runtime options ");
@@ -707,7 +694,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // create compiler
     CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
+    auto compiler =
+        compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties), _globalConfig);
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localProperties, compiler);
@@ -1061,8 +1049,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
     exclude_model_ptr_from_map(npu_plugin_properties);
     update_log_level(npu_plugin_properties);
-    auto compiler =
-        compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
+    auto compiler = compilerAdapterFactory.getCompiler(_backend,
+                                                       resolveCompilerType(_globalConfig, npu_plugin_properties),
+                                                       _globalConfig);
     auto localConfig = fork_local_config(npu_plugin_properties, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
@@ -1121,8 +1110,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     CompilerAdapterFactory compilerAdapterFactory;
     update_log_level(npu_plugin_properties);
-    auto compiler =
-        compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
+    auto compiler = compilerAdapterFactory.getCompiler(_backend,
+                                                       resolveCompilerType(_globalConfig, npu_plugin_properties),
+                                                       _globalConfig);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     auto localConfig = fork_local_config(npu_plugin_properties, compiler, OptionMode::RunTime);
