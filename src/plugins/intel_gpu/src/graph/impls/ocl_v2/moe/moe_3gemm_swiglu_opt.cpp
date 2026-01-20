@@ -1648,7 +1648,7 @@ public:
             OPENVINO_THROW("hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
         };
         auto lws_size = get_best_lws(_hidden_size);
-        auto max_topk = static_cast<size_t>(config.top_k);
+        auto max_topk = static_cast<int64_t>(config.top_k);
 
         // [batch, max_topk]
         auto topk_id_mem = scratch.topk_id;
